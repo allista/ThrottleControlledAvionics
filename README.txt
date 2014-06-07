@@ -7,15 +7,20 @@ http://forum.kerbalspaceprogram.com/threads/67270-Throttle-Controlled-Avionics-1
 
 
 TODO list:
--fix location help menu button
--fix numbers on angle cuttoff
+-fix location help menu button		TBT
+-fix numbers on angle cuttoff		TBT
 -add text in the help
 -Figuring out and testing of the up/forward direction
 -add indicator/button for backwards regime
--Hide the GUI with F2
+-Hide the GUI with F2		TBT
 
 Optional features:
 -make TCA unavailable when there is electricity left. (or even better, is SAS is not turned on, let it drain power a bit)
 -Zero vector: let TCA figure out how to break your movement compared to the selected object. 
 -Maintain altitude, for VTOL's, use the engines to maintain current altitude.
 -Engine powered RCS. Allow for translation when using RCS controls using your (hopefully sideward) engines.
+-bindable keys
+-Make toggel buttons			TBT
+
+
+TBT: To be tested (made but not yet tested)

@@ -42,9 +42,6 @@
     <Reference Include="UnityEngine">
       <HintPath>E:\Program Files\Steam\SteamApps\common\Kerbal Space Program\KSP_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
-    <Reference Include="aaa_Toolbar">
-      <HintPath>E:\Program Files\Steam\SteamApps\common\Kerbal Space Program\GameData\000_Toolbar\Toolbar.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />

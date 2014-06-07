@@ -52,6 +52,7 @@ namespace ThrottleControlledAvionics
 		private bool detectStearingThrusters;
 		private bool reverseThrust;
 		private bool showHelp;
+        private bool showDirection;
 		
 		private IButton TCAButton;
 		private SaveFile save;
@@ -90,6 +91,7 @@ namespace ThrottleControlledAvionics
 			showHelp = false;
 			detectStearingThrusters = false;
 			reverseThrust = false;
+            showDirection = false;
 			
 			TCAButton = ToolbarManager.Instance.add("TCA", "TCAButton");
 			TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_off";
@@ -123,8 +125,8 @@ namespace ThrottleControlledAvionics
 				List<EngineWrapper> engines = CountEngines();
 				BuildEngineTable(engines);
 			}
-			
-			if (isActive)
+
+            if (isActive && vessel.GetActiveResource(new PartResourceDefinition("ElectricCharge")).amount != 0)
 			{
 				AjustDirection();
 				SetThrottle();
@@ -133,11 +135,15 @@ namespace ThrottleControlledAvionics
 		
 		public void Update() {
 			if (Input.GetKeyDown ("y")) {
-				ActivateTCA(!IsActive());
+				ActivateTCA(!isActive);
 			}
 			if (Input.GetKeyDown ("b")) {
 				reverseThrust = !reverseThrust;
 			}
+            if (Input.GetKeyDown(KeyCode.F2))
+            {
+                showAny = !showAny;
+            }
 		}
 		
 		public void OnGUI()
@@ -156,42 +162,51 @@ namespace ThrottleControlledAvionics
 			{
 				windowPosHelp = GUILayout.Window(2, windowPosHelp, windowHelp, "Instructions");
 			}
+            if (showDirection)
+            {
+                DrawDirection();
+            }
+            UpdateToolbarIcon();
 		}
 		
 		private void WindowGUI(int windowID)
 		{
-			if (GUI.Button(new Rect(379f, 2f, 20f, 18f), "?")) showHelp = !showHelp;
+            if (GUI.Button(new Rect(windowPos.width - 23f, 2f, 20f, 18f), "?"))
+            {
+                showHelp = !showHelp;
+            }
 			
 			GUILayout.BeginVertical();
+
+            isActive = GUILayout.Toggle(isActive, "Toggle TCA");
 			
-			if (GUILayout.Button("Toggle TCA"))
-			{
-				ActivateTCA(!IsActive());
-			}
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Settings: ", GUILayout.ExpandWidth(true));
 			InsertDropdownboxSave();
 			GUILayout.EndHorizontal();
+
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Sensitivity: ", GUILayout.ExpandWidth(true));
 			GUILayout.Label("" + save.GetActiveSensitivity(), GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			save.SetActiveSensitivity((float)Math.Exp(GUILayout.HorizontalSlider((float)Math.Log(save.GetActiveSensitivity()), 0.0f, 7.0f)));
+
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Mean thrust: ", GUILayout.ExpandWidth(true));
 			GUILayout.Label("" + save.GetActiveMeanThrust(), GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			save.SetActiveMeanThrust(GUILayout.HorizontalSlider(save.GetActiveMeanThrust(), 80f, 120f));
 			
-			detectStearingThrusters = GUILayout.Toggle(detectStearingThrusters, "Detect stearing Thrusters");
+			detectStearingThrusters = GUILayout.Toggle(detectStearingThrusters, "Detect reaction control thrusters");
             if (detectStearingThrusters)
             {
-                GUILayout.Label("Stearing Treshold: " + Math.Acos(minEfficiency));
-                minEfficiency = (float)Math.Cos(GUILayout.HorizontalSlider((float)Math.Acos(minEfficiency)*60f, 0f, 90f)/60f);
+                GUILayout.Label("Stearing Treshold: " + (Math.Acos(minEfficiency)*180/Math.PI) +"°");
+                minEfficiency = (float)Math.Cos(GUILayout.HorizontalSlider((float)Math.Acos(minEfficiency), 0f, (float)(Math.PI/2)));
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("Direction");
                 InsertDropdownboxDirection();
                 GUILayout.EndHorizontal();
+                showDirection = GUILayout.Toggle(showDirection, "Show direction");
             }
 			contUpdate = GUILayout.Toggle(contUpdate, "Continuous engine update");
 			if (!contUpdate)
@@ -201,16 +216,14 @@ namespace ThrottleControlledAvionics
 					enginesCounted = false;
 				}
 			}
-			
-			
-			if (GUILayout.Button("show/hide engine information"))
-			{
-				showEngines = !showEngines;
-				windowPos.height = 10;           //Makes sure that the window shrinkens. It will adapt itself afterwards
-			}
-			
+
+            showEngines = GUILayout.Toggle(showEngines, "show/hide engine information");
 			if (showEngines)
-			{
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("torque demand: ", GUILayout.ExpandWidth(true));
+                GUILayout.Label("" + demand.ToString(), GUILayout.ExpandWidth(false));
+                GUILayout.EndHorizontal();
 				foreach (EngineWrapper eng in engineTable)
 				{
 					GUILayout.Label(eng.getName() + " \r\n" +
@@ -218,10 +231,6 @@ namespace ThrottleControlledAvionics
 					                Vector3.Dot(eng.steeringVector, demand).ToString() + " " + Vector3.Dot(eng.thrustVector, Vector3.down).ToString() + " " + eng.thrustPercentage.ToString()
 					                );
 				}
-				GUILayout.BeginHorizontal();
-				GUILayout.Label("torque demand: ", GUILayout.ExpandWidth(true));
-				GUILayout.Label("" + demand.ToString(), GUILayout.ExpandWidth(false));
-				GUILayout.EndHorizontal();
 			}
 			
 			GUILayout.EndVertical();
@@ -230,18 +239,24 @@ namespace ThrottleControlledAvionics
 			
 		}
 		
-		private void ActivateTCA(bool state) {
-			isActive = state;
-			SetAllEnginesMax ();
-			
-			// Change texture of toolbar button
-			if (isActive)
-				TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_on";
-			else
-				TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_off";
+        /// <summary>
+        /// Makes sure the toolbar icon resembles the present situation
+        /// </summary>
+		private void UpdateToolbarIcon() {
+            if (isActive)
+            {
+                if(reverseThrust)
+                    TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_R";
+                else
+                    TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_on";
+            }
+            else
+                TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_off";
 		}
 		
-		
+		/// <summary>
+		/// Inserts a dropdownbox to select the deired saved settings from
+		/// </summary>
 		private void InsertDropdownboxSave()
 		{
 			int i = saveListBox.GetSelectedItemIndex();
@@ -249,6 +264,9 @@ namespace ThrottleControlledAvionics
 			save.SetActiveSave(i);
 		}
 
+        /// <summary>
+        /// Inserts a dropdownbox to select the desired direction
+        /// </summary>
         private void InsertDropdownboxDirection()
         {
             int i = directionListBox.GetSelectedItemIndex();
@@ -288,11 +306,31 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(instructions, GUILayout.MaxWidth(400));
 			GUI.DragWindow();
 		}
+
+        
+        private void DrawDirection()
+        {
+            Vector3 direction = mainThrustAxis.normalized*5;
+            Debug.DrawLine(vessel.findWorldCenterOfMass(), vessel.findWorldCenterOfMass() + direction, Color.red);
+            Debug.DrawLine(vessel.findWorldCenterOfMass(), vessel.findWorldCenterOfMass() + vessel.GetFwdVector(), Color.green);
+        }
 		#endregion
 		
 		
 		#region Engine Logic
-		
+
+        /// <summary>
+        /// This function activates or deactivates TCA. On deactivation, all engines are reset to max
+        /// </summary>
+        /// <param name="state">Whether TCA should be active or not</param>
+        private void ActivateTCA(bool state)
+        {
+            isActive = state;
+            if (!isActive)
+                SetAllEnginesMax();
+        }
+
+
 		private List<EngineWrapper> CountEngines()
 		{
 			vessel = FlightGlobals.ActiveVessel;
@@ -327,7 +365,7 @@ namespace ThrottleControlledAvionics
 		/// <param name="engines">A list of all the engine wrappers</param>
 		private void BuildEngineTable(List<EngineWrapper> engines)
 		{
-			Debug.Log ("building engine table");
+            //Debug.Log ("building engine table");
 			engineTable = new List<EngineWrapper>();
 			foreach (EngineWrapper eng in engines)
 			{
