@@ -307,12 +307,38 @@ namespace ThrottleControlledAvionics
 			GUI.DragWindow();
 		}
 
-        
+        /// <summary>
+        /// This funtion will draw the direction specifid by the chosen direction. Momentarly it will also draw th fwdVector of the craft.
+        /// </summary>
         private void DrawDirection()
         {
-            Vector3 direction = mainThrustAxis.normalized*5;
-            Debug.DrawLine(vessel.findWorldCenterOfMass(), vessel.findWorldCenterOfMass() + direction, Color.red);
-            Debug.DrawLine(vessel.findWorldCenterOfMass(), vessel.findWorldCenterOfMass() + vessel.GetFwdVector(), Color.green);
+            Debug.Log("trying to draw line from " + vessel.findWorldCenterOfMass() +", in direction: " + mainThrustAxis);
+            Vector3 direction = mainThrustAxis.normalized * 5;
+            Material whiteDiffuseMat = new Material(Shader.Find("Unlit/Texture"));
+
+            GameObject DirectionLine = new GameObject("direction line");
+            LineRenderer directionLine = DirectionLine.AddComponent<LineRenderer>();
+            directionLine.SetWidth(-0.1f, 0.1f);
+            directionLine.SetPosition(0, vessel.findWorldCenterOfMass());
+            directionLine.SetPosition(1, vessel.findWorldCenterOfMass() + direction);
+            directionLine.SetColors(Color.red, Color.red);
+            directionLine.useWorldSpace = true;
+            directionLine.material = whiteDiffuseMat;
+            Destroy(DirectionLine.renderer.material,0.04f);
+            Destroy(DirectionLine,0.04f);
+
+
+            GameObject FwdLine = new GameObject("fwd line");
+            LineRenderer fwdLine = FwdLine.AddComponent<LineRenderer>();
+            fwdLine.SetWidth(-0.1f, 0.1f);
+            fwdLine.SetPosition(0, vessel.findWorldCenterOfMass());
+            fwdLine.SetPosition(1, vessel.findWorldCenterOfMass() + vessel.GetFwdVector());
+            fwdLine.SetColors(Color.green, Color.green);
+            fwdLine.useWorldSpace = true;
+            fwdLine.material = whiteDiffuseMat;
+            Destroy(FwdLine.renderer.material,0.1f);
+            Destroy(FwdLine,0.11f);
+            
         }
 		#endregion
 		
@@ -374,7 +400,7 @@ namespace ThrottleControlledAvionics
 				Vector3 r = eng.part.orgPos - com;
 				Vector3 F = thrust * (eng.part.orgRot * Vector3.down) / vessel.GetTotalMass();
 				Vector3 torque = Vector3.Cross(r, F);
-				Debug.Log (" F" + F.ToString() + "org" + eng.part.orgRot.ToString() + "down" + (eng.part.orgRot*Vector3.down).ToString() + "res:" + Vector3.Dot (eng.part.orgRot * Vector3.down, Vector3.down)); //we assume we want to go up. RCS support comes later);
+				//Debug.Log (" F" + F.ToString() + "org" + eng.part.orgRot.ToString() + "down" + (eng.part.orgRot*Vector3.down).ToString() + "res:" + Vector3.Dot (eng.part.orgRot * Vector3.down, Vector3.down)); //we assume we want to go up. RCS support comes later);
 				eng.steeringVector = torque;                            // The torque this engine can deliver
 				eng.thrustVector = (eng.part.orgRot * Vector3.down);    // The direction this engine is fireing in, measured form the down vector
 				engineTable.Add(eng);
