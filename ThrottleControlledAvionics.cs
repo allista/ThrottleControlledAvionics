@@ -42,7 +42,7 @@ namespace ThrottleControlledAvionics
         private Vector3 demand;           // Has to become local
         private float minEfficiency;
         private Vector3 mainThrustAxis;
-        private enum thrustDirections { auto, up, forward };
+        private enum thrustDirections { forward, mean, median, normal };
         private thrustDirections direction;
 		
 		private bool isActive;
@@ -81,7 +81,7 @@ namespace ThrottleControlledAvionics
 			demand = new Vector3(0f, 0f, 0f);
             minEfficiency = 0.66f;
             mainThrustAxis = Vector3.down;
-            direction = thrustDirections.auto;
+            direction = thrustDirections.forward;
 
 			
 			isActive = false;
@@ -122,8 +122,10 @@ namespace ThrottleControlledAvionics
 			if (contUpdate || !enginesCounted)
 			{
 				enginesCounted = true;
-				List<EngineWrapper> engines = CountEngines();
-				BuildEngineTable(engines);
+				List<EngineWrapper> engines = ListEngines();
+                CalculateEngines(engines);
+
+                mainThrustAxis = DetermineMainThrustAxis(engines);
 			}
 
             if (isActive && vessel.GetActiveResource(new PartResourceDefinition("ElectricCharge")).amount != 0)
@@ -274,13 +276,13 @@ namespace ThrottleControlledAvionics
             switch(i)
             {
                 case 0:
-                    direction = thrustDirections.auto;
+                    direction = thrustDirections.forward;
                     break;
                 case 1:
-                    direction = thrustDirections.up;
+                    direction = thrustDirections.mean;
                     break;
                 case 2:
-                    direction = thrustDirections.forward;
+                    direction = thrustDirections.median;
                     break;
                 default:
                     Debug.LogError("Invalid direction given");
@@ -320,7 +322,7 @@ namespace ThrottleControlledAvionics
             LineRenderer directionLine = DirectionLine.AddComponent<LineRenderer>();
             directionLine.SetWidth(-0.1f, 0.1f);
             directionLine.SetPosition(0, vessel.findWorldCenterOfMass());
-            directionLine.SetPosition(1, vessel.findWorldCenterOfMass() + direction);
+            directionLine.SetPosition(1, vessel.findWorldCenterOfMass() + direction + vessel.GetFwdVector());
             directionLine.SetColors(Color.red, Color.red);
             directionLine.useWorldSpace = true;
             directionLine.material = whiteDiffuseMat;
@@ -332,12 +334,12 @@ namespace ThrottleControlledAvionics
             LineRenderer fwdLine = FwdLine.AddComponent<LineRenderer>();
             fwdLine.SetWidth(-0.1f, 0.1f);
             fwdLine.SetPosition(0, vessel.findWorldCenterOfMass());
-            fwdLine.SetPosition(1, vessel.findWorldCenterOfMass() + vessel.GetFwdVector());
+            fwdLine.SetPosition(1, vessel.findWorldCenterOfMass() + vessel.GetFwdVector()*1000);
             fwdLine.SetColors(Color.green, Color.green);
             fwdLine.useWorldSpace = true;
             fwdLine.material = whiteDiffuseMat;
-            Destroy(FwdLine.renderer.material,0.1f);
-            Destroy(FwdLine,0.11f);
+            Destroy(FwdLine.renderer.material, 0.1f);
+            Destroy(FwdLine, 0.11f);
             
         }
 		#endregion
@@ -356,8 +358,11 @@ namespace ThrottleControlledAvionics
                 SetAllEnginesMax();
         }
 
-
-		private List<EngineWrapper> CountEngines()
+        /// <summary>
+        /// Lists all the engines of the active vessel. This function does not calculate any other thing.
+        /// </summary>
+        /// <returns></returns>
+		private List<EngineWrapper> ListEngines()
 		{
 			vessel = FlightGlobals.ActiveVessel;
 			List<EngineWrapper> engines = new List<EngineWrapper>();
@@ -386,13 +391,12 @@ namespace ThrottleControlledAvionics
 		}
 		
 		/// <summary>
-		/// This function collects and calculates all the possibilitys of every engine.
+		/// This function collects and calculates all the possibilitys of every engine. It adds this information to the engineWrapper that are already listed.
 		/// </summary>
 		/// <param name="engines">A list of all the engine wrappers</param>
-		private void BuildEngineTable(List<EngineWrapper> engines)
+		private void CalculateEngines(List<EngineWrapper> engines)
 		{
             //Debug.Log ("building engine table");
-			engineTable = new List<EngineWrapper>();
 			foreach (EngineWrapper eng in engines)
 			{
 				float thrust = eng.maxThrust;
@@ -402,11 +406,8 @@ namespace ThrottleControlledAvionics
 				Vector3 torque = Vector3.Cross(r, F);
 				//Debug.Log (" F" + F.ToString() + "org" + eng.part.orgRot.ToString() + "down" + (eng.part.orgRot*Vector3.down).ToString() + "res:" + Vector3.Dot (eng.part.orgRot * Vector3.down, Vector3.down)); //we assume we want to go up. RCS support comes later);
 				eng.steeringVector = torque;                            // The torque this engine can deliver
-				eng.thrustVector = (eng.part.orgRot * Vector3.down);    // The direction this engine is fireing in, measured form the down vector
-				engineTable.Add(eng);
+				eng.thrustVector = (eng.part.orgRot * Vector3.down);    // The direction this engine is fireing in, measured form the down vector, relative form the root part
 			}
-
-            mainThrustAxis = DetermineMainThrustAxis(engineTable);
 		}
 
 
@@ -420,15 +421,13 @@ namespace ThrottleControlledAvionics
         {
             switch (direction)
             {
-                case thrustDirections.auto:
+                case thrustDirections.mean:
                     Vector3 sum = new Vector3(0, 0, 0);
                     foreach (EngineWrapper eng in engineTable)
                     {
                         sum += eng.maxThrust * (eng.part.orgRot * Vector3.down);
                     }
                     return sum.normalized;
-                case thrustDirections.up:
-                    return Vector3.down;
                 case thrustDirections.forward:
                     return Vector3.back;
                 default:
