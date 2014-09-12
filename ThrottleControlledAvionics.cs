@@ -72,7 +72,7 @@ namespace ThrottleControlledAvionics
 			save = new SaveFile();
 			save.Load();
 			// Initialising all variables
-			vessel = FlightGlobals.ActiveVessel;
+			vessel = null;
 			windowPos = new Rect(50, 50, 400, 200);
 			windowPosHelp = new Rect(500, 100, 400, 50);
 			enginesCounted = false;
@@ -115,33 +115,62 @@ namespace ThrottleControlledAvionics
             directionList[2] = new GUIContent("forward");
             directionListBox = new ComboBox();
 		}
-		
+		/// <summary>
+        /// Will be called every phisics tick. We check wether the vessel is acquired, list all the engines and calculate the engine limiters.
+		/// </summary>
 		public void FixedUpdate()
-		{
-			//Will be called continuesly
-			if (contUpdate || !enginesCounted)
-			{
-				enginesCounted = true;
-				List<EngineWrapper> engines = ListEngines();
+        {
+            if (vessel == null)
+            {
+                vessel = FlightGlobals.ActiveVessel;
+                Debug.Log("TCA acquired vessel: " + vessel);
+            }
+            
+            if (contUpdate || !enginesCounted)
+            {
+                //Debug.Log("start conting engines");
+                enginesCounted = true;
+                List<EngineWrapper> engines = ListEngines();
                 CalculateEngines(engines);
 
                 mainThrustAxis = DetermineMainThrustAxis(engines);
-			}
-
-            if (isActive && vessel.GetActiveResource(new PartResourceDefinition("ElectricCharge")).amount != 0)
-			{
-				AjustDirection();
-				SetThrottle();
-			}			
+                engineTable = engines;
+                //Debug.Log("end conting engines");
+                //writeToFile("engines counted: " + enginesCounted + "\n\t #engines: " + engines.Count + "\n\t mainThrustAxis: " + mainThrustAxis);
+            }
+            
+            if (isActive && ElectricChargeAvailible(vessel))
+            {
+                AjustDirection();
+                SetThrottle();
+            }
+            
 		}
+
+        /// <summary>
+        /// Checks if the given vessel has any electric charge left
+        /// </summary>
+        /// <param name="v">The vessel</param>
+        /// <returns>True if there is charge left</returns>
+        bool ElectricChargeAvailible(Vessel v)
+        {
+            List<Vessel.ActiveResource> ars = vessel.GetActiveResources();
+            foreach (Vessel.ActiveResource ar in ars)
+            {
+                if (ar.info.name == "ElectricCharge" && ar.amount > 0) { return true; }
+            }
+            return false;
+        }
 		
 		public void Update() {
-			if (Input.GetKeyDown ("y")) {
-				ActivateTCA(!isActive);
-			}
-			if (Input.GetKeyDown ("b")) {
-				reverseThrust = !reverseThrust;
-			}
+            if (Input.GetKeyDown("y"))
+            {
+                ActivateTCA(!isActive);
+            }
+            if (Input.GetKeyDown("b"))
+            {
+                reverseThrust = !reverseThrust;
+            }
             if (Input.GetKeyDown(KeyCode.F2))
             {
                 showAny = !showAny;
@@ -150,7 +179,7 @@ namespace ThrottleControlledAvionics
 		
 		public void OnGUI()
 		{
-			if (showAny) drawGUI();
+            if (showAny) drawGUI();
 		}
 		
 		#endregion
@@ -391,7 +420,7 @@ namespace ThrottleControlledAvionics
 		}
 		
 		/// <summary>
-		/// This function collects and calculates all the possibilitys of every engine. It adds this information to the engineWrapper that are already listed.
+		/// This function collects and calculates all the possibilities of every engine. It adds this information to the engineWrapper that are already listed.
 		/// </summary>
 		/// <param name="engines">A list of all the engine wrappers</param>
 		private void CalculateEngines(List<EngineWrapper> engines)
@@ -440,9 +469,8 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		private void AjustDirection()
 		{
-			VesselSAS sas = vessel.vesselSAS;
 			FlightCtrlState ctrls = vessel.ctrlState;
-			demand = new Vector3(ctrls.pitch, ctrls.roll, ctrls.yaw);
+            demand = new Vector3(ctrls.pitch, ctrls.roll, ctrls.yaw);
 		}
 		
 		/// <summary>
