@@ -18,6 +18,8 @@ namespace ThrottleControlledAvionics
 		private ModuleEnginesFX engineFX = null;
 		private Vector3 mSteeringVector = Vector3.zero;
 		private Vector3 mThrustVector = Vector3.zero;
+        private float mefficiency = 0;
+        private float msteering = 0;
 
 
 		public EngineWrapper(ModuleEngines engine)
@@ -188,6 +190,9 @@ namespace ThrottleControlledAvionics
 			return r;
 		}
 
+        /// <summary>
+        /// The torque this engine can deliver represented as a rotation axis
+        /// </summary>
 		public Vector3 steeringVector {
 			get {
 				return mSteeringVector;
@@ -197,6 +202,9 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+        /// <summary>
+        /// The direction this engine is fireing in, measured form the down vector, relative form the root part
+        /// </summary>
 		public Vector3 thrustVector {
 			get {
 				return mThrustVector;
@@ -205,6 +213,18 @@ namespace ThrottleControlledAvionics
 				mThrustVector = value;
 			}
 		}
+
+        public float efficiency
+        {
+            get { return mefficiency; }
+            set { mefficiency = value; }
+        }
+
+        public float steering
+        {
+            get { return msteering; }
+            set { msteering = value; }
+        }
 
 	}
 }

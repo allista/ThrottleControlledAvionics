@@ -6,7 +6,7 @@
  * 
  * 
  * Disclaimer: You use this at your own risk; this is an alpha plugin for an alpha game; if your computer disintegrates, it's not my fault. :P
- * Much thanks to everybodey who's code I could look into
+ * Much thanks to everybody who's code I could look into
  * 
  * 
  * Toolbar integration powered by blizzy78's Toolbar plugin; used with permission
@@ -39,11 +39,12 @@ namespace ThrottleControlledAvionics
 		private bool enginesCounted;
 		private List<EngineWrapper> engineTable;
 		private Vector3 presentTorque;
-        private Vector3 demand;           // Has to become local
+        private Vector3 demand;
         private float minEfficiency;
-        private Vector3 mainThrustAxis;
-        private enum thrustDirections { forward, mean, median, normal };
+        private Vector3 mainThrustAxis;     // as a pointing vector
+        private enum thrustDirections { up, mean, custom };
         private thrustDirections direction;
+        private Vector2 customDirectionVector;  // As (p, y)
 		
 		private bool isActive;
 		private bool showAny;
@@ -53,13 +54,17 @@ namespace ThrottleControlledAvionics
 		private bool reverseThrust;
 		private bool showHelp;
         private bool showDirection;
+        private bool showDirectionSelector = true;
+        private bool showHUD = true;
 		
 		private IButton TCAButton;
 		private SaveFile save;
         GUIContent[] saveList;
         private ComboBox saveListBox;
         GUIContent[] directionList;
-        private ComboBox directionListBox;	
+        private ComboBox directionListBox;
+        private Rect windowDirectionPos;
+        private Vector2 positionScrollViewEngines;
 		
 		#endregion
 		
@@ -81,7 +86,7 @@ namespace ThrottleControlledAvionics
 			demand = new Vector3(0f, 0f, 0f);
             minEfficiency = 0.66f;
             mainThrustAxis = Vector3.down;
-            direction = thrustDirections.forward;
+            direction = thrustDirections.up;
 
 			
 			isActive = false;
@@ -110,11 +115,12 @@ namespace ThrottleControlledAvionics
 			saveListBox = new ComboBox();
 
             directionList = new GUIContent[3];
-            directionList[0] = new GUIContent("auto");
-            directionList[1] = new GUIContent("up");
-            directionList[2] = new GUIContent("forward");
+            directionList[0] = new GUIContent("up");
+            directionList[1] = new GUIContent("mean");
+            directionList[2] = new GUIContent("custom");
             directionListBox = new ComboBox();
 		}
+
 		/// <summary>
         /// Will be called every phisics tick. We check wether the vessel is acquired, list all the engines and calculate the engine limiters.
 		/// </summary>
@@ -128,15 +134,13 @@ namespace ThrottleControlledAvionics
             
             if (contUpdate || !enginesCounted)
             {
-                //Debug.Log("start conting engines");
                 enginesCounted = true;
                 List<EngineWrapper> engines = ListEngines();
                 CalculateEngines(engines);
 
-                mainThrustAxis = DetermineMainThrustAxis(engines);
+                mainThrustAxis = DetermineMainThrustAxis(engines); // relative to root part
+                mainThrustAxis = corectForControlPodOrientation(mainThrustAxis, vessel.GetReferenceTransformPart().orgRot);
                 engineTable = engines;
-                //Debug.Log("end conting engines");
-                //writeToFile("engines counted: " + enginesCounted + "\n\t #engines: " + engines.Count + "\n\t mainThrustAxis: " + mainThrustAxis);
             }
             
             if (isActive && ElectricChargeAvailible(vessel))
@@ -146,40 +150,26 @@ namespace ThrottleControlledAvionics
             }
             
 		}
-
-        /// <summary>
-        /// Checks if the given vessel has any electric charge left
-        /// </summary>
-        /// <param name="v">The vessel</param>
-        /// <returns>True if there is charge left</returns>
-        bool ElectricChargeAvailible(Vessel v)
-        {
-            List<Vessel.ActiveResource> ars = vessel.GetActiveResources();
-            foreach (Vessel.ActiveResource ar in ars)
-            {
-                if (ar.info.name == "ElectricCharge" && ar.amount > 0) { return true; }
-            }
-            return false;
-        }
 		
 		public void Update() {
             if (Input.GetKeyDown("y"))
             {
                 ActivateTCA(!isActive);
             }
-            if (Input.GetKeyDown("b"))
-            {
-                reverseThrust = !reverseThrust;
-            }
+            //if (Input.GetKeyDown("b"))
+            //{
+            //    reverseThrust = !reverseThrust;
+            //}
             if (Input.GetKeyDown(KeyCode.F2))
             {
-                showAny = !showAny;
+                showHUD = !showHUD;
             }
 		}
 		
 		public void OnGUI()
 		{
-            if (showAny) drawGUI();
+            if (showAny && showHUD) { drawGUI(); }
+            UpdateToolbarIcon();
 		}
 		
 		#endregion
@@ -189,86 +179,133 @@ namespace ThrottleControlledAvionics
 		private void drawGUI()
 		{
 			windowPos = GUILayout.Window(1, windowPos, WindowGUI, "Throttle Controlled Avionics");
-			if (showHelp)
-			{
-				windowPosHelp = GUILayout.Window(2, windowPosHelp, windowHelp, "Instructions");
-			}
-            if (showDirection)
+
+            if (showHelp) { windowPosHelp = GUILayout.Window(2, windowPosHelp, windowHelp, "Instructions"); }
+            if (showDirection) { DrawDirection(); }
+            if (direction == thrustDirections.custom && showDirectionSelector)
             {
-                DrawDirection();
+                if (windowDirectionPos.xMin <= 1) { windowDirectionPos = new Rect(windowPos.xMax, windowPos.yMin + 50, 120,50); }
+                windowDirectionPos = GUILayout.Window(3, windowDirectionPos, WindowDirectionSelector, "Direction Selector");
             }
-            UpdateToolbarIcon();
 		}
-		
-		private void WindowGUI(int windowID)
-		{
+
+        private void WindowGUI(int windowID)
+        {
             if (GUI.Button(new Rect(windowPos.width - 23f, 2f, 20f, 18f), "?"))
             {
                 showHelp = !showHelp;
             }
-			
-			GUILayout.BeginVertical();
+
+            GUILayout.BeginVertical();
+
+            if (!ElectricChargeAvailible(vessel)) { GUILayout.Label("WARNING! Electric charge has run out!"); }
 
             isActive = GUILayout.Toggle(isActive, "Toggle TCA");
-			
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Settings: ", GUILayout.ExpandWidth(true));
-			InsertDropdownboxSave();
-			GUILayout.EndHorizontal();
 
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Sensitivity: ", GUILayout.ExpandWidth(true));
-			GUILayout.Label("" + save.GetActiveSensitivity(), GUILayout.ExpandWidth(false));
-			GUILayout.EndHorizontal();
-			save.SetActiveSensitivity((float)Math.Exp(GUILayout.HorizontalSlider((float)Math.Log(save.GetActiveSensitivity()), 0.0f, 7.0f)));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Settings: ", GUILayout.ExpandWidth(true));
+            InsertDropdownboxSave();
+            GUILayout.EndHorizontal();
 
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Mean thrust: ", GUILayout.ExpandWidth(true));
-			GUILayout.Label("" + save.GetActiveMeanThrust(), GUILayout.ExpandWidth(false));
-			GUILayout.EndHorizontal();
-			save.SetActiveMeanThrust(GUILayout.HorizontalSlider(save.GetActiveMeanThrust(), 80f, 120f));
-			
-			detectStearingThrusters = GUILayout.Toggle(detectStearingThrusters, "Detect reaction control thrusters");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Sensitivity: ", GUILayout.ExpandWidth(true));
+            GUILayout.Label("" + save.GetActiveSensitivity(), GUILayout.ExpandWidth(false));
+            GUILayout.EndHorizontal();
+            save.SetActiveSensitivity(Mathf.Exp(GUILayout.HorizontalSlider(Mathf.Log(save.GetActiveSensitivity()), -2.0f, 2.0f)));
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Mean thrust: ", GUILayout.ExpandWidth(true));
+            GUILayout.Label("" + save.GetActiveMeanThrust(), GUILayout.ExpandWidth(false));
+            GUILayout.EndHorizontal();
+            save.SetActiveMeanThrust(GUILayout.HorizontalSlider(save.GetActiveMeanThrust(), 80f, 120f));
+
+            detectStearingThrusters = GUILayout.Toggle(detectStearingThrusters, "Detect reaction control thrusters");
             if (detectStearingThrusters)
             {
-                GUILayout.Label("Stearing Treshold: " + (Math.Acos(minEfficiency)*180/Math.PI) +"°");
-                minEfficiency = (float)Math.Cos(GUILayout.HorizontalSlider((float)Math.Acos(minEfficiency), 0f, (float)(Math.PI/2)));
+                GUILayout.Label("Stearing Threshold: " + (Math.Acos(minEfficiency) * 180 / Math.PI) + "°");
+                minEfficiency = Mathf.Cos(GUILayout.HorizontalSlider(Mathf.Acos(minEfficiency), 0f, Mathf.PI / 2));
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("Direction");
                 InsertDropdownboxDirection();
                 GUILayout.EndHorizontal();
-                showDirection = GUILayout.Toggle(showDirection, "Show direction");
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("");
+                if (direction == thrustDirections.custom)
+                {
+                    if (GUILayout.Button("Open/Close Direction Selector")) { showDirectionSelector = !showDirectionSelector; }
+                }
+                GUILayout.EndHorizontal();
+                //showDirection = GUILayout.Toggle(showDirection, "Show direction");        //Is kinda broken
             }
-			contUpdate = GUILayout.Toggle(contUpdate, "Continuous engine update");
-			if (!contUpdate)
-			{
-				if (GUILayout.Button("recalculate engine torque"))
-				{
-					enginesCounted = false;
-				}
-			}
+            //contUpdate = GUILayout.Toggle(contUpdate, "Continuous engine update");
+            //if (!contUpdate)
+            //{
+            //    if (GUILayout.Button("recalculate engine torque"))
+            //    {
+            //        enginesCounted = false;
+            //    }
+            //}
 
             showEngines = GUILayout.Toggle(showEngines, "show/hide engine information");
-			if (showEngines)
+            if (showEngines)
             {
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("torque demand: ", GUILayout.ExpandWidth(true));
                 GUILayout.Label("" + demand.ToString(), GUILayout.ExpandWidth(false));
                 GUILayout.EndHorizontal();
-				foreach (EngineWrapper eng in engineTable)
-				{
-					GUILayout.Label(eng.getName() + " \r\n" +
-					                eng.steeringVector.ToString() + " " + eng.thrustVector.ToString() + "\r\n" + 
-					                Vector3.Dot(eng.steeringVector, demand).ToString() + " " + Vector3.Dot(eng.thrustVector, Vector3.down).ToString() + " " + eng.thrustPercentage.ToString()
-					                );
-				}
-			}
-			
-			GUILayout.EndVertical();
-			GUI.DragWindow();
-			
-			
-		}
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Thrust Axis: ", GUILayout.ExpandWidth(true));
+                GUILayout.Label("" + mainThrustAxis.ToString(), GUILayout.ExpandWidth(false));
+                GUILayout.EndHorizontal();
+                //GUILayout.BeginHorizontal();
+                //GUILayout.Label("ReferenceTransformPart: ", GUILayout.ExpandWidth(true));
+                //GUILayout.Label("" + vessel.GetReferenceTransformPart(), GUILayout.ExpandWidth(false));
+                //GUILayout.EndHorizontal();
+                //GUILayout.BeginHorizontal();
+                //GUILayout.Label("ReferenceTransformPartID: ", GUILayout.ExpandWidth(true));
+                //GUILayout.Label("" + vessel.referenceTransformId, GUILayout.ExpandWidth(false));
+                //GUILayout.EndHorizontal();
+                //GUILayout.BeginHorizontal();
+                //GUILayout.Label("ReferenceTransformRot: ", GUILayout.ExpandWidth(true));
+                //GUILayout.Label("" + (vessel.GetReferenceTransformPart().orgRot * Vector3.down).ToString(), GUILayout.ExpandWidth(false));
+                //GUILayout.EndHorizontal();
+                positionScrollViewEngines = GUILayout.BeginScrollView(positionScrollViewEngines, GUILayout.Height(300));
+                foreach (EngineWrapper eng in engineTable)
+                {
+                    GUILayout.Label(eng.getName() + " \r\n" +
+                                    "steering vector: " + eng.steeringVector + "\r\n" +
+                                    "thrustvector: " + eng.thrustVector + "\r\n" +
+                                    "Steering: " + eng.steering +
+                                    " Efficiancy: " + eng.efficiency + "\r\n" +
+                                    "Thrust: " + eng.thrustPercentage.ToString()
+                                    );
+                }
+                GUILayout.EndScrollView();
+            }
+            else { GUILayout.Label("."); }
+
+            GUILayout.EndVertical();
+            GUI.DragWindow();
+
+
+        }
+
+        private void WindowDirectionSelector(int windowID)
+        {
+            GUILayout.BeginVertical();
+            GUILayout.Label("pitch: " + Mathf.RoundToInt(customDirectionVector.x) + "°");
+            GUILayout.BeginHorizontal();
+            for (int a = -90; a < 200; a += 90) { if (GUILayout.Button(a.ToString() + "°")) { customDirectionVector.x = a; } }
+            GUILayout.EndHorizontal();
+            customDirectionVector.x = GUILayout.HorizontalSlider(customDirectionVector.x, -180f, 180f);
+            GUILayout.Label("yaw: " + Mathf.RoundToInt(customDirectionVector.y) + "°");
+            GUILayout.BeginHorizontal();
+            for (int a = -90; a < 200; a += 90) { if (GUILayout.Button(a.ToString() + "°")) { customDirectionVector.y = a; } }
+            GUILayout.EndHorizontal();
+            customDirectionVector.y = GUILayout.HorizontalSlider(customDirectionVector.y, -180f, 180f);
+            GUILayout.EndVertical();
+            GUI.DragWindow();
+        }
 		
         /// <summary>
         /// Makes sure the toolbar icon resembles the present situation
@@ -276,10 +313,14 @@ namespace ThrottleControlledAvionics
 		private void UpdateToolbarIcon() {
             if (isActive)
             {
-                if(reverseThrust)
-                    TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_R";
-                else
-                    TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_on";
+                if (ElectricChargeAvailible(vessel))
+                {
+                    if (reverseThrust)
+                        TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_R";
+                    else
+                        TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_on";
+                }
+                else { TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_noCharge"; }
             }
             else
                 TCAButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_off";
@@ -305,13 +346,14 @@ namespace ThrottleControlledAvionics
             switch(i)
             {
                 case 0:
-                    direction = thrustDirections.forward;
+                    direction = thrustDirections.up;
                     break;
                 case 1:
                     direction = thrustDirections.mean;
                     break;
                 case 2:
-                    direction = thrustDirections.median;
+                    direction = thrustDirections.custom;
+                    
                     break;
                 default:
                     Debug.LogError("Invalid direction given");
@@ -320,18 +362,19 @@ namespace ThrottleControlledAvionics
             }
         }
 		
-		
 		private void windowHelp(int windowID)
 		{
-			String instructions = "Welcome to the instructions manual.\nFor simple use:\n\t 1)Put TCA on,\n\t 2)Put SAS on, \n\t 3) Launch \n\n"+
-				"For more advanced use:\n\t -Thrust factor determens the agressivness of TCA. A high value will react verry fast and abrupt, a low value will be a lot smoother"+
-					", but might not be as fast.\n\t -Mean thrust is the virtual average thrust. A value below 100 means that the engines will be stadard throttled down and"+
-					"will correct by both throttling up and down. A value above 100 means that they will wait untill the deviation becomes rather big. This might be good if"+
-					"you think that the standard avionics is strong enough to handel the load. \n\t -3 different configurations can be saved at the same time. Saving happens automaticly."+
-					"\n\nWarning: \n\t -TCA will compute everything based on the orientation of the root part. This means that if your command module has a different orientation "+
-					"than the root part, errors WILL occur. As long as TCA is active, make sure your oriantation keeps the same. If you know how to solve this problem, please contact"+
-					" me in the forums. \n\t -TCA assumes that the engine bells are allignt allong the y-axis of the engine parts. This is the standard orientation for most of them. "+
-					"If you possess engines that can change the orientation of their engine bells, like those form 'Ferram aerospace' please make sure that they are alligned allong"+
+			String instructions = "Welcome to the instructions manual.\nFor simple use:\n\t 1)Put TCA on ('y'),\n\t 2)Put SAS on ('t'), \n\t 3) Launch \n\n"+
+				"For more advanced use:\n\t -The sensitivity determines the amount of thrust differences TCA will utilise. A high value will give a very fast and abrupt respose, a low value will be a lot smoother"+
+					", but might not be as fast.\n\t -Mean thrust is the virtual average thrust. A value below 100 means that the engines will be started throttled down and "+
+					"will correct by both throttling up and down. A value above 100 means that they will wait untill the deviation becomes rather big. This might be good if "+
+					"you think that the standard avionics are strong enough to handle the load. \n\t -3 different settings can be saved at the same time. Saving happens automaticly."+
+                    " \n\t -Detect reaction control thrusters will cause engines that are not sufficiently aligned with the direction you want to go in to only be used as reaction control engines. " +
+                    "This direction can be chosen as up, where normal rockets or planes want to go to; mean, which takes the weighted avarage of all the engines and tries to go that way, "+
+                    "or you can chose the direction yourself with custom. The stearing threshold is the maximum angle between an engine and the desired direction so that that engine will fire "+
+                    "(near) full throttle. A higher angle will result in more engines firing, but with potential less efficiency" +
+					"\n\nWarning: \n\t -TCA assumes that the engine bells are aligned allong the y-axis of the engine parts. This is the standard orientation for most of them. "+
+					"If you possess engines that can change the orientation of their engine bells, like some form 'Ferram aerospace' please make sure that they are alligned allong"+
 					" the right axis before enabeling TCA. \n\t -Note that while jet engines can be throttled, they have some latancy, what might controling VTOL's based on these"+
 					" rather tricky. \n\t SRB's can't be controlled. That's because they're SRB's";
 			GUILayout.Label(instructions, GUILayout.MaxWidth(400));
@@ -343,7 +386,7 @@ namespace ThrottleControlledAvionics
         /// </summary>
         private void DrawDirection()
         {
-            Debug.Log("trying to draw line from " + vessel.findWorldCenterOfMass() +", in direction: " + mainThrustAxis);
+            //Debug.Log("trying to draw line from " + vessel.findWorldCenterOfMass() +", in direction: " + mainThrustAxis);
             Vector3 direction = mainThrustAxis.normalized * 5;
             Material whiteDiffuseMat = new Material(Shader.Find("Unlit/Texture"));
 
@@ -383,8 +426,22 @@ namespace ThrottleControlledAvionics
         private void ActivateTCA(bool state)
         {
             isActive = state;
-            if (!isActive)
-                SetAllEnginesMax();
+            if (!isActive) { SetAllEnginesMax(); }
+        }
+
+        /// <summary>
+        /// Checks if the given vessel has any electric charge left
+        /// </summary>
+        /// <param name="v">The vessel</param>
+        /// <returns>True if there is charge left</returns>
+        bool ElectricChargeAvailible(Vessel v)
+        {
+            List<Vessel.ActiveResource> ars = vessel.GetActiveResources();
+            foreach (Vessel.ActiveResource ar in ars)
+            {
+                if (ar.info.name == "ElectricCharge" && ar.amount > 0) { return true; }
+            }
+            return false;
         }
 
         /// <summary>
@@ -434,11 +491,10 @@ namespace ThrottleControlledAvionics
 				Vector3 F = thrust * (eng.part.orgRot * Vector3.down) / vessel.GetTotalMass();
 				Vector3 torque = Vector3.Cross(r, F);
 				//Debug.Log (" F" + F.ToString() + "org" + eng.part.orgRot.ToString() + "down" + (eng.part.orgRot*Vector3.down).ToString() + "res:" + Vector3.Dot (eng.part.orgRot * Vector3.down, Vector3.down)); //we assume we want to go up. RCS support comes later);
-				eng.steeringVector = torque;                            // The torque this engine can deliver
+				eng.steeringVector = torque;                            // The torque this engine can deliver represented as a rotation axis
 				eng.thrustVector = (eng.part.orgRot * Vector3.down);    // The direction this engine is fireing in, measured form the down vector, relative form the root part
 			}
 		}
-
 
         /// <summary>
         /// This function determans the main thrust axis of the vessel. This can be preset or
@@ -454,14 +510,36 @@ namespace ThrottleControlledAvionics
                     Vector3 sum = new Vector3(0, 0, 0);
                     foreach (EngineWrapper eng in engineTable)
                     {
-                        sum += eng.maxThrust * (eng.part.orgRot * Vector3.down);
+                        sum += eng.maxThrust * eng.thrustVector;
                     }
                     return sum.normalized;
-                case thrustDirections.forward:
-                    return Vector3.back;
+                case thrustDirections.up:
+                    return Vector3.down;
+                case thrustDirections.custom:
+                    Vector3 ret;
+                        //x = cos(yaw)*cos(pitch);
+                        //y = sin(yaw)*cos(pitch);
+                        //z = sin(pitch);
+                    float pitchAngle = customDirectionVector.y * Mathf.Deg2Rad;
+                    float yawAngle = customDirectionVector.x * Mathf.Deg2Rad + Mathf.PI;
+                    ret.y = Mathf.Cos(yawAngle) * Mathf.Cos(pitchAngle);
+                    ret.z = Mathf.Sin(yawAngle) * Mathf.Cos(pitchAngle);
+                    ret.x = Mathf.Sin(pitchAngle);
+                    return ret;
                 default:
                     return Vector3.down;
             }
+        }
+
+        /// <summary>
+        /// This function corrects the demanded rotation for the correct Command pod orientation. 
+        /// </summary>
+        /// <param name="thrustAxisBeforeCorection">The Orientation before the correction</param>
+        /// <param name="OrientationControlPod">The Orientation of the control pod. (0,1,0) is straight up and needs no correction.</param>
+        /// <returns></returns>
+        private Vector3 corectForControlPodOrientation(Vector3 thrustAxisBeforeCorection, Quaternion OrientationControlPod)
+        {
+            return OrientationControlPod * thrustAxisBeforeCorection;
         }
 		
 		/// <summary>
@@ -470,7 +548,20 @@ namespace ThrottleControlledAvionics
 		private void AjustDirection()
 		{
 			FlightCtrlState ctrls = vessel.ctrlState;
-            demand = new Vector3(ctrls.pitch, ctrls.roll, ctrls.yaw);
+
+            if (ctrls.pitch == 1 && demand.x >= 1) { demand.x += Time.fixedDeltaTime; }
+            else if (ctrls.pitch == -1 && demand.x <= -1) { demand.x -= Time.fixedDeltaTime; }
+            else { demand.x = ctrls.pitch; }
+
+            if (ctrls.roll == 1 && demand.y >= 1) { demand.y += Time.fixedDeltaTime; }
+            else if (ctrls.roll == -1 && demand.y <= -1) { demand.y -= Time.fixedDeltaTime; }
+            else { demand.y = ctrls.roll; }
+
+            if (ctrls.yaw == 1 && demand.z >= 1) { demand.z += Time.fixedDeltaTime; }
+            else if (ctrls.yaw == -1 && demand.z <= -1) { demand.z -= Time.fixedDeltaTime; }
+            else { demand.z = ctrls.yaw; }
+
+            //demand = new Vector3(ctrls.pitch, ctrls.roll, ctrls.yaw);
 		}
 		
 		/// <summary>
@@ -480,49 +571,30 @@ namespace ThrottleControlledAvionics
 		{
 			foreach (EngineWrapper eng in engineTable)
 			{
-				
-				float steering = Vector3.Dot(eng.steeringVector, demand);  // The amount this engine can fulfill the torque demand
-				float efficiency;                                          // The amount this engine is pointing along the main thrust axis
-				if(reverseThrust){
-					efficiency = Vector3.Dot(eng.thrustVector, -mainThrustAxis); //inverse for reverse thrust!
-				} else {
-					efficiency = Vector3.Dot(eng.thrustVector, mainThrustAxis);
-				}
-				float throttle = 0f;                                          // The amount of throttle this engine has to deliver
-				//a = a * save.GetActiveThrustfactor();
-				//a += save.GetActiveMeanThrust() - 100;
-				//if (a > 0) a = 0;
-				//if (a < -100) a = -100;
-				
-				
-				if(detectStearingThrusters) // This means that inefficient enigines will only be used for steering
+                float steering = Vector3.Dot(
+                    Quaternion.AngleAxis(eng.steeringVector.magnitude, eng.steeringVector).eulerAngles,
+                    -demand
+                    );  // The amount this engine can fulfill the torque demand
+                steering = steering / 100;  // Because the numbers were to high
+                eng.steering = steering;
+
+                float efficiency;
+                if (reverseThrust) { efficiency = Vector3.Dot(eng.thrustVector, -mainThrustAxis); } //inverse for reverse thrust!
+                else { efficiency = Vector3.Dot(eng.thrustVector, mainThrustAxis); }
+                eng.efficiency = efficiency; // The amount this engine is pointing along the main thrust axis
+
+
+                float throttle;                                          // The amount of throttle this engine has to deliver
+                if (detectStearingThrusters)
                 {
-					if(efficiency > minEfficiency) { //only take engines that point the right way
-						throttle = save.GetActiveMeanThrust();
-					} else {
-						throttle = 0f;
-					}
-					throttle += steering * save.GetActiveSensitivity();//we assume we want to go up. RCS support comes later
-					throttle = Mathf.Clamp(throttle, 0f, 100f);
-					eng.thrustPercentage = throttle;
-				} 
-                else 
-                {
-					throttle = 1.0f * save.GetActiveMeanThrust() + steering * save.GetActiveSensitivity();//we assume we want to go up. RCS support comes later
-					throttle = Mathf.Clamp(throttle, 0f, 100f);
-					eng.thrustPercentage = throttle; //100 means we assume they all help with ups thrust and thus should be fully on per default.
-				}
-				
-				/*
-				if(detectReverseThrusters) {
-					float b = Vector3.Dot (i.Key.thrustVector, Vector3.down); //we assume we want to go up. RCS support comes later
-					i.Key.thrustPercentage = b * save.GetActiveMeanThrust() + a * save.GetActiveThrustfactor;
-				} else {
-					a = a * save.GetActiveThrustfactor();
-					a += save.GetActiveMeanThrust() - 100;
-					i.Key.thrustPercentage = 100 + a; //100 means we assume they all help with ups thrust and thus should be fully on per default.
-				}
-				*/
+                    if (efficiency > minEfficiency) { throttle = save.GetActiveMeanThrust(); }
+                    else { throttle = 0f; }
+                }
+                else { throttle = save.GetActiveMeanThrust(); }
+
+                throttle += steering * save.GetActiveSensitivity();     //Adding the steering
+                throttle = Mathf.Clamp(throttle, 0f, 100f);
+                eng.thrustPercentage = throttle;
 			}
 		}
 		
@@ -629,7 +701,7 @@ namespace ThrottleControlledAvionics
 			{
 				writeToFile("i = " + i);
 				saves[i, 0] = "Setting " + i;
-				saves[i, 1] = 40f;
+				saves[i, 1] = 1f;
 				saves[i, 2] = 100f;
 			}
 		}
