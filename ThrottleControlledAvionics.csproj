@@ -48,6 +48,7 @@
     <Compile Include="ComboBox.cs" />
     <Compile Include="ThrottleControlledAvionics.cs" />
     <Compile Include="EngineWrapper.cs" />
+    <Compile Include="TCAGui.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
