@@ -77,6 +77,7 @@ namespace ThrottleControlledAvionics
 		ApplicationLauncherButton TCAButton;
 		#endregion
 
+		#region Unity interface
 		/// <summary>
 		/// Makes sure the toolbar icon resembles the present situation
 		/// </summary>
@@ -115,7 +116,6 @@ namespace ThrottleControlledAvionics
 
 		void DummyVoid() {}
 
-		#region Unity interface
 		public void Awake()
 		{
 			// open save
@@ -167,35 +167,6 @@ namespace ThrottleControlledAvionics
 
 			GameEvents.onHideUI.Add(onHideUI);
 			GameEvents.onShowUI.Add(onShowUI);
-		}
-
-		/// <summary>
-		/// Will be called every phisics tick. We check wether the vessel is acquired, list all the engines and calculate the engine limiters.
-		/// </summary>
-		public void FixedUpdate()
-		{
-			if(vessel == null)
-			{
-				vessel = FlightGlobals.ActiveVessel;
-				if(vessel == null) return;
-				Debug.Log("TCA acquired vessel: " + vessel);
-			}
-            
-			if(contUpdate || !enginesCounted)
-			{
-				enginesCounted = true;
-				List<EngineWrapper> engines = ListEngines();
-				CalculateEngines(engines);
-
-				mainThrustAxis = vessel.GetReferenceTransformPart().orgRot * DetermineMainThrustAxis(engines);
-				engineTable = engines;
-			}
-            
-			if(isActive && ElectricChargeAvailible(vessel))
-			{
-				AjustDirection();
-				SetThrottle();
-			}
 		}
 
 		public void Update()
@@ -468,6 +439,35 @@ namespace ThrottleControlledAvionics
 		}
 
 		/// <summary>
+		/// Will be called every phisics tick. We check wether the vessel is acquired, list all the engines and calculate the engine limiters.
+		/// </summary>
+		public void FixedUpdate()
+		{
+			if(vessel == null)
+			{
+				vessel = FlightGlobals.ActiveVessel;
+				if(vessel == null) return;
+				Debug.Log("TCA acquired vessel: " + vessel);
+			}
+
+			if(contUpdate || !enginesCounted)
+			{
+				enginesCounted = true;
+				List<EngineWrapper> engines = ListEngines();
+				CalculateEngines(engines);
+
+				mainThrustAxis = vessel.GetReferenceTransformPart().orgRot * DetermineMainThrustAxis(engines);
+				engineTable = engines;
+			}
+
+			if(isActive && ElectricChargeAvailible(vessel))
+			{
+				AjustDirection();
+				SetThrottle();
+			}
+		}
+
+		/// <summary>
 		/// Lists all the engines of the active vessel. This function does not calculate any other thing.
 		/// </summary>
 		/// <returns></returns>
@@ -475,27 +475,17 @@ namespace ThrottleControlledAvionics
 		{
 			vessel = FlightGlobals.ActiveVessel;
 			var engines = new List<EngineWrapper>();
-			
 			foreach(Part p in vessel.Parts)
 			{
 				EngineWrapper engine = null;
-				foreach(PartModule module in p.Modules)
+				foreach(var module in p.Modules)
 				{	
-					if(module.moduleName == "ModuleEngines")
-					{
-						engine = new EngineWrapper((ModuleEngines)module);
-						if(engine.isEnabled && !engine.throttleLocked)
-							engines.Add(engine);
-					}
-					else
-					{
-						if(module.moduleName == "ModuleEnginesFX")
-						{
-							engine = new EngineWrapper((ModuleEnginesFX)module);
-							if(engine.isEnabled && !engine.throttleLocked)
-								engines.Add(engine);
-						}
-					}
+					if(module is ModuleEngines)
+						engine = new EngineWrapper(module as ModuleEnginesFX);
+					else if(module is ModuleEnginesFX)
+						engine = new EngineWrapper(module as ModuleEnginesFX);
+					if(engine != null && engine.isEnabled && !engine.throttleLocked)
+						engines.Add(engine);
 				}				
 			}
 			return engines;
@@ -507,13 +497,13 @@ namespace ThrottleControlledAvionics
 		/// <param name="engines">A list of all the engine wrappers</param>
 		void CalculateEngines(List<EngineWrapper> engines)
 		{
+			var CoM = vessel.findLocalCenterOfMass();
+			var M = vessel.GetTotalMass();
 			//Debug.Log ("building engine table");
 			foreach(EngineWrapper eng in engines)
 			{
-				float thrust = eng.maxThrust;
-				Vector3 com = eng.vessel.findLocalCenterOfMass();				
-				Vector3 r = eng.part.orgPos - com;
-				Vector3 F = thrust * (eng.part.orgRot * Vector3.down) / vessel.GetTotalMass();
+				Vector3 r = eng.part.orgPos - CoM;
+				Vector3 F = eng.maxThrust * (eng.part.orgRot * Vector3.down) / M;
 				Vector3 torque = Vector3.Cross(r, F);
 				//Debug.Log (" F" + F.ToString() + "org" + eng.part.orgRot.ToString() + "down" + (eng.part.orgRot*Vector3.down).ToString() + "res:" + Vector3.Dot (eng.part.orgRot * Vector3.down, Vector3.down)); //we assume we want to go up. RCS support comes later);
 				eng.steeringVector = torque;                            // The torque this engine can deliver represented as a rotation axis
@@ -556,7 +546,7 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		void AjustDirection()
 		{
-			FlightCtrlState ctrls = vessel.ctrlState;
+			var ctrls = vessel.ctrlState;
 
 			if(ctrls.pitch == 1 && demand.x >= 1)
 				demand.x += Time.fixedDeltaTime;
@@ -583,21 +573,20 @@ namespace ThrottleControlledAvionics
 		}
 
 		/// <summary>
-		/// Here is the thrust modifier of every engine calculated. This is based on how much steering they provide and how efficient they can thrust along the main thruxt axis.
+		/// Here is the thrust modifier of every engine calculated. This is based on how much steering they provide and how efficient they can thrust along the main thrust axis.
 		/// </summary>
 		void SetThrottle()
 		{
-			foreach(EngineWrapper eng in engineTable)
+			foreach(var eng in engineTable)
 			{
 				float steering = Vector3.Dot(Quaternion.AngleAxis(eng.steeringVector.magnitude, eng.steeringVector).eulerAngles,
 					                         -demand); //The amount this engine can fulfill the torque demand
 				steering = steering/100; //Because the numbers were to high
 				eng.steering = steering;
 
-				float efficiency;
-				efficiency = reverseThrust ? 
-					Vector3.Dot(eng.thrustVector, -mainThrustAxis) : 
-					Vector3.Dot(eng.thrustVector, mainThrustAxis);
+				float efficiency = reverseThrust ? 
+					Vector3.Dot(eng.thrustVector, -mainThrustAxis): 
+					Vector3.Dot(eng.thrustVector,  mainThrustAxis);
 				//The amount this engine is pointing along the main thrust axis
 				eng.efficiency = efficiency; 
 
@@ -607,8 +596,8 @@ namespace ThrottleControlledAvionics
 				else
 					throttle = save.GetActiveMeanThrust();
 
-				throttle += steering * save.GetActiveSensitivity(); //Adding the steering
-				throttle = Mathf.Clamp(throttle, 0f, 100f);
+				//Adding the steering
+				throttle = Mathf.Clamp(throttle + steering * save.GetActiveSensitivity(), 0f, 100f);
 				eng.thrustPercentage = throttle;
 			}
 		}
