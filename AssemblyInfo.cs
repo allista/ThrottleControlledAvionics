@@ -29,6 +29,7 @@ namespace ThrottleControlledAvionics
 {
 	public static class KSP_AVC_Info
 	{
+		public static readonly string  Name          = "ThrottleControlledAvionics";
 		public static readonly Version HangarVersion = Assembly.GetCallingAssembly().GetName().Version;
 		public static readonly Version MinKSPVersion = new Version(0,90,0);
 		public static readonly Version MaxKSPVersion = new Version(0,90,0);

@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThrottleControlledAvionics", "ThrottleControlledAvionics.csproj", "{06BD5A34-D2DE-413A-A815-DFC1EBEA8B5D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KSP-AVC-updater", "KSP-AVC-updater\KSP-AVC-updater.csproj", "{A1DAE496-7A38-46F3-A450-D32F34C90416}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -13,6 +15,10 @@ Global
 		{06BD5A34-D2DE-413A-A815-DFC1EBEA8B5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{06BD5A34-D2DE-413A-A815-DFC1EBEA8B5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{06BD5A34-D2DE-413A-A815-DFC1EBEA8B5D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1DAE496-7A38-46F3-A450-D32F34C90416}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1DAE496-7A38-46F3-A450-D32F34C90416}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1DAE496-7A38-46F3-A450-D32F34C90416}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1DAE496-7A38-46F3-A450-D32F34C90416}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = ThrottleControlledAvionics.csproj
