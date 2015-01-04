@@ -18,7 +18,7 @@ using System.IO;
 namespace ThrottleControlledAvionics
 {
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
-	public partial class ThrottleControlledAvionics : MonoBehaviour
+	public class ThrottleControlledAvionics : MonoBehaviour
 	{
 		#region Resources
 		const string ElectricChargeName = "ElectricCharge";
