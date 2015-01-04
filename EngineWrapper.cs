@@ -17,6 +17,19 @@ namespace ThrottleControlledAvionics
 		readonly ModuleEnginesFX engineFX;
 
 		/// <summary>
+		/// If the wrapper is still points to the valid ModuleEngines(FX)
+		/// </summary>
+		public bool Valid 
+		{ 
+			get 
+			{ 
+				return isModuleEngineFX? 
+					engineFX.part != null && engineFX.vessel != null :
+					engine.part != null && engine.vessel != null;
+			}
+		}
+
+		/// <summary>
 		/// The torque this engine can deliver represented as a rotation axis
 		/// </summary>
 		public Vector3 steeringVector = Vector3.zero;

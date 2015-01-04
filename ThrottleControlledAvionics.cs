@@ -71,7 +71,7 @@ namespace ThrottleControlledAvionics
 		Vector2 positionScrollViewEngines;
 
 
-		const string ICON = "ThrottleControlledAvionics/textures/icon_button_off";
+		const string ICON = "ThrottleControlledAvionics/Icons/icon_button_off";
 
 		IButton TCAToolbarButton;
 		ApplicationLauncherButton TCAButton;
@@ -88,12 +88,12 @@ namespace ThrottleControlledAvionics
 				if(ElectricChargeAvailible(vessel))
 				{
 					TCAToolbarButton.TexturePath = reverseThrust ? 
-						"ThrottleControlledAvionics/textures/icon_button_R" : 
-						"ThrottleControlledAvionics/textures/icon_button_on";
+						"ThrottleControlledAvionics/Icons/icon_button_R" : 
+						"ThrottleControlledAvionics/Icons/icon_button_on";
 				}
-				else TCAToolbarButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_noCharge";
+				else TCAToolbarButton.TexturePath = "ThrottleControlledAvionics/Icons/icon_button_noCharge";
 			}
-			else TCAToolbarButton.TexturePath = "ThrottleControlledAvionics/textures/icon_button_off";
+			else TCAToolbarButton.TexturePath = "ThrottleControlledAvionics/Icons/icon_button_off";
 		}
 
 		void OnGUIAppLauncherReady()
@@ -164,6 +164,9 @@ namespace ThrottleControlledAvionics
 			directionList[1] = new GUIContent("mean");
 			directionList[2] = new GUIContent("custom");
 			directionListBox = new ComboBox();
+
+			GameEvents.onHideUI.Add(onHideUI);
+			GameEvents.onShowUI.Add(onShowUI);
 		}
 
 		/// <summary>
@@ -197,15 +200,16 @@ namespace ThrottleControlledAvionics
 
 		public void Update()
 		{
-			if(Input.GetKeyDown("y"))
+			if(Input.GetKeyDown("y")) 
 				ActivateTCA(!isActive);
 			//if (Input.GetKeyDown("b"))
 			//{
 			//    reverseThrust = !reverseThrust;
 			//}
-			if(Input.GetKeyDown(KeyCode.F2))
-				showHUD = !showHUD;
 		}
+
+		void onShowUI() { showHUD = true; }
+		void onHideUI() { showHUD = false; }
 
 		public void OnGUI()
 		{
@@ -314,6 +318,7 @@ namespace ThrottleControlledAvionics
 				positionScrollViewEngines = GUILayout.BeginScrollView(positionScrollViewEngines, GUILayout.Height(300));
 				foreach(EngineWrapper eng in engineTable)
 				{
+					if(!eng.Valid) { enginesCounted = false; continue; }
 					GUILayout.Label(eng.getName() + " \n" +
 					"steering vector: " + eng.steeringVector + "\n" +
 					"thrustvector: " + eng.thrustVector + "\n" +
@@ -480,9 +485,7 @@ namespace ThrottleControlledAvionics
 					{
 						engine = new EngineWrapper((ModuleEngines)module);
 						if(engine.isEnabled && !engine.throttleLocked)
-						{
 							engines.Add(engine);
-						}
 					}
 					else
 					{
@@ -490,9 +493,7 @@ namespace ThrottleControlledAvionics
 						{
 							engine = new EngineWrapper((ModuleEnginesFX)module);
 							if(engine.isEnabled && !engine.throttleLocked)
-							{
 								engines.Add(engine);
-							}
 						}
 					}
 				}				
@@ -622,7 +623,9 @@ namespace ThrottleControlledAvionics
 			if(TCAButton != null)
 				ApplicationLauncher.Instance.RemoveModApplication(TCAButton);
 			if(TCAToolbarButton != null)
-				TCAToolbarButton.Destroy(); 
+				TCAToolbarButton.Destroy();
+			GameEvents.onHideUI.Remove(onHideUI);
+			GameEvents.onShowUI.Remove(onShowUI);
 		}
 		
 		// if other mods want to use the mod
