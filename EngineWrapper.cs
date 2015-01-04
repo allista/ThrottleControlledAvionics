@@ -1,231 +1,115 @@
 //------------------------------------------------------------------------------
 // This EngineWrapper class came from HoneyFox's EngineIgnitor mod:
-// Edited by Willem van Vliet 2014
+// Edited by Willem van Vliet 2014, by Allis Tauri 2015
 // More info: https://github.com/HoneyFox/EngineIgnitor
 //------------------------------------------------------------------------------
+
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
 	public class EngineWrapper
 	{
-		public bool isModuleEngineFX = false;
-		private ModuleEngines engine = null;
-		private ModuleEnginesFX engineFX = null;
-		private Vector3 mSteeringVector = Vector3.zero;
-		private Vector3 mThrustVector = Vector3.zero;
-        private float mefficiency = 0;
-        private float msteering = 0;
+		public bool isModuleEngineFX;
+		readonly ModuleEngines engine;
+		readonly ModuleEnginesFX engineFX;
 
+		/// <summary>
+		/// The torque this engine can deliver represented as a rotation axis
+		/// </summary>
+		public Vector3 steeringVector = Vector3.zero;
+
+		/// <summary>
+		/// The direction this engine is fireing in, measured form the down vector, relative form the root part
+		/// </summary>
+		public Vector3 thrustVector = Vector3.zero;
+
+		public float efficiency;
+		public float steering;
 
 		public EngineWrapper(ModuleEngines engine)
 		{
 			isModuleEngineFX = false;
 			this.engine = engine;
 		}
-		
+
 		public EngineWrapper(ModuleEnginesFX engineFX)
 		{
 			isModuleEngineFX = true;
 			this.engineFX = engineFX;
 		}
-		
+
 		public Vessel vessel
-		{
-			get
-			{
-				if(isModuleEngineFX == false)
-					return engine.vessel;
-				else
-					return engineFX.vessel;
-			}
-		}
-		
+		{ get { return !isModuleEngineFX ? engine.vessel : engineFX.vessel; } }
+
 		public void SetRunningGroupsActive(bool active)
 		{
-			if (isModuleEngineFX == false)
+			if(!isModuleEngineFX)
 				engine.SetRunningGroupsActive(active);
 			// Do not need to worry about ModuleEnginesFX.
 		}
-		
+
 		public float requestedThrust
-		{
-			get
-			{
-				if (isModuleEngineFX == false)
-					return engine.requestedThrust;
-				else
-					return engineFX.requestedThrust;
-			}
-		}
-		
+		{ get { return !isModuleEngineFX ? engine.requestedThrust : engineFX.requestedThrust; } }
+
 		public List<Propellant> propellants
-		{
-			get
-			{
-				if (isModuleEngineFX == false)
-					return engine.propellants;
-				else
-					return engineFX.propellants;
-			}
-		}
-		
+		{ get { return !isModuleEngineFX ? engine.propellants : engineFX.propellants; } }
+
 		public Part part
-		{
-			get
-			{
-				if (isModuleEngineFX == false)
-					return engine.part;
-				else
-					return engineFX.part;
-			}
-		}
-		
+		{ get { return !isModuleEngineFX ? engine.part : engineFX.part; } }
+
 		public BaseEventList Events
-		{
-			get
-			{
-				if (isModuleEngineFX == false)
-					return engine.Events;
-				else
-					return engineFX.Events;
-			}
-		}
-		
+		{ get { return !isModuleEngineFX ? engine.Events : engineFX.Events; } }
+
 		public void BurstFlameoutGroups()
 		{
-			if (isModuleEngineFX == false)
-				engine.BurstFlameoutGroups();
-			else
-				engineFX.part.Effects.Event(engineFX.flameoutEffectName);
+			if(!isModuleEngineFX) engine.BurstFlameoutGroups();
+			else engineFX.part.Effects.Event(engineFX.flameoutEffectName);
 		}
-		
+
 		public bool allowShutdown
-		{
-			get
-			{
-				if (isModuleEngineFX == false)
-					return engine.allowShutdown;
-				else
-					return engineFX.allowShutdown;
-			}
-		}
+		{ get { return !isModuleEngineFX ? engine.allowShutdown : engineFX.allowShutdown; } }
 
 		public bool throttleLocked
-		{
-			get 
-			{
-				if (isModuleEngineFX == false)
-					return engine.throttleLocked;
-				else
-					return engineFX.throttleLocked;
-			}
-		}
+		{ get { return !isModuleEngineFX ? engine.throttleLocked : engineFX.throttleLocked; } }
 
 		public float maxThrust
-		{
-			get 
-			{
-				if (isModuleEngineFX == false)
-					return engine.maxThrust;
-				else
-					return engineFX.maxThrust;
-			}
-		}
+		{ get { return !isModuleEngineFX ? engine.maxThrust : engineFX.maxThrust; } }
 
 		public float thrustPercentage
 		{
-			get 
-			{
-				if (isModuleEngineFX == false)
-					return engine.thrustPercentage;
-				else
-					return engineFX.thrustPercentage;
-			}
+			get { return !isModuleEngineFX ? engine.thrustPercentage : engineFX.thrustPercentage; }
 			set
 			{
-				if (isModuleEngineFX == false)
-					engine.thrustPercentage = value;
-				else
-					engineFX.thrustPercentage = value;
+				if(!isModuleEngineFX) engine.thrustPercentage = value;
+				else engineFX.thrustPercentage = value;
 			}
 		}
 
-		public bool isEnabled {
-			get 
-			{
-				if (isModuleEngineFX == false)
-					return engine.EngineIgnited;
-				else
-					return engineFX.EngineIgnited;
-			}
-		}
+		public bool isEnabled
+		{ get { return !isModuleEngineFX ? engine.EngineIgnited : engineFX.EngineIgnited; } }
 
-		public String name {
-			get {
-				if (isModuleEngineFX == false)
-					return engine.part.name;
-				else
-					return engineFX.part.name;
-			}
-		}
+		public String name
+		{ get { return !isModuleEngineFX ? engine.part.name : engineFX.part.name; } }
 
-		public String getName() {
+		public String getName()
+		{
 			String r = "";
-			if (isModuleEngineFX == false) {
+			if(!isModuleEngineFX)
+			{
 				r += engine.part.name;
-				if (engine.engineID.Length>0) {
+				if(engine.engineID.Length > 0)
 					r += " (" + engine.engineID + ")";
-				}
-			} else {
+			}
+			else
+			{
 				r += engineFX.part.name;
-				if (engineFX.engineID.Length>0) {
+				if(engineFX.engineID.Length > 0)
 					r += " (" + engineFX.engineID + ")";
-				}
 			}
 			return r;
 		}
-
-        /// <summary>
-        /// The torque this engine can deliver represented as a rotation axis
-        /// </summary>
-		public Vector3 steeringVector {
-			get {
-				return mSteeringVector;
-			}
-			set {
-				mSteeringVector = value;
-			}
-		}
-
-        /// <summary>
-        /// The direction this engine is fireing in, measured form the down vector, relative form the root part
-        /// </summary>
-		public Vector3 thrustVector {
-			get {
-				return mThrustVector;
-			}
-			set {
-				mThrustVector = value;
-			}
-		}
-
-        public float efficiency
-        {
-            get { return mefficiency; }
-            set { mefficiency = value; }
-        }
-
-        public float steering
-        {
-            get { return msteering; }
-            set { msteering = value; }
-        }
-
 	}
 }
-
