@@ -220,3 +220,4 @@ pip-log.txt
 #############
 
 *.userprefs
+/GameData/ThrottleControlledAvionics/TCASave.txt
