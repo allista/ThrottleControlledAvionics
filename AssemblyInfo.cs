@@ -1,15 +1,15 @@
+using System;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 
 // Information about this assembly is defined by the following attributes. 
 // Change them to the values specific to your project.
 
 [assembly: AssemblyTitle("ThrottleControlledAvionics")]
-[assembly: AssemblyDescription("Mod For KSP")]
+[assembly: AssemblyDescription("Plugin for the Kerbal Space Program")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("")]
-[assembly: AssemblyCopyright("Jebediah")]
+[assembly: AssemblyCopyright("Allis Tauri")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -17,7 +17,7 @@ using System.Runtime.CompilerServices;
 // The form "{Major}.{Minor}.*" will automatically update the build and revision,
 // and "{Major}.{Minor}.{Build}.*" will update just the revision.
 
-[assembly: AssemblyVersion("1.4.*")]
+[assembly: AssemblyVersion("1.4.1")]
 
 // The following attributes are used to specify the signing key for the assembly, 
 // if desired. See the Mono documentation for more information about signing.
@@ -25,3 +25,16 @@ using System.Runtime.CompilerServices;
 //[assembly: AssemblyDelaySign(false)]
 //[assembly: AssemblyKeyFile("")]
 
+namespace ThrottleControlledAvionics
+{
+	public static class KSP_AVC_Info
+	{
+		public static readonly Version HangarVersion = Assembly.GetCallingAssembly().GetName().Version;
+		public static readonly Version MinKSPVersion = new Version(0,90,0);
+		public static readonly Version MaxKSPVersion = new Version(0,90,0);
+		public static readonly string  VersionURL    = "https://raw.githubusercontent.com/allista/hangar/ThrottleControlledAvionics/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
+		public static readonly string  UpgradeURL    = "https://github.com/allista/ThrottleControlledAvionics/releases";
+		public static readonly string  ChangeLogURL  = "https://github.com/allista/ThrottleControlledAvionics/blob/master/ChangeLog.md";
+		public static readonly string  VersionFile   = "ThrottleControlledAvionics.version";
+	}
+}
