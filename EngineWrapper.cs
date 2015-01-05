@@ -64,6 +64,9 @@ namespace ThrottleControlledAvionics
 			// Do not need to worry about ModuleEnginesFX.
 		}
 
+		public List<Transform> thrustTransforms
+		{ get { return !isModuleEngineFX ? engine.thrustTransforms : engineFX.thrustTransforms; } }
+
 		public float requestedThrust
 		{ get { return !isModuleEngineFX ? engine.requestedThrust : engineFX.requestedThrust; } }
 
