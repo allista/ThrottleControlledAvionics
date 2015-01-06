@@ -29,18 +29,9 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		/// <summary>
-		/// The torque this engine can deliver represented as a rotation axis
-		/// </summary>
-		public Vector3 steeringVector = Vector3.zero;
-
-		/// <summary>
-		/// The direction this engine is fireing in, measured form the down vector, relative form the root part
-		/// </summary>
-		public Vector3 thrustVector = Vector3.zero;
-
+		public Vector3 currentTorque = Vector3.zero;
+		public Vector3 thrustDirection = Vector3.zero;
 		public float efficiency;
-		public float steering;
 
 		public EngineWrapper(ModuleEngines engine)
 		{
@@ -64,11 +55,22 @@ namespace ThrottleControlledAvionics
 			// Do not need to worry about ModuleEnginesFX.
 		}
 
-		public List<Transform> thrustTransforms
-		{ get { return !isModuleEngineFX ? engine.thrustTransforms : engineFX.thrustTransforms; } }
+		public CenterOfThrustQuery thrustInfo
+		{ 
+			get 
+			{ 
+				var query = new CenterOfThrustQuery();
+				if (isModuleEngineFX) engineFX.OnCenterOfThrustQuery(query);
+				else engine.OnCenterOfThrustQuery(query);
+				return query;
+			}
+		}
 
 		public float requestedThrust
 		{ get { return !isModuleEngineFX ? engine.requestedThrust : engineFX.requestedThrust; } }
+
+		public float finalThrust
+		{ get { return !isModuleEngineFX ? engine.finalThrust : engineFX.finalThrust; } }
 
 		public List<Propellant> propellants
 		{ get { return !isModuleEngineFX ? engine.propellants : engineFX.propellants; } }
