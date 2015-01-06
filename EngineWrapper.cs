@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public Vessel vessel
-		{ get { return !isModuleEngineFX ? engine.vessel : engineFX.vessel; } }
+		{ get { return isModuleEngineFX ? engineFX.vessel : engine.vessel; } }
 
 		public void SetRunningGroupsActive(bool active)
 		{
@@ -67,19 +67,19 @@ namespace ThrottleControlledAvionics
 		}
 
 		public float requestedThrust
-		{ get { return !isModuleEngineFX ? engine.requestedThrust : engineFX.requestedThrust; } }
+		{ get { return isModuleEngineFX ? engineFX.requestedThrust : engine.requestedThrust; } }
 
 		public float finalThrust
-		{ get { return !isModuleEngineFX ? engine.finalThrust : engineFX.finalThrust; } }
+		{ get { return isModuleEngineFX ? engineFX.finalThrust : engine.finalThrust; } }
 
 		public List<Propellant> propellants
-		{ get { return !isModuleEngineFX ? engine.propellants : engineFX.propellants; } }
+		{ get { return isModuleEngineFX ? engineFX.propellants : engine.propellants; } }
 
 		public Part part
-		{ get { return !isModuleEngineFX ? engine.part : engineFX.part; } }
+		{ get { return isModuleEngineFX ? engineFX.part : engine.part; } }
 
 		public BaseEventList Events
-		{ get { return !isModuleEngineFX ? engine.Events : engineFX.Events; } }
+		{ get { return isModuleEngineFX ? engineFX.Events : engine.Events; } }
 
 		public void BurstFlameoutGroups()
 		{
@@ -88,17 +88,26 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool allowShutdown
-		{ get { return !isModuleEngineFX ? engine.allowShutdown : engineFX.allowShutdown; } }
+		{ get { return isModuleEngineFX ? engineFX.allowShutdown : engine.allowShutdown; } }
 
 		public bool throttleLocked
-		{ get { return !isModuleEngineFX ? engine.throttleLocked : engineFX.throttleLocked; } }
+		{ get { return isModuleEngineFX ? engineFX.throttleLocked : engine.throttleLocked; } }
+
+		public bool useEngineResponseTime
+		{ get { return isModuleEngineFX ? engineFX.useEngineResponseTime : engine.useEngineResponseTime; } }
+
+		public float engineAccelerationSpeed
+		{ get { return isModuleEngineFX ? engineFX.engineAccelerationSpeed : engine.engineAccelerationSpeed; } }
+
+		public float engineDecelerationSpeed
+		{ get { return isModuleEngineFX ? engineFX.engineDecelerationSpeed : engine.engineDecelerationSpeed; } }
 
 		public float maxThrust
-		{ get { return !isModuleEngineFX ? engine.maxThrust : engineFX.maxThrust; } }
+		{ get { return isModuleEngineFX ? engineFX.maxThrust : engine.maxThrust; } }
 
 		public float thrustPercentage
 		{
-			get { return !isModuleEngineFX ? engine.thrustPercentage : engineFX.thrustPercentage; }
+			get { return isModuleEngineFX ? engineFX.thrustPercentage : engine.thrustPercentage; }
 			set
 			{
 				if(!isModuleEngineFX) engine.thrustPercentage = value;
@@ -107,10 +116,10 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool isEnabled
-		{ get { return !isModuleEngineFX ? engine.EngineIgnited : engineFX.EngineIgnited; } }
+		{ get { return isModuleEngineFX ? engineFX.EngineIgnited : engine.EngineIgnited; } }
 
 		public String name
-		{ get { return !isModuleEngineFX ? engine.part.name : engineFX.part.name; } }
+		{ get { return isModuleEngineFX ? engineFX.part.name : engine.part.name; } }
 
 		public String getName()
 		{
