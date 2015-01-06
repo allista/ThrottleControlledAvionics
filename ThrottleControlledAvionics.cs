@@ -107,6 +107,7 @@ namespace ThrottleControlledAvionics
 			//update engines if needed
 			if(engines.Any(e => !e.Valid)) UpdateEnginesList();
 			var active_engines = engines.Where(e => e.isEnabled).ToList();
+			if(active_engines.Count == 0) return;
 			//calculate steering attributes
 			steering        = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			var demand      = steering;
