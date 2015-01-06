@@ -6,9 +6,6 @@
  * 
  */
 
-//TODO: fix null pointer when engines are destroyed
-//TODO: fix GUI for breaking system
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,43 +17,46 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
 	public class ThrottleControlledAvionics : MonoBehaviour
 	{
-		#region variables
+		#region Configuration
+		protected static KSP.IO.PluginConfiguration configfile = KSP.IO.PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
+		SaveFile save; //deprecated
+
 		Vessel vessel;
-		protected Rect windowPos = new Rect(50, 50, 450, 200);
-		protected Rect windowPosHelp = new Rect(500, 100, 400, 50);
 		readonly List<EngineWrapper> engines = new List<EngineWrapper>();
-		float steeringThreshold = 0.01f;
-		float verticalCutoff = 10f;
-		const float maxCutoff = 10f;
-		float resposeCurve = 0.3f;
-		// as a pointing vector
-		readonly float MAX_DEMAND = Mathf.Sqrt(3);
-		Vector3 steering = Vector3.zero;
 		bool haveEC = true;
 		Vector3 wCoM;
 		Transform refT;
+		Vector3 steering = Vector3.zero;
+		readonly float MAX_STEERING = Mathf.Sqrt(3);
+
+		float steeringThreshold = 0.01f; //too small steering vector may cause oscilations
+		float responseSpeed     = 0.25f; //speed at which the value of a thrust limiter is changed towards the needed value (part-of-difference/FixedTick)
+		float verticalCutoff    = 1f;    //max. positive vertical speed m/s (configurable)
+		const float maxCutoff   = 10f;   //max. positive vertical speed m/s (configuration limit)
+		float resposeCurve      = 0.3f;  //coefficient of non-linearity of efficiency response to partial steering (1 means response is linear, 0 means no response)
 
 		bool isActive;
+		#endregion
+
+		#region GUI
 		bool showAny;
 		bool showEngines;
 		bool showHelp;
 		bool showHUD = true;
-		
-		SaveFile save;
+
 		GUIContent[] saveList;
 		ComboBox saveListBox;
 		Vector2 positionScrollViewEngines;
 
+		protected Rect windowPos = new Rect(50, 50, 450, 200);
+		protected Rect windowPosHelp = new Rect(500, 100, 400, 50);
 		const string ICON = "ThrottleControlledAvionics/Icons/icon_button_off";
 
 		IButton TCAToolbarButton;
 		ApplicationLauncherButton TCAButton;
 		#endregion
 
-		#region Unity interface
-		/// <summary>
-		/// Makes sure the toolbar icon resembles the present situation
-		/// </summary>
+		#region GUI methods
 		void UpdateToolbarIcon() 
 		{
 			if(TCAToolbarButton == null) return;
@@ -133,21 +133,12 @@ namespace ThrottleControlledAvionics
 		void onShowUI() { showHUD = true; }
 		void onHideUI() { showHUD = false; }
 
-		void onVessel(Vessel vsl)
-		{ 
-			Utils.Log("OnVessel: {0}", vsl);//debug
-			if(vessel == null || vsl == vessel) 
-				UpdateEnginesList();
-		}
-
 		public void OnGUI()
 		{
 			drawGUI();
 			UpdateToolbarIcon();
 		}
-		#endregion
 
-		#region GUI
 		void drawGUI()
 		{
 			if(!showAny || !showHUD) return;
@@ -177,13 +168,13 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 
 			GUILayout.BeginHorizontal();
-			GUILayout.Label("Response Curve: ", GUILayout.ExpandWidth(false));
+			GUILayout.Label("Response Curve: ", GUILayout.ExpandWidth(false)); //redundant?
 			GUILayout.Label(resposeCurve.ToString("F2"), GUILayout.ExpandWidth(false));
 			resposeCurve = GUILayout.HorizontalSlider(resposeCurve, 0f, 1f);
 			GUILayout.EndHorizontal();
 
 			GUILayout.BeginHorizontal();
-			GUILayout.Label("Steering Threshold: ", GUILayout.ExpandWidth(false));
+			GUILayout.Label("Steering Threshold: ", GUILayout.ExpandWidth(false)); //redundant?
 			GUILayout.Label(steeringThreshold.ToString("P1"), GUILayout.ExpandWidth(false));
 			steeringThreshold = GUILayout.HorizontalSlider(steeringThreshold, 0f, 0.1f);
 			GUILayout.EndHorizontal();
@@ -221,9 +212,6 @@ namespace ThrottleControlledAvionics
 			GUI.DragWindow();
 		}
 
-		/// <summary>
-		/// Inserts a dropdownbox to select the deired saved settings from
-		/// </summary>
 		void InsertDropdownboxSave()
 		{
 			int i = saveListBox.GetSelectedItemIndex();
@@ -231,6 +219,7 @@ namespace ThrottleControlledAvionics
 			save.SetActiveSave(i);
 		}
 
+		//TODO: rewrite the Help text
 		static void windowHelp(int windowID)
 		{
 			const string instructions = "Welcome to the instructions manual.\nFor simple use:\n\t 1)Put TCA on ('y'),\n\t 2)Put SAS on ('t'), \n\t 3) Launch \n\n" +
@@ -250,9 +239,11 @@ namespace ThrottleControlledAvionics
 			GUI.DragWindow();
 		}
 		#endregion
-
 		
 		#region Engine Logic
+		void onVessel(Vessel vsl)
+		{ if(vessel == null || vsl == vessel) UpdateEnginesList(); }
+
 		void ActivateTCA(bool state)
 		{
 			isActive = state;
@@ -295,14 +286,11 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		/// <summary>
-		/// Here is the thrust modifier of every engine calculated. This is based on how much steering they provide and how efficient they can thrust along the main thrust axis.
-		/// </summary>
 		void SetThrottle()
 		{
 			var demand      = steering;
 			var demand_m    = demand.magnitude;
-			var eK           = demand_m/MAX_DEMAND;
+			var eK          = demand_m/MAX_STEERING;
 			var is_steering = demand_m < steeringThreshold;
 			//calculate thrusts
 			var totalTorque = Vector3.zero;
@@ -338,8 +326,11 @@ namespace ThrottleControlledAvionics
 			engines.ForEach(e => e.efficiency -= max_eff);
 			max_eff = engines.Max(e => Mathf.Abs(e.efficiency));
 			if(max_eff <= 0) return;
-			eK = Mathf.Pow(eK, resposeCurve);
+			//non-linear coefficient works better
+			eK = Mathf.Pow(eK, resposeCurve); 
+			//thrust coefficient for vertical speed limit
 			var tK = verticalCutoff < maxCutoff? 1-Mathf.Clamp01((float)vessel.verticalSpeed/verticalCutoff) : 1;
+			//set thrust limiters
 			foreach(var eng in engines)
 			{
 				if(!eng.isEnabled) continue;
@@ -349,68 +340,6 @@ namespace ThrottleControlledAvionics
 			}
 		}
 		#endregion
-	}
-
-	public static class Extensions
-	{
-		#region Resources
-		const string ElectricChargeName = "ElectricCharge";
-		static PartResourceDefinition _electric_charge;
-
-		public static PartResourceDefinition ElectricCharge
-		{ 
-			get
-			{ 
-				if(_electric_charge == null)
-					_electric_charge = PartResourceLibrary.Instance.GetDefinition(ElectricChargeName);
-				return _electric_charge;
-			} 
-		}
-		#endregion
-
-		#region Logging
-		public static string Title(this Part p) { return p.partInfo != null? p.partInfo.title : p.name; }
-
-		public static void Log(this Part p, string msg, params object[] args)
-		{
-			var vname = p.vessel == null? "" : p.vessel.vesselName;
-			var _msg = string.Format("{0}.{1} [{2}]: {3}", 
-			                         vname, p.name, p.flightID, msg);
-			Utils.Log(_msg, args);
-		}
-		#endregion
-
-		public static bool ElectricChargeAvailible(this Vessel v)
-		{
-			var ec = v.GetActiveResource(ElectricCharge);
-			return ec != null && ec.amount > 0;
-		}
-	}
-
-	public static class Utils
-	{
-		public static void writeToFile(String text)
-		{
-			using(var writer = new StreamWriter("DumpFile.txt", true))
-				writer.Write(text + " \n");
-		}
-
-		public static string formatVector(Vector3 v)
-		{ return string.Format("({0}, {1}, {2}); |v| = {3}", v.x, v.y, v.z, v.magnitude); }
-
-		public static string formatVector(Vector3d v)
-		{ return string.Format("({0}, {1}, {2}); |v| = {3}", v.x, v.y, v.z, v.magnitude); }
-
-		public static void Log(string msg, params object[] args)
-		{ 
-			for(int i = 0; i < args.Length; i++) 
-			{
-				if(args[i] is Vector3) args[i] = formatVector((Vector3)args[i]);
-				else if(args[i] is Vector3d) args[i] = formatVector((Vector3d)args[i]);
-				else if(args[i] == null) args[i] = "null";
-			}
-			Debug.Log(string.Format("[TCA] "+msg, args)); 
-		}
 	}
 
 	public class SaveFile
