@@ -258,17 +258,15 @@ namespace ThrottleControlledAvionics
 			if(vessel == null) return;
 			engines.Clear();
 			foreach(Part p in vessel.Parts)
-			{
 				foreach(var module in p.Modules)
 				{	
 					EngineWrapper engine = null;
 					if(module is ModuleEngines)
-						engine = new EngineWrapper(module as ModuleEnginesFX);
+						engine = new EngineWrapper(module as ModuleEngines);
 					else if(module is ModuleEnginesFX)
 						engine = new EngineWrapper(module as ModuleEnginesFX);
 					if(engine != null && !engine.throttleLocked) engines.Add(engine);
 				}
-			}
 		}
 
 		public void Update()
@@ -277,28 +275,26 @@ namespace ThrottleControlledAvionics
 		public void FixedUpdate()
 		{
 			if(!isActive || vessel == null) return;
+			//check for Electrich Charge
 			haveEC = vessel.ElectricChargeAvailible();
-			if(haveEC)
-			{
-				wCoM = vessel.findWorldCenterOfMass();
-				refT = vessel.GetReferenceTransformPart().transform; //should be in a callback
-				steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
-				SetThrottle();
-			}
-		}
-
-		void SetThrottle()
-		{
+			if(!haveEC) return;
+			//prerequisites
+			wCoM = vessel.findWorldCenterOfMass();
+			refT = vessel.GetReferenceTransformPart().transform; //should be in a callback
+			//update engines if needed
+			if(engines.Any(e => !e.Valid)) UpdateEnginesList();
+			var active_engines = engines.Where(e => e.isEnabled).ToList();
+			//calculate steering attributes
+			steering        = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			var demand      = steering;
 			var demand_m    = demand.magnitude;
 			var eK          = demand_m/MAX_STEERING;
 			var is_steering = demand_m < steeringThreshold;
-			//calculate thrust
+			//calculate current and maximum torque
 			var totalTorque = Vector3.zero;
 			var maxTorque   = Vector3.zero;
-			foreach(var eng in engines)
+			foreach(var eng in active_engines)
 			{
-				if(!eng.isEnabled) continue;
 				var info = eng.thrustInfo;
 				//total thrust vector of the engine in the controller-part's coordinates
 				eng.thrustDirection = refT.InverseTransformDirection(info.dir);
@@ -315,18 +311,14 @@ namespace ThrottleControlledAvionics
 			if(is_steering)
 			{
 				demand   = -totalTorque;
-				demand_m = totalTorque.magnitude;
-				eK        = demand_m/maxTorque.magnitude;
+				demand_m =  totalTorque.magnitude;
+				eK       =  demand_m/maxTorque.magnitude;
 			}
-			foreach(var eng in engines)
-			{
-				if(!eng.isEnabled) continue;
-				eng.efficiency = Vector3.Dot(eng.currentTorque, demand);
-			}
+			active_engines.ForEach(e => e.efficiency = Vector3.Dot(e.currentTorque, demand));
 			//scale efficiency to [-1; 0]
-			var max_eff = engines.Max(e => e.efficiency);
-			engines.ForEach(e => e.efficiency -= max_eff);
-			max_eff = engines.Max(e => Mathf.Abs(e.efficiency));
+			var max_eff = active_engines.Max(e => e.efficiency);
+			active_engines.ForEach(e => e.efficiency -= max_eff);
+			max_eff = active_engines.Max(e => Mathf.Abs(e.efficiency));
 			if(max_eff <= 0) return;
 			//non-linear coefficient works better
 			eK = Mathf.Pow(eK, resposeCurve); 
@@ -334,9 +326,8 @@ namespace ThrottleControlledAvionics
 			var upV = Vector3d.Dot(vessel.srf_velocity, (wCoM - vessel.mainBody.position).normalized); //from MechJeb
 			var tK = verticalCutoff < maxCutoff? 1-Mathf.Clamp01((float)upV/verticalCutoff) : 1;
 			//set thrust limiters
-			foreach(var eng in engines)
+			foreach(var eng in active_engines)
 			{
-				if(!eng.isEnabled) continue;
 				eng.efficiency = eng.efficiency/max_eff * eK;
 				var needed_percentage = Mathf.Clamp(100 * tK * (1 + eng.efficiency), 0f, 100f); 
 				eng.thrustPercentage += (needed_percentage-eng.thrustPercentage)*save.GetActiveSensitivity();
