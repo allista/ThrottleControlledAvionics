@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using System.IO;
+using KSP.IO;
 
 namespace ThrottleControlledAvionics
 {
@@ -18,7 +19,7 @@ namespace ThrottleControlledAvionics
 	public class ThrottleControlledAvionics : MonoBehaviour
 	{
 		#region Configuration
-		protected static KSP.IO.PluginConfiguration configfile = KSP.IO.PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
+		protected static PluginConfiguration configfile = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
 		SaveFile save; //deprecated
 
 		Vessel vessel;
@@ -292,21 +293,22 @@ namespace ThrottleControlledAvionics
 			var demand_m    = demand.magnitude;
 			var eK          = demand_m/MAX_STEERING;
 			var is_steering = demand_m < steeringThreshold;
-			//calculate thrusts
+			//calculate thrust
 			var totalTorque = Vector3.zero;
 			var maxTorque   = Vector3.zero;
 			foreach(var eng in engines)
 			{
 				if(!eng.isEnabled) continue;
 				var info = eng.thrustInfo;
-				//Total thrust vector in the controller-part's coordinates
+				//total thrust vector of the engine in the controller-part's coordinates
 				eng.thrustDirection = refT.InverseTransformDirection(info.dir);
-				//The maximum torque this engine can deliver with current throttle
-				eng.currentTorque = refT.InverseTransformDirection(Vector3.Cross(info.pos-wCoM, info.dir) * eng.finalThrust);
+				//rhe torque this engine currentely delivers
+				var spec_torque = refT.InverseTransformDirection(Vector3.Cross(info.pos-wCoM, info.dir));
+				eng.currentTorque = spec_torque * (eng.finalThrust > 0? eng.finalThrust: eng.requestedThrust);
 				if(is_steering)
 				{
 					totalTorque += eng.currentTorque;
-					maxTorque += eng.finalThrust > 0? eng.currentTorque/eng.finalThrust*eng.maxThrust : Vector3.zero;
+					maxTorque += spec_torque*eng.maxThrust;
 				}
 			}
 			//calculate efficiency
@@ -329,7 +331,8 @@ namespace ThrottleControlledAvionics
 			//non-linear coefficient works better
 			eK = Mathf.Pow(eK, resposeCurve); 
 			//thrust coefficient for vertical speed limit
-			var tK = verticalCutoff < maxCutoff? 1-Mathf.Clamp01((float)vessel.verticalSpeed/verticalCutoff) : 1;
+			var upV = Vector3d.Dot(vessel.srf_velocity, (wCoM - vessel.mainBody.position).normalized); //from MechJeb
+			var tK = verticalCutoff < maxCutoff? 1-Mathf.Clamp01((float)upV/verticalCutoff) : 1;
 			//set thrust limiters
 			foreach(var eng in engines)
 			{
