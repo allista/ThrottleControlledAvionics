@@ -71,6 +71,7 @@
     <Compile Include="EngineWrapper.cs" />
     <Compile Include="ToolbarWrapper.cs" />
     <Compile Include="Utils.cs" />
+    <Compile Include="TCAGui.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
