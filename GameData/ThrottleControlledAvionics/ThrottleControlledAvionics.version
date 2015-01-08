@@ -1,6 +1,6 @@
 { 
     "NAME":"ThrottleControlledAvionics",
-    "URL":"https://raw.githubusercontent.com/allista/hangar/ThrottleControlledAvionics/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version",
+    "URL":"https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version",
     "DOWNLOAD":"https://github.com/allista/ThrottleControlledAvionics/releases",
     "CHANGE_LOG_URL":"https://github.com/allista/ThrottleControlledAvionics/blob/master/ChangeLog.md",
     "VERSION":

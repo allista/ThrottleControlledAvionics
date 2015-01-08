@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 		public static readonly Version HangarVersion = Assembly.GetCallingAssembly().GetName().Version;
 		public static readonly Version MinKSPVersion = new Version(0,90,0);
 		public static readonly Version MaxKSPVersion = new Version(0,90,0);
-		public static readonly string  VersionURL    = "https://raw.githubusercontent.com/allista/hangar/ThrottleControlledAvionics/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
+		public static readonly string  VersionURL    = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
 		public static readonly string  UpgradeURL    = "https://github.com/allista/ThrottleControlledAvionics/releases";
 		public static readonly string  ChangeLogURL  = "https://github.com/allista/ThrottleControlledAvionics/blob/master/ChangeLog.md";
 		public static readonly string  VersionFile   = "ThrottleControlledAvionics.version";
