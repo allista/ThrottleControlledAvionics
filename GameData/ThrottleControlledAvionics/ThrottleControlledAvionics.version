@@ -1,8 +1,8 @@
 { 
     "NAME":"ThrottleControlledAvionics",
-    "URL":"https://github.com/qfeys/ThrottleControlledAvionics/blob/development/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version",
+    "URL":"https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/development/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version",
     "DOWNLOAD":"https://github.com/qfeys/ThrottleControlledAvionics/releases",
-    "CHANGE_LOG_URL":"https://github.com/qfeys/ThrottleControlledAvionics/blob/master/ChangeLog.md",
+    "CHANGE_LOG_URL":"https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/development/ChanegLog.md",
     "VERSION":
      {
          "MAJOR":1

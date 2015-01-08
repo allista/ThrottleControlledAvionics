@@ -33,9 +33,9 @@ namespace ThrottleControlledAvionics
 		public static readonly Version HangarVersion = Assembly.GetCallingAssembly().GetName().Version;
 		public static readonly Version MinKSPVersion = new Version(0,90,0);
 		public static readonly Version MaxKSPVersion = new Version(0,90,0);
-		public static readonly string  VersionURL    = "https://github.com/qfeys/ThrottleControlledAvionics/blob/development/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
+		public static readonly string  VersionURL    = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/development/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
 		public static readonly string  UpgradeURL    = "https://github.com/qfeys/ThrottleControlledAvionics/releases";
-		public static readonly string  ChangeLogURL  = "https://github.com/qfeys/ThrottleControlledAvionics/blob/master/ChangeLog.md";
+		public static readonly string  ChangeLogURL  = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/development/ChanegLog.md";
 		public static readonly string  VersionFile   = "ThrottleControlledAvionics.version";
 	}
 }
