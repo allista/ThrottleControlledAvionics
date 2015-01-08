@@ -72,5 +72,9 @@ namespace ThrottleControlledAvionics
 			}
 			Debug.Log(string.Format("[TCA] "+msg, args)); 
 		}
+
+		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
+		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
+		public static float ClampH(float x, float high) { return x < high ? high : x;  }
 	}
 }
