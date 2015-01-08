@@ -165,7 +165,10 @@ namespace ThrottleControlledAvionics
 			if(eff_span <= 0) return;
 			//calculate thrust coefficient for vertical speed limit
 			var vK = 1f;
-			if(verticalCutoff < maxCutoff)
+			if(vessel.situation != Vessel.Situations.DOCKED &&
+			   vessel.situation != Vessel.Situations.ORBITING &&
+			   vessel.situation != Vessel.Situations.ESCAPING &&
+			   verticalCutoff < maxCutoff)
 			{
 				//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 				var up  = (wCoM - vessel.mainBody.position).normalized;
