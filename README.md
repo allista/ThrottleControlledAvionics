@@ -11,18 +11,16 @@ If interested, contact us on the kerbal forums either personally or in the [TCA 
 TCA is a plugin that enhances the attitude control of a ship by dynamically changing the thrust of its engines:
 
 * When ship's attitude controls are used (by a user or via SAS) the thrust of each engine is modified to produce the needed torque.
-
-* On the other hand, when controls are idle, TCA tries to compensate any torque produced by the engines to maintain the stable attitude.
-
+* On the other hand, when controls are idle, TCA tries to compensate any **torque** produced by the engines to maintain stable rotation (or the lack of it).
 * And optional vertical speed limiter enables precise control over ship's altitude.
 
 ##Features
 
+* Per-vessel profiles.
 * Support for multiple control modules (like cockpits, pods and probe-cores).
-* Automatic engine selection in every situation (TCA will not fire your main thrusters while you're trying to land on top of the VAB using side-mounted VTOL-engines).
-* Combination of TCA attitude control with the SAS delivers unprecedented in-flight stability to most unbalanced ship designs.
+* Automatic engine selection for attitude control: TCA will not touch your main thrusters. Disable or enable them as you will.
+* Using TCA with the SAS delivers unprecedented in-flight stability to most unbalanced ship designs.
 * Built-in altitude and hovering control.
-* Comprehensive algorithm tuning and per-vessel profiles.
 * Both the Toolbar and the stock AppLauncher are supported.
 
 ##Drawbacks and Known Issues
