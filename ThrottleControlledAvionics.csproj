@@ -72,6 +72,7 @@
     <Compile Include="ToolbarWrapper.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="TCAGui.cs" />
+    <Compile Include="SaveFile.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

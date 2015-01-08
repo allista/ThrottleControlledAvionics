@@ -29,9 +29,11 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public Vector3 currentTorque = Vector3.zero;
+		public Vector3 specificTorque  = Vector3.zero;
+		public Vector3 currentTorque   = Vector3.zero;
 		public Vector3 thrustDirection = Vector3.zero;
-		public float efficiency;
+		public float   currentThrust;
+		public float   efficiency;
 
 		public EngineWrapper(ModuleEngines engine)
 		{

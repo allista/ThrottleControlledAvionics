@@ -10,7 +10,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using System.IO;
 using KSP.IO;
 
 namespace ThrottleControlledAvionics
@@ -26,18 +25,18 @@ namespace ThrottleControlledAvionics
 		Vessel vessel;
 		public readonly List<EngineWrapper> engines = new List<EngineWrapper>();
 		public bool haveEC = true;
-		Vector3 wCoM;
-		Transform refT;
-		Vector3 steering = Vector3.zero;
 		readonly float MAX_STEERING = Mathf.Sqrt(3);
+		float upV_old = 0f;
 
-		public float steeringThreshold = 0.01f; //too small steering vector may cause oscilations
-		public float responseSpeed     = 0.25f; //speed at which the value of a thrust limiter is changed towards the needed value (part-of-difference/FixedTick)
-		public float verticalCutoff    = 1f;    //max. positive vertical speed m/s (configurable)
-		public const float maxCutoff   = 10f;   //max. positive vertical speed m/s (configuration limit)
-		public float resposeCurve      = 0.3f;  //coefficient of non-linearity of efficiency response to partial steering (1 means response is linear, 0 means no response)
+		public float steeringThreshold   = 0.01f; //too small steering vector may cause oscilations
+		public float verticalCutoff      = 1f;    //max. positive vertical speed m/s (configurable)
+		public const float maxCutoff     = 10f;   //max. positive vertical speed m/s (configuration limit)
+		public float stabilityCurve      = 0.3f;  /* coefficient of non-linearity of efficiency response to partial steering 
+												    (2 means response is quadratic, 1 means response is linear, 0 means no response) */
+		public float torqueThreshold     = 0.1f;  //engines which produce less specific torque are considered to be main thrusters and excluded from TCA control
+		public float idleResponseSpeed   = 0.25f;
 
-		public bool isActive;
+		public bool  isActive; //TODO: remeber state per vessel
 		#endregion
 
 		#region Engine Logic
@@ -64,9 +63,18 @@ namespace ThrottleControlledAvionics
 
 		public void ActivateTCA(bool state)
 		{
+			if(state == isActive) return;
 			isActive = state;
-			if(!isActive) 
+			if(!isActive)
+			{
+				//reset engine limiters
 				engines.ForEach(e => e.thrustPercentage = 100);
+				//set throttle to zero?
+				vessel.ctrlState.mainThrottle = 0f;
+				if(vessel == FlightGlobals.ActiveVessel)
+					FlightInputHandler.state.mainThrottle = 0f; //so that the on-screen throttle gauge reflects the autopilot throttle
+				vessel.FeedInputFeed();
+			}
 		}
 
 		void UpdateEnginesList()
@@ -98,144 +106,88 @@ namespace ThrottleControlledAvionics
 		public void FixedUpdate()
 		{
 			if(!isActive || vessel == null) return;
-			//check for Electrich Charge
+			//check for throttle and Electrich Charge
+			if(vessel.ctrlState.mainThrottle <= 0) return;
 			haveEC = vessel.ElectricChargeAvailible();
 			if(!haveEC) return;
-			//prerequisites
-			wCoM = vessel.findWorldCenterOfMass();
-			refT = vessel.GetReferenceTransformPart().transform; //should be in a callback
 			//update engines if needed
 			if(engines.Any(e => !e.Valid)) UpdateEnginesList();
 			var active_engines = engines.Where(e => e.isEnabled).ToList();
 			if(active_engines.Count == 0) return;
-			//calculate steering attributes
-			steering        = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
-			var demand      = steering;
-			var demand_m    = demand.magnitude;
-			var eK          = demand_m/MAX_STEERING;
-			var is_steering = demand_m < steeringThreshold;
+			//calculate steering parameters
+			var demand        = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
+			var demand_m      = demand.magnitude;
+			var idle          = demand_m < steeringThreshold;
+			var wCoM          = vessel.findWorldCenterOfMass();
+			var refT          = vessel.GetReferenceTransformPart().transform; //should be in a callback
+			var responseSpeed = demand_m/MAX_STEERING;
 			//calculate current and maximum torque
-			var totalTorque = Vector3.zero;
-			var maxTorque   = Vector3.zero;
-			foreach(var eng in active_engines)
+			var totalTorque  = Vector3.zero;
+			var maxTorque    = Vector3.zero;
+			foreach(var e in active_engines)
 			{
-				var info = eng.thrustInfo;
-				//total thrust vector of the engine in the controller-part's coordinates
-				eng.thrustDirection = refT.InverseTransformDirection(info.dir);
-				//rhe torque this engine currentely delivers
-				var spec_torque = refT.InverseTransformDirection(Vector3.Cross(info.pos-wCoM, info.dir));
-				eng.currentTorque = spec_torque * (eng.finalThrust > 0? eng.finalThrust: eng.requestedThrust);
-				if(is_steering)
+				var info = e.thrustInfo;
+				//total thrust direction of the engine in the controller-part's coordinates
+				e.thrustDirection = refT.InverseTransformDirection(info.dir);
+				//current thrust
+				e.currentThrust   = e.finalThrust > 0? e.finalThrust: e.maxThrust*vessel.ctrlState.mainThrottle;
+				//the torque this engine currentely delivers
+				e.specificTorque  = refT.InverseTransformDirection(Vector3.Cross(info.pos-wCoM, info.dir));
+				e.currentTorque   = e.specificTorque * e.currentThrust;
+				if(idle)
 				{
-					totalTorque += eng.currentTorque;
-					maxTorque += spec_torque*eng.maxThrust;
+					totalTorque += e.currentTorque;
+					maxTorque   += e.specificTorque*e.maxThrust;
 				}
 			}
-			//calculate efficiency
-			if(is_steering)
+			//change steering parameters if attitude controls are idle
+			if(idle)
 			{
-				demand   = -totalTorque;
-				demand_m =  totalTorque.magnitude;
-				eK       =  demand_m/maxTorque.magnitude;
+				demand        = -totalTorque;
+				demand_m      =  totalTorque.magnitude;
+				responseSpeed =  Mathf.Clamp01(demand_m/maxTorque.magnitude);
 			}
-			active_engines.ForEach(e => e.efficiency = Vector3.Dot(e.currentTorque, demand));
-			//scale efficiency to [-1; 0]
-			var max_eff = active_engines.Max(e => e.efficiency);
-			active_engines.ForEach(e => e.efficiency -= max_eff);
-			max_eff = active_engines.Max(e => Mathf.Abs(e.efficiency));
-			if(max_eff <= 0) return;
-			//non-linear coefficient works better
-			eK = Mathf.Pow(eK, resposeCurve); 
-			//thrust coefficient for vertical speed limit
-			var upV = Vector3d.Dot(vessel.srf_velocity, (wCoM - vessel.mainBody.position).normalized); //from MechJeb
-			var tK = verticalCutoff < maxCutoff? 1-Mathf.Clamp01((float)upV/verticalCutoff) : 1;
-			//set thrust limiters
-			foreach(var eng in active_engines)
+			//calculate engines efficiency in current maneuver
+			bool first = true;
+			float min_eff = 0, max_eff = 0, max_abs_eff = 0;
+			foreach(var e in active_engines)
 			{
-				eng.efficiency = eng.efficiency/max_eff * eK;
-				var needed_percentage = Mathf.Clamp(100 * tK * (1 + eng.efficiency), 0f, 100f); 
-				eng.thrustPercentage += (needed_percentage-eng.thrustPercentage)*save.GetActiveSensitivity();
+				var eff = Vector3.Dot(e.currentTorque, demand);
+				var abs_eff = Mathf.Abs(eff);
+				if(first || min_eff > eff) min_eff = eff;
+				if(first || max_eff < eff) max_eff = eff;
+				if(max_abs_eff < abs_eff) max_abs_eff = abs_eff;
+				first = false;
+				e.efficiency = eff;
 			}
-		}
-		#endregion
-	}
-
-	public class SaveFile
-	{
-		int activeSave;
-		readonly object[,] saves;
-
-		public SaveFile()
-		{
-			saves = new object[3, 3];
-			activeSave = 0;
-		}
-
-		public void Save()
-		{
-			String text = (String)saves[0, 0] + "\n" + (float)saves[0, 1] + "\n" + (float)saves[0, 2] + "\n\n" +
-			              (String)saves[1, 0] + "\n" + (float)saves[1, 1] + "\n" + (float)saves[1, 2] + "\n\n" +
-			              (String)saves[2, 0] + "\n" + (float)saves[2, 1] + "\n" + (float)saves[2, 2] + "\n\n";
-			using(var writer = new StreamWriter("GameData/ThrottleControlledAvionics/TCASave.txt", false))
-				writer.Write(text);
-		}
-
-		public void Load()
-		{
-			try
+			var eff_span = max_eff - min_eff;
+			//new thrust limits are computed only after we know that some thrusters should be firing
+			if(eff_span <= 0) return;
+			//calculate thrust coefficient for vertical speed limit
+			var vK = 1f;
+			if(verticalCutoff < maxCutoff)
 			{
-				using(var reader = new StreamReader("GameData/ThrottleControlledAvionics/TCASave.txt"))
-				{
-					for(int i = 0; i < 3; i++)
-					{
-						saves[i, 0] = reader.ReadLine();
-						saves[i, 1] = float.Parse(reader.ReadLine());
-						saves[i, 2] = float.Parse(reader.ReadLine());
-						reader.ReadLine();
-					}
-				}
+				//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
+				var up  = (wCoM - vessel.mainBody.position).normalized;
+				var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
+				var upA = (upV-upV_old)/TimeWarp.fixedDeltaTime;
+				vK = upV < verticalCutoff?
+					Mathf.Clamp01((verticalCutoff-upV)/Mathf.Pow(Utils.ClampL(upA/10+1, 1f), 2f)) :
+					Mathf.Clamp01(-upA/10/Mathf.Pow(Utils.ClampL(upV-verticalCutoff, 10f), 2f));
+				upV_old = upV;
 			}
-			catch(Exception e)
-			{                
-				if(e is FileNotFoundException || e is System.IO.IsolatedStorage.IsolatedStorageException)
-					SetDefault();
-				else
-				{
-					Utils.writeToFile("We found a serous problem during Load:" + e);
-					throw;
-				}
-			}
-		}
-
-		void SetDefault()
-		{
-			for(int i = 0; i < 3; i++)
+			//disable unneeded engines and scale thrust limit to [-1; 0]
+			//then set thrust limiters of the engines
+			//empirically: non-linear speed change works better
+			responseSpeed = Mathf.Pow(responseSpeed, stabilityCurve);
+			foreach(var e in active_engines)
 			{
-				Utils.writeToFile("i = " + i);
-				saves[i, 0] = "Setting " + i;
-				saves[i, 1] = 1f;
-				saves[i, 2] = 100f;
+				if(e.specificTorque.magnitude * e.maxThrust < torqueThreshold) continue;
+				e.efficiency = (e.efficiency - max_eff)/eff_span*responseSpeed;
+				var needed_percentage = Mathf.Clamp(100 * vK * (1 + e.efficiency), 0f, 100f);
+				e.thrustPercentage += (needed_percentage-e.thrustPercentage) * (idle? idleResponseSpeed : responseSpeed);
 			}
 		}
-
-		#region setters
-		public void SetActiveSave(int i) { activeSave = i; }
-
-		public void SetActiveName(string name) { saves[activeSave, 0] = name; }
-
-		public void SetActiveSensitivity(float tf) { saves[activeSave, 1] = tf; }
-
-		public void SetActiveMeanThrust(float mt) { saves[activeSave, 2] = mt; }
-		#endregion
-
-		#region getters
-		public string GetActiveName() { return (string)saves[activeSave, 0]; }
-
-		public string GetName(int i) { return (string)saves[i, 0]; }
-
-		public float GetActiveSensitivity() { return (float)saves[activeSave, 1]; }
-
-		public float GetActiveMeanThrust() { return (float)saves[activeSave, 2]; }
 		#endregion
 	}
 }

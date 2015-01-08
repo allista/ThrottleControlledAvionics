@@ -50,9 +50,9 @@ namespace ThrottleControlledAvionics
 			}
 			else 
 			{
-				textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);//redundant
-				textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);//redundant
-				textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);//redundant
+				textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);
+				textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);
+				textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);
 				GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
 			}
 			saveList = new GUIContent[3];
@@ -132,28 +132,18 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 
 			GUILayout.BeginHorizontal();
-			GUILayout.Label("Response Speed: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCA.save.GetActiveSensitivity().ToString("P2"), GUILayout.ExpandWidth(false));
-			TCA.save.SetActiveSensitivity(GUILayout.HorizontalSlider(TCA.save.GetActiveSensitivity(), 0f, 1f));
-			GUILayout.EndHorizontal();
-
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Response Curve: ", GUILayout.ExpandWidth(false)); //redundant?
-			GUILayout.Label(TCA.resposeCurve.ToString("F2"), GUILayout.ExpandWidth(false));
-			TCA.resposeCurve = GUILayout.HorizontalSlider(TCA.resposeCurve, 0f, 1f);
-			GUILayout.EndHorizontal();
-
-			GUILayout.BeginHorizontal();
 			GUILayout.Label("Steering Threshold: ", GUILayout.ExpandWidth(false)); //redundant?
 			GUILayout.Label(TCA.steeringThreshold.ToString("P1"), GUILayout.ExpandWidth(false));
-			TCA.steeringThreshold = GUILayout.HorizontalSlider(TCA.steeringThreshold, 0f, 0.1f);
+			TCA.steeringThreshold = GUILayout.HorizontalSlider(TCA.steeringThreshold, 0f, 0.5f); //TODO: the boundaries should be in config
 			GUILayout.EndHorizontal();
 
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Cutoff: ", GUILayout.ExpandWidth(false));
 			GUILayout.Label(TCA.verticalCutoff >= ThrottleControlledAvionics.maxCutoff? "inf." :
 			                TCA.verticalCutoff.ToString("F1"), GUILayout.ExpandWidth(false));
-			TCA.verticalCutoff = GUILayout.HorizontalSlider(TCA.verticalCutoff, 0f, ThrottleControlledAvionics.maxCutoff);
+			TCA.verticalCutoff = GUILayout.HorizontalSlider(TCA.verticalCutoff, 
+			                                                -ThrottleControlledAvionics.maxCutoff, 
+			                                                ThrottleControlledAvionics.maxCutoff);
 			GUILayout.EndHorizontal();
 
 			showEngines = GUILayout.Toggle(showEngines, "Show/hide engine information");
