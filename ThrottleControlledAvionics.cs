@@ -143,7 +143,7 @@ namespace ThrottleControlledAvionics
 
 			if(ToolbarManager.ToolbarAvailable)
 			{
-				TCAToolbarButton = ToolbarManager.Instance.add ("Hangar", "HangarButton");
+				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
 				TCAToolbarButton.TexturePath = ICON;
 				TCAToolbarButton.ToolTip = "Throttle Controlled Avionics";
 				TCAToolbarButton.Visibility = new GameScenesVisibility(GameScenes.FLIGHT);
