@@ -1,7 +1,0 @@
-unofficial 1.3
--Checks whether engines are ignited or not, so engines that are not yet staged or deactivated buy GUI or actiongroup are unavailable for the calculations.
--Uses an engineWrapper class (from EngineIgnitor suggested by camlost) to support engines of the type ModuleEnginesFX (like RAPIERs) along normal engines.
--Supports parts with multiple engine parts (such as RAPIERs)
--No longer stops looking for engines after finding an SRB.
-
-I hope the problem Beetlecat was having is fixed as well. (Since TCA now detects engines much better)
