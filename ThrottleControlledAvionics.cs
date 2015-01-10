@@ -24,12 +24,14 @@ namespace ThrottleControlledAvionics
 		Vessel vessel;
 		public readonly List<EngineWrapper> engines = new List<EngineWrapper>();
 		public bool haveEC = true;
-		static readonly float MAX_STEERING = Mathf.Sqrt(3);
-		float upV_old = 0f;
 
+		//vertical speed limit
+		public const float maxCutoff = 10f; //max. positive vertical speed m/s (configuration limit)
+		public float verticalCutoff  = 1f;  //max. positive vertical speed m/s (configurable)
+		float upV_old  = 0f;   //previous velue of vertical speed
+
+		static readonly float MAX_STEERING = Mathf.Sqrt(3);
 		public float steeringThreshold   = 0.01f; //too small steering vector may cause oscilations
-		public float verticalCutoff      = 1f;    //max. positive vertical speed m/s (configurable)
-		public const float maxCutoff     = 10f;   //max. positive vertical speed m/s (configuration limit)
 		public float stabilityCurve      = 0.3f;  /* coefficient of non-linearity of efficiency response to partial steering 
 												    (2 means response is quadratic, 1 means response is linear, 0 means no response) */
 		public float torqueThreshold     = 0.1f;  //engines which produce less specific torque are considered to be main thrusters and excluded from TCA control
@@ -169,9 +171,10 @@ namespace ThrottleControlledAvionics
 				var up  = (wCoM - vessel.mainBody.position).normalized;
 				var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
 				var upA = (upV-upV_old)/TimeWarp.fixedDeltaTime;
+				var err = verticalCutoff-upV;
 				vK = upV < verticalCutoff?
-					Mathf.Clamp01((verticalCutoff-upV)/Mathf.Pow(Utils.ClampL(upA/10+1, 1f), 2f)) :
-					Mathf.Clamp01(-upA/10/Mathf.Pow(Utils.ClampL(upV-verticalCutoff, 10f), 2f));
+					Mathf.Clamp01(err/Mathf.Pow(Utils.ClampL(upA/10+1, 1f), 2f)) :
+					Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*10f, 10f), 2f));
 				upV_old = upV;
 			}
 			//disable unneeded engines and scale thrust limit to [-1; 0]
