@@ -13,6 +13,7 @@ namespace ThrottleControlledAvionics
 
 		[Persistent] public Guid  VesselID;
 		[Persistent] public bool  Enabled;
+		[Persistent] public bool  GUIVisible;
 		[Persistent] public float VerticalCutoff; //max. positive vertical speed m/s (configurable)
 
 		public VesselConfig() {}
@@ -53,12 +54,11 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float  TorqueThreshold      = 5f;    //engines which produce less torque (kNm) are considered to be main thrusters and excluded from TCA control
 		[Persistent] public float  IdleResponseSpeed    = 0.25f; //constant response speed when attitude controls are idle
 		[Persistent] public float  SteeringThreshold    = 0.01f; //too small steering vector may cause oscilations
-		[Persistent] public float  StabilityCurve       = 0.3f;  /* coefficient of non-linearity of efficiency response to partial steering 
-												    		               (2 means response is quadratic, 1 means response is linear, 0 means no response) */
+		[Persistent] public float  StabilityCurve       = 0.3f;  //coefficient of non-linearity of efficiency response to partial steering (2 means response is quadratic, 1 means response is linear, 0 means no response)
+
 		const string ControlsPosName = "ControlsPos", HelpPosName = "HelpPos";
 		[Persistent] public Rect   ControlsPos = new Rect(50, 100, TCAGui.controlsWidth, TCAGui.controlsHeight);
 		[Persistent] public Rect   HelpPos     = new Rect(Screen.width/2-TCAGui.helpWidth/2, 100, TCAGui.helpWidth, TCAGui.helpHeight);
-		[Persistent] public bool   GUIVisible;
 
 		[Persistent] public string TCA_Key = "y";
 

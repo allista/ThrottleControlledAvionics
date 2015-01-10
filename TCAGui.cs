@@ -43,7 +43,7 @@ namespace ThrottleControlledAvionics
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
 				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
 				TCAToolbarButton.Visible     = true;
-				TCAToolbarButton.OnClick    += e => TCAConfiguration.Globals.GUIVisible = !TCAConfiguration.Globals.GUIVisible;
+				TCAToolbarButton.OnClick    += e => TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible;
 			}
 			else 
 			{
@@ -81,13 +81,13 @@ namespace ThrottleControlledAvionics
 					DummyVoid, DummyVoid, DummyVoid, DummyVoid,
 					ApplicationLauncher.AppScenes.FLIGHT,
 					GameDatabase.Instance.GetTexture(ICON_OFF, false));
-				if(TCAConfiguration.Globals.GUIVisible) TCAButton.SetTrue();
+				if(TCA.CFG.GUIVisible) TCAButton.SetTrue();
 				else TCAButton.SetFalse();
 			}
 		}
 
-		void onAppLaunchToggleOn() { TCAConfiguration.Globals.GUIVisible = true; }
-		void onAppLaunchToggleOff() { TCAConfiguration.Globals.GUIVisible = false; }
+		void onAppLaunchToggleOn() { TCA.CFG.GUIVisible = true; }
+		void onAppLaunchToggleOff() { TCA.CFG.GUIVisible = false; }
 		void DummyVoid() {}
 
 		void onShowUI() { showHUD = true; }
@@ -114,6 +114,14 @@ namespace ThrottleControlledAvionics
 			TCA.ActivateTCA(GUILayout.Toggle(TCA.CFG.Enabled, "Toggle TCA"));
 			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
+
+			#if DEBUG
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Smoothness: ", GUILayout.ExpandWidth(false));
+			GUILayout.Label(TCAConfiguration.Globals.StabilityCurve.ToString("F1"), GUILayout.ExpandWidth(false));
+			TCAConfiguration.Globals.StabilityCurve = GUILayout.HorizontalSlider(TCAConfiguration.Globals.StabilityCurve, 0f, 10f);
+			GUILayout.EndHorizontal();
+			#endif
 
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Speed Limit: ", GUILayout.ExpandWidth(false));
@@ -157,7 +165,7 @@ namespace ThrottleControlledAvionics
 
 		public void DrawGUI()
 		{
-			if(!TCAConfiguration.Globals.GUIVisible || !showHUD) return;
+			if(!TCA.CFG.GUIVisible || !showHUD) return;
 			TCAConfiguration.Globals.ControlsPos = 
 				GUILayout.Window(1, 
 				                 TCAConfiguration.Globals.ControlsPos, 
