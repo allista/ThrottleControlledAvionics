@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
 		Vector2 positionScrollViewEngines;
 
 		const int controlsWidth = 400, controlsHeight = 100;
-		const int helpWidth = 500, helpHeight = 600;
+		const int helpWidth = 500, helpHeight = 100;
 		protected Rect controlsPos = new Rect(50, 50, controlsWidth, controlsHeight);
 		protected Rect helpPos = new Rect(500, 100, helpWidth, helpHeight);
 		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
@@ -111,13 +111,9 @@ namespace ThrottleControlledAvionics
 				showHelp = !showHelp;
 
 			GUILayout.BeginVertical();
-			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!");
-
 			GUILayout.BeginHorizontal();
-			TCA.ActivateTCA(GUILayout.Toggle(TCA.isActive, "Toggle TCA", GUILayout.ExpandWidth(false)));
-			GUILayout.Label("Steering Threshold: ", GUILayout.ExpandWidth(false)); //redundant?
-			GUILayout.Label(TCA.steeringThreshold.ToString("P1"), GUILayout.ExpandWidth(false));
-			TCA.steeringThreshold = GUILayout.HorizontalSlider(TCA.steeringThreshold, 0f, 0.5f); //TODO: the boundaries should be in config
+			TCA.ActivateTCA(GUILayout.Toggle(TCA.isActive, "Toggle TCA"));
+			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 
 			GUILayout.BeginHorizontal();
@@ -151,9 +147,12 @@ namespace ThrottleControlledAvionics
 			GUI.DragWindow();
 		}
 
-		static void windowHelp(int windowID)
+		void windowHelp(int windowID)
 		{
+			GUILayout.BeginVertical();
 			GUILayout.Label(TCAGlobals.Instructions, GUILayout.MaxWidth(helpWidth));
+			if(GUILayout.Button("Close")) showHelp = !showHelp;
+			GUILayout.EndVertical();
 			GUI.DragWindow();
 		}
 
