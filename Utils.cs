@@ -46,6 +46,21 @@ namespace ThrottleControlledAvionics
 			var ec = v.GetActiveResource(ElectricCharge);
 			return ec != null && ec.amount > 0;
 		}
+
+		#region ConfigNode
+		public static void AddRect(this ConfigNode n, string name, Rect r)
+		{ n.AddValue(name, ConfigNode.WriteQuaternion(new Quaternion(r.x, r.y, r.width, r.height))); }
+
+		public static Rect GetRect(this ConfigNode n, string name)
+		{ 
+			try 
+			{ 
+				var q = ConfigNode.ParseQuaternion(n.GetValue(name)); 
+				return new Rect(q.x, q.y, q.z, q.w);
+			}
+			catch { return default(Rect); }
+		}
+		#endregion
 	}
 
 	public static class Utils
