@@ -12,17 +12,14 @@ namespace ThrottleControlledAvionics
 		ThrottleControlledAvionics TCA;
 
 		#region GUI
-		bool showAny;
 		bool showEngines;
 		bool showHelp;
 		bool showHUD = true;
 
 		Vector2 positionScrollViewEngines;
 
-		const int controlsWidth = 400, controlsHeight = 100;
-		const int helpWidth = 500, helpHeight = 100;
-		protected Rect controlsPos = new Rect(50, 50, controlsWidth, controlsHeight);
-		protected Rect helpPos = new Rect(500, 100, helpWidth, helpHeight);
+		public const int controlsWidth = 400, controlsHeight = 100;
+		public const int helpWidth = 500, helpHeight = 100;
 		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
 		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
 		const string ICON_NC  = "ThrottleControlledAvionics/Icons/icon_button_noCharge";
@@ -43,10 +40,10 @@ namespace ThrottleControlledAvionics
 			{
 				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
 				TCAToolbarButton.TexturePath = ICON_OFF;
-				TCAToolbarButton.ToolTip = "Throttle Controlled Avionics";
-				TCAToolbarButton.Visibility = new GameScenesVisibility(GameScenes.FLIGHT);
-				TCAToolbarButton.Visible = true;
-				TCAToolbarButton.OnClick += e => showAny = !showAny;
+				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
+				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
+				TCAToolbarButton.Visible     = true;
+				TCAToolbarButton.OnClick    += e => TCAConfiguration.Globals.GUIVisible = !TCAConfiguration.Globals.GUIVisible;
 			}
 			else 
 			{
@@ -64,12 +61,12 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCAToolbarButton != null)
 			{
-				if(TCA.isActive) TCAToolbarButton.TexturePath = TCA.haveEC ? ICON_ON : ICON_NC;
+				if(TCA.CFG.Enabled) TCAToolbarButton.TexturePath = TCA.haveEC ? ICON_ON : ICON_NC;
 				else TCAToolbarButton.TexturePath = ICON_OFF;
 			}
 			if(TCAButton != null) 
 			{
-				if(TCA.isActive) TCAButton.SetTexture(TCA.haveEC? textureOn : textureNoCharge);
+				if(TCA.CFG.Enabled) TCAButton.SetTexture(TCA.haveEC? textureOn : textureNoCharge);
 				else TCAButton.SetTexture(textureOff);
 			}
 		}
@@ -84,11 +81,13 @@ namespace ThrottleControlledAvionics
 					DummyVoid, DummyVoid, DummyVoid, DummyVoid,
 					ApplicationLauncher.AppScenes.FLIGHT,
 					GameDatabase.Instance.GetTexture(ICON_OFF, false));
+				if(TCAConfiguration.Globals.GUIVisible) TCAButton.SetTrue();
+				else TCAButton.SetFalse();
 			}
 		}
 
-		void onAppLaunchToggleOn() { showAny = true; }
-		void onAppLaunchToggleOff() { showAny = false; }
+		void onAppLaunchToggleOn() { TCAConfiguration.Globals.GUIVisible = true; }
+		void onAppLaunchToggleOff() { TCAConfiguration.Globals.GUIVisible = false; }
 		void DummyVoid() {}
 
 		void onShowUI() { showHUD = true; }
@@ -107,22 +106,22 @@ namespace ThrottleControlledAvionics
 
 		void TCA_Window(int windowID)
 		{
-			if(GUI.Button(new Rect(controlsPos.width - 23f, 2f, 20f, 18f), "?"))
+			if(GUI.Button(new Rect(TCAConfiguration.Globals.ControlsPos.width - 23f, 2f, 20f, 18f), "?"))
 				showHelp = !showHelp;
 
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
-			TCA.ActivateTCA(GUILayout.Toggle(TCA.isActive, "Toggle TCA"));
+			TCA.ActivateTCA(GUILayout.Toggle(TCA.CFG.Enabled, "Toggle TCA"));
 			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Speed Limit: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCA.verticalCutoff >= ThrottleControlledAvionics.maxCutoff? "inf." :
-			                TCA.verticalCutoff.ToString("F1"), GUILayout.ExpandWidth(false));
-			TCA.verticalCutoff = GUILayout.HorizontalSlider(TCA.verticalCutoff, 
-			                                                -ThrottleControlledAvionics.maxCutoff, 
-			                                                ThrottleControlledAvionics.maxCutoff);
+			GUILayout.Label(TCA.CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff? "inf." :
+			                TCA.CFG.VerticalCutoff.ToString("F1"), GUILayout.ExpandWidth(false));
+			TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
+			                                                    -TCAConfiguration.Globals.MaxCutoff, 
+			                                                    TCAConfiguration.Globals.MaxCutoff);
 			GUILayout.EndHorizontal();
 			//engines info
 			showEngines = GUILayout.Toggle(showEngines, "Show/Hide Engines Information");
@@ -150,7 +149,7 @@ namespace ThrottleControlledAvionics
 		void windowHelp(int windowID)
 		{
 			GUILayout.BeginVertical();
-			GUILayout.Label(TCAGlobals.Instructions, GUILayout.MaxWidth(helpWidth));
+			GUILayout.Label(TCAConfiguration.Globals.Instructions, GUILayout.MaxWidth(helpWidth));
 			if(GUILayout.Button("Close")) showHelp = !showHelp;
 			GUILayout.EndVertical();
 			GUI.DragWindow();
@@ -158,23 +157,25 @@ namespace ThrottleControlledAvionics
 
 		public void DrawGUI()
 		{
-			if(!showAny || !showHUD) return;
-			controlsPos = GUILayout.Window(1, 
-										   controlsPos, 
-										   TCA_Window, 
-										   "Throttle Controlled Avionics",
-			                               GUILayout.Width(controlsWidth),
-			                               GUILayout.Height(controlsHeight));
-			Utils.CheckRect(ref controlsPos);
+			if(!TCAConfiguration.Globals.GUIVisible || !showHUD) return;
+			TCAConfiguration.Globals.ControlsPos = 
+				GUILayout.Window(1, 
+				                 TCAConfiguration.Globals.ControlsPos, 
+				                 TCA_Window, 
+				                 "Throttle Controlled Avionics",
+				                 GUILayout.Width(controlsWidth),
+				                 GUILayout.Height(controlsHeight));
+			Utils.CheckRect(ref TCAConfiguration.Globals.ControlsPos);
 			if(showHelp) 
 			{
-				helpPos = GUILayout.Window(2, 
-				                           helpPos, 
-				                           windowHelp, 
-				                           "Instructions",
-				                           GUILayout.Width(helpWidth),
-				                           GUILayout.Height(helpHeight));
-				Utils.CheckRect(ref helpPos);
+				TCAConfiguration.Globals.HelpPos = 
+					GUILayout.Window(2, 
+					                 TCAConfiguration.Globals.HelpPos, 
+					                 windowHelp, 
+					                 "Instructions",
+					                 GUILayout.Width(helpWidth),
+					                 GUILayout.Height(helpHeight));
+				Utils.CheckRect(ref TCAConfiguration.Globals.HelpPos);
 			}
 		}
 		#endregion

@@ -19,51 +19,43 @@ namespace ThrottleControlledAvionics
 		TCAGui GUI;
 
 		Vessel vessel;
+		public VesselConfig CFG;
 		public readonly List<EngineWrapper> engines = new List<EngineWrapper>();
 		public bool haveEC = true;
 
-		#region Controls
-		public bool  isActive; //TODO: remeber state per vessel
-
-		//attitude control
 		public readonly PIv_Controller torque   = new PIv_Controller();
 		public readonly PIv_Controller steering = new PIv_Controller();
-		static readonly float MAX_STEERING = Mathf.Sqrt(3);
-		public float steeringThreshold   = 0.01f; //too small steering vector may cause oscilations
-		public float stabilityCurve      = 0.3f;  /* coefficient of non-linearity of efficiency response to partial steering 
-												    (2 means response is quadratic, 1 means response is linear, 0 means no response) */
-		public float torqueThreshold     = 5f;    //engines which produce less torque are considered to be main thrusters and excluded from TCA control
-		public float idleResponseSpeed   = 0.25f;
-
-		//vertical speed limit
-		public const float maxCutoff = 10f; //max. positive vertical speed m/s (configuration limit)
-		public float verticalCutoff  = 1f;  //max. positive vertical speed m/s (configurable)
-		float upV_old = 0f; //previous velue of vertical speed
-		#endregion
+		float upV_old; //previous velue of vertical speed
 
 		#region Engine Logic
 		public void Awake()
 		{
+			TCAConfiguration.Load();
 			GUI = new TCAGui(this);
 			GameEvents.onVesselChange.Add(onVessel);
 			GameEvents.onVesselWasModified.Add(onVessel);
+			GameEvents.onGameStateSave.Add(onSave);
 		}
 
 		internal void OnDestroy() 
 		{ 
+			TCAConfiguration.Save();
 			if(GUI != null) GUI.OnDestroy();
 			GameEvents.onVesselChange.Remove(onVessel);
 			GameEvents.onVesselWasModified.Remove(onVessel);
+			GameEvents.onGameStateSave.Remove(onSave);
 		}
 
 		void onVessel(Vessel vsl)
 		{ if(vessel == null || vsl == vessel) UpdateEnginesList(); }
 
+		void onSave(ConfigNode node) { TCAConfiguration.Save(); }
+
 		public void ActivateTCA(bool state)
 		{
-			if(state == isActive) return;
-			isActive = state;
-			if(!isActive)
+			if(state == CFG.Enabled) return;
+			CFG.Enabled = state;
+			if(!CFG.Enabled)
 			{
 				//reset engine limiters
 				engines.ForEach(e => e.thrustPercentage = 100);
@@ -79,6 +71,7 @@ namespace ThrottleControlledAvionics
 		{
 			vessel = FlightGlobals.ActiveVessel;
 			if(vessel == null) return;
+			CFG = TCAConfiguration.GetConfig(vessel);
 			engines.Clear();
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
@@ -99,11 +92,14 @@ namespace ThrottleControlledAvionics
 		}
 
 		public void Update()
-		{ if(Input.GetKeyDown("y")) ActivateTCA(!isActive); }
+		{ 
+			if(Input.GetKeyDown(TCAConfiguration.Globals.TCA_Key)) 
+				ActivateTCA(!CFG.Enabled); 
+		}
 
 		public void FixedUpdate()
 		{
-			if(!isActive || vessel == null) return;
+			if(!CFG.Enabled || vessel == null) return;
 			//check for throttle and Electrich Charge
 			if(vessel.ctrlState.mainThrottle <= 0) return;
 			haveEC = vessel.ElectricChargeAvailible();
@@ -118,8 +114,8 @@ namespace ThrottleControlledAvionics
 			steering.Update(refT.TransformDirection(new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw)));
 			var demand        = steering.Value;
 			var demand_m      = demand.magnitude;
-			var idle          = demand_m < steeringThreshold;
-			var responseSpeed = demand_m/MAX_STEERING;
+			var idle          = demand_m < TCAConfiguration.Globals.SteeringThreshold;
+			var responseSpeed = demand_m/TCAGlobals.MAX_STEERING;
 			//calculate current and maximum torque
 			var totalTorque  = Vector3.zero;
 			var maxTorque    = Vector3.zero;
@@ -166,28 +162,28 @@ namespace ThrottleControlledAvionics
 			if(vessel.situation != Vessel.Situations.DOCKED &&
 			   vessel.situation != Vessel.Situations.ORBITING &&
 			   vessel.situation != Vessel.Situations.ESCAPING &&
-			   verticalCutoff < maxCutoff)
+			   CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff)
 			{
 				//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 				var up  = (wCoM - vessel.mainBody.position).normalized;
 				var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
 				var upA = (upV-upV_old)/TimeWarp.fixedDeltaTime;
-				var err = verticalCutoff-upV;
-				vK = upV < verticalCutoff?
-					Mathf.Clamp01(err/Mathf.Pow(Utils.ClampL(upA/10+1, 1f), 2f)) :
-					Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*10f, 10f), 2f));
+				var err = CFG.VerticalCutoff-upV;
+				vK = upV < CFG.VerticalCutoff?
+					Mathf.Clamp01(err/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
+					Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
 				upV_old = upV;
 			}
 			//disable unneeded engines and scale thrust limit to [-1; 0]
 			//then set thrust limiters of the engines
 			//empirically: non-linear speed change works better
-			responseSpeed = Mathf.Pow(responseSpeed, stabilityCurve);
+			responseSpeed = Mathf.Pow(responseSpeed, TCAConfiguration.Globals.StabilityCurve);
 			foreach(var e in active_engines)
 			{
-				if(e.specificTorque.magnitude * e.maxThrust < torqueThreshold) continue;
+				if(e.specificTorque.magnitude * e.maxThrust < TCAConfiguration.Globals.TorqueThreshold) continue;
 				e.efficiency = (e.efficiency - max_eff)/eff_span*responseSpeed;
 				var needed_percentage = Mathf.Clamp(100 * vK * (1 + e.efficiency), 0f, 100f);
-				e.thrustPercentage += (needed_percentage-e.thrustPercentage) * (idle? idleResponseSpeed : responseSpeed);
+				e.thrustPercentage += (needed_percentage-e.thrustPercentage) * (idle? TCAConfiguration.Globals.IdleResponseSpeed : responseSpeed);
 			}
 		}
 		#endregion
