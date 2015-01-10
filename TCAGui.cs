@@ -114,7 +114,7 @@ namespace ThrottleControlledAvionics
 			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!");
 
 			GUILayout.BeginHorizontal();
-			TCA.ActivateTCA(GUILayout.Toggle(TCA.isActive, "Toggle TCA"));
+			TCA.ActivateTCA(GUILayout.Toggle(TCA.isActive, "Toggle TCA", GUILayout.ExpandWidth(false)));
 			GUILayout.Label("Steering Threshold: ", GUILayout.ExpandWidth(false)); //redundant?
 			GUILayout.Label(TCA.steeringThreshold.ToString("P1"), GUILayout.ExpandWidth(false));
 			TCA.steeringThreshold = GUILayout.HorizontalSlider(TCA.steeringThreshold, 0f, 0.5f); //TODO: the boundaries should be in config
