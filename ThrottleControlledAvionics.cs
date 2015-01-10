@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
 		public float steeringThreshold   = 0.01f; //too small steering vector may cause oscilations
 		public float stabilityCurve      = 0.3f;  /* coefficient of non-linearity of efficiency response to partial steering 
 												    (2 means response is quadratic, 1 means response is linear, 0 means no response) */
-		public float torqueThreshold     = 0.1f;  //engines which produce less specific torque are considered to be main thrusters and excluded from TCA control
+		public float torqueThreshold     = 5f;    //engines which produce less torque are considered to be main thrusters and excluded from TCA control
 		public float idleResponseSpeed   = 0.25f;
 
 		//vertical speed limit
@@ -128,11 +128,9 @@ namespace ThrottleControlledAvionics
 				var info = e.thrustInfo;
 				//total thrust direction of the engine in the controller-part's coordinates
 				e.thrustDirection = info.dir;
-				//current thrust
-				e.currentThrust   = e.finalThrust > 0? e.finalThrust: e.maxThrust*vessel.ctrlState.mainThrottle;
 				//the torque this engine currentely delivers
 				e.specificTorque  = Vector3.Cross(info.pos-wCoM, info.dir);
-				e.currentTorque   = e.specificTorque * e.currentThrust;
+				e.currentTorque   = e.specificTorque * (e.finalThrust > 0? e.finalThrust: e.maxThrust*vessel.ctrlState.mainThrottle);
 				if(idle)
 				{
 					totalTorque += e.currentTorque;
