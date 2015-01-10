@@ -100,4 +100,38 @@ namespace ThrottleControlledAvionics
 		virtual public void Save(ConfigNode node)
 		{ ConfigNode.CreateConfigFromObject(this, node); }
 	}
+
+	public abstract class PI_Controller<T> : ConfigNodeObject
+	{
+		new public const string NODE_NAME = "PI";
+		protected T value = default(T);
+		protected T integral_error = default(T);
+
+		//coefficients
+		[Persistent] public float P, I;
+
+		protected PI_Controller() : this(0.8f, 0.3f) {}
+		protected PI_Controller(float P, float I)
+		{ this.P = P; this.I = I; }
+
+		public abstract void Update(T new_value);
+
+		//access
+		public T Value { get { return value; } }
+		public static implicit operator T(PI_Controller<T> c)
+		{ return c.value; }
+	}
+
+	public class PIv_Controller : PI_Controller<Vector3>
+	{
+		public PIv_Controller() {}
+		public PIv_Controller(float P, float I) : base(P, I) {}
+
+		public override void Update(Vector3 new_value)
+		{
+			var error = new_value - value;
+			integral_error += error * TimeWarp.fixedDeltaTime;
+			value = new_value * P + integral_error * I;
+		}
+	}
 }
