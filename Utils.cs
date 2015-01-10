@@ -149,4 +149,18 @@ namespace ThrottleControlledAvionics
 			value = new_value * P + integral_error * I;
 		}
 	}
+
+	//I hate strongly-typed languages! =(
+	public class PIf_Controller : PI_Controller<float>
+	{
+		public PIf_Controller() {}
+		public PIf_Controller(float P, float I) : base(P, I) {}
+
+		public override void Update(float new_value)
+		{
+			var error = new_value - value;
+			integral_error += error * TimeWarp.fixedDeltaTime;
+			value = new_value * P + integral_error * I;
+		}
+	}
 }
