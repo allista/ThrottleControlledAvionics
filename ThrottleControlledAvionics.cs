@@ -60,10 +60,6 @@ namespace ThrottleControlledAvionics
 				//reset engine limiters
 				engines.ForEach(e => e.thrustPercentage = 100);
 				//set throttle to zero?
-				vessel.ctrlState.mainThrottle = 0f;
-				if(vessel == FlightGlobals.ActiveVessel)
-					FlightInputHandler.state.mainThrottle = 0f; //so that the on-screen throttle gauge reflects the autopilot throttle
-				vessel.FeedInputFeed();
 			}
 		}
 
