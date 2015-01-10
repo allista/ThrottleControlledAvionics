@@ -10,26 +10,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using KSP.IO;
 
 namespace ThrottleControlledAvionics
 {
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
 	public class ThrottleControlledAvionics : MonoBehaviour
 	{
-		#region Configuration
-		protected static PluginConfiguration configfile = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
 		TCAGui GUI;
 
 		Vessel vessel;
 		public readonly List<EngineWrapper> engines = new List<EngineWrapper>();
 		public bool haveEC = true;
 
-		//vertical speed limit
-		public const float maxCutoff = 10f; //max. positive vertical speed m/s (configuration limit)
-		public float verticalCutoff  = 1f;  //max. positive vertical speed m/s (configurable)
-		float upV_old  = 0f;   //previous velue of vertical speed
+		#region Controls
+		public bool  isActive; //TODO: remeber state per vessel
 
+		//attitude control
+		public readonly PIv_Controller torque   = new PIv_Controller();
+		public readonly PIv_Controller steering = new PIv_Controller();
 		static readonly float MAX_STEERING = Mathf.Sqrt(3);
 		public float steeringThreshold   = 0.01f; //too small steering vector may cause oscilations
 		public float stabilityCurve      = 0.3f;  /* coefficient of non-linearity of efficiency response to partial steering 
@@ -37,7 +35,10 @@ namespace ThrottleControlledAvionics
 		public float torqueThreshold     = 0.1f;  //engines which produce less specific torque are considered to be main thrusters and excluded from TCA control
 		public float idleResponseSpeed   = 0.25f;
 
-		public bool  isActive; //TODO: remeber state per vessel
+		//vertical speed limit
+		public const float maxCutoff = 10f; //max. positive vertical speed m/s (configuration limit)
+		public float verticalCutoff  = 1f;  //max. positive vertical speed m/s (configurable)
+		float upV_old = 0f; //previous velue of vertical speed
 		#endregion
 
 		#region Engine Logic
@@ -112,11 +113,12 @@ namespace ThrottleControlledAvionics
 			var active_engines = engines.Where(e => e.isEnabled).ToList();
 			if(active_engines.Count == 0) return;
 			//calculate steering parameters
-			var demand        = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
-			var demand_m      = demand.magnitude;
-			var idle          = demand_m < steeringThreshold;
 			var wCoM          = vessel.findWorldCenterOfMass();
 			var refT          = vessel.GetReferenceTransformPart().transform; //should be in a callback
+			steering.Update(refT.TransformDirection(new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw)));
+			var demand        = steering.Value;
+			var demand_m      = demand.magnitude;
+			var idle          = demand_m < steeringThreshold;
 			var responseSpeed = demand_m/MAX_STEERING;
 			//calculate current and maximum torque
 			var totalTorque  = Vector3.zero;
@@ -125,11 +127,11 @@ namespace ThrottleControlledAvionics
 			{
 				var info = e.thrustInfo;
 				//total thrust direction of the engine in the controller-part's coordinates
-				e.thrustDirection = refT.InverseTransformDirection(info.dir);
+				e.thrustDirection = info.dir;
 				//current thrust
 				e.currentThrust   = e.finalThrust > 0? e.finalThrust: e.maxThrust*vessel.ctrlState.mainThrottle;
 				//the torque this engine currentely delivers
-				e.specificTorque  = refT.InverseTransformDirection(Vector3.Cross(info.pos-wCoM, info.dir));
+				e.specificTorque  = Vector3.Cross(info.pos-wCoM, info.dir);
 				e.currentTorque   = e.specificTorque * e.currentThrust;
 				if(idle)
 				{
@@ -140,9 +142,10 @@ namespace ThrottleControlledAvionics
 			//change steering parameters if attitude controls are idle
 			if(idle)
 			{
-				demand        = -totalTorque;
-				demand_m      =  totalTorque.magnitude;
-				responseSpeed =  Mathf.Clamp01(demand_m/maxTorque.magnitude);
+				torque.Update(-totalTorque);
+				demand        = torque;
+				demand_m      = demand.magnitude;
+				responseSpeed = Mathf.Clamp01(demand_m/maxTorque.magnitude);
 			}
 			//calculate engines efficiency in current maneuver
 			bool first = true;
