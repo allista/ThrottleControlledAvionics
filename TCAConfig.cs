@@ -20,6 +20,9 @@ namespace ThrottleControlledAvionics
 	{
 		new public const string NODE_NAME = "TCAGLOBALS";
 
+		//vertical speed limit control coefficients
+		[Persistent] public static float  K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f;
+
 		[Persistent] public static float  MaxCutoff            = 10f;   //max. positive vertical speed m/s (configuration limit)
 		[Persistent] public static float  MaxSteeringThreshold = 0.5f;  //max. positive vertical speed m/s (configuration limit)
 		[Persistent] public static float  TorqueThreshold      = 0.1f;  //engines which produce less specific torque are considered to be main thrusters and excluded from TCA control
