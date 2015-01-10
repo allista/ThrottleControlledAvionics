@@ -76,5 +76,28 @@ namespace ThrottleControlledAvionics
 		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
 		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
 		public static float ClampH(float x, float high) { return x < high ? high : x;  }
+
+		public static void CheckRect(ref Rect R)
+		{
+			//check size
+			if(R.width > Screen.width) R.width = Screen.width;
+			if(R.height > Screen.height) R.height = Screen.height;
+			//check position
+			if(R.xMin < 0) R.x -= R.xMin;
+			else if(R.xMax > Screen.width) R.x -= R.xMax-Screen.width;
+			if(R.yMin < 0) R.y -= R.yMin;
+			else if(R.yMax > Screen.height) R.y -= R.yMax-Screen.height;
+		}
+	}
+
+	public class ConfigNodeObject : IConfigNode
+	{
+		public const string NODE_NAME = "NODE";
+
+		virtual public void Load(ConfigNode node)
+		{ ConfigNode.LoadObjectFromConfig(this, node); }
+
+		virtual public void Save(ConfigNode node)
+		{ ConfigNode.CreateConfigFromObject(this, node); }
 	}
 }
