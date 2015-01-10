@@ -19,13 +19,12 @@ namespace ThrottleControlledAvionics
 	{
 		#region Configuration
 		protected static PluginConfiguration configfile = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
-		public SaveFile save; //deprecated
 		TCAGui GUI;
 
 		Vessel vessel;
 		public readonly List<EngineWrapper> engines = new List<EngineWrapper>();
 		public bool haveEC = true;
-		readonly float MAX_STEERING = Mathf.Sqrt(3);
+		static readonly float MAX_STEERING = Mathf.Sqrt(3);
 		float upV_old = 0f;
 
 		public float steeringThreshold   = 0.01f; //too small steering vector may cause oscilations
@@ -42,9 +41,6 @@ namespace ThrottleControlledAvionics
 		#region Engine Logic
 		public void Awake()
 		{
-			// open save
-			save = new SaveFile(); 
-			save.Load();
 			GUI = new TCAGui(this);
 			GameEvents.onVesselChange.Add(onVessel);
 			GameEvents.onVesselWasModified.Add(onVessel);
@@ -52,7 +48,6 @@ namespace ThrottleControlledAvionics
 
 		internal void OnDestroy() 
 		{ 
-			save.Save();
 			if(GUI != null) GUI.OnDestroy();
 			GameEvents.onVesselChange.Remove(onVessel);
 			GameEvents.onVesselWasModified.Remove(onVessel);
