@@ -11,6 +11,12 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+//this compilerservices bit makes Xamarin compile this project. else I get "Missing compuler required member" errors. No idea how all of this works. But hey.
+//more info: http://stackoverflow.com/questions/205644/error-when-using-extension-methods-in-c-sharp
+namespace System.Runtime.CompilerServices {
+	public class ExtensionAttribute : Attribute { }
+}
+
 namespace ThrottleControlledAvionics
 {
 	[KSPAddon(KSPAddon.Startup.Flight, false)]

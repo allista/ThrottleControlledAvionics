@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>ThrottleControlledAvionics</RootNamespace>
     <AssemblyName>ThrottleControlledAvionics</AssemblyName>
-    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <ReleaseVersion>1.3</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -33,35 +33,30 @@
   <ItemGroup>
     <Reference Include="System">
       <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\System.dll</HintPath>
-      <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine">
-      <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\UnityEngine.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="System.Core">
       <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\System.Core.dll</HintPath>
-      <Private>False</Private>
     </Reference>
     <Reference Include="Mono.Cecil">
-      <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\Mono.Cecil.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\Mono.Cecil.dll</HintPath>
     </Reference>
     <Reference Include="Mono.Security">
-      <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\Mono.Security.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\Mono.Security.dll</HintPath>
     </Reference>
     <Reference Include="System.Xml">
       <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\System.Xml.dll</HintPath>
-      <Private>False</Private>
     </Reference>
     <Reference Include="TDx.TDxInput">
-      <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\TDx.TDxInput.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\TDx.TDxInput.dll</HintPath>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
