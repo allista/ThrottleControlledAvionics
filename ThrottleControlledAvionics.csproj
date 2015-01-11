@@ -73,6 +73,7 @@
     <Compile Include="Utils.cs" />
     <Compile Include="TCAGui.cs" />
     <Compile Include="TCAConfig.cs" />
+    <Compile Include="PI_Controller.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
