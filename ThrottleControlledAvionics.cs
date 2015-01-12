@@ -82,6 +82,9 @@ namespace ThrottleControlledAvionics
 		{ 
 			GUI.DrawGUI(); 
 			GUI.UpdateToolbarIcon();
+			#if DEBUG
+			DrawDirections();
+			#endif
 		}
 
 		public void Update()
