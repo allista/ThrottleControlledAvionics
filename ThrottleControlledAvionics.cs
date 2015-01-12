@@ -22,9 +22,6 @@ namespace ThrottleControlledAvionics
 		public VesselConfig CFG;
 		public readonly List<EngineWrapper> engines = new List<EngineWrapper>();
 		public bool haveEC = true;
-
-		public readonly PIv_Controller torque   = new PIv_Controller();
-		public readonly PIv_Controller steering = new PIv_Controller();
 		float upV_old; //previous velue of vertical speed
 
 		#region Engine Logic
@@ -35,6 +32,9 @@ namespace ThrottleControlledAvionics
 			GameEvents.onVesselChange.Add(onVessel);
 			GameEvents.onVesselWasModified.Add(onVessel);
 			GameEvents.onGameStateSave.Add(onSave);
+			#if DEBUG
+			InitLines();
+			#endif
 		}
 
 		internal void OnDestroy() 
@@ -55,12 +55,8 @@ namespace ThrottleControlledAvionics
 		{
 			if(state == CFG.Enabled) return;
 			CFG.Enabled = state;
-			if(!CFG.Enabled)
-			{
-				//reset engine limiters
-				engines.ForEach(e => e.thrustPercentage = 100);
-				//set throttle to zero?
-			}
+			if(!CFG.Enabled) //reset engine limiters
+				engines.ForEach(e => e.forceThrustPercentage(100));
 		}
 
 		void UpdateEnginesList()
@@ -68,6 +64,7 @@ namespace ThrottleControlledAvionics
 			vessel = FlightGlobals.ActiveVessel;
 			if(vessel == null) return;
 			CFG = TCAConfiguration.GetConfig(vessel);
+			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
 			engines.Clear();
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
@@ -107,14 +104,15 @@ namespace ThrottleControlledAvionics
 			//calculate steering parameters
 			var wCoM          = vessel.findWorldCenterOfMass();
 			var refT          = vessel.GetReferenceTransformPart().transform; //should be in a callback
-			steering.Update(refT.TransformDirection(new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw)));
-			var demand        = steering.Value;
+			var demand        = refT.TransformDirection(new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw));
 			var demand_m      = demand.magnitude;
 			var idle          = demand_m < TCAConfiguration.Globals.SteeringThreshold;
 			var responseSpeed = demand_m/TCAGlobals.MAX_STEERING;
-			//calculate current and maximum torque
+			#if DEBUG
+			ori = wCoM;
+			#endif
+			//calculate current torque
 			var totalTorque  = Vector3.zero;
-			var maxTorque    = Vector3.zero;
 			foreach(var e in active_engines)
 			{
 				var info = e.thrustInfo;
@@ -123,20 +121,29 @@ namespace ThrottleControlledAvionics
 				//the torque this engine currentely delivers
 				e.specificTorque  = Vector3.Cross(info.pos-wCoM, info.dir);
 				e.currentTorque   = e.specificTorque * (e.finalThrust > 0? e.finalThrust: e.maxThrust*vessel.ctrlState.mainThrottle);
-				if(idle)
-				{
-					totalTorque += e.currentTorque;
-					maxTorque   += e.specificTorque*e.maxThrust;
-				}
+				totalTorque += e.currentTorque;
 			}
+			CFG.Torque.Update(-totalTorque);
 			//change steering parameters if attitude controls are idle
 			if(idle)
 			{
-				torque.Update(-totalTorque);
-				demand        = torque;
+				//calculate max torque in the current direction
+				var maxTorque = Vector3.zero;
+				foreach(var e in active_engines)
+				{
+					if(Vector3.Dot(e.specificTorque, totalTorque) > 0)
+						maxTorque += e.specificTorque * e.maxThrust;					
+				}
+				maxTorque = Vector3.Project(maxTorque, totalTorque);
+				demand        = CFG.Torque;
 				demand_m      = demand.magnitude;
 				responseSpeed = Mathf.Clamp01(demand_m/maxTorque.magnitude);
 			}
+//			else 
+//			{ 
+//				CFG.Steering.Update(demand - Vector3.Exclude(demand, Vector3.ClampMagnitude(totalTorque, totalTorque.magnitude/maxTorque.magnitude)));
+//				demand = CFG.Steering;
+//			}
 			//calculate engines efficiency in current maneuver
 			bool first = true;
 			float min_eff = 0, max_eff = 0, max_abs_eff = 0;
@@ -173,15 +180,51 @@ namespace ThrottleControlledAvionics
 			//disable unneeded engines and scale thrust limit to [-1; 0]
 			//then set thrust limiters of the engines
 			//empirically: non-linear speed change works better
-			responseSpeed = Mathf.Pow(responseSpeed, TCAConfiguration.Globals.StabilityCurve);
+			responseSpeed = Mathf.Pow(responseSpeed, CFG.StabilityCurve);
 			foreach(var e in active_engines)
 			{
 				if(e.specificTorque.magnitude * e.maxThrust < TCAConfiguration.Globals.TorqueThreshold) continue;
-				e.efficiency = (e.efficiency - max_eff)/eff_span*responseSpeed;
-				var needed_percentage = Mathf.Clamp(100 * vK * (1 + e.efficiency), 0f, 100f);
-				e.thrustPercentage += (needed_percentage-e.thrustPercentage) * (idle? TCAConfiguration.Globals.IdleResponseSpeed : responseSpeed);
+				e.efficiency = (e.efficiency-max_eff)/eff_span*responseSpeed;
+				e.thrustPercentage = Mathf.Clamp(100 * vK * (1 + e.efficiency), 0f, 100f);
+//				var needed_thrust = Mathf.Clamp(100 * vK * (1 + e.efficiency), 0f, 100f);
+//				e.forceThrustPercentage(Mathf.Clamp(e.thrustPercentage + needed_thrust*0.01f + (needed_thrust-e.thrustPercentage)*responseSpeed, 1, 100));
 			}
 		}
 		#endregion
+
+		#if DEBUG
+		Vector3 ori;
+		static Material steeringMat, torqueMat;
+		static GameObject SteeringLine;
+		static GameObject TorqueLine;
+		static LineRenderer steeringLine;
+		static LineRenderer torqueLine;
+
+		static void InitLines()
+		{
+			steeringMat = new Material(Shader.Find("Unlit/Texture"));
+			SteeringLine = new GameObject("steering line");
+			steeringLine = SteeringLine.AddComponent<LineRenderer>();
+			steeringLine.SetWidth(-0.1f, 0.1f);
+			steeringLine.useWorldSpace = true;
+			steeringLine.material = steeringMat;
+			steeringLine.SetColors(Color.red, Color.red);
+			torqueMat = new Material(Shader.Find("Unlit/Texture"));
+			TorqueLine = new GameObject("torque line");
+			torqueLine = TorqueLine.AddComponent<LineRenderer>();
+			torqueLine.SetWidth(-0.1f, 0.1f);
+			torqueLine.useWorldSpace = true;
+			torqueLine.material = torqueMat;
+			torqueLine.SetColors(Color.green, Color.green);
+		}
+
+		public void DrawDirections()
+		{
+			steeringLine.SetPosition(0, ori);
+			steeringLine.SetPosition(1, ori + CFG.Steering.Value*10);
+			torqueLine.SetPosition(0, ori);
+			torqueLine.SetPosition(1, ori + CFG.Torque.Value/10);
+		}
+		#endif
 	}
 }

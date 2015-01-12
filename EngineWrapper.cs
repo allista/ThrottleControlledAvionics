@@ -29,18 +29,23 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		public static readonly PI_Dummy ThrustPI = new PI_Dummy();
+		PIf_Controller thrustController = new PIf_Controller();
 		public Vector3 specificTorque  = Vector3.zero;
 		public Vector3 currentTorque   = Vector3.zero;
 		public Vector3 thrustDirection = Vector3.zero;
-		public float   efficiency;
+		public float efficiency;
 
-		public EngineWrapper(ModuleEngines engine)
+		protected EngineWrapper()
+		{ thrustController.setMaster(ThrustPI);	}
+
+		public EngineWrapper(ModuleEngines engine) : this()
 		{
 			isModuleEngineFX = false;
 			this.engine = engine;
 		}
 
-		public EngineWrapper(ModuleEnginesFX engineFX)
+		public EngineWrapper(ModuleEnginesFX engineFX) : this()
 		{
 			isModuleEngineFX = true;
 			this.engineFX = engineFX;
@@ -111,9 +116,16 @@ namespace ThrottleControlledAvionics
 			get { return isModuleEngineFX ? engineFX.thrustPercentage : engine.thrustPercentage; }
 			set
 			{
-				if(!isModuleEngineFX) engine.thrustPercentage = value;
-				else engineFX.thrustPercentage = value;
+				thrustController.Update(value);
+				if(!isModuleEngineFX) engine.thrustPercentage = thrustController;
+				else engineFX.thrustPercentage = Mathf.Clamp(thrustController, 0, 100);
 			}
+		}
+
+		public void forceThrustPercentage(float value) 
+		{
+			if(!isModuleEngineFX) engine.thrustPercentage = value;
+			else engineFX.thrustPercentage = value;
 		}
 
 		public bool isEnabled

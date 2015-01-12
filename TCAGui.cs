@@ -2,14 +2,13 @@
  * Author: Quinten Feys & Willem van Vliet
  * License: BY: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0): http://creativecommons.org/licenses/by-sa/3.0/
  */
-using System;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
 	public class TCAGui
 	{
-		ThrottleControlledAvionics TCA;
+		readonly ThrottleControlledAvionics TCA;
 
 		#region GUI
 		bool showEngines;
@@ -18,7 +17,7 @@ namespace ThrottleControlledAvionics
 
 		Vector2 positionScrollViewEngines;
 
-		public const int controlsWidth = 400, controlsHeight = 100;
+		public const int controlsWidth = 500, controlsHeight = 100;
 		public const int helpWidth = 500, helpHeight = 100;
 		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
 		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
@@ -115,12 +114,18 @@ namespace ThrottleControlledAvionics
 			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 
-			#if DEBUG
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Smoothness: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCAConfiguration.Globals.StabilityCurve.ToString("F1"), GUILayout.ExpandWidth(false));
-			TCAConfiguration.Globals.StabilityCurve = GUILayout.HorizontalSlider(TCAConfiguration.Globals.StabilityCurve, 0f, 10f);
+			GUILayout.Label(TCA.CFG.StabilityCurve.ToString("F1"), GUILayout.ExpandWidth(false));
+			TCA.CFG.StabilityCurve = GUILayout.HorizontalSlider(TCA.CFG.StabilityCurve, 0f, 2f);
 			GUILayout.EndHorizontal();
+
+			TCA.CFG.Torque.DrawPIControls("Torque");
+			TCA.CFG.Steering.DrawPIControls("Steering");
+			TCA.CFG.Engines.DrawPIControls("Engines");
+
+			#if DEBUG
+			TCA.DrawDirections();
 			#endif
 
 			GUILayout.BeginHorizontal();
