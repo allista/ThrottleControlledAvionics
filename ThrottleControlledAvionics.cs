@@ -18,11 +18,16 @@ namespace ThrottleControlledAvionics
 	{
 		TCAGui GUI;
 
+		#region State
 		Vessel vessel;
-		public VesselConfig CFG;
-		public readonly List<EngineWrapper> engines = new List<EngineWrapper>();
-		public bool haveEC = true;
-		float upV_old; //previous velue of vertical speed
+		public VesselConfig CFG { get; private set; }
+		public readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
+		public bool haveEC { get; private set; } = true;
+		public float TorqueError { get; private set; }
+		Vector3 wCoM;   //center of mass in world space
+		Transform refT; //transform of the controller-part
+		float upV_old;  //previous velue of vertical speed
+		#endregion
 
 		#region Engine Logic
 		public void Awake()
@@ -32,9 +37,6 @@ namespace ThrottleControlledAvionics
 			GameEvents.onVesselChange.Add(onVessel);
 			GameEvents.onVesselWasModified.Add(onVessel);
 			GameEvents.onGameStateSave.Add(onSave);
-			#if DEBUG
-			InitLines();
-			#endif
 		}
 
 		internal void OnDestroy() 
@@ -56,7 +58,7 @@ namespace ThrottleControlledAvionics
 			if(state == CFG.Enabled) return;
 			CFG.Enabled = state;
 			if(!CFG.Enabled) //reset engine limiters
-				engines.ForEach(e => e.forceThrustPercentage(100));
+				Engines.ForEach(e => e.forceThrustPercentage(100));
 		}
 
 		void UpdateEnginesList()
@@ -65,7 +67,7 @@ namespace ThrottleControlledAvionics
 			if(vessel == null) return;
 			CFG = TCAConfiguration.GetConfig(vessel);
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
-			engines.Clear();
+			Engines.Clear();
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
 				{	
@@ -74,7 +76,7 @@ namespace ThrottleControlledAvionics
 						engine = new EngineWrapper(module as ModuleEngines);
 					else if(module is ModuleEnginesFX)
 						engine = new EngineWrapper(module as ModuleEnginesFX);
-					if(engine != null && !engine.throttleLocked) engines.Add(engine);
+					if(engine != null && !engine.throttleLocked) Engines.Add(engine);
 				}
 		}
 
@@ -82,9 +84,6 @@ namespace ThrottleControlledAvionics
 		{ 
 			GUI.DrawGUI(); 
 			GUI.UpdateToolbarIcon();
-			#if DEBUG
-			DrawDirections();
-			#endif
 		}
 
 		public void Update()
@@ -101,133 +100,102 @@ namespace ThrottleControlledAvionics
 			haveEC = vessel.ElectricChargeAvailible();
 			if(!haveEC) return;
 			//update engines if needed
-			if(engines.Any(e => !e.Valid)) UpdateEnginesList();
-			var active_engines = engines.Where(e => e.isEnabled).ToList();
+			if(Engines.Any(e => !e.Valid)) UpdateEnginesList();
+			var active_engines = Engines.Where(e => e.isEnabled).ToList();
 			if(active_engines.Count == 0) return;
-			//calculate steering parameters
-			var wCoM          = vessel.findWorldCenterOfMass();
-			var refT          = vessel.GetReferenceTransformPart().transform; //should be in a callback
-			var demand        = refT.TransformDirection(new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw));
-			var demand_m      = demand.magnitude;
-			var idle          = demand_m < TCAConfiguration.Globals.SteeringThreshold;
-			var responseSpeed = demand_m/TCAGlobals.MAX_STEERING;
-			#if DEBUG
-			ori = wCoM;
-			#endif
-			//calculate current torque
-			var totalTorque  = Vector3.zero;
-			foreach(var e in active_engines)
+			//calculate steering
+			wCoM         = vessel.findWorldCenterOfMass();
+			refT         = vessel.GetReferenceTransformPart().transform; //should be in a callback?
+			CFG.Steering.Update(refT.TransformDirection(new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw))/TCAGlobals.MAX_STEERING);
+			//tune engines limits
+			optimizeLimitsIteratively(active_engines, CFG.Steering.Value, 
+			                          TCAConfiguration.Globals.OptimizationPrecision, 
+			                          TCAConfiguration.Globals.MaxIterations);
+			setThrustPercentage(active_engines, verticalSpeedLimit);
+		}
+
+		static bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
+		{
+			if(target_m < eps) return false;
+			var compensation = Vector3.zero;
+			for(int i = 0; i < engines.Count; i++)
 			{
+				var e = engines[i];
+				var d = Vector3.Dot(e.currentTorque, target);
+				e.limit_tmp = d < 0? -d/target_m/e.currentTorque.magnitude : 0f;
+				compensation += e.limit_tmp > 0? e.limit_tmp * e.currentTorque * e.limit : Vector3.zero;
+			}
+			var compensation_m = compensation.magnitude;
+			if(compensation_m < eps) return false;
+			var limits_norm = target_m/compensation_m;
+			engines.ForEach(e => e.limit *= (1-Mathf.Clamp01(e.limit_tmp*limits_norm)));
+			return true;
+		}
+
+		void optimizeLimitsIteratively(List<EngineWrapper> engines, Vector3 steering, float eps, int max_iter)
+		{
+			//calculate initial imbalance and needed torque
+			var torque_imbalance = Vector3.zero;
+			var needed_torque = Vector3.zero;
+			for(int i = 0; i < engines.Count; i++)
+			{
+				var e = engines[i];
 				var info = e.thrustInfo;
-				//total thrust direction of the engine in the controller-part's coordinates
+				e.limit = 1f;
 				e.thrustDirection = info.dir;
-				//the torque this engine currentely delivers
 				e.specificTorque  = Vector3.Cross(info.pos-wCoM, info.dir);
-				e.currentTorque   = e.specificTorque * (e.finalThrust > 0? e.finalThrust: e.maxThrust*vessel.ctrlState.mainThrottle);
-				totalTorque += e.currentTorque;
+				e.currentThrust   = e.maxThrust * vessel.ctrlState.mainThrottle;
+				e.currentTorque   = e.specificTorque * e.currentThrust;
+				torque_imbalance += e.currentTorque;
+				if(Vector3.Dot(e.currentTorque, steering) > 0)
+					needed_torque += e.currentTorque;
 			}
-			CFG.Torque.Update(-totalTorque);
-			//change steering parameters if attitude controls are idle
-			if(idle)
+			needed_torque = Vector3.Project(needed_torque, steering) * steering.magnitude;
+			//optimize engines' limits
+			TorqueError = 0f;
+			float last_error = -1f;
+			for(int i = 0; i < max_iter; i++)
 			{
-				//calculate max torque in the current direction
-				var maxTorque = Vector3.zero;
-				foreach(var e in active_engines)
-				{
-					if(Vector3.Dot(e.specificTorque, totalTorque) > 0)
-						maxTorque += e.specificTorque * e.maxThrust;					
-				}
-				maxTorque = Vector3.Project(maxTorque, totalTorque);
-				demand        = CFG.Torque;
-				demand_m      = demand.magnitude;
-				responseSpeed = Mathf.Clamp01(demand_m/maxTorque.magnitude);
+				var target   = needed_torque - torque_imbalance;
+				var target_m = target.magnitude;
+				if(!optimizeLimits(engines, target, target_m, eps)) break;
+				TorqueError = (engines.Aggregate(Vector3.zero, (v, e) => v + e.currentTorque * e.limit)-needed_torque).magnitude;
+				if(TorqueError < eps || last_error > 0f && Mathf.Abs(last_error-TorqueError) < eps) break;
+				torque_imbalance = engines.Aggregate(Vector3.zero, (v, e) => v + e.currentTorque * e.limit);
+				last_error = TorqueError;
 			}
-//			else 
-//			{ 
-//				CFG.Steering.Update(demand - Vector3.Exclude(demand, Vector3.ClampMagnitude(totalTorque, totalTorque.magnitude/maxTorque.magnitude)));
-//				demand = CFG.Steering;
-//			}
-			//calculate engines efficiency in current maneuver
-			bool first = true;
-			float min_eff = 0, max_eff = 0, max_abs_eff = 0;
-			foreach(var e in active_engines)
+		}
+
+		static void setThrustPercentage(List<EngineWrapper> engines, float speedLimit)
+		{
+			for(int i = 0; i < engines.Count; i++)
 			{
-				var eff = Vector3.Dot(e.currentTorque, demand);
-				var abs_eff = Mathf.Abs(eff);
-				if(first || min_eff > eff) min_eff = eff;
-				if(first || max_eff < eff) max_eff = eff;
-				if(max_abs_eff < abs_eff) max_abs_eff = abs_eff;
-				first = false;
-				e.efficiency = eff;
+				var e = engines[i];
+				if(e.specificTorque.magnitude * e.maxThrust < TCAConfiguration.Globals.TorqueThreshold)
+					e.forceThrustPercentage(100);
+				else e.thrustPercentage = Mathf.Clamp(100 * speedLimit * e.limit, 0f, 100f);
 			}
-			var eff_span = max_eff - min_eff;
-			//new thrust limits are computed only after we know that some thrusters should be firing
-			if(eff_span <= 0) return;
-			//calculate thrust coefficient for vertical speed limit
-			var vK = 1f;
-			if(vessel.situation != Vessel.Situations.DOCKED &&
-			   vessel.situation != Vessel.Situations.ORBITING &&
-			   vessel.situation != Vessel.Situations.ESCAPING &&
-			   CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff)
+		}
+
+		float verticalSpeedLimit
+		{
+			get
 			{
+				if(vessel.situation == Vessel.Situations.DOCKED ||
+				   vessel.situation == Vessel.Situations.ORBITING ||
+				   vessel.situation == Vessel.Situations.ESCAPING ||
+				   CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff) return 1f;
 				//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 				var up  = (wCoM - vessel.mainBody.position).normalized;
 				var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
 				var upA = (upV-upV_old)/TimeWarp.fixedDeltaTime;
 				var err = CFG.VerticalCutoff-upV;
-				vK = upV < CFG.VerticalCutoff?
+				upV_old = upV;
+				return upV < CFG.VerticalCutoff?
 					Mathf.Clamp01(err/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
 					Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
-				upV_old = upV;
-			}
-			//disable unneeded engines and scale thrust limit to [-1; 0]
-			//then set thrust limiters of the engines
-			//empirically: non-linear speed change works better
-			responseSpeed = Mathf.Pow(responseSpeed, CFG.StabilityCurve);
-			foreach(var e in active_engines)
-			{
-				if(e.specificTorque.magnitude * e.maxThrust < TCAConfiguration.Globals.TorqueThreshold) continue;
-				e.efficiency = (e.efficiency-max_eff)/eff_span*responseSpeed;
-				e.thrustPercentage = Mathf.Clamp(100 * vK * (1 + e.efficiency), 0f, 100f);
-//				var needed_thrust = Mathf.Clamp(100 * vK * (1 + e.efficiency), 0f, 100f);
-//				e.forceThrustPercentage(Mathf.Clamp(e.thrustPercentage + needed_thrust*0.01f + (needed_thrust-e.thrustPercentage)*responseSpeed, 1, 100));
 			}
 		}
 		#endregion
-
-		#if DEBUG
-		Vector3 ori;
-		static Material steeringMat, torqueMat;
-		static GameObject SteeringLine;
-		static GameObject TorqueLine;
-		static LineRenderer steeringLine;
-		static LineRenderer torqueLine;
-
-		static void InitLines()
-		{
-			steeringMat = new Material(Shader.Find("Unlit/Texture"));
-			SteeringLine = new GameObject("steering line");
-			steeringLine = SteeringLine.AddComponent<LineRenderer>();
-			steeringLine.SetWidth(-0.1f, 0.1f);
-			steeringLine.useWorldSpace = true;
-			steeringLine.material = steeringMat;
-			steeringLine.SetColors(Color.red, Color.red);
-			torqueMat = new Material(Shader.Find("Unlit/Texture"));
-			TorqueLine = new GameObject("torque line");
-			torqueLine = TorqueLine.AddComponent<LineRenderer>();
-			torqueLine.SetWidth(-0.1f, 0.1f);
-			torqueLine.useWorldSpace = true;
-			torqueLine.material = torqueMat;
-			torqueLine.SetColors(Color.green, Color.green);
-		}
-
-		public void DrawDirections()
-		{
-			steeringLine.SetPosition(0, ori);
-			steeringLine.SetPosition(1, ori + CFG.Steering.Value*10);
-			torqueLine.SetPosition(0, ori);
-			torqueLine.SetPosition(1, ori + CFG.Torque.Value/10);
-		}
-		#endif
 	}
 }

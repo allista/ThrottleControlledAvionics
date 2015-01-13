@@ -28,12 +28,11 @@ namespace ThrottleControlledAvionics
 		public void DrawPIControls(string name)
 		{
 			GUILayout.BeginHorizontal();
-			GUILayout.Label(name+" P: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(P.ToString("F2"), GUILayout.ExpandWidth(false));
-			p = GUILayout.HorizontalSlider(P, 0f, 2f);
-			GUILayout.Label("I: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(I.ToString("F2"), GUILayout.ExpandWidth(false));
-			i = GUILayout.HorizontalSlider(I, 0f, 2f);
+			GUILayout.Label(name, GUILayout.ExpandWidth(false));
+			GUILayout.Label(" P: "+P.ToString("F2"), GUILayout.ExpandWidth(false));
+			p = GUILayout.HorizontalSlider(P, 0f, TCAConfiguration.Globals.MaxPI, GUILayout.ExpandWidth(true));
+			GUILayout.Label(" I: "+I.ToString("F2"), GUILayout.ExpandWidth(false));
+			i = GUILayout.HorizontalSlider(I, 0f, TCAConfiguration.Globals.MaxPI, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 	}
@@ -70,6 +69,10 @@ namespace ThrottleControlledAvionics
 	//I hate strongly-typed languages! =(
 	public class PIf_Controller : PI_Controller<float>
 	{
+		public PIf_Controller() {}
+		public PIf_Controller(float start_value)
+		{ value = start_value; }
+
 		public override void Update(float new_value)
 		{
 			var error = new_value - value;

@@ -132,15 +132,9 @@ namespace ThrottleControlledAvionics
 
 		void ControllerProperties()
 		{
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Smoothness: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCA.CFG.StabilityCurve.ToString("F1"), GUILayout.ExpandWidth(false));
-			TCA.CFG.StabilityCurve = GUILayout.HorizontalSlider(TCA.CFG.StabilityCurve, 0f, 2f);
-			GUILayout.EndHorizontal();
 			//PI Controllers
-			TCA.CFG.Torque.DrawPIControls("Torque");
-			TCA.CFG.Steering.DrawPIControls("Steering");
-			TCA.CFG.Engines.DrawPIControls("Engines");
+			TCA.CFG.Steering.DrawPIControls("Steering Filter");
+			TCA.CFG.Engines.DrawPIControls("Engines Filter");
 			//speed limit
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Speed Limit: ", GUILayout.ExpandWidth(false));
@@ -196,20 +190,25 @@ namespace ThrottleControlledAvionics
 			showEngines = GUILayout.Toggle(showEngines, "Show Engines Information");
 			if(showEngines)
 			{
+				GUILayout.BeginVertical();
+				GUILayout.BeginHorizontal();
+				GUILayout.Label(string.Format("Torque Error: {0:F1}kNm", TCA.TorqueError), GUILayout.ExpandWidth(false));
+				GUILayout.EndHorizontal();
 				positionScrollViewEngines = GUILayout.BeginScrollView(positionScrollViewEngines, GUILayout.Height(controlsHeight*4));
-				foreach(var e in TCA.engines)
+				foreach(var e in TCA.Engines)
 				{
 					if(!e.Valid) continue;
 					GUILayout.Label(e.getName() + "\n" +
 					                string.Format(
 						                "Torque: {0}\n" +
 						                "Thrust Dir: {1}\n" +
-						                "Efficiency: {2:P1}\n" +
+						                "Limit: {2:P1}\n" +
 						                "Thrust: {3:F1}%",
 						                e.currentTorque, e.thrustDirection,
-						                e.efficiency, e.thrustPercentage));
+						                e.limit, e.thrustPercentage));
 				}
 				GUILayout.EndScrollView();
+				GUILayout.EndVertical();
 			}
 		}
 

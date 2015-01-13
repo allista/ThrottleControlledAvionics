@@ -30,11 +30,12 @@ namespace ThrottleControlledAvionics
 		}
 
 		public static readonly PI_Dummy ThrustPI = new PI_Dummy();
-		PIf_Controller thrustController = new PIf_Controller();
-		public Vector3 specificTorque  = Vector3.zero;
-		public Vector3 currentTorque   = Vector3.zero;
-		public Vector3 thrustDirection = Vector3.zero;
-		public float efficiency;
+		PIf_Controller thrustController = new PIf_Controller(TCAConfiguration.Globals.StartPercentage);
+		public Vector3 specificTorque   = Vector3.zero;
+		public Vector3 currentTorque    = Vector3.zero;
+		public Vector3 thrustDirection  = Vector3.zero;
+		public float   currentThrust    = 0f;
+		public float   limit, limit_tmp;
 
 		protected EngineWrapper()
 		{ thrustController.setMaster(ThrustPI);	}
@@ -117,7 +118,7 @@ namespace ThrottleControlledAvionics
 			set
 			{
 				thrustController.Update(value);
-				if(!isModuleEngineFX) engine.thrustPercentage = thrustController;
+				if(!isModuleEngineFX) engine.thrustPercentage = Mathf.Clamp(thrustController, 0, 100);
 				else engineFX.thrustPercentage = Mathf.Clamp(thrustController, 0, 100);
 			}
 		}

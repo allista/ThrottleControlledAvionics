@@ -13,19 +13,19 @@ namespace ThrottleControlledAvionics
 		public static readonly float MAX_STEERING = Mathf.Sqrt(3);
 
 		//control model configuration parameters
-		[Persistent] public float  K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
-		[Persistent] public float  MaxCutoff            = 10f;   //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float  MaxSteeringThreshold = 0.5f;  //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float  TorqueThreshold      = 5f;    //engines which produce less torque (kNm) are considered to be main thrusters and excluded from TCA control
-		[Persistent] public float  IdleResponseSpeed    = 0.25f; //constant response speed when attitude controls are idle
-		[Persistent] public float  SteeringThreshold    = 0.01f; //too small steering vector may cause oscilations
+		[Persistent] public float K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
+		[Persistent] public float MaxCutoff             = 10f;  //max. positive vertical speed m/s (configuration limit)
+		[Persistent] public float TorqueThreshold       = 5f;   //engines which produce less torque (kNm) are considered to be main thrusters and excluded from TCA control
+		[Persistent] public float StartPercentage       = 100f; //start value of the master PI controller of engines' thrustPersentage
+		[Persistent] public float OptimizationPrecision = 0.1f; //optimize engines limits until torque error or delta torque error is less than this
+		[Persistent] public int   MaxIterations         = 30;   //maximum number of optimizations per fixed frame
+		[Persistent] public float MaxPI                 = 2f;   //value of P and I sliders
 		//default values for PI controllers
-		[Persistent] public PI_Dummy Steering = new PI_Dummy(0.8f, 0.8f);
-		[Persistent] public PI_Dummy Torque   = new PI_Dummy(0.3f, 0.8f);
-		[Persistent] public PI_Dummy Engines  = new PI_Dummy(0.2f, 0.9f);
+		[Persistent] public PI_Dummy Steering = new PI_Dummy(0.8f, 0.8f); //SAS PI filter
+		[Persistent] public PI_Dummy Engines  = new PI_Dummy(0.2f, 0.9f); //thrustPercentage master PI controller
 		//UI window position and dimensions
-		[Persistent] public Rect   ControlsPos = new Rect(50, 100, TCAGui.controlsWidth, TCAGui.controlsHeight);
-		[Persistent] public Rect   HelpPos     = new Rect(Screen.width/2-TCAGui.helpWidth/2, 100, TCAGui.helpWidth, TCAGui.helpHeight);
+		[Persistent] public Rect ControlsPos = new Rect(50, 100, TCAGui.controlsWidth, TCAGui.controlsHeight);
+		[Persistent] public Rect HelpPos     = new Rect(Screen.width/2-TCAGui.helpWidth/2, 100, TCAGui.helpWidth, TCAGui.helpHeight);
 		//key binding to toggle TCA
 		[Persistent] public string TCA_Key = "y";
 
@@ -78,9 +78,7 @@ Notes:
 		[Persistent] public bool  Enabled;
 		[Persistent] public bool  GUIVisible;
 		[Persistent] public float VerticalCutoff; //max. positive vertical speed m/s (configurable)
-		[Persistent] public float StabilityCurve    = 0.3f;  //coefficient of non-linearity of efficiency response to partial steering (2 means response is quadratic, 1 means response is linear, 0 means no response)
 		[Persistent] public PIv_Controller Steering = new PIv_Controller();
-		[Persistent] public PIv_Controller Torque   = new PIv_Controller();
 		[Persistent] public PIf_Controller Engines  = new PIf_Controller();
 
 		public ConfigNode Configuration 
@@ -90,7 +88,6 @@ Notes:
 		{
 			VerticalCutoff = TCAConfiguration.Globals.MaxCutoff;
 			Steering.setPI(TCAConfiguration.Globals.Steering);
-			Torque.setPI(TCAConfiguration.Globals.Torque);
 			Engines.setPI(TCAConfiguration.Globals.Engines);
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
