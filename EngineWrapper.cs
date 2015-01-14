@@ -30,7 +30,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public static readonly PI_Dummy ThrustPI = new PI_Dummy();
-		PIf_Controller thrustController = new PIf_Controller(TCAConfiguration.Globals.StartPercentage);
+		PIf_Controller thrustController = new PIf_Controller();
 		public Vector3 specificTorque   = Vector3.zero;
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;

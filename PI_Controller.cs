@@ -53,7 +53,7 @@ namespace ThrottleControlledAvionics
 	{ 
 		public PI_Dummy() {}
 		public PI_Dummy(float P, float I) { p = P; i = I; }
-		public override void Update(int new_value) {} 
+		public override void Update(int new_value) {}
 	}
 
 	public class PIv_Controller : PI_Controller<Vector3>
@@ -69,12 +69,22 @@ namespace ThrottleControlledAvionics
 	//I hate strongly-typed languages! =(
 	public class PIf_Controller : PI_Controller<float>
 	{
-		public PIf_Controller() {}
-		public PIf_Controller(float start_value)
-		{ value = start_value; }
+		bool first = true;
+
+		public void InitValue(float start_value)
+		{
+			if(I > 0) 
+			{
+				value = start_value;
+				integral_error = value*(1-P)/I;
+			}
+			else value = start_value * P;
+			first = false;
+		}
 
 		public override void Update(float new_value)
 		{
+			if(first) { InitValue(new_value); return; }
 			var error = new_value - value;
 			integral_error += error * TimeWarp.fixedDeltaTime;
 			value = new_value * P + integral_error * I;

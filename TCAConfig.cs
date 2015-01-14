@@ -16,7 +16,6 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
 		[Persistent] public float MaxCutoff             = 10f;  //max. positive vertical speed m/s (configuration limit)
 		[Persistent] public float TorqueThreshold       = 5f;   //engines which produce less torque (kNm) are considered to be main thrusters and excluded from TCA control
-		[Persistent] public float StartPercentage       = 100f; //start value of the master PI controller of engines' thrustPersentage
 		[Persistent] public float OptimizationPrecision = 0.1f; //optimize engines limits until torque error or delta torque error is less than this
 		[Persistent] public int   MaxIterations         = 30;   //maximum number of optimizations per fixed frame
 		[Persistent] public float MaxPI                 = 2f;   //value of P and I sliders
