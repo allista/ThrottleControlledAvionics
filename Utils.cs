@@ -48,6 +48,18 @@ namespace ThrottleControlledAvionics
 			return ec != null && ec.amount > 0;
 		}
 
+		public static Vector3 CubeNorm(this Vector3 v)
+		{
+			if(v.IsZero()) return v;
+			var max = -1f;
+			for(int i = 0; i < 3; i++)
+			{
+				var ai = Mathf.Abs(v[i]);
+				if(max < ai) max = ai;
+			}
+			return v/max;
+		}
+
 		#region ConfigNode
 		public static void AddRect(this ConfigNode n, string name, Rect r)
 		{ n.AddValue(name, ConfigNode.WriteQuaternion(new Quaternion(r.x, r.y, r.width, r.height))); }
