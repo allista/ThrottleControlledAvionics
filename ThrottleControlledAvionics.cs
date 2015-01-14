@@ -24,7 +24,7 @@ namespace ThrottleControlledAvionics
 	{
 		TCAGui GUI;
 
-		Vessel vessel;
+		public Vessel vessel;
 		public VesselConfig CFG;
 		public readonly List<EngineWrapper> engines = new List<EngineWrapper>();
 		public bool haveEC = true;
@@ -37,7 +37,7 @@ namespace ThrottleControlledAvionics
 		public void Awake()
 		{
 			TCAConfiguration.Load();
-			GUI = new TCAGui(this);
+			GUI = (TCAGui)this.gameObject.AddComponent<TCAGui> ();
 			GameEvents.onVesselChange.Add(onVessel);
 			GameEvents.onVesselWasModified.Add(onVessel);
 			GameEvents.onGameStateSave.Add(onSave);
@@ -53,7 +53,13 @@ namespace ThrottleControlledAvionics
 		}
 
 		void onVessel(Vessel vsl)
-		{ if(vessel == null || vsl == vessel) UpdateEnginesList(); }
+		{ 
+			if(vessel == null || vsl == vessel)
+			{
+				UpdateEnginesList();
+				GUI.onVessel(vessel);
+			}
+		}
 
 		void onSave(ConfigNode node) { TCAConfiguration.Save(); }
 
@@ -87,11 +93,7 @@ namespace ThrottleControlledAvionics
 				}
 		}
 
-		public void OnGUI() 
-		{ 
-			GUI.DrawGUI(); 
-			GUI.UpdateToolbarIcon();
-		}
+
 
 		public void Update()
 		{ 

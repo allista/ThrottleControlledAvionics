@@ -4,22 +4,26 @@
  */
 using System;
 using UnityEngine;
+using KSPPluginFramework;
 
 namespace ThrottleControlledAvionics
 {
-	public class TCAGui
+	public class TCAGui : MonoBehaviourWindow
 	{
 		ThrottleControlledAvionics TCA;
+		Vessel vessel;
 
 		#region GUI
 		bool showEngines;
 		bool showHelp;
-		bool showHUD = true;
+		bool showAdvanced;
+		bool showDebugLines;
 
 		Vector2 positionScrollViewEngines;
 
-		public const int controlsWidth = 400, controlsHeight = 100;
+		public const int controlsWidth = 300, controlsHeight = 150;
 		public const int helpWidth = 500, helpHeight = 100;
+		public const int advancedWidth = 200, extendedHeight = 400;
 		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
 		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
 		const string ICON_NC  = "ThrottleControlledAvionics/Icons/icon_button_noCharge";
@@ -30,12 +34,19 @@ namespace ThrottleControlledAvionics
 		Texture textureOn;
 		Texture textureOff;
 		Texture textureNoCharge;
+
+		private Material diffuseMat;
+		private LineRenderer upLine;
+		private LineRenderer vecLine;
+		private LineRenderer engLine;
+		private LineRenderer dirLine;
+		private LineRenderer gravLine;
 		#endregion
 
-		//constructor
-		public TCAGui(ThrottleControlledAvionics _TCA)
+		internal override void Awake()
 		{
-			TCA = _TCA;
+			base.Awake ();
+			TCA = this.gameObject.GetComponent<ThrottleControlledAvionics> ();
 			if(ToolbarManager.ToolbarAvailable)
 			{
 				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
@@ -43,7 +54,7 @@ namespace ThrottleControlledAvionics
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
 				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
 				TCAToolbarButton.Visible     = true;
-				TCAToolbarButton.OnClick    += e => TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible;
+				TCAToolbarButton.OnClick += e => onGUIToggle ();
 			}
 			else 
 			{
@@ -54,9 +65,113 @@ namespace ThrottleControlledAvionics
 			}
 			GameEvents.onHideUI.Add(onHideUI);
 			GameEvents.onShowUI.Add(onShowUI);
+
+			WindowCaption = "Throttle Controlled Avionics";
+			TCAConfiguration.Globals.ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
+			WindowRect = TCAConfiguration.Globals.ControlsPos;
+			//WindowRect = new Rect (100, 50, 150, 50);
+			Visible = false;
+			DragEnabled = true;
+			TooltipsEnabled = true;
+
+			diffuseMat = new Material (Shader.Find ("Particles/Additive")); //Unlit/Texture
+		}
+
+		//when the main class gets a vessel, we read the vessel's config to see if we need to be visible or not.
+		public void onVessel(Vessel _vessel) {
+			Visible = TCA.CFG.GUIVisible;
+			vessel = _vessel;
 		}
 
 		#region GUI methods
+		internal override void DrawWindow(Int32 id)
+		{
+			if (GUI.Button(new Rect(WindowRect.width - 30f, 10f, 18f, 20f), "?")) showHelp = !showHelp;
+			if (GUI.Button(new Rect(30f, 10f, 18f, 20f), "D")) showAdvanced = !showAdvanced;
+
+			GUILayout.BeginHorizontal();
+			GUILayout.BeginVertical(GUILayout.Width(controlsWidth-20));
+			GUILayout.BeginHorizontal();
+			TCA.ActivateTCA(GUILayout.Toggle(TCA.CFG.Enabled, "Toggle TCA"));
+			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", GUILayout.ExpandWidth(false));
+			GUILayout.EndHorizontal();
+
+			#if DEBUG
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Smoothness: ", GUILayout.ExpandWidth(false));
+			GUILayout.Label(TCAConfiguration.Globals.StabilityCurve.ToString("F1"), GUILayout.ExpandWidth(false));
+			TCAConfiguration.Globals.StabilityCurve = GUILayout.HorizontalSlider(TCAConfiguration.Globals.StabilityCurve, 0f, 10f);
+			GUILayout.EndHorizontal();
+			#endif
+
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Vertical Speed Limit: ", GUILayout.ExpandWidth(false));
+			GUILayout.Label(TCA.CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff? "inf." :
+				TCA.CFG.VerticalCutoff.ToString("F1"), GUILayout.ExpandWidth(false));
+			TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
+				-TCAConfiguration.Globals.MaxCutoff, 
+				TCAConfiguration.Globals.MaxCutoff);
+			GUILayout.EndHorizontal();
+			//engines info
+			showEngines = GUILayout.Toggle(showEngines, "Show/Hide Engines Information");
+			if (showEngines)
+			{
+				positionScrollViewEngines = GUILayout.BeginScrollView (positionScrollViewEngines, GUILayout.Height (extendedHeight));
+				foreach (var e in TCA.engines) {
+					if (!e.Valid)
+						continue;
+					GUILayout.Label (e.getName () + "\n" +
+					string.Format (
+						"Torque: {0}\n" +
+						"Thrust Dir: {1}\n" +
+						"Efficiency: {2:P1}\n" +
+						"Thrust: {3:F1}%",
+						e.currentTorque, e.thrustDirection,
+						e.efficiency, e.thrustPercentage));
+				}
+				GUILayout.EndScrollView ();
+			} 
+
+			GUILayout.EndVertical();
+
+
+			if (showAdvanced) {
+				GUILayout.BeginVertical(GUILayout.Width(advancedWidth));
+				showDebugLines = GUILayout.Toggle(showDebugLines, "Show/Hide Debug Lines");
+				GUILayout.EndVertical();
+			}
+			GUILayout.EndHorizontal();
+			GUI.DragWindow();
+			ResetWindowSize();
+
+
+			//show helpwindow
+			if(showHelp) 
+			{
+				TCAConfiguration.Globals.HelpPos = 
+					GUILayout.Window(2, 
+						TCAConfiguration.Globals.HelpPos, 
+						windowHelp, 
+						"Instructions",
+						GUILayout.Width(helpWidth),
+						GUILayout.Height(helpHeight));
+				Utils.CheckRect(ref TCAConfiguration.Globals.HelpPos);
+			}
+
+			if (showDebugLines) {
+				DrawDebugLines ();
+			}
+		}
+
+		internal void ResetWindowSize()
+		{
+			WindowRect = TCAConfiguration.Globals.ControlsPos;
+			if (showEngines)
+				WindowRect.height += extendedHeight;
+			if (showAdvanced)
+				WindowRect.width += advancedWidth;
+		}
+
 		public void UpdateToolbarIcon() 
 		{
 			if(TCAToolbarButton != null)
@@ -76,8 +191,8 @@ namespace ThrottleControlledAvionics
 			if (ApplicationLauncher.Ready)
 			{
 				TCAButton = ApplicationLauncher.Instance.AddModApplication(
-					onAppLaunchToggleOn,
-					onAppLaunchToggleOff,
+					onShowUI,
+					onHideUI,
 					DummyVoid, DummyVoid, DummyVoid, DummyVoid,
 					ApplicationLauncher.AppScenes.FLIGHT,
 					GameDatabase.Instance.GetTexture(ICON_OFF, false));
@@ -85,15 +200,17 @@ namespace ThrottleControlledAvionics
 				else TCAButton.SetFalse();
 			}
 		}
-
-		void onAppLaunchToggleOn() { TCA.CFG.GUIVisible = true; }
-		void onAppLaunchToggleOff() { TCA.CFG.GUIVisible = false; }
 		void DummyVoid() {}
 
-		void onShowUI() { showHUD = true; }
-		void onHideUI() { showHUD = false; }
+		void onGUIToggle() {
+			if (Visible)
+				onShowUI ();
+			else  onHideUI ();
+		}
+		void onShowUI() { TCA.CFG.GUIVisible = Visible = true; }
+		void onHideUI() { TCA.CFG.GUIVisible = Visible = false; }
 
-		public void OnDestroy() 
+		internal override void OnDestroy() 
 		{ 
 			GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIAppLauncherReady);
 			if(TCAButton != null)
@@ -104,56 +221,6 @@ namespace ThrottleControlledAvionics
 			GameEvents.onShowUI.Remove(onShowUI);
 		}
 
-		void TCA_Window(int windowID)
-		{
-			if(GUI.Button(new Rect(TCAConfiguration.Globals.ControlsPos.width - 23f, 2f, 20f, 18f), "?"))
-				showHelp = !showHelp;
-
-			GUILayout.BeginVertical();
-			GUILayout.BeginHorizontal();
-			TCA.ActivateTCA(GUILayout.Toggle(TCA.CFG.Enabled, "Toggle TCA"));
-			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", GUILayout.ExpandWidth(false));
-			GUILayout.EndHorizontal();
-
-			#if DEBUG
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Smoothness: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCAConfiguration.Globals.StabilityCurve.ToString("F1"), GUILayout.ExpandWidth(false));
-			TCAConfiguration.Globals.StabilityCurve = GUILayout.HorizontalSlider(TCAConfiguration.Globals.StabilityCurve, 0f, 10f);
-			GUILayout.EndHorizontal();
-			#endif
-
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Vertical Speed Limit: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCA.CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff? "inf." :
-			                TCA.CFG.VerticalCutoff.ToString("F1"), GUILayout.ExpandWidth(false));
-			TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
-			                                                    -TCAConfiguration.Globals.MaxCutoff, 
-			                                                    TCAConfiguration.Globals.MaxCutoff);
-			GUILayout.EndHorizontal();
-			//engines info
-			showEngines = GUILayout.Toggle(showEngines, "Show/Hide Engines Information");
-			if(showEngines)
-			{
-				positionScrollViewEngines = GUILayout.BeginScrollView(positionScrollViewEngines, GUILayout.Height(controlsHeight*4));
-				foreach(var e in TCA.engines)
-				{
-					if(!e.Valid) continue;
-					GUILayout.Label(e.getName() + "\n" +
-					                string.Format(
-						                "Torque: {0}\n" +
-						                "Thrust Dir: {1}\n" +
-						                "Efficiency: {2:P1}\n" +
-						                "Thrust: {3:F1}%",
-						                e.currentTorque, e.thrustDirection,
-						                e.efficiency, e.thrustPercentage));
-				}
-				GUILayout.EndScrollView();
-			}
-			GUILayout.EndVertical();
-			GUI.DragWindow();
-		}
-
 		void windowHelp(int windowID)
 		{
 			GUILayout.BeginVertical();
@@ -162,28 +229,85 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 			GUI.DragWindow();
 		}
+		#endregion
 
-		public void DrawGUI()
+		#region Debug Lines
+		public void DrawDebugLines()
 		{
-			if(!TCA.CFG.GUIVisible || !showHUD) return;
-			TCAConfiguration.Globals.ControlsPos = 
-				GUILayout.Window(1, 
-				                 TCAConfiguration.Globals.ControlsPos, 
-				                 TCA_Window, 
-				                 "Throttle Controlled Avionics",
-				                 GUILayout.Width(controlsWidth),
-				                 GUILayout.Height(controlsHeight));
-			Utils.CheckRect(ref TCAConfiguration.Globals.ControlsPos);
-			if(showHelp) 
-			{
-				TCAConfiguration.Globals.HelpPos = 
-					GUILayout.Window(2, 
-					                 TCAConfiguration.Globals.HelpPos, 
-					                 windowHelp, 
-					                 "Instructions",
-					                 GUILayout.Width(helpWidth),
-					                 GUILayout.Height(helpHeight));
-				Utils.CheckRect(ref TCAConfiguration.Globals.HelpPos);
+			if (vessel != null){
+				GameObject go;
+				if(engLine == null){
+					go = new GameObject();
+					go.transform.parent = vessel.transform;
+					go.transform.localPosition = Vector3.zero;
+					go.transform.localRotation = Quaternion.identity;
+					engLine = go.AddComponent<LineRenderer> ();
+					engLine.SetColors(Color.red, new Color(1f,0f,0f,0f));
+					engLine.SetWidth (-0.1f, 0.1f);
+					engLine.useWorldSpace = false;
+					engLine.material = diffuseMat;
+				}
+				if(dirLine == null){
+					go = new GameObject();
+					go.transform.parent = vessel.transform;
+					go.transform.localPosition = Vector3.zero;
+					go.transform.localRotation = Quaternion.identity;
+					dirLine = go.AddComponent<LineRenderer> ();
+					dirLine.SetColors(new Color(0.5f, 0f, 0f, 1f), new Color(0.5f,0f,0f,0f));
+					dirLine.SetWidth (-0.1f, 0.1f);
+					dirLine.useWorldSpace = false;
+					dirLine.material = diffuseMat;
+				}
+				if(upLine == null){
+					go = new GameObject();
+					go.transform.parent = vessel.transform;
+					go.transform.localPosition = Vector3.zero;
+					go.transform.localRotation = Quaternion.identity;
+					upLine = go.AddComponent<LineRenderer> ();
+					upLine.SetColors(Color.white, new Color(1f,1f,1f,0f));
+					upLine.SetWidth (-0.1f, 0.1f);
+					upLine.useWorldSpace = false;
+					upLine.material = diffuseMat;
+				}
+				if(gravLine == null){
+					go = new GameObject();
+					go.transform.parent = vessel.transform;
+					go.transform.localPosition = Vector3.zero;
+					go.transform.localRotation = Quaternion.identity;
+					gravLine = go.AddComponent<LineRenderer> ();
+					gravLine.SetColors(new Color(0.6f,0.4f,0.2f,1f), new Color(0.6f,0.4f,0.2f,0f));
+					gravLine.SetWidth (-0.1f, 0.1f);
+					gravLine.useWorldSpace = false;
+					gravLine.material = diffuseMat;
+					gravLine.SetPosition(0, Vector3.zero);
+					gravLine.SetPosition(1, Vector3.forward * 10);
+				}
+				if(vecLine == null){
+					go = new GameObject();
+					vecLine = go.AddComponent<LineRenderer> ();
+					vecLine.SetColors(new Color(0.7f,0.4f,0.8f,1f), new Color(0.7f,0.4f,0.8f,0f));
+					vecLine.SetWidth (-0.1f, 0.1f);
+					vecLine.useWorldSpace = true;
+					vecLine.material = diffuseMat;
+				}
+				engLine.SetPosition (0, Vector3.zero);
+				dirLine.SetPosition (0, Vector3.zero);
+				upLine.SetPosition (0, Vector3.zero);
+				vecLine.SetPosition (0, vessel.findWorldCenterOfMass());
+
+				//set line targets:
+				/*dirLine.SetPosition (1, mainThrustAxis.normalized * 10);
+				Vector3 sum = new Vector3(0, 0, 0);
+				foreach (EngineWrapper eng in TCA.engines)
+				{
+					sum += eng.maxThrust * eng.thrustVector;
+				}
+				engLine.SetPosition (1, sum.normalized * 10);
+				*/
+				upLine.SetPosition (1, Vector3.up * 10);
+				vecLine.SetPosition (1, vessel.findWorldCenterOfMass() + ((vessel.situation == Vessel.Situations.FLYING)?vessel.GetSrfVelocity().normalized : vessel.GetObtVelocity().normalized) * 10); //GetSrfVelocity
+				Vector3 gee = FlightGlobals.getGeeForceAtPosition( vessel.transform.position ); 
+				gravLine.transform.rotation = Quaternion.LookRotation( gee.normalized );				
 			}
 		}
 		#endregion
