@@ -192,7 +192,7 @@ namespace ThrottleControlledAvionics
 				var err = CFG.VerticalCutoff-upV;
 				upV_old = upV;
 				return upV < CFG.VerticalCutoff?
-					Mathf.Clamp01(err/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
+					Mathf.Clamp01(err/2f/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
 					Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
 			}
 		}
