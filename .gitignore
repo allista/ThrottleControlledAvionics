@@ -220,21 +220,9 @@ pip-log.txt
 #############
 
 *.userprefs
-**/PluginData/**
-
-
-#############
-## Build artifacts
-#############
 /GameData/ThrottleControlledAvionics/TCASave.txt
 /Releases/**
 /Test*
-/GameData/ThrottleControlledAvionics/Assembly-CSharp.dll
-/GameData/ThrottleControlledAvionics/Assembly-CSharp-firstpass.dll
-/GameData/ThrottleControlledAvionics/Mono.Cecil.dll
-/GameData/ThrottleControlledAvionics/Mono.Security.dll
-/GameData/ThrottleControlledAvionics/TDx.TDxInput.dll
-/GameData/ThrottleControlledAvionics/UnityEngine.dll
-
+**/PluginData/**
 
 *.mdb
