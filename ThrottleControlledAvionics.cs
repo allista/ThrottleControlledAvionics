@@ -114,7 +114,10 @@ namespace ThrottleControlledAvionics
 			//calculate steering
 			wCoM         = vessel.findWorldCenterOfMass();
 			refT         = vessel.GetReferenceTransformPart().transform; //should be in a callback?
-			var new_steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw)/TCAGlobals.MAX_STEERING;
+			var new_steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
+			if(!new_steering.IsZero()) new_steering = new_steering/new_steering.CubeNorm().magnitude;
+			Utils.Log("new steering {0}, cube-normed {1}, scaled {2}", //debug
+			          new_steering, new_steering.CubeNorm(), new_steering/new_steering.CubeNorm().magnitude);
 			CFG.Steering.Update(new_steering-steering);
 			steering += CFG.Steering.Action;
 			//tune engines limits
@@ -175,19 +178,20 @@ namespace ThrottleControlledAvionics
 				last_error = TorqueError;
 			}
 			//debug
-//			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.currentTorque+",\n"));
-//			Utils.Log(
-//				"Optimized: {0}\n" +
-//				"Torque Error: {1}\n" +
-//				"Needed Torque: {2}\n" +
-//				"Torque Clamp:\n   +{3}\n   -{4}\n" +
-//				"Limits: [{5}]", 
-//				Optimized, TorqueError, 
-//				needed_torque,
-//				torque_clamp.positive, 
-//				torque_clamp.negative,
-//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
-//			);
+			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.currentTorque+",\n"));
+			Utils.Log(
+				"Steering: {0}\n" +
+				"Needed Torque: {1}\n" +
+				"Torque Error: {2}\n" +
+				"Torque Clamp:\n   +{3}\n   -{4}\n" +
+				"Limits: [{5}]", 
+				steering,
+				needed_torque,
+				TorqueError,
+				torque_clamp.positive, 
+				torque_clamp.negative,
+				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
+			);
 		}
 
 		static void setThrustPercentage(List<EngineWrapper> engines, float speedLimit)
