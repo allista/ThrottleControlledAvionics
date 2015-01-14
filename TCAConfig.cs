@@ -117,19 +117,27 @@ Notes:
 			clone.Load(config.Configuration);
 			return clone;
 		}
+
+		public virtual void CopyFrom(VesselConfig other)
+		{
+			var vid = VesselID;
+			Load(other.Configuration);
+			VesselID = vid;
+		}
 	}
+
 
 	public class NamedConfig : VesselConfig
 	{ 
-		[Persistent] public string Name; 
+		[Persistent] public string Name = "Config"; 
 
 		public NamedConfig() {}
 		public NamedConfig(string name) { Name = name; }
 
-		public void CopyFrom(VesselConfig other)
+		public override void CopyFrom(VesselConfig other)
 		{
 			var name = Name;
-			Load(other.Configuration);
+			base.CopyFrom(other);
 			Name = name;
 		}
 	}
@@ -137,8 +145,10 @@ Notes:
 
 	public static class TCAConfiguration
 	{
-		public const string FILENAME  = "TCA.conf";
-		public const string NODE_NAME = "TCACONFIG";
+		public const string FILENAME   = "TCA.conf";
+		public const string NODE_NAME  = "TCACONFIG";
+		public const string VSL_NODE   = "VESSELS";
+		public const string NAMED_NODE = "NAMED";
 		public static TCAGlobals Globals = new TCAGlobals();
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
@@ -212,11 +222,26 @@ Notes:
 				Globals.Load(node.GetNode(TCAGlobals.NODE_NAME));
 			Globals.InitInstructions();
 			Configs.Clear();
-			foreach(var c in node.GetNodes(VesselConfig.NODE_NAME))
+			//deprecated conversion
+			var n = node.HasNode(VesselConfig.NODE_NAME)? node : node.GetNode(VSL_NODE);
+			if(n != null && n.HasNode(VesselConfig.NODE_NAME))
 			{
-				var config = new VesselConfig();
-				config.Load(c);
-				Configs[config.VesselID] = config;
+				foreach(var c in n.GetNodes(VesselConfig.NODE_NAME))
+				{
+					var config = new VesselConfig();
+					config.Load(c);
+					Configs[config.VesselID] = config;
+				}
+			}
+			NamedConfigs.Clear();
+			if(node.HasNode(NAMED_NODE))
+			{
+				foreach(var c in node.GetNode(NAMED_NODE).GetNodes(NamedConfig.NODE_NAME))
+				{
+					var config = new NamedConfig();
+					config.Load(c);
+					NamedConfigs[config.Name] = config;
+				}
 			}
 		}
 
@@ -238,10 +263,20 @@ Notes:
 			var current_vessels = new HashSet<Guid>(HighLogic.CurrentGame.flightState.protoVessels.Select(p => p.vesselID));
 			var configs = new List<VesselConfig>(Configs.Values);
 			configs.Sort();
-			foreach(var c in configs)
+			if(configs.Count > 0)
 			{
-				if(current_vessels.Contains(c.VesselID))
-					c.Save(node.AddNode(VesselConfig.NODE_NAME));
+				var n = node.AddNode(VSL_NODE);
+				foreach(var c in configs)
+				{
+					if(current_vessels.Contains(c.VesselID))
+						c.Save(n.AddNode(VesselConfig.NODE_NAME));
+				}
+			}
+			if(NamedConfigs.Count > 0)
+			{
+				var n = node.AddNode(NAMED_NODE);
+				foreach(var c in NamedConfigs.Keys)
+					NamedConfigs[c].Save(n.AddNode(NamedConfig.NODE_NAME));
 			}
 		}
 	}

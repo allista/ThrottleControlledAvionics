@@ -90,8 +90,6 @@ namespace ThrottleControlledAvionics
 				}
 		}
 
-
-
 		public void Update()
 		{ 
 			if(Input.GetKeyDown(TCAConfiguration.Globals.TCA_Key)) 
@@ -233,6 +231,7 @@ namespace ThrottleControlledAvionics
 			torqueLine.SetPosition(0, ori);
 			torqueLine.SetPosition(1, ori + CFG.Torque.Value/5);
 		}
+		//very temp
 		public void KillLines()
 		{
 			Destroy (SteeringLine);

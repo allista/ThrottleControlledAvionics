@@ -48,89 +48,92 @@
 
 using UnityEngine;
 
-public class ComboBox
+namespace ThrottleControlledAvionics
 {
-    private static bool forceToUnShow = false;
-    private static int useControlID = -1;
-    private bool isClickedComboButton = false;
+	public class ComboBox
+	{
+	    static bool forceToUnShow = false;
+	    static int useControlID   = -1;
+	    bool isClickedComboButton = false;
 
-    private int selectedItemIndex = 0;
+	    int selectedItemIndex = 0;
 
-    public int List( string buttonText, GUIContent[] listContent, GUIStyle listStyle)
-    {
-        return List(new GUIContent(buttonText), listContent, "button", "box", listStyle);
-    }
+	    public int List( string buttonText, GUIContent[] listContent, GUIStyle listStyle)
+	    {
+	        return List(new GUIContent(buttonText), listContent, "button", "box", listStyle);
+	    }
 
-    public int List( GUIContent buttonContent, GUIContent[] listContent, GUIStyle listStyle)
-    {
-        return List(buttonContent, listContent, "button", "box", listStyle);
-    }
+	    public int List( GUIContent buttonContent, GUIContent[] listContent, GUIStyle listStyle)
+	    {
+	        return List(buttonContent, listContent, "button", "box", listStyle);
+	    }
 
-    public int List( string buttonText, GUIContent[] listContent, GUIStyle buttonStyle, GUIStyle boxStyle, GUIStyle listStyle)
-    {
-        return List(new GUIContent(buttonText), listContent, buttonStyle, boxStyle, listStyle);
-    }
+	    public int List( string buttonText, GUIContent[] listContent, GUIStyle buttonStyle, GUIStyle boxStyle, GUIStyle listStyle)
+	    {
+	        return List(new GUIContent(buttonText), listContent, buttonStyle, boxStyle, listStyle);
+	    }
 
-    public int List( GUIContent buttonContent, GUIContent[] listContent,
-                                    GUIStyle buttonStyle, GUIStyle boxStyle, GUIStyle listStyle)
-    {
-        if (forceToUnShow)
-        {
-            forceToUnShow = false;
-            isClickedComboButton = false;
-        }
+	    public int List( GUIContent buttonContent, GUIContent[] listContent,
+	                                    GUIStyle buttonStyle, GUIStyle boxStyle, GUIStyle listStyle)
+	    {
+	        if (forceToUnShow)
+	        {
+	            forceToUnShow = false;
+	            isClickedComboButton = false;
+	        }
 
-        bool done = false;
-        int controlID = GUIUtility.GetControlID(FocusType.Passive);
+	        bool done = false;
+	        int controlID = GUIUtility.GetControlID(FocusType.Passive);
 
-        switch (Event.current.GetTypeForControl(controlID))
-        {
-            case EventType.mouseUp:
-                {
-                    if (isClickedComboButton)
-                    {
-                        done = true;
-                    }
-                }
-                break;
-        }
+	        switch (Event.current.GetTypeForControl(controlID))
+	        {
+	            case EventType.mouseUp:
+	                {
+	                    if (isClickedComboButton)
+	                    {
+	                        done = true;
+	                    }
+	                }
+	                break;
+	        }
 
-        if (GUILayout.Button(buttonContent, buttonStyle))
-        {
-            if (useControlID == -1)
-            {
-                useControlID = controlID;
-                isClickedComboButton = false;
-            }
+	        if (GUILayout.Button(buttonContent, buttonStyle))
+	        {
+	            if (useControlID == -1)
+	            {
+	                useControlID = controlID;
+	                isClickedComboButton = false;
+	            }
 
-            if (useControlID != controlID)
-            {
-                forceToUnShow = true;
-                useControlID = controlID;
-            }
-            isClickedComboButton = true;
-        }
+	            if (useControlID != controlID)
+	            {
+	                forceToUnShow = true;
+	                useControlID = controlID;
+	            }
+	            isClickedComboButton = true;
+	        }
 
-        if (isClickedComboButton)
-        {
-            Rect rect = GUILayoutUtility.GetLastRect();
-            Rect listRect = new Rect(rect.x, rect.y + listStyle.CalcHeight(listContent[0], 1.0f),
-                      rect.width, listStyle.CalcHeight(listContent[0], 1.0f) * listContent.Length);
+	        if (isClickedComboButton)
+	        {
+	            var rect = GUILayoutUtility.GetLastRect();
+	            var listRect = new Rect(rect.x, rect.y + listStyle.CalcHeight(listContent[0], 1.0f),
+	                      rect.width, listStyle.CalcHeight(listContent[0], 1.0f) * listContent.Length);
 
-            GUI.Box(listRect, "", boxStyle);
-            int newSelectedItemIndex = GUI.SelectionGrid(listRect, selectedItemIndex, listContent, 1, listStyle);
-            if (newSelectedItemIndex != selectedItemIndex)
-                selectedItemIndex = newSelectedItemIndex;
-        }
+	            GUI.Box(listRect, "", boxStyle);
+	            int newSelectedItemIndex = GUI.SelectionGrid(listRect, selectedItemIndex, listContent, 1, listStyle);
+	            if (newSelectedItemIndex != selectedItemIndex)
+	                selectedItemIndex = newSelectedItemIndex;
+	        }
 
-        if (done)
-            isClickedComboButton = false;
+	        if (done)
+	            isClickedComboButton = false;
 
-        return GetSelectedItemIndex();
-    }
+	        return GetSelectedItemIndex();
+	    }
 
-    public int GetSelectedItemIndex()
-    {
-        return selectedItemIndex;
-    }
+	    public int GetSelectedItemIndex()
+	    {
+	        return selectedItemIndex;
+	    }
+	}
 }
