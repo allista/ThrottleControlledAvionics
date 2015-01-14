@@ -32,7 +32,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System">
-      <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\System.dll</HintPath>
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\System.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
@@ -43,7 +44,8 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="System.Core">
-      <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\System.Core.dll</HintPath>
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\System.Core.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Mono.Cecil">
       <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\Mono.Cecil.dll</HintPath>
@@ -54,7 +56,8 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="System.Xml">
-      <HintPath>..\Hangar\KSP_test_0.90\KSP_Data\Managed\System.Xml.dll</HintPath>
+      <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\System.Xml.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="TDx.TDxInput">
       <HintPath>C:\Program Files %28x86%29\Steam\steamapps\common\Kerbal Space Program\KSP_Data\Managed\TDx.TDxInput.dll</HintPath>
