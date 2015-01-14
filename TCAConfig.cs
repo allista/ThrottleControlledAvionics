@@ -13,15 +13,16 @@ namespace ThrottleControlledAvionics
 		public static readonly float MAX_STEERING = Mathf.Sqrt(3);
 
 		//control model configuration parameters
-		[Persistent] public float K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
+		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
 		[Persistent] public float MaxCutoff             = 10f;  //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float TorqueThreshold       = 5f;   //engines which produce less torque (kNm) are considered to be main thrusters and excluded from TCA control
+		[Persistent] public float TorqueThreshold       = 10f;   //engines which produce less torque (kNm) are considered to be main thrusters and excluded from TCA control
 		[Persistent] public float OptimizationPrecision = 0.1f; //optimize engines limits until torque error or delta torque error is less than this
 		[Persistent] public int   MaxIterations         = 30;   //maximum number of optimizations per fixed frame
-		[Persistent] public float MaxPI                 = 2f;   //value of P and I sliders
+		[Persistent] public float MaxP                  = 2f;   //value of P slider
+		[Persistent] public float MaxI                  = 2f;   //value of I slider
 		//default values for PI controllers
-		[Persistent] public PI_Dummy Steering = new PI_Dummy(0.8f, 0.8f); //SAS PI filter
-		[Persistent] public PI_Dummy Engines  = new PI_Dummy(0.2f, 0.9f); //thrustPercentage master PI controller
+		[Persistent] public PI_Dummy Steering = new PI_Dummy(1f, 0f); //SAS PI filter defaults
+		[Persistent] public PI_Dummy Engines  = new PI_Dummy(0.5f, 0.15f); //thrustPercentage master PI controller defaults
 		//UI window position and dimensions
 		[Persistent] public Rect ControlsPos = new Rect(50, 100, TCAGui.controlsWidth, TCAGui.controlsHeight);
 		[Persistent] public Rect HelpPos     = new Rect(Screen.width/2-TCAGui.helpWidth/2, 100, TCAGui.helpWidth, TCAGui.helpHeight);

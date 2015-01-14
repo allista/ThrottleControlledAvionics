@@ -24,9 +24,10 @@ namespace ThrottleControlledAvionics
 		public readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
 		public bool haveEC { get; private set; } = true;
 		public float TorqueError { get; private set; }
-		Vector3 wCoM;   //center of mass in world space
-		Transform refT; //transform of the controller-part
-		float upV_old;  //previous velue of vertical speed
+		Vector3 wCoM;    //center of mass in world space
+		Transform refT;  //transform of the controller-part
+		float last_upV;  //previous velue of vertical speed
+		Vector3 steering; //previous steering vector
 		#endregion
 
 		#region Engine Logic
@@ -34,8 +35,8 @@ namespace ThrottleControlledAvionics
 		{
 			TCAConfiguration.Load();
 			GUI = new TCAGui(this);
-			GameEvents.onVesselChange.Add(onVessel);
-			GameEvents.onVesselWasModified.Add(onVessel);
+			GameEvents.onVesselChange.Add(onVesselChange);
+			GameEvents.onVesselWasModified.Add(onVesselModify);
 			GameEvents.onGameStateSave.Add(onSave);
 		}
 
@@ -43,19 +44,27 @@ namespace ThrottleControlledAvionics
 		{ 
 			TCAConfiguration.Save();
 			if(GUI != null) GUI.OnDestroy();
-			GameEvents.onVesselChange.Remove(onVessel);
-			GameEvents.onVesselWasModified.Remove(onVessel);
+			GameEvents.onVesselChange.Remove(onVesselChange);
+			GameEvents.onVesselWasModified.Remove(onVesselModify);
 			GameEvents.onGameStateSave.Remove(onSave);
 		}
 
-		void onVessel(Vessel vsl)
-		{ if(vessel == null || vsl == vessel) UpdateEnginesList(); }
+		void onVesselChange(Vessel vsl)
+		{ 
+			if(vsl == null || vsl.Parts == null) return;
+			TCAConfiguration.Save();
+			vessel = vsl;
+			UpdateEnginesList();
+		}
+
+		void onVesselModify(Vessel vsl)
+		{ if(vessel == vsl) UpdateEnginesList(); }
 
 		void onSave(ConfigNode node) { TCAConfiguration.Save(); }
 
 		public void ActivateTCA(bool state)
 		{
-			if(state == CFG.Enabled) return;
+			if(CFG == null || state == CFG.Enabled) return;
 			CFG.Enabled = state;
 			if(!CFG.Enabled) //reset engine limiters
 				Engines.ForEach(e => e.forceThrustPercentage(100));
@@ -63,7 +72,6 @@ namespace ThrottleControlledAvionics
 
 		void UpdateEnginesList()
 		{
-			vessel = FlightGlobals.ActiveVessel;
 			if(vessel == null) return;
 			CFG = TCAConfiguration.GetConfig(vessel);
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
@@ -106,9 +114,11 @@ namespace ThrottleControlledAvionics
 			//calculate steering
 			wCoM         = vessel.findWorldCenterOfMass();
 			refT         = vessel.GetReferenceTransformPart().transform; //should be in a callback?
-			CFG.Steering.Update(refT.TransformDirection(new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw))/TCAGlobals.MAX_STEERING);
+			var new_steering = refT.TransformDirection(new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw))/TCAGlobals.MAX_STEERING;
+			CFG.Steering.Update(new_steering-steering);
+			steering += CFG.Steering.Action;
 			//tune engines limits
-			optimizeLimitsIteratively(active_engines, CFG.Steering.Value, 
+			optimizeLimitsIteratively(active_engines, 
 			                          TCAConfiguration.Globals.OptimizationPrecision, 
 			                          TCAConfiguration.Globals.MaxIterations);
 			setThrustPercentage(active_engines, verticalSpeedLimit);
@@ -132,7 +142,7 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		void optimizeLimitsIteratively(List<EngineWrapper> engines, Vector3 steering, float eps, int max_iter)
+		void optimizeLimitsIteratively(List<EngineWrapper> engines, float eps, int max_iter)
 		{
 			//calculate initial imbalance and needed torque
 			var torque_imbalance = Vector3.zero;
@@ -188,11 +198,11 @@ namespace ThrottleControlledAvionics
 				//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 				var up  = (wCoM - vessel.mainBody.position).normalized;
 				var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
-				var upA = (upV-upV_old)/TimeWarp.fixedDeltaTime;
+				var upA = (upV-last_upV)/TimeWarp.fixedDeltaTime;
 				var err = CFG.VerticalCutoff-upV;
-				upV_old = upV;
+				last_upV = upV;
 				return upV < CFG.VerticalCutoff?
-					Mathf.Clamp01(err/2f/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
+					Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
 					Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
 			}
 		}

@@ -15,7 +15,7 @@ namespace ThrottleControlledAvionics
 	{
 		new public const string NODE_NAME = "PICONTROLLER";
 
-		[Persistent] public float p = 0.8f, i = 0.3f; //some default values
+		[Persistent] public float p = 0.5f, i = 0.5f; //some default values
 		protected PI_Controller master;
 
 		public float P { get { return master == null? p : master.P; } set { p = value; } }
@@ -30,64 +30,48 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(name, GUILayout.ExpandWidth(false));
 			GUILayout.Label(" P: "+P.ToString("F2"), GUILayout.ExpandWidth(false));
-			p = GUILayout.HorizontalSlider(P, 0f, TCAConfiguration.Globals.MaxPI, GUILayout.ExpandWidth(true));
+			p = GUILayout.HorizontalSlider(P, 0f, TCAConfiguration.Globals.MaxP, GUILayout.ExpandWidth(true));
 			GUILayout.Label(" I: "+I.ToString("F2"), GUILayout.ExpandWidth(false));
-			i = GUILayout.HorizontalSlider(I, 0f, TCAConfiguration.Globals.MaxPI, GUILayout.ExpandWidth(true));
+			i = GUILayout.HorizontalSlider(I, 0f, TCAConfiguration.Globals.MaxI, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 	}
 
 	public abstract class PI_Controller<T> : PI_Controller
 	{
-		protected T value = default(T);
+		protected T action = default(T);
 		protected T integral_error = default(T);
 
-		public abstract void Update(T new_value);
+		public abstract void Update(T error);
 
 		//access
-		public T Value { get { return value; } }
-		public static implicit operator T(PI_Controller<T> c) { return c.value; }
+		public T Action { get { return action; } }
+		public static implicit operator T(PI_Controller<T> c) { return c.action; }
 	}
 
 	public class PI_Dummy : PI_Controller<int> 
 	{ 
 		public PI_Dummy() {}
 		public PI_Dummy(float P, float I) { p = P; i = I; }
-		public override void Update(int new_value) {}
+		public override void Update(int error) {}
 	}
 
 	public class PIv_Controller : PI_Controller<Vector3>
 	{
-		public override void Update(Vector3 new_value)
+		public override void Update(Vector3 error)
 		{
-			var error = new_value - value;
 			integral_error += error * TimeWarp.fixedDeltaTime;
-			value = new_value * P + integral_error * I;
+			action = error * P + integral_error * I;
 		}
 	}
 
 	//I hate strongly-typed languages! =(
 	public class PIf_Controller : PI_Controller<float>
 	{
-		bool first = true;
-
-		public void InitValue(float start_value)
+		public override void Update(float error)
 		{
-			if(I > 0) 
-			{
-				value = start_value;
-				integral_error = value*(1-P)/I;
-			}
-			else value = start_value * P;
-			first = false;
-		}
-
-		public override void Update(float new_value)
-		{
-			if(first) { InitValue(new_value); return; }
-			var error = new_value - value;
 			integral_error += error * TimeWarp.fixedDeltaTime;
-			value = new_value * P + integral_error * I;
+			action = error * P + integral_error * I;
 		}
 	}
 }

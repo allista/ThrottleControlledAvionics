@@ -117,9 +117,9 @@ namespace ThrottleControlledAvionics
 			get { return isModuleEngineFX ? engineFX.thrustPercentage : engine.thrustPercentage; }
 			set
 			{
-				thrustController.Update(value);
-				if(!isModuleEngineFX) engine.thrustPercentage = Mathf.Clamp(thrustController, 0, 100);
-				else engineFX.thrustPercentage = Mathf.Clamp(thrustController, 0, 100);
+				thrustController.Update(value-thrustPercentage);
+				if(!isModuleEngineFX) engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController, 0, 100);
+				else engineFX.thrustPercentage = Mathf.Clamp(engineFX.thrustPercentage+thrustController, 0, 100);
 			}
 		}
 
