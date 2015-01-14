@@ -7,6 +7,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 
@@ -118,5 +119,32 @@ namespace ThrottleControlledAvionics
 
 		virtual public void Save(ConfigNode node)
 		{ ConfigNode.CreateConfigFromObject(this, node); }
+	}
+
+	//convergent with Anatid's Vector6, but not taken from it
+	public class Vector6 
+	{
+		public Vector3 positive = Vector3.zero, negative = Vector3.zero;
+
+		public void Add(Vector3 vec)
+		{
+			for(int i = 0; i < 3; i++)
+			{
+				if(vec[i] >= 0) positive[i] = positive[i]+vec[i];
+				else negative[i] = negative[i]+vec[i];
+			}
+		}
+
+		public void Add(List<Vector3> vecs) { vecs.ForEach(Add); }
+
+		public Vector3 Clamp(Vector3 vec)
+		{
+			var cvec = Vector3.zero;
+			for(int i = 0; i < 3; i++)
+				cvec[i] = vec[i] >= 0 ? 
+					Mathf.Min(positive[i], vec[i]) : 
+					Mathf.Max(negative[i], vec[i]);
+			return cvec;
+		}
 	}
 }
