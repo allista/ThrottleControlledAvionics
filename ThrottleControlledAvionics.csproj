@@ -79,6 +79,7 @@
     <Compile Include="KSPPluginFramework\ConfigNodeStorage.cs" />
     <Compile Include="KSPPluginFramework\ExtensionsUnity.cs" />
     <Compile Include="KSPPluginFramework\MonoBehaviourExtended.cs" />
+    <Compile Include="PI_Controller.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

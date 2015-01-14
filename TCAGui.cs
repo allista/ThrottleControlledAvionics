@@ -2,7 +2,6 @@
  * Author: Quinten Feys & Willem van Vliet
  * License: BY: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0): http://creativecommons.org/licenses/by-sa/3.0/
  */
-using System;
 using UnityEngine;
 using KSPPluginFramework;
 
@@ -10,18 +9,18 @@ namespace ThrottleControlledAvionics
 {
 	public class TCAGui : MonoBehaviourWindow
 	{
-		ThrottleControlledAvionics TCA;
-		Vessel vessel;
+		private ThrottleControlledAvionics TCA;
+		private Vessel vessel;
 
 		#region GUI
 		bool showEngines;
 		bool showHelp;
 		bool showAdvanced;
 		bool showDebugLines;
+		bool showDebugLines2;
 
 		Vector2 positionScrollViewEngines;
-
-		public const int controlsWidth = 300, controlsHeight = 150;
+		public const int controlsWidth = 400, controlsHeight = 220;
 		public const int helpWidth = 500, helpHeight = 100;
 		public const int advancedWidth = 200, extendedHeight = 400;
 		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
@@ -67,9 +66,8 @@ namespace ThrottleControlledAvionics
 			GameEvents.onShowUI.Add(onShowUI);
 
 			WindowCaption = "Throttle Controlled Avionics";
-			TCAConfiguration.Globals.ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
+			TCAConfiguration.Globals.ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight); //this is rather a hack. it should be saved in the vessel. but it's like a browser's cahche.
 			WindowRect = TCAConfiguration.Globals.ControlsPos;
-			//WindowRect = new Rect (100, 50, 150, 50);
 			Visible = false;
 			DragEnabled = true;
 			TooltipsEnabled = true;
@@ -84,10 +82,11 @@ namespace ThrottleControlledAvionics
 		}
 
 		#region GUI methods
-		internal override void DrawWindow(Int32 id)
+		internal override void DrawWindow(int id)
 		{
-			if (GUI.Button(new Rect(WindowRect.width - 30f, 10f, 18f, 20f), "?")) showHelp = !showHelp;
-			if (GUI.Button(new Rect(30f, 10f, 18f, 20f), "D")) showAdvanced = !showAdvanced;
+			Debug.Log ("[TCA] rect " + WindowRect.ToString ());
+			if (GUI.Button(new Rect(10f, 5f, 18f, 20f), "?")) showHelp = !showHelp;
+			if (GUI.Button(new Rect(WindowRect.width - 30f, 5f, 18f, 20f), "D")) showAdvanced = !showAdvanced;
 
 			GUILayout.BeginHorizontal();
 			GUILayout.BeginVertical(GUILayout.Width(controlsWidth-20));
@@ -96,13 +95,15 @@ namespace ThrottleControlledAvionics
 			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 
-			#if DEBUG
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Smoothness: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCAConfiguration.Globals.StabilityCurve.ToString("F1"), GUILayout.ExpandWidth(false));
-			TCAConfiguration.Globals.StabilityCurve = GUILayout.HorizontalSlider(TCAConfiguration.Globals.StabilityCurve, 0f, 10f);
+			GUILayout.Label(TCA.CFG.StabilityCurve.ToString("F1"), GUILayout.ExpandWidth(false));
+			TCA.CFG.StabilityCurve = GUILayout.HorizontalSlider(TCA.CFG.StabilityCurve, 0f, 2f);
 			GUILayout.EndHorizontal();
-			#endif
+
+			TCA.CFG.Torque.DrawPIControls("Torque");
+			TCA.CFG.Steering.DrawPIControls("Steering");
+			TCA.CFG.Engines.DrawPIControls("Engines");
 
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Speed Limit: ", GUILayout.ExpandWidth(false));
@@ -121,13 +122,13 @@ namespace ThrottleControlledAvionics
 					if (!e.Valid)
 						continue;
 					GUILayout.Label (e.getName () + "\n" +
-					string.Format (
-						"Torque: {0}\n" +
-						"Thrust Dir: {1}\n" +
-						"Efficiency: {2:P1}\n" +
-						"Thrust: {3:F1}%",
-						e.currentTorque, e.thrustDirection,
-						e.efficiency, e.thrustPercentage));
+						string.Format (
+							"Torque: {0}\n" +
+							"Thrust Dir: {1}\n" +
+							"Efficiency: {2:P1}\n" +
+							"Thrust: {3:F1}%",
+							e.currentTorque, e.thrustDirection,
+							e.efficiency, e.thrustPercentage));
 				}
 				GUILayout.EndScrollView ();
 			} 
@@ -138,6 +139,9 @@ namespace ThrottleControlledAvionics
 			if (showAdvanced) {
 				GUILayout.BeginVertical(GUILayout.Width(advancedWidth));
 				showDebugLines = GUILayout.Toggle(showDebugLines, "Show/Hide Debug Lines");
+				showDebugLines2 = GUILayout.Toggle(showDebugLines2, "Show/Hide Debug Lines 2");
+				if (GUILayout.Button ("Kill Lines"))
+					killLines ();
 				GUILayout.EndVertical();
 			}
 			GUILayout.EndHorizontal();
@@ -159,7 +163,12 @@ namespace ThrottleControlledAvionics
 			}
 
 			if (showDebugLines) {
+				//DrawDebugLines ();
+				TCA.DrawDirections();
+			}
+			if (showDebugLines2) {
 				DrawDebugLines ();
+				//TCA.DrawDirections();
 			}
 		}
 
@@ -309,6 +318,24 @@ namespace ThrottleControlledAvionics
 				Vector3 gee = FlightGlobals.getGeeForceAtPosition( vessel.transform.position ); 
 				gravLine.transform.rotation = Quaternion.LookRotation( gee.normalized );				
 			}
+		}
+		private void killLines() {
+			if(engLine != null){
+				Destroy (engLine.gameObject);
+			}
+			if(dirLine != null){
+				Destroy (dirLine.gameObject);
+			}
+			if(upLine != null){
+				Destroy (upLine.gameObject);
+			}
+			if(gravLine != null){
+				Destroy (gravLine.gameObject);
+			}
+			if(vecLine != null){
+				Destroy (vecLine.gameObject);
+			}
+			TCA.KillLines ();
 		}
 		#endregion
 	}
