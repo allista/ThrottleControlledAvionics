@@ -90,6 +90,7 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI() 
 		{ 
+			Styles.Init();
 			GUI.DrawGUI(); 
 			GUI.UpdateToolbarIcon();
 		}
@@ -116,15 +117,17 @@ namespace ThrottleControlledAvionics
 			refT         = vessel.GetReferenceTransformPart().transform; //should be in a callback?
 			var new_steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			if(!new_steering.IsZero()) new_steering = new_steering/new_steering.CubeNorm().magnitude;
-			Utils.Log("new steering {0}, cube-normed {1}, scaled {2}", //debug
-			          new_steering, new_steering.CubeNorm(), new_steering/new_steering.CubeNorm().magnitude);
-			CFG.Steering.Update(new_steering-steering);
-			steering += CFG.Steering.Action;
-			//tune engines limits
+			new_steering.Scale(CFG.SteeringModifier);
+			steering = new_steering * CFG.SteeringGain;
+//			Utils.Log("new steering {0}, cube-normed {1}, scaled {2}", //debug
+//			          new_steering, new_steering.CubeNorm(), new_steering/new_steering.CubeNorm().magnitude);
+			//tune engines' limits
 			optimizeLimitsIteratively(active_engines, 
 			                          TCAConfiguration.Globals.OptimizationPrecision, 
 			                          TCAConfiguration.Globals.MaxIterations);
-			setThrustPercentage(active_engines, verticalSpeedLimit);
+			//set thrust limiters of engines taking vertical speed limit into account
+			var speed_limit = verticalSpeedLimit;
+			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * speed_limit * e.limit, 0f, 100f));
 		}
 
 		static bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
@@ -178,31 +181,20 @@ namespace ThrottleControlledAvionics
 				last_error = TorqueError;
 			}
 			//debug
-			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.currentTorque+",\n"));
-			Utils.Log(
-				"Steering: {0}\n" +
-				"Needed Torque: {1}\n" +
-				"Torque Error: {2}\n" +
-				"Torque Clamp:\n   +{3}\n   -{4}\n" +
-				"Limits: [{5}]", 
-				steering,
-				needed_torque,
-				TorqueError,
-				torque_clamp.positive, 
-				torque_clamp.negative,
-				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
-			);
-		}
-
-		static void setThrustPercentage(List<EngineWrapper> engines, float speedLimit)
-		{
-			for(int i = 0; i < engines.Count; i++)
-			{
-				var e = engines[i];
-				if(e.specificTorque.magnitude * e.maxThrust < TCAConfiguration.Globals.TorqueThreshold)
-					e.forceThrustPercentage(100);
-				else e.thrustPercentage = Mathf.Clamp(100 * speedLimit * e.limit, 0f, 100f);
-			}
+//			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.currentTorque+",\n"));
+//			Utils.Log(
+//				"Steering: {0}\n" +
+//				"Needed Torque: {1}\n" +
+//				"Torque Error: {2}\n" +
+//				"Torque Clamp:\n   +{3}\n   -{4}\n" +
+//				"Limits: [{5}]", 
+//				steering,
+//				needed_torque,
+//				TorqueError,
+//				torque_clamp.positive, 
+//				torque_clamp.negative,
+//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
+//			);
 		}
 
 		float verticalSpeedLimit

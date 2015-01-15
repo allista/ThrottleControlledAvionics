@@ -66,7 +66,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="ComboBox.cs" />
     <Compile Include="ThrottleControlledAvionics.cs" />
     <Compile Include="EngineWrapper.cs" />
     <Compile Include="ToolbarWrapper.cs" />
@@ -74,6 +73,7 @@
     <Compile Include="TCAGui.cs" />
     <Compile Include="TCAConfig.cs" />
     <Compile Include="PI_Controller.cs" />
+    <Compile Include="DropDownList.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
