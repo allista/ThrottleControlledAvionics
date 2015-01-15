@@ -198,8 +198,9 @@ namespace ThrottleControlledAvionics
 			//speed limit
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Speed Limit: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCA.CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff? "inf." :
-			                TCA.CFG.VerticalCutoff.ToString("F1"), GUILayout.ExpandWidth(false));
+			GUILayout.Label(TCA.CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff? "OFF" :
+			                TCA.CFG.VerticalCutoff.ToString("F1") + "m/s", 
+			                GUILayout.ExpandWidth(false));
 			TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
 			                                                    -TCAConfiguration.Globals.MaxCutoff, 
 			                                                    TCAConfiguration.Globals.MaxCutoff);
@@ -254,10 +255,9 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label(e.getName() + "\n" +
 					                string.Format(
 						                "Torque: {0}\n" +
-						                "Thrust Dir: {1}\n" +
-						                "Limit: {2:P1}\n" +
-						                "Thrust: {3:F1}%",
-						                e.currentTorque, e.thrustDirection,
+						                "Attitude Modifier: {1:P1}\n" +
+						                "Thrust Limit:      {2:F1}%",
+						                e.currentTorque,
 						                e.limit, e.thrustPercentage));
 				}
 				GUILayout.EndScrollView();
