@@ -33,9 +33,14 @@ namespace ThrottleControlledAvionics
 @"Welcome to TCA instructions manual.
 
 For simple use:
-	1) Put TCA on ('{0}'),
-	2) Put SAS on ('t'),
+	1) Turn TCA on ('{0}'),
+	2) Turn SAS on ('t'),
 	3) Launch!
+
+Steering Gains:
+    * Master Gain modifies the magnitude of all steering input after other modifications. If the ship is heavy and its engines are powerfull it may be a good idea to lower this (or Pitch&Yaw) value considerably.
+    * Pitch, Yaw, Roll modify only corresponding inputs.
+    * Linking Pitch and Yaw usefull if the ship's engines are symmetrical along main axis.
 
 Engines PI-controller tuning:
     * P (proportional) parameter controls the response speed of the engines. If the craft reacts slowly, increase it a little. If the craft vibrates after a manouver, decrease it.
@@ -43,8 +48,8 @@ Engines PI-controller tuning:
 
 Vertical Speed Limit, hovering and horizontal flight:
 	* If you're using TCA to control VTOL or during vertical landing of a rocket, you may enable the Vertical Speed Limiter. 
-	  The limit may be set with the scroll bar in the interval from -{1:F1}m/s to {1:F1}m/s (not including). When the Limit is set, the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. The speed limit itself is never achived, however, but approached asymptotically, so you need to set it a little higher (~0.1-0.5m/s) than desired.
-	  To completely disable the Speed Limit, just set it to maximum value ({1}m/s).
+	* The limit may be set with the scroll bar in the interval from -{1:F1}m/s to {1:F1}m/s (not including). When the Limit is set, the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. The speed limit itself is never achived, however, but approached asymptotically, so you need to set it a little higher (0.1-0.5m/s) than desired.
+	* To completely disable the Speed Limit, just set it to maximum value ({1}m/s).
 	* Another use of the Vertical Speed Limit is a stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the automatic speed limiting the thrust will be adjusted, and the VTOL will move more or less in a plane.
 
 Notes:
