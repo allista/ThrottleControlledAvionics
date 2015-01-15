@@ -120,6 +120,12 @@ namespace ThrottleControlledAvionics
 		//from http://stackoverflow.com/questions/716399/c-sharp-how-do-you-get-a-variables-name-as-it-was-physically-typed-in-its-dec
 		//second answer
 		public static string PropertyName<T>(T obj) { return typeof(T).GetProperties()[0].Name; }
+
+		public static float FloatSlider(string name, float value, float min, float max, string format="F1")
+		{
+			GUILayout.Label(string.Format("{0}: {1}", name, value.ToString(format)), GUILayout.ExpandWidth(false));
+			return GUILayout.HorizontalSlider(value, min, max, GUILayout.ExpandWidth(true));
+		}
 	}
 
 	public class ConfigNodeObject : IConfigNode
