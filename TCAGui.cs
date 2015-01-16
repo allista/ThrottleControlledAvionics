@@ -5,11 +5,13 @@
 
 using System.Linq;
 using UnityEngine;
+using KSP.IO;
 
 namespace ThrottleControlledAvionics
 {
 	public class TCAGui
 	{
+		static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
 		readonly ThrottleControlledAvionics TCA;
 
 		#region GUI Parameters
@@ -24,6 +26,8 @@ namespace ThrottleControlledAvionics
 		Vector2 positionScrollViewEngines;
 		public const int controlsWidth = 500, controlsHeight = 100;
 		public const int helpWidth = 500, helpHeight = 100;
+		static Rect ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
+		static Rect HelpPos     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
 		//icons
 		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
 		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
@@ -40,6 +44,9 @@ namespace ThrottleControlledAvionics
 		public TCAGui(ThrottleControlledAvionics _TCA)
 		{
 			TCA = _TCA;
+			//read in GUI configuration
+			ControlsPos = GUI_CFG.GetValue<Rect>("ControlsPos", ControlsPos);
+			HelpPos = GUI_CFG.GetValue<Rect>("HelpPos", HelpPos);
 			//setup toolbar/applauncher button
 			if(ToolbarManager.ToolbarAvailable)
 			{
@@ -75,6 +82,10 @@ namespace ThrottleControlledAvionics
 				TCAToolbarButton.Destroy();
 			GameEvents.onHideUI.Remove(onHideUI);
 			GameEvents.onShowUI.Remove(onShowUI);
+			//save positions of the windows
+			GUI_CFG.SetValue("ControlsPos", ControlsPos);
+			GUI_CFG.SetValue("HelpPos", HelpPos);
+			GUI_CFG.save();
 		}
 
 		#region Icon
@@ -126,7 +137,7 @@ namespace ThrottleControlledAvionics
 			if(TCAConfiguration.NamedConfigs.Count < 2) return;
 			namedConfigsListBox.styleListBox  = Styles.list_box;
 			namedConfigsListBox.styleListItem = Styles.list_item;
-			namedConfigsListBox.windowRect    = TCAConfiguration.Globals.ControlsPos;
+			namedConfigsListBox.windowRect    = ControlsPos;
 			namedConfigsListBox.DrawBlockingSelector(); 
 		}
 
@@ -157,7 +168,7 @@ namespace ThrottleControlledAvionics
 		#region Main GUI
 		void TCA_Window(int windowID)
 		{
-			if(GUI.Button(new Rect(TCAConfiguration.Globals.ControlsPos.width - 23f, 2f, 20f, 18f), "?"))
+			if(GUI.Button(new Rect(ControlsPos.width - 23f, 2f, 20f, 18f), "?"))
 				showHelp = !showHelp;
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
@@ -165,7 +176,6 @@ namespace ThrottleControlledAvionics
 			                    TCA.CFG.Enabled? Styles.red_button : Styles.green_button,
 			                    GUILayout.Width(70)))
 				TCA.ActivateTCA(!TCA.CFG.Enabled);
-//			TCA.ActivateTCA(GUILayout.Toggle(TCA.CFG.Enabled, "Enable", GUILayout.ExpandWidth(false)));
 			TCA.CFG.AutoTune = GUILayout.Toggle(TCA.CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(true));
 			#if DEBUG
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) TCAConfiguration.ReloadGlobals();
@@ -291,24 +301,24 @@ namespace ThrottleControlledAvionics
 		public void DrawGUI()
 		{
 			if(!TCA.CFG.GUIVisible || !showHUD) return;
-			TCAConfiguration.Globals.ControlsPos = 
+			ControlsPos = 
 				GUILayout.Window(1, 
-				                 TCAConfiguration.Globals.ControlsPos, 
+				                 ControlsPos, 
 				                 TCA_Window, 
 				                 "Throttle Controlled Avionics",
 				                 GUILayout.Width(controlsWidth),
 				                 GUILayout.Height(controlsHeight));
-			Utils.CheckRect(ref TCAConfiguration.Globals.ControlsPos);
+			Utils.CheckRect(ref ControlsPos);
 			if(showHelp) 
 			{
-				TCAConfiguration.Globals.HelpPos = 
+				HelpPos = 
 					GUILayout.Window(2, 
-					                 TCAConfiguration.Globals.HelpPos, 
+					                 HelpPos, 
 					                 windowHelp, 
 					                 "Instructions",
 					                 GUILayout.Width(helpWidth),
 					                 GUILayout.Height(helpHeight));
-				Utils.CheckRect(ref TCAConfiguration.Globals.HelpPos);
+				Utils.CheckRect(ref HelpPos);
 			}
 		}
 		#endregion

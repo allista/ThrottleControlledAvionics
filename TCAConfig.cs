@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,9 +23,6 @@ namespace ThrottleControlledAvionics
 		[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 		//steering gain curve
 		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
-		//UI window position and dimensions
-		[Persistent] public Rect ControlsPos = new Rect(50, 100, TCAGui.controlsWidth, TCAGui.controlsHeight);
-		[Persistent] public Rect HelpPos     = new Rect(Screen.width/2-TCAGui.helpWidth/2, 100, TCAGui.helpWidth, TCAGui.helpHeight);
 		//key binding to toggle TCA
 		[Persistent] public string TCA_Key = "y";
 
@@ -76,19 +74,16 @@ Notes:
 			if(n != null) SteeringCurve.Load(n);
 			n = node.GetNode(Utils.PropertyName(new {EnginesCurve}));
 			if(n != null) EnginesCurve.Load(n);
-			//load Rects
-			var r = node.GetRect(Utils.PropertyName(new {ControlsPos}));
-			if(r != default(Rect)) ControlsPos = r;
-			r = node.GetRect(Utils.PropertyName(new {HelpPos}));
-			if(r != default(Rect)) HelpPos = r;
 		}
 
-		public override void Save(ConfigNode node)
+		//Globals are readonly
+		public override void Save(ConfigNode node) 
 		{
+			#if DEBUG
 			base.Save(node);
-			//float curves are not saved, they are read-only
-			node.AddRect(Utils.PropertyName(new {ControlsPos}), ControlsPos);
-			node.AddRect(Utils.PropertyName(new {HelpPos}), HelpPos);
+			SteeringCurve.Save(node.AddNode(Utils.PropertyName(new {SteeringCurve})));
+			EnginesCurve.Save(node.AddNode(Utils.PropertyName(new {EnginesCurve})));
+			#endif
 		}
 	}
 
@@ -179,30 +174,25 @@ Notes:
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
 
 		#region From KSPPluginFramework
+		//Combine the Location of the assembly and the provided string.
+		//This means we can use relative or absolute paths.
 		static public string FilePath(string filename)
-		{
-			//Combine the Location of the assembly and the provided string. This means we can use relative or absolute paths
-			return System.IO.Path.Combine(_AssemblyFolder, 
-			                              "PluginData/"+_AssemblyName+"/"+filename)
-										.Replace("\\","/");
-		}
-		#region Assembly Information
+		{ return Path.Combine(_AssemblyFolder, "PluginData/"+_AssemblyName+"/"+filename).Replace("\\","/"); }
 		/// <summary>
 		/// Name of the Assembly that is running this MonoBehaviour
 		/// </summary>
 		internal static String _AssemblyName
-		{ get { return System.Reflection.Assembly.GetExecutingAssembly().GetName().Name; } }
+		{ get { return Assembly.GetExecutingAssembly().GetName().Name; } }
 		/// <summary>
 		/// Full Path of the executing Assembly
 		/// </summary>
 		internal static String _AssemblyLocation
-		{ get { return System.Reflection.Assembly.GetExecutingAssembly().Location; } }
+		{ get { return Assembly.GetExecutingAssembly().Location; } }
 		/// <summary>
 		/// Folder containing the executing Assembly
 		/// </summary>
 		internal static String _AssemblyFolder
-		{ get { return System.IO.Path.GetDirectoryName(_AssemblyLocation); } }
-		#endregion 
+		{ get { return Path.GetDirectoryName(_AssemblyLocation); } }
 		#endregion
 
 		#region Runtime Interface
@@ -244,7 +234,7 @@ Notes:
 		public static void Load(string configs, string globals)
 		{
 			var gnode = loadNode(globals);
-			if(gnode != null) ReloadGlobals(gnode);
+			if(gnode != null) LoadGlobals(gnode);
 			else Globals.InitInstructions();
 
 			var cnode = loadNode(configs);
@@ -252,7 +242,7 @@ Notes:
 			else Configs.Clear();
 		}
 
-		public static void ReloadGlobals(ConfigNode node) 
+		public static void LoadGlobals(ConfigNode node) 
 		{
 			Globals.Load(node);
 			Globals.InitInstructions();
@@ -290,17 +280,13 @@ Notes:
 			catch { Utils.Log("TCAConfiguration: unable to write to "+filepath); }
 		}
 
-		public static void Save() { Save(FilePath(CONFIGNAME), FilePath(GLOBALSNAME)); }
+		public static void Save() { Save(FilePath(CONFIGNAME)); }
 
-		public static void Save(string configs, string globals)
+		public static void Save(string configs)
 		{
-			var gnode = new ConfigNode(TCAGlobals.NODE_NAME);
 			var cnode = new ConfigNode(NODE_NAME);
-			SaveGlobals(gnode); saveNode(gnode, globals);
 			SaveConfigs(cnode); saveNode(cnode, configs);
 		}
-
-		public static void SaveGlobals(ConfigNode node) { Globals.Save(node); }
 
 		public static void SaveConfigs(ConfigNode node) 
 		{
