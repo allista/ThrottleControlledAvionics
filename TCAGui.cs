@@ -114,7 +114,12 @@ namespace ThrottleControlledAvionics
 
 		#region Configs Selector
 		void updateConfigs()
-		{ namedConfigsListBox.Items = TCAConfiguration.NamedConfigs.Keys.ToList(); }
+		{ 
+			var configs = TCAConfiguration.NamedConfigs.Keys.ToList();
+			var first = namedConfigsListBox.Items.Count == 0;
+			configs.Add(string.Empty); namedConfigsListBox.Items = configs; 
+			if(first) namedConfigsListBox.SelectItem(configs.Count-1);
+		}
 
 		void SelectConfig_start() 
 		{ 
@@ -129,11 +134,6 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCAConfiguration.NamedConfigs.Count == 0)
 				GUILayout.Label("[Nothing Saved]", GUILayout.ExpandWidth(true));
-			else if(TCAConfiguration.NamedConfigs.Count == 1)
-			{
-				GUILayout.Label(TCAConfiguration.NamedConfigs.Keys[0], GUILayout.ExpandWidth(true));
-				selected_config = TCAConfiguration.GetConfig(0);
-			}
 			else
 			{
 				namedConfigsListBox.DrawButton();
@@ -161,7 +161,15 @@ namespace ThrottleControlledAvionics
 				showHelp = !showHelp;
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
-			TCA.ActivateTCA(GUILayout.Toggle(TCA.CFG.Enabled, "Toggle TCA"));
+			if(GUILayout.Button(TCA.CFG.Enabled? "Disable" : "Enable", 
+			                    TCA.CFG.Enabled? Styles.red_button : Styles.green_button,
+			                    GUILayout.Width(70)))
+				TCA.ActivateTCA(!TCA.CFG.Enabled);
+//			TCA.ActivateTCA(GUILayout.Toggle(TCA.CFG.Enabled, "Enable", GUILayout.ExpandWidth(false)));
+			TCA.CFG.AutoTune = GUILayout.Toggle(TCA.CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(true));
+			#if DEBUG
+			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) TCAConfiguration.ReloadGlobals();
+			#endif
 			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", Styles.red, GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			SelectConfig_start();
@@ -176,15 +184,18 @@ namespace ThrottleControlledAvionics
 		void ControllerProperties()
 		{
 			//steering modifiers
+			if(!TCA.CFG.AutoTune)
+			{
+				GUILayout.BeginHorizontal();
+				TCA.CFG.SteeringGain = Utils.FloatSlider("Steering Gain", TCA.CFG.SteeringGain, 0, 1, "P1");
+				TCA.CFG.PitchYawLinked = GUILayout.Toggle(TCA.CFG.PitchYawLinked, "Link Pitch&Yaw", GUILayout.ExpandWidth(false));
+				GUILayout.EndHorizontal();
+			}
 			GUILayout.BeginHorizontal();
-			TCA.CFG.SteeringGain = Utils.FloatSlider("Steering Gain", TCA.CFG.SteeringGain, 0, 1, "P1");
-			TCA.CFG.PitchYawLinked = GUILayout.Toggle(TCA.CFG.PitchYawLinked, "Link Pitch&Yaw", GUILayout.ExpandWidth(false));
-			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			if(TCA.CFG.PitchYawLinked)
+			if(TCA.CFG.PitchYawLinked && !TCA.CFG.AutoTune)
 			{
 				TCA.CFG.SteeringModifier.x = Utils.FloatSlider("Pitch&Yaw", TCA.CFG.SteeringModifier.x, 0, 1, "P1");
-				TCA.CFG.SteeringModifier.z = TCA.CFG.SteeringModifier.z;
+				TCA.CFG.SteeringModifier.z = TCA.CFG.SteeringModifier.x;
 			}
 			else
 			{
@@ -220,11 +231,13 @@ namespace ThrottleControlledAvionics
 					TCAConfiguration.Save();
 				}
 			}
-			else if(GUILayout.Button("Add", Styles.green_button, GUILayout.Width(50))) 
+			else if(GUILayout.Button("Add", Styles.green_button, GUILayout.Width(50)) && 
+			        config_name != string.Empty) 
 			{
 				TCAConfiguration.SaveNamedConfig(config_name, TCA.CFG);
 				TCAConfiguration.Save();
 				updateConfigs();
+				namedConfigsListBox.SelectItem(TCAConfiguration.NamedConfigs.IndexOfKey(config_name));
 			}
 			SelectConfig();
 			if(GUILayout.Button("Load", Styles.yellow_button, GUILayout.Width(50)) && selected_config != null) 
@@ -233,6 +246,7 @@ namespace ThrottleControlledAvionics
 			{ 
 				TCAConfiguration.NamedConfigs.Remove(selected_config.Name);
 				TCAConfiguration.Save();
+				namedConfigsListBox.SelectItem(namedConfigsListBox.SelectedIndex-1);
 				updateConfigs();
 				selected_config = null;
 			}

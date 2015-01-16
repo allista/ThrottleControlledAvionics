@@ -24,10 +24,15 @@ namespace ThrottleControlledAvionics
 		public readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
 		public bool haveEC { get; private set; } = true;
 		public float TorqueError { get; private set; }
+		//physics
 		Vector3 wCoM;    //center of mass in world space
 		Transform refT;  //transform of the controller-part
-		float last_upV;  //previous velue of vertical speed
 		Vector3 steering; //previous steering vector
+		Vector6 torque;
+		Matrix3x3f inertiaTensor;
+		Vector3 MoI = Vector3.one;
+		float upV_Factor = 1f;
+		float last_upV;  //previous velue of vertical speed
 		#endregion
 
 		#region Engine Logic
@@ -54,11 +59,11 @@ namespace ThrottleControlledAvionics
 			if(vsl == null || vsl.Parts == null) return;
 			TCAConfiguration.Save();
 			vessel = vsl;
-			UpdateEnginesList();
+			updateEnginesList();
 		}
 
 		void onVesselModify(Vessel vsl)
-		{ if(vessel == vsl) UpdateEnginesList(); }
+		{ if(vessel == vsl) updateEnginesList(); }
 
 		void onSave(ConfigNode node) { TCAConfiguration.Save(); }
 
@@ -70,7 +75,7 @@ namespace ThrottleControlledAvionics
 				Engines.ForEach(e => e.forceThrustPercentage(100));
 		}
 
-		void UpdateEnginesList()
+		void updateEnginesList()
 		{
 			if(vessel == null) return;
 			CFG = TCAConfiguration.GetConfig(vessel);
@@ -109,25 +114,26 @@ namespace ThrottleControlledAvionics
 			haveEC = vessel.ElectricChargeAvailible();
 			if(!haveEC) return;
 			//update engines if needed
-			if(Engines.Any(e => !e.Valid)) UpdateEnginesList();
+			if(Engines.Any(e => !e.Valid)) updateEnginesList();
 			var active_engines = Engines.Where(e => e.isEnabled).ToList();
 			if(active_engines.Count == 0) return;
 			//calculate steering
 			wCoM         = vessel.findWorldCenterOfMass();
 			refT         = vessel.GetReferenceTransformPart().transform; //should be in a callback?
-			var new_steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
-			if(!new_steering.IsZero()) new_steering = new_steering/new_steering.CubeNorm().magnitude;
-			new_steering.Scale(CFG.SteeringModifier);
-			steering = new_steering * CFG.SteeringGain;
-//			Utils.Log("new steering {0}, cube-normed {1}, scaled {2}", //debug
-//			          new_steering, new_steering.CubeNorm(), new_steering/new_steering.CubeNorm().magnitude);
+			steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
+			if(!steering.IsZero())
+			{
+				steering = steering/steering.CubeNorm().magnitude;
+				if(!CFG.AutoTune) steering *= CFG.SteeringGain;
+				steering.Scale(CFG.SteeringModifier);
+			}
 			//tune engines' limits
 			optimizeLimitsIteratively(active_engines, 
 			                          TCAConfiguration.Globals.OptimizationPrecision, 
 			                          TCAConfiguration.Globals.MaxIterations);
 			//set thrust limiters of engines taking vertical speed limit into account
-			var speed_limit = verticalSpeedLimit;
-			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * speed_limit * e.limit, 0f, 100f));
+			upV_Factor = getVerticalSpeedFactor();
+			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * upV_Factor * e.limit, 0f, 100f));
 		}
 
 		static bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
@@ -150,7 +156,7 @@ namespace ThrottleControlledAvionics
 		void optimizeLimitsIteratively(List<EngineWrapper> engines, float eps, int max_iter)
 		{
 			//calculate initial imbalance and needed torque
-			var torque_clamp = new Vector6();
+			torque = new Vector6();
 			var torque_imbalance = Vector3.zero;
 			var needed_torque = Vector3.zero;
 			for(int i = 0; i < engines.Count; i++)
@@ -163,11 +169,13 @@ namespace ThrottleControlledAvionics
 				e.currentThrust   = e.maxThrust * vessel.ctrlState.mainThrottle;
 				e.currentTorque   = e.specificTorque * e.currentThrust;
 				torque_imbalance += e.currentTorque;
-				torque_clamp.Add(e.currentTorque);
+				torque.Add(e.currentTorque);
 				if(Vector3.Dot(e.currentTorque, steering) > 0)
 					needed_torque += e.currentTorque;
 			}
-			needed_torque = torque_clamp.Clamp(Vector3.Project(needed_torque, steering) * steering.magnitude);
+			needed_torque = torque.Clamp(Vector3.Project(needed_torque, steering) * steering.magnitude);
+			//tune steering gains
+			if(CFG.AutoTune) tuneSteering();
 			//optimize engines' limits
 			TorqueError = 0f;
 			float last_error = -1f;
@@ -197,24 +205,93 @@ namespace ThrottleControlledAvionics
 //			);
 		}
 
-		float verticalSpeedLimit
+		float getVerticalSpeedFactor()
 		{
-			get
+			if(vessel.situation == Vessel.Situations.DOCKED ||
+			   vessel.situation == Vessel.Situations.ORBITING ||
+			   vessel.situation == Vessel.Situations.ESCAPING ||
+			   CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff) return 1f;
+			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
+			var up  = (wCoM - vessel.mainBody.position).normalized;
+			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
+			var upA = (upV-last_upV)/TimeWarp.fixedDeltaTime;
+			var err = CFG.VerticalCutoff-upV;
+			last_upV = upV;
+			return upV < CFG.VerticalCutoff?
+				Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
+				Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
+		}
+
+		void tuneSteering()
+		{
+			//calculate maximum angular acceleration for each axis
+			updateMoI();
+			var max_torque = torque.Max * upV_Factor;
+			var angularA = new Vector3
+				(
+					MoI.x != 0? max_torque.x/MoI.x : float.MaxValue,
+					MoI.y != 0? max_torque.y/MoI.y : float.MaxValue,
+					MoI.z != 0? max_torque.z/MoI.z : float.MaxValue
+				);
+			//tune steering modifiers
+			CFG.SteeringModifier.x = Mathf.Clamp(TCAConfiguration.Globals.SteeringCurve.Evaluate(angularA.x)/100f, 0, 100);
+			CFG.SteeringModifier.y = Mathf.Clamp(TCAConfiguration.Globals.SteeringCurve.Evaluate(angularA.y)/100f, 0, 100);
+			CFG.SteeringModifier.z = Mathf.Clamp(TCAConfiguration.Globals.SteeringCurve.Evaluate(angularA.z)/100f, 0, 100);
+			//tune PI coefficients
+			CFG.Engines.P = TCAConfiguration.Globals.EnginesCurve.Evaluate(angularA.magnitude);
+			CFG.Engines.I = CFG.Engines.P/2f;
+			//debug
+//			Utils.Log("Mass: {0}\n" +
+//				      "MoI: {1}\n" +
+//			          "Torque: {2}\n" +
+//			          "AngularA: {3}\n"+
+//			          "Pitch: {4}, Roll {5}, Yaw {6}\n" +
+//			          "P: {7}, I {8}",
+//			          vessel.GetTotalMass(),
+//			          MoI, max_torque, angularA,
+//			          CFG.SteeringModifier.x,
+//			          CFG.SteeringModifier.y,
+//			          CFG.SteeringModifier.z,
+//			          CFG.Engines.P, CFG.Engines.I);
+		}
+		#endregion
+
+		#region From MechJeb2
+		// KSP's calculation of the vessel's moment of inertia is broken.
+		// This function is somewhat expensive :(
+		// Maybe it can be optimized more.
+		static readonly Vector3[] unitVectors = { new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1) };
+		void updateMoI()
+		{
+			if(vessel == null || vessel.rigidbody == null) return;
+			inertiaTensor = new Matrix3x3f();
+			Transform vesselTransform = vessel.GetTransform();
+			Quaternion inverseVesselRotation = Quaternion.Inverse(vesselTransform.rotation);
+			foreach(Part p in vessel.parts)
 			{
-				if(vessel.situation == Vessel.Situations.DOCKED ||
-				   vessel.situation == Vessel.Situations.ORBITING ||
-				   vessel.situation == Vessel.Situations.ESCAPING ||
-				   CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff) return 1f;
-				//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
-				var up  = (wCoM - vessel.mainBody.position).normalized;
-				var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
-				var upA = (upV-last_upV)/TimeWarp.fixedDeltaTime;
-				var err = CFG.VerticalCutoff-upV;
-				last_upV = upV;
-				return upV < CFG.VerticalCutoff?
-					Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
-					Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
+				var rb = p.Rigidbody;
+				if (rb == null) continue;
+				//Compute the contributions to the vessel inertia tensor due to the part inertia tensor
+				Vector3 principalMoments = rb.inertiaTensor;
+				Quaternion principalAxesRot = inverseVesselRotation * p.transform.rotation * rb.inertiaTensorRotation;
+				Quaternion invPrincipalAxesRot = Quaternion.Inverse(principalAxesRot);
+				for (int j = 0; j < 3; j++)
+				{
+					Vector3 partInertiaTensorTimesjHat = principalAxesRot * Vector3.Scale(principalMoments, invPrincipalAxesRot * unitVectors[j]);
+					for (int i = 0; i < 3; i++)
+						inertiaTensor[i, j] += Vector3.Dot(unitVectors[i], partInertiaTensorTimesjHat);
+				}
+				//Compute the contributions to the vessel inertia tensor due to the part mass and position
+				float partMass = p.TotalMass();
+				Vector3 partPosition = vesselTransform.InverseTransformDirection(rb.worldCenterOfMass - wCoM);
+				for(int i = 0; i < 3; i++)
+				{
+					inertiaTensor[i, i] += partMass * partPosition.sqrMagnitude;
+					for (int j = 0; j < 3; j++)
+						inertiaTensor[i, j] += -partMass * partPosition[i] * partPosition[j];
+				}
 			}
+			MoI = new Vector3(inertiaTensor[0, 0], inertiaTensor[1, 1], inertiaTensor[2, 2]);
 		}
 		#endregion
 	}

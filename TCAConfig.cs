@@ -15,10 +15,13 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float MaxCutoff             = 10f;  //max. positive vertical speed m/s (configuration limit)
 		[Persistent] public float OptimizationPrecision = 0.1f; //optimize engines limits until torque error or delta torque error is less than this
 		[Persistent] public int   MaxIterations         = 30;   //maximum number of optimizations per fixed frame
-		[Persistent] public float MaxP                  = 2f;   //value of P slider
-		[Persistent] public float MaxI                  = 2f;   //value of I slider
 		//default values for PI controllers
-		[Persistent] public PI_Dummy Engines = new PI_Dummy(0.4f, 0.15f); //thrustPercentage master PI controller defaults
+		[Persistent] public float MaxP = 1f; //value of P slider
+		[Persistent] public float MaxI = 1f; //value of I slider
+		[Persistent] public PI_Dummy Engines = new PI_Dummy(0.4f, 0.2f); //thrustPercentage master PI controller defaults
+		[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
+		//steering gain curve
+		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
 		//UI window position and dimensions
 		[Persistent] public Rect ControlsPos = new Rect(50, 100, TCAGui.controlsWidth, TCAGui.controlsHeight);
 		[Persistent] public Rect HelpPos     = new Rect(Screen.width/2-TCAGui.helpWidth/2, 100, TCAGui.helpWidth, TCAGui.helpHeight);
@@ -37,10 +40,14 @@ For simple use:
 	2) Turn SAS on ('t'),
 	3) Launch!
 
+Autotuning Parameters:
+    * If this option is enabled, TCA calculates Steering Gains and PI coefficients as functions of maximum possible agular acceleration along each of the principal axes of a craft. Note, that calculations are based on the predefined response curves tuned for the stock SAS.
+    * If you have already tuned these parameters for the ship, save its configuration before enabling, as autotuning will overwrite previous parameters.
+
 Steering Gains:
-    * Master Gain modifies the magnitude of all steering input after other modifications. If the ship is heavy and its engines are powerfull it may be a good idea to lower this (or Pitch&Yaw) value considerably.
-    * Pitch, Yaw, Roll modify only corresponding inputs.
-    * Linking Pitch and Yaw usefull if the ship's engines are symmetrical along main axis.
+    * Master Gain modifies the magnitude of all steering input after other modifications. If the craft reacts slowly, increase it a little. If the craft vibrates after a manouver, decrease it.
+    * Pitch, Yaw and Roll modify only corresponding inputs.
+    * Linking Pitch and Yaw usefull if the ship's engines are symmetrical along main axis. In that case Pitch&Yaw slider may be used in stead of Master Gain.
 
 Engines PI-controller tuning:
     * P (proportional) parameter controls the response speed of the engines. If the craft reacts slowly, increase it a little. If the craft vibrates after a manouver, decrease it.
@@ -53,8 +60,10 @@ Vertical Speed Limit, hovering and horizontal flight:
 	* Another use of the Vertical Speed Limit is a stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the automatic speed limiting the thrust will be adjusted, and the VTOL will move more or less in a plane.
 
 Notes:
-	* Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
+	* If your ship woblles and oscilates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
+    * Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
 	* Solid boosters have constant thrust and thus cannot be controlled by TCA.";
+
 
 		public void InitInstructions()
 		{ Instructions = string.Format(instructions, TCA_Key, MaxCutoff); }
@@ -62,6 +71,12 @@ Notes:
 		public override void Load(ConfigNode node)
 		{
 			base.Load(node);
+			//load curves
+			var n = node.GetNode(Utils.PropertyName(new {SteeringCurve}));
+			if(n != null) SteeringCurve.Load(n);
+			n = node.GetNode(Utils.PropertyName(new {EnginesCurve}));
+			if(n != null) EnginesCurve.Load(n);
+			//load Rects
 			var r = node.GetRect(Utils.PropertyName(new {ControlsPos}));
 			if(r != default(Rect)) ControlsPos = r;
 			r = node.GetRect(Utils.PropertyName(new {HelpPos}));
@@ -71,6 +86,7 @@ Notes:
 		public override void Save(ConfigNode node)
 		{
 			base.Save(node);
+			//float curves are not saved, they are read-only
 			node.AddRect(Utils.PropertyName(new {ControlsPos}), ControlsPos);
 			node.AddRect(Utils.PropertyName(new {HelpPos}), HelpPos);
 		}
@@ -89,6 +105,7 @@ Notes:
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
 		[Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked
+		[Persistent] public bool    AutoTune         = true;        //if true, engine PI coefficients and steering modifier will be tuned automatically
 		//engines
 		[Persistent] public PIf_Controller Engines   = new PIf_Controller();
 
@@ -152,24 +169,22 @@ Notes:
 
 	public static class TCAConfiguration
 	{
-		public const string FILENAME   = "TCA.conf";
-		public const string NODE_NAME  = "TCACONFIG";
-		public const string VSL_NODE   = "VESSELS";
-		public const string NAMED_NODE = "NAMED";
+		public const string CONFIGNAME  = "TCA.conf";
+		public const string GLOBALSNAME = "TCA.glob";
+		public const string NODE_NAME   = "TCACONFIG";
+		public const string VSL_NODE    = "VESSELS";
+		public const string NAMED_NODE  = "NAMED";
 		public static TCAGlobals Globals = new TCAGlobals();
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
 
 		#region From KSPPluginFramework
-		static public string FilePath
+		static public string FilePath(string filename)
 		{
-			get
-			{
-				//Combine the Location of the assembly and the provided string. This means we can use relative or absolute paths
-				return System.IO.Path.Combine(_AssemblyFolder, 
-				                              "PluginData/"+_AssemblyName+"/"+FILENAME)
-											.Replace("\\","/");
-			}
+			//Combine the Location of the assembly and the provided string. This means we can use relative or absolute paths
+			return System.IO.Path.Combine(_AssemblyFolder, 
+			                              "PluginData/"+_AssemblyName+"/"+filename)
+										.Replace("\\","/");
 		}
 		#region Assembly Information
 		/// <summary>
@@ -190,6 +205,7 @@ Notes:
 		#endregion 
 		#endregion
 
+		#region Runtime Interface
 		public static VesselConfig GetConfig(Vessel vsl)
 		{
 			if(!Configs.ContainsKey(vsl.id)) 
@@ -205,32 +221,45 @@ Notes:
 
 		public static bool SaveNamedConfig(string name, VesselConfig config, bool overwrite = false)
 		{ 
-			if(!overwrite && NamedConfigs.ContainsKey(name)) return false;
+			if(name == string.Empty || //do not allow empty name
+			   NamedConfigs.ContainsKey(name) && !overwrite) return false;
 			var nconfig = new NamedConfig(name);
 			nconfig.CopyFrom(config);
 			NamedConfigs[name] = nconfig;
 			return true;
 		}
+		#endregion
 
-		public static void Load() { Load(FilePath); }
-
-		public static void Load(string filename)
+		#region Save/Load
+		static ConfigNode loadNode(string filepath)
 		{
-			var node = ConfigNode.Load(filename);
-			if(node != null) Load(node);
-			else 
-			{
-				Utils.Log("TCAConfiguration: unable to read "+filename);
-				Globals.InitInstructions();
-				Configs.Clear();
-			}
+			var node = ConfigNode.Load(filepath);
+			if(node == null)
+				Utils.Log("TCAConfiguration: unable to read "+filepath);
+			return node;
 		}
 
-		public static void Load(ConfigNode node) 
+		public static void Load() { Load(FilePath(CONFIGNAME), FilePath(GLOBALSNAME)); }
+
+		public static void Load(string configs, string globals)
 		{
-			if(node.HasNode(TCAGlobals.NODE_NAME))
-				Globals.Load(node.GetNode(TCAGlobals.NODE_NAME));
+			var gnode = loadNode(globals);
+			if(gnode != null) ReloadGlobals(gnode);
+			else Globals.InitInstructions();
+
+			var cnode = loadNode(configs);
+			if(cnode != null) LoadConfigs(cnode);
+			else Configs.Clear();
+		}
+
+		public static void ReloadGlobals(ConfigNode node) 
+		{
+			Globals.Load(node);
 			Globals.InitInstructions();
+		}
+
+		public static void LoadConfigs(ConfigNode node) 
+		{
 			Configs.Clear();
 			//deprecated conversion
 			var n = node.HasNode(VesselConfig.NODE_NAME)? node : node.GetNode(VSL_NODE);
@@ -255,21 +284,28 @@ Notes:
 			}
 		}
 
-		public static void Save() { Save(FilePath); }
-
-		public static void Save(string filename)
+		static void saveNode(ConfigNode node, string filepath)
 		{
-			var node = new ConfigNode(NODE_NAME);
-			Save(node);
-			var dir = Path.GetDirectoryName(filename);
+			var dir = Path.GetDirectoryName(filepath);
 			if(!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-			try { node.Save(filename); }
-			catch { Utils.Log("TCAConfiguration: unable to write to "+filename); }
+			try { node.Save(filepath); }
+			catch { Utils.Log("TCAConfiguration: unable to write to "+filepath); }
 		}
 
-		public static void Save(ConfigNode node) 
+		public static void Save() { Save(FilePath(CONFIGNAME), FilePath(GLOBALSNAME)); }
+
+		public static void Save(string configs, string globals)
 		{
-			Globals.Save(node.AddNode(TCAGlobals.NODE_NAME));
+			var gnode = new ConfigNode(TCAGlobals.NODE_NAME);
+			var cnode = new ConfigNode(NODE_NAME);
+			SaveGlobals(gnode); saveNode(gnode, globals);
+			SaveConfigs(cnode); saveNode(cnode, configs);
+		}
+
+		public static void SaveGlobals(ConfigNode node) { Globals.Save(node); }
+
+		public static void SaveConfigs(ConfigNode node) 
+		{
 			var current_vessels = new HashSet<Guid>(HighLogic.CurrentGame.flightState.protoVessels.Select(p => p.vesselID));
 			var configs = new List<VesselConfig>(Configs.Values);
 			configs.Sort();
@@ -289,6 +325,16 @@ Notes:
 					NamedConfigs[c].Save(n.AddNode(NamedConfig.NODE_NAME));
 			}
 		}
+		#endregion
+
+		#if DEBUG
+		public static void ReloadGlobals()
+		{
+			var gnode = loadNode(FilePath(GLOBALSNAME));
+			if(gnode != null) ReloadGlobals(gnode);
+			else Globals.InitInstructions();
+		}
+		#endif
 	}
 }
 
