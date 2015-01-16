@@ -41,26 +41,26 @@ For simple use:
 	3) Launch!
 
 Autotuning Parameters:
-    * If this option is enabled, TCA calculates Steering Gains and PI coefficients as functions of maximum possible agular acceleration along each of the principal axes of a craft. Note, that calculations are based on the predefined response curves tuned for the stock SAS.
+    * If this option is enabled, TCA calculates Steering Gains and PI coefficients as functions of maximum possible angular acceleration along each of the principal axes of a craft. Note, that calculations are based on the predefined response curves tuned for the stock SAS.
     * If you have already tuned these parameters for the ship, save its configuration before enabling, as autotuning will overwrite previous parameters.
 
 Steering Gains:
-    * Master Gain modifies the magnitude of all steering input after other modifications. If the craft reacts slowly, increase it a little. If the craft vibrates after a manouver, decrease it.
+    * Master Gain modifies the magnitude of all steering input after other modifications. If the craft reacts slowly, increase it a little. If the craft vibrates after a maneuver, decrease it.
     * Pitch, Yaw and Roll modify only corresponding inputs.
-    * Linking Pitch and Yaw usefull if the ship's engines are symmetrical along main axis. In that case Pitch&Yaw slider may be used in stead of Master Gain.
+    * Linking Pitch and Yaw useful if the ship's engines are symmetrical along main axis. In that case Pitch&Yaw slider may be used in stead of Master Gain.
 
 Engines PI-controller tuning:
-    * P (proportional) parameter controls the response speed of the engines. If the craft reacts slowly, increase it a little. If the craft vibrates after a manouver, decrease it.
-    * I (integral) parameter controls the smoothing. It prevents rapid changes in thrust. If engines's trust jitters, increas it.
+    * P (proportional) parameter controls the response speed of the engines. If the craft reacts slowly, increase it a little. If the craft vibrates after a maneuver, decrease it.
+    * I (integral) parameter controls the smoothing. It prevents rapid changes in thrust. If engines's trust jitters, increase it.
 
 Vertical Speed Limit, hovering and horizontal flight:
 	* If you're using TCA to control VTOL or during vertical landing of a rocket, you may enable the Vertical Speed Limiter. 
-	* The limit may be set with the scroll bar in the interval from -{1:F1}m/s to {1:F1}m/s (not including). When the Limit is set, the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. The speed limit itself is never achived, however, but approached asymptotically, so you need to set it a little higher (0.1-0.5m/s) than desired.
+	* The limit may be set with the scroll bar in the interval from -{1:F1}m/s to {1:F1}m/s (not including). When the Limit is set, the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. The speed limit itself is never achieved, however, but approached asymptotically, so you need to set it a little higher (0.1-0.5m/s) than desired.
 	* To completely disable the Speed Limit, just set it to maximum value ({1}m/s).
 	* Another use of the Vertical Speed Limit is a stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the automatic speed limiting the thrust will be adjusted, and the VTOL will move more or less in a plane.
 
 Notes:
-	* If your ship woblles and oscilates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
+	* If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
     * Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
 	* Solid boosters have constant thrust and thus cannot be controlled by TCA.";
 
@@ -261,11 +261,9 @@ Notes:
 		public static void LoadConfigs(ConfigNode node) 
 		{
 			Configs.Clear();
-			//deprecated conversion
-			var n = node.HasNode(VesselConfig.NODE_NAME)? node : node.GetNode(VSL_NODE);
-			if(n != null && n.HasNode(VesselConfig.NODE_NAME))
+			if(node.HasNode(VSL_NODE))
 			{
-				foreach(var c in n.GetNodes(VesselConfig.NODE_NAME))
+				foreach(var c in node.GetNode(VSL_NODE).GetNodes(VesselConfig.NODE_NAME))
 				{
 					var config = new VesselConfig();
 					config.Load(c);
