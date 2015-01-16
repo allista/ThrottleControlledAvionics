@@ -188,21 +188,6 @@ namespace ThrottleControlledAvionics
 				torque_imbalance = engines.Aggregate(Vector3.zero, (v, e) => v + e.currentTorque * e.limit);
 				last_error = TorqueError;
 			}
-			//debug
-//			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.currentTorque+",\n"));
-//			Utils.Log(
-//				"Steering: {0}\n" +
-//				"Needed Torque: {1}\n" +
-//				"Torque Error: {2}\n" +
-//				"Torque Clamp:\n   +{3}\n   -{4}\n" +
-//				"Limits: [{5}]", 
-//				steering,
-//				needed_torque,
-//				TorqueError,
-//				torque_clamp.positive, 
-//				torque_clamp.negative,
-//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
-//			);
 		}
 
 		float getVerticalSpeedFactor()
@@ -240,19 +225,6 @@ namespace ThrottleControlledAvionics
 			//tune PI coefficients
 			CFG.Engines.P = TCAConfiguration.Globals.EnginesCurve.Evaluate(angularA.magnitude);
 			CFG.Engines.I = CFG.Engines.P/2f;
-			//debug
-//			Utils.Log("Mass: {0}\n" +
-//				      "MoI: {1}\n" +
-//			          "Torque: {2}\n" +
-//			          "AngularA: {3}\n"+
-//			          "Pitch: {4}, Roll {5}, Yaw {6}\n" +
-//			          "P: {7}, I {8}",
-//			          vessel.GetTotalMass(),
-//			          MoI, max_torque, angularA,
-//			          CFG.SteeringModifier.x,
-//			          CFG.SteeringModifier.y,
-//			          CFG.SteeringModifier.z,
-//			          CFG.Engines.P, CFG.Engines.I);
 		}
 		#endregion
 
