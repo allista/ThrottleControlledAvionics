@@ -1,10 +1,18 @@
 **DELETE the old version before installing a new one**
     
-_**BUT** do not delete the TCASave.txt file to preserve your settings_
+_**BUT** do not delete the TCA.conf file to preserve your settings_
 
-* **v1.4.1**
+* v1.5.0
+    * Drastically **improved in-flight stability** by completely changing the way engines' limits are calculated. Now it is done via iterative optimization of the error function.
+    * Added **smooth vertical speed control** which allows not only hovering, but also fast and agile horizontal flight; even with very unbalanced designs.
+    * Added **several configurable parameters** that allow to tune TCA even for the most bizarre ship designs.
+    * Added **automatic parameter tuning** that works well with stock SAS and standard ship builds.
+    * Added **sophisticated settings system** with separate Global, Per-Vessel and Named configurations. Configuration files are automatically generated on first launch and are located under **`Plugins/PluginData/ThrottleControlledAvionics`**
+        * The default **TCA.glob** file contains, among other presets, the **key binding** for enabling TCA.
 
-    * **KSP-0.90 compatible**             
+* v1.4.1
+
+    * KSP-0.90 compatible
     * Made Toolbar support optional.
     * Added basic support of the stock AppLauncher.
     * Added KSP-AVC support.
