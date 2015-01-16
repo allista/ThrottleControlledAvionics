@@ -15,6 +15,7 @@ namespace ThrottleControlledAvionics
 	{
 		new public const string NODE_NAME = "PICONTROLLER";
 
+		//buggy: need to be public to be persistent
 		[Persistent] public float p = 0.5f, i = 0.5f; //some default values
 		protected PI_Controller master;
 
