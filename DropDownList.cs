@@ -20,6 +20,7 @@ namespace ThrottleControlledAvionics
 				widest_item = "";
 				foreach(string i in items) 
 				{ if(i.Length > widest_item.Length) widest_item = i; }
+				SelectItem(SelectedIndex);
 			}
 		}
         internal int SelectedIndex { get; private set; }
@@ -46,7 +47,7 @@ namespace ThrottleControlledAvionics
 			Items = new List<string>();
         }
 		public DropDownList(List<String> Items, int SelectedIndex = 0) : this() 
-		{ this.Items = Items; this.SelectedIndex =  SelectedIndex; }
+		{ this.Items = Items; SelectItem(SelectedIndex); }
 
 		public void SelectItem (int index)
 		{
