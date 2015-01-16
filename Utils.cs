@@ -13,69 +13,6 @@ using System.IO;
 
 namespace ThrottleControlledAvionics
 {
-	public static class Extensions
-	{
-		#region Resources
-		const string ElectricChargeName = "ElectricCharge";
-		static PartResourceDefinition _electric_charge;
-
-		public static PartResourceDefinition ElectricCharge
-		{ 
-			get
-			{ 
-				if(_electric_charge == null)
-					_electric_charge = PartResourceLibrary.Instance.GetDefinition(ElectricChargeName);
-				return _electric_charge;
-			} 
-		}
-		#endregion
-
-		#region Logging
-		public static string Title(this Part p) { return p.partInfo != null? p.partInfo.title : p.name; }
-
-		public static void Log(this Part p, string msg, params object[] args)
-		{
-			var vname = p.vessel == null? "" : p.vessel.vesselName;
-			var _msg = string.Format("{0}.{1} [{2}]: {3}", 
-			                             vname, p.name, p.flightID, msg);
-			Utils.Log(_msg, args);
-		}
-		#endregion
-
-		public static bool ElectricChargeAvailible(this Vessel v)
-		{
-			var ec = v.GetActiveResource(ElectricCharge);
-			return ec != null && ec.amount > 0;
-		}
-
-		public static Vector3 CubeNorm(this Vector3 v)
-		{
-			if(v.IsZero()) return v;
-			var max = -1f;
-			for(int i = 0; i < 3; i++)
-			{
-				var ai = Mathf.Abs(v[i]);
-				if(max < ai) max = ai;
-			}
-			return v/max;
-		}
-
-		#region ConfigNode
-		public static void AddRect(this ConfigNode n, string name, Rect r)
-		{ n.AddValue(name, ConfigNode.WriteQuaternion(new Quaternion(r.x, r.y, r.width, r.height))); }
-
-		public static Rect GetRect(this ConfigNode n, string name)
-		{ 
-			try 
-			{ 
-				var q = ConfigNode.ParseQuaternion(n.GetValue(name)); 
-				return new Rect(q.x, q.y, q.z, q.w);
-			}
-			catch { return default(Rect); }
-		}
-		#endregion
-	}
-
 	public static class Utils
 	{
 		public static void writeToFile(String text)
@@ -163,6 +100,51 @@ namespace ThrottleControlledAvionics
 					Mathf.Min(positive[i], vec[i]) : 
 					Mathf.Max(negative[i], vec[i]);
 			return cvec;
+		}
+
+		public Vector3 Max
+		{
+			get
+			{
+				var mvec = Vector3.zero;
+				for(int i = 0; i < 3; i++)
+					mvec[i] = Mathf.Max(-negative[i], positive[i]);
+				return mvec;
+			}
+		}
+	}
+
+	//from MechJeb2
+	public class Matrix3x3f
+	{
+		//row index, then column index
+		float[,] e = new float[3, 3];
+		public float this[int i, int j]
+		{
+			get { return e[i, j]; }
+			set { e[i, j] = value; }
+		}
+
+		public Matrix3x3f transpose()
+		{
+			var ret = new Matrix3x3f();
+			for (int i = 0; i < 3; i++)
+			{
+				for (int j = 0; j < 3; j++)
+					ret.e[i, j] = e[j, i];
+			}
+			return ret;
+		}
+
+		public static Vector3 operator *(Matrix3x3f M, Vector3 v)
+		{
+			Vector3 ret = Vector3.zero;
+			for(int i = 0; i < 3; i++) {
+				for(int j = 0; j < 3; j++) {
+					ret[i] += M.e[i, j] * v[j];
+				}
+			}
+			return ret;
 		}
 	}
 }
