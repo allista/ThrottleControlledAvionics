@@ -23,9 +23,9 @@ namespace ThrottleControlledAvionics
 		string config_name = string.Empty;
 		readonly DropDownList namedConfigsListBox = new DropDownList();
 		//dimensions
-		Vector2 positionScrollViewEngines;
+		Vector2 enginesScroll, helpScroll;
 		public const int controlsWidth = 500, controlsHeight = 100;
-		public const int helpWidth = 500, helpHeight = 100;
+		public const int helpWidth = 500, helpHeight = 500;
 		static Rect ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
 		static Rect HelpPos     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
 		//icons
@@ -272,7 +272,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginHorizontal();
 				GUILayout.Label(string.Format("Torque Error: {0:F1}kNm", TCA.TorqueError), GUILayout.ExpandWidth(false));
 				GUILayout.EndHorizontal();
-				positionScrollViewEngines = GUILayout.BeginScrollView(positionScrollViewEngines, GUILayout.Height(controlsHeight*4));
+				enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(controlsHeight*4));
 				foreach(var e in TCA.Engines)
 				{
 					if(!e.Valid) continue;
@@ -292,7 +292,9 @@ namespace ThrottleControlledAvionics
 		void windowHelp(int windowID)
 		{
 			GUILayout.BeginVertical();
+			helpScroll = GUILayout.BeginScrollView(helpScroll);
 			GUILayout.Label(TCAConfiguration.Globals.Instructions, GUILayout.MaxWidth(helpWidth));
+			GUILayout.EndScrollView();
 			if(GUILayout.Button("Close")) showHelp = !showHelp;
 			GUILayout.EndVertical();
 			GUI.DragWindow();
