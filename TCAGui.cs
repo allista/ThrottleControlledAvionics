@@ -221,7 +221,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label("Vertical Speed: " + 
 			                (TCA.Throttled && TCA.LimitingSpeed? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 			                GUILayout.Width(150));
-			GUILayout.Label("Limit: " + (TCA.LimitingSpeed? TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
+			GUILayout.Label("Set Point: " + (TCA.LimitingSpeed? TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
 			                GUILayout.ExpandWidth(false));
 			TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
 			                                                    -TCAConfiguration.Globals.MaxCutoff, 
