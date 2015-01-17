@@ -66,4 +66,3 @@ Another use of the Vertical Speed Limit is a stable horizontal flight. Consider 
 
 * Automatically match speed with target.
 * Translations with non RCS-enabled engines.
-* Explanatory video.
