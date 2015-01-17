@@ -22,7 +22,8 @@ namespace ThrottleControlledAvionics
 		Vessel vessel;
 		public VesselConfig CFG { get; private set; }
 		public readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
-		public bool haveEC { get; private set; } = true;
+		public bool HaveEC { get; private set; } = true;
+		public bool Throttled { get { return vessel != null && vessel.ctrlState.mainThrottle > 0; } }
 		public float TorqueError { get; private set; }
 		//physics
 		Vector3 wCoM;    //center of mass in world space
@@ -31,8 +32,8 @@ namespace ThrottleControlledAvionics
 		Vector6 torque;
 		Matrix3x3f inertiaTensor;
 		Vector3 MoI = Vector3.one;
-		float upV_Factor = 1f;
-		float last_upV;  //previous velue of vertical speed
+		public float VerticalSpeedFactor { get; private set; } = 1f;
+		public float VerticalSpeed { get; private set; }
 		#endregion
 
 		#region Engine Logic
@@ -111,8 +112,8 @@ namespace ThrottleControlledAvionics
 			if(!CFG.Enabled || vessel == null) return;
 			//check for throttle and Electrich Charge
 			if(vessel.ctrlState.mainThrottle <= 0) return;
-			haveEC = vessel.ElectricChargeAvailible();
-			if(!haveEC) return;
+			HaveEC = vessel.ElectricChargeAvailible();
+			if(!HaveEC) return;
 			//update engines if needed
 			if(Engines.Any(e => !e.Valid)) updateEnginesList();
 			var active_engines = Engines.Where(e => e.isEnabled).ToList();
@@ -132,8 +133,8 @@ namespace ThrottleControlledAvionics
 			                          TCAConfiguration.Globals.OptimizationPrecision, 
 			                          TCAConfiguration.Globals.MaxIterations);
 			//set thrust limiters of engines taking vertical speed limit into account
-			upV_Factor = getVerticalSpeedFactor();
-			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * upV_Factor * e.limit, 0f, 100f));
+			VerticalSpeedFactor = getVerticalSpeedFactor();
+			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * VerticalSpeedFactor * e.limit, 0f, 100f));
 		}
 
 		static bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
@@ -190,18 +191,27 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		public bool LimitingSpeed 
+		{ 
+			get
+			{
+				return
+					vessel.situation != Vessel.Situations.DOCKED &&
+					vessel.situation != Vessel.Situations.ORBITING &&
+					vessel.situation != Vessel.Situations.ESCAPING &&
+					CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff;
+			}
+		}
+
 		float getVerticalSpeedFactor()
 		{
-			if(vessel.situation == Vessel.Situations.DOCKED ||
-			   vessel.situation == Vessel.Situations.ORBITING ||
-			   vessel.situation == Vessel.Situations.ESCAPING ||
-			   CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff) return 1f;
+			if(!LimitingSpeed) return 1f;
 			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 			var up  = (wCoM - vessel.mainBody.position).normalized;
 			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
-			var upA = (upV-last_upV)/TimeWarp.fixedDeltaTime;
+			var upA = (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime;
 			var err = CFG.VerticalCutoff-upV;
-			last_upV = upV;
+			VerticalSpeed = upV;
 			return upV < CFG.VerticalCutoff?
 				Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
 				Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
@@ -211,7 +221,7 @@ namespace ThrottleControlledAvionics
 		{
 			//calculate maximum angular acceleration for each axis
 			updateMoI();
-			var max_torque = torque.Max * upV_Factor;
+			var max_torque = torque.Max * VerticalSpeedFactor;
 			var angularA = new Vector3
 				(
 					MoI.x != 0? max_torque.x/MoI.x : float.MaxValue,

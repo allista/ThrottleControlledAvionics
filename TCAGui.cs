@@ -93,12 +93,12 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCAToolbarButton != null)
 			{
-				if(TCA.CFG.Enabled) TCAToolbarButton.TexturePath = TCA.haveEC ? ICON_ON : ICON_NC;
+				if(TCA.CFG.Enabled) TCAToolbarButton.TexturePath = TCA.HaveEC ? ICON_ON : ICON_NC;
 				else TCAToolbarButton.TexturePath = ICON_OFF;
 			}
 			if(TCAButton != null) 
 			{
-				if(TCA.CFG.Enabled) TCAButton.SetTexture(TCA.haveEC? textureOn : textureNoCharge);
+				if(TCA.CFG.Enabled) TCAButton.SetTexture(TCA.HaveEC? textureOn : textureNoCharge);
 				else TCAButton.SetTexture(textureOff);
 			}
 		}
@@ -180,7 +180,7 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) TCAConfiguration.ReloadGlobals();
 			#endif
-			if(!TCA.haveEC)	GUILayout.Label("WARNING! no electric charge!", Styles.red, GUILayout.ExpandWidth(false));
+			if(!TCA.HaveEC)	GUILayout.Label("WARNING! no electric charge!", Styles.red, GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			SelectConfig_start();
 			ConfigsGUI();
@@ -218,9 +218,10 @@ namespace ThrottleControlledAvionics
 			TCA.CFG.Engines.DrawPIControls("Engines Controller");
 			//speed limit
 			GUILayout.BeginHorizontal();
-			GUILayout.Label("Vertical Speed Limit: ", GUILayout.ExpandWidth(false));
-			GUILayout.Label(TCA.CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff? "OFF" :
-			                TCA.CFG.VerticalCutoff.ToString("F1") + "m/s", 
+			GUILayout.Label("Vertical Speed: " + 
+			                (TCA.Throttled && TCA.LimitingSpeed? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+			                GUILayout.Width(150));
+			GUILayout.Label("Limit: " + (TCA.LimitingSpeed? TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
 			                GUILayout.ExpandWidth(false));
 			TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
 			                                                    -TCAConfiguration.Globals.MaxCutoff, 
@@ -271,6 +272,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical();
 				GUILayout.BeginHorizontal();
 				GUILayout.Label(string.Format("Torque Error: {0:F1}kNm", TCA.TorqueError), GUILayout.ExpandWidth(false));
+				GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", TCA.VerticalSpeedFactor), GUILayout.ExpandWidth(false));
 				GUILayout.EndHorizontal();
 				enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(controlsHeight*4));
 				foreach(var e in TCA.Engines)
