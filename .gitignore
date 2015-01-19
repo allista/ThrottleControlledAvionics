@@ -222,3 +222,8 @@ pip-log.txt
 *.userprefs
 /GameData/ThrottleControlledAvionics/TCASave.txt
 /Releases/**
+/Test*
+*.mdb
+
+/GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/TCA.conf
+/GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/config.xml

@@ -1,0 +1,35 @@
+K0 = 2
+K1 = 10
+L1 = 1
+K2 = 10
+L2 = 10
+MaxCutoff = 10
+OptimizationPrecision = 0.1
+MaxIterations = 30
+MaxP = 1
+MaxI = 1
+TCA_Key = y
+ControlsPos = 50,100,500,194
+HelpPos = 710,100,500,100
+Engines
+{
+	p = 0.4
+	i = 0.2
+}
+SteeringCurve 
+{
+	key = 0 100 0 0
+	key = 8.719016 100 0 0
+	key = 15.54936 93.13159
+	key = 22.73507 63.92297
+	key = 38.26406 35.86771 -1.066393 -1.066393
+	key = 76.65812 20.75791 -0.1142597 -0.1142597
+	key = 100 20 0 0
+}
+EnginesCurve
+{
+	key = 0 0.4 0 0
+	key = 10 0.4 0 0
+	key = 50 0.2 0 0
+	key = 100 0.2 0 0
+}
