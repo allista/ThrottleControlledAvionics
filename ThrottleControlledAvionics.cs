@@ -22,9 +22,8 @@ namespace ThrottleControlledAvionics
 		Vessel vessel;
 		public VesselConfig CFG { get; private set; }
 		public readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
-		public bool HaveEC { get; private set; } = true;
-		public bool Throttled { get { return vessel != null && vessel.ctrlState.mainThrottle > 0; } }
 		public float TorqueError { get; private set; }
+		public TCAState State { get; private set; }
 		//physics
 		Vector3 wCoM;    //center of mass in world space
 		Transform refT;  //transform of the controller-part
@@ -34,6 +33,8 @@ namespace ThrottleControlledAvionics
 		Vector3 MoI = Vector3.one;
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
+		//info
+
 		#endregion
 
 		#region Engine Logic
@@ -73,7 +74,10 @@ namespace ThrottleControlledAvionics
 			if(CFG == null || state == CFG.Enabled) return;
 			CFG.Enabled = state;
 			if(!CFG.Enabled) //reset engine limiters
+			{
 				Engines.ForEach(e => e.forceThrustPercentage(100));
+				State = TCAState.Disabled;
+			}
 		}
 
 		void updateEnginesList()
@@ -110,14 +114,17 @@ namespace ThrottleControlledAvionics
 		public void FixedUpdate()
 		{
 			if(!CFG.Enabled || vessel == null) return;
+			State = TCAState.Enabled;
 			//check for throttle and Electrich Charge
 			if(vessel.ctrlState.mainThrottle <= 0) return;
-			HaveEC = vessel.ElectricChargeAvailible();
-			if(!HaveEC) return;
+			State |= TCAState.Throttled;
+			if(!vessel.ElectricChargeAvailible()) return;
+			State |= TCAState.HaveEC;
 			//update engines if needed
 			if(Engines.Any(e => !e.Valid)) updateEnginesList();
 			var active_engines = Engines.Where(e => e.isEnabled).ToList();
 			if(active_engines.Count == 0) return;
+			State |= TCAState.HaveActiveEngines;
 			//calculate steering
 			wCoM         = vessel.findWorldCenterOfMass();
 			refT         = vessel.GetReferenceTransformPart().transform; //should be in a callback?
@@ -191,30 +198,25 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public bool LimitingSpeed 
-		{ 
-			get
-			{
-				return
-					vessel.situation != Vessel.Situations.DOCKED &&
-					vessel.situation != Vessel.Situations.ORBITING &&
-					vessel.situation != Vessel.Situations.ESCAPING &&
-					CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff;
-			}
-		}
-
 		float getVerticalSpeedFactor()
 		{
-			if(!LimitingSpeed) return 1f;
+			if(vessel.situation == Vessel.Situations.DOCKED   ||
+			   vessel.situation == Vessel.Situations.ORBITING ||
+			   vessel.situation == Vessel.Situations.ESCAPING ||
+			   CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff) return 1f;
+			State |= TCAState.VerticalSpeedControl;
 			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 			var up  = (wCoM - vessel.mainBody.position).normalized;
 			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
 			var upA = (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime;
 			var err = CFG.VerticalCutoff-upV;
 			VerticalSpeed = upV;
-			return upV < CFG.VerticalCutoff?
+			var K = upV < CFG.VerticalCutoff?
 				Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
 				Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
+			if(upA < 0 && upV < CFG.VerticalCutoff && K >= 1)
+				State |= TCAState.LoosingAltitude;
+			return K;
 		}
 
 		void tuneSteering()
@@ -276,5 +278,23 @@ namespace ThrottleControlledAvionics
 			MoI = new Vector3(inertiaTensor[0, 0], inertiaTensor[1, 1], inertiaTensor[2, 2]);
 		}
 		#endregion
+	}
+
+	/// <summary>
+	/// Binary flags of TCA state.
+	/// They should to be checked in this particular order, as they are set sequentially:
+	/// If a previous flag is not set, the next ones are not either.
+	/// </summary>
+	[Flags] public enum TCAState 
+	{ 
+		Disabled 			   = 0,
+		Enabled 			   = 1 << 0,
+		Throttled 			   = 1 << 1,
+		HaveEC 				   = 1 << 2, 
+		HaveActiveEngines 	   = 1 << 3,
+		VerticalSpeedControl   = 1 << 4,
+		LoosingAltitude 	   = 1 << 5,
+		Nominal				   = Enabled | HaveEC | Throttled | HaveActiveEngines,
+		VerticalSpeedAvailable = Nominal | VerticalSpeedControl
 	}
 }

@@ -93,12 +93,14 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCAToolbarButton != null)
 			{
-				if(TCA.CFG.Enabled) TCAToolbarButton.TexturePath = TCA.HaveEC ? ICON_ON : ICON_NC;
+				if((TCA.State & TCAState.Enabled) == TCAState.Enabled)
+					TCAToolbarButton.TexturePath = (TCA.State & TCAState.HaveEC) == TCAState.HaveEC? ICON_ON : ICON_NC;
 				else TCAToolbarButton.TexturePath = ICON_OFF;
 			}
 			if(TCAButton != null) 
 			{
-				if(TCA.CFG.Enabled) TCAButton.SetTexture(TCA.HaveEC? textureOn : textureNoCharge);
+				if((TCA.State & TCAState.Enabled) == TCAState.Enabled)
+					TCAButton.SetTexture((TCA.State & TCAState.HaveEC) == TCAState.HaveEC? textureOn : textureNoCharge);
 				else TCAButton.SetTexture(textureOff);
 			}
 		}
@@ -168,8 +170,7 @@ namespace ThrottleControlledAvionics
 		#region Main GUI
 		void TCA_Window(int windowID)
 		{
-			if(GUI.Button(new Rect(ControlsPos.width - 23f, 2f, 20f, 18f), "?"))
-				showHelp = !showHelp;
+			if(GUI.Button(new Rect(ControlsPos.width - 23f, 2f, 20f, 18f), "?")) showHelp = !showHelp;
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
 			if(GUILayout.Button(TCA.CFG.Enabled? "Disable" : "Enable", 
@@ -180,7 +181,7 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) TCAConfiguration.ReloadGlobals();
 			#endif
-			if(!TCA.HaveEC)	GUILayout.Label("WARNING! no electric charge!", Styles.red, GUILayout.ExpandWidth(false));
+			StatusString();
 			GUILayout.EndHorizontal();
 			SelectConfig_start();
 			ConfigsGUI();
@@ -189,6 +190,28 @@ namespace ThrottleControlledAvionics
 			SelectConfig_end();
 			GUILayout.EndVertical();
 			GUI.DragWindow();
+		}
+
+		void StatusString()
+		{
+			var state = "Disabled";
+			var style = Styles.grey;
+			if((TCA.State & TCAState.Enabled) == TCAState.Enabled) 
+			{
+				if(TCA.State == TCAState.VerticalSpeedAvailable)
+				{ state = "Vertical Speed Control"; style = Styles.green; }
+				else if(TCA.State == TCAState.Nominal)
+				{ state = "Systems Nominal"; style = Styles.green; }
+				else if((TCA.State & TCAState.Throttled) != TCAState.Throttled)
+				{ state = "Not Throttled"; style = Styles.yellow; }
+				else if((TCA.State & TCAState.HaveEC) != TCAState.HaveEC)
+				{ state = "No Electric Charge"; style = Styles.red; }
+				else if((TCA.State & TCAState.HaveActiveEngines) != TCAState.HaveActiveEngines)
+				{ state = "No Active Engines"; style = Styles.yellow; }
+				else if((TCA.State & TCAState.LoosingAltitude) == TCAState.LoosingAltitude)
+				{ state = "Loosing Altitude"; style = Styles.red; }
+			}
+			GUILayout.Label(state, style, GUILayout.ExpandWidth(false));
 		}
 
 		void ControllerProperties()
@@ -219,9 +242,10 @@ namespace ThrottleControlledAvionics
 			//speed limit
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Speed: " + 
-			                (TCA.Throttled && TCA.LimitingSpeed? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+			                (TCA.State == TCAState.VerticalSpeedAvailable? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 			                GUILayout.Width(150));
-			GUILayout.Label("Set Point: " + (TCA.LimitingSpeed? TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
+			GUILayout.Label("Set Point: " + (TCA.CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff? 
+			                                 TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
 			                GUILayout.ExpandWidth(false));
 			TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
 			                                                    -TCAConfiguration.Globals.MaxCutoff, 
