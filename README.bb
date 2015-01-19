@@ -25,7 +25,7 @@ If you're upgrading, [B]DELETE[/B] the old version before installing a new one
 
 [list]
 [*] [URL="https://github.com/qfeys/ThrottleControlledAvionics/blob/master/ChanegLog.md"][B]ChangeLog[/B][/URL]
-[*] [URL="https://kerbalstuff.com/mod/"]KerbalStuff[/URL]
+[*] [URL="https://kerbalstuff.com/mod/510/Throttle Controlled Avionics - Continued"]KerbalStuff[/URL]
 [*] [URL="https://github.com/qfeys/ThrottleControlledAvionics/releases"]GitHub[/URL]
 [*] [URL="https://github.com/qfeys/ThrottleControlledAvionics"]Source code[/URL][/list]
 [B][SIZE=4]Instructions[/SIZE][/B]
