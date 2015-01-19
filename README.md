@@ -1,11 +1,11 @@
 #Throttle Controlled Avionics
 
-Current developers: 
+Originally created by:
 [qfeys](http://forum.kerbalspaceprogram.com/members/45099-qfeys),
-[Zenka](http://forum.kerbalspaceprogram.com/members/108134-Zenka),
-[allista](http://forum.kerbalspaceprogram.com/members/102693-allista).
+[Zenka](http://forum.kerbalspaceprogram.com/members/108134-Zenka)
 
-If interested, contact us on the kerbal forums either personally or in the [TCA thread](http://forum.kerbalspaceprogram.com/threads/67270)
+Current development and maintenance:
+[allista](http://forum.kerbalspaceprogram.com/members/102693-allista)
 
 ***
 
@@ -66,3 +66,12 @@ Another use of the Vertical Speed Limit is a stable horizontal flight. Consider 
 
 * Automatically match speed with target.
 * Translations with non RCS-enabled engines.
+
+##Acknowledgments:
+
+First of all, many thanks to **qfeys** and **Zenka** for creating the original concept and implementation. Without them TCA would not exist.
+
+And here are the mods whose code and ideas were used in one way or another:
+
+* [Hangar](http://forum.kerbalspaceprogram.com/threads/88933)
+* [MechJeb2](http://forum.kerbalspaceprogram.com/threads/12384)
