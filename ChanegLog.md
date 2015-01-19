@@ -2,7 +2,7 @@
     
 _**BUT** do not delete the TCA.conf file to preserve your settings_
 
-* v1.5.0
+* v2.0.0
     * Drastically **improved in-flight stability** by completely changing the way engines' limits are calculated. Now it is done via iterative optimization of the error function.
     * Added **smooth vertical speed control** which allows not only hovering, but also fast and agile horizontal flight; even with very unbalanced designs.
     * Added **several configurable parameters** that allow to tune TCA even for the most bizarre ship designs.

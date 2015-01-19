@@ -1,14 +1,14 @@
 { 
     "NAME":"ThrottleControlledAvionics",
-    "URL":"https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/development/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version",
+    "URL":"https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version",
     "DOWNLOAD":"https://github.com/qfeys/ThrottleControlledAvionics/releases",
-    "CHANGE_LOG_URL":"https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/development/ChanegLog.md",
+    "CHANGE_LOG_URL":"https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/ChanegLog.md",
     "VERSION":
      {
-         "MAJOR":1
-         "MINOR":4
-         "PATCH":99
-         "BUILD":2
+         "MAJOR":2
+         "MINOR":0
+         "PATCH":0
+         "BUILD":0
      }
     "KSP_VERSION_MIN":
      {
