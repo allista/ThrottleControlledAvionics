@@ -17,7 +17,8 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 [*] Support for [B]multiple[/B] control modules ([B]cockpits[/B], pods, probe-cores, etc.)
 [*] Sophisticated [B]parameter tuning[/B], both automatic and manual.
 [*] Built-in [B]altitude and hovering control[/B].
-[*] Both the [B]Toolbar and[/B] the stock [B]AppLauncher[/B] are supported.[/list]
+[*] Both the [B]Toolbar and[/B] the stock [B]AppLauncher[/B] are supported.
+[*] Configurable key binding.[/list]
 [B][SIZE=4]Downloads and Installation[/SIZE][/B]
 
 If you're upgrading, [B]DELETE[/B] the old version before installing a new one
