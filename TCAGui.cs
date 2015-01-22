@@ -46,8 +46,9 @@ namespace ThrottleControlledAvionics
 		{
 			TCA = _TCA;
 			//read in GUI configuration
-			ControlsPos = GUI_CFG.GetValue<Rect>("ControlsPos", ControlsPos);
-			HelpPos = GUI_CFG.GetValue<Rect>("HelpPos", HelpPos);
+			GUI_CFG.load();
+			ControlsPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {ControlsPos}), ControlsPos);
+			HelpPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpPos}), HelpPos);
 			//setup toolbar/applauncher button
 			if(ToolbarManager.ToolbarAvailable)
 			{
@@ -76,8 +77,8 @@ namespace ThrottleControlledAvionics
 
 		public void SaveConfig()
 		{
-			GUI_CFG.SetValue("ControlsPos", ControlsPos);
-			GUI_CFG.SetValue("HelpPos", HelpPos);
+			GUI_CFG.SetValue(Utils.PropertyName(new {ControlsPos}), ControlsPos);
+			GUI_CFG.SetValue(Utils.PropertyName(new {HelpPos}), HelpPos);
 			GUI_CFG.save();
 		}
 
