@@ -3,6 +3,7 @@
  * License: BY: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0): http://creativecommons.org/licenses/by-sa/3.0/
  */
 
+using System.Reflection;
 using System.Linq;
 using UnityEngine;
 using KSP.IO;
@@ -337,7 +338,8 @@ namespace ThrottleControlledAvionics
 				GUILayout.Window(1, 
 				                 ControlsPos, 
 				                 TCA_Window, 
-				                 "Throttle Controlled Avionics",
+				                 "Throttle Controlled Avionics - " + 
+				                 Assembly.GetCallingAssembly().GetName().Version,
 				                 GUILayout.Width(controlsWidth),
 				                 GUILayout.Height(controlsHeight));
 			Utils.CheckRect(ref ControlsPos);
