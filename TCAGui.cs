@@ -97,14 +97,14 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCAToolbarButton != null)
 			{
-				if((TCA.State & TCAState.Enabled) == TCAState.Enabled)
-					TCAToolbarButton.TexturePath = (TCA.State & TCAState.HaveEC) == TCAState.HaveEC? ICON_ON : ICON_NC;
+				if(TCA.IsStateSet(TCAState.Enabled))
+					TCAToolbarButton.TexturePath = TCA.State != TCAState.NoEC? ICON_ON : ICON_NC;
 				else TCAToolbarButton.TexturePath = ICON_OFF;
 			}
 			if(TCAButton != null) 
 			{
-				if((TCA.State & TCAState.Enabled) == TCAState.Enabled)
-					TCAButton.SetTexture((TCA.State & TCAState.HaveEC) == TCAState.HaveEC? textureOn : textureNoCharge);
+				if(TCA.IsStateSet(TCAState.Enabled))
+					TCAButton.SetTexture(TCA.State != TCAState.NoEC? textureOn : textureNoCharge);
 				else TCAButton.SetTexture(textureOff);
 			}
 		}
@@ -200,20 +200,20 @@ namespace ThrottleControlledAvionics
 		{
 			var state = "Disabled";
 			var style = Styles.grey;
-			if((TCA.State & TCAState.Enabled) == TCAState.Enabled) 
+			if(TCA.IsStateSet(TCAState.Enabled))
 			{
-				if(TCA.State == TCAState.VerticalSpeedAvailable)
+				if(TCA.IsStateSet(TCAState.LoosingAltitude))
+				{ state = "Loosing Altitude"; style = Styles.red; }
+				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
 				{ state = "Vertical Speed Control"; style = Styles.green; }
 				else if(TCA.State == TCAState.Nominal)
 				{ state = "Systems Nominal"; style = Styles.green; }
-				else if((TCA.State & TCAState.Throttled) != TCAState.Throttled)
-				{ state = "Not Throttled"; style = Styles.yellow; }
-				else if((TCA.State & TCAState.HaveEC) != TCAState.HaveEC)
-				{ state = "No Electric Charge"; style = Styles.red; }
-				else if((TCA.State & TCAState.HaveActiveEngines) != TCAState.HaveActiveEngines)
+				else if(TCA.State == TCAState.NoActiveEngines)
 				{ state = "No Active Engines"; style = Styles.yellow; }
-				else if((TCA.State & TCAState.LoosingAltitude) == TCAState.LoosingAltitude)
-				{ state = "Loosing Altitude"; style = Styles.red; }
+				else if(TCA.State == TCAState.NoEC)
+				{ state = "No Electric Charge"; style = Styles.red; }
+				else
+				{ state = "Not Throttled"; style = Styles.yellow; }
 			}
 			GUILayout.Label(state, style, GUILayout.ExpandWidth(false));
 		}
@@ -246,7 +246,7 @@ namespace ThrottleControlledAvionics
 			//speed limit
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Speed: " + 
-			                (TCA.State == TCAState.VerticalSpeedAvailable? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+			                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 			                GUILayout.Width(150));
 			GUILayout.Label("Set Point: " + (TCA.CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff? 
 			                                 TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 

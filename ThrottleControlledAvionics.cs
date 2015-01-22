@@ -34,8 +34,7 @@ namespace ThrottleControlledAvionics
 		Vector3 MoI = Vector3.one;
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
-		//info
-
+		public bool IsStateSet(TCAState s) { return (State & s) == s; }
 		#endregion
 
 		#region Engine Logic
@@ -327,7 +326,8 @@ namespace ThrottleControlledAvionics
 		HaveActiveEngines 	   = 1 << 3,
 		VerticalSpeedControl   = 1 << 4,
 		LoosingAltitude 	   = 1 << 5,
-		Nominal				   = Enabled | HaveEC | Throttled | HaveActiveEngines,
-		VerticalSpeedAvailable = Nominal | VerticalSpeedControl
+		Nominal				   = Enabled | Throttled | HaveEC | HaveActiveEngines,
+		NoActiveEngines        = Enabled | Throttled | HaveEC,
+		NoEC                   = Enabled | Throttled,
 	}
 }
