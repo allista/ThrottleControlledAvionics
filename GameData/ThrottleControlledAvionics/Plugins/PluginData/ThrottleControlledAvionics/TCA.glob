@@ -9,8 +9,6 @@ MaxIterations = 30
 MaxP = 1
 MaxI = 1
 TCA_Key = y
-ControlsPos = 50,100,500,194
-HelpPos = 710,100,500,100
 Engines
 {
 	p = 0.4
