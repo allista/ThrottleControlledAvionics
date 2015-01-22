@@ -2,6 +2,13 @@
     
 _**BUT** do not delete the TCA.conf file to preserve your settings_
 
+* **v2.0.1**
+    * Modified optimization algorithm to work properly with engines which minThrust is not zero; Vertical Speed Factor is now also taken into account.
+    * Corrected Toolbar/AppLauncher icon switching with TCA state.
+    * When Loosing Altitude, vertical speed is still displayed.
+    * Positions of the windows are now properly saved and loaded.
+    * Fixed KSP-AVC .version file to comply with the strict JSON and to work with CKAN.
+
 * v2.0.0
     * Drastically **improved in-flight stability** by completely changing the way engines' limits are calculated. Now it is done via iterative optimization of the error function.
     * Added **smooth vertical speed control** which allows not only hovering, but also fast and agile horizontal flight; even with very unbalanced designs.
@@ -25,6 +32,5 @@ _**BUT** do not delete the TCA.conf file to preserve your settings_
     * Checks whether engines are ignited or not, so engines that are not yet staged or deactivated buy GUI or actiongroup are unavailable for the calculations.
     * Uses an engineWrapper class (from EngineIgnitor suggested by camlost) to support engines of the type ModuleEnginesFX (like RAPIERs) along normal engines.
     * Supports parts with multiple engine parts (such as RAPIERs)
-    * No longer stops looking for engines after finding an SRB.
-    
-I hope the problem Beetlecat was having is fixed as well. (Since TCA now detects engines much better)
+    * No longer stops looking for engines after finding an SRB.   
+    * I hope the problem Beetlecat was having is fixed as well. (Since TCA now detects engines much better)
