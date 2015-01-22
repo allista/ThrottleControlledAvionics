@@ -17,7 +17,8 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 [*] Support for [B]multiple[/B] control modules ([B]cockpits[/B], pods, probe-cores, etc.)
 [*] Sophisticated [B]parameter tuning[/B], both automatic and manual.
 [*] Built-in [B]altitude and hovering control[/B].
-[*] Both the [B]Toolbar and[/B] the stock [B]AppLauncher[/B] are supported.[/list]
+[*] Both the [B]Toolbar and[/B] the stock [B]AppLauncher[/B] are supported.
+[*] [B]Configurable key binding[/B] through TCA.glob file.[/list]
 [B][SIZE=4]Downloads and Installation[/SIZE][/B]
 
 If you're upgrading, [B]DELETE[/B] the old version before installing a new one
@@ -60,8 +61,15 @@ Another use of the Vertical Speed Limit is a stable horizontal flight. Consider 
 [*] Solid boosters have constant thrust and thus cannot be controlled by TCA.[/list]
 [B][SIZE=4]Future Plans:[/SIZE][/B]
 [list]
-[*] Automatically match speed with target.
-[*] Translations with non RCS-enabled engines.[/list]
+[*] [b]Priority:[/b]
+[list][*] Change VSC's Set Point with main throttle
+      [*] Key binding configuration GUI[/list]
+[*] Ideas:
+[list][*] Horizontal Speed Control
+      [*] Autotuning for MechJeb2[/list]
+[*] Legacy:
+[list][*] Automatically match speed with target
+      [*] Translations with non RCS-enabled engines[/list][/list]
 [B][SIZE=4]Acknowledgments:[/SIZE][/B]
 First of all, many thanks to [B]qfeys[/B] and [B]Zenka[/B] for creating the original concept and implementation. Without them TCA would not exist.
 And here are the mods whose code and ideas were used in one way or another:

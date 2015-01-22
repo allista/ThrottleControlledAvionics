@@ -29,12 +29,12 @@ namespace ThrottleControlledAvionics
 		Transform refT;  //transform of the controller-part
 		Vector3 steering; //previous steering vector
 		Vector6 torque;
+		float   throttle;
 		Matrix3x3f inertiaTensor;
 		Vector3 MoI = Vector3.one;
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
-		//info
-
+		public bool IsStateSet(TCAState s) { return (State & s) == s; }
 		#endregion
 
 		#region Engine Logic
@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
 		void onVesselChange(Vessel vsl)
 		{ 
 			if(vsl == null || vsl.Parts == null) return;
-			TCAConfiguration.Save();
+			save();
 			vessel = vsl;
 			updateEnginesList();
 		}
@@ -67,7 +67,8 @@ namespace ThrottleControlledAvionics
 		void onVesselModify(Vessel vsl)
 		{ if(vessel == vsl) updateEnginesList(); }
 
-		void onSave(ConfigNode node) { TCAConfiguration.Save(); }
+		void save() { TCAConfiguration.Save(); if(GUI != null) GUI.SaveConfig(); }
+		void onSave(ConfigNode node) { save(); }
 
 		public void ActivateTCA(bool state)
 		{
@@ -136,15 +137,15 @@ namespace ThrottleControlledAvionics
 				steering.Scale(CFG.SteeringModifier);
 			}
 			//tune engines' limits
+			VerticalSpeedFactor = getVerticalSpeedFactor();
 			optimizeLimitsIteratively(active_engines, 
 			                          TCAConfiguration.Globals.OptimizationPrecision, 
 			                          TCAConfiguration.Globals.MaxIterations);
 			//set thrust limiters of engines taking vertical speed limit into account
-			VerticalSpeedFactor = getVerticalSpeedFactor();
 			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * VerticalSpeedFactor * e.limit, 0f, 100f));
 		}
 
-		static bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
+		bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
 		{
 			var compensation = Vector3.zero;
 			for(int i = 0; i < engines.Count; i++)
@@ -152,7 +153,8 @@ namespace ThrottleControlledAvionics
 				var e = engines[i];
 				var d = Vector3.Dot(e.currentTorque, target);
 				e.limit_tmp = d < 0? -d/target_m/e.currentTorque.magnitude : 0f;
-				compensation += e.limit_tmp > 0? e.limit_tmp * e.currentTorque * e.limit : Vector3.zero;
+				if(e.limit_tmp > 0)
+					compensation += e.specificTorque * e.nominalCurrentThrust(throttle * e.limit_tmp * e.limit);
 			}
 			var compensation_m = compensation.magnitude;
 			if(compensation_m < eps) return false;
@@ -163,10 +165,9 @@ namespace ThrottleControlledAvionics
 
 		void optimizeLimitsIteratively(List<EngineWrapper> engines, float eps, int max_iter)
 		{
-			//calculate initial imbalance and needed torque
-			torque = new Vector6();
-			var torque_imbalance = Vector3.zero;
-			var needed_torque = Vector3.zero;
+			//calculate specific torques and min-max imbalance
+			var min_imbalance = Vector3.zero;
+			var max_imbalance = Vector3.zero;
 			for(int i = 0; i < engines.Count; i++)
 			{
 				var e = engines[i];
@@ -174,8 +175,21 @@ namespace ThrottleControlledAvionics
 				e.limit = 1f;
 				e.thrustDirection = refT.InverseTransformDirection(info.dir);
 				e.specificTorque  = refT.InverseTransformDirection(Vector3.Cross(info.pos-wCoM, info.dir));
-				e.currentThrust   = e.maxThrust * vessel.ctrlState.mainThrottle;
-				e.currentTorque   = e.specificTorque * e.currentThrust;
+				min_imbalance += e.specificTorque * e.nominalCurrentThrust(0);
+				max_imbalance += e.specificTorque * e.nominalCurrentThrust(1);
+			}
+			//correct VerticalSpeedFactor if needed
+			if(!min_imbalance.IsZero() && !max_imbalance.IsZero())
+				VerticalSpeedFactor = Mathf.Clamp(VerticalSpeedFactor, Mathf.Clamp01(min_imbalance.magnitude/max_imbalance.magnitude), 1f);
+			//calculate initial imbalance and needed torque
+			torque = new Vector6();
+			throttle = vessel.ctrlState.mainThrottle * VerticalSpeedFactor;
+			var torque_imbalance = Vector3.zero;
+			var needed_torque = Vector3.zero;
+			for(int i = 0; i < engines.Count; i++)
+			{
+				var e = engines[i];
+				e.currentTorque   = e.specificTorque * e.nominalCurrentThrust(throttle);
 				torque_imbalance += e.currentTorque;
 				torque.Add(e.currentTorque);
 				if(Vector3.Dot(e.currentTorque, steering) > 0)
@@ -193,9 +207,27 @@ namespace ThrottleControlledAvionics
 				if(TorqueError < eps || last_error > 0f && Mathf.Abs(last_error-TorqueError) < eps) break;
 				var target = needed_torque - torque_imbalance;
 				if(!optimizeLimits(engines, target, target.magnitude, eps)) break;
-				torque_imbalance = engines.Aggregate(Vector3.zero, (v, e) => v + e.currentTorque * e.limit);
+				torque_imbalance = engines.Aggregate(Vector3.zero, 
+				                                     (v, e) => v + 
+				                                     e.specificTorque * e.nominalCurrentThrust(throttle * e.limit));
 				last_error = TorqueError;
 			}
+			//debug
+//			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));
+//			Utils.Log(
+//				"Steering: {0}\n" +
+//				"Needed Torque: {1}\n" +
+//				"Torque Error: {2}kNm, {3}deg\n" +
+//				"Torque Clamp:\n   +{4}\n   -{5}\n" +
+//				"Limits: [{6}]", 
+//				steering,
+//				needed_torque,
+//				TorqueError,
+//				Vector3.Angle(torque_imbalance, needed_torque),
+//				torque.positive, 
+//				torque.negative,
+//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
+//			);
 		}
 
 		float getVerticalSpeedFactor()
@@ -223,7 +255,7 @@ namespace ThrottleControlledAvionics
 		{
 			//calculate maximum angular acceleration for each axis
 			updateMoI();
-			var max_torque = torque.Max * VerticalSpeedFactor;
+			var max_torque = torque.Max;
 			var angularA = new Vector3
 				(
 					MoI.x != 0? max_torque.x/MoI.x : float.MaxValue,
@@ -294,7 +326,8 @@ namespace ThrottleControlledAvionics
 		HaveActiveEngines 	   = 1 << 3,
 		VerticalSpeedControl   = 1 << 4,
 		LoosingAltitude 	   = 1 << 5,
-		Nominal				   = Enabled | HaveEC | Throttled | HaveActiveEngines,
-		VerticalSpeedAvailable = Nominal | VerticalSpeedControl
+		Nominal				   = Enabled | Throttled | HaveEC | HaveActiveEngines,
+		NoActiveEngines        = Enabled | Throttled | HaveEC,
+		NoEC                   = Enabled | Throttled,
 	}
 }

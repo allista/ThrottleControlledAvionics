@@ -34,7 +34,6 @@ namespace ThrottleControlledAvionics
 		public Vector3 specificTorque   = Vector3.zero;
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;
-		public float   currentThrust    = 0f;
 		public float   limit, limit_tmp;
 
 		protected EngineWrapper()
@@ -72,6 +71,9 @@ namespace ThrottleControlledAvionics
 				return query;
 			}
 		}
+
+		public float nominalCurrentThrust(float throttle)
+		{ return Mathf.Lerp(minThrust, maxThrust, throttle); }
 
 		public float requestedThrust
 		{ get { return isModuleEngineFX ? engineFX.requestedThrust : engine.requestedThrust; } }
@@ -111,6 +113,9 @@ namespace ThrottleControlledAvionics
 
 		public float maxThrust
 		{ get { return isModuleEngineFX ? engineFX.maxThrust : engine.maxThrust; } }
+
+		public float minThrust
+		{ get { return isModuleEngineFX ? engineFX.minThrust : engine.minThrust; } }
 
 		public float thrustPercentage
 		{

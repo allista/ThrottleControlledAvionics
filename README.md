@@ -20,6 +20,7 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 * Sophisticated **parameter tuning**, both automatic and manual.
 * Built-in **altitude and hovering control**.
 * Both the **Toolbar and** the stock **AppLauncher** are supported.
+* **Configurable key binding** through TCA.glob file.
 
 ##Instructions
 
@@ -64,8 +65,15 @@ Another use of the Vertical Speed Limit is a stable horizontal flight. Consider 
 
 ##Future Plans:
 
-* Automatically match speed with target.
-* Translations with non RCS-enabled engines.
+* **Priority:**
+    * Change VSC's Set Point with main throttle
+    * Key binding configuration GUI
+* Ideas:
+    * Horizontal Speed Control
+    * Autotuning for MechJeb2
+* Legacy:
+    * Automatically match speed with target
+    * Translations with non RCS-enabled engines
 
 ##Acknowledgments:
 
