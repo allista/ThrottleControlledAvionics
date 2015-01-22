@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
 		void onVesselChange(Vessel vsl)
 		{ 
 			if(vsl == null || vsl.Parts == null) return;
-			TCAConfiguration.Save();
+			save();
 			vessel = vsl;
 			updateEnginesList();
 		}
@@ -68,7 +68,8 @@ namespace ThrottleControlledAvionics
 		void onVesselModify(Vessel vsl)
 		{ if(vessel == vsl) updateEnginesList(); }
 
-		void onSave(ConfigNode node) { TCAConfiguration.Save(); }
+		void save() { TCAConfiguration.Save(); if(GUI != null) GUI.SaveConfig(); }
+		void onSave(ConfigNode node) { save(); }
 
 		public void ActivateTCA(bool state)
 		{

@@ -73,6 +73,13 @@ namespace ThrottleControlledAvionics
 		void onShowUI() { showHUD = true; }
 		void onHideUI() { showHUD = false; }
 
+		public void SaveConfig()
+		{
+			GUI_CFG.SetValue("ControlsPos", ControlsPos);
+			GUI_CFG.SetValue("HelpPos", HelpPos);
+			GUI_CFG.save();
+		}
+
 		public void OnDestroy() 
 		{ 
 			GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIAppLauncherReady);
@@ -82,10 +89,7 @@ namespace ThrottleControlledAvionics
 				TCAToolbarButton.Destroy();
 			GameEvents.onHideUI.Remove(onHideUI);
 			GameEvents.onShowUI.Remove(onShowUI);
-			//save positions of the windows
-			GUI_CFG.SetValue("ControlsPos", ControlsPos);
-			GUI_CFG.SetValue("HelpPos", HelpPos);
-			GUI_CFG.save();
+			SaveConfig();
 		}
 
 		#region Icon
