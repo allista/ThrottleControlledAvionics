@@ -4,6 +4,7 @@ L1 = 1
 K2 = 10
 L2 = 10
 MaxCutoff = 10
+VSControlSensitivity = 0.01
 OptimizationPrecision = 0.1
 MaxIterations = 30
 MaxP = 1

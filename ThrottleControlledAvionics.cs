@@ -60,7 +60,16 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(vsl == null || vsl.Parts == null) return;
 			save();
+			if(vessel != null)
+			{
+				Utils.Log("1: {0}, {1}", vsl, vsl.OnAutopilotUpdate);//debug
+				vessel.OnAutopilotUpdate -= block_throttle;
+			}
+			Utils.Log("2");//debug
 			vessel = vsl;
+			Utils.Log("3");//debug
+			vessel.OnAutopilotUpdate += block_throttle;
+			Utils.Log("4");//debug
 			updateEnginesList();
 		}
 
@@ -110,7 +119,25 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{ 
 			GUI.OnUpdate();
+			if(CFG.Enabled && CFG.BlockThrottle)
+			{
+				if(GameSettings.THROTTLE_UP.GetKey())
+					CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
+					                                TCAConfiguration.Globals.MaxCutoff, 
+					                                TCAConfiguration.Globals.VSControlSensitivity);
+				else if(GameSettings.THROTTLE_DOWN.GetKey())
+					CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
+					                                -TCAConfiguration.Globals.MaxCutoff, 
+					                                TCAConfiguration.Globals.VSControlSensitivity);
+				else if(GameSettings.THROTTLE_FULL.GetKeyDown())
+					CFG.VerticalCutoff = TCAConfiguration.Globals.MaxCutoff;
+				else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
+					CFG.VerticalCutoff = -TCAConfiguration.Globals.MaxCutoff;
+			}
 		}
+
+		void block_throttle(FlightCtrlState s)
+		{ if(CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 
 		public void FixedUpdate()
 		{

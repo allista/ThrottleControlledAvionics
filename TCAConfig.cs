@@ -13,9 +13,10 @@ namespace ThrottleControlledAvionics
 
 		//control model configuration parameters
 		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
-		[Persistent] public float MaxCutoff             = 10f;  //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float OptimizationPrecision = 0.1f; //optimize engines limits until torque error or delta torque error is less than this
-		[Persistent] public int   MaxIterations         = 30;   //maximum number of optimizations per fixed frame
+		[Persistent] public float MaxCutoff             = 10f;   //max. positive vertical speed m/s (configuration limit)
+		[Persistent] public float VSControlSensitivity  = 0.01f; //max. positive vertical speed m/s (configuration limit)
+		[Persistent] public float OptimizationPrecision = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
+		[Persistent] public int   MaxIterations         = 30;    //maximum number of optimizations per fixed frame
 		//default values for PI controllers
 		[Persistent] public float MaxP = 1f; //value of P slider
 		[Persistent] public float MaxI = 1f; //value of I slider
@@ -53,6 +54,9 @@ Vertical Speed Limit, hovering and horizontal flight:
 	* The limit may be set with the scroll bar in the interval from -{1:F1}m/s to {1:F1}m/s (not including). When the Limit is set, the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. The speed limit itself is never achieved, however, but approached asymptotically, so you need to set it a little higher (0.1-0.5m/s) than desired.
 	* To completely disable the Speed Limit, just set it to maximum value ({1}m/s).
 	* Another use of the Vertical Speed Limit is a stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the automatic speed limiting the thrust will be adjusted, and the VTOL will move more or less in a plane.
+
+Control vertical speed with main throttle controls:
+    * When enabled, locks main throttle at 100% and uses its controls to set desired vertical speed instead.
 
 Notes:
 	* If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
@@ -93,6 +97,7 @@ Notes:
 		[Persistent] public bool  Enabled;
 		[Persistent] public bool  GUIVisible;
 		[Persistent] public float VerticalCutoff; //max. positive vertical speed m/s (configurable)
+		[Persistent] public bool  BlockThrottle;
 		//steering
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
@@ -103,6 +108,8 @@ Notes:
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
+
+		public bool VerticalSpeedControl { get { return VerticalCutoff < TCAConfiguration.Globals.MaxCutoff; } }
 
 		public VesselConfig() //set defaults
 		{
