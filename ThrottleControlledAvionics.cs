@@ -80,6 +80,7 @@ namespace ThrottleControlledAvionics
 				State = TCAState.Disabled;
 			}
 		}
+		public void ToggleTCA() { ActivateTCA(!CFG.Enabled); }
 
 		void updateEnginesList()
 		{
@@ -108,8 +109,7 @@ namespace ThrottleControlledAvionics
 
 		public void Update()
 		{ 
-			if(Input.GetKeyDown(TCAConfiguration.Globals.TCA_Key)) 
-				ActivateTCA(!CFG.Enabled); 
+			GUI.OnUpdate();
 		}
 
 		public void FixedUpdate()

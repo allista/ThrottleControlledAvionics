@@ -24,9 +24,6 @@ namespace ThrottleControlledAvionics
 		//steering gain curve
 		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
 		//key binding to toggle TCA
-		[Persistent] public string TCA_Key = "y";
-
-		//TODO: need key bindings or action groups for altitude control
 
 		//help text
 		public string Instructions = string.Empty;
@@ -64,7 +61,7 @@ Notes:
 
 
 		public void InitInstructions()
-		{ Instructions = string.Format(instructions, TCA_Key, MaxCutoff); }
+		{ Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxCutoff); }
 
 		public override void Load(ConfigNode node)
 		{
