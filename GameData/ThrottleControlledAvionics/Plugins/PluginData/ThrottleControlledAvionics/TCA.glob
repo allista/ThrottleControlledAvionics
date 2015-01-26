@@ -4,7 +4,6 @@ L1 = 1
 K2 = 10
 L2 = 10
 MaxCutoff = 10
-VSControlSensitivity = 0.01
 OptimizationPrecision = 0.1
 MaxIterations = 30
 MaxP = 1
@@ -14,6 +13,11 @@ Engines
 {
 	p = 0.4
 	i = 0.2
+}
+AngularA
+{
+	p = 0.2
+	i = 0.1
 }
 SteeringCurve 
 {

@@ -32,6 +32,8 @@ namespace ThrottleControlledAvionics
 		float   throttle;
 		Matrix3x3f inertiaTensor;
 		Vector3 MoI = Vector3.one;
+		Vector3 angularA = Vector3.zero;
+		PIv_Controller angularA_filter = new PIv_Controller();
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
 		public bool IsStateSet(TCAState s) { return (State & s) == s; }
@@ -42,6 +44,7 @@ namespace ThrottleControlledAvionics
 		{
 			TCAConfiguration.Load();
 			GUI = new TCAGui(this);
+			angularA_filter.setPI(TCAConfiguration.Globals.AngularA);
 			GameEvents.onVesselChange.Add(onVesselChange);
 			GameEvents.onVesselWasModified.Add(onVesselModify);
 			GameEvents.onGameStateSave.Add(onSave);
@@ -60,16 +63,11 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(vsl == null || vsl.Parts == null) return;
 			save();
+			angularA_filter.Reset();
 			if(vessel != null)
-			{
-				Utils.Log("1: {0}, {1}", vsl, vsl.OnAutopilotUpdate);//debug
 				vessel.OnAutopilotUpdate -= block_throttle;
-			}
-			Utils.Log("2");//debug
 			vessel = vsl;
-			Utils.Log("3");//debug
 			vessel.OnAutopilotUpdate += block_throttle;
-			Utils.Log("4");//debug
 			updateEnginesList();
 		}
 
@@ -124,11 +122,11 @@ namespace ThrottleControlledAvionics
 				if(GameSettings.THROTTLE_UP.GetKey())
 					CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
 					                                TCAConfiguration.Globals.MaxCutoff, 
-					                                TCAConfiguration.Globals.VSControlSensitivity);
+					                                CFG.VSControlSensitivity);
 				else if(GameSettings.THROTTLE_DOWN.GetKey())
 					CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
 					                                -TCAConfiguration.Globals.MaxCutoff, 
-					                                TCAConfiguration.Globals.VSControlSensitivity);
+					                                CFG.VSControlSensitivity);
 				else if(GameSettings.THROTTLE_FULL.GetKeyDown())
 					CFG.VerticalCutoff = TCAConfiguration.Globals.MaxCutoff;
 				else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
@@ -283,12 +281,14 @@ namespace ThrottleControlledAvionics
 			//calculate maximum angular acceleration for each axis
 			updateMoI();
 			var max_torque = torque.Max;
-			var angularA = new Vector3
+			var new_angularA = new Vector3
 				(
 					MoI.x != 0? max_torque.x/MoI.x : float.MaxValue,
 					MoI.y != 0? max_torque.y/MoI.y : float.MaxValue,
 					MoI.z != 0? max_torque.z/MoI.z : float.MaxValue
 				);
+			angularA_filter.Update(new_angularA - angularA);
+			angularA += angularA_filter.Action;
 			//tune steering modifiers
 			CFG.SteeringModifier.x = Mathf.Clamp(TCAConfiguration.Globals.SteeringCurve.Evaluate(angularA.x)/100f, 0, 1);
 			CFG.SteeringModifier.y = Mathf.Clamp(TCAConfiguration.Globals.SteeringCurve.Evaluate(angularA.y)/100f, 0, 1);
@@ -296,6 +296,11 @@ namespace ThrottleControlledAvionics
 			//tune PI coefficients
 			CFG.Engines.P = TCAConfiguration.Globals.EnginesCurve.Evaluate(angularA.magnitude);
 			CFG.Engines.I = CFG.Engines.P/2f;
+			//debug
+//			Utils.Log("max_torque: {0}\n" + 
+//                      "MoI {1}\n" +
+//                      "angularA {2}", 
+//                      max_torque, MoI, angularA);
 		}
 		#endregion
 

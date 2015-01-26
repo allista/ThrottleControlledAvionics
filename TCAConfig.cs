@@ -14,13 +14,13 @@ namespace ThrottleControlledAvionics
 		//control model configuration parameters
 		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
 		[Persistent] public float MaxCutoff             = 10f;   //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float VSControlSensitivity  = 0.01f; //max. positive vertical speed m/s (configuration limit)
 		[Persistent] public float OptimizationPrecision = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
 		[Persistent] public int   MaxIterations         = 30;    //maximum number of optimizations per fixed frame
 		//default values for PI controllers
 		[Persistent] public float MaxP = 1f; //value of P slider
 		[Persistent] public float MaxI = 1f; //value of I slider
 		[Persistent] public PI_Dummy Engines = new PI_Dummy(0.4f, 0.2f); //thrustPercentage master PI controller defaults
+		[Persistent] public PI_Dummy AngularA = new PI_Dummy(0.4f, 0.2f); //values for angular acceleration dumper
 		[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 		//steering gain curve
 		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
@@ -98,6 +98,7 @@ Notes:
 		[Persistent] public bool  GUIVisible;
 		[Persistent] public float VerticalCutoff; //max. positive vertical speed m/s (configurable)
 		[Persistent] public bool  BlockThrottle;
+		[Persistent] public float VSControlSensitivity = 0.01f;
 		//steering
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
