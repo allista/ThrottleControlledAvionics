@@ -43,7 +43,6 @@ namespace ThrottleControlledAvionics
 		public void Awake()
 		{
 			TCAConfiguration.Load();
-			GUI = new TCAGui(this);
 			angularA_filter.setPI(TCAConfiguration.Globals.AngularA);
 			GameEvents.onVesselChange.Add(onVesselChange);
 			GameEvents.onVesselWasModified.Add(onVesselModify);
@@ -62,24 +61,43 @@ namespace ThrottleControlledAvionics
 		void onVesselChange(Vessel vsl)
 		{ 
 			if(vsl == null || vsl.Parts == null) return;
-			save();
-			angularA_filter.Reset();
-			if(vessel != null)
-				vessel.OnAutopilotUpdate -= block_throttle;
+			save(); reset();
 			vessel = vsl;
-			vessel.OnAutopilotUpdate += block_throttle;
-			updateEnginesList();
+			init();
 		}
 
 		void onVesselModify(Vessel vsl)
-		{ if(vessel == vsl) updateEnginesList(); }
+		{ if(vessel == vsl) init(); }
 
 		void save() { TCAConfiguration.Save(); if(GUI != null) GUI.SaveConfig(); }
 		void onSave(ConfigNode node) { save(); }
 
+		void reset()
+		{
+			if(vessel != null) 
+				vessel.OnAutopilotUpdate -= block_throttle;
+			vessel = null; 
+			CFG = null;
+			Engines.Clear();
+			angularA_filter.Reset();
+		}
+
+		void init()
+		{
+			vessel.OnAutopilotUpdate += block_throttle;
+			if(!vessel.isEVA &&
+				VesselAutopilot.AutopilotMode.StabilityAssist
+			   .AvailableAtLevel(vessel.VesselValues.AutopilotSkill.value))
+			{
+				if(GUI == null) GUI = new TCAGui(this);
+				updateEnginesList();
+			} 
+			else if(GUI != null) { GUI.OnDestroy(); GUI = null; }
+		}
+
 		public void ActivateTCA(bool state)
 		{
-			if(CFG == null || state == CFG.Enabled) return;
+			if(CFG == null || !vessel.IsControllable || state == CFG.Enabled) return;
 			CFG.Enabled = state;
 			if(!CFG.Enabled) //reset engine limiters
 			{
@@ -109,13 +127,16 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI() 
 		{ 
+			if(GUI == null) return;
 			Styles.Init();
-			GUI.DrawGUI(); 
+			if(vessel.IsControllable) 
+				GUI.DrawGUI(); 
 			GUI.UpdateToolbarIcon();
 		}
 
 		public void Update()
 		{ 
+			if(GUI == null || !vessel.IsControllable) return;
 			GUI.OnUpdate();
 			if(CFG.Enabled && CFG.BlockThrottle)
 			{
@@ -135,11 +156,11 @@ namespace ThrottleControlledAvionics
 		}
 
 		void block_throttle(FlightCtrlState s)
-		{ if(CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
+		{ if(CFG != null && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 
 		public void FixedUpdate()
 		{
-			if(!CFG.Enabled || vessel == null) return;
+			if(CFG == null || !CFG.Enabled) return;
 			State = TCAState.Enabled;
 			//check for throttle and Electrich Charge
 			if(vessel.ctrlState.mainThrottle <= 0) return;
@@ -152,8 +173,8 @@ namespace ThrottleControlledAvionics
 			if(active_engines.Count == 0) return;
 			State |= TCAState.HaveActiveEngines;
 			//calculate steering
-			wCoM         = vessel.findWorldCenterOfMass();
-			refT         = vessel.GetReferenceTransformPart().transform; //should be in a callback?
+			wCoM     = vessel.findWorldCenterOfMass();
+			refT     = vessel.GetReferenceTransformPart().transform; //should be in a callback?
 			steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			if(!steering.IsZero())
 			{
@@ -244,14 +265,16 @@ namespace ThrottleControlledAvionics
 //				"Needed Torque: {1}\n" +
 //				"Torque Error: {2}kNm, {3}deg\n" +
 //				"Torque Clamp:\n   +{4}\n   -{5}\n" +
-//				"Limits: [{6}]", 
+//				"Limits: [{6}]\n" +
+//				"Optimized: {7}", 
 //				steering,
 //				needed_torque,
 //				TorqueError,
 //				Vector3.Angle(torque_imbalance, needed_torque),
 //				torque.positive, 
 //				torque.negative,
-//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
+//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim(),
+//				Optimized
 //			);
 		}
 
