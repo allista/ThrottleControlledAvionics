@@ -18,7 +18,8 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 [*] Sophisticated [B]parameter tuning[/B], both automatic and manual.
 [*] Built-in [B]altitude and hovering control[/B].
 [*] Both the [B]Toolbar and[/B] the stock [B]AppLauncher[/B] are supported.
-[*] [B]Configurable key binding[/B] through TCA.glob file.[/list]
+[*] [B]In-game[/b] configurable [b]key binding[/B].
+[*] [B]Career mode[/B] integration.[/list]
 [B][SIZE=4]Downloads and Installation[/SIZE][/B]
 
 If you're upgrading, [B]DELETE[/B] the old version before installing a new one
@@ -48,11 +49,14 @@ Pitch, Yaw and Roll modify only corresponding inputs. Linking Pitch and Yaw usef
 [list]
 [*] P (proportional) parameter controls the response speed of the engines. If the craft reacts slowly, increase it a little. If the craft vibrates after a maneuver, decrease it.
 [*] I (integral) parameter controls the smoothing. It prevents rapid changes in thrust. If engines's trust jitters, increase it.[/list]
-[B]Vertical Speed Limit, hovering and horizontal flight:[/B]
-If you're using TCA to control VTOL or during vertical landing of a rocket, you may enable the Vertical Speed Limiter. 
-The limit may be set with the scroll bar in the (configurable) interval from -10m/s to 10m/s (not including). When the Limit is set, the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. The speed limit itself is never achieved, however, but approached asymptotically, so you need to set it a little higher (0.1-0.5m/s) than desired.
-To completely disable the Speed Limit, just set it to maximum value (default 10m/s).
-Another use of the Vertical Speed Limit is a stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the automatic speed limiting the thrust will be adjusted, and the VTOL will move more or less in a plane.
+[B]Vertical Speed Control, hovering and horizontal flight:[/B]
+If you're using TCA to control VTOL or during vertical landing of a rocket, you may enable the Vertical Speed Control System. 
+The desired vertical speed may be set with the scroll bar in the (configurable) interval from -10m/s to 10m/s (not including). Then the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. This speed, however, is never achieved, but approached asymptotically, so you need to set it a little higher (0.1-0.5m/s) than desired.
+To completely disable the VSC, just set it the desired speed to its maximum value (default 10m/s).
+VSC is also very useful to maintain stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the VSC the thrust will be adjusted, and the VTOL will move more or less in a plane.
+
+[B]Set vertical speed with throttle controls:[/B]
+When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
 
 [B]Notes:[/B]
 [list]
@@ -61,9 +65,7 @@ Another use of the Vertical Speed Limit is a stable horizontal flight. Consider 
 [*] Solid boosters have constant thrust and thus cannot be controlled by TCA.[/list]
 [B][SIZE=4]Future Plans:[/SIZE][/B]
 [list]
-[*] [b]Priority:[/b]
-[list][*] Change VSC's Set Point with main throttle
-      [*] Key binding configuration GUI[/list]
+[*] [b]Priority:[/b] nothing so far.
 [*] Ideas:
 [list][*] Horizontal Speed Control
       [*] Autotuning for MechJeb2[/list]
