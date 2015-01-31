@@ -63,6 +63,16 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("{0}: {1}", name, value.ToString(format)), GUILayout.ExpandWidth(false));
 			return GUILayout.HorizontalSlider(value, min, max, GUILayout.ExpandWidth(true));
 		}
+
+		//ResearchAndDevelopment.PartModelPurchased is broken and always returns 'true'
+		public static bool PartIsPurchased(string name)
+		{
+			var info = PartLoader.getPartInfoByName(name);
+			if(info == null) return false;
+			if(HighLogic.CurrentGame.Mode != Game.Modes.CAREER) return true;
+			var tech = ResearchAndDevelopment.Instance.GetTechState(info.TechRequired);
+			return tech != null && tech.state == RDTech.State.Available && tech.partsPurchased.Contains(info);
+		}
 	}
 
 	public class ConfigNodeObject : IConfigNode
