@@ -16,14 +16,19 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
 	public class ThrottleControlledAvionics : MonoBehaviour
 	{
-		TCAGui GUI;
+		const string TCA_PART = "ThrottleControlledAvionics";
 
 		#region State
+		TCAGui GUI;
 		Vessel vessel;
 		public VesselConfig CFG { get; private set; }
 		public readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
 		public float TorqueError { get; private set; }
+		public float TorqueAngle { get; private set; }
 		public TCAState State { get; private set; }
+		//career and technical availability
+		public bool Available { get; private set; }
+		public bool Controllable { get { return Available && vessel.IsControllable; } }
 		//physics
 		Vector3 wCoM;    //center of mass in world space
 		Transform refT;  //transform of the controller-part
@@ -80,32 +85,23 @@ namespace ThrottleControlledAvionics
 			CFG = null;
 			Engines.Clear();
 			angularA_filter.Reset();
+			Available = false;
 		}
 
 		void init()
 		{
+			Available = false;
 			vessel.OnAutopilotUpdate += block_throttle;
 			if(!vessel.isEVA &&
-				VesselAutopilot.AutopilotMode.StabilityAssist
-			   .AvailableAtLevel(vessel.VesselValues.AutopilotSkill.value))
+			   (!TCAConfiguration.Globals.IntegrateIntoCareer ||
+			    Utils.PartIsPurchased(TCA_PART)))
 			{
 				if(GUI == null) GUI = new TCAGui(this);
 				updateEnginesList();
+				Available = true;
 			} 
 			else if(GUI != null) { GUI.OnDestroy(); GUI = null; }
 		}
-
-		public void ActivateTCA(bool state)
-		{
-			if(CFG == null || !vessel.IsControllable || state == CFG.Enabled) return;
-			CFG.Enabled = state;
-			if(!CFG.Enabled) //reset engine limiters
-			{
-				Engines.ForEach(e => e.forceThrustPercentage(100));
-				State = TCAState.Disabled;
-			}
-		}
-		public void ToggleTCA() { ActivateTCA(!CFG.Enabled); }
 
 		void updateEnginesList()
 		{
@@ -125,18 +121,29 @@ namespace ThrottleControlledAvionics
 				}
 		}
 
+		public void ActivateTCA(bool state)
+		{
+			if(!Controllable || state == CFG.Enabled) return;
+			CFG.Enabled = state;
+			if(!CFG.Enabled) //reset engine limiters
+			{
+				Engines.ForEach(e => e.forceThrustPercentage(100));
+				State = TCAState.Disabled;
+			}
+		}
+		public void ToggleTCA() { ActivateTCA(!CFG.Enabled); }
+
 		public void OnGUI() 
 		{ 
-			if(GUI == null) return;
+			if(!Available) return;
 			Styles.Init();
-			if(vessel.IsControllable) 
-				GUI.DrawGUI(); 
+			if(Controllable) GUI.DrawGUI(); 
 			GUI.UpdateToolbarIcon();
 		}
 
 		public void Update()
 		{ 
-			if(GUI == null || !vessel.IsControllable) return;
+			if(!Controllable) return;
 			GUI.OnUpdate();
 			if(CFG.Enabled && CFG.BlockThrottle)
 			{
@@ -156,11 +163,11 @@ namespace ThrottleControlledAvionics
 		}
 
 		void block_throttle(FlightCtrlState s)
-		{ if(CFG != null && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
+		{ if(Controllable && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 
 		public void FixedUpdate()
 		{
-			if(CFG == null || !CFG.Enabled) return;
+			if(!Available || !CFG.Enabled) return;
 			State = TCAState.Enabled;
 			//check for throttle and Electrich Charge
 			if(vessel.ctrlState.mainThrottle <= 0) return;
@@ -184,9 +191,7 @@ namespace ThrottleControlledAvionics
 			}
 			//tune engines' limits
 			VerticalSpeedFactor = getVerticalSpeedFactor();
-			optimizeLimitsIteratively(active_engines, 
-			                          TCAConfiguration.Globals.OptimizationPrecision, 
-			                          TCAConfiguration.Globals.MaxIterations);
+			optimizeLimitsIteratively(active_engines);
 			//set thrust limiters of engines taking vertical speed limit into account
 			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * VerticalSpeedFactor * e.limit, 0f, 100f));
 		}
@@ -204,12 +209,12 @@ namespace ThrottleControlledAvionics
 			}
 			var compensation_m = compensation.magnitude;
 			if(compensation_m < eps) return false;
-			var limits_norm = target_m/compensation_m;
+			var limits_norm = Mathf.Clamp01(target_m/compensation_m);
 			engines.ForEach(e => e.limit *= (1-Mathf.Clamp01(e.limit_tmp*limits_norm)));
 			return true;
 		}
 
-		void optimizeLimitsIteratively(List<EngineWrapper> engines, float eps, int max_iter)
+		void optimizeLimitsIteratively(List<EngineWrapper> engines)
 		{
 			//calculate specific torques and min-max imbalance
 			var min_imbalance = Vector3.zero;
@@ -245,36 +250,50 @@ namespace ThrottleControlledAvionics
 			//tune steering gains
 			if(CFG.AutoTune) tuneSteering();
 			//optimize engines' limits
+			TorqueAngle = 0f;
 			TorqueError = 0f;
 			float last_error = -1f;
-			for(int i = 0; i < max_iter; i++)
+			float last_angle = -1f;
+			bool  optimized  = true;
+			for(int i = 0; i < TCAConfiguration.Globals.MaxIterations; i++)
 			{
-				TorqueError = (torque_imbalance-needed_torque).magnitude;
-				if(TorqueError < eps || last_error > 0f && Mathf.Abs(last_error-TorqueError) < eps) break;
-				var target = needed_torque - torque_imbalance;
-				if(!optimizeLimits(engines, target, target.magnitude, eps)) break;
+				TorqueAngle = needed_torque.IsZero()? 0f : Vector3.Angle(torque_imbalance, needed_torque);
+				if(!optimized || 
+				   TorqueAngle > 0 && last_angle > 0 && 
+				   TorqueAngle - last_angle > TCAConfiguration.Globals.OptimizationPrecision) 
+				{
+					if(TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff ||
+					   needed_torque.IsZero()) break;
+					needed_torque = Vector3.zero;
+					engines.ForEach(e => e.limit = 1);
+					i = 0;
+				}
+				var target  = needed_torque-torque_imbalance;
+				TorqueError = target.magnitude;
+				if(TorqueError < TCAConfiguration.Globals.OptimizationPrecision || last_error > 0 && 
+				   Mathf.Abs(last_error-TorqueError) < TCAConfiguration.Globals.OptimizationPrecision) 
+					break;
+				optimized = optimizeLimits(engines, target, target.magnitude, TCAConfiguration.Globals.OptimizationPrecision);
 				torque_imbalance = engines.Aggregate(Vector3.zero, 
 				                                     (v, e) => v + 
 				                                     e.specificTorque * e.nominalCurrentThrust(throttle * e.limit));
 				last_error = TorqueError;
+				last_angle = TorqueAngle;
 			}
 			//debug
 //			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));
 //			Utils.Log(
 //				"Steering: {0}\n" +
 //				"Needed Torque: {1}\n" +
-//				"Torque Error: {2}kNm, {3}deg\n" +
+//				"Torque Error: {2}kNm, {3} deg\n" +
 //				"Torque Clamp:\n   +{4}\n   -{5}\n" +
-//				"Limits: [{6}]\n" +
-//				"Optimized: {7}", 
+//				"Limits: [{6}]", 
 //				steering,
 //				needed_torque,
-//				TorqueError,
-//				Vector3.Angle(torque_imbalance, needed_torque),
+//				TorqueError, TorqueAngle,
 //				torque.positive, 
 //				torque.negative,
-//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim(),
-//				Optimized
+//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
 //			);
 		}
 

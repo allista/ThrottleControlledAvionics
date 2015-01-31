@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
 				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
 				TCAToolbarButton.Visible     = true;
-				TCAToolbarButton.OnClick    += e => TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible;
+				TCAToolbarButton.OnClick    += onToolbarToggle;
 			}
 			else 
 			{
@@ -136,8 +136,9 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void onAppLaunchToggleOn() { TCA.CFG.GUIVisible = true; }
-		void onAppLaunchToggleOff() { TCA.CFG.GUIVisible = false; }
+		void onToolbarToggle(ClickEvent e) { if(TCA.Controllable) TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible; }
+		void onAppLaunchToggleOn() { if(TCA.Controllable) TCA.CFG.GUIVisible = true; }
+		void onAppLaunchToggleOff() { if(TCA.Controllable) TCA.CFG.GUIVisible = false; }
 		void DummyVoid() {}
 		#endregion
 
