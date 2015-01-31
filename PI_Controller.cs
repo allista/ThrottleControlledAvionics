@@ -43,6 +43,9 @@ namespace ThrottleControlledAvionics
 
 		public abstract void Update(T error);
 
+		public void Reset() 
+		{ action = default(T); integral_error = default(T); }
+
 		//access
 		public T Action { get { return action; } }
 		public static implicit operator T(PI_Controller<T> c) { return c.action; }

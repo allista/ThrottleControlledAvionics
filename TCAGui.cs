@@ -39,6 +39,9 @@ namespace ThrottleControlledAvionics
 		Texture textureOn;
 		Texture textureOff;
 		Texture textureNoCharge;
+		//keybindings
+		public static KeyCode TCA_Key = KeyCode.Y;
+		bool selecting_key;
 		#endregion
 
 		//constructor
@@ -46,9 +49,7 @@ namespace ThrottleControlledAvionics
 		{
 			TCA = _TCA;
 			//read in GUI configuration
-			GUI_CFG.load();
-			ControlsPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {ControlsPos}), ControlsPos);
-			HelpPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpPos}), HelpPos);
+			LoadConfig();
 			//setup toolbar/applauncher button
 			if(ToolbarManager.ToolbarAvailable)
 			{
@@ -57,7 +58,7 @@ namespace ThrottleControlledAvionics
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
 				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
 				TCAToolbarButton.Visible     = true;
-				TCAToolbarButton.OnClick    += e => TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible;
+				TCAToolbarButton.OnClick    += onToolbarToggle;
 			}
 			else 
 			{
@@ -75,10 +76,19 @@ namespace ThrottleControlledAvionics
 		void onShowUI() { showHUD = true; }
 		void onHideUI() { showHUD = false; }
 
+		public void LoadConfig()
+		{
+			GUI_CFG.load();
+			ControlsPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {ControlsPos}), ControlsPos);
+			HelpPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpPos}), HelpPos);
+			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
+		}
+
 		public void SaveConfig()
 		{
 			GUI_CFG.SetValue(Utils.PropertyName(new {ControlsPos}), ControlsPos);
 			GUI_CFG.SetValue(Utils.PropertyName(new {HelpPos}), HelpPos);
+			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);
 			GUI_CFG.save();
 		}
 
@@ -126,8 +136,9 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void onAppLaunchToggleOn() { TCA.CFG.GUIVisible = true; }
-		void onAppLaunchToggleOff() { TCA.CFG.GUIVisible = false; }
+		void onToolbarToggle(ClickEvent e) { if(TCA.Controllable) TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible; }
+		void onAppLaunchToggleOn() { if(TCA.Controllable) TCA.CFG.GUIVisible = true; }
+		void onAppLaunchToggleOff() { if(TCA.Controllable) TCA.CFG.GUIVisible = false; }
 		void DummyVoid() {}
 		#endregion
 
@@ -176,13 +187,21 @@ namespace ThrottleControlledAvionics
 		#region Main GUI
 		void TCA_Window(int windowID)
 		{
+			//help button
 			if(GUI.Button(new Rect(ControlsPos.width - 23f, 2f, 20f, 18f), "?")) showHelp = !showHelp;
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
+			//tca toggle
 			if(GUILayout.Button(TCA.CFG.Enabled? "Disable" : "Enable", 
 			                    TCA.CFG.Enabled? Styles.red_button : Styles.green_button,
 			                    GUILayout.Width(70)))
-				TCA.ActivateTCA(!TCA.CFG.Enabled);
+				TCA.ToggleTCA();
+			//change key binding
+			if(GUILayout.Button(selecting_key? "?" : TCA_Key.ToString(), 
+			                    selecting_key? Styles.yellow_button : Styles.green_button, 
+			                    GUILayout.Width(40)))
+			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
+			//autotune switch
 			TCA.CFG.AutoTune = GUILayout.Toggle(TCA.CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(true));
 			#if DEBUG
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) TCAConfiguration.ReloadGlobals();
@@ -256,6 +275,12 @@ namespace ThrottleControlledAvionics
 			TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
 			                                                    -TCAConfiguration.Globals.MaxCutoff, 
 			                                                    TCAConfiguration.Globals.MaxCutoff);
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			TCA.CFG.BlockThrottle = GUILayout.Toggle(TCA.CFG.BlockThrottle, 
+			                                         "Set vertical speed with throttle controls.", 
+			                                         GUILayout.ExpandWidth(false));
+			TCA.CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity", TCA.CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
 			GUILayout.EndHorizontal();
 		}
 
@@ -355,6 +380,17 @@ namespace ThrottleControlledAvionics
 					                 GUILayout.Height(helpHeight));
 				Utils.CheckRect(ref HelpPos);
 			}
+		}
+
+		public void OnUpdate()
+		{
+			if(selecting_key && Event.current.isKey)
+			{ 
+				if(Event.current.keyCode != KeyCode.Escape)
+					TCA_Key = Event.current.keyCode; 
+				selecting_key = false;
+			}
+			else if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
 		}
 		#endregion
 	}

@@ -13,20 +13,20 @@ namespace ThrottleControlledAvionics
 
 		//control model configuration parameters
 		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
-		[Persistent] public float MaxCutoff             = 10f;  //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float OptimizationPrecision = 0.1f; //optimize engines limits until torque error or delta torque error is less than this
-		[Persistent] public int   MaxIterations         = 30;   //maximum number of optimizations per fixed frame
+		[Persistent] public float MaxCutoff               = 10f;   //max. positive vertical speed m/s (configuration limit)
+		[Persistent] public float OptimizationPrecision   = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
+		[Persistent] public int   MaxIterations           = 30;    //maximum number of optimizations per fixed frame
+		[Persistent] public float OptimizationAngleCutoff = 45f;   //maximum angle between torque imbalance and torque demand that is considered unoptimized
 		//default values for PI controllers
 		[Persistent] public float MaxP = 1f; //value of P slider
 		[Persistent] public float MaxI = 1f; //value of I slider
 		[Persistent] public PI_Dummy Engines = new PI_Dummy(0.4f, 0.2f); //thrustPercentage master PI controller defaults
+		[Persistent] public PI_Dummy AngularA = new PI_Dummy(0.4f, 0.2f); //values for angular acceleration dumper
 		[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 		//steering gain curve
 		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
-		//key binding to toggle TCA
-		[Persistent] public string TCA_Key = "y";
 
-		//TODO: need key bindings or action groups for altitude control
+		[Persistent] public bool IntegrateIntoCareer = true;
 
 		//help text
 		public string Instructions = string.Empty;
@@ -57,14 +57,16 @@ Vertical Speed Limit, hovering and horizontal flight:
 	* To completely disable the Speed Limit, just set it to maximum value ({1}m/s).
 	* Another use of the Vertical Speed Limit is a stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the automatic speed limiting the thrust will be adjusted, and the VTOL will move more or less in a plane.
 
+Control vertical speed with main throttle controls:
+    * When enabled, locks main throttle at 100% and uses its controls to set desired vertical speed instead.
+
 Notes:
 	* If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
     * Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
 	* Solid boosters have constant thrust and thus cannot be controlled by TCA.";
 
-
-		public void InitInstructions()
-		{ Instructions = string.Format(instructions, TCA_Key, MaxCutoff); }
+		public void Init()
+		{ Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxCutoff); }
 
 		public override void Load(ConfigNode node)
 		{
@@ -96,6 +98,8 @@ Notes:
 		[Persistent] public bool  Enabled;
 		[Persistent] public bool  GUIVisible;
 		[Persistent] public float VerticalCutoff; //max. positive vertical speed m/s (configurable)
+		[Persistent] public bool  BlockThrottle;
+		[Persistent] public float VSControlSensitivity = 0.01f;
 		//steering
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
@@ -106,6 +110,8 @@ Notes:
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
+
+		public bool VerticalSpeedControl { get { return VerticalCutoff < TCAConfiguration.Globals.MaxCutoff; } }
 
 		public VesselConfig() //set defaults
 		{
@@ -235,7 +241,7 @@ Notes:
 		{
 			var gnode = loadNode(globals);
 			if(gnode != null) LoadGlobals(gnode);
-			else Globals.InitInstructions();
+			else Globals.Init();
 
 			var cnode = loadNode(configs);
 			if(cnode != null) LoadConfigs(cnode);
@@ -245,7 +251,7 @@ Notes:
 		public static void LoadGlobals(ConfigNode node) 
 		{
 			Globals.Load(node);
-			Globals.InitInstructions();
+			Globals.Init();
 		}
 
 		public static void LoadConfigs(ConfigNode node) 
