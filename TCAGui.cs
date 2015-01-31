@@ -277,9 +277,9 @@ namespace ThrottleControlledAvionics
 			                                                    TCAConfiguration.Globals.MaxCutoff);
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
-			TCA.CFG.BlockThrottle = GUILayout.Toggle(TCA.CFG.BlockThrottle, 
-			                                         "Set vertical speed with throttle controls.", 
-			                                         GUILayout.ExpandWidth(false));
+			TCA.BlockThrottle(GUILayout.Toggle(TCA.CFG.BlockThrottle, 
+	                                           "Set vertical speed with throttle controls.", 
+			                                   GUILayout.ExpandWidth(false)));
 			TCA.CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity", TCA.CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
 			GUILayout.EndHorizontal();
 		}

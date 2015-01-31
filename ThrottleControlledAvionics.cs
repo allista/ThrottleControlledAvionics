@@ -92,16 +92,23 @@ namespace ThrottleControlledAvionics
 		{
 			Available = false;
 			vessel.OnAutopilotUpdate += block_throttle;
-			if(!vessel.isEVA &&
+			if(!vessel.isEVA && 
 			   (!TCAConfiguration.Globals.IntegrateIntoCareer ||
 			    Utils.PartIsPurchased(TCA_PART)))
 			{
-				if(GUI == null) GUI = new TCAGui(this);
 				updateEnginesList();
-				Available = true;
+				if(Engines.Count > 0)
+				{
+					if(GUI == null) GUI = new TCAGui(this);
+					Available = true;
+					return;
+				}
 			} 
-			else if(GUI != null) { GUI.OnDestroy(); GUI = null; }
+			if(GUI != null) { GUI.OnDestroy(); GUI = null; }
 		}
+
+		void block_throttle(FlightCtrlState s)
+		{ if(Available && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 
 		void updateEnginesList()
 		{
@@ -123,7 +130,7 @@ namespace ThrottleControlledAvionics
 
 		public void ActivateTCA(bool state)
 		{
-			if(!Controllable || state == CFG.Enabled) return;
+			if(state == CFG.Enabled) return;
 			CFG.Enabled = state;
 			if(!CFG.Enabled) //reset engine limiters
 			{
@@ -132,6 +139,14 @@ namespace ThrottleControlledAvionics
 			}
 		}
 		public void ToggleTCA() { ActivateTCA(!CFG.Enabled); }
+
+		public void BlockThrottle(bool state)
+		{
+			if(state == CFG.BlockThrottle) return;
+			CFG.BlockThrottle = state;
+			if(CFG.BlockThrottle && !CFG.VerticalSpeedControl)
+				CFG.VerticalCutoff = 0;
+		}
 
 		public void OnGUI() 
 		{ 
@@ -161,9 +176,6 @@ namespace ThrottleControlledAvionics
 					CFG.VerticalCutoff = -TCAConfiguration.Globals.MaxCutoff;
 			}
 		}
-
-		void block_throttle(FlightCtrlState s)
-		{ if(Controllable && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 
 		public void FixedUpdate()
 		{
