@@ -1,12 +1,12 @@
 **DELETE the old version before installing a new one**
     
-_**BUT** do not delete the TCA.conf file to preserve your settings_
+_**BUT** do not delete the TCA.conf and config.xml file to preserve your settings_
 
 * v2.0.2
+    * **Integrated TCA into career mode.** You will have to purchase it in Specialized Controls to use it.
     * Improved optimization algorithm. Controls should be smoother and thrust should not decrease when torque demand is inadequate.
     * TCA key binding is configurable from the GUI now.
-    * Added an option to control vertical speed slider with throttle controls.
-    * **Integrated TCA into career mode.** You will have to purchase it in Specialized Controls to use it.
+    * Added an option to control vertical speed slider with throttle controls.    
 
 * v2.0.1
     * Modified optimization algorithm to work properly with engines which minThrust is not zero; Vertical Speed Factor is now also taken into account.
