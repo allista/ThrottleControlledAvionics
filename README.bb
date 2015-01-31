@@ -23,7 +23,7 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 [B][SIZE=4]Downloads and Installation[/SIZE][/B]
 
 If you're upgrading, [B]DELETE[/B] the old version before installing a new one
-[B]BUT[/B] do not delete the TCA.conf file to preserve your settings.
+[B]BUT[/B] do not delete the TCA.conf and config.xml files to preserve your settings.
 
 [list]
 [*] [URL="https://github.com/qfeys/ThrottleControlledAvionics/blob/master/ChanegLog.md"][B]ChangeLog[/B][/URL]
