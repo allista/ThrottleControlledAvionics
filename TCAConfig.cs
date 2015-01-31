@@ -57,8 +57,8 @@ Vertical Speed Limit, hovering and horizontal flight:
 	* To completely disable the Speed Limit, just set it to maximum value ({1}m/s).
 	* Another use of the Vertical Speed Limit is a stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the automatic speed limiting the thrust will be adjusted, and the VTOL will move more or less in a plane.
 
-Control vertical speed with main throttle controls:
-    * When enabled, locks main throttle at 100% and uses its controls to set desired vertical speed instead.
+Control vertical speed with throttle controls:
+    * When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
 
 Notes:
 	* If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
