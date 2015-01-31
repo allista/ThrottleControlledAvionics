@@ -13,9 +13,10 @@ namespace ThrottleControlledAvionics
 
 		//control model configuration parameters
 		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
-		[Persistent] public float MaxCutoff             = 10f;   //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float OptimizationPrecision = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
-		[Persistent] public int   MaxIterations         = 30;    //maximum number of optimizations per fixed frame
+		[Persistent] public float MaxCutoff               = 10f;   //max. positive vertical speed m/s (configuration limit)
+		[Persistent] public float OptimizationPrecision   = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
+		[Persistent] public int   MaxIterations           = 30;    //maximum number of optimizations per fixed frame
+		[Persistent] public float OptimizationAngleCutoff = 45f;   //maximum angle between torque imbalance and torque demand that is considered unoptimized
 		//default values for PI controllers
 		[Persistent] public float MaxP = 1f; //value of P slider
 		[Persistent] public float MaxI = 1f; //value of I slider
@@ -24,7 +25,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 		//steering gain curve
 		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
-		//key binding to toggle TCA
+
+		[Persistent] public bool IntegrateIntoCareer = true;
 
 		//help text
 		public string Instructions = string.Empty;
@@ -63,8 +65,7 @@ Notes:
     * Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
 	* Solid boosters have constant thrust and thus cannot be controlled by TCA.";
 
-
-		public void InitInstructions()
+		public void Init()
 		{ Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxCutoff); }
 
 		public override void Load(ConfigNode node)
@@ -240,7 +241,7 @@ Notes:
 		{
 			var gnode = loadNode(globals);
 			if(gnode != null) LoadGlobals(gnode);
-			else Globals.InitInstructions();
+			else Globals.Init();
 
 			var cnode = loadNode(configs);
 			if(cnode != null) LoadConfigs(cnode);
@@ -250,7 +251,7 @@ Notes:
 		public static void LoadGlobals(ConfigNode node) 
 		{
 			Globals.Load(node);
-			Globals.InitInstructions();
+			Globals.Init();
 		}
 
 		public static void LoadConfigs(ConfigNode node) 
