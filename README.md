@@ -20,7 +20,8 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 * Sophisticated **parameter tuning**, both automatic and manual.
 * Built-in **altitude and hovering control**.
 * Both the **Toolbar and** the stock **AppLauncher** are supported.
-* **Configurable key binding** through TCA.glob file.
+* **In-game** configurable **key binding**.
+* **Career mode** integration.
 
 ##Instructions
 
@@ -57,6 +58,9 @@ To completely disable the Speed Limit, just set it to maximum value (default 10m
 
 Another use of the Vertical Speed Limit is a stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the automatic speed limiting the thrust will be adjusted, and the VTOL will move more or less in a plane.
 
+###Control vertical speed with throttle controls:
+When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
+
 ###Notes:
 
 * If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
@@ -66,8 +70,6 @@ Another use of the Vertical Speed Limit is a stable horizontal flight. Consider 
 ##Future Plans:
 
 * **Priority:**
-    * Change VSC's Set Point with main throttle
-    * Key binding configuration GUI
 * Ideas:
     * Horizontal Speed Control
     * Autotuning for MechJeb2

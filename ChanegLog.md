@@ -2,7 +2,13 @@
     
 _**BUT** do not delete the TCA.conf file to preserve your settings_
 
-* **v2.0.1**
+* v2.0.2
+    * Improved optimization algorithm. Controls should be smoother and thrust should not decrease when torque demand is inadequate.
+    * TCA key binding is configurable from the GUI now.
+    * Added an option to control vertical speed slider with throttle controls.
+    * **Integrated TCA into career mode.** You will have to purchase it in Specialized Controls to use it.
+
+* v2.0.1
     * Modified optimization algorithm to work properly with engines which minThrust is not zero; Vertical Speed Factor is now also taken into account.
     * Corrected Toolbar/AppLauncher icon switching with TCA state.
     * When Loosing Altitude, vertical speed is still displayed.
