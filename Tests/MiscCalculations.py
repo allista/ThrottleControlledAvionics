@@ -309,12 +309,11 @@ def sim_Attitude():
         compm = abs(comp)
         if compm < eps: return False
         limits_norm = clamp01(tm/compm)
-        print 'limits norm: %f; limits tmp: %s' % (limits_norm, list(e.limit_tmp for e in engines)) 
         for e in engines:
             e.limit *= 1.0 - clamp01(e.limit_tmp*limits_norm)
         return True
     
-    def optR(engines, D=vec(), vK=1.0, eps=0.1, maxI=500):
+    def optR(engines, D=vec(), vK=1.0, eps=0.1, maxI=500, output=True):
         torque_clamp = vec6()
         torque_imbalance = vec()
         ti_min = vec(); ti_max = vec();
@@ -328,40 +327,42 @@ def sim_Attitude():
             e.current_torque = e.nominal_current_torque(vK)
             torque_imbalance += e.current_torque
             torque_clamp.add(e.current_torque)
-        print 'vK: %f' % vK
-        print 'Torque clamp:\n', torque_clamp
-        print 'demand:        ', D
         _d = torque_clamp.clamp(D)
-        print 'clamped demand:', _d
+        if output:
+            print 'vK: %f' % vK
+            print 'Torque clamp:\n', torque_clamp
+            print 'demand:        ', D
+            print 'clamped demand:', _d
+            print 'min TI: %s, max TI %s' % (ti_min, ti_max)
+            print ('initial     %s, error %s, dir error %s' % 
+                   (torque_imbalance, abs(torque_imbalance-_d), torque_imbalance.angle(_d)))
         s = []; s1 = []; i = 0;
-        print 'min TI: %s, max TI %s' % (ti_min, ti_max)
-        print ('initial     %s, error %s, dir error %s' % 
-               (torque_imbalance, abs(torque_imbalance-_d), torque_imbalance.angle(_d)))
         for i in xrange(maxI):
             s.append(abs(torque_imbalance-_d))
-            s1.append(torque_imbalance.angle(_d))
-            print 'angle: %f; limits: %s' % (s1[-1],list(e.limit for e in engines))
+            s1.append(torque_imbalance.angle(_d) if abs(_d) > 0 else 0)
             if len(s1) > 1 and s1[-1]-s1[-2] > 1: break
             if s[-1] < eps or len(s) > 1 and abs(s[-1]-s[-2]) < eps: break
             if not opt(D-torque_imbalance, engines, eps): break
             torque_imbalance = vec.sum(e.nominal_current_torque(vK * e.limit) for e in engines)
-        ##########
-        print 'iterations:', i
-        print 'limits:    ', list(e.limit for e in engines)
-        print 'result      %s, error %s, dir error %s' % (torque_imbalance, s[-1], s1[-1])
-        print 'engines:   ', list(e.nominal_current_torque(vK * e.limit) for e in engines)
-        print
-        ##########
-        x = np.arange(len(s))
-        plt.subplot(2,1,1)
-        plt.plot(x, s, '-')
-        plt.xlabel('iterations')
-        plt.ylabel('torque error (kNm)')
-        plt.subplot(2,1,2)
-        plt.plot(x, s1, '-.')
-        plt.xlabel('iterations')
-        plt.ylabel('torque direction error (deg)')
-        ##########
+        if output:
+            ##########
+            print 'iterations:', i
+            print 'limits:    ', list(e.limit for e in engines)
+            print 'result      %s, error %s, dir error %s' % (torque_imbalance, s[-1], s1[-1])
+            print 'engines:   ', list(e.nominal_current_torque(vK * e.limit) for e in engines)
+            print
+            ##########
+            x = np.arange(len(s))
+            plt.subplot(2,1,1)
+            plt.plot(x, s, '-')
+            plt.xlabel('iterations')
+            plt.ylabel('torque error (kNm)')
+            plt.subplot(2,1,2)
+            plt.plot(x, s1, '-.')
+            plt.xlabel('iterations')
+            plt.ylabel('torque direction error (deg)')
+            ##########
+        return s[-1], s1[-1]
     
     VTOL_Test = [
                     engine(vec(-3.4, -2.0, 0.0), min_thrust=0.0, max_thrust=250.0),
@@ -375,21 +376,21 @@ def sim_Attitude():
                  ]
     
     VTOL_Test_Bad_Demand = [
-#                             vec(0.0, 0.0, 0.0),
-#                             vec(100.0, 0.0, 0.0),
-#                             vec(0.0, 100.0, 0.0),
-#                             vec(0.0, 0.0, 100.0),
-#                              
-#                             vec(-1797.147, 112.3649, 80.1167), #Torque Error: 165.3752
-#                             vec(1327.126, -59.91731, 149.1847), #Torque Error: 229.8387
-#                             vec(107.5895, -529.4326, -131.0672), #Torque Error: 59.95838
-#                             vec(50.84914, -1.706408, 113.4622), #Torque Error: 25.10385
+                            vec(0.0, 0.0, 0.0),
+                            vec(100.0, 0.0, 0.0),
+                            vec(0.0, 100.0, 0.0),
+                            vec(0.0, 0.0, 100.0),
+                              
+                            vec(-1797.147, 112.3649, 80.1167), #Torque Error: 165.3752
+                            vec(1327.126, -59.91731, 149.1847), #Torque Error: 229.8387
+                            vec(107.5895, -529.4326, -131.0672), #Torque Error: 59.95838
+                            vec(50.84914, -1.706408, 113.4622), #Torque Error: 25.10385
                             ]
     
     Hover_Test = [
                     engine(vec(-6.2, 6.4, 0.6), max_thrust=450),
                     engine(vec(-6.2, -6.4, -0.6), max_thrust=450),
-                    engine(vec(3.9, 6.4, 0.6), max_thrust=450),
+                    engine(vec(3.9, 7.4, 0.6), max_thrust=450),
                     engine(vec(3.9, -6.4, -0.6), max_thrust=450)
                 ]
     
@@ -400,15 +401,47 @@ def sim_Attitude():
                              vec(0.2597602, -0.2778279, 295.8444), #Torque Error: 341.1038kNm, 94.96284deg
                              ]
     
-    for d in Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand: 
-        optR(Hover_Test, d, vK=0.5, eps=0.1, maxI=30)
-    plt.show()
-    print '='*80+'\n\n'
+#     for d in Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand: 
+#         optR(Hover_Test, d, vK=0.5, eps=0.1, maxI=30)
+#     plt.show()
+#     print '='*80+'\n\n'
     
 #     for d in Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand: 
 #         optR(VTOL_Test, d, vK=0.5, eps=0.01, maxI=300)
 #     plt.show()
 #     print '='*80+'\n\n'
+
+    N = range(500)
+    np.random.seed(42)
+    random_tests = [vec(200*np.random.random()-100.0,
+                        200*np.random.random()-100.0,
+                        200*np.random.random()-100.0) 
+                    for _n in N]
+    E = []; A = []; X = []; Y = []; Z = [];
+    for d in random_tests:
+        e, a = optR(Hover_Test, d, vK=0.5, eps=0.1, maxI=30, output=False)
+        dm = abs(d)
+        E.append(e/dm*100); A.append(a);
+        X.append(d[0]/dm*100); Y.append(d[1]/dm*100); Z.append(d[2]/dm*100)
+        
+    plt.subplot(4,1,1)
+    plt.plot(A, E, 'o')
+    plt.xlabel('angle')
+    plt.ylabel('torque error (%)')
+    plt.subplot(4,1,2)
+    plt.plot(X, A, 'o')
+    plt.xlabel('x %')
+    plt.ylabel('angle')
+    plt.subplot(4,1,3)
+    plt.plot(Y, A, 'o')
+    plt.xlabel('y %')
+    plt.ylabel('angle')
+    plt.subplot(4,1,4)
+    plt.plot(Z, A, 'o')
+    plt.xlabel('z %')
+    plt.ylabel('angle')
+    plt.show()
+    
 
 def sim_PIDf():
     MoI = vec(3.517439, 5.191057, 3.517369)
