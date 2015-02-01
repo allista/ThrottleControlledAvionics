@@ -30,6 +30,7 @@ namespace ThrottleControlledAvionics
 		public bool Available { get; private set; }
 		public bool Controllable { get { return Available && vessel.IsControllable; } }
 		//physics
+		Vector3d up;
 		Vector3 wCoM;    //center of mass in world space
 		Transform refT;  //transform of the controller-part
 		Vector3 steering; //previous steering vector
@@ -39,6 +40,7 @@ namespace ThrottleControlledAvionics
 		Vector3 MoI = Vector3.one;
 		Vector3 angularA = Vector3.zero;
 		PIv_Controller angularA_filter = new PIv_Controller();
+		PIv_Controller hV_steering = new PIv_Controller();
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
 		public bool IsStateSet(TCAState s) { return (State & s) == s; }
@@ -80,7 +82,10 @@ namespace ThrottleControlledAvionics
 		void reset()
 		{
 			if(vessel != null) 
+			{
 				vessel.OnAutopilotUpdate -= block_throttle;
+				vessel.OnAutopilotUpdate -= compensate_horizontal_speed;
+			}
 			vessel = null; 
 			CFG = null;
 			Engines.Clear();
@@ -92,6 +97,7 @@ namespace ThrottleControlledAvionics
 		{
 			Available = false;
 			vessel.OnAutopilotUpdate += block_throttle;
+			vessel.OnAutopilotUpdate += compensate_horizontal_speed;
 			if(!vessel.isEVA && 
 			   (!TCAConfiguration.Globals.IntegrateIntoCareer ||
 			    Utils.PartIsPurchased(TCA_PART)))
@@ -194,6 +200,7 @@ namespace ThrottleControlledAvionics
 			//calculate steering
 			wCoM     = vessel.findWorldCenterOfMass();
 			refT     = vessel.GetReferenceTransformPart().transform; //should be in a callback?
+			up       = (wCoM - vessel.mainBody.position).normalized;
 			steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			if(!steering.IsZero())
 			{
@@ -317,7 +324,6 @@ namespace ThrottleControlledAvionics
 			   CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff) return 1f;
 			State |= TCAState.VerticalSpeedControl;
 			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
-			var up  = (wCoM - vessel.mainBody.position).normalized;
 			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
 			var upA = (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime;
 			var err = CFG.VerticalCutoff-upV;
@@ -328,6 +334,45 @@ namespace ThrottleControlledAvionics
 			if(upA < 0 && upV < CFG.VerticalCutoff && K >= 1)
 				State |= TCAState.LoosingAltitude;
 			return K;
+		}
+
+		void compensate_horizontal_speed(FlightCtrlState s)
+		{
+			if(!Available || !CFG.Enabled || refT == null) return;
+			var hV = Vector3d.Exclude(up, vessel.srf_velocity);
+			var hVm = hV.magnitude;
+			if(hVm < 0.001) return;
+			hV_steering.setPI(0.9f, 0.2f);
+
+			var thrust = refT.TransformDirection(Engines.Aggregate(Vector3.zero, (v, e) => v + e.thrustDirection*e.finalThrust));
+			if(thrust.IsZero()) return;
+
+			var needed_thrust = (hV - up*hVm*Utils.ClampL(10/(float)hVm, 1)).normalized*thrust.magnitude;
+			var err = Vector3.Angle(thrust, needed_thrust)/180;
+
+			var needed_rot = Vector3.Cross(needed_thrust, thrust).normalized*err;
+			var rot = vessel.angularVelocity;
+			hV_steering.Update(refT.InverseTransformDirection(needed_rot - rot/180)*10);
+			var act = hV_steering.Action;
+			s.pitch = Mathf.Clamp(act.x, -1, 1);
+			s.roll = Mathf.Clamp(act.y, -1, 1);
+			s.yaw = Mathf.Clamp(act.z, -1, 1);
+
+			Utils.Log(//debug
+					  "Error: {0}\n" +
+					  "Action {1}\n" +
+					  "Thrust: {2}\n" +
+					  "Needed Thrust: {3}\n" +
+					  "hV: {4}\n" +
+					  "steering: {5}\n" +
+			          "rot: {6}\n" +
+			          "needed rot: {7}", 
+			          err, hV_steering.Action,
+			          thrust, needed_thrust,
+			          hV,
+			          new Vector3(s.pitch, s.roll, s.yaw),
+			          rot, needed_rot
+			);
 		}
 
 		void tuneSteering()
@@ -341,6 +386,7 @@ namespace ThrottleControlledAvionics
 					MoI.y != 0? max_torque.y/MoI.y : float.MaxValue,
 					MoI.z != 0? max_torque.z/MoI.z : float.MaxValue
 				);
+			new_angularA = refT.transform.InverseTransformDirection(vessel.transform.TransformDirection(new_angularA));//test
 			angularA_filter.Update(new_angularA - angularA);
 			angularA += angularA_filter.Action;
 			//tune steering modifiers
