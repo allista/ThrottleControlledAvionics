@@ -35,7 +35,7 @@ namespace ThrottleControlledAvionics
 		public static readonly Version MinKSPVersion = new Version(0,90,0);
 		public static readonly Version MaxKSPVersion = new Version(0,90,0);
 		public static readonly string  VersionURL    = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
-		public static readonly string  UpgradeURL    = "https://github.com/qfeys/ThrottleControlledAvionics/releases";
+		public static readonly string  UpgradeURL    = "https://kerbalstuff.com/mod/510/Throttle%20Controlled%20Avionics%20-%20Continued";
 		public static readonly string  ChangeLogURL  = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/ChanegLog.md";
 		public static readonly string  VersionFile   = "ThrottleControlledAvionics.version";
 	}
