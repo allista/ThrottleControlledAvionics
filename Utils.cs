@@ -9,18 +9,11 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using System.IO;
 
 namespace ThrottleControlledAvionics
 {
 	public static class Utils
 	{
-		public static void writeToFile(String text)
-		{
-			using(var writer = new StreamWriter("DumpFile.txt", true))
-				writer.Write(text + " \n");
-		}
-
 		public static string formatVector(Vector3 v)
 		{ return string.Format("({0}, {1}, {2}); |v| = {3}", v.x, v.y, v.z, v.magnitude); }
 
@@ -41,6 +34,8 @@ namespace ThrottleControlledAvionics
 		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
 		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
 		public static float ClampH(float x, float high) { return x < high ? high : x;  }
+		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
+		public static Vector3 Inverse(this Vector3 v) { return new Vector3(1f/v.x, 1f/v.y, 1f/v.z); }
 
 		public static void CheckRect(ref Rect R)
 		{

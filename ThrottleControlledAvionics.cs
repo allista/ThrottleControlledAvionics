@@ -340,6 +340,9 @@ namespace ThrottleControlledAvionics
 		void compensate_horizontal_speed(FlightCtrlState s)
 		{
 			if(!Available || !CFG.Enabled || refT == null) return;
+			if(!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
+			   !Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
+			   !Mathfx.Approx(s.yaw, s.yawTrim, 0.1f)) return;
 			//calculate horizontal velocity
 			var hV = Vector3d.Exclude(up, vessel.srf_velocity);
 			var hVm = hV.magnitude;
@@ -349,43 +352,39 @@ namespace ThrottleControlledAvionics
 			if(thrust.IsZero()) return;
 			//calculate needed thrust and corresponding attitude
 			var needed_thrust_dir = refT.InverseTransformDirection(hV.normalized - up*Utils.ClampL(10/(float)hVm, 1));
-			var needed_attitude   = refT.rotation * Quaternion.FromToRotation(thrust, needed_thrust_dir);
-			//set needed attitude to SAS
-			if (!vessel.ActionGroups[KSPActionGroup.SAS])
-			{
-				vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
-				vessel.Autopilot.SAS.LockHeading(needed_attitude);
-//				last_attitude = needed_attitude;
-			}
-//			else if(Quaternion.Angle(last_attitude, needed_attitude) > 10)
-//			{
-//				vessel.Autopilot.SAS.LockHeading(needed_attitude);
-//				last_attitude = needed_attitude;
-//			}
-			else vessel.Autopilot.SAS.LockHeading(needed_attitude, true);
-
-			if(Vector3.Angle(thrust, needed_thrust_dir) < 1 ||
-			   vessel.angularVelocity.sqrMagnitude > 25) 
-				vessel.Autopilot.SAS.SetDampingMode(true); 
+			var attitude_error    = Quaternion.FromToRotation(needed_thrust_dir, thrust);
+			var target_up         = attitude_error * Vector3.up;
+			var angle_error       = Vector3.Angle(Vector3.up, target_up);
+//			var rot_dir           = new Vector2(target_up.x, target_up.z).normalized * angle_error / 180 * Mathf.PI;
+//			var steering_error    = new Vector3(-rot_dir.y, Utils.CenterAngle(attitude_error.eulerAngles.z / 180 * Mathf.PI), rot_dir.x);
+			var steering_error    = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
+			                                    Utils.CenterAngle(attitude_error.eulerAngles.y),
+			                                    Utils.CenterAngle(attitude_error.eulerAngles.z))/180*Mathf.PI;
+			hV_steering.setPI(0.9f, 0.1f);
+			hV_steering.Update(steering_error);
+			var act = hV_steering.Action;
+			s.pitch = float.IsNaN(act.x)? 0f : Mathf.Clamp(act.x, -1, 1);
+			s.roll  = float.IsNaN(act.y)? 0f : Mathf.Clamp(act.y, -1, 1);
+			s.yaw   = float.IsNaN(act.z)? 0f : Mathf.Clamp(act.z, -1, 1);
 
 			Utils.Log(//debug
 			          "hV: {0}\n" +
 			          "Thrust: {1}\n" +
 			          "Needed Thrust Dir: {2}\n" +
-			          "Forward: {3}\n" +
-			          "Needed forward: {4}\n" +
+			          "Up: {3}\n" +
+			          "Target Up: {4}\n" +
 			          "H-T Angle: {5}\n" +
-			          "Err Angle: {6}\n" +
-			          "Down comp: {7}\n" +
-			          "Dumping: {8}", 
+			          "Angle Err: {6}\n" +
+			          "Old Angle Err: {7}\n" +
+			          "Down comp: {8}\n" +
+			          "Action: {9}\n", 
 			          refT.InverseTransformDirection(hV),
 			          thrust, needed_thrust_dir,
-			          Vector3.forward,
-			          refT.InverseTransformDirection(needed_attitude * Vector3.forward),
+			          Vector3.up, target_up,
 			          Vector3.Angle(refT.InverseTransformDirection(hV), needed_thrust_dir),
-			          Vector3.Angle(thrust, needed_thrust_dir),
+			          angle_error, Vector3.Angle(thrust, needed_thrust_dir),
 			          Utils.ClampL(10/(float)hVm, 1),
-			          vessel.Autopilot.SAS.dampingMode
+			          act
 			);
 		}
 

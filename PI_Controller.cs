@@ -67,6 +67,25 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+//	public class PIv_Controller2 : PI_Controller<Vector3>
+//	{
+//		[Persistent] float min = -1f, max = 1;
+//
+//		public PIv_Controller2(float p, float i, float min, float max)
+//		{ this.p = p; this.i = i; this.min = min; this.max = max; }
+//
+//		public override void Update(Vector3 error)
+//		{
+//			integral_error += error * TimeWarp.fixedDeltaTime;
+//
+//			integral_error.x = (Math.Abs(derivativeAct.x) < 0.6 * max) ? integral_error.x + (error.x * Ki * TimeWarp.fixedDeltaTime) : 0.9 * integral_error.x;
+//			integral_error.y = (Math.Abs(derivativeAct.y) < 0.6 * max) ? integral_error.y + (error.y * Ki * TimeWarp.fixedDeltaTime) : 0.9 * integral_error.y;
+//			integral_error.z = (Math.Abs(derivativeAct.z) < 0.6 * max) ? integral_error.z + (error.z * Ki * TimeWarp.fixedDeltaTime) : 0.9 * integral_error.z;
+//
+//			action = error * P + integral_error * I;
+//		}
+//	}
+
 	//I hate strongly-typed languages! =(
 	public class PIf_Controller : PI_Controller<float>
 	{
