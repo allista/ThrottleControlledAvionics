@@ -336,42 +336,56 @@ namespace ThrottleControlledAvionics
 			return K;
 		}
 
+//		Quaternion last_attitude = Quaternion.identity;
 		void compensate_horizontal_speed(FlightCtrlState s)
 		{
 			if(!Available || !CFG.Enabled || refT == null) return;
+			//calculate horizontal velocity
 			var hV = Vector3d.Exclude(up, vessel.srf_velocity);
 			var hVm = hV.magnitude;
-			if(hVm < 0.001) return;
-			hV_steering.setPI(0.9f, 0.2f);
-
-			var thrust = refT.TransformDirection(Engines.Aggregate(Vector3.zero, (v, e) => v + e.thrustDirection*e.finalThrust));
+			if(hVm < 1e-7) return;
+			//calculate total current thrust
+			var thrust = Engines.Aggregate(Vector3.zero, (v, e) => v + e.thrustDirection*e.finalThrust);
 			if(thrust.IsZero()) return;
+			//calculate needed thrust and corresponding attitude
+			var needed_thrust_dir = refT.InverseTransformDirection(hV.normalized - up*Utils.ClampL(10/(float)hVm, 1));
+			var needed_attitude   = refT.rotation * Quaternion.FromToRotation(thrust, needed_thrust_dir);
+			//set needed attitude to SAS
+			if (!vessel.ActionGroups[KSPActionGroup.SAS])
+			{
+				vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
+				vessel.Autopilot.SAS.LockHeading(needed_attitude);
+//				last_attitude = needed_attitude;
+			}
+//			else if(Quaternion.Angle(last_attitude, needed_attitude) > 10)
+//			{
+//				vessel.Autopilot.SAS.LockHeading(needed_attitude);
+//				last_attitude = needed_attitude;
+//			}
+			else vessel.Autopilot.SAS.LockHeading(needed_attitude, true);
 
-			var needed_thrust = (hV - up*hVm*Utils.ClampL(10/(float)hVm, 1)).normalized*thrust.magnitude;
-			var err = Vector3.Angle(thrust, needed_thrust)/180;
-
-			var needed_rot = Vector3.Cross(needed_thrust, thrust).normalized*err;
-			var rot = vessel.angularVelocity;
-			hV_steering.Update(refT.InverseTransformDirection(needed_rot - rot/180)*10);
-			var act = hV_steering.Action;
-			s.pitch = Mathf.Clamp(act.x, -1, 1);
-			s.roll = Mathf.Clamp(act.y, -1, 1);
-			s.yaw = Mathf.Clamp(act.z, -1, 1);
+			if(Vector3.Angle(thrust, needed_thrust_dir) < 1 ||
+			   vessel.angularVelocity.sqrMagnitude > 25) 
+				vessel.Autopilot.SAS.SetDampingMode(true); 
 
 			Utils.Log(//debug
-					  "Error: {0}\n" +
-					  "Action {1}\n" +
-					  "Thrust: {2}\n" +
-					  "Needed Thrust: {3}\n" +
-					  "hV: {4}\n" +
-					  "steering: {5}\n" +
-			          "rot: {6}\n" +
-			          "needed rot: {7}", 
-			          err, hV_steering.Action,
-			          thrust, needed_thrust,
-			          hV,
-			          new Vector3(s.pitch, s.roll, s.yaw),
-			          rot, needed_rot
+			          "hV: {0}\n" +
+			          "Thrust: {1}\n" +
+			          "Needed Thrust Dir: {2}\n" +
+			          "Forward: {3}\n" +
+			          "Needed forward: {4}\n" +
+			          "H-T Angle: {5}\n" +
+			          "Err Angle: {6}\n" +
+			          "Down comp: {7}\n" +
+			          "Dumping: {8}", 
+			          refT.InverseTransformDirection(hV),
+			          thrust, needed_thrust_dir,
+			          Vector3.forward,
+			          refT.InverseTransformDirection(needed_attitude * Vector3.forward),
+			          Vector3.Angle(refT.InverseTransformDirection(hV), needed_thrust_dir),
+			          Vector3.Angle(thrust, needed_thrust_dir),
+			          Utils.ClampL(10/(float)hVm, 1),
+			          vessel.Autopilot.SAS.dampingMode
 			);
 		}
 
@@ -386,7 +400,6 @@ namespace ThrottleControlledAvionics
 					MoI.y != 0? max_torque.y/MoI.y : float.MaxValue,
 					MoI.z != 0? max_torque.z/MoI.z : float.MaxValue
 				);
-			new_angularA = refT.transform.InverseTransformDirection(vessel.transform.TransformDirection(new_angularA));//test
 			angularA_filter.Update(new_angularA - angularA);
 			angularA += angularA_filter.Action;
 			//tune steering modifiers
@@ -440,6 +453,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			MoI = new Vector3(inertiaTensor[0, 0], inertiaTensor[1, 1], inertiaTensor[2, 2]);
+			MoI = refT.InverseTransformDirection(vessel.transform.TransformDirection(MoI));
 		}
 		#endregion
 	}
