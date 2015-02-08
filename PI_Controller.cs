@@ -26,7 +26,7 @@ namespace ThrottleControlledAvionics
 		public void setPI(PI_Controller other) { p = other.P; i = other.I; }
 		public void setMaster(PI_Controller master) { this.master = master; }
 
-		public void DrawPIControls(string name)
+		public virtual void DrawControls(string name)
 		{
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(name, GUILayout.ExpandWidth(false));
@@ -67,24 +67,31 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-//	public class PIv_Controller2 : PI_Controller<Vector3>
-//	{
-//		[Persistent] float min = -1f, max = 1;
-//
-//		public PIv_Controller2(float p, float i, float min, float max)
-//		{ this.p = p; this.i = i; this.min = min; this.max = max; }
-//
-//		public override void Update(Vector3 error)
-//		{
-//			integral_error += error * TimeWarp.fixedDeltaTime;
-//
-//			integral_error.x = (Math.Abs(derivativeAct.x) < 0.6 * max) ? integral_error.x + (error.x * Ki * TimeWarp.fixedDeltaTime) : 0.9 * integral_error.x;
-//			integral_error.y = (Math.Abs(derivativeAct.y) < 0.6 * max) ? integral_error.y + (error.y * Ki * TimeWarp.fixedDeltaTime) : 0.9 * integral_error.y;
-//			integral_error.z = (Math.Abs(derivativeAct.z) < 0.6 * max) ? integral_error.z + (error.z * Ki * TimeWarp.fixedDeltaTime) : 0.9 * integral_error.z;
-//
-//			action = error * P + integral_error * I;
-//		}
-//	}
+	public class PIDv_Controller : PI_Controller<Vector3>
+	{
+		[Persistent] float min = -1, max = 1, d = 0.5f;
+
+		public float D { get { return d; } set { d = value; } }
+
+		public PIDv_Controller(float p, float i, float d, float min, float max)
+		{ this.p = p; this.i = i; this.d = d; this.min = min; this.max = max; }
+
+		public override void Update(Vector3 error)
+		{
+			throw new NotImplementedException();
+		}
+
+		public void Update(Vector3 error, Vector3 omega)
+		{
+			var derivative   = d * omega/TimeWarp.fixedDeltaTime;
+			integral_error.x = (Math.Abs(derivative.x) < 0.6f * max) ? integral_error.x + (error.x * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.x;
+			integral_error.y = (Math.Abs(derivative.y) < 0.6f * max) ? integral_error.y + (error.y * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.y;
+			integral_error.z = (Math.Abs(derivative.z) < 0.6f * max) ? integral_error.z + (error.z * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.z;
+			Vector3.ClampMagnitude(integral_error, max);
+			action = error * P + integral_error + derivative;
+			Utils.Log("Integral error: {0}", integral_error);//debug
+		}
+	}
 
 	//I hate strongly-typed languages! =(
 	public class PIf_Controller : PI_Controller<float>

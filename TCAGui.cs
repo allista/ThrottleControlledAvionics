@@ -263,12 +263,12 @@ namespace ThrottleControlledAvionics
 			TCA.CFG.SteeringModifier.y = Utils.FloatSlider("Roll", TCA.CFG.SteeringModifier.y, 0, 1, "P1");
 			GUILayout.EndHorizontal();
 			//engines
-			TCA.CFG.Engines.DrawPIControls("Engines Controller");
+			TCA.CFG.Engines.DrawControls("Engines Controller");
 			//speed limit
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Vertical Speed: " + 
 			                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
-			                GUILayout.Width(150));
+			                GUILayout.Width(180));
 			GUILayout.Label("Set Point: " + (TCA.CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff? 
 			                                 TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
 			                GUILayout.ExpandWidth(false));
