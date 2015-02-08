@@ -40,7 +40,6 @@ namespace ThrottleControlledAvionics
 		Vector3 MoI = Vector3.one;
 		Vector3 angularA = Vector3.zero;
 		PIv_Controller angularA_filter = new PIv_Controller();
-		PIv_Controller hV_steering = new PIv_Controller();
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
 		public bool IsStateSet(TCAState s) { return (State & s) == s; }
@@ -336,7 +335,7 @@ namespace ThrottleControlledAvionics
 			return K;
 		}
 
-//		Quaternion last_attitude = Quaternion.identity;
+		PIDv_Controller hV_steering = new PIDv_Controller(0.5f/3f, 0.5f/3f/6f, 0.5f, -1, 1);
 		void compensate_horizontal_speed(FlightCtrlState s)
 		{
 			if(!Available || !CFG.Enabled || refT == null) return;
@@ -346,46 +345,74 @@ namespace ThrottleControlledAvionics
 			//calculate horizontal velocity
 			var hV = Vector3d.Exclude(up, vessel.srf_velocity);
 			var hVm = hV.magnitude;
-			if(hVm < 1e-7) return;
+//			vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//calculate total current thrust
 			var thrust = Engines.Aggregate(Vector3.zero, (v, e) => v + e.thrustDirection*e.finalThrust);
 			if(thrust.IsZero()) return;
 			//calculate needed thrust and corresponding attitude
-			var needed_thrust_dir = refT.InverseTransformDirection(hV.normalized - up*Utils.ClampL(10/(float)hVm, 1));
+//			var M = vessel.GetTotalMass();
+			var MaxHv = Math.Max(vessel.acceleration.magnitude*TCAConfiguration.Globals.MaxHvf, TCAConfiguration.Globals.MinMaxHv);
+			var needed_thrust_dir = hVm > 1e-7?
+				refT.InverseTransformDirection(hV.normalized - up*Utils.ClampL((float)(MaxHv/hVm), 1)) :
+				refT.InverseTransformDirection(-up);
 			var attitude_error    = Quaternion.FromToRotation(needed_thrust_dir, thrust);
 			var target_up         = attitude_error * Vector3.up;
 			var angle_error       = Vector3.Angle(Vector3.up, target_up);
-//			var rot_dir           = new Vector2(target_up.x, target_up.z).normalized * angle_error / 180 * Mathf.PI;
-//			var steering_error    = new Vector3(-rot_dir.y, Utils.CenterAngle(attitude_error.eulerAngles.z / 180 * Mathf.PI), rot_dir.x);
 			var steering_error    = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
 			                                    Utils.CenterAngle(attitude_error.eulerAngles.y),
 			                                    Utils.CenterAngle(attitude_error.eulerAngles.z))/180*Mathf.PI;
-			hV_steering.setPI(0.9f, 0.1f);
-			hV_steering.Update(steering_error);
+			var angularM = Vector3.Scale(vessel.angularVelocity, MoI);
+			var angularMf = Mathf.Clamp01(angularM.magnitude*TCAConfiguration.Globals.HvMf1);
+			var inertia = Vector3.Scale(angularM.Sign(),
+			                             Vector3.Scale(Vector3.Scale(angularM, angularM),
+			                                              Vector3.Scale(torque.Max, MoI).Inverse()))
+				.ClampComponents(-Mathf.PI, Mathf.PI);
+			var Im = inertia.magnitude;
+			var Tf = Mathf.Clamp(1/angularA.magnitude, TCAConfiguration.Globals.MinTf, TCAConfiguration.Globals.MaxTf);
+			var Tfn = (Tf-TCAConfiguration.Globals.MinTf)/TCAConfiguration.Globals.TfSpan;
+			steering_error += (inertia / Mathf.Lerp(TCAConfiguration.Globals.HvMf, 1, Tfn));
+			Vector3.Scale(steering_error, angularA.normalized);
+			hV_steering.D = Mathf.Lerp(TCAConfiguration.Globals.MinHvD, 
+			                           TCAConfiguration.Globals.MaxHvD, 
+			                           angularMf);
+			hV_steering.P = TCAConfiguration.Globals.HvP;
+			hV_steering.I = hV_steering.P / (TCAConfiguration.Globals.HvIf * Tf/TCAConfiguration.Globals.MinTf);
+			hV_steering.Update(steering_error, vessel.angularVelocity);
 			var act = hV_steering.Action;
 			s.pitch = float.IsNaN(act.x)? 0f : Mathf.Clamp(act.x, -1, 1);
 			s.roll  = float.IsNaN(act.y)? 0f : Mathf.Clamp(act.y, -1, 1);
 			s.yaw   = float.IsNaN(act.z)? 0f : Mathf.Clamp(act.z, -1, 1);
 
-			Utils.Log(//debug
-			          "hV: {0}\n" +
-			          "Thrust: {1}\n" +
-			          "Needed Thrust Dir: {2}\n" +
-			          "Up: {3}\n" +
-			          "Target Up: {4}\n" +
-			          "H-T Angle: {5}\n" +
-			          "Angle Err: {6}\n" +
-			          "Old Angle Err: {7}\n" +
-			          "Down comp: {8}\n" +
-			          "Action: {9}\n", 
-			          refT.InverseTransformDirection(hV),
-			          thrust, needed_thrust_dir,
-			          Vector3.up, target_up,
-			          Vector3.Angle(refT.InverseTransformDirection(hV), needed_thrust_dir),
-			          angle_error, Vector3.Angle(thrust, needed_thrust_dir),
-			          Utils.ClampL(10/(float)hVm, 1),
-			          act
-			);
+//			Utils.Log(//debug
+//			          "hV: {0}\n" +
+//			          "Thrust: {1}\n" +
+//			          "Needed Thrust Dir: {2}\n" +
+//			          "Up: {3}\n" +
+//			          "Target Up: {4}\n" +
+//			          "H-T Angle: {5}\n" +
+//			          "Angle Err: {6}\n" +
+//			          "Steering error: {7}\n" +
+//			          "Down comp: {8}\n" +
+//			          "Action: {9}\n" +
+//			          "omega: {10}\n" +
+//			          "Tf: {11}\n" +
+//			          "PID: {12}\n" +
+//			          "angularA: {13}\n" +
+//			          "inertia: {14}\n" +
+//			          "angularM: {15}\n" +
+//			          "inertiaF: {16}\n" +
+//			          "MaxHv: {17}\n",
+//			          refT.InverseTransformDirection(hV),
+//			          thrust, needed_thrust_dir,
+//			          Vector3.up, target_up,
+//			          Vector3.Angle(refT.InverseTransformDirection(hV), needed_thrust_dir),
+//			          angle_error, steering_error,
+//			          Utils.ClampL(10/(float)hVm, 1),
+//			          act, vessel.angularVelocity, Tf,
+//			          new Vector3(hV_steering.P, hV_steering.I, hV_steering.D),
+//			          angularA, inertia, angularM,
+//			          Mathf.Lerp(TCAConfiguration.Globals.HvMf, 1, Tfn), MaxHv
+//			);
 		}
 
 		void tuneSteering()
