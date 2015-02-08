@@ -25,9 +25,11 @@ namespace ThrottleControlledAvionics
 		[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 		//steering gain curve
 		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
-
+		//horizontal velocity control
+		[Persistent] public float MinHvD = 0.02f, MaxHvD = 0.05f, MinTf = 0.1f, MaxTf = 2f, HvP = 0.9f, HvIf = 10f, HvMf = 10f, HvMf1 = 1f, MaxHvf = 1f, MinMaxHv = 10f;
+		public float TfSpan;
+		//other
 		[Persistent] public bool IntegrateIntoCareer = true;
-
 		//help text
 		public string Instructions = string.Empty;
 		const string instructions = 
@@ -66,7 +68,10 @@ Notes:
 	* Solid boosters have constant thrust and thus cannot be controlled by TCA.";
 
 		public void Init()
-		{ Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxCutoff); }
+		{ 
+			Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxCutoff); 
+			TfSpan = MaxTf-MinTf;
+		}
 
 		public override void Load(ConfigNode node)
 		{
@@ -321,8 +326,8 @@ Notes:
 		public static void ReloadGlobals()
 		{
 			var gnode = loadNode(FilePath(GLOBALSNAME));
-			if(gnode != null) ReloadGlobals(gnode);
-			else Globals.InitInstructions();
+			if(gnode != null) LoadGlobals(gnode);
+			else Globals.Init();
 		}
 		#endif
 	}
