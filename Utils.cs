@@ -35,7 +35,23 @@ namespace ThrottleControlledAvionics
 		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
 		public static float ClampH(float x, float high) { return x < high ? high : x;  }
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
+
+		#region Vector3
 		public static Vector3 Inverse(this Vector3 v) { return new Vector3(1f/v.x, 1f/v.y, 1f/v.z); }
+
+		public static Vector3 ClampComponents(this Vector3 v, float min, float max) 
+		{ 
+			return new Vector3(Mathf.Clamp(v.x, min, max), 
+			                   Mathf.Clamp(v.y, min, max), 
+			                   Mathf.Clamp(v.z, min, max)); 
+		}
+
+		public static Vector3 Sign(this Vector3 v)
+		{ return new Vector3(Mathf.Sign(v.x), Mathf.Sign(v.y), Mathf.Sign(v.z)); }
+
+		public static Vector3 AbsComponents(this Vector3 v)
+		{ return new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z)); }
+		#endregion
 
 		public static void CheckRect(ref Rect R)
 		{
