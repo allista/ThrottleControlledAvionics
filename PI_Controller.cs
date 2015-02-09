@@ -22,7 +22,6 @@ namespace ThrottleControlledAvionics
 		public float P { get { return master == null? p : master.P; } set { p = value; } }
 		public float I { get { return master == null? i : master.I; } set { i = value; } }
 
-		public void setPI(float P, float I) { p = P; i = I; }
 		public void setPI(PI_Controller other) { p = other.P; i = other.I; }
 		public void setMaster(PI_Controller master) { this.master = master; }
 
@@ -51,11 +50,10 @@ namespace ThrottleControlledAvionics
 		public static implicit operator T(PI_Controller<T> c) { return c.action; }
 	}
 
-	public class PI_Dummy : PI_Controller<int> 
+	public class PI_Dummy : PI_Controller
 	{ 
 		public PI_Dummy() {}
 		public PI_Dummy(float P, float I) { p = P; i = I; }
-		public override void Update(int error) {}
 	}
 
 	public class PIv_Controller : PI_Controller<Vector3>
@@ -67,32 +65,6 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class PIDv_Controller : PI_Controller<Vector3>
-	{
-		[Persistent] float min = -1, max = 1, d = 0.5f;
-
-		public float D { get { return d; } set { d = value; } }
-
-		public PIDv_Controller(float p, float i, float d, float min, float max)
-		{ this.p = p; this.i = i; this.d = d; this.min = min; this.max = max; }
-
-		public override void Update(Vector3 error)
-		{
-			throw new NotImplementedException();
-		}
-
-		public void Update(Vector3 error, Vector3 omega)
-		{
-			var derivative   = d * omega/TimeWarp.fixedDeltaTime;
-			integral_error.x = (Math.Abs(derivative.x) < 0.6f * max) ? integral_error.x + (error.x * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.x;
-			integral_error.y = (Math.Abs(derivative.y) < 0.6f * max) ? integral_error.y + (error.y * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.y;
-			integral_error.z = (Math.Abs(derivative.z) < 0.6f * max) ? integral_error.z + (error.z * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.z;
-			Vector3.ClampMagnitude(integral_error, max);
-			action = error * P + integral_error + derivative;
-			Utils.Log("Integral error: {0}", integral_error);//debug
-		}
-	}
-
 	//I hate strongly-typed languages! =(
 	public class PIf_Controller : PI_Controller<float>
 	{
@@ -100,6 +72,45 @@ namespace ThrottleControlledAvionics
 		{
 			integral_error += error * TimeWarp.fixedDeltaTime;
 			action = error * P + integral_error * I;
+		}
+	}
+
+	//separate implementation of the strange PID controller from MechJeb2
+	public class PIDv_Controller :  ConfigNodeObject
+	{
+		new public const string NODE_NAME = "PIDCONTROLLER";
+
+		[Persistent] public float Min = -1, Max = 1;
+		[Persistent] public float P = 0.9f, I = 0.1f, D = 0.02f;
+
+		public PIDv_Controller() {}
+		public PIDv_Controller(float p, float i, float d, float min, float max)
+		{ P = p; I = i; D = d; Min = min; Max = max; }
+
+		protected Vector3 action = Vector3.zero;
+		protected Vector3 integral_error = Vector3.zero;
+
+		public void Reset() 
+		{ action = Vector3.zero; integral_error = Vector3.zero; }
+
+		//access
+		public Vector3 Action { get { return action; } }
+		public static implicit operator Vector3(PIDv_Controller c) { return c.action; }
+
+		public void Update(Vector3 error, Vector3 omega)
+		{
+			var derivative   = D * omega/TimeWarp.fixedDeltaTime;
+			integral_error.x = (Math.Abs(derivative.x) < 0.6f * Max) ? integral_error.x + (error.x * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.x;
+			integral_error.y = (Math.Abs(derivative.y) < 0.6f * Max) ? integral_error.y + (error.y * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.y;
+			integral_error.z = (Math.Abs(derivative.z) < 0.6f * Max) ? integral_error.z + (error.z * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.z;
+			Vector3.ClampMagnitude(integral_error, Max);
+			var act = error * P + integral_error + derivative;
+			action = new Vector3
+				(
+					float.IsNaN(act.x)? 0f : Mathf.Clamp(act.x, Min, Max),
+					float.IsNaN(act.y)? 0f : Mathf.Clamp(act.y, Min, Max),
+					float.IsNaN(act.z)? 0f : Mathf.Clamp(act.z, Min, Max)
+				);
 		}
 	}
 }
