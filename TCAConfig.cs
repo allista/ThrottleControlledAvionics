@@ -26,8 +26,12 @@ namespace ThrottleControlledAvionics
 		//steering gain curve
 		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
 		//horizontal velocity control
-		[Persistent] public float MinHvD = 0.02f, MaxHvD = 0.05f, MinTf = 0.1f, MaxTf = 2f, HvP = 0.9f, HvIf = 10f, HvMf = 10f, HvMf1 = 1f, MaxHvf = 1f, MinMaxHv = 10f;
+		[Persistent] public float HvP = 0.9f, HvI_Factor = 20f;
+		[Persistent] public float MinHvD = 0.02f, MaxHvD = 0.07f;
+		[Persistent] public float MinTf = 0.1f, MaxTf = 1f;
 		public float TfSpan;
+		[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
+		[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
 		//other
 		[Persistent] public bool IntegrateIntoCareer = true;
 		//help text
@@ -110,6 +114,9 @@ Notes:
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
 		[Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked
 		[Persistent] public bool    AutoTune         = true;        //if true, engine PI coefficients and steering modifier will be tuned automatically
+		//horizontal velocity
+		[Persistent] public bool    KillHorVel;
+		[Persistent] public bool    SASWasEnabled;
 		//engines
 		[Persistent] public PIf_Controller Engines   = new PIf_Controller();
 
@@ -183,6 +190,7 @@ Notes:
 		public static TCAGlobals Globals = new TCAGlobals();
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
+		static readonly List<ConfigNode> other_games = new List<ConfigNode>();
 
 		#region From KSPPluginFramework
 		//Combine the Location of the assembly and the provided string.
@@ -205,6 +213,9 @@ Notes:
 		internal static String _AssemblyFolder
 		{ get { return Path.GetDirectoryName(_AssemblyLocation); } }
 		#endregion
+
+		static public string CurrentGame
+		{ get { return HighLogic.CurrentGame.Title.Split()[0]; } }
 
 		#region Runtime Interface
 		public static VesselConfig GetConfig(Vessel vsl)
@@ -262,24 +273,31 @@ Notes:
 		public static void LoadConfigs(ConfigNode node) 
 		{
 			Configs.Clear();
-			if(node.HasNode(VSL_NODE))
-			{
-				foreach(var c in node.GetNode(VSL_NODE).GetNodes(VesselConfig.NODE_NAME))
-				{
-					var config = new VesselConfig();
-					config.Load(c);
-					Configs[config.VesselID] = config;
-				}
-			}
 			NamedConfigs.Clear();
-			if(node.HasNode(NAMED_NODE))
+			other_games.Clear();
+			var game = CurrentGame;
+			foreach(var n in node.GetNodes())
 			{
-				foreach(var c in node.GetNode(NAMED_NODE).GetNodes(NamedConfig.NODE_NAME))
+				if(n.name == game ||
+				   n.name == VSL_NODE) //deprecated conversion
 				{
-					var config = new NamedConfig();
-					config.Load(c);
-					NamedConfigs[config.Name] = config;
+					foreach(var c in n.GetNodes(VesselConfig.NODE_NAME))
+					{
+						var config = new VesselConfig();
+						config.Load(c);
+						Configs[config.VesselID] = config;
+					}
 				}
+				else if(n.name == NAMED_NODE)
+				{
+					foreach(var c in n.GetNodes(NamedConfig.NODE_NAME))
+					{
+						var config = new NamedConfig();
+						config.Load(c);
+						NamedConfigs[config.Name] = config;
+					}
+				}
+				else other_games.Add(n);
 			}
 		}
 
@@ -301,18 +319,24 @@ Notes:
 
 		public static void SaveConfigs(ConfigNode node) 
 		{
+			//save per-vessel configurations into the current game's node
 			var current_vessels = new HashSet<Guid>(HighLogic.CurrentGame.flightState.protoVessels.Select(p => p.vesselID));
 			var configs = new List<VesselConfig>(Configs.Values);
 			configs.Sort();
 			if(configs.Count > 0)
 			{
-				var n = node.AddNode(VSL_NODE);
+				var n = node.AddNode(CurrentGame);
 				foreach(var c in configs)
 				{
 					if(current_vessels.Contains(c.VesselID))
 						c.Save(n.AddNode(VesselConfig.NODE_NAME));
+					else Utils.Log(
+						"TCAConfiguration.SaveConfigs: vessel {0} is not present in the game. " +
+						"Removing orphan configuration.", c.VesselID);
 				}
 			}
+			//save other games
+			other_games.ForEach(n => node.AddNode(n));
 			if(NamedConfigs.Count > 0)
 			{
 				var n = node.AddNode(NAMED_NODE);

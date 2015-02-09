@@ -282,6 +282,14 @@ namespace ThrottleControlledAvionics
 			                                   GUILayout.ExpandWidth(false)));
 			TCA.CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity", TCA.CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
 			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			if(GUILayout.Button(TCA.CFG.KillHorVel? "Disengage Autopilot" : "Kill Horizontal Velocity", 
+			                    TCA.CFG.KillHorVel? Styles.red_button : Styles.green_button,
+			                    GUILayout.Width(150)))
+				TCA.ToggleHvAutopilot();
+			GUILayout.FlexibleSpace();
+			showEngines = GUILayout.Toggle(showEngines, "Show Engines Info");
+			GUILayout.EndHorizontal();
 		}
 
 		void ConfigsGUI()
@@ -321,7 +329,6 @@ namespace ThrottleControlledAvionics
 
 		void EnginesInfo()
 		{
-			showEngines = GUILayout.Toggle(showEngines, "Show Engines Information");
 			if(showEngines)
 			{
 				GUILayout.BeginVertical();

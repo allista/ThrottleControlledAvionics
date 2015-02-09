@@ -40,16 +40,18 @@ namespace ThrottleControlledAvionics
 		Vector3 MoI = Vector3.one;
 		Vector3 angularA = Vector3.zero;
 		PIv_Controller angularA_filter = new PIv_Controller();
+		PIDv_Controller hV_controller = new PIDv_Controller();
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
 		public bool IsStateSet(TCAState s) { return (State & s) == s; }
 		#endregion
 
-		#region Engine Logic
+		#region Initialization
 		public void Awake()
 		{
 			TCAConfiguration.Load();
 			angularA_filter.setPI(TCAConfiguration.Globals.AngularA);
+			hV_controller.P = TCAConfiguration.Globals.HvP;
 			GameEvents.onVesselChange.Add(onVesselChange);
 			GameEvents.onVesselWasModified.Add(onVesselModify);
 			GameEvents.onGameStateSave.Add(onSave);
@@ -83,7 +85,7 @@ namespace ThrottleControlledAvionics
 			if(vessel != null) 
 			{
 				vessel.OnAutopilotUpdate -= block_throttle;
-				vessel.OnAutopilotUpdate -= compensate_horizontal_speed;
+				vessel.OnAutopilotUpdate -= kill_horizontal_velocity;
 			}
 			vessel = null; 
 			CFG = null;
@@ -96,7 +98,7 @@ namespace ThrottleControlledAvionics
 		{
 			Available = false;
 			vessel.OnAutopilotUpdate += block_throttle;
-			vessel.OnAutopilotUpdate += compensate_horizontal_speed;
+			vessel.OnAutopilotUpdate += kill_horizontal_velocity;
 			if(!vessel.isEVA && 
 			   (!TCAConfiguration.Globals.IntegrateIntoCareer ||
 			    Utils.PartIsPurchased(TCA_PART)))
@@ -111,9 +113,6 @@ namespace ThrottleControlledAvionics
 			} 
 			if(GUI != null) { GUI.OnDestroy(); GUI = null; }
 		}
-
-		void block_throttle(FlightCtrlState s)
-		{ if(Available && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 
 		void updateEnginesList()
 		{
@@ -132,7 +131,9 @@ namespace ThrottleControlledAvionics
 					if(engine != null && !engine.throttleLocked) Engines.Add(engine);
 				}
 		}
+		#endregion
 
+		#region Controls
 		public void ActivateTCA(bool state)
 		{
 			if(state == CFG.Enabled) return;
@@ -153,6 +154,19 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 
+		public void KillHorizontalVelocity(bool state)
+		{
+			if(state == CFG.KillHorVel) return;
+			CFG.KillHorVel = state;
+			if(CFG.KillHorVel)
+				CFG.SASWasEnabled = vessel.ActionGroups[KSPActionGroup.SAS];
+			else if(CFG.SASWasEnabled)
+				vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
+		}
+		public void ToggleHvAutopilot() { KillHorizontalVelocity(!CFG.KillHorVel); }
+		#endregion
+
+		#region Main Logic
 		public void OnGUI() 
 		{ 
 			if(!Available) return;
@@ -335,54 +349,52 @@ namespace ThrottleControlledAvionics
 			return K;
 		}
 
-		PIDv_Controller hV_steering = new PIDv_Controller(0.5f/3f, 0.5f/3f/6f, 0.5f, -1, 1);
-		void compensate_horizontal_speed(FlightCtrlState s)
+		void block_throttle(FlightCtrlState s)
+		{ if(Available && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
+
+		void kill_horizontal_velocity(FlightCtrlState s)
 		{
-			if(!Available || !CFG.Enabled || refT == null) return;
+			if(!Available || !CFG.Enabled || !CFG.KillHorVel || refT == null) return;
 			if(!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 			   !Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
 			   !Mathfx.Approx(s.yaw, s.yawTrim, 0.1f)) return;
-			//calculate horizontal velocity
-			var hV = Vector3d.Exclude(up, vessel.srf_velocity);
-			var hVm = hV.magnitude;
-//			vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//calculate total current thrust
 			var thrust = Engines.Aggregate(Vector3.zero, (v, e) => v + e.thrustDirection*e.finalThrust);
 			if(thrust.IsZero()) return;
-			//calculate needed thrust and corresponding attitude
-//			var M = vessel.GetTotalMass();
-			var MaxHv = Math.Max(vessel.acceleration.magnitude*TCAConfiguration.Globals.MaxHvf, TCAConfiguration.Globals.MinMaxHv);
+			//disable SAS
+			vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
+			//calculate horizontal velocity
+			var hV = Vector3d.Exclude(up, vessel.srf_velocity);
+			var hVm = hV.magnitude;
+			//calculate needed thrust direction
+			var MaxHv = Math.Max(vessel.acceleration.magnitude*TCAConfiguration.Globals.AccelerationFactor, TCAConfiguration.Globals.MinHvThreshold);
 			var needed_thrust_dir = hVm > 1e-7?
 				refT.InverseTransformDirection(hV.normalized - up*Utils.ClampL((float)(MaxHv/hVm), 1)) :
 				refT.InverseTransformDirection(-up);
-			var attitude_error    = Quaternion.FromToRotation(needed_thrust_dir, thrust);
-			var target_up         = attitude_error * Vector3.up;
-			var angle_error       = Vector3.Angle(Vector3.up, target_up);
-			var steering_error    = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
-			                                    Utils.CenterAngle(attitude_error.eulerAngles.y),
-			                                    Utils.CenterAngle(attitude_error.eulerAngles.z))/180*Mathf.PI;
+			//calculate corresponding rotation
+			var attitude_error = Quaternion.FromToRotation(needed_thrust_dir, thrust);
+			var steering_error = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
+			                                 Utils.CenterAngle(attitude_error.eulerAngles.y),
+			                                 Utils.CenterAngle(attitude_error.eulerAngles.z))/180*Mathf.PI;
+			//tune PID parameters and steering_error
 			var angularM = Vector3.Scale(vessel.angularVelocity, MoI);
-			var angularMf = Mathf.Clamp01(angularM.magnitude*TCAConfiguration.Globals.HvMf1);
-			var inertia = Vector3.Scale(angularM.Sign(),
+			var inertia  = Vector3.Scale(angularM.Sign(),
 			                             Vector3.Scale(Vector3.Scale(angularM, angularM),
-			                                              Vector3.Scale(torque.Max, MoI).Inverse()))
+			                                           Vector3.Scale(torque.Max, MoI).Inverse()))
 				.ClampComponents(-Mathf.PI, Mathf.PI);
-			var Im = inertia.magnitude;
 			var Tf = Mathf.Clamp(1/angularA.magnitude, TCAConfiguration.Globals.MinTf, TCAConfiguration.Globals.MaxTf);
-			var Tfn = (Tf-TCAConfiguration.Globals.MinTf)/TCAConfiguration.Globals.TfSpan;
-			steering_error += (inertia / Mathf.Lerp(TCAConfiguration.Globals.HvMf, 1, Tfn));
+			steering_error += inertia / Mathf.Lerp(TCAConfiguration.Globals.InertiaFactor, 1, 
+			                                       (Tf-TCAConfiguration.Globals.MinTf)/TCAConfiguration.Globals.TfSpan);
 			Vector3.Scale(steering_error, angularA.normalized);
-			hV_steering.D = Mathf.Lerp(TCAConfiguration.Globals.MinHvD, 
-			                           TCAConfiguration.Globals.MaxHvD, 
-			                           angularMf);
-			hV_steering.P = TCAConfiguration.Globals.HvP;
-			hV_steering.I = hV_steering.P / (TCAConfiguration.Globals.HvIf * Tf/TCAConfiguration.Globals.MinTf);
-			hV_steering.Update(steering_error, vessel.angularVelocity);
-			var act = hV_steering.Action;
-			s.pitch = float.IsNaN(act.x)? 0f : Mathf.Clamp(act.x, -1, 1);
-			s.roll  = float.IsNaN(act.y)? 0f : Mathf.Clamp(act.y, -1, 1);
-			s.yaw   = float.IsNaN(act.z)? 0f : Mathf.Clamp(act.z, -1, 1);
-
+			hV_controller.D = Mathf.Lerp(TCAConfiguration.Globals.MinHvD, 
+			                             TCAConfiguration.Globals.MaxHvD, 
+			                             Mathf.Clamp01(angularM.magnitude*TCAConfiguration.Globals.AngularMomentumFactor));
+			hV_controller.I = hV_controller.P / (TCAConfiguration.Globals.HvI_Factor * Tf/TCAConfiguration.Globals.MinTf);
+			//update PID controller and set steering
+			hV_controller.Update(steering_error, vessel.angularVelocity);
+			s.pitch = hV_controller.Action.x;
+			s.roll  = hV_controller.Action.y;
+			s.yaw   = hV_controller.Action.z;
 //			Utils.Log(//debug
 //			          "hV: {0}\n" +
 //			          "Thrust: {1}\n" +
