@@ -215,6 +215,7 @@ namespace ThrottleControlledAvionics
 			wCoM     = vessel.findWorldCenterOfMass();
 			refT     = vessel.ReferenceTransform;
 			up       = (wCoM - vessel.mainBody.position).normalized;
+			if(CFG.AutoTune || CFG.KillHorVel) updateMoI();
 			steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			if(!steering.IsZero())
 			{
@@ -455,7 +456,6 @@ namespace ThrottleControlledAvionics
 		void tuneSteering()
 		{
 			//calculate maximum angular acceleration for each axis
-			updateMoI();
 			var max_torque = torque.Max;
 			var new_angularA = new Vector3
 				(
