@@ -212,7 +212,7 @@ namespace ThrottleControlledAvionics
 			State |= TCAState.HaveActiveEngines;
 			//calculate steering
 			wCoM     = vessel.findWorldCenterOfMass();
-			refT     = vessel.GetReferenceTransformPart().transform; //should be in a callback?
+			refT     = vessel.ReferenceTransform;
 			up       = (wCoM - vessel.mainBody.position).normalized;
 			steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			if(!steering.IsZero())
