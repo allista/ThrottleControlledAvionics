@@ -381,7 +381,7 @@ namespace ThrottleControlledAvionics
 
 		void kill_horizontal_velocity(FlightCtrlState s)
 		{
-			if(!Available || !CFG.Enabled || !CFG.KillHorVel || refT == null) return;
+			if(!Available || !CFG.Enabled || !CFG.KillHorVel || refT == null || !OnPlanet) return;
 			if(!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 			   !Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
 			   !Mathfx.Approx(s.yaw, s.yawTrim, 0.1f)) return;
