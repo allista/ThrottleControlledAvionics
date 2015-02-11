@@ -305,7 +305,7 @@ def sim_Attitude():
             p = e.current_torque*target
             e.limit_tmp = -p/tm/abs(e.current_torque) if p < 0 else 0.0
             if e.limit_tmp > 0:
-                comp += e.nominal_current_torque(e.limit_tmp * e.limit)
+                comp += e.nominal_current_torque( e.limit)
         compm = abs(comp)
         if compm < eps: return False
         limits_norm = clamp01(tm/compm)
@@ -340,8 +340,10 @@ def sim_Attitude():
         for i in xrange(maxI):
             s.append(abs(torque_imbalance-_d))
             s1.append(torque_imbalance.angle(_d) if abs(_d) > 0 else 0)
-            if len(s1) > 1 and s1[-1]-s1[-2] > 1: break
+#             if len(s1) > 1 and s1[-1] < 55 and s1[-1]-s1[-2] > eps: break
             if s[-1] < eps or len(s) > 1 and abs(s[-1]-s[-2]) < eps: break
+            mlim = max(e.limit for e in engines)
+            for e in engines: e.limit = clamp01(e.limit/mlim)
             if not opt(D-torque_imbalance, engines, eps): break
             torque_imbalance = vec.sum(e.nominal_current_torque(vK * e.limit) for e in engines)
         if output:
@@ -358,7 +360,7 @@ def sim_Attitude():
             plt.xlabel('iterations')
             plt.ylabel('torque error (kNm)')
             plt.subplot(2,1,2)
-            plt.plot(x, s1, '-.')
+            plt.plot(x, s1, '-')
             plt.xlabel('iterations')
             plt.ylabel('torque direction error (deg)')
             ##########
@@ -380,11 +382,14 @@ def sim_Attitude():
                             vec(100.0, 0.0, 0.0),
                             vec(0.0, 100.0, 0.0),
                             vec(0.0, 0.0, 100.0),
-                              
+                                
                             vec(-1797.147, 112.3649, 80.1167), #Torque Error: 165.3752
                             vec(1327.126, -59.91731, 149.1847), #Torque Error: 229.8387
                             vec(107.5895, -529.4326, -131.0672), #Torque Error: 59.95838
                             vec(50.84914, -1.706408, 113.4622), #Torque Error: 25.10385
+                            vec(-0.4953138, 0.2008617, 39.52808),
+                            vec(14.88248, 0.9660782, -51.20171),
+                            vec(-20.34281, -10.67025, 38.88113),
                             ]
     
     Hover_Test = [
@@ -401,46 +406,46 @@ def sim_Attitude():
                              vec(0.2597602, -0.2778279, 295.8444), #Torque Error: 341.1038kNm, 94.96284deg
                              ]
     
-#     for d in Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand: 
-#         optR(Hover_Test, d, vK=0.5, eps=0.1, maxI=30)
-#     plt.show()
-#     print '='*80+'\n\n'
-    
-#     for d in Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand: 
-#         optR(VTOL_Test, d, vK=0.5, eps=0.01, maxI=300)
-#     plt.show()
-#     print '='*80+'\n\n'
-
-    N = range(500)
-    np.random.seed(42)
-    random_tests = [vec(200*np.random.random()-100.0,
-                        200*np.random.random()-100.0,
-                        200*np.random.random()-100.0) 
-                    for _n in N]
-    E = []; A = []; X = []; Y = []; Z = [];
-    for d in random_tests:
-        e, a = optR(Hover_Test, d, vK=0.5, eps=0.1, maxI=30, output=False)
-        dm = abs(d)
-        E.append(e/dm*100); A.append(a);
-        X.append(d[0]/dm*100); Y.append(d[1]/dm*100); Z.append(d[2]/dm*100)
-        
-    plt.subplot(4,1,1)
-    plt.plot(A, E, 'o')
-    plt.xlabel('angle')
-    plt.ylabel('torque error (%)')
-    plt.subplot(4,1,2)
-    plt.plot(X, A, 'o')
-    plt.xlabel('x %')
-    plt.ylabel('angle')
-    plt.subplot(4,1,3)
-    plt.plot(Y, A, 'o')
-    plt.xlabel('y %')
-    plt.ylabel('angle')
-    plt.subplot(4,1,4)
-    plt.plot(Z, A, 'o')
-    plt.xlabel('z %')
-    plt.ylabel('angle')
+    for d in VTOL_Test_Bad_Demand: 
+        optR(VTOL_Test, d, vK=0.37, eps=0.1, maxI=30)
     plt.show()
+    print '='*80+'\n\n'
+    
+    for d in Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand: 
+        optR(Hover_Test, d, vK=0.37, eps=0.1, maxI=30)
+    plt.show()
+    print '='*80+'\n\n'
+
+#     N = range(500)
+#     np.random.seed(42)
+#     random_tests = [vec(200*np.random.random()-100.0,
+#                         200*np.random.random()-100.0,
+#                         200*np.random.random()-100.0) 
+#                     for _n in N]
+#     E = []; A = []; X = []; Y = []; Z = [];
+#     for d in random_tests:
+#         e, a = optR(Hover_Test, d, vK=0.5, eps=0.1, maxI=30, output=False)
+#         dm = abs(d)
+#         E.append(e/dm*100); A.append(a);
+#         X.append(d[0]/dm*100); Y.append(d[1]/dm*100); Z.append(d[2]/dm*100)
+#         
+#     plt.subplot(4,1,1)
+#     plt.plot(A, E, 'o')
+#     plt.xlabel('angle')
+#     plt.ylabel('torque error (%)')
+#     plt.subplot(4,1,2)
+#     plt.plot(X, A, 'o')
+#     plt.xlabel('x %')
+#     plt.ylabel('angle')
+#     plt.subplot(4,1,3)
+#     plt.plot(Y, A, 'o')
+#     plt.xlabel('y %')
+#     plt.ylabel('angle')
+#     plt.subplot(4,1,4)
+#     plt.plot(Z, A, 'o')
+#     plt.xlabel('z %')
+#     plt.ylabel('angle')
+#     plt.show()
     
 
 def sim_PIDf():

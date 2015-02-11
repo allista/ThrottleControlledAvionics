@@ -223,30 +223,12 @@ namespace ThrottleControlledAvionics
 			}
 			//tune engines' limits
 			VerticalSpeedFactor = getVerticalSpeedFactor();
-			optimizeLimitsIteratively(active_engines);
+			optimizeEngines(active_engines);
 			//set thrust limiters of engines taking vertical speed limit into account
 			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * VerticalSpeedFactor * e.limit, 0f, 100f));
 		}
 
-		bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
-		{
-			var compensation = Vector3.zero;
-			for(int i = 0; i < engines.Count; i++)
-			{
-				var e = engines[i];
-				var d = Vector3.Dot(e.currentTorque, target);
-				e.limit_tmp = d < 0? -d/target_m/e.currentTorque.magnitude : 0f;
-				if(e.limit_tmp > 0)
-					compensation += e.specificTorque * e.nominalCurrentThrust(throttle * e.limit_tmp * e.limit);
-			}
-			var compensation_m = compensation.magnitude;
-			if(compensation_m < eps) return false;
-			var limits_norm = Mathf.Clamp01(target_m/compensation_m);
-			engines.ForEach(e => e.limit *= (1-Mathf.Clamp01(e.limit_tmp*limits_norm)));
-			return true;
-		}
-
-		void optimizeLimitsIteratively(List<EngineWrapper> engines)
+		void initializeEngines(List<EngineWrapper> engines)
 		{
 			//calculate specific torques and min-max imbalance
 			var min_imbalance = Vector3.zero;
@@ -255,7 +237,7 @@ namespace ThrottleControlledAvionics
 			{
 				var e = engines[i];
 				var info = e.thrustInfo;
-				e.limit = 1f;
+				e.limit = e.best_limit = 1f;
 				e.thrustDirection = refT.InverseTransformDirection(info.dir);
 				e.specificTorque  = refT.InverseTransformDirection(Vector3.Cross(info.pos-wCoM, info.dir));
 				min_imbalance += e.specificTorque * e.nominalCurrentThrust(0);
@@ -267,13 +249,94 @@ namespace ThrottleControlledAvionics
 			//calculate initial imbalance and needed torque
 			torque = new Vector6();
 			throttle = vessel.ctrlState.mainThrottle * VerticalSpeedFactor;
+			for(int i = 0; i < engines.Count; i++)
+			{
+				var e = engines[i];
+				e.currentTorque = e.specificTorque * e.nominalCurrentThrust(throttle);
+				torque.Add(e.currentTorque);
+			}
+		}
+
+		bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
+		{
+			var compensation = Vector3.zero;
+			for(int i = 0; i < engines.Count; i++)
+			{
+				var e = engines[i];
+				var d = Vector3.Dot(e.currentTorque, target);
+				if(d < 0)
+				{
+					e.limit_tmp = -d/target_m/e.currentTorque.magnitude;
+					compensation += e.specificTorque * e.nominalCurrentThrust(throttle * e.limit);
+				} else e.limit_tmp = 0f;
+			}
+			var compensation_m = compensation.magnitude;
+			if(compensation_m < eps) return false;
+			var limits_norm = Mathf.Clamp01(target_m/compensation_m);
+			engines.ForEach(e => e.limit *= (1-Mathf.Clamp01(e.limit_tmp*limits_norm)));
+			return true;
+		}
+
+		bool optimizeLimitsIteratively(List<EngineWrapper> engines, Vector3 needed_torque)
+		{
+			TorqueAngle = -1f;
+			TorqueError = -1f;
+			float error = -1f, last_error = -1f;
+			float angle = -1f;
 			var torque_imbalance = Vector3.zero;
+			for(int i = 0; i < TCAConfiguration.Globals.MaxIterations; i++)
+			{
+				//calculate current errors and target
+				torque_imbalance = engines.Aggregate(Vector3.zero, 
+				                                     (v, e) => v + 
+				                                     e.specificTorque * e.nominalCurrentThrust(throttle * e.limit));
+				angle = needed_torque.IsZero()? 0f : Vector3.Angle(torque_imbalance, needed_torque);
+				var target = needed_torque-torque_imbalance;
+				error = target.magnitude;
+				Utils.Log("imbalance: {0}\n" +
+				          "error: {1}, angle: {2}, prod {3}",
+				          torque_imbalance, error, angle, error*angle);//debug
+				//check for best state
+				if(angle <= 0f && error < TorqueError || angle*error < TorqueAngle*TorqueError || TorqueAngle < 0) 
+				{ 
+					engines.ForEach(e => e.best_limit = e.limit); 
+					TorqueAngle = angle;
+					TorqueError = error;
+				}
+				//check conditions
+				Utils.Log(//debug
+					"error < precision: {0}\n" +
+//					"angle > 0 && angle-best > 10: {1}\n" +
+					"last_error > 0 && last-error < pecision: {1}",
+					error < TCAConfiguration.Globals.OptimizationPrecision,
+//					(angle > 0 && angle - TorqueAngle > 10),
+					(last_error > 0 && Mathf.Abs(last_error-error) < TCAConfiguration.Globals.OptimizationPrecision)
+				);//debug
+				if(error < TCAConfiguration.Globals.OptimizationPrecision || 
+//				   angle > 0 && angle - TorqueAngle > 10 ||
+				   last_error > 0 && Mathf.Abs(error-last_error) < TCAConfiguration.Globals.OptimizationPrecision)
+					break;
+				last_error = error;
+				//optimize limits
+				var limit_norm = engines.Max(e => e.limit);
+				Utils.Log("limit_norm: {0}", limit_norm);//debug
+				engines.ForEach(e => e.limit = Mathf.Clamp01(e.limit/limit_norm));
+				if(!optimizeLimits(engines, target, target.magnitude, 
+				                   TCAConfiguration.Globals.OptimizationPrecision))
+					break;
+			}
+			engines.ForEach(e => e.limit = e.best_limit);
+			return TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff;
+		}
+
+		void optimizeEngines(List<EngineWrapper> engines)
+		{
+			initializeEngines(engines);
+			//calculate needed torque
 			var needed_torque = Vector3.zero;
 			for(int i = 0; i < engines.Count; i++)
 			{
 				var e = engines[i];
-				e.currentTorque   = e.specificTorque * e.nominalCurrentThrust(throttle);
-				torque_imbalance += e.currentTorque;
 				torque.Add(e.currentTorque);
 				if(Vector3.Dot(e.currentTorque, steering) > 0)
 					needed_torque += e.currentTorque;
@@ -281,52 +344,29 @@ namespace ThrottleControlledAvionics
 			needed_torque = torque.Clamp(Vector3.Project(needed_torque, steering) * steering.magnitude);
 			//tune steering gains
 			if(CFG.AutoTune) tuneSteering();
-			//optimize engines' limits
-			TorqueAngle = 0f;
-			TorqueError = 0f;
-			float last_error = -1f;
-			float last_angle = -1f;
-			bool  optimized  = true;
-			for(int i = 0; i < TCAConfiguration.Globals.MaxIterations; i++)
+			//optimize engines; if failed, try to at least kill all torque
+			if(!optimizeLimitsIteratively(engines, needed_torque) && 
+			   !needed_torque.IsZero())
 			{
-				TorqueAngle = needed_torque.IsZero()? 0f : Vector3.Angle(torque_imbalance, needed_torque);
-				if(!optimized || 
-				   TorqueAngle > 0 && last_angle > 0 && 
-				   TorqueAngle - last_angle > TCAConfiguration.Globals.OptimizationPrecision) 
-				{
-					if(TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff ||
-					   needed_torque.IsZero()) break;
-					needed_torque = Vector3.zero;
-					engines.ForEach(e => e.limit = 1);
-					i = 0;
-				}
-				var target  = needed_torque-torque_imbalance;
-				TorqueError = target.magnitude;
-				if(TorqueError < TCAConfiguration.Globals.OptimizationPrecision || last_error > 0 && 
-				   Mathf.Abs(last_error-TorqueError) < TCAConfiguration.Globals.OptimizationPrecision) 
-					break;
-				optimized = optimizeLimits(engines, target, target.magnitude, TCAConfiguration.Globals.OptimizationPrecision);
-				torque_imbalance = engines.Aggregate(Vector3.zero, 
-				                                     (v, e) => v + 
-				                                     e.specificTorque * e.nominalCurrentThrust(throttle * e.limit));
-				last_error = TorqueError;
-				last_angle = TorqueAngle;
+				Utils.Log("Unable to optimize, killing torque...");//debug
+				engines.ForEach(e => e.limit = e.best_limit = 1);
+				optimizeLimitsIteratively(engines, Vector3.zero);
 			}
 			//debug
-//			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));
-//			Utils.Log(
-//				"Steering: {0}\n" +
-//				"Needed Torque: {1}\n" +
-//				"Torque Error: {2}kNm, {3} deg\n" +
-//				"Torque Clamp:\n   +{4}\n   -{5}\n" +
-//				"Limits: [{6}]", 
-//				steering,
-//				needed_torque,
-//				TorqueError, TorqueAngle,
-//				torque.positive, 
-//				torque.negative,
-//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
-//			);
+			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));
+			Utils.Log(
+				"Steering: {0}\n" +
+				"Needed Torque: {1}\n" +
+				"Torque Error: {2}kNm, {3}deg; prod: {4}\n" +
+				"Torque Clamp:\n   +{5}\n   -{6}\n" +
+				"Limits: [{7}]", 
+				steering,
+				needed_torque,
+				TorqueError, TorqueAngle, TorqueError*TorqueAngle,
+				torque.positive, 
+				torque.negative,
+				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
+			);
 		}
 
 		float getVerticalSpeedFactor()
