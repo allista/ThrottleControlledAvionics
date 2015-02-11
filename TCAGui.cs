@@ -130,7 +130,7 @@ namespace ThrottleControlledAvionics
 					onAppLaunchToggleOff,
 					DummyVoid, DummyVoid, DummyVoid, DummyVoid,
 					ApplicationLauncher.AppScenes.FLIGHT,
-					GameDatabase.Instance.GetTexture(ICON_OFF, false));
+					textureOff);
 				if(TCA.CFG.GUIVisible) TCAButton.SetTrue();
 				else TCAButton.SetFalse();
 			}
