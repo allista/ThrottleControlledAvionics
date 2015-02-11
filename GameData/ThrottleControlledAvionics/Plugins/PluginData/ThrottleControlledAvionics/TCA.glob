@@ -36,6 +36,7 @@ InertiaFactor         = 10
 AngularMomentumFactor = 0.002
 AccelerationFactor    = 6
 MinHvThreshold        = 10
+MoIFactor             = 0.01
 
 //Steering Gain curve
 SteeringCurve 

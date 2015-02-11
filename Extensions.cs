@@ -39,6 +39,14 @@ namespace ThrottleControlledAvionics
 			return ec != null && ec.amount > 0;
 		}
 
+		public static bool OnPlanet(this Vessel v)
+		{
+			return 
+				v.situation != Vessel.Situations.DOCKED   &&
+				v.situation != Vessel.Situations.ORBITING &&
+				v.situation != Vessel.Situations.ESCAPING;
+		}
+
 		public static Vector3 CubeNorm(this Vector3 v)
 		{
 			if(v.IsZero()) return v;

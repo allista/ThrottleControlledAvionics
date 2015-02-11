@@ -32,6 +32,7 @@ namespace ThrottleControlledAvionics
 		public float TfSpan;
 		[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
 		[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
+		[Persistent] public float MoIFactor = 0.01f;
 		//other
 		[Persistent] public bool IntegrateIntoCareer = true;
 		//help text

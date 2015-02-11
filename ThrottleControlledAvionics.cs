@@ -26,6 +26,7 @@ namespace ThrottleControlledAvionics
 		public float TorqueError { get; private set; }
 		public float TorqueAngle { get; private set; }
 		public TCAState State { get; private set; }
+		public bool OnPlanet { get { return vessel.OnPlanet(); } }
 		//career and technical availability
 		public bool Available { get; private set; }
 		public bool Controllable { get { return Available && vessel.IsControllable; } }
@@ -281,50 +282,38 @@ namespace ThrottleControlledAvionics
 		{
 			TorqueAngle = -1f;
 			TorqueError = -1f;
-			float error = -1f, last_error = -1f;
-			float angle = -1f;
-			var torque_imbalance = Vector3.zero;
+			float error, angle;
+			float last_error = -1f;
+			Vector3 torque_imbalance, target;
 			for(int i = 0; i < TCAConfiguration.Globals.MaxIterations; i++)
 			{
 				//calculate current errors and target
 				torque_imbalance = engines.Aggregate(Vector3.zero, 
 				                                     (v, e) => v + 
 				                                     e.specificTorque * e.nominalCurrentThrust(throttle * e.limit));
-				angle = needed_torque.IsZero()? 0f : Vector3.Angle(torque_imbalance, needed_torque);
-				var target = needed_torque-torque_imbalance;
-				error = target.magnitude;
-				Utils.Log("imbalance: {0}\n" +
-				          "error: {1}, angle: {2}, prod {3}",
-				          torque_imbalance, error, angle, error*angle);//debug
-				//check for best state
+				angle  = needed_torque.IsZero()? 0f : Vector3.Angle(torque_imbalance, needed_torque);
+				target = needed_torque-torque_imbalance;
+				error  = target.magnitude;
+				//remember the best state
 				if(angle <= 0f && error < TorqueError || angle*error < TorqueAngle*TorqueError || TorqueAngle < 0) 
 				{ 
 					engines.ForEach(e => e.best_limit = e.limit); 
 					TorqueAngle = angle;
 					TorqueError = error;
 				}
-				//check conditions
-				Utils.Log(//debug
-					"error < precision: {0}\n" +
-//					"angle > 0 && angle-best > 10: {1}\n" +
-					"last_error > 0 && last-error < pecision: {1}",
-					error < TCAConfiguration.Globals.OptimizationPrecision,
-//					(angle > 0 && angle - TorqueAngle > 10),
-					(last_error > 0 && Mathf.Abs(last_error-error) < TCAConfiguration.Globals.OptimizationPrecision)
-				);//debug
+				//check convergence conditions
 				if(error < TCAConfiguration.Globals.OptimizationPrecision || 
-//				   angle > 0 && angle - TorqueAngle > 10 ||
 				   last_error > 0 && Mathf.Abs(error-last_error) < TCAConfiguration.Globals.OptimizationPrecision)
 					break;
 				last_error = error;
 				//optimize limits
 				var limit_norm = engines.Max(e => e.limit);
-				Utils.Log("limit_norm: {0}", limit_norm);//debug
 				engines.ForEach(e => e.limit = Mathf.Clamp01(e.limit/limit_norm));
 				if(!optimizeLimits(engines, target, target.magnitude, 
 				                   TCAConfiguration.Globals.OptimizationPrecision))
 					break;
 			}
+			//restore the best state
 			engines.ForEach(e => e.limit = e.best_limit);
 			return TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff;
 		}
@@ -348,33 +337,30 @@ namespace ThrottleControlledAvionics
 			if(!optimizeLimitsIteratively(engines, needed_torque) && 
 			   !needed_torque.IsZero())
 			{
-				Utils.Log("Unable to optimize, killing torque...");//debug
 				engines.ForEach(e => e.limit = e.best_limit = 1);
 				optimizeLimitsIteratively(engines, Vector3.zero);
 			}
 			//debug
-			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));
-			Utils.Log(
-				"Steering: {0}\n" +
-				"Needed Torque: {1}\n" +
-				"Torque Error: {2}kNm, {3}deg; prod: {4}\n" +
-				"Torque Clamp:\n   +{5}\n   -{6}\n" +
-				"Limits: [{7}]", 
-				steering,
-				needed_torque,
-				TorqueError, TorqueAngle, TorqueError*TorqueAngle,
-				torque.positive, 
-				torque.negative,
-				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
-			);
+//			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));
+//			Utils.Log(
+//				"Steering: {0}\n" +
+//				"Needed Torque: {1}\n" +
+//				"Torque Error: {2}kNm, {3}deg; prod: {4}\n" +
+//				"Torque Clamp:\n   +{5}\n   -{6}\n" +
+//				"Limits: [{7}]", 
+//				steering,
+//				needed_torque,
+//				TorqueError, TorqueAngle, TorqueError*TorqueAngle,
+//				torque.positive, 
+//				torque.negative,
+//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
+//			);
 		}
 
 		float getVerticalSpeedFactor()
 		{
-			if(vessel.situation == Vessel.Situations.DOCKED   ||
-			   vessel.situation == Vessel.Situations.ORBITING ||
-			   vessel.situation == Vessel.Situations.ESCAPING ||
-			   CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff) return 1f;
+			if(CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff ||
+			   !vessel.OnPlanet()) return 1f;
 			State |= TCAState.VerticalSpeedControl;
 			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
@@ -424,11 +410,11 @@ namespace ThrottleControlledAvionics
 				.ClampComponents(-Mathf.PI, Mathf.PI);
 			var Tf = Mathf.Clamp(1/angularA.magnitude, TCAConfiguration.Globals.MinTf, TCAConfiguration.Globals.MaxTf);
 			steering_error += inertia / Mathf.Lerp(TCAConfiguration.Globals.InertiaFactor, 1, 
-			                                       (Tf-TCAConfiguration.Globals.MinTf)/TCAConfiguration.Globals.TfSpan);
+			                                       MoI.magnitude*TCAConfiguration.Globals.MoIFactor);
 			Vector3.Scale(steering_error, angularA.normalized);
 			hV_controller.D = Mathf.Lerp(TCAConfiguration.Globals.MinHvD, 
 			                             TCAConfiguration.Globals.MaxHvD, 
-			                             Mathf.Clamp01(angularM.magnitude*TCAConfiguration.Globals.AngularMomentumFactor));
+			                             angularM.magnitude*TCAConfiguration.Globals.AngularMomentumFactor);
 			hV_controller.I = hV_controller.P / (TCAConfiguration.Globals.HvI_Factor * Tf/TCAConfiguration.Globals.MinTf);
 			//update PID controller and set steering
 			hV_controller.Update(steering_error, vessel.angularVelocity);
@@ -439,31 +425,30 @@ namespace ThrottleControlledAvionics
 //			          "hV: {0}\n" +
 //			          "Thrust: {1}\n" +
 //			          "Needed Thrust Dir: {2}\n" +
-//			          "Up: {3}\n" +
-//			          "Target Up: {4}\n" +
-//			          "H-T Angle: {5}\n" +
-//			          "Angle Err: {6}\n" +
-//			          "Steering error: {7}\n" +
-//			          "Down comp: {8}\n" +
-//			          "Action: {9}\n" +
-//			          "omega: {10}\n" +
-//			          "Tf: {11}\n" +
-//			          "PID: {12}\n" +
-//			          "angularA: {13}\n" +
-//			          "inertia: {14}\n" +
-//			          "angularM: {15}\n" +
-//			          "inertiaF: {16}\n" +
-//			          "MaxHv: {17}\n",
+//			          "H-T Angle: {3}\n" +
+//			          "Steering error: {4}\n" +
+//			          "Down comp: {5}\n" +
+//			          "omega: {6}\n" +
+//			          "Tf: {7}\n" +
+//			          "PID: {8}\n" +
+//			          "angularA: {9}\n" +
+//			          "inertia: {10}\n" +
+//			          "angularM: {11}\n" +
+//			          "inertiaF: {12}\n" +
+//			          "MaxHv: {13}\n" +
+//			          "MoI: {14}",
 //			          refT.InverseTransformDirection(hV),
 //			          thrust, needed_thrust_dir,
-//			          Vector3.up, target_up,
 //			          Vector3.Angle(refT.InverseTransformDirection(hV), needed_thrust_dir),
-//			          angle_error, steering_error,
+//			          steering_error,
 //			          Utils.ClampL(10/(float)hVm, 1),
-//			          act, vessel.angularVelocity, Tf,
-//			          new Vector3(hV_steering.P, hV_steering.I, hV_steering.D),
+//			          vessel.angularVelocity, Tf,
+//			          new Vector3(hV_controller.P, hV_controller.I, hV_controller.D),
 //			          angularA, inertia, angularM,
-//			          Mathf.Lerp(TCAConfiguration.Globals.HvMf, 1, Tfn), MaxHv
+//			          Mathf.Lerp(TCAConfiguration.Globals.InertiaFactor, 1, 
+//			                     MoI.magnitude*TCAConfiguration.Globals.MoIFactor),
+//			          MaxHv,
+//			          MoI
 //			);
 		}
 
