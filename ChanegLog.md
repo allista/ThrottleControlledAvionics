@@ -2,6 +2,13 @@
     
 _**BUT** do not delete the TCA.conf and config.xml file to preserve your settings_
 
+* **v2.1.0**
+    * Added an **autopilot to kill horizontal speed**. Useful for landing.
+    * Added **per-game configuration**; vessel configs are not lost on game switch anymore.
+    * Fixed the regression in optimization algorithm and **improved balancing of asymmetric designs**.
+    * Fixed problems with steering from the External Command Seat.
+    * Other minor fixes.
+
 * v2.0.2
     * **Integrated TCA into career mode.** You will have to purchase it in Specialized Controls to use it.
     * Improved optimization algorithm. Controls should be smoother and thrust should not decrease when torque demand is inadequate.
