@@ -19,6 +19,7 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 * Support for **multiple** control modules (**cockpits**, pods, probe-cores, etc.)
 * Sophisticated **parameter tuning**, both automatic and manual.
 * Built-in **altitude and hovering control**.
+* Built-in **autopilot to kill horizontal speed**.
 * Both the **Toolbar and** the stock **AppLauncher** are supported.
 * **In-game** configurable **key binding**.
 * **Career mode** integration.
@@ -61,8 +62,12 @@ VSC is also very useful to maintain stable horizontal flight. Consider a VTOL th
 ###Set vertical speed with throttle controls:
 When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
 
+###Kill Horizontal Velocity:
+Enables an autopilot that tries to maneuver the craft so that the horizontal component of its velocity became zero. It includes flip-over prevention system, so whatever the speed, the autopilot decrease it carefully and steady.
+
 ###Notes:
 
+* For safety reasons the Vertical and Horizontal speed controls are disabled in orbit, but not on suborbital trajectories, so be carefull.
 * If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
 * Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
 * Solid boosters have constant thrust and thus cannot be controlled by TCA.
@@ -71,7 +76,6 @@ When this option is enabled, the throttle is locked at 100% and throttle control
 
 * **Priority:**
 * Ideas:
-    * Horizontal Speed Control
     * Autotuning for MechJeb2
 * Legacy:
     * Automatically match speed with target

@@ -17,6 +17,7 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 [*] Support for [B]multiple[/B] control modules ([B]cockpits[/B], pods, probe-cores, etc.)
 [*] Sophisticated [B]parameter tuning[/B], both automatic and manual.
 [*] Built-in [B]altitude and hovering control[/B].
+[*] Built-in [B]autopilot to kill horizontal speed[/B].
 [*] Both the [B]Toolbar and[/B] the stock [B]AppLauncher[/B] are supported.
 [*] [B]In-game[/b] configurable [b]key binding[/B].
 [*] [B]Career mode[/B] integration.[/list]
@@ -58,8 +59,12 @@ VSC is also very useful to maintain stable horizontal flight. Consider a VTOL th
 [B]Set vertical speed with throttle controls:[/B]
 When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
 
+[B]Kill Horizontal Velocity:[/B]
+Enables an autopilot that tries to maneuver the craft so that the horizontal component of its velocity became zero. It includes flip-over prevention system, so whatever the speed, the autopilot decrease it carefully and steady.
+
 [B]Notes:[/B]
 [list]
+[*] For safety reasons the Vertical and Horizontal speed controls are disabled in orbit, but not on suborbital trajectories, so be carefull.
 [*] If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
 [*] Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
 [*] Solid boosters have constant thrust and thus cannot be controlled by TCA.[/list]
@@ -67,8 +72,7 @@ When this option is enabled, the throttle is locked at 100% and throttle control
 [list]
 [*] [b]Priority:[/b] nothing so far.
 [*] Ideas:
-[list][*] Horizontal Speed Control
-      [*] Autotuning for MechJeb2[/list]
+[list][*] Autotuning for MechJeb2[/list]
 [*] Legacy:
 [list][*] Automatically match speed with target
       [*] Translations with non RCS-enabled engines[/list][/list]
