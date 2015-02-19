@@ -248,22 +248,22 @@ namespace ThrottleControlledAvionics
 				TCA.CFG.SteeringGain = Utils.FloatSlider("Steering Gain", TCA.CFG.SteeringGain, 0, 1, "P1");
 				TCA.CFG.PitchYawLinked = GUILayout.Toggle(TCA.CFG.PitchYawLinked, "Link Pitch&Yaw", GUILayout.ExpandWidth(false));
 				GUILayout.EndHorizontal();
+				GUILayout.BeginHorizontal();
+				if(TCA.CFG.PitchYawLinked && !TCA.CFG.AutoTune)
+				{
+					TCA.CFG.SteeringModifier.x = Utils.FloatSlider("Pitch&Yaw", TCA.CFG.SteeringModifier.x, 0, 1, "P1");
+					TCA.CFG.SteeringModifier.z = TCA.CFG.SteeringModifier.x;
+				}
+				else
+				{
+					TCA.CFG.SteeringModifier.x = Utils.FloatSlider("Pitch", TCA.CFG.SteeringModifier.x, 0, 1, "P1");
+					TCA.CFG.SteeringModifier.z = Utils.FloatSlider("Yaw", TCA.CFG.SteeringModifier.z, 0, 1, "P1");
+				}
+				TCA.CFG.SteeringModifier.y = Utils.FloatSlider("Roll", TCA.CFG.SteeringModifier.y, 0, 1, "P1");
+				GUILayout.EndHorizontal();
+				//engines
+				TCA.CFG.Engines.DrawControls("Engines Controller");
 			}
-			GUILayout.BeginHorizontal();
-			if(TCA.CFG.PitchYawLinked && !TCA.CFG.AutoTune)
-			{
-				TCA.CFG.SteeringModifier.x = Utils.FloatSlider("Pitch&Yaw", TCA.CFG.SteeringModifier.x, 0, 1, "P1");
-				TCA.CFG.SteeringModifier.z = TCA.CFG.SteeringModifier.x;
-			}
-			else
-			{
-				TCA.CFG.SteeringModifier.x = Utils.FloatSlider("Pitch", TCA.CFG.SteeringModifier.x, 0, 1, "P1");
-				TCA.CFG.SteeringModifier.z = Utils.FloatSlider("Yaw", TCA.CFG.SteeringModifier.z, 0, 1, "P1");
-			}
-			TCA.CFG.SteeringModifier.y = Utils.FloatSlider("Roll", TCA.CFG.SteeringModifier.y, 0, 1, "P1");
-			GUILayout.EndHorizontal();
-			//engines
-			TCA.CFG.Engines.DrawControls("Engines Controller");
 			//speed limit
 			if(TCA.OnPlanet)
 			{
@@ -375,7 +375,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!TCA.CFG.GUIVisible || !showHUD) return;
 			ControlsPos = 
-				GUILayout.Window(1, 
+				GUILayout.Window(TCA.GetInstanceID(), 
 				                 ControlsPos, 
 				                 TCA_Window, 
 				                 "Throttle Controlled Avionics - " + 
@@ -386,7 +386,7 @@ namespace ThrottleControlledAvionics
 			if(showHelp) 
 			{
 				HelpPos = 
-					GUILayout.Window(2, 
+					GUILayout.Window(TCA.GetInstanceID()+1, 
 					                 HelpPos, 
 					                 windowHelp, 
 					                 "Instructions",
