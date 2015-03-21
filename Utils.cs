@@ -84,6 +84,12 @@ namespace ThrottleControlledAvionics
 			var tech = ResearchAndDevelopment.Instance.GetTechState(info.TechRequired);
 			return tech != null && tech.state == RDTech.State.Available && tech.partsPurchased.Contains(info);
 		}
+
+		public static void ForEach<T>(this IEnumerable<T> E, Action<T> action)
+		{
+			var en = E.GetEnumerator();
+			while(en.MoveNext()) action(en.Current);
+		}
 	}
 
 	public class ConfigNodeObject : IConfigNode
