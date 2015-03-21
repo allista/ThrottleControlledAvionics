@@ -123,7 +123,8 @@ Notes:
 		[Persistent] public bool    KillHorVel;
 		[Persistent] public bool    SASWasEnabled;
 		//engines
-		[Persistent] public PIf_Controller Engines   = new PIf_Controller();
+		[Persistent] public PIf_Controller Engines = new PIf_Controller();
+		public HashSet<uint> DoNotControlParts = new HashSet<uint>();
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
@@ -142,11 +143,21 @@ Notes:
 			base.Load(node);
 			var val = node.GetValue(Utils.PropertyName(new {VesselID}));
 			if(!string.IsNullOrEmpty(val)) VesselID = new Guid(val);
+			var parts_node = node.GetNode(Utils.PropertyName(new {DoNotControlParts}));
+			if(parts_node != null)
+				foreach(var uid in parts_node.GetValues("part")) 
+				{
+					uint int_uid;
+					if(uint.TryParse(uid, out int_uid))
+						DoNotControlParts.Add(int_uid);
+				}
 		}
 
 		public override void Save(ConfigNode node)
 		{
 			node.AddValue(Utils.PropertyName(new {VesselID}), VesselID.ToString());
+			var parts_node = node.AddNode(Utils.PropertyName(new {DoNotControlParts}));
+			foreach(var uid in DoNotControlParts) parts_node.AddValue("part", uid);
 			base.Save(node);
 		}
 
@@ -326,6 +337,8 @@ Notes:
 		{
 			//save per-vessel configurations into the current game's node
 			var current_vessels = new HashSet<Guid>(HighLogic.CurrentGame.flightState.protoVessels.Select(p => p.vesselID));
+			var fg = FlightGlobals.fetch;
+			if(fg != null) fg.vessels.ForEach(v => current_vessels.Add(v.id));
 			var configs = new List<VesselConfig>(Configs.Values);
 			configs.Sort();
 			if(configs.Count > 0)
