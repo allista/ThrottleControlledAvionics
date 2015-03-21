@@ -35,6 +35,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;
 		public float   limit, best_limit, limit_tmp;
+		public bool    Controllable = true;
 
 		protected EngineWrapper()
 		{ thrustController.setMaster(ThrustPI);	}
@@ -53,6 +54,9 @@ namespace ThrottleControlledAvionics
 
 		public Vessel vessel
 		{ get { return isModuleEngineFX ? engineFX.vessel : engine.vessel; } }
+
+		public Part part
+		{ get { return isModuleEngineFX ? engineFX.part : engine.part; } }
 
 		public void SetRunningGroupsActive(bool active)
 		{
@@ -83,9 +87,6 @@ namespace ThrottleControlledAvionics
 
 		public List<Propellant> propellants
 		{ get { return isModuleEngineFX ? engineFX.propellants : engine.propellants; } }
-
-		public Part part
-		{ get { return isModuleEngineFX ? engineFX.part : engine.part; } }
 
 		public BaseEventList Events
 		{ get { return isModuleEngineFX ? engineFX.Events : engine.Events; } }
