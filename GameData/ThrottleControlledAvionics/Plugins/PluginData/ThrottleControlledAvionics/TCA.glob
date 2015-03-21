@@ -10,7 +10,7 @@ MaxCutoff = 10
 
 //Thrust optimisation
 OptimizationPrecision = 0.1
-MaxIterations = 30
+MaxIterations = 50
 OptimizationAngleCutoff = 45
 MaxP = 1
 MaxI = 1
