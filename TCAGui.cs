@@ -53,7 +53,8 @@ namespace ThrottleControlledAvionics
 			//setup toolbar/applauncher button
 			if(ToolbarManager.ToolbarAvailable)
 			{
-				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
+				Utils.Log("Found Blizzy's toolbar. Adding TCA button.");
+				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");//debug
 				TCAToolbarButton.TexturePath = ICON_OFF;
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
 				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
@@ -62,6 +63,7 @@ namespace ThrottleControlledAvionics
 			}
 			else 
 			{
+				Utils.Log("Blizzy's toolbar does not appear to be installed. Using stock AppLauncher instead.");//debug
 				textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);
 				textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);
 				textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);
@@ -123,8 +125,9 @@ namespace ThrottleControlledAvionics
 
 		void OnGUIAppLauncherReady()
 		{
-			if (ApplicationLauncher.Ready)
+			if(ApplicationLauncher.Ready)
 			{
+				Utils.Log("Adding an AppLauncher button for TCA");//debug
 				TCAButton = ApplicationLauncher.Instance.AddModApplication(
 					onAppLaunchToggleOn,
 					onAppLaunchToggleOff,
@@ -223,7 +226,9 @@ namespace ThrottleControlledAvionics
 			var style = Styles.grey;
 			if(TCA.IsStateSet(TCAState.Enabled))
 			{
-				if(TCA.IsStateSet(TCAState.LoosingAltitude))
+				if(TCA.IsStateSet(TCAState.Unoptimized))
+				{ state = "Engines Unoptimized"; style = Styles.red; }
+				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
 				{ state = "Loosing Altitude"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
 				{ state = "Vertical Speed Control"; style = Styles.green; }
@@ -344,9 +349,11 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", TCA.VerticalSpeedFactor), GUILayout.ExpandWidth(false));
 				GUILayout.EndHorizontal();
 				enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(controlsHeight*4));
+				GUILayout.BeginVertical();
 				foreach(var e in TCA.Engines)
 				{
 					if(!e.Valid) continue;
+					GUILayout.BeginHorizontal();
 					GUILayout.Label(e.getName() + "\n" +
 					                string.Format(
 						                "Torque: {0}\n" +
@@ -354,7 +361,10 @@ namespace ThrottleControlledAvionics
 						                "Thrust Limit:      {2:F1}%",
 						                e.currentTorque,
 						                e.limit, e.thrustPercentage));
+					e.Controllable = GUILayout.Toggle(e.Controllable, "Controllable");
+					GUILayout.EndHorizontal();
 				}
+				GUILayout.EndVertical();
 				GUILayout.EndScrollView();
 				GUILayout.EndVertical();
 			}
@@ -398,11 +408,19 @@ namespace ThrottleControlledAvionics
 
 		public void OnUpdate()
 		{
-			if(selecting_key && Event.current.isKey)
+			if(selecting_key)
 			{ 
-				if(Event.current.keyCode != KeyCode.Escape)
-					TCA_Key = Event.current.keyCode; 
-				selecting_key = false;
+				Utils.Log("TCA Selecting Key: {0}, is key {1}, key code {2}", 
+				          Event.current, Event.current.isKey, Event.current.keyCode);
+				if(Event.current.isKey)
+				{
+					if(Event.current.keyCode != KeyCode.Escape)
+					{
+						TCA_Key = Event.current.keyCode; 
+						Utils.Log("TCA: new key slected: {0}", TCA_Key);
+					}
+					selecting_key = false;
+				}
 			}
 			else if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
 		}
