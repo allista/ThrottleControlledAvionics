@@ -18,7 +18,7 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 [*] Sophisticated [B]parameter tuning[/B], both automatic and manual.
 [*] Built-in [B]altitude and hovering control[/B].
 [*] Built-in [B]autopilot to kill horizontal speed[/B].
-[*] Both the [B]Toolbar and[/B] the stock [B]AppLauncher[/B] are supported.
+[*] Both the [B]Toolbar[/B] and the stock [B]AppLauncher[/B] are supported.
 [*] [B]In-game[/b] configurable [b]key binding[/B].
 [*] [B]Career mode[/B] integration.[/list]
 [B][SIZE=4]Downloads and Installation[/SIZE][/B]
@@ -32,6 +32,13 @@ If you're upgrading, [B]DELETE[/B] the old version before installing a new one
 [*] [URL="https://github.com/qfeys/ThrottleControlledAvionics/releases"]GitHub[/URL]
 [*] [URL="https://github.com/qfeys/ThrottleControlledAvionics"]Source code[/URL][/list]
 [B][SIZE=4]Instructions[/SIZE][/B]
+
+[B]TCA availability and interface:[/B]
+
+TCA becomes available if two conditions are met: [B]the vessel has engines[/B] (excluding RCS thrusters) and, [I]in career mode[/I], the "Throttle Controlled Avionics Subsystem" is purchased in the R&D bulding.
+[B]Note[/B], that TCA is a software, so you don't need any special part to be installed on a vessel: all vessels with engines are upgraded automatically with TCA.
+
+When TCA is available in the current vessel, its window may be summoned by clicking the button in Blizzy's Toolbar or, if it is not installed, the button in the stock AppLauncher.
 
 [B]For simple use:[/B]
 [list=1]

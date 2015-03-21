@@ -26,6 +26,14 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 
 ##Instructions
 
+###TCA availability and interface:
+
+TCA becomes available if two conditions are met: **the vessel has engines** (excluding RCS thrusters) and, *in career mode*, the "Throttle Controlled Avionics Subsystem" is purchased in the R&D bulding.
+**Note**, that TCA is a software, so you don't need any special part to be installed on a vessel: all vessels with engines are upgraded automatically with TCA.
+
+When TCA is available in the current vessel, its window may be summoned by clicking the button in Blizzy's Toolbar or, if it is not installed, the button in the stock AppLauncher.
+
+
 ###For simple use:
 
 1. Turn TCA on (default 'y'),
