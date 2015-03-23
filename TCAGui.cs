@@ -53,8 +53,8 @@ namespace ThrottleControlledAvionics
 			//setup toolbar/applauncher button
 			if(ToolbarManager.ToolbarAvailable)
 			{
-				Utils.Log("Found Blizzy's toolbar. Adding TCA button.");
-				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");//debug
+				Utils.Log("Found Blizzy's toolbar. Adding TCA button.");//debug
+				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
 				TCAToolbarButton.TexturePath = ICON_OFF;
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
 				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
@@ -409,14 +409,14 @@ namespace ThrottleControlledAvionics
 		{
 			if(selecting_key)
 			{ 
-				Utils.Log("TCA Selecting Key: {0}, is key {1}, key code {2}", 
+				Utils.Log("TCA Selecting Key: {0}, is key {1}, key code {2}", //debug
 				          Event.current, Event.current.isKey, Event.current.keyCode);
 				if(Event.current.isKey)
 				{
 					if(Event.current.keyCode != KeyCode.Escape)
 					{
 						TCA_Key = Event.current.keyCode; 
-						Utils.Log("TCA: new key slected: {0}", TCA_Key);
+						Utils.Log("TCA: new key slected: {0}", TCA_Key);//debug
 					}
 					selecting_key = false;
 				}
