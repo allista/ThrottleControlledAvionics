@@ -361,7 +361,6 @@ namespace ThrottleControlledAvionics
 						                "Thrust Limit:      {2:F1}%",
 						                e.currentTorque,
 						                e.limit, e.thrustPercentage));
-					e.Controllable = GUILayout.Toggle(e.Controllable, "Controllable");
 					GUILayout.EndHorizontal();
 				}
 				GUILayout.EndVertical();
