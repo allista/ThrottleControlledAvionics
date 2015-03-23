@@ -82,9 +82,6 @@ namespace ThrottleControlledAvionics
 
 		void save() 
 		{ 
-			if(CFG != null)
-				Engines.Where(e => e.Valid && !e.Controllable)
-					.ForEach(e => CFG.DoNotControlParts.Add(e.part.flightID));
 			TCAConfiguration.Save(); 
 			if(GUI != null) GUI.SaveConfig();
 		}
@@ -144,10 +141,7 @@ namespace ThrottleControlledAvionics
 					else if(module is ModuleEnginesFX)
 						engine = new EngineWrapper(module as ModuleEnginesFX);
 					if(engine != null && !engine.throttleLocked) 
-					{
 						Engines.Add(engine);
-						engine.Controllable = !CFG.DoNotControlParts.Contains(engine.part.flightID);
-					}
 				}
 		}
 		#endregion
@@ -226,7 +220,7 @@ namespace ThrottleControlledAvionics
 			State |= TCAState.HaveEC;
 			//update engines if needed
 			if(Engines.Any(e => !e.Valid)) updateEnginesList();
-			var active_engines = Engines.Where(e => e.isEnabled && e.Controllable).ToList();
+			var active_engines = Engines.Where(e => e.isEnabled).ToList();
 			if(active_engines.Count == 0) return;
 			State |= TCAState.HaveActiveEngines;
 			//calculate steering
@@ -245,7 +239,8 @@ namespace ThrottleControlledAvionics
 			VerticalSpeedFactor = getVerticalSpeedFactor();
 			optimizeEngines(active_engines);
 			//set thrust limiters of engines taking vertical speed limit into account
-			active_engines.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * VerticalSpeedFactor * e.limit, 0f, 100f));
+			active_engines.Where(e => e.Role != TCARole.MANUAL)
+				.ForEach(e => e.thrustPercentage = Mathf.Clamp(100 * VerticalSpeedFactor * e.limit, 0f, 100f));
 		}
 
 		void initializeEngines(List<EngineWrapper> engines)
@@ -257,7 +252,7 @@ namespace ThrottleControlledAvionics
 			{
 				var e = engines[i];
 				var info = e.thrustInfo;
-				e.limit = e.best_limit = 1f;
+				e.InitLimits();
 				e.thrustDirection = refT.InverseTransformDirection(info.dir);
 				e.specificTorque  = refT.InverseTransformDirection(Vector3.Cross(info.pos-wCoM, info.dir));
 				min_imbalance += e.specificTorque * e.nominalCurrentThrust(0);
@@ -280,20 +275,36 @@ namespace ThrottleControlledAvionics
 		bool optimizeLimits(List<EngineWrapper> engines, Vector3 target, float target_m, float eps)
 		{
 			var compensation = Vector3.zero;
-			for(int i = 0; i < engines.Count; i++)
+			var maneuver = Vector3.zero;
+			var num_engines = engines.Count;
+			for(int i = 0; i < num_engines; i++)
 			{
 				var e = engines[i];
-				var d = Vector3.Dot(e.currentTorque, target);
-				if(d < 0)
+				if(e.Role != TCARole.MANUAL)
 				{
-					e.limit_tmp = -d/target_m/e.currentTorque.magnitude;
-					compensation += e.specificTorque * e.nominalCurrentThrust(throttle * e.limit);
+					e.limit_tmp = -Vector3.Dot(e.currentTorque, target)/target_m/e.currentTorque.magnitude;
+					if(e.limit_tmp > 0)
+						compensation += e.specificTorque * e.nominalCurrentThrust(throttle * e.limit);
+					else if(e.Role == TCARole.MANEUVER)
+					{
+						if(e.limit.Equals(0)) e.limit = eps;
+						maneuver +=  e.specificTorque * e.nominalCurrentThrust(throttle * e.limit);
+					} else e.limit_tmp = 0f;
 				} else e.limit_tmp = 0f;
 			}
 			var compensation_m = compensation.magnitude;
-			if(compensation_m < eps) return false;
+			var maneuver_m = maneuver.magnitude;
+			if(compensation_m < eps && maneuver_m.Equals(0)) return false;
 			var limits_norm = Mathf.Clamp01(target_m/compensation_m);
-			engines.ForEach(e => e.limit *= (1-Mathf.Clamp01(e.limit_tmp*limits_norm)));
+			var maneuver_norm = Mathf.Clamp01(target_m/maneuver_m);
+			for(int i = 0; i < num_engines; i++)
+			{
+				var e = engines[i];
+				if(e.limit_tmp > 0)
+					e.limit *= (1-Mathf.Clamp01(e.limit_tmp*limits_norm));
+				else
+					e.limit = Mathf.Clamp01(e.limit * (1-e.limit_tmp*maneuver_norm));
+			}
 			return true;
 		}
 
@@ -326,14 +337,17 @@ namespace ThrottleControlledAvionics
 					break;
 				last_error = error;
 				//optimize limits
-				var limit_norm = engines.Max(e => e.limit);
-				engines.ForEach(e => e.limit = Mathf.Clamp01(e.limit/limit_norm));
-				if(!optimizeLimits(engines, target, error, 
-				                   TCAConfiguration.Globals.OptimizationPrecision))
+//				if(engines.All(e => e.Role != TCARole.MANUAL))
+//				{
+//					var limit_norm = engines.Where(e => e.Role != TCARole.MANUAL).Max(e => e.limit);
+//					if(limit_norm > 0)
+//						engines.Where(e => e.Role != TCARole.MANUAL).ForEach(e => e.limit = Mathf.Clamp01(e.limit / limit_norm));
+//				}
+				if(!optimizeLimits(engines, target, error, TCAConfiguration.Globals.OptimizationPrecision)) 
 					break;
 			}
 			//restore the best state
-			engines.ForEach(e => e.limit = e.best_limit);
+			engines.Where(e => e.Role != TCARole.MANUAL).ForEach(e => e.limit = e.best_limit);
 			return TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff ||
 				TorqueError < TCAConfiguration.Globals.OptimizationPrecision*10;
 		}
@@ -357,25 +371,25 @@ namespace ThrottleControlledAvionics
 			if(!optimizeLimitsIteratively(engines, needed_torque) && 
 			   !needed_torque.IsZero())
 			{
-				engines.ForEach(e => e.limit = e.best_limit = 1);
+				engines.Where(e => e.Role != TCARole.MANUAL).ForEach(e => e.InitLimits());
 				optimizeLimitsIteratively(engines, Vector3.zero);
 				State |= TCAState.Unoptimized;
 			}
 			//debug
-			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));
-			Utils.Log(
-				"Steering: {0}\n" +
-				"Needed Torque: {1}\n" +
-				"Torque Error: {2}kNm, {3}deg; prod: {4}\n" +
-				"Torque Clamp:\n   +{5}\n   -{6}\n" +
-				"Limits: [{7}]", 
-				steering,
-				needed_torque,
-				TorqueError, TorqueAngle, TorqueError*TorqueAngle,
-				torque.positive, 
-				torque.negative,
-				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
-			);
+//			Utils.Log("Engines:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));
+//			Utils.Log(
+//				"Steering: {0}\n" +
+//				"Needed Torque: {1}\n" +
+//				"Torque Error: {2}kNm, {3}deg; prod: {4}\n" +
+//				"Torque Clamp:\n   +{5}\n   -{6}\n" +
+//				"Limits: [{7}]", 
+//				steering,
+//				needed_torque,
+//				TorqueError, TorqueAngle, TorqueError*TorqueAngle,
+//				torque.positive, 
+//				torque.negative,
+//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
+//			);
 		}
 
 		float getVerticalSpeedFactor()

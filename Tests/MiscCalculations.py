@@ -18,8 +18,8 @@ def clamp(x, L, H):
 #end def
 
 def clamp01(x): 
-    if x > 1: return 1
-    elif x < 0: return 0
+    if x > 1: return 1.0
+    elif x < 0: return 0.0
     return x
 #end def
 
@@ -199,13 +199,15 @@ class vec6(object):
 def lerp(f, t, time): return f+(t-f)*clamp01(time)
 
 class engine(object):
-    def __init__(self, spec_torque, min_thrust=0.0, max_thrust=100.0):
+    def __init__(self, spec_torque, min_thrust=0.0, max_thrust=100.0, maneuver=False):
         self.torque = spec_torque
         self.min_thrust = min_thrust
         self.max_thrust = max_thrust 
         self.limit  = 1.0
         self.limit_tmp = 1.0
+        self.best_limit = 1.0
         self.current_torque = vec()
+        self.maneuver = maneuver
         
     def nominal_current_torque(self, K):
             return self.torque * lerp(self.min_thrust, self.max_thrust, K)
@@ -334,10 +336,10 @@ VTOL_Test = [
                 engine(vec(-3.4, 2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
                 engine(vec(3.5, -2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
                 engine(vec(1.5, 2.0, 0.0),   min_thrust=0.0, max_thrust=250.0),
-                engine(vec(1.3, 2.0, 1.6),   min_thrust=0.0,  max_thrust=20.0),
-                engine(vec(3.1, -2.0, -3.7), min_thrust=0.0,  max_thrust=20.0),
-                engine(vec(-3.1, -2.0, 3.7), min_thrust=0.0,  max_thrust=20.0),
-                engine(vec(-2.4, 2.0, -2.9), min_thrust=0.0,  max_thrust=20.0),
+                engine(vec(1.3, 2.0, 1.6),   min_thrust=0.0,  max_thrust=20.0, maneuver=True),
+                engine(vec(3.1, -2.0, -3.7), min_thrust=0.0,  max_thrust=20.0, maneuver=True),
+                engine(vec(-3.1, -2.0, 3.7), min_thrust=0.0,  max_thrust=20.0, maneuver=True),
+                engine(vec(-2.4, 2.0, -2.9), min_thrust=0.0,  max_thrust=20.0, maneuver=True),
              ]
 
 Hover_Test = [
@@ -377,16 +379,25 @@ def sim_Attitude():
     def opt(target, angle, engines, eps):
         tm = abs(target)
         comp = vec()
+        man  = vec()
         for e in engines:
-            p = e.current_torque*target
-            e.limit_tmp = -p/tm/abs(e.current_torque) if p < 0 else 0.0
+            e.limit_tmp = -e.current_torque*target/tm/abs(e.current_torque)
             if e.limit_tmp > 0:
                 comp += e.nominal_current_torque(e.limit)
+            elif e.maneuver:
+                if e.limit == 0: e.limit = eps
+                man += e.nominal_current_torque(e.limit)
+            else: e.limit_tmp = 0
         compm = abs(comp)
-        if compm < eps: return False
-        limits_norm = clamp01(tm/compm * angle/180 if angle > 0 else 1)
+        manm = abs(man)
+        if compm < eps and manm == 0: return False
+        limits_norm = clamp01(tm/compm)# * angle/180 if angle > 0 else 1)
+        man_norm = clamp01(tm/manm)
         for e in engines:
-            e.limit *= 1.0 - clamp01(e.limit_tmp*limits_norm)
+            if e.limit_tmp < 0:
+                e.limit = clamp01(e.limit * (1.0 - e.limit_tmp*man_norm))
+            else:
+                e.limit = clamp01(e.limit * (1.0 - e.limit_tmp*limits_norm))
         return True
     
     def optR(engines, D=vec(), vK=1.0, eps=0.1, maxI=500, output=True):
@@ -394,14 +405,14 @@ def sim_Attitude():
         torque_imbalance = vec()
         ti_min = vec(); ti_max = vec();
         for e in engines:
-            e.limit = 1.0
+            e.limit = 1.0 if not e.maneuver else 0
             ti_min += e.nominal_current_torque(0)
             ti_max += e.nominal_current_torque(1)
         if ti_min > 0 and ti_max > 0: 
             vK = clampL(vK, clamp01(abs(ti_min)/abs(ti_max)))
         for e in engines:
             e.current_torque = e.nominal_current_torque(vK)
-            torque_imbalance += e.current_torque
+            torque_imbalance += e.nominal_current_torque(vK * e.limit)
             torque_clamp.add(e.current_torque)
         _d = torque_clamp.clamp(D)
         if output:
@@ -413,27 +424,33 @@ def sim_Attitude():
             print ('initial     %s, error %s, dir error %s' % 
                    (torque_imbalance, abs(torque_imbalance-_d), torque_imbalance.angle(_d)))
         s = []; s1 = []; i = 0;
+        best_error = -1; best_angle = -1; best_index = -1;
         for i in xrange(maxI):
             s.append(abs(torque_imbalance-_d))
             s1.append(torque_imbalance.angle(_d) if abs(_d) > 0 else 0)
+            if(s1[-1] <= 0 and s[-1] < best_error or 
+               s[-1]*s1[-1] < best_error*best_angle or best_angle < 0):
+                for e in engines: e.best_limit = e.limit
+                best_error = s[-1]
+                best_angle = s1[-1]
+                best_index = len(s)-1
 #             if len(s1) > 1 and s1[-1] < 55 and s1[-1]-s1[-2] > eps: break
 #             if s1[-1] > 0:
 #                 if s1[-1] < eps or len(s1) > 1 and abs(s1[-1]-s1[-2]) < eps*eps: break
 #             elif 
             if s[-1] < eps or len(s) > 1 and abs(s[-1]-s[-2]) < eps/10.0: break
-            mlim = max(e.limit for e in engines)
-            for e in engines: e.limit = clamp01(e.limit/mlim)
+#             mlim = max(e.limit for e in engines)
+#             if mlim > 0: 
+#                 for e in engines: e.limit = clamp01(e.limit/mlim)
             if not opt(_d-torque_imbalance, s1[-1], engines, eps): break
             torque_imbalance = vec.sum(e.nominal_current_torque(vK * e.limit) for e in engines)
-        mlim = max(e.limit for e in engines)
-        for e in engines: e.limit = clamp01(e.limit/mlim)
+        for e in engines: e.limit = e.best_limit
         if output:
-            min_i = s1.index(min(s1)) if s1[-1] > 0 else s.index(min(s))  
             ##########
             print 'iterations:', i+1
 #             print 'dAngle:    ', abs(s1[-1]-s1[-2])
             print 'limits:    ', list(e.limit for e in engines)
-            print 'result      %s, error %s, dir error %s' % (torque_imbalance, s[min_i], s1[min_i])
+            print 'result      %s, error %s, dir error %s' % (torque_imbalance, s[best_index], s1[best_index])
             print 'engines:   ', list(e.nominal_current_torque(vK * e.limit) for e in engines)
             print
             ##########
@@ -450,12 +467,12 @@ def sim_Attitude():
         return s[-1], s1[-1]
     
     for d in VTOL_Test_Bad_Demand: 
-        optR(VTOL_Test, d, vK=0.1, eps=0.1, maxI=200)
+        optR(VTOL_Test, d, vK=0.3, eps=0.1, maxI=50)
     plt.show()
     print '='*80+'\n\n'
     
 #     for d in Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand: 
-#         optR(Hover_Test, d, vK=0.2, eps=0.1, maxI=30)
+#         optR(Hover_Test, d, vK=0.2, eps=0.1, maxI=50)
 #     plt.show()
 #     print '='*80+'\n\n'
 

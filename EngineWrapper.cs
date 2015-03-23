@@ -15,6 +15,7 @@ namespace ThrottleControlledAvionics
 		public bool isModuleEngineFX;
 		readonly ModuleEngines engine;
 		readonly ModuleEnginesFX engineFX;
+		readonly TCAEngineInfo einfo;
 
 		/// <summary>
 		/// If the wrapper is still points to the valid ModuleEngines(FX)
@@ -35,18 +36,22 @@ namespace ThrottleControlledAvionics
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;
 		public float   limit, best_limit, limit_tmp;
-		public bool    Controllable = true;
 
-		protected EngineWrapper()
-		{ thrustController.setMaster(ThrustPI);	}
+		protected EngineWrapper(PartModule module)
+		{ 
+			thrustController.setMaster(ThrustPI);
+			einfo = module.part.GetModule<TCAEngineInfo>();
+		}
 
-		public EngineWrapper(ModuleEngines engine) : this()
+		public EngineWrapper(ModuleEngines engine) 
+			: this((PartModule)engine)
 		{
 			isModuleEngineFX = false;
 			this.engine = engine;
 		}
 
-		public EngineWrapper(ModuleEnginesFX engineFX) : this()
+		public EngineWrapper(ModuleEnginesFX engineFX) 
+			: this((PartModule)engineFX)
 		{
 			isModuleEngineFX = true;
 			this.engineFX = engineFX;
@@ -64,6 +69,24 @@ namespace ThrottleControlledAvionics
 				engine.SetRunningGroupsActive(active);
 			// Do not need to worry about ModuleEnginesFX.
 		}
+
+		public void InitLimits()
+		{
+			switch(Role)
+			{
+			case TCARole.MAIN:
+				limit = best_limit = 1f;
+				break;
+			case TCARole.MANEUVER:
+				limit = best_limit = 0f;
+				break;
+			case TCARole.MANUAL:
+				limit = best_limit = thrustPercentage/100;
+				break;
+			}
+		}
+
+		public TCARole Role { get { return einfo == null? TCARole.MAIN : einfo.Role; }}
 
 		public CenterOfThrustQuery thrustInfo
 		{ 
