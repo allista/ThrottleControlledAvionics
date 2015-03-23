@@ -439,9 +439,9 @@ def sim_Attitude():
 #                 if s1[-1] < eps or len(s1) > 1 and abs(s1[-1]-s1[-2]) < eps*eps: break
 #             elif 
             if s[-1] < eps or len(s) > 1 and abs(s[-1]-s[-2]) < eps/10.0: break
-#             mlim = max(e.limit for e in engines)
-#             if mlim > 0: 
-#                 for e in engines: e.limit = clamp01(e.limit/mlim)
+            mlim = max(e.limit for e in engines)
+            if mlim > 0: 
+                for e in engines: e.limit = clamp01(e.limit/mlim)
             if not opt(_d-torque_imbalance, s1[-1], engines, eps): break
             torque_imbalance = vec.sum(e.nominal_current_torque(vK * e.limit) for e in engines)
         for e in engines: e.limit = e.best_limit
