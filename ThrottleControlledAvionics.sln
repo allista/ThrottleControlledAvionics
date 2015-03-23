@@ -21,7 +21,6 @@ Global
 		{A1DAE496-7A38-46F3-A450-D32F34C90416}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
-		StartupItem = ThrottleControlledAvionics.csproj
 		version = 1.3
 		outputpath = ..\build\bin
 	EndGlobalSection
