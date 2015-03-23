@@ -34,7 +34,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
 		[Persistent] public float MoIFactor = 0.01f;
 		//other
-		[Persistent] public bool IntegrateIntoCareer = true;
+		[Persistent] public bool IntegrateIntoCareer  = true;
+		[Persistent] public bool RoleSymmetryInFlight = true;
 		//help text
 		public string Instructions = string.Empty;
 		const string instructions = 

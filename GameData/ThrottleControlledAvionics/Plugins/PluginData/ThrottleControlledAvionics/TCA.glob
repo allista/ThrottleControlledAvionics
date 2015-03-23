@@ -1,4 +1,5 @@
 IntegrateIntoCareer = true
+RoleSymmetryInFlight = true
 
 //Vertical Speed Control controller coefficients
 K0 = 2
