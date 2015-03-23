@@ -75,6 +75,7 @@
     <Compile Include="PI_Controller.cs" />
     <Compile Include="DropDownList.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="TCAEngineInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
