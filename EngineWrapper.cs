@@ -50,6 +50,22 @@ namespace ThrottleControlledAvionics
 		}
 
 		#region methods
+		public void InitLimits()
+		{
+			switch(Role)
+			{
+			case TCARole.MAIN:
+				limit = best_limit = 1f;
+				break;
+			case TCARole.MANEUVER:
+				limit = best_limit = 0f;
+				break;
+			case TCARole.MANUAL:
+				limit = best_limit = thrustPercentage/100;
+				break;
+			}
+		}
+
 		public void InitState()
 		{
 			//update thrust info
@@ -71,18 +87,7 @@ namespace ThrottleControlledAvionics
 					einfo.SetRole(TCARole.MANUAL);
 				Role = einfo.Role;
 			} else Role = TCARole.MAIN;
-			switch(Role)
-			{
-			case TCARole.MAIN:
-				limit = best_limit = 1f;
-				break;
-			case TCARole.MANEUVER:
-				limit = best_limit = 0f;
-				break;
-			case TCARole.MANUAL:
-				limit = best_limit = thrustPercentage/100;
-				break;
-			}
+			InitLimits();
 		}
 
 		public Vector3 Torque(float throttle)
