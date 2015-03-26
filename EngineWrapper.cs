@@ -12,24 +12,9 @@ namespace ThrottleControlledAvionics
 {
 	public class EngineWrapper
 	{
-		public bool isModuleEngineFX;
 		readonly ModuleEngines engine;
 		readonly ModuleEnginesFX engineFX;
 		readonly TCAEngineInfo einfo;
-		public TCARole Role;
-
-		/// <summary>
-		/// If the wrapper is still points to the valid ModuleEngines(FX)
-		/// </summary>
-		public bool Valid 
-		{ 
-			get 
-			{ 
-				return isModuleEngineFX? 
-					engineFX.part != null && engineFX.vessel != null :
-					engine.part != null && engine.vessel != null;
-			}
-		}
 
 		public static readonly PI_Dummy ThrustPI = new PI_Dummy();
 		PIf_Controller thrustController = new PIf_Controller();
@@ -37,7 +22,12 @@ namespace ThrottleControlledAvionics
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;
 		public float   limit, best_limit, limit_tmp;
-		public float currentTorque_m;
+		public float   currentTorque_m;
+		public bool    isModuleEngineFX;
+		public bool    throttleLocked;
+		public float   thrustMod;
+		public TCARole Role;
+		public CenterOfThrustQuery thrustInfo;
 
 		protected EngineWrapper(PartModule module)
 		{ 
@@ -59,22 +49,28 @@ namespace ThrottleControlledAvionics
 			this.engineFX = engineFX;
 		}
 
-		public Vessel vessel
-		{ get { return isModuleEngineFX ? engineFX.vessel : engine.vessel; } }
-
-		public Part part
-		{ get { return isModuleEngineFX ? engineFX.part : engine.part; } }
-
-		public void SetRunningGroupsActive(bool active)
+		#region methods
+		public void InitState()
 		{
-			if(!isModuleEngineFX)
-				engine.SetRunningGroupsActive(active);
-			// Do not need to worry about ModuleEnginesFX.
-		}
-
-		public void InitLimits()
-		{
-			Role = einfo == null? TCARole.MAIN : einfo.Role;
+			//update thrust info
+			thrustInfo = new CenterOfThrustQuery();
+			if (isModuleEngineFX) engineFX.OnCenterOfThrustQuery(thrustInfo);
+			else engine.OnCenterOfThrustQuery(thrustInfo);
+			thrustInfo.dir.Normalize();
+			//compute velocity thrust modifier
+			if(isModuleEngineFX? engineFX.useVelocityCurve : engine.useVelocityCurve)
+			{
+				var vc = isModuleEngineFX? engineFX.velocityCurve : engine.velocityCurve;
+				thrustMod = vc.Evaluate((float)FlightGlobals.ActiveVessel.srf_velocity.magnitude);
+			} else thrustMod = 1f;
+			//update Role
+			throttleLocked = isModuleEngineFX ? engineFX.throttleLocked : engine.throttleLocked;
+			if(einfo != null)
+			{
+				if(throttleLocked && einfo.Role != TCARole.MANUAL) 
+					einfo.SetRole(TCARole.MANUAL);
+				Role = einfo.Role;
+			} else Role = TCARole.MAIN;
 			switch(Role)
 			{
 			case TCARole.MAIN:
@@ -89,19 +85,37 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public CenterOfThrustQuery thrustInfo
+		public Vector3 Torque(float throttle)
+		{
+			return specificTorque * 
+				(Role != TCARole.MANUAL? 
+				 nominalCurrentThrust(throttle) :
+				 finalThrust);
+		}
+
+		/// <summary>
+		/// If the wrapper is still points to the valid ModuleEngines(FX)
+		/// </summary>
+		public bool Valid 
 		{ 
 			get 
 			{ 
-				var query = new CenterOfThrustQuery();
-				if (isModuleEngineFX) engineFX.OnCenterOfThrustQuery(query);
-				else engine.OnCenterOfThrustQuery(query);
-				return query;
+				return isModuleEngineFX? 
+					engineFX.part != null && engineFX.vessel != null :
+					engine.part != null && engine.vessel != null;
 			}
 		}
+		#endregion
+
+		#region Accessors
+		public Vessel vessel
+		{ get { return isModuleEngineFX ? engineFX.vessel : engine.vessel; } }
+
+		public Part part
+		{ get { return isModuleEngineFX ? engineFX.part : engine.part; } }
 
 		public float nominalCurrentThrust(float throttle)
-		{ return Mathf.Lerp(minThrust, maxThrust, throttle); }
+		{ return thrustMod * (throttleLocked ? maxThrust : Mathf.Lerp(minThrust, maxThrust, throttle)); }
 
 		public float requestedThrust
 		{ get { return isModuleEngineFX ? engineFX.requestedThrust : engine.requestedThrust; } }
@@ -123,9 +137,6 @@ namespace ThrottleControlledAvionics
 
 		public bool allowShutdown
 		{ get { return isModuleEngineFX ? engineFX.allowShutdown : engine.allowShutdown; } }
-
-		public bool throttleLocked
-		{ get { return isModuleEngineFX ? engineFX.throttleLocked : engine.throttleLocked; } }
 
 		public bool useEngineResponseTime
 		{ get { return isModuleEngineFX ? engineFX.useEngineResponseTime : engine.useEngineResponseTime; } }
@@ -182,5 +193,6 @@ namespace ThrottleControlledAvionics
 			}
 			return r;
 		}
+		#endregion
 	}
 }
