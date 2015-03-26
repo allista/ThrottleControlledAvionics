@@ -13,10 +13,11 @@ namespace ThrottleControlledAvionics
 
 		//control model configuration parameters
 		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
-		[Persistent] public float MaxCutoff               = 10f;   //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float OptimizationPrecision   = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
-		[Persistent] public int   MaxIterations           = 30;    //maximum number of optimizations per fixed frame
-		[Persistent] public float OptimizationAngleCutoff = 45f;   //maximum angle between torque imbalance and torque demand that is considered unoptimized
+		[Persistent] public float MaxCutoff                = 10f;   //max. positive vertical speed m/s (configuration limit)
+		[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
+		[Persistent] public int   MaxIterations            = 30;    //maximum number of optimizations per fixed frame
+		[Persistent] public float OptimizationAngleCutoff  = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
+		[Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
 		//default values for PI controllers
 		[Persistent] public float MaxP = 1f; //value of P slider
 		[Persistent] public float MaxI = 1f; //value of I slider
@@ -45,6 +46,12 @@ For simple use:
 	1) Turn TCA on ('{0}'),
 	2) Turn SAS on ('t'),
 	3) Launch!
+
+Engine Roles:
+    * In editor or in flight through a part menu you may assign one of the three roles to any engine: 
+        1) Main Engine (default). TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all Main Engines should have 100% thrust in the absence of control input.
+        2) Maneuver Engine. TCA tries to minimize the thrust of these engines. In a perfectly balanced ship these engines produce thrust only in the presence of control input
+        3) Manual Control. TCA does not change the thrust of these engines, but includes them in calculations.
 
 Autotuning Parameters:
     * If this option is enabled, TCA calculates Steering Gains and PI coefficients as functions of maximum possible angular acceleration along each of the principal axes of a craft. Note, that calculations are based on the predefined response curves tuned for the stock SAS.
