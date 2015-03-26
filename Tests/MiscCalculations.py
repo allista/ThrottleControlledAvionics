@@ -214,6 +214,8 @@ class engine(object):
             return (self.torque *
                     (lerp(self.min_thrust, self.max_thrust, K) if not self.manual
                      else self.max_thrust))
+            
+    def vsf(self, K): return (1 if self.maneuver else K)
 #end class
 
 class PID(object):
@@ -337,10 +339,10 @@ def sim_VSpeed():
     
 Quadro_Manual = [
                     engine(vec(-0.8, 0.0, 0.0),  min_thrust=0.0, max_thrust=18.0, manual=True),
-                    engine(vec(1.8, 0.0, 1.8),   min_thrust=0.0, max_thrust=40.0, maneuver=True),
-                    engine(vec(1.8, 0.0, -1.8),  min_thrust=0.0, max_thrust=40.0, maneuver=True),
-                    engine(vec(-1.8, 0.0, -1.8), min_thrust=0.0, max_thrust=40.0, maneuver=True),
-                    engine(vec(-1.8, 0.0, 1.8),  min_thrust=0.0, max_thrust=40.0, maneuver=True),
+                    engine(vec(1.8, 0.0, 1.8),   min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+                    engine(vec(1.8, 0.0, -1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+                    engine(vec(-1.8, 0.0, -1.8), min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+                    engine(vec(-1.8, 0.0, 1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
                  ]
     
 VTOL_Test = [
@@ -396,10 +398,10 @@ def sim_Attitude():
             if not e.manual: 
                 e.limit_tmp = -e.current_torque*target/tm/abs(e.current_torque)
                 if e.limit_tmp > 0:
-                    comp += e.nominal_current_torque(vK * e.limit)
+                    comp += e.nominal_current_torque(e.vsf(vK)*e.limit)
                 elif e.maneuver:
                     if e.limit == 0: e.limit = eps
-                    man += e.nominal_current_torque(vK * e.limit)
+                    man += e.nominal_current_torque(e.vsf(vK)*e.limit)
                 else: e.limit_tmp = 0
             else: e.limit_tmp = 0
         compm = abs(comp)
@@ -418,16 +420,21 @@ def sim_Attitude():
     def optR(engines, D=vec(), vK=1.0, eps=0.1, maxI=500, output=True):
         torque_clamp = vec6()
         torque_imbalance = vec()
-#         ti_min = vec(); ti_max = vec();
+        ti_min = vec()
         for e in engines:
             e.limit = 1.0 if not e.maneuver else 0
-#             ti_min += e.nominal_current_torque(0)
-#             ti_max += e.nominal_current_torque(1)
-#         if ti_min > 0 and ti_max > 0: 
-#             vK = clampL(vK, clamp01(abs(ti_min)/abs(ti_max)))
+            ti_min += e.nominal_current_torque(0)
+        if abs(ti_min) > 0:
+            print ti_min
+            anti_ti_min = vec()
+            for e in engines:
+                if e.torque*ti_min < 0:
+                    anti_ti_min += e.nominal_current_torque(1)
+            if abs(anti_ti_min) > 0:
+                vK = clampL(vK, clamp01(abs(ti_min)/abs(anti_ti_min)*1.2))
         for e in engines:
-            e.current_torque = e.nominal_current_torque(vK)
-            torque_imbalance += e.nominal_current_torque(vK * e.limit)
+            e.current_torque = e.nominal_current_torque(e.vsf(vK))
+            torque_imbalance += e.nominal_current_torque(e.vsf(vK) * e.limit)
             torque_clamp.add(e.current_torque)
         _d = torque_clamp.clamp(D)
         if output:
@@ -435,7 +442,6 @@ def sim_Attitude():
             print 'Torque clamp:\n', torque_clamp
             print 'demand:        ', D
             print 'clamped demand:', _d
-#             print 'min TI: %s, max TI %s' % (ti_min, ti_max)
             print ('initial     %s, error %s, dir error %s' % 
                    (torque_imbalance, abs(torque_imbalance-_d), torque_imbalance.angle(_d)))
         s = []; s1 = []; i = 0;
@@ -459,7 +465,7 @@ def sim_Attitude():
                 if mlim > 0: 
                     for e in engines: e.limit = clamp01(e.limit/mlim)
             if not opt(_d-torque_imbalance, engines, vK, eps): break
-            torque_imbalance = vec.sum(e.nominal_current_torque(vK * e.limit) for e in engines)
+            torque_imbalance = vec.sum(e.nominal_current_torque(e.vsf(vK) * e.limit) for e in engines)
         for e in engines: e.limit = e.best_limit
         if output:
             ##########
@@ -467,7 +473,7 @@ def sim_Attitude():
 #             print 'dAngle:    ', abs(s1[-1]-s1[-2])
             print 'limits:    ', list(e.limit for e in engines)
             print 'result      %s, error %s, dir error %s' % (torque_imbalance, s[best_index], s1[best_index])
-            print 'engines:\n'+'\n'.join(str(e.nominal_current_torque(vK * e.limit)) for e in engines)
+            print 'engines:\n'+'\n'.join(str(e.nominal_current_torque(e.vsf(vK) * e.limit)) for e in engines)
             print
             ##########
             x = np.arange(len(s))
@@ -490,10 +496,10 @@ def sim_Attitude():
         print '='*80+'\n\n'
         plt.show()
         
-#     test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.3, eps=0.1, maxI=50)
+#     test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.1, eps=0.01, maxI=50)
 #     test_craft(Hover_Test, Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand, vK=0.3, eps=0.1, maxI=50)
     
-    test_craft(Quadro_Manual, [vec()], vK=1, eps=0.01, maxI=50)
+    test_craft(Quadro_Manual, [vec(40,0,0)], vK=0.3, eps=0.01, maxI=50)
     
 #     N = range(500)
 #     np.random.seed(42)
