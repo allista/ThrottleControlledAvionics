@@ -7,13 +7,16 @@ K1 = 10
 L1 = 1
 K2 = 10
 L2 = 10
+MinVSF = 0.05
 MaxCutoff = 10
+VSFCorrectionMultiplier = 1.5
 
 //Thrust optimisation
 MaxIterations = 50
 OptimizationPrecision = 0.01
 OptimizationAngleCutoff = 45
 OptimizationTorqueCutoff = 1
+KillTorqueIfUnoptimized = false
 MaxP = 1
 MaxI = 1
 Engines
