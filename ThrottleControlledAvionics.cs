@@ -282,13 +282,14 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < engines.Count; i++)
 			{
 				var e = engines[i];
-				e.currentTorque = e.Torque(e.Role == TCARole.MAIN? throttle : vessel.ctrlState.mainThrottle);
+				e.throttle = e.Role == TCARole.MAIN? throttle : vessel.ctrlState.mainThrottle;
+				e.currentTorque = e.Torque(e.throttle);
 				e.currentTorque_m = e.currentTorque.magnitude;
 				torque.Add(e.currentTorque);
 			}
 		}
 
-		bool optimizeLimits(IList<EngineWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
+		static bool optimizeLimits(IList<EngineWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
 		{
 			var compensation = Vector3.zero;
 			var maneuver = Vector3.zero;
@@ -299,11 +300,11 @@ namespace ThrottleControlledAvionics
 				{
 					e.limit_tmp = -Vector3.Dot(e.currentTorque, target)/target_m/e.currentTorque_m;
 					if(e.limit_tmp > 0)
-						compensation += e.specificTorque * e.nominalCurrentThrust(throttle * e.limit);
+						compensation += e.specificTorque * e.nominalCurrentThrust(e.throttle * e.limit);
 					else if(e.Role == TCARole.MANEUVER)
 					{
 						if(e.limit.Equals(0)) e.limit = eps;
-						maneuver +=  e.specificTorque * e.nominalCurrentThrust(vessel.ctrlState.mainThrottle * e.limit);
+						maneuver +=  e.specificTorque * e.nominalCurrentThrust(e.throttle * e.limit);
 					} else e.limit_tmp = 0f;
 				} else e.limit_tmp = 0f;
 			}
@@ -336,7 +337,7 @@ namespace ThrottleControlledAvionics
 				//calculate current errors and target
 				torque_imbalance = Vector3.zero;
 				for(int j = 0; j < num_engines; j++) 
-				{ var e = engines[j]; torque_imbalance += e.Torque((e.Role == TCARole.MAIN? throttle : vessel.ctrlState.mainThrottle) * e.limit); }
+				{ var e = engines[j]; torque_imbalance += e.Torque(e.throttle * e.limit); }
 				angle  = needed_torque.IsZero()? 0f : Vector3.Angle(torque_imbalance, needed_torque);
 				target = needed_torque-torque_imbalance;
 				error  = target.magnitude;
@@ -398,11 +399,8 @@ namespace ThrottleControlledAvionics
 			if(!optimizeLimitsIteratively(engines, needed_torque) && 
 			   !needed_torque.IsZero())
 			{
-				if(TCAConfiguration.Globals.KillTorqueIfUnoptimized)
-				{
-					engines.Where(e => e.Role != TCARole.MANUAL).ForEach(e => e.InitLimits());
-					optimizeLimitsIteratively(engines, Vector3.zero);
-				}
+				for(int j = 0; j < engines.Count; j++) engines[j].InitLimits();
+				optimizeLimitsIteratively(engines, Vector3.zero);
 				State |= TCAState.Unoptimized;
 			}
 			#if DEBUG
@@ -547,9 +545,9 @@ namespace ThrottleControlledAvionics
 			CFG.Engines.I = CFG.Engines.P/2f;
 			#if DEBUG
 //			Utils.Log("max_torque: {0}\n" + //debug
-//                      "MoI {1}\n" +
-//                      "angularA {2}", 
-//                      max_torque, MoI, angularA);
+//                    "MoI {1}\n" +
+//                    "angularA {2}", 
+//                     max_torque, MoI, angularA);
 			#endif
 		}
 		#endregion

@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
 		public float   currentTorque_m;
 		public bool    isModuleEngineFX;
 		public bool    throttleLocked;
+		public float   throttle;
 		public float   thrustMod;
 		public TCARole Role;
 		public CenterOfThrustQuery thrustInfo;

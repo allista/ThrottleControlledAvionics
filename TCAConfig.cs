@@ -21,7 +21,6 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
 		[Persistent] public float OptimizationAngleCutoff  = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
 		[Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
-		[Persistent] public bool  KillTorqueIfUnoptimized  = false; //if optimization fails, reoptimize to kill torque
 		//default values for PI controllers
 		[Persistent] public float MaxP = 1f; //value of P slider
 		[Persistent] public float MaxI = 1f; //value of I slider
@@ -53,8 +52,8 @@ For simple use:
 
 Engine Roles:
     * In editor or in flight through a part menu you may assign one of the three roles to any engine: 
-        1) Main Engine (default). TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all Main Engines should have 100% thrust in the absence of control input.
-        2) Maneuver Engine. TCA tries to minimize the thrust of these engines. In a perfectly balanced ship these engines produce thrust only in the presence of control input
+        1) Main Engine (default). TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all Main Engines should have 100% thrust in the absence of control input. These engines are also used to ontrol vertical speed.
+        2) Maneuver Engine. TCA tries to minimize the thrust of these engines. In a perfectly balanced ship these engines produce thrust only in response to control input
         3) Manual Control. TCA does not change the thrust of these engines, but includes them in calculations.
 
 Autotuning Parameters:
@@ -84,9 +83,9 @@ Kill Horizontal Velocity:
 
 Notes:
     * For safety reasons the Vertical and Horizontal speed controls are disabled in orbit, but not on suborbital trajectories, so be carefull.
-	* If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
-    * Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
-	* Solid boosters have constant thrust and thus cannot be controlled by TCA.";
+    * If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
+    * Thrust of jets and turbofan engines changes very slowly. Thus using them as attitude controllers is impractical. If you want to use them, switch them to Manual Control mode.
+    * Solid boosters have constant thrust and thus cannot be controlled by TCA. But they are still accounted for, if present.";
 
 		public void Init()
 		{ 

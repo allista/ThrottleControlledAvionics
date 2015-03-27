@@ -16,7 +16,6 @@ MaxIterations = 50
 OptimizationPrecision = 0.01
 OptimizationAngleCutoff = 45
 OptimizationTorqueCutoff = 1
-KillTorqueIfUnoptimized = false
 MaxP = 1
 MaxI = 1
 Engines
