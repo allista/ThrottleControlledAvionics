@@ -8,7 +8,7 @@ _**BUT** do not delete the TCA.conf and config.xml file to preserve your setting
     * Torque from **SRBs** and other throttle-locked engines is now **accounted for**.
     * Tuning parameters are now hidden when Autotuning is enabled.
     * Many **performance improvements**.
-    * Fixed the conflict with FRMS window.
+    * Fixed the conflict with FMRS window.
 
 * v2.1.0
     * Added an **autopilot to kill horizontal speed**. Useful for landing.
