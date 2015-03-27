@@ -28,80 +28,6 @@ def asymp01(x, k=1):
 
 vclamp01 = np.vectorize(clamp01)
 
-
-class sim(object):
-    def __init__(self, K1, L1, K2, L2):
-        self.K1 = K1
-        self.L1 = L1
-        self.K2 = K2
-        self.L2 = L2
-        
-        self.upA  = 0.0
-        self.upV  = 0.0
-        self.upX  = 0.0
-        
-        self.T = []
-        self.X = []
-        self.V = []
-        self.K = []
-        self.F = []
-    #end def
-        
-    @property
-    def vK(self):
-        E = self.maxV-self.upV
-        if self.upV < self.maxV:
-            return clamp01(E/2.0/(clampL(self.upA/self.K1+1.0, self.L1))**2)
-        else: 
-            return clamp01(E*self.upA/(clampL(-self.K2*E, self.L2))**2)
-    
-    def run(self, upV):
-        t  = 0
-        self.upA  = 0.0
-        self.upV  = upV
-        self.upX  = 100.0
-        
-        self.T = [t]
-        self.V = [self.upV]
-        self.X = [self.upX]
-        self.K = [self.vK]
-        self.F = [0.0]
-        
-        while t < self.t1:
-            self.upA += self.thrust*self.K[-1] - 9.81
-            self.upV += self.upA*self.dt
-            self.upX += self.upV*self.dt
-            t += self.dt
-            self.T.append(t)
-            self.F.append(self.thrust*self.K[-1] * self.dt)
-            self.V.append(self.upV)
-            self.X.append(self.upX)
-            self.K.append(self.vK)
-        
-        print(("Start velocity: %f\n"
-               "K1 %f; L1 %f; K2 %f L2 %f\n"
-               "Fuel consumed: %f\n") 
-              % (upV, self.K1, self.L1, self.K2, self.L2, sum(self.F)))
-    #end def
-    
-    def plot(self):
-        plt.subplot(2, 1, 1)
-        plt.plot(self.T, self.V)
-        plt.xlabel("time (s)")
-        plt.ylabel("vertical speed (m/s)")
-        
-        plt.subplot(2, 1, 2)
-        plt.plot(self.T, self.K)
-        plt.xlabel("time (s)")
-        plt.ylabel("thrust coefficient")
-    #end def
-    
-    dt     = 0.005
-    thrust = 150.0
-    maxV   = 1.0
-    t1     = 5.0
-#end class
-
 class vec(object):
     def __init__(self, x=0, y=0, z=0):
         self.v = np.array([float(x), float(y), float(z)])
@@ -221,10 +147,12 @@ class engine(object):
 class PID(object):
     dt = 0.01
     
-    def __init__(self, kp, ki, kd):
+    def __init__(self, kp, ki, kd, min_a, max_a):
         self.kp = float(kp)
         self.ki = float(ki)
         self.kd = float(kd)
+        self.min = float(min_a)
+        self.max = float(max_a)
         
         self.value  = 0
         self.ierror = 0
@@ -232,10 +160,13 @@ class PID(object):
     #end def
         
     def update(self, err):
+        old_ierror = self.ierror
         self.ierror += err*self.dt
         act = self.kp*err + self.ki*self.ierror + self.kd*(err-self.perror)/self.dt
+        clamped = clamp(act, self.min, self.max)
+        if clamped != act: self.ierror = old_ierror
         self.perror = err
-        return act
+        return clamped
     #end def
     
     def sim(self, PV, SV, T):
@@ -244,14 +175,108 @@ class PID(object):
             act = self.update(sv-V[-1])
             if np.isinf(act) or np.isnan(act): 
                 act = sys.float_info.max
-            V.append(PV+act)
+            V.append(V[-1]+act)
         #plot
-        plt.subplot(2,1,1)
+        V = np.array(V); SV = np.array(SV)
+        plt.subplot(3,1,1)
         plt.plot(T, SV)
-        plt.subplot(2,1,2)
+        plt.subplot(3,1,2)
         plt.plot(T, V)
-#end clas
-     
+        plt.subplot(3,1,3)
+        plt.plot(T, V-SV)
+#end class
+
+class PID2(PID):
+    def update(self, err):
+        d = self.kd * (err-self.perror)/self.dt
+        self.ierror = self.ierror + self.ki * err * self.dt if abs(d) < 0.6*self.max else 0.9 * self.ierror
+        return clamp(self.kp*err + self.ierror + d, self.min, self.max)
+
+class VSF_sim(object):
+    dt     = 0.001
+    t1     = 5.0
+    
+    def __init__(self, K1, L1, K2, L2):
+        self.K1 = K1
+        self.L1 = L1
+        self.K2 = K2
+        self.L2 = L2
+        
+        self.upA  = 0.0
+        self.upV  = 0.0
+        self.upX  = 0.0
+        
+        self.T = []
+        self.X = []
+        self.V = []
+        self.K = []
+        self.F = []
+    #end def
+        
+    def vK1(self, E):
+        if self.upV < self.maxV:
+            return clamp01(E/2.0/(clampL(self.upA/self.K1+1.0, self.L1))**2)
+        else: 
+            return clamp01(E*self.upA/(clampL(-self.K2*E, self.L2))**2)
+        
+    def vK2(self, E): return self.pid.update(E)
+    
+    _vK = vK1
+        
+    @property
+    def vK(self):
+        E = self.maxV-self.upV
+        return self._vK(E)
+    
+    def run(self, upV, maxV=1.0, thrust=20.0, vK = None):
+        self.maxV = maxV
+        self.thrust = thrust
+        self.twr = thrust/9.81
+        self.pid = PID(0.09, 0.01, 0.1, 0, 1)
+        if vK is not None: self._vK = vK
+        
+        t  = 0
+        self.upA  = 0.0
+        self.upV  = upV
+        self.upX  = 100.0
+        
+        self.T = [t]
+        self.V = [self.upV]
+        self.X = [self.upX]
+        self.K = [self.vK]
+        self.F = [0.0]
+        
+        while t < self.t1:
+            self.upA += self.thrust*self.K[-1] - 9.81
+            self.upV += self.upA*self.dt
+            self.upX += self.upV*self.dt
+            t += self.dt
+            self.T.append(t)
+            self.F.append(self.thrust*self.K[-1] * self.dt)
+            self.V.append(self.upV)
+            self.X.append(self.upX)
+            self.K.append(self.vK)
+        
+#         print(("Start velocity: %f\n"
+#                "K1 %f; L1 %f; K2 %f L2 %f\n"
+#                "Fuel consumed: %f\n") 
+#               % (upV, self.K1, self.L1, self.K2, self.L2, sum(self.F)))
+    #end def
+    
+    def plot(self, r, c, n):
+        plt.subplot(r, c, n)
+        plt.plot(self.T, self.V, label=("V: twr=%.1f" % self.twr))
+        plt.xlabel("time (s)")
+        plt.ylabel("vertical speed (m/s)")
+        plt.legend()
+        
+#         plt.subplot(2, 1, 2)
+#         plt.plot(self.T, self.K, label=("vK: twr=%.1f" % self.twr))
+#         plt.xlabel("time (s)")
+#         plt.ylabel("thrust coefficient")
+#         plt.legend()
+    #end def
+#end class
 
 def sim_PID():
     np.random.seed(42)
@@ -267,15 +292,14 @@ def sim_PID():
     sSV = SV[-1]
     for _t in T[1:]:
         r = np.random.random()
-        if r > 0.98:
-            sSV = rSV(sSV, 50)
-            SV.append(sSV)
-        elif r > 0.3:
-            SV.append(rSV(sSV, 5))
-        else: SV.append(SV[-1])
+        if r < 0.98:
+            SV.append(SV[-1])
+            continue
+        sSV = rSV(sSV, 50)
+        SV.append(sSV)
     
-    pid1 = PID(0.1, 20.0, 0.0)
-    pid2 = PID(0.1, 15.0, 0.0)
+    pid1 = PID(0.8, 0.2, 0.001, -10, 10)
+    pid2 = PID2(0.8, 0.2, 0.001, -10, 10)
     
     pid1.sim(PV, SV, T)
     pid2.sim(PV, SV, T)
@@ -318,25 +342,6 @@ def sim_PIDf():
 #      
 #      ]
 
-def sim_VSpeed():
-    sim1 = sim(10.0, 1, 10, 10.0)
-    sim2 = sim(10.0, 1, 20, 10.0)
-    
-    start_v = 50
-    
-    sim1.run(start_v)
-    sim1.plot()
-    sim2.run(start_v)
-    sim2.plot()
-    plt.show()
-    if start_v == 0: sys.exit()
-    sim1.run(-start_v)
-    sim1.plot()
-    sim2.run(-start_v)
-    sim2.plot()
-    plt.show()
-    
-    
 Quadro_Manual = [
                     engine(vec(-0.8, 0.0, 0.0),  min_thrust=0.0, max_thrust=18.0, manual=True),
                     engine(vec(1.8, 0.0, 1.8),   min_thrust=0.0, max_thrust=40.0),# maneuver=True),
@@ -550,8 +555,27 @@ def linalg_Attitude():
         x, r, R, s = np.linalg.lstsq(a, d.v)
         print "demand: %s\nlimits: %s\nresids: %s" % (d, x, np.matrix(a).dot(x)-d.v)
         print ''
+
+
+def sim_VSpeed():
+    sim1 = VSF_sim(10.0, 1, 10, 10.0)
+    
+    start_v = 50
+    thrust = np.arange(12, 80, 10)
+    
+    def run_sim(c, n, vK=None):
+        for t in thrust:
+            sim1.run(start_v, maxV=1, thrust = t, vK=vK)
+            sim1.plot(2,c,n)
+            if start_v == 0: continue
+            sim1.run(-start_v, maxV=1, thrust = t, vK=vK)
+            sim1.plot(2,c,c+n)
+    
+    run_sim(2,1)
+    run_sim(2,2, sim1.vK2)
+    plt.show()
     
 #==================================================================#
     
 if __name__ == '__main__':
-    sim_Attitude()
+    sim_VSpeed()
