@@ -20,7 +20,8 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 * Sophisticated **parameter tuning**, both automatic and manual.
 * Built-in **altitude and hovering control**.
 * Built-in **autopilot to kill horizontal speed**.
-* Both the **Toolbar and** the stock **AppLauncher** are supported.
+* **Engine Modes**: Main, Maneuver, Manual.
+* Both the **Toolbar** and the stock **AppLauncher** are supported.
 * **In-game** configurable **key binding**.
 * **Career mode** integration.
 
@@ -28,7 +29,7 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 
 ###TCA availability and interface:
 
-TCA becomes available if two conditions are met: **the vessel has engines** (excluding RCS thrusters) and, *in career mode*, the "Throttle Controlled Avionics Subsystem" is purchased in the R&D bulding.
+TCA becomes available if two conditions are met: **the vessel has engines** (excluding RCS thrusters) and, *in career mode*, the "Throttle Controlled Avionics Subsystem" is purchased in the R&D building.
 **Note**, that TCA is a software, so you don't need any special part to be installed on a vessel: all vessels with engines are upgraded automatically with TCA.
 
 When TCA is available in the current vessel, its window may be summoned by clicking the button in Blizzy's Toolbar or, if it is not installed, the button in the stock AppLauncher.
@@ -36,9 +37,17 @@ When TCA is available in the current vessel, its window may be summoned by click
 
 ###For simple use:
 
-1. Turn TCA on (default 'y'),
-2. Turn SAS on (default 't'),
-3. Launch!
+0. Build a vessel with rocket engines and launch it.
+1. Turn TCA on (default 'y')
+2. Turn SAS on (default 't')
+3. Activate the engines and throttle them up!
+
+###Engine Modes:
+In editor or in flight (through the part menu) you may set any engine to work in one of the three modes: 
+
+1. **Main** Engine (default). TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all Main Engines should have 100% thrust in the absence of control input. These engines are also used to control vertical speed.
+2. **Maneuver** Engine. TCA tries to minimize the thrust of these engines. In a perfectly balanced ship these engines produce thrust only in response to control input
+3. **Manual** Control. TCA does not change the thrust of these engines, but includes them in calculations.
 
 ###Autotuning Parameters:
 
@@ -77,17 +86,8 @@ Enables an autopilot that tries to maneuver the craft so that the horizontal com
 
 * For safety reasons the Vertical and Horizontal speed controls are disabled in orbit, but not on suborbital trajectories, so be carefull.
 * If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
-* Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
-* Solid boosters have constant thrust and thus cannot be controlled by TCA.
-
-##Future Plans:
-
-* **Priority:**
-* Ideas:
-    * Autotuning for MechJeb2
-* Legacy:
-    * Automatically match speed with target
-    * Translations with non RCS-enabled engines
+* Thrust of jets and turbofan engines changes very slowly. Thus using them as attitude controllers is impractical. If you want to use them, switch them to Manual Control mode.
+* Solid boosters have constant thrust and thus cannot be controlled by TCA. But they are still accounted for, if present.
 
 ##Acknowledgments:
 

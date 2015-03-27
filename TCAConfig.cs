@@ -46,13 +46,13 @@ namespace ThrottleControlledAvionics
 @"Welcome to TCA instructions manual.
 
 For simple use:
-	1) Turn TCA on ('{0}'),
-	2) Turn SAS on ('t'),
-	3) Launch!
+	1) Turn TCA on ('{0}')
+	2) Turn SAS on ('t')
+	3) Activate the engines and throttle them up!
 
-Engine Roles:
-    * In editor or in flight through a part menu you may assign one of the three roles to any engine: 
-        1) Main Engine (default). TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all Main Engines should have 100% thrust in the absence of control input. These engines are also used to ontrol vertical speed.
+Engine Modes:
+    * In editor or in flight (through the part menu) you may set any engine to work in one of the three modes: 
+        1) Main Engine (default). TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all Main Engines should have 100% thrust in the absence of control input. These engines are also used to control vertical speed.
         2) Maneuver Engine. TCA tries to minimize the thrust of these engines. In a perfectly balanced ship these engines produce thrust only in response to control input
         3) Manual Control. TCA does not change the thrust of these engines, but includes them in calculations.
 

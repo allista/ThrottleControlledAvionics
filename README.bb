@@ -18,6 +18,7 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
 [*] Sophisticated [B]parameter tuning[/B], both automatic and manual.
 [*] Built-in [B]altitude and hovering control[/B].
 [*] Built-in [B]autopilot to kill horizontal speed[/B].
+[*] [b]Engine Modes[/b]: Main, Maneuver, Manual.
 [*] Both the [B]Toolbar[/B] and the stock [B]AppLauncher[/B] are supported.
 [*] [B]In-game[/b] configurable [b]key binding[/B].
 [*] [B]Career mode[/B] integration.[/list]
@@ -42,9 +43,16 @@ When TCA is available in the current vessel, its window may be summoned by click
 
 [B]For simple use:[/B]
 [list=1]
-[*] Turn TCA on (default 'y'),
-[*] Turn SAS on (default 't'),
-[*] Launch![/list]
+[*] Build a vessel with rocket engines and launch it.
+[*] Turn TCA on (default 'y')
+[*] Turn SAS on (default 't')
+[*] Activate the engines and throttle them up![/list]
+[b]Engine Modes:[/b]
+In editor or in flight (through the part menu) you may set any engine to work in one of the three modes:
+[list=1]
+[*] [b]Main[/b] Engine (default). TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all Main Engines should have 100% thrust in the absence of control input. These engines are also used to control vertical speed.
+[*] [b]Maneuver[/b] Engine. TCA tries to minimize the thrust of these engines. In a perfectly balanced ship these engines produce thrust only in response to control input
+[*] [b]Manual[/b] Control. TCA does not change the thrust of these engines, but includes them in calculations.[/list]
 [B]Autotuning Parameters:[/B]
 If this option is enabled, TCA calculates Steering Gains and PI coefficients as functions of maximum possible angular acceleration along each of the principal axes of a craft. Note, that calculations are based on the predefined response curves tuned for the stock SAS.
 If you have already tuned these parameters for the ship, save its configuration before enabling, as autotuning will overwrite previous parameters.
@@ -73,16 +81,8 @@ Enables an autopilot that tries to maneuver the craft so that the horizontal com
 [list]
 [*] For safety reasons the Vertical and Horizontal speed controls are disabled in orbit, but not on suborbital trajectories, so be carefull.
 [*] If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
-[*] Thrust of jets and turbofan engines changes very slowly. This makes using them as attitude controllers impractical. Don't use them with TCA. 
-[*] Solid boosters have constant thrust and thus cannot be controlled by TCA.[/list]
-[B][SIZE=4]Future Plans:[/SIZE][/B]
-[list]
-[*] [b]Priority:[/b] nothing so far.
-[*] Ideas:
-[list][*] Autotuning for MechJeb2[/list]
-[*] Legacy:
-[list][*] Automatically match speed with target
-      [*] Translations with non RCS-enabled engines[/list][/list]
+[*] Thrust of jets and turbofan engines changes very slowly. Thus using them as attitude controllers is impractical. If you want to use them, switch them to Manual Control mode. 
+[*] Solid boosters have constant thrust and thus cannot be controlled by TCA. But they are still accounted for, if present.[/list]
 [B][SIZE=4]Acknowledgments:[/SIZE][/B]
 First of all, many thanks to [B]qfeys[/B] and [B]Zenka[/B] for creating the original concept and implementation. Without them TCA would not exist.
 And here are the mods whose code and ideas were used in one way or another:

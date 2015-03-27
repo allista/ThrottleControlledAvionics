@@ -2,7 +2,15 @@
     
 _**BUT** do not delete the TCA.conf and config.xml file to preserve your settings_
 
-* **v2.1.0**
+* v2.2.0
+    * Added **engine modes**: Main, Maneuver, Manual.
+    * Improved balancing of engines that have velocity curves.
+    * Torque from **SRBs** and other throttle-locked engines is now **accounted for**.
+    * Tuning parameters are now hidden when Autotuning is enabled.
+    * Many **performance improvements**.
+    * Fixed the conflict with FRMS window.
+
+* v2.1.0
     * Added an **autopilot to kill horizontal speed**. Useful for landing.
     * Added **per-game configuration**; vessel configs are not lost on game switch anymore.
     * Fixed the regression in optimization algorithm and **improved balancing of asymmetric designs**.
