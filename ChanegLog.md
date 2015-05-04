@@ -2,6 +2,10 @@
     
 _**BUT** do not delete the TCA.conf and config.xml file to preserve your settings_
 
+* **v2.2.1 - compatible with KSP-1.0.2**
+    * Fixed compatibility issues with the new KSP-API
+    * Added UseStockAppLauncher flag into TCA.glob to force the use of AppLauncher even if the Toolbar is installed.
+
 * v2.2.0
     * Added **engine modes**: Main, Maneuver, Manual.
     * Improved balancing of engines that have velocity curves.
