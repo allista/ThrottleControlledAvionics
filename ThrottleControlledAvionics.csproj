@@ -65,6 +65,7 @@
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
       <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
