@@ -136,12 +136,9 @@ namespace ThrottleControlledAvionics
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
 				{	
-					EngineWrapper engine = null;
-					if(module is ModuleEngines)
-						engine = new EngineWrapper(module as ModuleEngines);
-					else if(module is ModuleEnginesFX)
-						engine = new EngineWrapper(module as ModuleEnginesFX);
-					if(engine != null) Engines.Add(engine);
+					var engine = module as ModuleEngines;
+					if(engine == null) continue;
+					Engines.Add(new EngineWrapper(engine));
 				}
 		}
 		#endregion
@@ -185,7 +182,7 @@ namespace ThrottleControlledAvionics
 			if(!Available) return;
 			Styles.Init();
 			if(Controllable) GUI.DrawGUI(); 
-			GUI.UpdateToolbarIcon();
+			TCAToolbarManager.UpdateToolbarButton();
 		}
 
 		public void Update()

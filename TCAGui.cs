@@ -29,47 +29,17 @@ namespace ThrottleControlledAvionics
 		public const int helpWidth = 500, helpHeight = 500;
 		static Rect ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
 		static Rect HelpPos     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
-		//icons
-		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
-		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
-		const string ICON_NC  = "ThrottleControlledAvionics/Icons/icon_button_noCharge";
-		//buttons
-		IButton TCAToolbarButton;
-		ApplicationLauncherButton TCAButton;
-		Texture textureOn;
-		Texture textureOff;
-		Texture textureNoCharge;
 		//keybindings
 		public static KeyCode TCA_Key = KeyCode.Y;
 		bool selecting_key;
 		#endregion
 
 		//constructor
-		public TCAGui(ThrottleControlledAvionics _TCA)
+		public TCAGui(ThrottleControlledAvionics tca)
 		{
-			TCA = _TCA;
-			//read in GUI configuration
+			TCA = tca;
+			TCAToolbarManager.AttachTCA(TCA);
 			LoadConfig();
-			//setup toolbar/applauncher button
-			if(ToolbarManager.ToolbarAvailable)
-			{
-				Utils.Log("Found Blizzy's toolbar. Adding TCA button.");//debug
-				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
-				TCAToolbarButton.TexturePath = ICON_OFF;
-				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
-				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
-				TCAToolbarButton.Visible     = true;
-				TCAToolbarButton.OnClick    += onToolbarToggle;
-			}
-			else 
-			{
-				Utils.Log("Blizzy's toolbar does not appear to be installed. Using stock AppLauncher instead.");//debug
-				textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);
-				textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);
-				textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);
-				GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
-			}
-			//connect callbacks
 			GameEvents.onHideUI.Add(onHideUI);
 			GameEvents.onShowUI.Add(onShowUI);
 			updateConfigs();
@@ -96,54 +66,11 @@ namespace ThrottleControlledAvionics
 
 		public void OnDestroy() 
 		{ 
-			GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIAppLauncherReady);
-			if(TCAButton != null)
-				ApplicationLauncher.Instance.RemoveModApplication(TCAButton);
-			if(TCAToolbarButton != null)
-				TCAToolbarButton.Destroy();
+			TCAToolbarManager.AttachTCA(null);
 			GameEvents.onHideUI.Remove(onHideUI);
 			GameEvents.onShowUI.Remove(onShowUI);
 			SaveConfig();
 		}
-
-		#region Icon
-		public void UpdateToolbarIcon() 
-		{
-			if(TCAToolbarButton != null)
-			{
-				if(TCA.IsStateSet(TCAState.Enabled))
-					TCAToolbarButton.TexturePath = TCA.State != TCAState.NoEC? ICON_ON : ICON_NC;
-				else TCAToolbarButton.TexturePath = ICON_OFF;
-			}
-			if(TCAButton != null) 
-			{
-				if(TCA.IsStateSet(TCAState.Enabled))
-					TCAButton.SetTexture(TCA.State != TCAState.NoEC? textureOn : textureNoCharge);
-				else TCAButton.SetTexture(textureOff);
-			}
-		}
-
-		void OnGUIAppLauncherReady()
-		{
-			if(ApplicationLauncher.Ready)
-			{
-				Utils.Log("Adding an AppLauncher button for TCA");//debug
-				TCAButton = ApplicationLauncher.Instance.AddModApplication(
-					onAppLaunchToggleOn,
-					onAppLaunchToggleOff,
-					DummyVoid, DummyVoid, DummyVoid, DummyVoid,
-					ApplicationLauncher.AppScenes.FLIGHT,
-					textureOff);
-				if(TCA.CFG.GUIVisible) TCAButton.SetTrue();
-				else TCAButton.SetFalse();
-			}
-		}
-
-		void onToolbarToggle(ClickEvent e) { if(TCA.Controllable) TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible; }
-		void onAppLaunchToggleOn() { if(TCA.Controllable) TCA.CFG.GUIVisible = true; }
-		void onAppLaunchToggleOff() { if(TCA.Controllable) TCA.CFG.GUIVisible = false; }
-		void DummyVoid() {}
-		#endregion
 
 		#region Configs Selector
 		void updateConfigs()
@@ -207,7 +134,7 @@ namespace ThrottleControlledAvionics
 			//autotune switch
 			TCA.CFG.AutoTune = GUILayout.Toggle(TCA.CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(true));
 			#if DEBUG
-			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) TCAConfiguration.ReloadGlobals();
+			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) TCAConfiguration.LoadGlobals();
 			#endif
 			StatusString();
 			GUILayout.EndHorizontal();
@@ -354,7 +281,7 @@ namespace ThrottleControlledAvionics
 				{
 					if(!e.Valid) continue;
 					GUILayout.BeginHorizontal();
-					GUILayout.Label(e.getName() + "\n" +
+					GUILayout.Label(e.name + "\n" +
 					                string.Format(
 						                "Torque: {0}\n" +
 						                "Attitude Modifier: {1:P1}\n" +

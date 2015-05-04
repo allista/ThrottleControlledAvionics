@@ -40,6 +40,7 @@ namespace ThrottleControlledAvionics
 		//other
 		[Persistent] public bool IntegrateIntoCareer  = true;
 		[Persistent] public bool RoleSymmetryInFlight = true;
+		[Persistent] public bool UseStockAppLauncher  = false;
 		//help text
 		public string Instructions = string.Empty;
 		const string instructions = 
@@ -280,6 +281,13 @@ Notes:
 			else Configs.Clear();
 		}
 
+		public static void LoadGlobals()
+		{
+			var gnode = loadNode(FilePath(GLOBALSNAME));
+			if(gnode != null) LoadGlobals(gnode);
+			else Globals.Init();
+		}
+
 		public static void LoadGlobals(ConfigNode node) 
 		{
 			Globals.Load(node);
@@ -363,15 +371,6 @@ Notes:
 			}
 		}
 		#endregion
-
-		#if DEBUG
-		public static void ReloadGlobals()
-		{
-			var gnode = loadNode(FilePath(GLOBALSNAME));
-			if(gnode != null) LoadGlobals(gnode);
-			else Globals.Init();
-		}
-		#endif
 	}
 }
 

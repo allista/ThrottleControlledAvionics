@@ -5,16 +5,14 @@
 //------------------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
 	public class EngineWrapper
 	{
-		readonly ModuleEngines engine;
-		readonly ModuleEnginesFX engineFX;
-		readonly TCAEngineInfo einfo;
+		public readonly ModuleEngines engine;
+		public readonly TCAEngineInfo einfo;
 
 		public static readonly PI_Dummy ThrustPI = new PI_Dummy();
 		PIf_Controller thrustController = new PIf_Controller();
@@ -23,31 +21,17 @@ namespace ThrottleControlledAvionics
 		public Vector3 thrustDirection  = Vector3.zero;
 		public float   limit, best_limit, limit_tmp;
 		public float   currentTorque_m;
-		public bool    isModuleEngineFX;
 		public bool    throttleLocked;
 		public float   throttle;
 		public float   thrustMod;
 		public TCARole Role;
 		public CenterOfThrustQuery thrustInfo;
 
-		protected EngineWrapper(PartModule module)
-		{ 
-			thrustController.setMaster(ThrustPI);
-			einfo = module.part.GetModule<TCAEngineInfo>();
-		}
-
 		public EngineWrapper(ModuleEngines engine) 
-			: this((PartModule)engine)
 		{
-			isModuleEngineFX = false;
+			thrustController.setMaster(ThrustPI);
+			einfo = engine.part.GetModule<TCAEngineInfo>();
 			this.engine = engine;
-		}
-
-		public EngineWrapper(ModuleEnginesFX engineFX) 
-			: this((PartModule)engineFX)
-		{
-			isModuleEngineFX = true;
-			this.engineFX = engineFX;
 		}
 
 		#region methods
@@ -71,17 +55,16 @@ namespace ThrottleControlledAvionics
 		{
 			//update thrust info
 			thrustInfo = new CenterOfThrustQuery();
-			if (isModuleEngineFX) engineFX.OnCenterOfThrustQuery(thrustInfo);
-			else engine.OnCenterOfThrustQuery(thrustInfo);
+			engine.OnCenterOfThrustQuery(thrustInfo);
 			thrustInfo.dir.Normalize();
 			//compute velocity thrust modifier
-			if(isModuleEngineFX? engineFX.useVelocityCurve : engine.useVelocityCurve)
+			if(engine.useVelCurve)
 			{
-				var vc = isModuleEngineFX? engineFX.velocityCurve : engine.velocityCurve;
+				var vc = engine.velCurve;
 				thrustMod = vc.Evaluate((float)FlightGlobals.ActiveVessel.srf_velocity.magnitude);
 			} else thrustMod = 1f;
 			//update Role
-			throttleLocked = isModuleEngineFX ? engineFX.throttleLocked : engine.throttleLocked;
+			throttleLocked =  engine.throttleLocked;
 			if(einfo != null)
 			{
 				if(throttleLocked && einfo.Role != TCARole.MANUAL) 
@@ -103,101 +86,52 @@ namespace ThrottleControlledAvionics
 		/// If the wrapper is still points to the valid ModuleEngines(FX)
 		/// </summary>
 		public bool Valid 
-		{ 
-			get 
-			{ 
-				return isModuleEngineFX? 
-					engineFX.part != null && engineFX.vessel != null :
-					engine.part != null && engine.vessel != null;
-			}
-		}
+		{ get { return engine.part != null && engine.vessel != null; } }
 		#endregion
 
 		#region Accessors
 		public Vessel vessel
-		{ get { return isModuleEngineFX ? engineFX.vessel : engine.vessel; } }
+		{ get { return engine.vessel; } }
 
 		public Part part
-		{ get { return isModuleEngineFX ? engineFX.part : engine.part; } }
+		{ get { return engine.part; } }
 
 		public float nominalCurrentThrust(float throttle)
 		{ return thrustMod * (throttleLocked ? maxThrust : Mathf.Lerp(minThrust, maxThrust, throttle)); }
 
-		public float requestedThrust
-		{ get { return isModuleEngineFX ? engineFX.requestedThrust : engine.requestedThrust; } }
-
 		public float finalThrust
-		{ get { return isModuleEngineFX ? engineFX.finalThrust : engine.finalThrust; } }
-
-		public List<Propellant> propellants
-		{ get { return isModuleEngineFX ? engineFX.propellants : engine.propellants; } }
-
-		public BaseEventList Events
-		{ get { return isModuleEngineFX ? engineFX.Events : engine.Events; } }
-
-		public void BurstFlameoutGroups()
-		{
-			if(!isModuleEngineFX) engine.BurstFlameoutGroups();
-			else engineFX.part.Effects.Event(engineFX.flameoutEffectName);
-		}
-
-		public bool allowShutdown
-		{ get { return isModuleEngineFX ? engineFX.allowShutdown : engine.allowShutdown; } }
-
-		public bool useEngineResponseTime
-		{ get { return isModuleEngineFX ? engineFX.useEngineResponseTime : engine.useEngineResponseTime; } }
-
-		public float engineAccelerationSpeed
-		{ get { return isModuleEngineFX ? engineFX.engineAccelerationSpeed : engine.engineAccelerationSpeed; } }
-
-		public float engineDecelerationSpeed
-		{ get { return isModuleEngineFX ? engineFX.engineDecelerationSpeed : engine.engineDecelerationSpeed; } }
+		{ get { return engine.finalThrust; } }
 
 		public float maxThrust
-		{ get { return isModuleEngineFX ? engineFX.maxThrust : engine.maxThrust; } }
+		{ get { return engine.maxThrust; } }
 
 		public float minThrust
-		{ get { return isModuleEngineFX ? engineFX.minThrust : engine.minThrust; } }
+		{ get { return engine.minThrust; } }
 
 		public float thrustPercentage
 		{
-			get { return isModuleEngineFX ? engineFX.thrustPercentage : engine.thrustPercentage; }
+			get { return engine.thrustPercentage; }
 			set
 			{
 				thrustController.Update(value-thrustPercentage);
-				if(!isModuleEngineFX) engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController, 0, 100);
-				else engineFX.thrustPercentage = Mathf.Clamp(engineFX.thrustPercentage+thrustController, 0, 100);
+				engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController, 0, 100);
 			}
 		}
 
-		public void forceThrustPercentage(float value) 
+		public void forceThrustPercentage(float value) { engine.thrustPercentage = value; }
+
+		public bool isEnabled { get { return engine.EngineIgnited; } }
+
+		public string name
 		{
-			if(!isModuleEngineFX) engine.thrustPercentage = value;
-			else engineFX.thrustPercentage = value;
-		}
-
-		public bool isEnabled
-		{ get { return isModuleEngineFX ? engineFX.EngineIgnited : engine.EngineIgnited; } }
-
-		public String name
-		{ get { return isModuleEngineFX ? engineFX.part.name : engine.part.name; } }
-
-		public String getName()
-		{
-			String r = "";
-			if(!isModuleEngineFX)
+			get 
 			{
+				var r = "";
 				r += engine.part.name;
 				if(engine.engineID.Length > 0)
 					r += " (" + engine.engineID + ")";
+				return r;
 			}
-			else
-			{
-				r += engineFX.part.name;
-				if(engineFX.engineID.Length > 0)
-					r += " (" + engineFX.engineID + ")";
-			}
-			return r;
 		}
 		#endregion
 	}
