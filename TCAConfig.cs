@@ -47,9 +47,9 @@ namespace ThrottleControlledAvionics
 @"Welcome to TCA instructions manual.
 
 For simple use:
-	1) Turn TCA on ('{0}')
-	2) Turn SAS on ('t')
-	3) Activate the engines and throttle them up!
+    1) Turn TCA on ('{0}')
+    2) Turn SAS on ('t')
+    3) Activate the engines and throttle them up!
 
 Engine Modes:
     * In editor or in flight (through the part menu) you may set any engine to work in one of the three modes: 
@@ -71,10 +71,10 @@ Engines PI-controller tuning:
     * I (integral) parameter controls the smoothing. It prevents rapid changes in thrust. If engines's trust jitters, increase it.
 
 Vertical Speed Control, hovering and horizontal flight:
-	* If you're using TCA to control VTOL or during vertical landing of a rocket, you may enable the Vertical Speed Control System.
-	* The desired vertical speed may be set with the scroll bar in the (configurable) interval from -{1:F1}m/s to {1:F1}m/s (not including). Then the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. This speed, however, is never achieved, but approached asymptotically, so you need to set it a little higher (0.1-0.5m/s) than desired.
-	* To completely disable the VSC, just set it the desired speed to its maximum value ({1}m/s).
-	* VSC is also very useful to maintain stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the VSC the thrust will be adjusted, and the VTOL will move more or less in a plane.
+    * If you're using TCA to control VTOL or during vertical landing of a rocket, you may enable the Vertical Speed Control System.
+    * The desired vertical speed may be set with the scroll bar in the (configurable) interval from -{1:F1}m/s to {1:F1}m/s (not including). Then the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. This speed, however, is never achieved, but approached asymptotically, so you need to set it a little higher (0.1-0.5m/s) than desired.
+    * To completely disable the VSC, just set it the desired speed to its maximum value ({1}m/s).
+    * VSC is also very useful to maintain stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the VSC the thrust will be adjusted, and the VTOL will move more or less in a plane.
 
 Set vertical speed with throttle controls:
     * When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
