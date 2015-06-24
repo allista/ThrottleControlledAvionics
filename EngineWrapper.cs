@@ -57,12 +57,16 @@ namespace ThrottleControlledAvionics
 			thrustInfo = new CenterOfThrustQuery();
 			engine.OnCenterOfThrustQuery(thrustInfo);
 			thrustInfo.dir.Normalize();
-			//compute velocity thrust modifier
-			if(engine.useVelCurve)
+			//compute velocity and atmosphere thrust modifier
+			thrustMod = 1f;
+			if(engine.atmChangeFlow)
 			{
-				var vc = engine.velCurve;
-				thrustMod = vc.Evaluate((float)FlightGlobals.ActiveVessel.srf_velocity.magnitude);
-			} else thrustMod = 1f;
+				thrustMod = (float)(part.atmDensity / 1.225);
+				if(engine.useAtmCurve)
+					thrustMod = engine.atmCurve.Evaluate(thrustMod);
+			}
+			if(engine.useVelCurve)
+				thrustMod *= engine.velCurve.Evaluate((float)part.machNumber);
 			//update Role
 			throttleLocked =  engine.throttleLocked;
 			if(einfo != null)
