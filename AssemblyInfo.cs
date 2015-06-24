@@ -32,8 +32,8 @@ namespace ThrottleControlledAvionics
 	{
 		public static readonly string  Name          = "ThrottleControlledAvionics";
 		public static readonly Version HangarVersion = Assembly.GetCallingAssembly().GetName().Version;
-		public static readonly Version MinKSPVersion = new Version(1,0,2);
-		public static readonly Version MaxKSPVersion = new Version(1,0,2);
+		public static readonly Version MinKSPVersion = new Version(1,0,4);
+		public static readonly Version MaxKSPVersion = new Version(1,0,4);
 		public static readonly string  VersionURL    = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
 		public static readonly string  UpgradeURL    = "https://kerbalstuff.com/mod/510/Throttle%20Controlled%20Avionics%20-%20Continued";
 		public static readonly string  ChangeLogURL  = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/ChanegLog.md";
