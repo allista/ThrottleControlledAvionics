@@ -43,10 +43,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System">
-      <HintPath>..\..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\System.dll</HintPath>
+      <HintPath>..\..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\System.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>..\..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

@@ -32,39 +32,39 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\System.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\System.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System.Core">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\System.Core.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\System.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Mono.Cecil">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\Mono.Cecil.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\Mono.Cecil.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Mono.Security">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\Mono.Security.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\Mono.Security.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System.Xml">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\System.Xml.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\System.Xml.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TDx.TDxInput">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\TDx.TDxInput.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\TDx.TDxInput.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>..\Hangar\KSP_test_1.0.2\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+      <HintPath>..\Hangar\KSP_test_1.0.4\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
