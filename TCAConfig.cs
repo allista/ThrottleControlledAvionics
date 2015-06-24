@@ -16,6 +16,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float MaxCutoff                = 10f;   //max. positive vertical speed m/s (configuration limit)
 		[Persistent] public float MinVSF                   = 0.05f; //minimum vertical speed factor; so as not to lose control during a rapid descent
 		[Persistent] public float VSFCorrectionMultiplier  = 1.2f;  //multiplier for the vertical speed factor correction; 1.2 means +20% of thrust above the minimal value sufficient for zero balance
+		[Persistent] public float CutoffAdjustFactor       = 1.2f;  //factor for the VerticalCutoff adjustment
 		//engine balancing parameters
 		[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
 		[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this

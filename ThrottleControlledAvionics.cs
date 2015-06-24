@@ -429,7 +429,10 @@ namespace ThrottleControlledAvionics
 			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
 			var upA = (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime;
-			var err = CFG.VerticalCutoff-upV;
+			var VSP = CFG.VerticalCutoff;
+			if(CFG.VerticalCutoff > upV)
+				VSP = CFG.VerticalCutoff+Mathf.Pow(CFG.VerticalCutoff-upV, TCAConfiguration.Globals.CutoffAdjustFactor);
+			var err = VSP-upV;
 			VerticalSpeed = upV;
 			var K = upV < CFG.VerticalCutoff?
 				Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
