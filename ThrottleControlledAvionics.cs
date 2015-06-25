@@ -37,7 +37,7 @@ namespace ThrottleControlledAvionics
 		Vector3 steering; //previous steering vector
 		Vector6 torque;
 		float   throttle;
-		bool no_manual;
+		bool    no_manual;
 		Matrix3x3f inertiaTensor;
 		Vector3 MoI = Vector3.one;
 		Vector3 angularA = Vector3.zero;
@@ -233,7 +233,7 @@ namespace ThrottleControlledAvionics
 				steering.Scale(CFG.SteeringModifier);
 			}
 			//tune engines' limits
-			VerticalSpeedFactor = getVerticalSpeedFactor();
+			VerticalSpeedFactor = getVerticalSpeedFactor(active_engines);
 			optimizeEngines(active_engines);
 			//set thrust limiters of engines taking vertical speed factor into account
 			for(int i = 0; i < active_engines.Count; i++)
@@ -421,7 +421,7 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
-		float getVerticalSpeedFactor()
+		float getVerticalSpeedFactor(IList<EngineWrapper> engines)
 		{
 			if(CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff ||
 			   !vessel.OnPlanet()) return 1f;
@@ -429,14 +429,19 @@ namespace ThrottleControlledAvionics
 			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
 			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
 			var upA = (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime;
+			var down_thrust = Vector3.zero;
+			for(int i = 0; i < engines.Count; i++)
+			{
+				var e = engines[i];
+				if(e.thrustInfo != null)
+					down_thrust += Vector3.Project(e.maxThrust*e.thrustMod*e.best_limit*e.thrustInfo.dir, up);
+			}
 			var VSP = CFG.VerticalCutoff;
-			if(CFG.VerticalCutoff > upV)
-				VSP = CFG.VerticalCutoff+Mathf.Pow(CFG.VerticalCutoff-upV, TCAConfiguration.Globals.CutoffAdjustFactor);
+			if(!down_thrust.IsZero())
+				VSP = CFG.VerticalCutoff+TCAConfiguration.Globals.CutoffAdjustFactor/(down_thrust.magnitude/9.81f/vessel.GetTotalMass());
 			var err = VSP-upV;
 			VerticalSpeed = upV;
-			var K = upV < CFG.VerticalCutoff?
-				Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)) :
-				Mathf.Clamp01(err*upA/Mathf.Pow(Utils.ClampL(-err*TCAConfiguration.Globals.K2, TCAConfiguration.Globals.L2), 2f));
+			var K = Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f));
 			if(upA < 0 && upV < CFG.VerticalCutoff && K >= 1)
 				State |= TCAState.LoosingAltitude;
 			return vessel.LandedOrSplashed? K : Utils.ClampL(K, TCAConfiguration.Globals.MinVSF);

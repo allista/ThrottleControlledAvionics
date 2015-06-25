@@ -11,7 +11,7 @@ L2 = 10
 MinVSF = 0.05
 MaxCutoff = 10
 VSFCorrectionMultiplier = 1.5
-CutoffAdjustFactor  = 0.3
+CutoffAdjustFactor  = 2.1
 
 //Thrust optimisation
 MaxIterations = 50

@@ -214,21 +214,26 @@ class VSF_sim(object):
         self.V = []
         self.K = []
         self.F = []
+        
+        self.M = 4.0
     #end def
         
     def vK1(self, E):
-        if self.upV < self.maxV:
+#         if self.upV <= self.maxV:
             return clamp01(E/2.0/(clampL(self.upA/self.K1+1.0, self.L1))**2)
-        else: 
-            return clamp01(E*self.upA/(clampL(-self.K2*E, self.L2))**2)
+#         else: 
+#             return clamp01(E*self.upA/(clampL(-self.K2*E, self.L2))**2)
         
     def vK2(self, E): 
-        if self.maxV > self.upV:
-            self.VSP = self.maxV+(self.maxV-self.upV)**0.5
-        else: self.VSP = self.maxV
+#         if self.maxV > self.upV:
+#         self.VSP = self.maxV+(self.maxV-self.upV)*(1-self.dt/0.04)
+        
+        self.VSP = self.maxV+2.0*(1/self.twr)**1
+#         else: self.VSP = self.maxV
+#         print self.VSP
         return self.vK1(E)
             
-        #return self.pid.update(E)
+#         return self.pid.update(E)
     
     _vK = vK1
         
@@ -237,8 +242,8 @@ class VSF_sim(object):
     
     def run(self, upV, maxV=1.0, thrust=20.0, vK = None):
         self.thrust = thrust
-        self.twr = thrust/9.81
-        self.pid = PID(0.09, 0.01, 0.1, 0, 1)
+        self.twr = thrust/9.81/self.M
+        self.pid = PID(0.1, 0.01, 0.051, 0, 1)
         if vK is not None: self._vK = vK
         
         t  = 0
@@ -255,7 +260,7 @@ class VSF_sim(object):
         self.F = [0.0]
         
         while t < self.t1:
-            self.upA += self.thrust*self.K[-1] - 9.81
+            self.upA += (self.thrust*self.K[-1] - self.M*9.81)/self.M
             self.upV += self.upA*self.dt
             self.upX += self.upV*self.dt
             self.E    = self.VSP-self.upV
@@ -569,8 +574,8 @@ def linalg_Attitude():
 def sim_VSpeed():
     sim1 = VSF_sim(10.0, 1, 10, 10.0)
     
-    start_v = 50
-    thrust = np.arange(12, 100, 10)
+    start_v = 2
+    thrust = np.arange(55, 500, 50)
     
     def run_sim(c, n, vK=None):
         for t in thrust:
