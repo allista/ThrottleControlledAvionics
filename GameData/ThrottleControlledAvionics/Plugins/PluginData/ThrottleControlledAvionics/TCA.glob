@@ -11,6 +11,7 @@ L2 = 10
 MinVSF = 0.05
 MaxCutoff = 10
 VSFCorrectionMultiplier = 1.5
+CutoffAdjustFactor = 2
 
 //Thrust optimisation
 MaxIterations = 50
@@ -42,6 +43,8 @@ AngularMomentumFactor = 0.002
 AccelerationFactor    = 6
 MinHvThreshold        = 10
 MoIFactor             = 0.01
+TWRf                  = 0.8
+upF                   = 1
 
 //Steering Gain curve
 SteeringCurve 

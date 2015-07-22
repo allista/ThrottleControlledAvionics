@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 
 		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
 		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
-		public static float ClampH(float x, float high) { return x < high ? high : x;  }
+		public static float ClampH(float x, float high) { return x > high ? high : x;  }
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
 
 		#region Vector3

@@ -24,23 +24,31 @@ namespace ThrottleControlledAvionics
 		public bool    throttleLocked;
 		public float   throttle;
 		public float   thrustMod;
+		public float   VSF; //vertical speed factor
+		public bool    isVSC; //vertical speed controller
 		public TCARole Role;
 		public CenterOfThrustQuery thrustInfo;
+
+		readonly float zeroISP;
 
 		public EngineWrapper(ModuleEngines engine) 
 		{
 			thrustController.setMaster(ThrustPI);
 			einfo = engine.part.GetModule<TCAEngineInfo>();
+			zeroISP = engine.atmosphereCurve.Evaluate(0f);
 			this.engine = engine;
 		}
 
 		#region methods
 		public void InitLimits()
 		{
+			isVSC = false;
 			switch(Role)
 			{
 			case TCARole.MAIN:
+			case TCARole.BALANCE:
 				limit = best_limit = 1f;
+				isVSC = true;
 				break;
 			case TCARole.MANEUVER:
 				limit = best_limit = 0f;
@@ -58,7 +66,7 @@ namespace ThrottleControlledAvionics
 			engine.OnCenterOfThrustQuery(thrustInfo);
 			thrustInfo.dir.Normalize();
 			//compute velocity and atmosphere thrust modifier
-			thrustMod = 1f;
+			thrustMod = engine.atmosphereCurve.Evaluate((float)(engine.vessel.staticPressurekPa * PhysicsGlobals.KpaToAtmospheres))/zeroISP;
 			if(engine.atmChangeFlow)
 			{
 				thrustMod = (float)(part.atmDensity / 1.225);

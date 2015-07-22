@@ -193,7 +193,7 @@ class PID2(PID):
         return clamp(self.kp*err + self.ierror + d, self.min, self.max)
 
 class VSF_sim(object):
-    dt     = 0.001
+    dt     = 0.01
     t1     = 5.0
     
     def __init__(self, K1, L1, K2, L2):
@@ -202,40 +202,53 @@ class VSF_sim(object):
         self.K2 = K2
         self.L2 = L2
         
+        self.maxV = 0.0
+        self.VSP  = 0.0
         self.upA  = 0.0
         self.upV  = 0.0
         self.upX  = 0.0
+        self.E    = 0.0
         
         self.T = []
         self.X = []
         self.V = []
         self.K = []
         self.F = []
+        
+        self.M = 4.0
     #end def
         
     def vK1(self, E):
-        if self.upV < self.maxV:
+#         if self.upV <= self.maxV:
             return clamp01(E/2.0/(clampL(self.upA/self.K1+1.0, self.L1))**2)
-        else: 
-            return clamp01(E*self.upA/(clampL(-self.K2*E, self.L2))**2)
+#         else: 
+#             return clamp01(E*self.upA/(clampL(-self.K2*E, self.L2))**2)
         
-    def vK2(self, E): return self.pid.update(E)
+    def vK2(self, E): 
+#         if self.maxV > self.upV:
+#         self.VSP = self.maxV+(self.maxV-self.upV)*(1-self.dt/0.04)
+        
+        self.VSP = self.maxV+2.0*(1/self.twr)**1
+#         else: self.VSP = self.maxV
+#         print self.VSP
+        return self.vK1(E)
+            
+#         return self.pid.update(E)
     
     _vK = vK1
         
     @property
-    def vK(self):
-        E = self.maxV-self.upV
-        return self._vK(E)
+    def vK(self): return self._vK(self.E)
     
     def run(self, upV, maxV=1.0, thrust=20.0, vK = None):
-        self.maxV = maxV
         self.thrust = thrust
-        self.twr = thrust/9.81
-        self.pid = PID(0.09, 0.01, 0.1, 0, 1)
+        self.twr = thrust/9.81/self.M
+        self.pid = PID(0.1, 0.01, 0.051, 0, 1)
         if vK is not None: self._vK = vK
         
         t  = 0
+        self.maxV = maxV
+        self.VSP  = maxV
         self.upA  = 0.0
         self.upV  = upV
         self.upX  = 100.0
@@ -247,9 +260,10 @@ class VSF_sim(object):
         self.F = [0.0]
         
         while t < self.t1:
-            self.upA += self.thrust*self.K[-1] - 9.81
+            self.upA += (self.thrust*self.K[-1] - self.M*9.81)/self.M
             self.upV += self.upA*self.dt
             self.upX += self.upV*self.dt
+            self.E    = self.VSP-self.upV
             t += self.dt
             self.T.append(t)
             self.F.append(self.thrust*self.K[-1] * self.dt)
@@ -504,7 +518,7 @@ def sim_Attitude():
 #     test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.1, eps=0.01, maxI=50)
 #     test_craft(Hover_Test, Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand, vK=0.3, eps=0.1, maxI=50)
     
-    test_craft(Quadro_Manual, [vec(40,0,0)], vK=0.3, eps=0.01, maxI=50)
+    test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.3, eps=0.01, maxI=50)
     
 #     N = range(500)
 #     np.random.seed(42)
@@ -560,8 +574,8 @@ def linalg_Attitude():
 def sim_VSpeed():
     sim1 = VSF_sim(10.0, 1, 10, 10.0)
     
-    start_v = 50
-    thrust = np.arange(12, 80, 10)
+    start_v = 2
+    thrust = np.arange(55, 500, 50)
     
     def run_sim(c, n, vK=None):
         for t in thrust:
@@ -578,4 +592,5 @@ def sim_VSpeed():
 #==================================================================#
     
 if __name__ == '__main__':
-    sim_VSpeed()
+    sim_Attitude()
+    #sim_VSpeed()
