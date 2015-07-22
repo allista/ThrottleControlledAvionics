@@ -13,18 +13,30 @@ using System;
 
 namespace ThrottleControlledAvionics
 {
-	public enum TCARole { MAIN, MANEUVER, MANUAL }
+	public enum TCARole { MAIN, MANEUVER, MANUAL, BALANCE }
 
 	public class TCAEngineInfo : PartModule
 	{
+		public static readonly string[] RoleNames = 
+		{
+			"TCA: Main Engine",
+			"TCA: Maneuver Engine",
+			"TCA: Manual Control",
+			"TCA: Balanced Thrust",
+		};
+
+		public static readonly TCARole[] RolesOrder = { TCARole.MAIN, TCARole.BALANCE, TCARole.MANEUVER, TCARole.MANUAL };
+
 		readonly int num_roles = Enum.GetValues(typeof(TCARole)).Length;
 		public TCARole Role = TCARole.MAIN;
 		[KSPField(isPersistant = true)] int role;
+		int index;
 
 		public override void OnLoad(ConfigNode node)
 		{
 			base.OnLoad(node);
 			Role = (TCARole)role;
+			index = Array.FindIndex(RolesOrder, r => r == Role);
 			update_status();
 		}
 
@@ -39,7 +51,7 @@ namespace ThrottleControlledAvionics
 		[KSPEvent(guiActive = true, guiActiveEditor = true, guiName = "TCA Role", active = true)]
 		public void SwitchRole() 
 		{ 
-			Role = (TCARole)(((int)Role+1) % num_roles);
+			Role = RolesOrder[(++index) % num_roles];
 			update_status();
 			//set the role of symmetry counterparts, if needed
 			if(!TCAConfiguration.Globals.RoleSymmetryInFlight 
@@ -54,18 +66,7 @@ namespace ThrottleControlledAvionics
 		void update_status()
 		{
 			role = (int)Role;
-			switch(Role)
-			{
-			case TCARole.MAIN:
-				Events["SwitchRole"].guiName = "TCA: Main Engine";
-				break;
-			case TCARole.MANEUVER:
-				Events["SwitchRole"].guiName = "TCA: Maneuver Engine";
-				break;
-			default:
-				Events["SwitchRole"].guiName = "TCA: Manual Control";
-				break;
-			}
+			Events["SwitchRole"].guiName = role > num_roles ? "TCA: Unknown" : RoleNames[role];
 		}
 	}
 }
