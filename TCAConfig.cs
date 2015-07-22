@@ -34,6 +34,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float HvP = 0.9f, HvI_Factor = 20f;
 		[Persistent] public float MinHvD = 0.02f, MaxHvD = 0.07f;
 		[Persistent] public float MinTf = 0.1f, MaxTf = 1f;
+		[Persistent] public float TWRf = 5;
+		[Persistent] public float upF  = 3;
 		public float TfSpan;
 		[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
 		[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
