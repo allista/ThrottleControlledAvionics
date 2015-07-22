@@ -518,7 +518,7 @@ def sim_Attitude():
 #     test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.1, eps=0.01, maxI=50)
 #     test_craft(Hover_Test, Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand, vK=0.3, eps=0.1, maxI=50)
     
-    test_craft(Quadro_Manual, [vec(40,0,0)], vK=0.3, eps=0.01, maxI=50)
+    test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.3, eps=0.01, maxI=50)
     
 #     N = range(500)
 #     np.random.seed(42)
@@ -592,4 +592,5 @@ def sim_VSpeed():
 #==================================================================#
     
 if __name__ == '__main__':
-    sim_VSpeed()
+    sim_Attitude()
+    #sim_VSpeed()
