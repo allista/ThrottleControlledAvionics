@@ -2,7 +2,17 @@
     
 _**BUT** do not delete the TCA.conf and config.xml file to preserve your settings_
 
-* **v2.2.1 - compatible with KSP-1.0.2**
+* **v2.3.0**
+    * Added "Balanced Thrust" engine Role. With it you may use jets and other slow-response engines as a main lifting force; they are still unusable for maneuvering.
+    * Improved Vertical Speed Control System: actual vertical speed is much closer to the set-point now.
+    * Improved flip-over prevention system of Kill Horizontal Speed mode: it now considers current TWR and decreases the pitch angle if it drops too much. Also useful for jets, as they tend to loose power when turned against the air stream.
+    * Several smaller improvements.
+
+* v2.2.1.1 - compatible with KSP-1.0.4
+    * Fixed engines' velCurve effect calculation when balancing engines.
+    * Added atmCurve effect calculation.
+
+* v2.2.1 - compatible with KSP-1.0.2
     * Fixed compatibility issues with the new KSP-API
     * Added UseStockAppLauncher flag into TCA.glob to force the use of AppLauncher even if the Toolbar is installed.
 
