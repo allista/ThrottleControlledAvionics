@@ -196,11 +196,13 @@ class VSF_sim(object):
     dt     = 0.01
     t1     = 5.0
     
-    def __init__(self, K1, L1, K2, L2):
+    def __init__(self, K1, L1, K2, L2, AS=1, DS=1):
         self.K1 = K1
         self.L1 = L1
         self.K2 = K2
         self.L2 = L2
+        self.AS = AS
+        self.DS = DS
         
         self.maxV = 0.0
         self.VSP  = 0.0
@@ -218,27 +220,27 @@ class VSF_sim(object):
         self.M = 4.0
     #end def
         
-    def vK1(self, E):
-#         if self.upV <= self.maxV:
-            return clamp01(E/2.0/(clampL(self.upA/self.K1+1.0, self.L1))**2)
-#         else: 
-#             return clamp01(E*self.upA/(clampL(-self.K2*E, self.L2))**2)
-        
-    def vK2(self, E): 
-#         if self.maxV > self.upV:
-#         self.VSP = self.maxV+(self.maxV-self.upV)*(1-self.dt/0.04)
-        
+    def vK1(self):
         self.VSP = self.maxV+2.0*(1/self.twr)**1
-#         else: self.VSP = self.maxV
-#         print self.VSP
-        return self.vK1(E)
-            
-#         return self.pid.update(E)
+        self.E = self.VSP-self.upV
+#         if self.upA < 0: upAF = (1-self.AS)
+#         else: upAF = (1-self.DS)
+        return clamp01(self.E/2.0/(clampL(self.upA/self.K1+1.0, self.L1))**2)#-self.upA*upAF/40.0)
+        
+    def vK2(self):
+        if self.upA < 0: upAF = (1-self.AS)
+        else: upAF = (1-self.DS)
+        upAF *= self.upA/40.0
+        self.VSP = self.maxV+2.0*(1/self.twr)**1-upAF/self.twr
+        self.E = self.VSP-self.upV
+        return clamp01(self.E/2.0/(clampL(self.upA/self.K1+1.0, self.L1))**2-upAF)
     
     _vK = vK1
         
     @property
-    def vK(self): return self._vK(self.E)
+    def vK(self):
+        self.E = self.VSP-self.upV 
+        return self._vK()
     
     def run(self, upV, maxV=1.0, thrust=20.0, vK = None):
         self.thrust = thrust
@@ -260,13 +262,17 @@ class VSF_sim(object):
         self.F = [0.0]
         
         while t < self.t1:
-            self.upA += (self.thrust*self.K[-1] - self.M*9.81)/self.M
+            rthrust = self.thrust*self.K[-1]
+            speed   = self.AS if rthrust > thrust else self.DS
+            thrust  = lerp(thrust, rthrust, speed)
+            
+            self.upA += (thrust - self.M*9.81)/self.M
             self.upV += self.upA*self.dt
             self.upX += self.upV*self.dt
-            self.E    = self.VSP-self.upV
             t += self.dt
+            
             self.T.append(t)
-            self.F.append(self.thrust*self.K[-1] * self.dt)
+            self.F.append(thrust * self.dt)
             self.V.append(self.upV)
             self.X.append(self.upX)
             self.K.append(self.vK)
@@ -572,7 +578,7 @@ def linalg_Attitude():
 
 
 def sim_VSpeed():
-    sim1 = VSF_sim(10.0, 1, 10, 10.0)
+    sim1 = VSF_sim(10.0, 1, 10, 10.0, 0.3, 0.6)
     
     start_v = 2
     thrust = np.arange(55, 500, 50)
@@ -592,5 +598,5 @@ def sim_VSpeed():
 #==================================================================#
     
 if __name__ == '__main__':
-    sim_Attitude()
-    #sim_VSpeed()
+#     sim_Attitude()
+    sim_VSpeed()

@@ -481,34 +481,54 @@ namespace ThrottleControlledAvionics
 			VerticalSpeedFactor = 1f;
 			if(CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff || !OnPlanet) return;
 			State |= TCAState.VerticalSpeedControl;
-			//calculate vertical speed and acceleration
-			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
-			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
-			var upA = (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime;
-			VerticalSpeed = upV;
-			//calculate downward thrust and TWR
-			var down_thrust = Vector3.zero;
+			//calculate total downward thrust and slow engines' corrections
+			var down_thrust = 0f;
+			var slow_thrust = 0f;
+			var fast_thrust = 0f;
+			var accel_speed = 0f;
+			var decel_speed = 0f;
 			for(int i = 0; i < engines.Count; i++)
 			{
 				var e = engines[i];
 				e.VSF = 1f;
 				if(e.thrustInfo == null) continue;
+				var dcomponent = -Vector3.Dot(e.thrustInfo.dir, up);
 				if(e.isVSC)
 				{
-					if(Vector3.Dot(e.thrustInfo.dir, up) > 0) e.VSF = 0f;
-					else down_thrust += e.nominalCurrentThrust(e.best_limit)*e.thrustInfo.dir;
+					if(dcomponent <= 0) e.VSF = 0f;
+					else 
+					{
+						var dthrust = e.nominalCurrentThrust(e.best_limit)*dcomponent;
+						if(e.useEngineResponseTime && dthrust > 0) 
+						{
+							slow_thrust += dthrust;
+							accel_speed += e.engineAccelerationSpeed*dthrust;
+							decel_speed += e.engineDecelerationSpeed*dthrust;
+						}
+						else fast_thrust = dthrust;
+						down_thrust += dthrust;
+					}
 				} 
-				else down_thrust += e.finalThrust*e.thrustInfo.dir;
+				else down_thrust += e.finalThrust*dcomponent;
 			}
-			down_thrust = Vector3.Project(down_thrust, up);
-			var maxTWR = down_thrust.magnitude/9.81f/vessel.GetTotalMass();
-			//correct setpoint for current TWR
+			var controllable_thrust = slow_thrust+fast_thrust;
+			if(controllable_thrust.Equals(0)) return;
+			//calculate vertical speed and acceleration
+			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
+			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
+			var upA = (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime;
+			VerticalSpeed = upV;
+			//correct setpoint for current TWR and slow engines
+			if(accel_speed > 0) accel_speed = controllable_thrust/accel_speed*TCAConfiguration.Globals.ASF;
+			if(decel_speed > 0) decel_speed = controllable_thrust/decel_speed*TCAConfiguration.Globals.DSF;
+			var maxTWR = down_thrust/9.81f/vessel.GetTotalMass();
+			var upAF = -upA*(upA < 0? accel_speed : decel_speed)*TCAConfiguration.Globals.UpAF;
 			var setpoint = CFG.VerticalCutoff;
-			if(!down_thrust.IsZero())
-				setpoint = CFG.VerticalCutoff+TCAConfiguration.Globals.CutoffAdjustFactor/maxTWR;
+			if(!maxTWR.Equals(0))
+				setpoint = CFG.VerticalCutoff+(TCAConfiguration.Globals.CutoffAdjustFactor+upAF)/maxTWR;
 			//calculate new VSF
 			var err = setpoint-upV;
-			var K = Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f));
+			var K = Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)+upAF);
 			VerticalSpeedFactor = vessel.LandedOrSplashed? K : Utils.ClampL(K, TCAConfiguration.Globals.MinVSF);
 			//loosing altitude alert
 			if(upV < 0 && upV < CFG.VerticalCutoff-0.1f && !vessel.LandedOrSplashed)

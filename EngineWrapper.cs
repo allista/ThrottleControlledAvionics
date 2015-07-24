@@ -120,6 +120,15 @@ namespace ThrottleControlledAvionics
 		public float minThrust
 		{ get { return engine.minThrust; } }
 
+		public bool useEngineResponseTime
+		{ get { return engine.useEngineResponseTime; } }
+
+		public float engineAccelerationSpeed
+		{ get { return engine.engineAccelerationSpeed; } }
+
+		public float engineDecelerationSpeed
+		{ get { return engine.engineDecelerationSpeed; } }
+
 		public float thrustPercentage
 		{
 			get { return engine.thrustPercentage; }
