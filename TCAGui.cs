@@ -3,6 +3,7 @@
  * License: BY: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0): http://creativecommons.org/licenses/by-sa/3.0/
  */
 
+using System;
 using System.Reflection;
 using System.Linq;
 using UnityEngine;
@@ -336,13 +337,23 @@ namespace ThrottleControlledAvionics
 		{
 			if(selecting_key)
 			{ 
-				Utils.Log("TCA Selecting Key: {0}, is key {1}, key code {2}", //debug
-				          Event.current, Event.current.isKey, Event.current.keyCode);
-				if(Event.current.isKey)
+				var e = Event.current;
+				if(e.isKey)
 				{
-					if(Event.current.keyCode != KeyCode.Escape)
+					if(e.keyCode != KeyCode.Escape)
 					{
-						TCA_Key = Event.current.keyCode; 
+						//try to get the keycode if the Unity provided us only with the character
+						if(e.keyCode == KeyCode.None && e.character >= 'a' && e.character <= 'z')
+						{
+							var ec = new string(e.character, 1).ToUpper();
+							try { e.keyCode = (KeyCode)Enum.Parse(typeof(KeyCode), ec); }
+							catch {}
+						}
+						if(e.keyCode == KeyCode.None) 
+							ScreenMessages
+								.PostScreenMessage(string.Format("Unable to convert '{0}' to keycode.\nPlease, try an alphabet character.", e.character), 
+							    	                             5, ScreenMessageStyle.UPPER_CENTER);
+						else TCA_Key = e.keyCode;
 						Utils.Log("TCA: new key slected: {0}", TCA_Key);//debug
 					}
 					selecting_key = false;
@@ -383,7 +394,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(skin != null) return;
 			GUI.skin = null;
-			skin = (GUISkin)Object.Instantiate(GUI.skin);
+			skin = (GUISkin)UnityEngine.Object.Instantiate(GUI.skin);
 		}
 
 		public static void InitGUI()
