@@ -108,6 +108,20 @@ namespace ThrottleControlledAvionics
 	{
 		public Vector3 positive = Vector3.zero, negative = Vector3.zero;
 
+		public static Vector6 operator+(Vector6 first, Vector6 second)
+		{ 
+			var sum = new Vector6();
+			sum.positive = first.positive+second.positive; 
+			sum.negative = first.negative+second.negative; 
+			return sum;
+		}
+
+		public void Add(Vector6 vec)
+		{
+			positive += vec.positive; 
+			negative += vec.negative; 
+		}
+
 		public void Add(Vector3 vec)
 		{
 			for(int i = 0; i < 3; i++)
