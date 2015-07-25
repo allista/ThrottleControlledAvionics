@@ -218,7 +218,7 @@ namespace ThrottleControlledAvionics
 			State |= TCAState.HaveEC;
 			//update engines if needed
 			if(Engines.Any(e => !e.Valid)) updateEnginesList();
-			var active_engines = Engines.Where(e => e.isEnabled).ToList();
+			var active_engines = Engines.Where(e => e.isOperational).ToList();
 			if(active_engines.Count == 0) return;
 			State |= TCAState.HaveActiveEngines;
 			//update physical parameters
@@ -255,6 +255,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			//balance-only engines
+			calculate_torque(manual_engines);
 			if(balanced_engines.Count > 0)
 				optimize_torque_iteratively(balanced_engines, Vector3.zero);
 			calculate_torque(manual_engines, balanced_engines);
@@ -275,9 +276,10 @@ namespace ThrottleControlledAvionics
 		void initialize_engines(IList<EngineWrapper> engines)
 		{
 			normilize_limits = true;
+			var num_engines = engines.Count;
 			//calculate specific torques and min imbalance
 			var min_imbalance = Vector3.zero;
-			for(int i = 0; i < engines.Count; i++)
+			for(int i = 0; i < num_engines; i++)
 			{
 				var e = engines[i];
 				e.InitState();
@@ -285,37 +287,51 @@ namespace ThrottleControlledAvionics
 				e.specificTorque  = refT.InverseTransformDirection(Vector3.Cross(e.thrustInfo.pos-wCoM, e.thrustInfo.dir));
 				min_imbalance += e.Torque(0);
 			}
-			//correct VerticalSpeedFactor if needed
-			if(!min_imbalance.IsZero())
+			//calculate engine's torue, torque limits and set VSF
+			if(IsStateSet(TCAState.VerticalSpeedControl))
 			{
-				var anti_min_imbalance = Vector3.zero;
-				for(int i = 0; i < engines.Count; i++)
+				//correct VerticalSpeedFactor if needed
+				if(!min_imbalance.IsZero())
+				{
+					var anti_min_imbalance = Vector3.zero;
+					for(int i = 0; i < num_engines; i++)
+					{
+						var e = engines[i];
+						if(Vector3.Dot(e.specificTorque, min_imbalance) < 0)
+							anti_min_imbalance += e.specificTorque * e.nominalCurrentThrust(1);
+					}
+					anti_min_imbalance = Vector3.Project(anti_min_imbalance, min_imbalance);
+					VerticalSpeedFactor = Mathf.Clamp(VerticalSpeedFactor, 
+					                              Mathf.Clamp01(min_imbalance.magnitude/anti_min_imbalance.magnitude
+					                                            *TCAConfiguration.Globals.VSFCorrectionMultiplier), 1f);
+				}
+				for(int i = 0; i < num_engines; i++)
 				{
 					var e = engines[i];
-					if(Vector3.Dot(e.specificTorque, min_imbalance) < 0)
-						anti_min_imbalance += e.specificTorque * e.nominalCurrentThrust(1);
+					if(e.isVSC)
+					{
+						if(e.VSF > 0) e.VSF = VerticalSpeedFactor;
+						e.throttle = e.VSF * vessel.ctrlState.mainThrottle;
+					}
+					else 
+					{
+						e.throttle = vessel.ctrlState.mainThrottle;
+						e.VSF = 1f;
+					}
+					e.currentTorque = e.Torque(e.throttle);
+					e.currentTorque_m = e.currentTorque.magnitude;
 				}
-				anti_min_imbalance = Vector3.Project(anti_min_imbalance, min_imbalance);
-				VerticalSpeedFactor = Mathf.Clamp(VerticalSpeedFactor, 
-				                                  Mathf.Clamp01(min_imbalance.magnitude/anti_min_imbalance.magnitude
-				                                                *TCAConfiguration.Globals.VSFCorrectionMultiplier), 1f);
 			}
-			//calculate engine's torue, torque limits and set VSF
-			for(int i = 0; i < engines.Count; i++)
+			else
 			{
-				var e = engines[i];
-				if(e.isVSC)
+				for(int i = 0; i < num_engines; i++)
 				{
-					if(e.VSF > 0) e.VSF = VerticalSpeedFactor;
-					e.throttle = e.VSF * vessel.ctrlState.mainThrottle;
-				}
-				else 
-				{
-					e.throttle = vessel.ctrlState.mainThrottle;
+					var e = engines[i];
 					e.VSF = 1f;
+					e.throttle = vessel.ctrlState.mainThrottle;
+					e.currentTorque = e.Torque(e.throttle);
+					e.currentTorque_m = e.currentTorque.magnitude;
 				}
-				e.currentTorque = e.Torque(e.throttle);
-				e.currentTorque_m = e.currentTorque.magnitude;
 			}
 		}
 
@@ -375,8 +391,8 @@ namespace ThrottleControlledAvionics
 			TorqueAngle = -1f;
 			TorqueError = -1f;
 			float error, angle;
-			float last_error = -1f;
-			int num_engines = engines.Count;
+			var last_error = -1f;
+			var num_engines = engines.Count;
 			Vector3 cur_imbalance, target;
 			for(int i = 0; i < TCAConfiguration.Globals.MaxIterations; i++)
 			{
