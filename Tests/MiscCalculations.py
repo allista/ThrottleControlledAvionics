@@ -125,13 +125,16 @@ class vec6(object):
 def lerp(f, t, time): return f+(t-f)*clamp01(time)
 
 class engine(object):
-    def __init__(self, spec_torque, min_thrust=0.0, max_thrust=100.0, maneuver=False, manual=False):
+    def __init__(self, pos, direction, spec_torque, min_thrust=0.0, max_thrust=100.0, maneuver=False, manual=False):
+        self.pos = pos
+        self.dir = direction
         self.torque = spec_torque
-        self.min_thrust = min_thrust
-        self.max_thrust = max_thrust 
+        self.min_thrust = float(min_thrust)
+        self.max_thrust = float(max_thrust) 
         self.limit  = 1.0
         self.limit_tmp = 1.0
         self.best_limit = 1.0
+        self.torque_ratio = 1.0
         self.current_torque = vec()
         self.maneuver = maneuver
         self.manual = manual
@@ -362,31 +365,44 @@ def sim_PIDf():
 #      
 #      ]
 
-Quadro_Manual = [
-                    engine(vec(-0.8, 0.0, 0.0),  min_thrust=0.0, max_thrust=18.0, manual=True),
-                    engine(vec(1.8, 0.0, 1.8),   min_thrust=0.0, max_thrust=40.0),# maneuver=True),
-                    engine(vec(1.8, 0.0, -1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
-                    engine(vec(-1.8, 0.0, -1.8), min_thrust=0.0, max_thrust=40.0),# maneuver=True),
-                    engine(vec(-1.8, 0.0, 1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
-                 ]
-    
-VTOL_Test = [
-                engine(vec(-3.4, -2.0, 0.0), min_thrust=0.0, max_thrust=250.0),
-                engine(vec(-3.4, 2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
-                engine(vec(3.5, -2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
-                engine(vec(1.5, 2.0, 0.0),   min_thrust=0.0, max_thrust=250.0),
-                engine(vec(1.3, 2.0, 1.6),   min_thrust=0.0, max_thrust=20.0, maneuver=True),
-                engine(vec(3.1, -2.0, -3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
-                engine(vec(-3.1, -2.0, 3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
-                engine(vec(-2.4, 2.0, -2.9), min_thrust=0.0, max_thrust=20.0, maneuver=True),
-             ]
+# Quadro_Manual = [
+#                     engine(vec(-0.8, 0.0, 0.0),  min_thrust=0.0, max_thrust=18.0, manual=True),
+#                     engine(vec(1.8, 0.0, 1.8),   min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+#                     engine(vec(1.8, 0.0, -1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+#                     engine(vec(-1.8, 0.0, -1.8), min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+#                     engine(vec(-1.8, 0.0, 1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+#                  ]
+#     
+# VTOL_Test = [
+#                 engine(vec(-3.4, -2.0, 0.0), min_thrust=0.0, max_thrust=250.0),
+#                 engine(vec(-3.4, 2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
+#                 engine(vec(3.5, -2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
+#                 engine(vec(1.5, 2.0, 0.0),   min_thrust=0.0, max_thrust=250.0),
+#                 engine(vec(1.3, 2.0, 1.6),   min_thrust=0.0, max_thrust=20.0, maneuver=True),
+#                 engine(vec(3.1, -2.0, -3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
+#                 engine(vec(-3.1, -2.0, 3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
+#                 engine(vec(-2.4, 2.0, -2.9), min_thrust=0.0, max_thrust=20.0, maneuver=True),
+#              ]
+# 
+# Hover_Test = [
+#                 engine(vec(-6.2, 6.4, 0.6),   max_thrust=450),
+#                 engine(vec(-6.2, -6.4, -0.6), max_thrust=450),
+#                 engine(vec(3.9, 7.4, 0.6),    max_thrust=450),
+#                 engine(vec(3.9, -6.4, -0.6),  max_thrust=450)
+#             ]
 
-Hover_Test = [
-                engine(vec(-6.2, 6.4, 0.6),   max_thrust=450),
-                engine(vec(-6.2, -6.4, -0.6), max_thrust=450),
-                engine(vec(3.9, 7.4, 0.6),    max_thrust=450),
-                engine(vec(3.9, -6.4, -0.6),  max_thrust=450)
-            ]
+Uneven_Test = [
+               engine(vec(-0.1, -2.1, 0.0), vec(0.0, -1.0, 0.0), vec(0.0, 0.0, 0.1), 0, 200),
+               engine(vec(-1.4, -1.4, 0.0), vec(0.0, -1.0, 0.0), vec(0.0, 0.0, 1.4), 0, 60),
+               engine(vec(1.1, -1.4, 0.0), vec(0.0, -1.0, 0.0), vec(0.0, 0.0, -1.1), 0, 200),
+               engine(vec(-0.1, 0.2, 0.8), vec(0.0, -1.0, 0.1), vec(0.8, 0.0, 0.1), 0, 16),
+               engine(vec(-0.1, 0.2, -0.8), vec(0.0, -1.0, -0.1), vec(-0.8, 0.0, 0.1), 0, 16)
+               ]
+
+Shuttle_Test = [
+                engine(vec(0.0, -5.9, -2.7), vec(0.0, -1.0, 0.0), vec(-2.7, 0.0, 0.0), 0, 1500),
+                engine(vec(0.0, -6.2, 1.2), vec(0.0, -1.0, 0.0), vec(1.2, 0.0, 0.0), 0, 4000),
+                ]
 
 VTOL_Test_Bad_Demand = [
                         vec(0.0, 0.0, 0.0),
@@ -421,7 +437,7 @@ def sim_Attitude():
         man  = vec()
         for e in engines:
             if not e.manual: 
-                e.limit_tmp = -e.current_torque*target/tm/abs(e.current_torque)
+                e.limit_tmp = -e.current_torque*target/tm/abs(e.current_torque)*e.torque_ratio
                 if e.limit_tmp > 0:
                     comp += e.nominal_current_torque(e.vsf(vK)*e.limit)
                 elif e.maneuver:
@@ -458,6 +474,7 @@ def sim_Attitude():
             if abs(anti_ti_min) > 0:
                 vK = clampL(vK, clamp01(abs(ti_min)/abs(anti_ti_min)*1.2))
         for e in engines:
+            e.torque_ratio = clamp01(1.0-abs(e.pos.norm*e.dir.norm))**0.1
             e.current_torque = e.nominal_current_torque(e.vsf(vK))
             torque_imbalance += e.nominal_current_torque(e.vsf(vK) * e.limit)
             torque_clamp.add(e.current_torque)
@@ -524,7 +541,7 @@ def sim_Attitude():
 #     test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.1, eps=0.01, maxI=50)
 #     test_craft(Hover_Test, Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand, vK=0.3, eps=0.1, maxI=50)
     
-    test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.3, eps=0.01, maxI=50)
+    test_craft(Shuttle_Test, VTOL_Test_Bad_Demand, vK=0.8, eps=0.01, maxI=50)
     
 #     N = range(500)
 #     np.random.seed(42)
@@ -598,5 +615,5 @@ def sim_VSpeed():
 #==================================================================#
     
 if __name__ == '__main__':
-#     sim_Attitude()
-    sim_VSpeed()
+    sim_Attitude()
+#     sim_VSpeed()
