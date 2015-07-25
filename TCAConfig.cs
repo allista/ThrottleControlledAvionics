@@ -20,6 +20,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float UpAF                     = 0.01f; //factor for the upA VerticalCutoff adjustment
 		[Persistent] public float ASF                      = 5f;    //factor for the deceleration speed VerticalCutoff adjustment
 		[Persistent] public float DSF                      = 5f;    //factor for the deceleration speed VerticalCutoff adjustment
+		//altitude control parameters
+		[Persistent] public PIDf_Controller AltitudeController = new PIDf_Controller(0.1f, 0.5f, 0.01f, -9.9f, 9.9f); //PID controller for the vertical-speed->altitude system
 		//engine balancing parameters
 		[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
 		[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
@@ -98,6 +100,8 @@ Notes:
 		{ 
 			Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxCutoff); 
 			TfSpan = MaxTf-MinTf;
+			AltitudeController.Max =  MaxCutoff*0.99f;
+			AltitudeController.Min = -MaxCutoff*0.99f;
 		}
 
 		public override void Load(ConfigNode node)
@@ -126,12 +130,16 @@ Notes:
 	{
 		new public const string NODE_NAME = "VSLCONFIG";
 
-		[Persistent] public Guid  VesselID;
-		[Persistent] public bool  Enabled;
-		[Persistent] public bool  GUIVisible;
-		[Persistent] public float VerticalCutoff; //max. positive vertical speed m/s (configurable)
-		[Persistent] public bool  BlockThrottle;
-		[Persistent] public float VSControlSensitivity = 0.01f;
+		[Persistent] public Guid    VesselID;
+		[Persistent] public bool    Enabled;
+		[Persistent] public bool    GUIVisible;
+		//vertical speed and altitude
+		[Persistent] public bool    ControlAltitude;
+		[Persistent] public bool    AltitudeAboveTerrain;
+		[Persistent] public float   DesiredAltitude; //desired altitude m (configurable)
+		[Persistent] public float   VerticalCutoff; //desired positive vertical speed m/s (configurable)
+		[Persistent] public bool    BlockThrottle;
+		[Persistent] public float   VSControlSensitivity = 0.01f;
 		//steering
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships

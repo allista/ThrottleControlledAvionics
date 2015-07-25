@@ -135,7 +135,11 @@ namespace ThrottleControlledAvionics
 			//autotune switch
 			TCA.CFG.AutoTune = GUILayout.Toggle(TCA.CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(true));
 			#if DEBUG
-			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) TCAConfiguration.LoadGlobals();
+			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) 
+			{
+				TCAConfiguration.LoadGlobals();
+				TCA.OnReloadGlobals();
+			}
 			#endif
 			StatusString();
 			GUILayout.EndHorizontal();
@@ -158,6 +162,8 @@ namespace ThrottleControlledAvionics
 				{ state = "Engines Unoptimized"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
 				{ state = "Loosing Altitude"; style = Styles.red; }
+				else if(TCA.IsStateSet(TCAState.AltitudeControl))
+				{ state = "Altitude Control"; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
 				{ state = "Vertical Speed Control"; style = Styles.green; }
 				else if(TCA.State == TCAState.Nominal)
@@ -201,19 +207,36 @@ namespace ThrottleControlledAvionics
 			if(TCA.OnPlanet)
 			{
 				GUILayout.BeginHorizontal();
-				GUILayout.Label("Vertical Speed: " + 
-				                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
-				                GUILayout.Width(180));
-				GUILayout.Label("Set Point: " + (TCA.CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff? 
-				                                 TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
-				                GUILayout.ExpandWidth(false));
-				TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
-				                                                    -TCAConfiguration.Globals.MaxCutoff, 
-				                                                    TCAConfiguration.Globals.MaxCutoff);
+				if(TCA.CFG.ControlAltitude)
+				{
+					GUILayout.Label("Altitude: " + 
+					                (TCA.Altitude.ToString("F2")+"m"), 
+					                GUILayout.Width(180));
+					GUILayout.Label("Set Point: " + (TCA.CFG.DesiredAltitude.ToString("F1") + "m"), 
+					                GUILayout.Width(180));
+					GUILayout.Label("Vertical Speed: " + 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+					                GUILayout.Width(180));
+					GUILayout.FlexibleSpace();
+				}
+				else
+				{
+					GUILayout.Label("Vertical Speed: " + 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+					                GUILayout.Width(180));
+					GUILayout.Label("Set Point: " + (TCA.CFG.VerticalCutoff < TCAConfiguration.Globals.MaxCutoff? 
+					                                 TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
+					                GUILayout.ExpandWidth(false));
+					TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
+					                                                    -TCAConfiguration.Globals.MaxCutoff, 
+					                                                    TCAConfiguration.Globals.MaxCutoff);
+				}
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
 				TCA.BlockThrottle(GUILayout.Toggle(TCA.CFG.BlockThrottle, 
-		                                           "Set vertical speed with throttle controls.", 
+				                                   TCA.CFG.ControlAltitude?
+				                                   "Change altitude with throttle controls." :
+				                                   "Set vertical speed with throttle controls.", 
 				                                   GUILayout.ExpandWidth(false)));
 				TCA.CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity", TCA.CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
 				GUILayout.EndHorizontal();
@@ -225,6 +248,12 @@ namespace ThrottleControlledAvionics
 				                    TCA.CFG.KillHorVel? Styles.red_button : Styles.green_button,
 				                    GUILayout.Width(150)))
 					TCA.ToggleHvAutopilot();
+				TCA.MaintainAltitude(GUILayout.Toggle(TCA.CFG.ControlAltitude, 
+				                                      "Maintain Altitude", 
+				                                      GUILayout.ExpandWidth(false)));
+				TCA.AltitudeAboveTerrain(GUILayout.Toggle(TCA.CFG.AltitudeAboveTerrain, 
+				                        	              "Altitude Above Terrain", 
+				                            	          GUILayout.ExpandWidth(false)));
 			}
 			else GUILayout.Label("Autopilot Not Available", Styles.grey);
 			GUILayout.FlexibleSpace();

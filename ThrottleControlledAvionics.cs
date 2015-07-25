@@ -43,18 +43,35 @@ namespace ThrottleControlledAvionics
 		Vector3 angularA = Vector3.zero;
 		PIv_Controller angularA_filter = new PIv_Controller();
 		PIDv_Controller hV_controller = new PIDv_Controller();
+		PIDf_Controller alt_controller = new PIDf_Controller();
 
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
+		public float Altitude { get; private set; }
 		public bool  IsStateSet(TCAState s) { return (State & s) == s; }
+
+		double terrain_altitude
+		{ get { return (vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude; } }
+		float current_altitude
+		{ get { return CFG.AltitudeAboveTerrain ? (float)(vessel.altitude - terrain_altitude) : (float)vessel.altitude; } }
 		#endregion
 
 		#region Initialization
+		#if DEBUG
+		public void OnReloadGlobals()
+		{
+			angularA_filter.setPI(TCAConfiguration.Globals.AngularA);
+			hV_controller.P = TCAConfiguration.Globals.HvP;
+			alt_controller.setPID(TCAConfiguration.Globals.AltitudeController);
+		}
+		#endif
+
 		public void Awake()
 		{
 			TCAConfiguration.Load();
 			angularA_filter.setPI(TCAConfiguration.Globals.AngularA);
 			hV_controller.P = TCAConfiguration.Globals.HvP;
+			alt_controller.setPID(TCAConfiguration.Globals.AltitudeController);
 			GameEvents.onVesselChange.Add(onVesselChange);
 			GameEvents.onVesselWasModified.Add(onVesselModify);
 			GameEvents.onGameStateSave.Add(onSave);
@@ -175,6 +192,29 @@ namespace ThrottleControlledAvionics
 				vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
 		}
 		public void ToggleHvAutopilot() { KillHorizontalVelocity(!CFG.KillHorVel); }
+
+		public void MaintainAltitude(bool state)
+		{
+			if(state == CFG.ControlAltitude) return;
+			CFG.ControlAltitude = state;
+			if(CFG.ControlAltitude)
+			{
+				Altitude = current_altitude;
+				CFG.DesiredAltitude = Altitude;
+			}
+		}
+		public void ToggleAltitudeAutopilot() { MaintainAltitude(!CFG.ControlAltitude); }
+
+		public void AltitudeAboveTerrain(bool state)
+		{
+			if(state == CFG.AltitudeAboveTerrain) return;
+			CFG.AltitudeAboveTerrain = state;
+			Altitude = current_altitude;
+			if(CFG.AltitudeAboveTerrain)
+				CFG.DesiredAltitude -= (float)terrain_altitude;
+			else CFG.DesiredAltitude += (float)terrain_altitude;
+		}
+		public void ToggleAltitudeAboveTerrain() { AltitudeAboveTerrain(!CFG.AltitudeAboveTerrain);}
 		#endregion
 
 		#region Main Logic
@@ -192,18 +232,36 @@ namespace ThrottleControlledAvionics
 			GUI.OnUpdate();
 			if(CFG.Enabled && CFG.BlockThrottle)
 			{
-				if(GameSettings.THROTTLE_UP.GetKey())
-					CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-					                                TCAConfiguration.Globals.MaxCutoff, 
-					                                CFG.VSControlSensitivity);
-				else if(GameSettings.THROTTLE_DOWN.GetKey())
-					CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-					                                -TCAConfiguration.Globals.MaxCutoff, 
-					                                CFG.VSControlSensitivity);
-				else if(GameSettings.THROTTLE_FULL.GetKeyDown())
-					CFG.VerticalCutoff = TCAConfiguration.Globals.MaxCutoff;
-				else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
-					CFG.VerticalCutoff = -TCAConfiguration.Globals.MaxCutoff;
+				if(CFG.ControlAltitude)
+				{
+					if(GameSettings.THROTTLE_UP.GetKey())
+						CFG.DesiredAltitude = Mathf.Lerp(CFG.DesiredAltitude, 
+						                                 CFG.DesiredAltitude+10, 
+						                                 CFG.VSControlSensitivity);
+					else if(GameSettings.THROTTLE_DOWN.GetKey())
+						CFG.DesiredAltitude = Mathf.Lerp(CFG.DesiredAltitude,
+						                                 CFG.DesiredAltitude-10, 
+						                                 CFG.VSControlSensitivity);
+					else if(GameSettings.THROTTLE_FULL.GetKeyDown())
+						CFG.DesiredAltitude = CFG.DesiredAltitude+10;
+					else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
+						CFG.DesiredAltitude = CFG.DesiredAltitude-10;
+				}
+				else
+				{
+					if(GameSettings.THROTTLE_UP.GetKey())
+						CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
+						                                TCAConfiguration.Globals.MaxCutoff, 
+						                                CFG.VSControlSensitivity);
+					else if(GameSettings.THROTTLE_DOWN.GetKey())
+						CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
+						                                -TCAConfiguration.Globals.MaxCutoff, 
+						                                CFG.VSControlSensitivity);
+					else if(GameSettings.THROTTLE_FULL.GetKeyDown())
+						CFG.VerticalCutoff = TCAConfiguration.Globals.MaxCutoff;
+					else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
+						CFG.VerticalCutoff = -TCAConfiguration.Globals.MaxCutoff;
+				}
 			}
 		}
 
@@ -227,6 +285,7 @@ namespace ThrottleControlledAvionics
 			up   = (wCoM - vessel.mainBody.position).normalized;
 			if(CFG.AutoTune || CFG.KillHorVel) updateMoI();
 			//initialize control state
+			updateVerticalCutoff();
 			updateVerticalSpeedFactor(active_engines);
 			initialize_engines(active_engines);
 			//sort active engines
@@ -304,7 +363,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < engines.Count; i++)
 			{
 				var e = engines[i];
-				if(e.isVSC)
+				if(e.isVSC && IsStateSet(TCAState.VerticalSpeedControl))
 				{
 					if(e.VSF > 0) e.VSF = VerticalSpeedFactor;
 					e.throttle = e.VSF * vessel.ctrlState.mainThrottle;
@@ -451,29 +510,44 @@ namespace ThrottleControlledAvionics
 			if(!optimize_torque_iteratively(engines, needed_torque) && 
 			   !needed_torque.IsZero())
 			{
+				DebugEngines(engines, needed_torque);//debug
 				for(int j = 0; j < engines.Count; j++) engines[j].InitLimits();
 				optimize_torque_iteratively(engines, Vector3.zero);
 				State |= TCAState.Unoptimized;
 			}
-			#if DEBUG
-//			Utils.Log("Engines SpecTorque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));//debug
-//			Utils.Log("Engines Torque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.Torque(throttle*e.limit)+",\n"));//debug
-//			Utils.Log( //debug
-//				"Steering: {0}\n" +
-//				"Needed Torque: {1}\n" +
-//				"Torque Imbalance: {2}\n" +
-//				"Torque Error: {3}kNm, {4}deg\n" +
-//				"Torque Clamp:\n   +{5}\n   -{6}\n" +
-//				"Limits: [{7}]", 
-//				steering,
-//				needed_torque,
-//				engines.Aggregate(Vector3.zero, (v,e) => v+e.Torque(throttle*e.limit)),
-//				TorqueError, TorqueAngle,
-//				torque.positive, 
-//				torque.negative,
-//				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
-//			);
-			#endif
+			DebugEngines(engines, needed_torque);//debug
+		}
+
+		#if DEBUG
+		void DebugEngines(IList<EngineWrapper> engines, Vector3 needed_torque)
+		{
+			Utils.Log("Engines SpecTorque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.specificTorque+",\n"));//debug
+			Utils.Log("Engines Torque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.Torque(e.throttle*e.limit)+",\n"));//debug
+			Utils.Log( //debug
+			          "Steering: {0}\n" +
+			          "Needed Torque: {1}\n" +
+			          "Torque Imbalance: {2}\n" +
+			          "Torque Error: {3}kNm, {4}deg\n" +
+			          "Torque Clamp:\n   +{5}\n   -{6}\n" +
+			          "Limits: [{7}]", 
+			          steering,
+			          needed_torque,
+			          engines.Aggregate(Vector3.zero, (v,e) => v+e.Torque(e.throttle*e.limit)),
+			          TorqueError, TorqueAngle,
+			          torque_limits.positive, 
+			          torque_limits.negative,
+			          engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
+			         );
+		}
+		#endif
+
+		void updateVerticalCutoff()
+		{
+			if(!CFG.ControlAltitude || !OnPlanet) return;
+			State |= TCAState.AltitudeControl;
+			Altitude = current_altitude;
+			alt_controller.Update(CFG.DesiredAltitude-Altitude);
+			CFG.VerticalCutoff = alt_controller.Action;
 		}
 
 		void updateVerticalSpeedFactor(IList<EngineWrapper> engines)
@@ -724,8 +798,9 @@ namespace ThrottleControlledAvionics
 		HaveEC 				   = 1 << 2, 
 		HaveActiveEngines 	   = 1 << 3,
 		VerticalSpeedControl   = 1 << 4,
-		LoosingAltitude 	   = 1 << 5,
-		Unoptimized			   = 1 << 6,
+		AltitudeControl        = 1 << 5,
+		LoosingAltitude 	   = 1 << 6,
+		Unoptimized			   = 1 << 7,
 		Nominal				   = Enabled | Throttled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | Throttled | HaveEC,
 		NoEC                   = Enabled | Throttled,

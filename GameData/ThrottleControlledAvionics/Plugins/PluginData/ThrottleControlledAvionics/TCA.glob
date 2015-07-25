@@ -33,6 +33,12 @@ AngularA
 	p = 0.2
 	i = 0.1
 }
+AltitudeController
+{
+	P = 0.1
+	I = 0.5
+	D = 0.03
+}
 
 //Horizontal velocity control
 HvP                   = 0.9
