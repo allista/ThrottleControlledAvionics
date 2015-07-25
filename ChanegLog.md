@@ -2,7 +2,12 @@
     
 _**BUT** do not delete the TCA.conf and config.xml file to preserve your settings_
 
-* **v2.3.0**
+* **v2.3.0.1**
+    * Fixed issues with engines' balancing when Vertical Speed Control is disabled.
+    * Fixed handling of flameouted engines.
+    * Fixed issues with changing TCA key on some OSes.
+
+* v2.3.0
     * Added "Balanced Thrust" engine Role. With it you may use jets and other slow-response engines as a main lifting force; they are still unusable for maneuvering.
     * Improved Vertical Speed Control System: actual vertical speed is much closer to the set-point now.
     * Improved flip-over prevention system of Kill Horizontal Speed mode: it now considers current TWR and decreases the pitch angle if it drops too much. Also useful for jets, as they tend to loose power when turned against the air stream.

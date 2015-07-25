@@ -141,7 +141,7 @@ namespace ThrottleControlledAvionics
 
 		public void forceThrustPercentage(float value) { engine.thrustPercentage = value; }
 
-		public bool isEnabled { get { return engine.EngineIgnited; } }
+		public bool isOperational { get { return engine.isOperational; } }
 
 		public string name
 		{
