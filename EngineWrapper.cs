@@ -19,6 +19,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 specificTorque   = Vector3.zero;
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;
+		public float   torqueRatio;
 		public float   limit, best_limit, limit_tmp;
 		public float   currentTorque_m;
 		public bool    throttleLocked;

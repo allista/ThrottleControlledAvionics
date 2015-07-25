@@ -327,7 +327,8 @@ namespace ThrottleControlledAvionics
 				&& steering_engines.Count > maneuver_engines.Count;
 			//optimize limits for steering
 			update_torque_limits(steering_engines);
-			steer_with_engines(steering_engines);
+			if(steering_engines.Count > 0)
+				steer_with_engines(steering_engines);
 			//set thrust limiters of engines
 			for(int i = 0; i < active_engines.Count; i++)
 			{
@@ -348,7 +349,9 @@ namespace ThrottleControlledAvionics
 				var e = engines[i];
 				e.InitState();
 				e.thrustDirection = refT.InverseTransformDirection(e.thrustInfo.dir);
-				e.specificTorque  = refT.InverseTransformDirection(Vector3.Cross(e.thrustInfo.pos-wCoM, e.thrustInfo.dir));
+				var lever = e.thrustInfo.pos-wCoM;
+				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(lever, e.thrustInfo.dir));
+				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, e.thrustInfo.dir))), TCAConfiguration.Globals.TorqueRatioFactor);
 				min_imbalance += e.Torque(0);
 			}
 			//calculate engine's torue, torque limits and set VSF
@@ -439,7 +442,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < num_engines; i++)
 			{
 				var e = engines[i];
-				e.limit_tmp = -Vector3.Dot(e.currentTorque, target)/target_m/e.currentTorque_m;
+				e.limit_tmp = -Vector3.Dot(e.currentTorque, target)/target_m/e.currentTorque_m*e.torqueRatio;
 				if(e.limit_tmp > 0)
 					compensation += e.specificTorque * e.nominalCurrentThrust(e.throttle * e.limit);
 				else if(e.Role == TCARole.MANEUVER)
@@ -466,15 +469,7 @@ namespace ThrottleControlledAvionics
 		bool optimize_torque_iteratively(List<EngineWrapper> engines, Vector3 needed_torque)
 		{
 			var num_engines = engines.Count;
-			//single engine cannot be optimized
-			if(num_engines == 1) 
-			{
-				TorqueAngle = needed_torque.IsZero()? 0f : Vector3.Angle(torque, needed_torque);
-				TorqueError = (needed_torque - torque).magnitude;
-				return TorqueError < TCAConfiguration.Globals.OptimizationTorqueCutoff || 
-					TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff;
-			}
-			//multiple engines can be optimized
+			var zero_torque = needed_torque.IsZero();
 			TorqueAngle = -1f;
 			TorqueError = -1f;
 			float error, angle;
@@ -486,7 +481,7 @@ namespace ThrottleControlledAvionics
 				cur_imbalance = torque;
 				for(int j = 0; j < num_engines; j++) 
 				{ var e = engines[j]; cur_imbalance += e.Torque(e.throttle * e.limit); }
-				angle  = needed_torque.IsZero()? 0f : Vector3.Angle(cur_imbalance, needed_torque);
+				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);
 				target = needed_torque-cur_imbalance;
 				error  = target.magnitude;
 				//remember the best state
@@ -521,12 +516,15 @@ namespace ThrottleControlledAvionics
 				if(!optimize_torque(engines, num_engines, target, error, TCAConfiguration.Globals.OptimizationPrecision)) 
 					break;
 			}
-			//restore the best state
-			for(int j = 0; j < num_engines; j++) 
-			{ var e = engines[j]; e.limit = e.best_limit; }
-			return 
-				TorqueError < TCAConfiguration.Globals.OptimizationTorqueCutoff || 
-				TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff;
+			var optimized = TorqueError < TCAConfiguration.Globals.OptimizationTorqueCutoff || 
+				(!zero_torque && TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff);
+			//treat single-engine crafts specially
+			if(num_engines == 1) 
+				engines[0].limit = optimized? 1f : 0f;
+			else //restore the best state
+				for(int j = 0; j < num_engines; j++) 
+				{ var e = engines[j]; e.limit = e.best_limit; }
+			return optimized;
 		}
 
 		void steer_with_engines(List<EngineWrapper> engines)
@@ -553,12 +551,12 @@ namespace ThrottleControlledAvionics
 			if(!optimize_torque_iteratively(engines, needed_torque) && 
 			   !needed_torque.IsZero())
 			{
-				DebugEngines(engines, needed_torque);//debug
+//				DebugEngines(engines, needed_torque);//debug
 				for(int j = 0; j < engines.Count; j++) engines[j].InitLimits();
 				optimize_torque_iteratively(engines, Vector3.zero);
 				State |= TCAState.Unoptimized;
 			}
-			DebugEngines(engines, needed_torque);//debug
+//			DebugEngines(engines, needed_torque);//debug
 		}
 
 		#if DEBUG
@@ -686,21 +684,21 @@ namespace ThrottleControlledAvionics
 				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(max_torque, hVl), MoI.Inverse()).sqrMagnitude, 1);
 				var upF  = Vector3.Dot(thrust, hVl) < 0? 1 : Mathf.Pow(Utils.ClampL(twrF*torF, 1e-9f), TCAConfiguration.Globals.upF);
 				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)(MaxHv/hVm), 1)/upF;
-				Utils.Log("needed thrust direction: {0}\n" +
-				          "TWR factor: {1}\n" +
-				          "torque factor: {2}\n" +
-				          "up factor: {3}\n" +
-				          "TWR: {4}\n" +
-				          "torque limits {5}\n" +
-				          "MoI {6}\n", 
-				          needed_thrust_dir,
-				          twrF,
-				          torF,
-				          upF, 
-				          TWR, 
-				          max_torque, 
-				          MoI
-				         );//debug
+//				Utils.Log("needed thrust direction: {0}\n" +
+//				          "TWR factor: {1}\n" +
+//				          "torque factor: {2}\n" +
+//				          "up factor: {3}\n" +
+//				          "TWR: {4}\n" +
+//				          "torque limits {5}\n" +
+//				          "MoI {6}\n", 
+//				          needed_thrust_dir,
+//				          twrF,
+//				          torF,
+//				          upF, 
+//				          TWR, 
+//				          max_torque, 
+//				          MoI
+//				         );//debug
 			}
 			else needed_thrust_dir = refT.InverseTransformDirection(-up);
 			//calculate corresponding rotation
