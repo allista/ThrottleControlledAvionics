@@ -554,7 +554,7 @@ namespace ThrottleControlledAvionics
 				optimize_torque_iteratively(engines, Vector3.zero);
 				State |= TCAState.Unoptimized;
 			}
-			DebugEngines(engines, needed_torque);//debug
+//			DebugEngines(engines, needed_torque);//debug
 		}
 
 		#if DEBUG
@@ -566,7 +566,7 @@ namespace ThrottleControlledAvionics
 			                                           refT.InverseTransformDirection(e.thrustInfo.pos-wCoM),
 			                                           e.thrustDirection,e.specificTorque, e.minThrust, e.maxThrust)));
 			Utils.Log("Engines Torque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.Torque(e.throttle*e.limit)+",\n"));
-			Utils.Log( //debug
+			Utils.Log(
 			          "Steering: {0}\n" +
 			          "Needed Torque: {1}\n" +
 			          "Torque Imbalance: {2}\n" +
