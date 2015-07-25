@@ -37,7 +37,6 @@ namespace ThrottleControlledAvionics
 		Transform refT;   //transform of the controller-part
 		Vector3 steering; //previous steering vector
 		Vector3 torque;   //current torque applied to the vessel (not including aerodynamic forces)
-		Vector3 r_torque; //current torque applied to the vessel by reaction wheels
 		Vector6 e_torque_limits; //torque limits of engines
 		Vector6 r_torque_limits; //torque limits of reaction wheels
 		bool    normilize_limits;
@@ -281,7 +280,8 @@ namespace ThrottleControlledAvionics
 			//update engines if needed
 			if(Engines.Any(e => !e.Valid)) updateVessel();
 			var active_engines = Engines.Where(e => e.isOperational).ToList();
-			if(active_engines.Count == 0) return;
+			var num_active = active_engines.Count;
+			if(num_active == 0) return;
 			State |= TCAState.HaveActiveEngines;
 			//update physical parameters
 			wCoM = vessel.findWorldCenterOfMass();
@@ -294,11 +294,11 @@ namespace ThrottleControlledAvionics
 			update_VerticalSpeedFactor(active_engines);
 			initialize_engines(active_engines);
 			//sort active engines
-			var balanced_engines = new List<EngineWrapper>(active_engines.Count);
-			var steering_engines = new List<EngineWrapper>(active_engines.Count);
-			var maneuver_engines = new List<EngineWrapper>(active_engines.Count);
-			var manual_engines   = new List<EngineWrapper>(active_engines.Count); 
-			for(int i = 0; i < active_engines.Count; i++)
+			var balanced_engines = new List<EngineWrapper>(num_active);
+			var steering_engines = new List<EngineWrapper>(num_active);
+			var maneuver_engines = new List<EngineWrapper>(num_active);
+			var manual_engines   = new List<EngineWrapper>(num_active); 
+			for(int i = 0; i < num_active; i++)
 			{
 				var e = active_engines[i];
 				switch(e.Role)
@@ -330,7 +330,7 @@ namespace ThrottleControlledAvionics
 			if(steering_engines.Count > 0)
 				steer_with_engines(steering_engines);
 			//set thrust limiters of engines
-			for(int i = 0; i < active_engines.Count; i++)
+			for(int i = 0; i < num_active; i++)
 			{
 				var e = active_engines[i];
 				if(e.Role == TCARole.MANUAL) continue;
@@ -424,14 +424,12 @@ namespace ThrottleControlledAvionics
 
 		void update_rwheels()
 		{
-			r_torque = Vector3.zero;
 			r_torque_limits = new Vector6();
 			for(int i = 0; i < RWheels.Count; i++)
 			{
 				var w = RWheels[i];
 				if(!w.operational) continue;
 				r_torque_limits.Add(refT.InverseTransformDirection(new Vector3(w.PitchTorque, w.RollTorque, w.YawTorque)));
-				r_torque += w.inputVector;
 			}
 		}
 
