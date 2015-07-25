@@ -113,5 +113,39 @@ namespace ThrottleControlledAvionics
 				);
 		}
 	}
+
+	public class PIDf_Controller :  ConfigNodeObject
+	{
+		new public const string NODE_NAME = "PIDCONTROLLER";
+
+		[Persistent] public float Min = -1, Max = 1;
+		[Persistent] public float P = 0.9f, I = 0.1f, D = 0.02f;
+
+		public PIDf_Controller() {}
+		public PIDf_Controller(float p, float i, float d, float min, float max)
+		{ P = p; I = i; D = d; Min = min; Max = max; }
+
+		protected float action;
+		protected float last_error;
+		protected float integral_error;
+
+		public void Reset() 
+		{ action = 0f; integral_error = 0f; last_error = 0f; }
+
+		public void setPID(PIDf_Controller c)
+		{ P = c.P; I = c.I; D = c.D; Min = c.Min; Max = c.Max; }
+
+		//access
+		public float Action { get { return action; } }
+		public static implicit operator float(PIDf_Controller c) { return c.action; }
+
+		public void Update(float error)
+		{
+			var derivative   = D * (error - last_error)/TimeWarp.fixedDeltaTime;
+			integral_error = (Math.Abs(derivative) < 0.6f * Max) ? integral_error + (error * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error;
+			if(integral_error > Max) integral_error = Max;
+			action = Mathf.Clamp(error * P + integral_error + derivative, Min, Max);
+		}
+	}
 }
 
