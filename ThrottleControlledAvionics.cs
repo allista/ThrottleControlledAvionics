@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 		Vessel vessel;
 		public VesselConfig CFG { get; private set; }
 		public readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
+		public readonly List<ModuleReactionWheel> RWheels = new List<ModuleReactionWheel>();
 		public float TorqueError { get; private set; }
 		public float TorqueAngle { get; private set; }
 		public TCAState State { get; private set; }
@@ -31,19 +32,21 @@ namespace ThrottleControlledAvionics
 		public bool Available { get; private set; }
 		public bool Controllable { get { return Available && vessel.IsControllable; } }
 		//physics
-		Vector3d up;
-		Vector3 wCoM;    //center of mass in world space
-		Transform refT;  //transform of the controller-part
+		Vector3d up;      //up unit vector in world space
+		Vector3 wCoM;     //center of mass in world space
+		Transform refT;   //transform of the controller-part
 		Vector3 steering; //previous steering vector
-		Vector3 torque;
-		Vector6 torque_limits;
+		Vector3 torque;   //current torque applied to the vessel (not including aerodynamic forces)
+		Vector3 r_torque; //current torque applied to the vessel by reaction wheels
+		Vector6 e_torque_limits; //torque limits of engines
+		Vector6 r_torque_limits; //torque limits of reaction wheels
 		bool    normilize_limits;
 		Matrix3x3f inertiaTensor;
-		Vector3 MoI = Vector3.one;
-		Vector3 angularA = Vector3.zero;
-		PIv_Controller angularA_filter = new PIv_Controller();
-		PIDv_Controller hV_controller = new PIDv_Controller();
-		PIDf_Controller alt_controller = new PIDf_Controller();
+		Vector3 MoI = Vector3.one; //main diagonal of inertia tensor
+		Vector3 angularA = Vector3.zero; //current angular acceleration
+		PIv_Controller  angularA_filter = new PIv_Controller();
+		PIDv_Controller hV_controller   = new PIDv_Controller();
+		PIDf_Controller alt_controller  = new PIDf_Controller();
 
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
@@ -128,7 +131,7 @@ namespace ThrottleControlledAvionics
 			   (!TCAConfiguration.Globals.IntegrateIntoCareer ||
 			    Utils.PartIsPurchased(TCA_PART)))
 			{
-				updateEnginesList();
+				updateVessel();
 				if(Engines.Count > 0)
 				{
 					if(GUI == null) GUI = new TCAGui(this);
@@ -145,7 +148,7 @@ namespace ThrottleControlledAvionics
 			          Engines.Count);//debug
 		}
 
-		void updateEnginesList()
+		void updateVessel()
 		{
 			if(vessel == null) return;
 			CFG = TCAConfiguration.GetConfig(vessel);
@@ -155,8 +158,9 @@ namespace ThrottleControlledAvionics
 				foreach(var module in p.Modules)
 				{	
 					var engine = module as ModuleEngines;
-					if(engine == null) continue;
-					Engines.Add(new EngineWrapper(engine));
+					if(engine != null) Engines.Add(new EngineWrapper(engine));
+					var rwheel = module as ModuleReactionWheel;
+					if(rwheel != null) RWheels.Add(rwheel);
 				}
 		}
 		#endregion
@@ -275,7 +279,7 @@ namespace ThrottleControlledAvionics
 			if(!vessel.ElectricChargeAvailible()) return;
 			State |= TCAState.HaveEC;
 			//update engines if needed
-			if(Engines.Any(e => !e.Valid)) updateEnginesList();
+			if(Engines.Any(e => !e.Valid)) updateVessel();
 			var active_engines = Engines.Where(e => e.isOperational).ToList();
 			if(active_engines.Count == 0) return;
 			State |= TCAState.HaveActiveEngines;
@@ -285,8 +289,9 @@ namespace ThrottleControlledAvionics
 			up   = (wCoM - vessel.mainBody.position).normalized;
 			if(CFG.AutoTune || CFG.KillHorVel) updateMoI();
 			//initialize control state
-			updateVerticalCutoff();
-			updateVerticalSpeedFactor(active_engines);
+			update_rwheels();
+			update_VerticalCutoff();
+			update_VerticalSpeedFactor(active_engines);
 			initialize_engines(active_engines);
 			//sort active engines
 			var balanced_engines = new List<EngineWrapper>(active_engines.Count);
@@ -396,9 +401,9 @@ namespace ThrottleControlledAvionics
 
 		void update_torque_limits(IList<EngineWrapper> engines)
 		{
-			torque_limits = new Vector6();
+			e_torque_limits = new Vector6();
 			for(int i = 0; i < engines.Count; i++)
-				torque_limits.Add(engines[i].currentTorque);
+				e_torque_limits.Add(engines[i].currentTorque);
 		}
 
 		void calculate_torque(params IList<EngineWrapper>[] engines)
@@ -411,6 +416,19 @@ namespace ThrottleControlledAvionics
 					var e = engines[i][j];
 					torque += e.Torque(e.throttle * e.limit);
 				}
+			}
+		}
+
+		void update_rwheels()
+		{
+			r_torque = Vector3.zero;
+			r_torque_limits = new Vector6();
+			for(int i = 0; i < RWheels.Count; i++)
+			{
+				var w = RWheels[i];
+				if(!w.operational) continue;
+				r_torque_limits.Add(refT.InverseTransformDirection(new Vector3(w.PitchTorque, w.RollTorque, w.YawTorque)));
+				r_torque += w.inputVector;
 			}
 		}
 
@@ -447,11 +465,20 @@ namespace ThrottleControlledAvionics
 
 		bool optimize_torque_iteratively(List<EngineWrapper> engines, Vector3 needed_torque)
 		{
+			var num_engines = engines.Count;
+			//single engine cannot be optimized
+			if(num_engines == 1) 
+			{
+				TorqueAngle = needed_torque.IsZero()? 0f : Vector3.Angle(torque, needed_torque);
+				TorqueError = (needed_torque - torque).magnitude;
+				return TorqueError < TCAConfiguration.Globals.OptimizationTorqueCutoff || 
+					TorqueAngle < TCAConfiguration.Globals.OptimizationAngleCutoff;
+			}
+			//multiple engines can be optimized
 			TorqueAngle = -1f;
 			TorqueError = -1f;
 			float error, angle;
 			var last_error = -1f;
-			var num_engines = engines.Count;
 			Vector3 cur_imbalance, target;
 			for(int i = 0; i < TCAConfiguration.Globals.MaxIterations; i++)
 			{
@@ -521,7 +548,7 @@ namespace ThrottleControlledAvionics
 				if(Vector3.Dot(e.currentTorque, steering) > 0)
 					needed_torque += e.currentTorque;
 			}
-			needed_torque = torque_limits.Clamp(Vector3.Project(needed_torque, steering) * steering.magnitude);
+			needed_torque = e_torque_limits.Clamp(Vector3.Project(needed_torque, steering) * steering.magnitude);
 			//optimize engines; if failed, set the flag and kill torque if requested
 			if(!optimize_torque_iteratively(engines, needed_torque) && 
 			   !needed_torque.IsZero())
@@ -550,14 +577,14 @@ namespace ThrottleControlledAvionics
 			          needed_torque,
 			          engines.Aggregate(Vector3.zero, (v,e) => v+e.Torque(e.throttle*e.limit)),
 			          TorqueError, TorqueAngle,
-			          torque_limits.positive, 
-			          torque_limits.negative,
+			          e_torque_limits.positive, 
+			          e_torque_limits.negative,
 			          engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
 			         );
 		}
 		#endif
 
-		void updateVerticalCutoff()
+		void update_VerticalCutoff()
 		{
 			if(!CFG.ControlAltitude || !OnPlanet) return;
 			State |= TCAState.AltitudeControl;
@@ -566,7 +593,7 @@ namespace ThrottleControlledAvionics
 			CFG.VerticalCutoff = alt_controller.Action;
 		}
 
-		void updateVerticalSpeedFactor(IList<EngineWrapper> engines)
+		void update_VerticalSpeedFactor(IList<EngineWrapper> engines)
 		{
 			VerticalSpeedFactor = 1f;
 			if(CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff || !OnPlanet) return;
@@ -647,6 +674,7 @@ namespace ThrottleControlledAvionics
 			var hVm = hV.magnitude;
 			//calculate needed thrust direction
 			var MaxHv = Math.Max(vessel.acceleration.magnitude*TCAConfiguration.Globals.AccelerationFactor, TCAConfiguration.Globals.MinHvThreshold);
+			var max_torque = e_torque_limits.Max+r_torque_limits.Max;
 			Vector3 needed_thrust_dir;
 			if(hVm > 1e-7)
 			{
@@ -655,24 +683,24 @@ namespace ThrottleControlledAvionics
 				var hVl  = refT.InverseTransformDirection(hV);
 				var TWR  = Vector3.Dot(thrust, upl) < 0? Vector3.Project(thrust, upl).magnitude/9.81f/vessel.GetTotalMass() : 0f;
 				var twrF = Utils.ClampH(TWR/TCAConfiguration.Globals.TWRf, 1);
-				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(torque_limits.Max, hVl), MoI.Inverse()).sqrMagnitude, 1);
+				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(max_torque, hVl), MoI.Inverse()).sqrMagnitude, 1);
 				var upF  = Vector3.Dot(thrust, hVl) < 0? 1 : Mathf.Pow(Utils.ClampL(twrF*torF, 1e-9f), TCAConfiguration.Globals.upF);
 				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)(MaxHv/hVm), 1)/upF;
-//				Utils.Log("needed thrust direction: {0}\n" +
-//				          "TWR factor: {1}\n" +
-//				          "torque factor: {2}\n" +
-//				          "up factor: {3}\n" +
-//				          "TWR: {4}\n" +
-//				          "torque limits {5}\n" +
-//				          "MoI {6}\n", 
-//				          needed_thrust_dir,
-//				          twrF,
-//				          torF,
-//				          upF, 
-//				          TWR, 
-//				          torque_limits.Max, 
-//				          MoI
-//				         );//debug
+				Utils.Log("needed thrust direction: {0}\n" +
+				          "TWR factor: {1}\n" +
+				          "torque factor: {2}\n" +
+				          "up factor: {3}\n" +
+				          "TWR: {4}\n" +
+				          "torque limits {5}\n" +
+				          "MoI {6}\n", 
+				          needed_thrust_dir,
+				          twrF,
+				          torF,
+				          upF, 
+				          TWR, 
+				          max_torque, 
+				          MoI
+				         );//debug
 			}
 			else needed_thrust_dir = refT.InverseTransformDirection(-up);
 			//calculate corresponding rotation
@@ -684,7 +712,7 @@ namespace ThrottleControlledAvionics
 			var angularM = Vector3.Scale(vessel.angularVelocity, MoI);
 			var inertia  = Vector3.Scale(angularM.Sign(),
 			                             Vector3.Scale(Vector3.Scale(angularM, angularM),
-			                                           Vector3.Scale(torque_limits.Max, MoI).Inverse()))
+			                                           Vector3.Scale(max_torque, MoI).Inverse()))
 				.ClampComponents(-Mathf.PI, Mathf.PI);
 			var Tf = Mathf.Clamp(1/angularA.magnitude, TCAConfiguration.Globals.MinTf, TCAConfiguration.Globals.MaxTf);
 			steering_error += inertia / Mathf.Lerp(TCAConfiguration.Globals.InertiaFactor, 1, 
@@ -735,7 +763,7 @@ namespace ThrottleControlledAvionics
 		void tune_steering_params()
 		{
 			//calculate maximum angular acceleration for each axis
-			var max_torque = torque_limits.Max;
+			var max_torque = e_torque_limits.Max;
 			var new_angularA = new Vector3
 				(
 					MoI.x != 0? max_torque.x/MoI.x : float.MaxValue,
