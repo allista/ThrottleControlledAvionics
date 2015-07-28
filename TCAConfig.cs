@@ -12,7 +12,7 @@ namespace ThrottleControlledAvionics
 		new public const string NODE_NAME = "TCAGLOBALS";
 
 		//vertical speed control parameters
-		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f; //vertical speed limit control coefficients
+		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f;    //vertical speed limit control coefficients
 		[Persistent] public float MaxVS                 = 10f;   //max. positive vertical speed m/s (configuration limit)
 		[Persistent] public float MinVSF                = 0.05f; //minimum vertical speed factor; so as not to lose control during a rapid descent
 		[Persistent] public float VSF_BalanceCorrection = 1.5f;  //multiplier for the vertical speed factor correction; 1.2 means +20% of thrust above the minimal value sufficient for zero balance
@@ -24,7 +24,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float AltErrF = 0.01f; //altitude error coefficient
 		[Persistent] public float AltTWRp = 2f;    //twr power factor
 		[Persistent] public float AltTWRd = 2f;    //twr denominator
-		[Persistent] public PIDf_Controller AltitudeController = new PIDf_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
+		[Persistent] public PIDf_Controller2 AltitudeController     = new PIDf_Controller2(0.1f, 0.5f, 0.03f, -9.9f, -9.9f);
+		[Persistent] public PIDf_Controller  JetsAltitudeController = new PIDf_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
 		//engine balancing parameters
 		[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
 		[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
@@ -104,8 +105,8 @@ Notes:
 		{ 
 			Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxVS); 
 			TfSpan = MaxTf-MinTf;
-			AltitudeController.Max =  MaxVS*0.99f;
-			AltitudeController.Min = -MaxVS*0.99f;
+			AltitudeController.Max = JetsAltitudeController.Max =  MaxVS*0.99f;
+			AltitudeController.Min = JetsAltitudeController.Min = -MaxVS*0.99f;
 		}
 
 		public override void Load(ConfigNode node)

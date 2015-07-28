@@ -193,7 +193,7 @@ class PID2(PID):
         d = self.kd * (err-self.perror)/dt
         self.ierror = self.ierror + self.ki * err * dt if abs(d) < 0.6*self.max else 0.9 * self.ierror
         if self.ierror > self.max: self.ierror = self.max
-#         self.perror = err
+        self.perror = err
         return clamp(self.kp*err + self.ierror + d, self.min, self.max)
 
 class VSF_sim(object):
@@ -242,7 +242,7 @@ class VSF_sim(object):
 #         if self.upV <= self.maxV:
         K = clamp01(self.E*0.5+self.upAF)
 #         else: 
-#             K = clamp01(self.E+self.upAF)
+#             K = clamp01(self.E*self.upA*0.5+self.upAF)
         return clampL(K, 0.05)
     
     _vK = vK1
@@ -335,10 +335,10 @@ class VSF_sim(object):
         def on_frame():
             alt_err = alt-self.upX
             if (self.AS > 0 or self.DS > 0) and self.upV != 0:
-                if self.upV > 0:
+#                 if self.upV > 0:
                     self.pid.kp = clamp(0.01*abs(alt_err/self.upV), 0.0, self.pid.kd)
-                else:
-                    self.pid.kp = clamp(self.twr**2/abs(self.upV), 0.0, clampH(self.pid.kd*self.twr/2, self.pid.kd))
+#                 else:
+#                     self.pid.kp = clamp(self.twr**2/abs(self.upV), 0.0, clampH(self.pid.kd*self.twr/2, self.pid.kd))
             else: self.pid.kp = self.pid.kd
             self.maxV = self.pid.update(alt_err)
             self.Vsp.append(self.maxV)
@@ -669,9 +669,9 @@ def linalg_Attitude():
 
 
 def sim_VSpeed():
-    sim1 = VSF_sim(0.12, 0.5)
+    sim1 = VSF_sim()#0.12, 0.5)
     sim1.t1 = 100.0
-    thrust = np.arange(45, 100, 10)
+    thrust = np.arange(145, 400, 50)
     start_v = np.arange(-100, 105, 100)
     def run_sim(c, n, v, vK=None):
         for t in thrust:
@@ -702,17 +702,17 @@ def sim_VS_Stability():
 #end def
     
 def sim_Altitude():
-    sim1 = VSF_sim(0.12, 0.5)
+    sim1 = VSF_sim()#0.12, 0.5)
     sim1.t1 = 60.0
-    thrust = np.arange(45, 100, 10)
-    alt = 1.0
+    thrust = np.arange(102, 150, 10)
+    alt = 10.0
     def run_sim(c, n, A, pid):
         for t in thrust:
             sim1.run_alt(A, thrust = t, pid = pid)
             sim1.plot_alt(3,c,n)
             sim1.plot_vsp(3,c,c+n)
             sim1.plot_vs(3,c,c*2+n)
-    pid = PID(0.5, 0.0, 0.5, -9.9, 9.9)
+    pid = PID2(0.5, 0.0, 0.5, -9.9, 9.9)
     run_sim(4,1, alt/10.0, pid)
     run_sim(4,2, alt, pid)
     run_sim(4,3, -alt/10.0, pid)
@@ -723,11 +723,11 @@ def sim_Altitude():
     
 #==================================================================#
 
-dt = 0.01
+dt = 0.045
 
 if __name__ == '__main__':
     sim_VSpeed()
-    sim_VS_Stability()
+#     sim_VS_Stability()
 #     sim_Altitude()
 #     sim_Attitude()
     
