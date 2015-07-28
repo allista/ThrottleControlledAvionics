@@ -11,6 +11,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	#region PI Controllers
 	public class PI_Controller : ConfigNodeObject
 	{
 		new public const string NODE_NAME = "PICONTROLLER";
@@ -21,6 +22,9 @@ namespace ThrottleControlledAvionics
 
 		public float P { get { return master == null? p : master.P; } set { p = value; } }
 		public float I { get { return master == null? i : master.I; } set { i = value; } }
+
+		public PI_Controller() {}
+		public PI_Controller(float P, float I) { p = P; i = I; }
 
 		public void setPI(PI_Controller other) { p = other.P; i = other.I; }
 		public void setMaster(PI_Controller master) { this.master = master; }
@@ -50,12 +54,6 @@ namespace ThrottleControlledAvionics
 		public static implicit operator T(PI_Controller<T> c) { return c.action; }
 	}
 
-	public class PI_Dummy : PI_Controller
-	{ 
-		public PI_Dummy() {}
-		public PI_Dummy(float P, float I) { p = P; i = I; }
-	}
-
 	public class PIv_Controller : PI_Controller<Vector3>
 	{
 		public override void Update(Vector3 error)
@@ -74,7 +72,9 @@ namespace ThrottleControlledAvionics
 			action = error * P + integral_error * I;
 		}
 	}
+	#endregion
 
+	#region PID Controllers
 	public class PID_Controller : ConfigNodeObject
 	{
 		new public const string NODE_NAME = "PIDCONTROLLER";
@@ -161,5 +161,6 @@ namespace ThrottleControlledAvionics
 			action = Mathf.Clamp(error * P + integral_error + derivative, Min, Max);
 		}
 	}
+	#endregion
 }
 

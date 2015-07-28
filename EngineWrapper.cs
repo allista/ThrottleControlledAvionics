@@ -14,7 +14,7 @@ namespace ThrottleControlledAvionics
 		public readonly ModuleEngines engine;
 		public readonly TCAEngineInfo einfo;
 
-		public static readonly PI_Dummy ThrustPI = new PI_Dummy();
+		public static readonly PI_Controller ThrustPI = new PI_Controller();
 		PIf_Controller thrustController = new PIf_Controller();
 		public Vector3 specificTorque   = Vector3.zero;
 		public Vector3 currentTorque    = Vector3.zero;

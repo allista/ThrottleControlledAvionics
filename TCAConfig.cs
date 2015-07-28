@@ -35,8 +35,8 @@ namespace ThrottleControlledAvionics
 		//default values for PI controllers
 		[Persistent] public float MaxP = 1f; //value of P slider
 		[Persistent] public float MaxI = 1f; //value of I slider
-		[Persistent] public PI_Dummy Engines = new PI_Dummy(0.4f, 0.2f); //thrustPercentage master PI controller defaults
-		[Persistent] public PI_Dummy AngularA = new PI_Dummy(0.4f, 0.2f); //values for angular acceleration dumper
+		[Persistent] public PI_Controller Engines   = new PI_Controller(0.4f, 0.2f); //thrustPercentage master PI controller defaults
+		[Persistent] public PI_Controller AngularA  = new PI_Controller(0.4f, 0.2f); //values for angular acceleration dumper
 		[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 		//steering gain curve
 		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
