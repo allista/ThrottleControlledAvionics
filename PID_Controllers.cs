@@ -100,9 +100,9 @@ namespace ThrottleControlledAvionics
 		public void Update(Vector3 error, Vector3 omega)
 		{
 			var derivative   = D * omega/TimeWarp.fixedDeltaTime;
-			integral_error.x = (Math.Abs(derivative.x) < 0.6f * Max) ? integral_error.x + (error.x * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.x;
-			integral_error.y = (Math.Abs(derivative.y) < 0.6f * Max) ? integral_error.y + (error.y * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.y;
-			integral_error.z = (Math.Abs(derivative.z) < 0.6f * Max) ? integral_error.z + (error.z * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.z;
+			integral_error.x = (Mathf.Abs(derivative.x) < 0.6f * Max) ? integral_error.x + (error.x * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.x;
+			integral_error.y = (Mathf.Abs(derivative.y) < 0.6f * Max) ? integral_error.y + (error.y * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.y;
+			integral_error.z = (Mathf.Abs(derivative.z) < 0.6f * Max) ? integral_error.z + (error.z * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error.z;
 			Vector3.ClampMagnitude(integral_error, Max);
 			var act = error * P + integral_error + derivative;
 			action = new Vector3
@@ -118,12 +118,12 @@ namespace ThrottleControlledAvionics
 	{
 		new public const string NODE_NAME = "PIDCONTROLLER";
 
-		[Persistent] public float Min = -1, Max = 1;
+		[Persistent] public float Min = -1, Max = 1, eps = 0.01f;
 		[Persistent] public float P = 0.9f, I = 0.1f, D = 0.02f;
 
 		public PIDf_Controller() {}
-		public PIDf_Controller(float p, float i, float d, float min, float max)
-		{ P = p; I = i; D = d; Min = min; Max = max; }
+		public PIDf_Controller(float p, float i, float d, float min, float max, float e = 0.01f)
+		{ P = p; I = i; D = d; Min = min; Max = max; eps = e; }
 
 		protected float action;
 		protected float last_error;
@@ -133,7 +133,7 @@ namespace ThrottleControlledAvionics
 		{ action = 0f; integral_error = 0f; last_error = 0f; }
 
 		public void setPID(PIDf_Controller c)
-		{ P = c.P; I = c.I; D = c.D; Min = c.Min; Max = c.Max; }
+		{ P = c.P; I = c.I; D = c.D; Min = c.Min; Max = c.Max; eps = c.eps; }
 
 		//access
 		public float Action { get { return action; } }
@@ -141,10 +141,13 @@ namespace ThrottleControlledAvionics
 
 		public void Update(float error)
 		{
-			var derivative   = D * (error - last_error)/TimeWarp.fixedDeltaTime;
-			integral_error = (Math.Abs(derivative) < 0.6f * Max) ? integral_error + (error * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error;
-			if(integral_error > Max) integral_error = Max;
-			action = Mathf.Clamp(error * P + integral_error + derivative, Min, Max);
+			var old_ierror = integral_error;
+			integral_error += error*TimeWarp.fixedDeltaTime;
+			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
+			action = Mathf.Clamp(act, Min, Max);
+			if(Mathf.Abs(action) < eps) action = 0f;
+			if(!act.Equals(action)) integral_error = old_ierror;
+			last_error = error;
 		}
 	}
 }
