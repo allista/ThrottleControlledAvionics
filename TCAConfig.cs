@@ -12,16 +12,19 @@ namespace ThrottleControlledAvionics
 		new public const string NODE_NAME = "TCAGLOBALS";
 
 		//vertical speed control parameters
-		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f, L2 = 10f; //vertical speed limit control coefficients
-		[Persistent] public float MaxCutoff                = 10f;   //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float MinVSF                   = 0.05f; //minimum vertical speed factor; so as not to lose control during a rapid descent
-		[Persistent] public float VSFCorrectionMultiplier  = 1.2f;  //multiplier for the vertical speed factor correction; 1.2 means +20% of thrust above the minimal value sufficient for zero balance
-		[Persistent] public float CutoffAdjustFactor       = 2.1f;  //factor for the TWR VerticalCutoff adjustment
-		[Persistent] public float UpAF                     = 0.01f; //factor for the upA VerticalCutoff adjustment
-		[Persistent] public float ASF                      = 5f;    //factor for the deceleration speed VerticalCutoff adjustment
-		[Persistent] public float DSF                      = 5f;    //factor for the deceleration speed VerticalCutoff adjustment
+		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f, K2 = 10f; //vertical speed limit control coefficients
+		[Persistent] public float MaxVS                 = 10f;   //max. positive vertical speed m/s (configuration limit)
+		[Persistent] public float MinVSF                = 0.05f; //minimum vertical speed factor; so as not to lose control during a rapid descent
+		[Persistent] public float VSF_BalanceCorrection = 1.5f;  //multiplier for the vertical speed factor correction; 1.2 means +20% of thrust above the minimal value sufficient for zero balance
+		[Persistent] public float VSF_TWRf              = 2.0f;  //factor for the TWR adjustment of VerticalCutoff
+		[Persistent] public float UpAf                  = 0.2f;  //factor for the upA adjustment of VerticalCutoff
+		[Persistent] public float ASf                   = 2f;    //factor for the acceleration speed adjustment of VerticalCutoff
+		[Persistent] public float DSf                   = 1f;    //factor for the deceleration speed adjustment of VerticalCutoff
 		//altitude control parameters
-		[Persistent] public PIDf_Controller AltitudeController = new PIDf_Controller(0.1f, 0.5f, 0.01f, -9.9f, 9.9f); //PID controller for the vertical-speed->altitude system
+		[Persistent] public float AltErrF = 0.01f; //altitude error coefficient
+		[Persistent] public float AltTWRp = 2f;    //twr power factor
+		[Persistent] public float AltTWRd = 2f;    //twr denominator
+		[Persistent] public PIDf_Controller AltitudeController = new PIDf_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
 		//engine balancing parameters
 		[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
 		[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
@@ -99,10 +102,10 @@ Notes:
 
 		public void Init()
 		{ 
-			Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxCutoff); 
+			Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxVS); 
 			TfSpan = MaxTf-MinTf;
-			AltitudeController.Max =  MaxCutoff*0.99f;
-			AltitudeController.Min = -MaxCutoff*0.99f;
+			AltitudeController.Max =  MaxVS*0.99f;
+			AltitudeController.Min = -MaxVS*0.99f;
 		}
 
 		public override void Load(ConfigNode node)
@@ -155,11 +158,11 @@ Notes:
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
 
-		public bool VerticalSpeedControl { get { return VerticalCutoff < TCAConfiguration.Globals.MaxCutoff; } }
+		public bool VerticalSpeedControl { get { return VerticalCutoff < TCAConfiguration.Globals.MaxVS; } }
 
 		public VesselConfig() //set defaults
 		{
-			VerticalCutoff = TCAConfiguration.Globals.MaxCutoff;
+			VerticalCutoff = TCAConfiguration.Globals.MaxVS;
 			Engines.setPI(TCAConfiguration.Globals.Engines);
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }

@@ -40,6 +40,7 @@ namespace ThrottleControlledAvionics
 		Vector6 e_torque_limits; //torque limits of engines
 		Vector6 r_torque_limits; //torque limits of reaction wheels
 		bool    normilize_limits;
+		float   maxTWR, accel_speed, decel_speed;
 		Matrix3x3f inertiaTensor;
 		Vector3 MoI = Vector3.one; //main diagonal of inertia tensor
 		Vector3 angularA = Vector3.zero; //current angular acceleration
@@ -49,6 +50,7 @@ namespace ThrottleControlledAvionics
 
 		public float VerticalSpeedFactor { get; private set; } = 1f;
 		public float VerticalSpeed { get; private set; }
+		public float VerticalAccel { get; private set; }
 		public float Altitude { get; private set; }
 		public bool  IsStateSet(TCAState s) { return (State & s) == s; }
 
@@ -254,16 +256,16 @@ namespace ThrottleControlledAvionics
 				{
 					if(GameSettings.THROTTLE_UP.GetKey())
 						CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-						                                TCAConfiguration.Globals.MaxCutoff, 
+						                                TCAConfiguration.Globals.MaxVS, 
 						                                CFG.VSControlSensitivity);
 					else if(GameSettings.THROTTLE_DOWN.GetKey())
 						CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-						                                -TCAConfiguration.Globals.MaxCutoff, 
+						                                -TCAConfiguration.Globals.MaxVS, 
 						                                CFG.VSControlSensitivity);
 					else if(GameSettings.THROTTLE_FULL.GetKeyDown())
-						CFG.VerticalCutoff = TCAConfiguration.Globals.MaxCutoff;
+						CFG.VerticalCutoff = TCAConfiguration.Globals.MaxVS;
 					else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
-						CFG.VerticalCutoff = -TCAConfiguration.Globals.MaxCutoff;
+						CFG.VerticalCutoff = -TCAConfiguration.Globals.MaxVS;
 				}
 			}
 		}
@@ -284,12 +286,13 @@ namespace ThrottleControlledAvionics
 			if(num_active == 0) return;
 			State |= TCAState.HaveActiveEngines;
 			//update physical parameters
-			wCoM = vessel.findWorldCenterOfMass();
+			wCoM = vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime;
 			refT = vessel.ReferenceTransform;
 			up   = (wCoM - vessel.mainBody.position).normalized;
 			if(CFG.AutoTune || CFG.KillHorVel) updateMoI();
 			//initialize control state
 			update_rwheels();
+			update_vessel_stats(active_engines);
 			update_VerticalCutoff();
 			update_VerticalSpeedFactor(active_engines);
 			initialize_engines(active_engines);
@@ -370,7 +373,7 @@ namespace ThrottleControlledAvionics
 					anti_min_imbalance = Vector3.Project(anti_min_imbalance, min_imbalance);
 					VerticalSpeedFactor = Mathf.Clamp(VerticalSpeedFactor, 
 					                              Mathf.Clamp01(min_imbalance.magnitude/anti_min_imbalance.magnitude
-					                                            *TCAConfiguration.Globals.VSFCorrectionMultiplier), 1f);
+					                                            *TCAConfiguration.Globals.VSF_BalanceCorrection), 1f);
 				}
 				for(int i = 0; i < num_engines; i++)
 				{
@@ -584,26 +587,19 @@ namespace ThrottleControlledAvionics
 		}
 		#endif
 
-		void update_VerticalCutoff()
+		void update_vessel_stats(IList<EngineWrapper> engines)
 		{
-			if(!CFG.ControlAltitude || !OnPlanet) return;
-			State |= TCAState.AltitudeControl;
-			Altitude = current_altitude;
-			alt_controller.Update(CFG.DesiredAltitude-Altitude);
-			CFG.VerticalCutoff = alt_controller.Action;
-		}
-
-		void update_VerticalSpeedFactor(IList<EngineWrapper> engines)
-		{
-			VerticalSpeedFactor = 1f;
-			if(CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxCutoff || !OnPlanet) return;
-			State |= TCAState.VerticalSpeedControl;
+			accel_speed = 0f; decel_speed = 0f; maxTWR = 0f;
+			if(!CFG.ControlAltitude && CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxVS || !OnPlanet) return;
+			//calculate vertical speed and acceleration
+			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
+			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
+			VerticalAccel = (float)Vector3d.Dot(vessel.acceleration, up);
+			VerticalSpeed = upV;
 			//calculate total downward thrust and slow engines' corrections
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
-			var accel_speed = 0f;
-			var decel_speed = 0f;
 			for(int i = 0; i < engines.Count; i++)
 			{
 				var e = engines[i];
@@ -626,30 +622,59 @@ namespace ThrottleControlledAvionics
 						down_thrust += dthrust;
 					}
 				} 
-				else down_thrust += e.finalThrust*dcomponent;
 			}
+			maxTWR = down_thrust/9.81f/vessel.GetTotalMass();
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
-			//calculate vertical speed and acceleration
-			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
-			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
-			var upA = (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime;
-			VerticalSpeed = upV;
 			//correct setpoint for current TWR and slow engines
-			if(accel_speed > 0) accel_speed = controllable_thrust/accel_speed*TCAConfiguration.Globals.ASF;
-			if(decel_speed > 0) decel_speed = controllable_thrust/decel_speed*TCAConfiguration.Globals.DSF;
-			var maxTWR = down_thrust/9.81f/vessel.GetTotalMass();
-			var upAF = -upA*(upA < 0? accel_speed : decel_speed)*TCAConfiguration.Globals.UpAF;
+			if(accel_speed > 0) accel_speed = controllable_thrust/accel_speed*TCAConfiguration.Globals.ASf;
+			if(decel_speed > 0) decel_speed = controllable_thrust/decel_speed*TCAConfiguration.Globals.DSf;
+		}
+
+		void update_VerticalCutoff()
+		{
+			if(!CFG.ControlAltitude || !OnPlanet) return;
+			State |= TCAState.AltitudeControl;
+			Altitude = current_altitude;
+			var alt_error = CFG.DesiredAltitude-Altitude;
+			if((accel_speed > 0 || decel_speed > 0) && !VerticalSpeed.Equals(0))
+			{
+				if(VerticalSpeed > 0)
+					alt_controller.P = Mathf.Clamp(TCAConfiguration.Globals.AltErrF*Mathf.Abs(alt_error/VerticalSpeed), 
+					                               0, alt_controller.D);
+				else
+					alt_controller.P = Mathf.Clamp(Mathf.Pow(maxTWR, TCAConfiguration.Globals.AltTWRp)/Mathf.Abs(VerticalSpeed), 
+					                               0, Utils.ClampH(alt_controller.D/maxTWR/TCAConfiguration.Globals.AltTWRd, alt_controller.D));
+			}
+			else alt_controller.P = alt_controller.D;
+			alt_controller.Update(alt_error);
+			CFG.VerticalCutoff = alt_controller.Action;
+
+//			Utils.CSV(Altitude, CFG.VerticalCutoff, VerticalSpeed);//debug
+		}
+
+		void update_VerticalSpeedFactor(IList<EngineWrapper> engines)
+		{
+			VerticalSpeedFactor = 1f;
+			if(CFG.VerticalCutoff >= TCAConfiguration.Globals.MaxVS || !OnPlanet) return;
+			State |= TCAState.VerticalSpeedControl;
+			var upAF = -VerticalAccel
+				*(VerticalSpeed < 0? accel_speed : decel_speed)*TCAConfiguration.Globals.UpAf;
 			var setpoint = CFG.VerticalCutoff;
 			if(!maxTWR.Equals(0))
-				setpoint = CFG.VerticalCutoff+(TCAConfiguration.Globals.CutoffAdjustFactor+upAF)/maxTWR;
+				setpoint = CFG.VerticalCutoff+(TCAConfiguration.Globals.VSF_TWRf+upAF)/maxTWR;
 			//calculate new VSF
-			var err = setpoint-upV;
-			var K = Mathf.Clamp01(err/TCAConfiguration.Globals.K0/Mathf.Pow(Utils.ClampL(upA/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)+upAF);
+			var err = setpoint-VerticalSpeed;
+			var K = Mathf.Clamp01(err
+			                      /TCAConfiguration.Globals.K0
+			                      /Mathf.Pow(Utils.ClampL(VerticalAccel/TCAConfiguration.Globals.K1+1, TCAConfiguration.Globals.L1), 2f)
+			                      +upAF);
 			VerticalSpeedFactor = vessel.LandedOrSplashed? K : Utils.ClampL(K, TCAConfiguration.Globals.MinVSF);
 			//loosing altitude alert
-			if(upV < 0 && upV < CFG.VerticalCutoff-0.1f && !vessel.LandedOrSplashed)
+			if(VerticalSpeed < 0 && VerticalSpeed < CFG.VerticalCutoff-0.1f && !vessel.LandedOrSplashed)
 				State |= TCAState.LoosingAltitude;
+			
+//			Utils.CSV(VerticalSpeed, CFG.VerticalCutoff, maxTWR, VerticalAccel, upAF, setpoint-CFG.VerticalCutoff, K);//debug
 		}
 
 		void block_throttle(FlightCtrlState s)
@@ -766,9 +791,9 @@ namespace ThrottleControlledAvionics
 			var max_torque = e_torque_limits.Max;
 			var new_angularA = new Vector3
 				(
-					MoI.x != 0? max_torque.x/MoI.x : float.MaxValue,
-					MoI.y != 0? max_torque.y/MoI.y : float.MaxValue,
-					MoI.z != 0? max_torque.z/MoI.z : float.MaxValue
+					!MoI.x.Equals(0)? max_torque.x/MoI.x : float.MaxValue,
+					!MoI.y.Equals(0)? max_torque.y/MoI.y : float.MaxValue,
+					!MoI.z.Equals(0)? max_torque.z/MoI.z : float.MaxValue
 				);
 			angularA_filter.Update(new_angularA - angularA);
 			angularA += angularA_filter.Action;
