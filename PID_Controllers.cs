@@ -75,27 +75,43 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	//separate implementation of the strange PID controller from MechJeb2
-	public class PIDv_Controller :  ConfigNodeObject
+	public class PID_Controller : ConfigNodeObject
 	{
 		new public const string NODE_NAME = "PIDCONTROLLER";
 
 		[Persistent] public float Min = -1, Max = 1;
 		[Persistent] public float P = 0.9f, I = 0.1f, D = 0.02f;
 
+		public PID_Controller() {}
+		public PID_Controller(float p, float i, float d, float min, float max)
+		{ P = p; I = i; D = d; Min = min; Max = max; }
+
+		public void setPID(PID_Controller c)
+		{ P = c.P; I = c.I; D = c.D; Min = c.Min; Max = c.Max; }
+
+		public virtual void Reset() {}
+	}
+
+	public class PID_Controller<T> : PID_Controller
+	{
+		protected T action;
+		protected T last_error;
+		protected T integral_error;
+
+		public override void Reset() 
+		{ action = default(T); integral_error = default(T); }
+
+		//access
+		public T Action { get { return action; } }
+		public static implicit operator T(PID_Controller<T> c) { return c.action; }
+	}
+
+	//separate implementation of the strange PID controller from MechJeb2
+	public class PIDv_Controller : PID_Controller<Vector3>
+	{
 		public PIDv_Controller() {}
 		public PIDv_Controller(float p, float i, float d, float min, float max)
 		{ P = p; I = i; D = d; Min = min; Max = max; }
-
-		protected Vector3 action = Vector3.zero;
-		protected Vector3 integral_error = Vector3.zero;
-
-		public void Reset() 
-		{ action = Vector3.zero; integral_error = Vector3.zero; }
-
-		//access
-		public Vector3 Action { get { return action; } }
-		public static implicit operator Vector3(PIDv_Controller c) { return c.action; }
 
 		public void Update(Vector3 error, Vector3 omega)
 		{
@@ -114,30 +130,11 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class PIDf_Controller :  ConfigNodeObject
+	public class PIDf_Controller : PID_Controller<float>
 	{
-		new public const string NODE_NAME = "PIDCONTROLLER";
-
-		[Persistent] public float Min = -1, Max = 1;
-		[Persistent] public float P = 0.9f, I = 0.1f, D = 0.02f;
-
 		public PIDf_Controller() {}
 		public PIDf_Controller(float p, float i, float d, float min, float max)
 		{ P = p; I = i; D = d; Min = min; Max = max; }
-
-		protected float action;
-		protected float last_error;
-		protected float integral_error;
-
-		public void Reset() 
-		{ action = 0f; integral_error = 0f; last_error = 0f; }
-
-		public void setPID(PIDf_Controller c)
-		{ P = c.P; I = c.I; D = c.D; Min = c.Min; Max = c.Max; }
-
-		//access
-		public float Action { get { return action; } }
-		public static implicit operator float(PIDf_Controller c) { return c.action; }
 
 		public void Update(float error)
 		{
@@ -150,30 +147,11 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class PIDf_Controller2 :  ConfigNodeObject
+	public class PIDf_Controller2 : PID_Controller<float>
 	{
-		new public const string NODE_NAME = "PIDCONTROLLER";
-
-		[Persistent] public float Min = -1, Max = 1;
-		[Persistent] public float P = 0.9f, I = 0.1f, D = 0.02f;
-
 		public PIDf_Controller2() {}
 		public PIDf_Controller2(float p, float i, float d, float min, float max)
 		{ P = p; I = i; D = d; Min = min; Max = max; }
-
-		protected float action;
-		protected float last_error;
-		protected float integral_error;
-
-		public void Reset() 
-		{ action = 0f; integral_error = 0f; last_error = 0f; }
-
-		public void setPID(PIDf_Controller2 c)
-		{ P = c.P; I = c.I; D = c.D; Min = c.Min; Max = c.Max; }
-
-		//access
-		public float Action { get { return action; } }
-		public static implicit operator float(PIDf_Controller2 c) { return c.action; }
 
 		public void Update(float error)
 		{
