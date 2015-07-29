@@ -100,8 +100,6 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		public bool Valid 
 		{ get { return engine.part != null && engine.vessel != null; } }
-
-		public static implicit operator ModuleEngines(EngineWrapper e) { return e.engine; }
 		#endregion
 
 		#region Accessors
@@ -137,8 +135,8 @@ namespace ThrottleControlledAvionics
 			get { return engine.thrustPercentage; }
 			set
 			{
-				thrustController.Update(value-thrustPercentage);
-				engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController, 0, 100);
+				thrustController.Update(value-engine.thrustPercentage);
+				engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController.Action, 0, 100);
 			}
 		}
 
