@@ -31,17 +31,9 @@ namespace ThrottleControlledAvionics
 			//default values for PI controllers
 			[Persistent] public float MaxP = 1f; //value of P slider
 			[Persistent] public float MaxI = 1f; //value of I slider
-			[Persistent] public PI_Controller EnginesPI = new PI_Controller(0.4f, 0.2f); //thrustPercentage master PI controller defaults
-			[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
+			[Persistent] public PI_Controller EnginesPI  = new PI_Controller(0.4f, 0.2f); //thrustPercentage master PI controller defaults
+			[Persistent] public FloatCurve EnginesCurve  = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 			[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
-
-			public override void Load(ConfigNode node) 
-			{ 
-				var n = node.GetNode(Utils.PropertyName(new {SteeringCurve}));
-				if(n != null) SteeringCurve.Load(n);
-				n = node.GetNode(Utils.PropertyName(new {EnginesCurve}));
-				if(n != null) EnginesCurve.Load(n);
-			}
 		}
 		static Config TRQ { get { return TCAConfiguration.Globals.TRQ; } }
 
