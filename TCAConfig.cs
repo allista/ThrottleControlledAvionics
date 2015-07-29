@@ -15,10 +15,10 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool RoleSymmetryInFlight = true;
 		[Persistent] public bool UseStockAppLauncher  = false;
 
-		[Persistent] public TorqueOptimizer.Config TRQ;
-		[Persistent] public VerticalSpeedControl.Config VSC;
-		[Persistent] public AltitudeControl.Config ALT;
-		[Persistent] public HorizontalSpeedControl.Config HSC;
+		[Persistent] public TorqueOptimizer.Config        TRQ = new TorqueOptimizer.Config();
+		[Persistent] public VerticalSpeedControl.Config   VSC = new VerticalSpeedControl.Config();
+		[Persistent] public AltitudeControl.Config        ALT = new AltitudeControl.Config();
+		[Persistent] public HorizontalSpeedControl.Config HSC = new HorizontalSpeedControl.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -73,11 +73,8 @@ Notes:
 			VSC.Init(); ALT.Init(); HSC.Init(); TRQ.Init();
 		}
 
-		public override void Load(ConfigNode node)
-		{
-			base.Load(node);
-			VSC.Load(node); ALT.Load(node); HSC.Load(node); TRQ.Load(node);
-		}
+		//Globals are readonly
+		public override void Save(ConfigNode node) {}
 	}
 
 
@@ -104,7 +101,7 @@ Notes:
 		[Persistent] public bool    KillHorVel;
 		[Persistent] public bool    SASWasEnabled;
 		//engines
-		[Persistent] public PIf_Controller Engines = new PIf_Controller();
+		[Persistent] public PI_Controller Engines = new PI_Controller();
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
