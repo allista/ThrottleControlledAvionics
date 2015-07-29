@@ -11,49 +11,15 @@ namespace ThrottleControlledAvionics
 	{
 		new public const string NODE_NAME = "TCAGLOBALS";
 
-		//vertical speed control parameters
-		[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f;    //vertical speed limit control coefficients
-		[Persistent] public float MaxVS                 = 10f;   //max. positive vertical speed m/s (configuration limit)
-		[Persistent] public float MinVSF                = 0.05f; //minimum vertical speed factor; so as not to lose control during a rapid descent
-		[Persistent] public float VSF_BalanceCorrection = 1.5f;  //multiplier for the vertical speed factor correction; 1.2 means +20% of thrust above the minimal value sufficient for zero balance
-		[Persistent] public float VSF_TWRf              = 2.0f;  //factor for the TWR adjustment of VerticalCutoff
-		[Persistent] public float UpAf                  = 0.2f;  //factor for the upA adjustment of VerticalCutoff
-		[Persistent] public float ASf                   = 2f;    //factor for the acceleration speed adjustment of VerticalCutoff
-		[Persistent] public float DSf                   = 1f;    //factor for the deceleration speed adjustment of VerticalCutoff
-		//altitude control parameters
-		[Persistent] public float AltErrF = 0.01f; //altitude error coefficient
-		[Persistent] public float AltTWRp = 2f;    //twr power factor
-		[Persistent] public float AltTWRd = 2f;    //twr denominator
-		[Persistent] public PID_Controller AltitudeController     = new PIDf_Controller(0.1f, 0.5f, 0.03f, -9.9f, -9.9f);
-		[Persistent] public PID_Controller JetsAltitudeController = new PIDf_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
-		//engine balancing parameters
-		[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
-		[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
-		[Persistent] public float OptimizationAngleCutoff  = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
-		[Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
-		[Persistent] public float TorqueRatioFactor        = 0.1f;  //torque-ratio curve
-		//default values for PI controllers
-		[Persistent] public float MaxP = 1f; //value of P slider
-		[Persistent] public float MaxI = 1f; //value of I slider
-		[Persistent] public PI_Controller Engines   = new PI_Controller(0.4f, 0.2f); //thrustPercentage master PI controller defaults
-		[Persistent] public PI_Controller AngularA  = new PI_Controller(0.4f, 0.2f); //values for angular acceleration dumper
-		[Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
-		//steering gain curve
-		[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
-		//horizontal velocity control
-		[Persistent] public float HvP = 0.9f, HvI_Factor = 20f;
-		[Persistent] public float MinHvD = 0.02f, MaxHvD = 0.07f;
-		[Persistent] public float MinTf = 0.1f, MaxTf = 1f;
-		[Persistent] public float TWRf = 5;
-		[Persistent] public float upF  = 3;
-		public float TfSpan;
-		[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
-		[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
-		[Persistent] public float MoIFactor = 0.01f;
-		//other
 		[Persistent] public bool IntegrateIntoCareer  = true;
 		[Persistent] public bool RoleSymmetryInFlight = true;
 		[Persistent] public bool UseStockAppLauncher  = false;
+
+		[Persistent] public TorqueOptimizer.Config TRQ;
+		[Persistent] public VerticalSpeedControl.Config VSC;
+		[Persistent] public AltitudeControl.Config ALT;
+		[Persistent] public HorizontalSpeedControl.Config HSC;
+
 		//help text
 		public string Instructions = string.Empty;
 		const string instructions = 
@@ -103,30 +69,14 @@ Notes:
 
 		public void Init()
 		{ 
-			Instructions = string.Format(instructions, TCAGui.TCA_Key, MaxVS); 
-			TfSpan = MaxTf-MinTf;
-			AltitudeController.Max = JetsAltitudeController.Max =  MaxVS*0.99f;
-			AltitudeController.Min = JetsAltitudeController.Min = -MaxVS*0.99f;
+			Instructions = string.Format(instructions, TCAGui.TCA_Key, VSC.MaxSpeed);
+			VSC.Init(); ALT.Init(); HSC.Init(); TRQ.Init();
 		}
 
 		public override void Load(ConfigNode node)
 		{
 			base.Load(node);
-			//load curves
-			var n = node.GetNode(Utils.PropertyName(new {SteeringCurve}));
-			if(n != null) SteeringCurve.Load(n);
-			n = node.GetNode(Utils.PropertyName(new {EnginesCurve}));
-			if(n != null) EnginesCurve.Load(n);
-		}
-
-		//Globals are readonly
-		public override void Save(ConfigNode node) 
-		{
-			#if DEBUG
-			base.Save(node);
-			SteeringCurve.Save(node.AddNode(Utils.PropertyName(new {SteeringCurve})));
-			EnginesCurve.Save(node.AddNode(Utils.PropertyName(new {EnginesCurve})));
-			#endif
+			VSC.Load(node); ALT.Load(node); HSC.Load(node); TRQ.Load(node);
 		}
 	}
 
@@ -159,12 +109,12 @@ Notes:
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
 
-		public bool VerticalSpeedControl { get { return VerticalCutoff < TCAConfiguration.Globals.MaxVS; } }
+		public bool VerticalSpeedControl { get { return VerticalCutoff < TCAConfiguration.Globals.VSC.MaxSpeed; } }
 
 		public VesselConfig() //set defaults
 		{
-			VerticalCutoff = TCAConfiguration.Globals.MaxVS;
-			Engines.setPI(TCAConfiguration.Globals.Engines);
+			VerticalCutoff = TCAConfiguration.Globals.VSC.MaxSpeed;
+			Engines.setPI(TCAConfiguration.Globals.TRQ.EnginesPI);
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
 

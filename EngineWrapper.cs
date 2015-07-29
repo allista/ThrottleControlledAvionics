@@ -70,12 +70,12 @@ namespace ThrottleControlledAvionics
 			thrustMod = engine.atmosphereCurve.Evaluate((float)(engine.vessel.staticPressurekPa * PhysicsGlobals.KpaToAtmospheres))/zeroISP;
 			if(engine.atmChangeFlow)
 			{
-				thrustMod = (float)(part.atmDensity / 1.225);
+				thrustMod = (float)(engine.part.atmDensity / 1.225);
 				if(engine.useAtmCurve)
 					thrustMod = engine.atmCurve.Evaluate(thrustMod);
 			}
 			if(engine.useVelCurve)
-				thrustMod *= engine.velCurve.Evaluate((float)part.machNumber);
+				thrustMod *= engine.velCurve.Evaluate((float)engine.part.machNumber);
 			//update Role
 			throttleLocked =  engine.throttleLocked;
 			if(einfo != null)
@@ -92,7 +92,7 @@ namespace ThrottleControlledAvionics
 			return specificTorque * 
 				(Role != TCARole.MANUAL? 
 				 nominalCurrentThrust(throttle) :
-				 finalThrust);
+				 engine.finalThrust);
 		}
 
 		/// <summary>
@@ -100,6 +100,8 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		public bool Valid 
 		{ get { return engine.part != null && engine.vessel != null; } }
+
+		public static implicit operator ModuleEngines(EngineWrapper e) { return e.engine; }
 		#endregion
 
 		#region Accessors
@@ -110,7 +112,7 @@ namespace ThrottleControlledAvionics
 		{ get { return engine.part; } }
 
 		public float nominalCurrentThrust(float throttle)
-		{ return thrustMod * (throttleLocked ? maxThrust : Mathf.Lerp(minThrust, maxThrust, throttle)); }
+		{ return thrustMod * (throttleLocked ? engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle)); }
 
 		public float finalThrust
 		{ get { return engine.finalThrust; } }

@@ -70,7 +70,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="ThrottleControlledAvionics.cs" />
     <Compile Include="ToolbarWrapper.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="TCAGui.cs" />
@@ -81,6 +80,16 @@
     <Compile Include="EngineWrapper.cs" />
     <Compile Include="TCAToolbarManager.cs" />
     <Compile Include="PID_Controllers.cs" />
+    <Compile Include="VesselWrapper.cs" />
+    <Compile Include="Modules\TCAModule.cs" />
+    <Compile Include="Modules\VerticalSpeedControl.cs" />
+    <Compile Include="Modules\AltitudeControl.cs" />
+    <Compile Include="Modules\HorizontalSpeedControl.cs" />
+    <Compile Include="Modules\TorqueOptimizer.cs" />
+    <Compile Include="ThrottleControlledAvionics.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Folder Include="Modules\" />
+  </ItemGroup>
 </Project>

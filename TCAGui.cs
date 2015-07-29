@@ -15,6 +15,7 @@ namespace ThrottleControlledAvionics
 	{
 		static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
 		readonly ThrottleControlledAvionics TCA;
+		VesselWrapper vessel { get { return TCA.vessel; } }
 
 		#region GUI Parameters
 		bool showEngines;
@@ -204,32 +205,32 @@ namespace ThrottleControlledAvionics
 				TCA.CFG.Engines.DrawControls("Engines Controller");
 			}
 			//speed limit
-			if(TCA.OnPlanet)
+			if(vessel.OnPlanet)
 			{
 				GUILayout.BeginHorizontal();
 				if(TCA.CFG.ControlAltitude)
 				{
 					GUILayout.Label("Altitude: " + 
-					                (TCA.Altitude.ToString("F2")+"m"), 
+					                (vessel.Altitude.ToString("F2")+"m"), 
 					                GUILayout.Width(180));
 					GUILayout.Label("Set Point: " + (TCA.CFG.DesiredAltitude.ToString("F1") + "m"), 
 					                GUILayout.Width(180));
 					GUILayout.Label("Vertical Speed: " + 
-					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? vessel.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
 					GUILayout.FlexibleSpace();
 				}
 				else
 				{
 					GUILayout.Label("Vertical Speed: " + 
-					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? TCA.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? vessel.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
-					GUILayout.Label("Set Point: " + (TCA.CFG.VerticalCutoff < TCAConfiguration.Globals.MaxVS? 
+					GUILayout.Label("Set Point: " + (TCA.CFG.VerticalCutoff < TCAConfiguration.Globals.VSC.MaxSpeed? 
 					                                 TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
 					                GUILayout.ExpandWidth(false));
 					TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
-					                                                    -TCAConfiguration.Globals.MaxVS, 
-					                                                    TCAConfiguration.Globals.MaxVS);
+					                                                    -TCAConfiguration.Globals.VSC.MaxSpeed, 
+					                                                    TCAConfiguration.Globals.VSC.MaxSpeed);
 				}
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
@@ -242,7 +243,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 			}
 			GUILayout.BeginHorizontal();
-			if(TCA.OnPlanet)
+			if(vessel.OnPlanet)
 			{
 				if(GUILayout.Button(TCA.CFG.KillHorVel? "Disengage Autopilot" : "Kill Horizontal Velocity", 
 				                    TCA.CFG.KillHorVel? Styles.red_button : Styles.green_button,
@@ -303,11 +304,11 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical();
 				GUILayout.BeginHorizontal();
 				GUILayout.Label(string.Format("Torque Error: {0:F1}kNm", TCA.TorqueError), GUILayout.ExpandWidth(false));
-				GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", TCA.VerticalSpeedFactor), GUILayout.ExpandWidth(false));
+				GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", vessel.VSF), GUILayout.ExpandWidth(false));
 				GUILayout.EndHorizontal();
 				enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(controlsHeight*4));
 				GUILayout.BeginVertical();
-				foreach(var e in TCA.Engines)
+				foreach(var e in vessel.ActiveEngines)
 				{
 					if(!e.Valid) continue;
 					GUILayout.BeginHorizontal();

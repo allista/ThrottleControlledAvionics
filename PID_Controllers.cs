@@ -33,8 +33,8 @@ namespace ThrottleControlledAvionics
 		{
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(name, GUILayout.ExpandWidth(false));
-			p = Utils.FloatSlider(" P", P, 0, TCAConfiguration.Globals.MaxP, "F2");
-			i = Utils.FloatSlider(" I", I, 0, TCAConfiguration.Globals.MaxI, "F2");
+			p = Utils.FloatSlider(" P", P, 0, TCAConfiguration.Globals.TRQ.MaxP, "F2");
+			i = Utils.FloatSlider(" I", I, 0, TCAConfiguration.Globals.TRQ.MaxI, "F2");
 			GUILayout.EndHorizontal();
 		}
 	}
