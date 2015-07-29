@@ -18,12 +18,6 @@ TRQ
 		i = 0.2
 	}
 	
-	AngularA
-	{
-		p = 0.2
-		i = 0.1
-	}
-	
 	//Steering Gain curve
 	SteeringCurve 
 	{
@@ -62,7 +56,7 @@ VSC
 
 ALT
 {
-	MaxSpeed = 100
+	MaxSpeed = 10
 	ErrF = 0.01 //altitude error coefficient
 	TWRp = 2    //twr power factor
 	TWRd = 2    //twr denominator
