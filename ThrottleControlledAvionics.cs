@@ -34,16 +34,16 @@ namespace ThrottleControlledAvionics
 
 		#region Public Info
 		public float TorqueError { get { return trq == null? 0f : trq.TorqueError; } }
-		public bool  Available { get { return vessel != null && vessel.TCA_Available; } }
-		public bool  Controllable { get { return vessel != null && vessel.Controllable; } }
+		public bool  Available { get; private set; }
+		public bool  Controllable { get { return Available && vessel.IsControllable; } }
 		#endregion
 
 		#region Initialization
 		#if DEBUG
 		public void OnReloadGlobals()
 		{
-			if(vessel == null) return;
-			trq.Init(); vsc.Init(); hsc.Init(); alt.Init();
+			if(!Available) return;
+			vessel.Init(); trq.Init(); vsc.Init(); hsc.Init(); alt.Init();
 		}
 		#endif
 
@@ -70,11 +70,17 @@ namespace ThrottleControlledAvionics
 			save(); 
 			reset();
 			vessel = new VesselWrapper(vsl);
+			trq = new TorqueOptimizer(vessel);
+			vsc = new VerticalSpeedControl(vessel);
+			hsc = new HorizontalSpeedControl(vessel);
+			alt = new AltitudeControl(vessel);
+			hsc.ConnectAutopilot();
+			vessel.OnAutopilotUpdate += block_throttle;
 			init();
 		}
 
 		void onVesselModify(Vessel vsl)
-		{ if(vessel.vessel == vsl) init(); }
+		{ if(vessel != null && vessel.vessel == vsl) init(); }
 
 		void onSave(ConfigNode node) { save(); }
 
@@ -96,14 +102,8 @@ namespace ThrottleControlledAvionics
 
 		void init()
 		{
-			vessel.TCA_Available = false;
-			trq = new TorqueOptimizer(vessel);
-			vsc = new VerticalSpeedControl(vessel);
-			hsc = new HorizontalSpeedControl(vessel);
-			alt = new AltitudeControl(vessel);
-			trq.Init();	vsc.Init();	hsc.Init();	alt.Init();
-			hsc.ConnectAutopilot();
-			vessel.OnAutopilotUpdate += block_throttle;
+			Available = vessel.TCA_Available = false;
+			vessel.Init(); trq.Init(); vsc.Init(); hsc.Init(); alt.Init();
 			if(!vessel.isEVA && 
 			   (!GLB.IntegrateIntoCareer ||
 			    Utils.PartIsPurchased(TCA_PART)))
@@ -113,17 +113,12 @@ namespace ThrottleControlledAvionics
 				{
 					if(GUI == null) GUI = new TCAGui(this);
 					Utils.Log("TCA is enabled");
-					vessel.TCA_Available = true;
+					Available = vessel.TCA_Available =  true;
 					return;
 				}
 			} 
 			if(GUI != null) { GUI.OnDestroy(); GUI = null; }
 			Utils.Log("TCA is disabled");
-//			Utils.Log("TCA is disabled.\nVessel is EVA: {0}; TCA available in TechTree: {1}; Engines count: {2}",
-//			          vessel.isEVA, 
-//			          (!GLB.IntegrateIntoCareer ||
-//			            Utils.PartIsPurchased(TCA_PART)),
-//			          Engines.Count);//debug
 		}
 		#endregion
 
@@ -185,15 +180,15 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI() 
 		{ 
-			if(!vessel.TCA_Available) return;
+			if(!Available) return;
 			Styles.Init();
-			if(vessel.Controllable) GUI.DrawGUI(); 
+			if(Controllable) GUI.DrawGUI(); 
 			TCAToolbarManager.UpdateToolbarButton();
 		}
 
 		public void Update()
 		{ 
-			if(!vessel.Controllable) return;
+			if(!Controllable) return;
 			GUI.OnUpdate();
 			if(CFG.Enabled && CFG.BlockThrottle)
 			{
@@ -230,17 +225,12 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void update_modules_state()
-		{
-			trq.UpdateState();
-			vsc.UpdateState();
-			hsc.UpdateState();
-			alt.UpdateState();
-		}
-
 		public void FixedUpdate()
 		{
-			if(!vessel.TCA_Available || !CFG.Enabled) return;
+			//initialize systems
+			if(!Available) return;
+			vessel.UpdateState();
+			if(!CFG.Enabled) return;
 			State = TCAState.Enabled;
 			if(vessel.ctrlState.mainThrottle <= 0) return;
 			SetState(TCAState.Throttled);
@@ -248,31 +238,39 @@ namespace ThrottleControlledAvionics
 			SetState(TCAState.HaveEC);
 			if(!vessel.CheckEngines()) return;
 			SetState(TCAState.HaveActiveEngines);
+			//update state
 			vessel.UpdateCommons();
-			update_modules_state();
+			trq.UpdateState();
+			vsc.UpdateState();
+			hsc.UpdateState();
+			alt.UpdateState();
+			if(vsc.IsActive || alt.IsActive) 
+				vessel.UpdateOnPlanetStats();
+			alt.Update();
+			vsc.Update();
+			//handle engines
+			vessel.InitEngines();
+			vessel.SortEngines();
+			//:balance-only engines
+			if(vessel.BalancedEngines.Count > 0)
+			{
+				vessel.UpdateTorque(vessel.ManualEngines);
+				trq.OptimizeEngines(vessel.BalancedEngines, Vector3.zero);
+			}
+			vessel.UpdateTorque(vessel.ManualEngines, vessel.BalancedEngines);
+			vessel.NormalizeLimits &= vessel.SteeringEngines.Count > vessel.ManeuverEngines.Count;
+			//:optimize limits for steering
+			vessel.UpdateETorqueLimits();
 			if(hsc.IsActive) 
 				vessel.UpdateRTorqueLimits();
 			if(CFG.AutoTune || hsc.IsActive) 
 				vessel.UpdateRotationalStats();
-			if(vsc.IsActive || alt.IsActive) 
-				vessel.UpdateOnPlanetStats();
-			alt.Update(); vsc.Update();
-			vessel.InitEngines();
-			vessel.SortEngines();
-			//balance-only engines
-			vessel.UpdateTorque(vessel.ManualEngines);
-			if(vessel.BalancedEngines.Count > 0)
-				trq.OptimizeEngines(vessel.BalancedEngines, Vector3.zero);
-			vessel.UpdateTorque(vessel.ManualEngines, vessel.BalancedEngines);
-			vessel.NormalizeLimits &= vessel.SteeringEngines.Count > vessel.ManeuverEngines.Count;
-			//optimize limits for steering
-			vessel.UpdateETorqueLimits();
 			trq.SteerWithEngines();
 			vessel.SetThrustLimiters();
 		}
 
 		void block_throttle(FlightCtrlState s)
-		{ if(vessel.TCA_Available && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
+		{ if(Available && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 	}
 
 	/// <summary>

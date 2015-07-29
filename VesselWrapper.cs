@@ -87,11 +87,11 @@ namespace ThrottleControlledAvionics
 		{ get { return vessel.OnAutopilotUpdate; } set { vessel.OnAutopilotUpdate = value; } }
 
 		public bool TCA_Available;
-		public bool Controllable  { get { return TCA_Available && vessel.IsControllable; } }
-
+		public bool IsControllable { get { return vessel.IsControllable; } }
 
 		public VesselWrapper(Vessel vsl) { vessel = vsl; }
-		public static implicit operator Vessel(VesselWrapper v) { return v.vessel; }
+
+		public void Init() {}
 
 		#region Engines
 		public void UpdateEngines()
@@ -230,11 +230,15 @@ namespace ThrottleControlledAvionics
 			else Altitude = (float)vessel.altitude; 
 		}
 
-		public void UpdateCommons()
+		public void UpdateState()
 		{
 			OnPlanet = (vessel.situation != Vessel.Situations.DOCKED   &&
-						vessel.situation != Vessel.Situations.ORBITING &&
+			            vessel.situation != Vessel.Situations.ORBITING &&
 			            vessel.situation != Vessel.Situations.ESCAPING);
+		}
+
+		public void UpdateCommons()
+		{
 			wCoM = vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime;
 			refT = vessel.ReferenceTransform;
 			up   = (wCoM - vessel.mainBody.position).normalized;
@@ -332,7 +336,6 @@ namespace ThrottleControlledAvionics
 					!MoI.y.Equals(0)? max_torque.y/MoI.y : float.MaxValue,
 					!MoI.z.Equals(0)? max_torque.z/MoI.z : float.MaxValue
 				);
-//			angularA_filter.Update(new_angularA - AngularA);
 			MaxAngularA = 0.3f*MaxAngularA + 0.7f*new_angularA;
 		}
 
