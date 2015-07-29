@@ -6,21 +6,6 @@ namespace ThrottleControlledAvionics
 {
 	public static class Extensions
 	{
-		#region Resources
-		const string ElectricChargeName = "ElectricCharge";
-		static PartResourceDefinition _electric_charge;
-
-		public static PartResourceDefinition ElectricCharge
-		{ 
-			get
-			{ 
-				if(_electric_charge == null)
-					_electric_charge = PartResourceLibrary.Instance.GetDefinition(ElectricChargeName);
-				return _electric_charge;
-			} 
-		}
-		#endregion
-
 		#region Logging
 		public static string Title(this Part p) { return p.partInfo != null? p.partInfo.title : p.name; }
 
@@ -32,20 +17,6 @@ namespace ThrottleControlledAvionics
 			Utils.Log(_msg, args);
 		}
 		#endregion
-
-		public static bool ElectricChargeAvailible(this Vessel v)
-		{
-			var ec = v.GetActiveResource(ElectricCharge);
-			return ec != null && ec.amount > 0;
-		}
-
-		public static bool OnPlanet(this Vessel v)
-		{
-			return 
-				v.situation != Vessel.Situations.DOCKED   &&
-				v.situation != Vessel.Situations.ORBITING &&
-				v.situation != Vessel.Situations.ESCAPING;
-		}
 
 		public static Vector3 CubeNorm(this Vector3 v)
 		{
