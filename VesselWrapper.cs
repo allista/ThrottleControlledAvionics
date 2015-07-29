@@ -280,9 +280,19 @@ namespace ThrottleControlledAvionics
 		{
 			AccelSpeed = 0f; DecelSpeed = 0f; MaxTWR = 0f;
 			if(!OnPlanet) return;
-			//calculate vertical speed and acceleration
+			//calculate altitude, vertical speed and acceleration
+			var upV = 0f;
+			if(CFG.ControlAltitude)
+			{
+				//update vessel altitude
+				var old_alt = Altitude;
+				UpdateAltitude();
+				//use relative vertical speed instead of absolute
+				if(CFG.AltitudeAboveTerrain)
+					upV = 0.3f*VerticalSpeed+0.7f*(Altitude-old_alt)/TimeWarp.fixedDeltaTime;
+			}
 			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
-			var upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
+			else upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
 			VerticalAccel = 0.3f*VerticalAccel + 0.7f*(upV-VerticalSpeed)/TimeWarp.fixedDeltaTime; //high-freq filter
 			VerticalSpeed = upV;
 			//calculate total downward thrust and slow engines' corrections

@@ -52,7 +52,6 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			SetState(TCAState.AltitudeControl);
-			vessel.UpdateAltitude();
 			var alt_error = CFG.DesiredAltitude-vessel.Altitude;
 			if((vessel.AccelSpeed > 0 || vessel.DecelSpeed > 0))
 			{
@@ -71,7 +70,7 @@ namespace ThrottleControlledAvionics
 				rocket_pid.Update(alt_error);
 				CFG.VerticalCutoff = rocket_pid.Action;
 			}
-			//			Utils.CSV(Altitude, CFG.VerticalCutoff, VerticalSpeedFactor, VerticalSpeed);//debug
+//			Utils.CSV(vessel.Altitude, CFG.VerticalCutoff, vessel.VSF, vessel.VerticalSpeed);//debug
 		}
 	}
 }
