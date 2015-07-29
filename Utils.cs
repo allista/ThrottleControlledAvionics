@@ -7,6 +7,7 @@
  */
 
 using System;
+using System.Reflection;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -105,11 +106,34 @@ namespace ThrottleControlledAvionics
 	{
 		public const string NODE_NAME = "NODE";
 
+		static readonly string iface_name = typeof(IConfigNode).Name;
+		static readonly Type cnode_type = typeof(ConfigNode);
+
 		virtual public void Load(ConfigNode node)
-		{ ConfigNode.LoadObjectFromConfig(this, node); }
+		{ 
+			ConfigNode.LoadObjectFromConfig(this, node);
+			foreach(var fi in GetType().GetFields())
+			{
+				if(fi.FieldType.GetInterface(iface_name) == null) continue;
+				var n = node.GetNode(fi.Name);
+				if(n == null) continue;
+				var method = fi.FieldType.GetMethod("Load", new [] {cnode_type});
+				if(method == null) continue;
+				method.Invoke(fi.GetValue(this), new [] {n});
+			}
+		}
 
 		virtual public void Save(ConfigNode node)
-		{ ConfigNode.CreateConfigFromObject(this, node); }
+		{ 
+			ConfigNode.CreateConfigFromObject(this, node); 
+			foreach(var fi in GetType().GetFields())
+			{
+				if(fi.FieldType.GetInterface(iface_name) == null) continue;
+				var method = fi.FieldType.GetMethod("Save", new [] {cnode_type});
+				if(method == null) continue;
+				method.Invoke(fi.GetValue(this), new [] {node.AddNode(fi.Name)});
+			}
+		}
 	}
 
 	//convergent with Anatid's Vector6, but not taken from it
