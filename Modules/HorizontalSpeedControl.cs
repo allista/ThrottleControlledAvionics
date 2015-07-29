@@ -42,15 +42,15 @@ namespace ThrottleControlledAvionics
 
 		public HorizontalSpeedControl(VesselWrapper vsl) { vessel = vsl; }
 		public override void Init() { pid.P = HSC.P; }
-		public override void UpdateState()
-		{ IsActive = vessel.TCA_Available && CFG.Enabled && CFG.KillHorVel && vessel.refT == null && vessel.OnPlanet; }
+		public override void UpdateState() { IsActive = CFG.KillHorVel && vessel.OnPlanet; }
 
 		public void ConnectAutopilot() { vessel.OnAutopilotUpdate += Update; }
 		public void DisconnectAutopilot() { vessel.OnAutopilotUpdate -= Update; }
 
 		void Update(FlightCtrlState s)
 		{
-			if(!IsActive) return;
+			//need to check all the prerequisites
+			if(!(vessel.TCA_Available && CFG.Enabled && CFG.KillHorVel && vessel.refT != null && vessel.OnPlanet)) return;
 			//allow user to intervene
 			if(!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 			   !Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
