@@ -9,28 +9,116 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class EngineWrapper
+	public abstract class ThrusterWrapper
 	{
-		public readonly ModuleEngines engine;
-		public readonly TCAEngineInfo einfo;
-
 		public static readonly PI_Controller ThrustPI = new PI_Controller();
-		PIf_Controller thrustController = new PIf_Controller();
+		protected PIf_Controller thrustController = new PIf_Controller();
+
 		public Vector3 specificTorque   = Vector3.zero;
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;
+		public float   currentTorque_m;
 		public float   torqueRatio;
 		public float   limit, best_limit, limit_tmp;
-		public float   currentTorque_m;
+		public float   thrustMod;
+		protected float zeroISP;
+
+		public abstract Vessel vessel { get; }
+		public abstract Part part { get; }
+
+		public bool Valid { get { return part != null && vessel != null; } }
+		public abstract bool isOperational { get; }
+
+		public abstract float maxThrust { get; }
+		public abstract float finalThrust { get; }
+		public abstract float thrustPercentage { get; set; }
+
+		public abstract Vector3 wThrustPos { get; }
+		public abstract Vector3 wThrustDir { get; }
+
+		public abstract void InitLimits();
+		public abstract void InitState();
+	}
+
+	public class RCSWrapper : ThrusterWrapper
+	{
+		public readonly ModuleRCS rcs;
+		readonly float nominalThrusterPower;
+		readonly int num_thrusters;
+
+		Vector3 avg_thrust_dir;
+		Vector3 avg_thrust_pos;
+		float current_thrust;
+		float current_max_thrust;
+
+		public RCSWrapper(ModuleRCS rcs)
+		{
+			thrustController.setMaster(ThrustPI);
+			zeroISP = rcs.atmosphereCurve.Evaluate(0f);
+			num_thrusters = rcs.thrusterTransforms.Count;
+			nominalThrusterPower = rcs.thrusterPower;
+			this.rcs = rcs;
+		}
+
+		public override void InitLimits()
+		{
+			limit = best_limit = limit_tmp = 1f;
+		}
+
+		public override void InitState()
+		{
+			thrustMod = rcs.atmosphereCurve.Evaluate((float)(rcs.vessel.staticPressurekPa * PhysicsGlobals.KpaToAtmospheres))/zeroISP;
+			var total_sthrust = 0f;
+			avg_thrust_dir = Vector3.zero;
+			avg_thrust_pos = Vector3.zero;
+			for(int i = 0; i < num_thrusters; i++)
+			{
+				var sthrust = rcs.thrustForces[i];
+				var T = rcs.thrusterTransforms[i];
+				avg_thrust_dir += T.up*sthrust;
+				avg_thrust_pos += T.position*sthrust;
+				total_sthrust += sthrust;
+			}
+			var current_sthrust = avg_thrust_dir.magnitude;
+			avg_thrust_pos /= total_sthrust;
+			avg_thrust_dir.Normalize();
+			current_max_thrust = current_sthrust*nominalThrusterPower*thrustMod;
+			current_thrust = current_sthrust*rcs.thrusterPower*thrustMod;
+		}
+
+		public override Vessel vessel { get { return rcs.vessel; } }
+		public override Part part { get { return rcs.part; } }
+
+		public override Vector3 wThrustDir { get { return avg_thrust_dir; } }
+		public override Vector3 wThrustPos { get { return avg_thrust_pos; } }
+
+		public override float maxThrust { get { return current_max_thrust; } }
+		public override float finalThrust { get { return current_thrust; } }
+
+		public override float thrustPercentage
+		{
+			get { return rcs.thrusterPower/nominalThrusterPower*100f; }
+			set
+			{
+				thrustController.Update(value/100f*nominalThrusterPower-rcs.thrusterPower);
+				rcs.thrusterPower = Mathf.Clamp(rcs.thrusterPower+thrustController.Action, 0, nominalThrusterPower);
+			}
+		}
+
+		public override bool isOperational { get { return rcs.rcsEnabled; } }
+	}
+
+	public class EngineWrapper : ThrusterWrapper
+	{
+		public readonly ModuleEngines engine;
+		readonly TCAEngineInfo einfo;
+
 		public bool    throttleLocked;
 		public float   throttle;
-		public float   thrustMod;
-		public float   VSF; //vertical speed factor
+		public float   VSF;   //vertical speed factor
 		public bool    isVSC; //vertical speed controller
 		public TCARole Role;
 		public CenterOfThrustQuery thrustInfo;
-
-		readonly float zeroISP;
 
 		public EngineWrapper(ModuleEngines engine) 
 		{
@@ -41,7 +129,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		#region methods
-		public void InitLimits()
+		public override void InitLimits()
 		{
 			isVSC = false;
 			switch(Role)
@@ -60,7 +148,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void InitState()
+		public override void InitState()
 		{
 			//update thrust info
 			thrustInfo = new CenterOfThrustQuery();
@@ -94,43 +182,27 @@ namespace ThrottleControlledAvionics
 				 nominalCurrentThrust(throttle) :
 				 engine.finalThrust);
 		}
-
-		/// <summary>
-		/// If the wrapper is still points to the valid ModuleEngines(FX)
-		/// </summary>
-		public bool Valid 
-		{ get { return engine.part != null && engine.vessel != null; } }
 		#endregion
 
 		#region Accessors
-		public Vessel vessel
-		{ get { return engine.vessel; } }
+		public override Vessel vessel { get { return engine.vessel; } }
+		public override Part part { get { return engine.part; } }
 
-		public Part part
-		{ get { return engine.part; } }
+		public override Vector3 wThrustDir { get { return thrustInfo.dir; } }
+		public override Vector3 wThrustPos { get { return thrustInfo.pos; } }
+
+		public bool  useEngineResponseTime { get { return engine.useEngineResponseTime; } }
+		public float engineAccelerationSpeed { get { return engine.engineAccelerationSpeed; } }
+		public float engineDecelerationSpeed { get { return engine.engineDecelerationSpeed; } }
+
+		public float minThrust { get { return engine.minThrust*thrustMod; } }
+		public override float maxThrust { get { return engine.maxThrust*thrustMod; } }
+		public override float finalThrust { get { return engine.finalThrust; } }
 
 		public float nominalCurrentThrust(float throttle)
-		{ return thrustMod * (throttleLocked ? engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle)); }
+		{ return (throttleLocked ? engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle)); }
 
-		public float finalThrust
-		{ get { return engine.finalThrust; } }
-
-		public float maxThrust
-		{ get { return engine.maxThrust; } }
-
-		public float minThrust
-		{ get { return engine.minThrust; } }
-
-		public bool useEngineResponseTime
-		{ get { return engine.useEngineResponseTime; } }
-
-		public float engineAccelerationSpeed
-		{ get { return engine.engineAccelerationSpeed; } }
-
-		public float engineDecelerationSpeed
-		{ get { return engine.engineDecelerationSpeed; } }
-
-		public float thrustPercentage
+		public override float thrustPercentage
 		{
 			get { return engine.thrustPercentage; }
 			set
@@ -139,10 +211,9 @@ namespace ThrottleControlledAvionics
 				engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController.Action, 0, 100);
 			}
 		}
+		public void forceThrustPercentage(float value) { engine.thrustPercentage = Mathf.Clamp(value, 0, 100); }
 
-		public void forceThrustPercentage(float value) { engine.thrustPercentage = value; }
-
-		public bool isOperational { get { return engine.isOperational; } }
+		public override bool isOperational { get { return engine.isOperational; } }
 
 		public string name
 		{

@@ -155,10 +155,10 @@ namespace ThrottleControlledAvionics
 			{
 				var e = ActiveEngines[i];
 				e.InitState();
-				e.thrustDirection = refT.InverseTransformDirection(e.thrustInfo.dir);
-				var lever = e.thrustInfo.pos-wCoM;
-				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(lever, e.thrustInfo.dir));
-				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, e.thrustInfo.dir))), TCAConfiguration.Globals.TRQ.TorqueRatioFactor);
+				e.thrustDirection = refT.InverseTransformDirection(e.wThrustDir);
+				var lever = e.wThrustPos-wCoM;
+				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(lever, e.wThrustDir));
+				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, e.wThrustDir))), TCAConfiguration.Globals.TRQ.TorqueRatioFactor);
 				min_imbalance += e.Torque(0);
 			}
 			//calculate engine's torue, torque limits and set VSF
@@ -306,7 +306,7 @@ namespace ThrottleControlledAvionics
 				if(e.thrustInfo == null) continue;
 				if(e.isVSC)
 				{
-					var dcomponent = -Vector3.Dot(e.thrustInfo.dir, up);
+					var dcomponent = -Vector3.Dot(e.wThrustDir, up);
 					if(dcomponent <= 0) e.VSF = 0f;
 					else 
 					{
