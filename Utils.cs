@@ -46,6 +46,12 @@ namespace ThrottleControlledAvionics
 		public static float ClampH(float x, float high) { return x > high ? high : x;  }
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
 
+		public static float WAverage(float old, float cur, float ratio = 0.7f)
+		{ return (1-ratio)*old + ratio*cur; }
+
+		public static Vector3 WAverage(Vector3 old, Vector3 cur, float ratio = 0.7f)
+		{ return (1-ratio)*old + ratio*cur; }
+
 		#region Vector3
 		public static Vector3 Inverse(this Vector3 v) { return new Vector3(1f/v.x, 1f/v.y, 1f/v.z); }
 
