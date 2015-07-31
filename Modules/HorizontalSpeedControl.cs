@@ -21,11 +21,13 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "HSC";
 
+			[Persistent] public float TranslationThreshold = 1f;
+
 			[Persistent] public float P = 0.9f, If = 20f;
-			[Persistent] public float MinD = 0.02f, MaxD = 0.07f;
-			[Persistent] public float MinTf = 0.1f, MaxTf = 1f;
-			[Persistent] public float TWRf = 5;
-			[Persistent] public float upF  = 3;
+			[Persistent] public float MinD  = 0.02f, MaxD  = 0.07f;
+			[Persistent] public float MinTf = 0.1f,  MaxTf = 1f;
+			[Persistent] public float TWRf  = 5;
+			[Persistent] public float TorF  = 3;
 			[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
 			[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
 			[Persistent] public float MoIFactor = 0.01f;
@@ -64,20 +66,20 @@ namespace ThrottleControlledAvionics
 			vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//calculate horizontal velocity
 			var hV  = Vector3d.Exclude(vessel.up, srf_velocity);
+			var hVl = vessel.refT.InverseTransformDirection(hV);
 			var hVm = hV.magnitude;
 			//calculate needed thrust direction
 			var MaxHv = Math.Max(acceleration.magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-			var max_torque = vessel.E_TorqueLimits.Max+vessel.R_TorqueLimits.Max;
+			var max_torque = vessel.E_TorqueLimits.Max+vessel.W_TorqueLimits.Max+vessel.R_TorqueLimits.Max;
 			Vector3 needed_thrust_dir;
 			if(hVm > 1e-7)
 			{
 				//correction for low TWR and torque
 				var upl  = vessel.refT.InverseTransformDirection(vessel.up);
-				var hVl  = vessel.refT.InverseTransformDirection(hV);
-				var TWR = Vector3.Dot(thrust, upl) < 0? Vector3.Project(thrust, upl).magnitude/9.81f/vessel.M : 0f;
+				var TWR = Vector3.Dot(thrust, upl) < 0? Vector3.Project(thrust, upl).magnitude/TCAConfiguration.G/vessel.M : 0f;
 				var twrF = Utils.ClampH(TWR/HSC.TWRf, 1);
-				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(max_torque, hVl), vessel.MoI.Inverse()).sqrMagnitude, 1);
-				var upF  = Vector3.Dot(thrust, hVl) < 0? 1 : Mathf.Pow(Utils.ClampL(twrF*torF, 1e-9f), HSC.upF);
+				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(max_torque, hVl), vessel.MoI.Inverse()).magnitude*HSC.TorF, 1);
+				var upF  = Vector3.Dot(thrust, hVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);
 				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)(MaxHv/hVm), 1)/upF;
 //				Utils.Log("needed thrust direction: {0}\n" +
 //				          "TWR factor: {1}\n" +
@@ -90,12 +92,15 @@ namespace ThrottleControlledAvionics
 //				          twrF,
 //				          torF,
 //				          upF, 
-//				          vessel.TWR, 
+//				          TWR, 
 //				          max_torque, 
 //				          vessel.MoI
 //				         );//debug
 			}
 			else needed_thrust_dir = vessel.refT.InverseTransformDirection(-vessel.up);
+			//also try to use translation control to slow down
+			var hVl_dir = Utils.ClampH((float)(hVm/HSC.TranslationThreshold), 1)*hVl.CubeNorm();	
+			s.X = hVl_dir.x; s.Z = hVl_dir.y; s.Y = hVl_dir.z;
 			//calculate corresponding rotation
 			var attitude_error = Quaternion.FromToRotation(needed_thrust_dir, thrust);
 			var steering_error = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),

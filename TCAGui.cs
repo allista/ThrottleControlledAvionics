@@ -173,8 +173,8 @@ namespace ThrottleControlledAvionics
 				{ state = "No Active Engines"; style = Styles.yellow; }
 				else if(TCA.State == TCAState.NoEC)
 				{ state = "No Electric Charge"; style = Styles.red; }
-				else
-				{ state = "Not Throttled"; style = Styles.yellow; }
+				else //this should never happen
+				{ state = "Unknown State"; style = Styles.magenta_button; }
 			}
 			GUILayout.Label(state, style, GUILayout.ExpandWidth(false));
 		}
@@ -243,7 +243,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 			}
 			GUILayout.BeginHorizontal();
-			if(vessel.OnPlanet)
+			if(vessel.OnPlanet && vessel.NumActive > 0)
 			{
 				if(GUILayout.Button(TCA.CFG.KillHorVel? "Disengage Autopilot" : "Kill Horizontal Velocity", 
 				                    TCA.CFG.KillHorVel? Styles.red_button : Styles.green_button,
@@ -318,7 +318,7 @@ namespace ThrottleControlledAvionics
 						                "Attitude Modifier: {1:P1}\n" +
 						                "Thrust Limit:      {2:F1}%",
 						                e.currentTorque,
-						                e.limit, e.thrustPercentage));
+						                e.limit, e.thrustLimit));
 					GUILayout.EndHorizontal();
 				}
 				GUILayout.EndVertical();

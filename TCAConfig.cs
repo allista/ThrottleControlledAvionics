@@ -14,11 +14,13 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool IntegrateIntoCareer  = true;
 		[Persistent] public bool RoleSymmetryInFlight = true;
 		[Persistent] public bool UseStockAppLauncher  = false;
+		[Persistent] public float InputDeadZone       = 0.01f; //1% of steering or translation control
 
 		[Persistent] public TorqueOptimizer.Config        TRQ = new TorqueOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config   VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config        ALT = new AltitudeControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config HSC = new HorizontalSpeedControl.Config();
+		[Persistent] public RCSOptimizer.Config           RCS = new RCSOptimizer.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -70,7 +72,8 @@ Notes:
 		public void Init()
 		{ 
 			Instructions = string.Format(instructions, TCAGui.TCA_Key, VSC.MaxSpeed);
-			VSC.Init(); ALT.Init(); HSC.Init(); TRQ.Init();
+			VSC.Init(); ALT.Init(); HSC.Init(); TRQ.Init(); RCS.Init();
+			InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
 		}
 
 		//Globals are readonly
@@ -165,6 +168,8 @@ Notes:
 
 	public static class TCAConfiguration
 	{
+		public const float G = 9.82f;
+
 		public const string CONFIGNAME  = "TCA.conf";
 		public const string GLOBALSNAME = "TCA.glob";
 		public const string NODE_NAME   = "TCACONFIG";

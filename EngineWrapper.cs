@@ -11,9 +11,6 @@ namespace ThrottleControlledAvionics
 {
 	public abstract class ThrusterWrapper
 	{
-		public static readonly PI_Controller ThrustPI = new PI_Controller();
-		protected PIf_Controller thrustController = new PIf_Controller();
-
 		public Vector3 specificTorque   = Vector3.zero;
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;
@@ -29,12 +26,13 @@ namespace ThrottleControlledAvionics
 		public bool Valid { get { return part != null && vessel != null; } }
 		public abstract bool isOperational { get; }
 
-		public abstract float maxThrust { get; }
 		public abstract float finalThrust { get; }
-		public abstract float thrustPercentage { get; set; }
+		public abstract float thrustLimit { get; set; }
 
 		public abstract Vector3 wThrustPos { get; }
 		public abstract Vector3 wThrustDir { get; }
+
+		public abstract Vector3 Torque(float throttle);
 
 		public abstract void InitLimits();
 		public abstract void InitState();
@@ -43,8 +41,7 @@ namespace ThrottleControlledAvionics
 	public class RCSWrapper : ThrusterWrapper
 	{
 		public readonly ModuleRCS rcs;
-		readonly float nominalThrusterPower;
-		readonly int num_thrusters;
+		public readonly float nominalThrusterPower;
 
 		Vector3 avg_thrust_dir;
 		Vector3 avg_thrust_pos;
@@ -53,17 +50,13 @@ namespace ThrottleControlledAvionics
 
 		public RCSWrapper(ModuleRCS rcs)
 		{
-			thrustController.setMaster(ThrustPI);
 			zeroISP = rcs.atmosphereCurve.Evaluate(0f);
-			num_thrusters = rcs.thrusterTransforms.Count;
 			nominalThrusterPower = rcs.thrusterPower;
 			this.rcs = rcs;
 		}
 
 		public override void InitLimits()
-		{
-			limit = best_limit = limit_tmp = 1f;
-		}
+		{ limit = best_limit = limit_tmp = 1f; }
 
 		public override void InitState()
 		{
@@ -71,7 +64,7 @@ namespace ThrottleControlledAvionics
 			var total_sthrust = 0f;
 			avg_thrust_dir = Vector3.zero;
 			avg_thrust_pos = Vector3.zero;
-			for(int i = 0; i < num_thrusters; i++)
+			for(int i = 0; i < rcs.thrusterTransforms.Count; i++)
 			{
 				var sthrust = rcs.thrustForces[i];
 				var T = rcs.thrusterTransforms[i];
@@ -84,6 +77,7 @@ namespace ThrottleControlledAvionics
 			avg_thrust_dir.Normalize();
 			current_max_thrust = current_sthrust*nominalThrusterPower*thrustMod;
 			current_thrust = current_sthrust*rcs.thrusterPower*thrustMod;
+			InitLimits();
 		}
 
 		public override Vessel vessel { get { return rcs.vessel; } }
@@ -92,24 +86,27 @@ namespace ThrottleControlledAvionics
 		public override Vector3 wThrustDir { get { return avg_thrust_dir; } }
 		public override Vector3 wThrustPos { get { return avg_thrust_pos; } }
 
-		public override float maxThrust { get { return current_max_thrust; } }
+		public float maxThrust { get { return current_max_thrust; } }
 		public override float finalThrust { get { return current_thrust; } }
 
-		public override float thrustPercentage
+		public override Vector3 Torque (float throttle)
+		{ return specificTorque*current_max_thrust*throttle; }
+
+		public override float thrustLimit
 		{
-			get { return rcs.thrusterPower/nominalThrusterPower*100f; }
-			set
-			{
-				thrustController.Update(value/100f*nominalThrusterPower-rcs.thrusterPower);
-				rcs.thrusterPower = Mathf.Clamp(rcs.thrusterPower+thrustController.Action, 0, nominalThrusterPower);
-			}
+			get { return rcs.thrusterPower/nominalThrusterPower; }
+			set { rcs.thrusterPower = Mathf.Clamp(Utils.WAverage(rcs.thrusterPower, value*nominalThrusterPower), 0, nominalThrusterPower); }
 		}
 
-		public override bool isOperational { get { return rcs.rcsEnabled; } }
+		public override bool isOperational 
+		{ get { return rcs.rcsEnabled && rcs.thrusterTransforms.Count > 0 && rcs.thrusterTransforms.Count == rcs.thrustForces.Count; } }
 	}
 
 	public class EngineWrapper : ThrusterWrapper
 	{
+		public static readonly PI_Controller ThrustPI = new PI_Controller();
+		protected PIf_Controller thrustController = new PIf_Controller();
+
 		public readonly ModuleEngines engine;
 		readonly TCAEngineInfo einfo;
 
@@ -143,7 +140,7 @@ namespace ThrottleControlledAvionics
 				limit = best_limit = 0f;
 				break;
 			case TCARole.MANUAL:
-				limit = best_limit = thrustPercentage/100;
+				limit = best_limit = thrustLimit/100;
 				break;
 			}
 		}
@@ -175,7 +172,7 @@ namespace ThrottleControlledAvionics
 			InitLimits();
 		}
 
-		public Vector3 Torque(float throttle)
+		public override Vector3 Torque(float throttle)
 		{
 			return specificTorque * 
 				(Role != TCARole.MANUAL? 
@@ -195,19 +192,17 @@ namespace ThrottleControlledAvionics
 		public float engineAccelerationSpeed { get { return engine.engineAccelerationSpeed; } }
 		public float engineDecelerationSpeed { get { return engine.engineDecelerationSpeed; } }
 
-		public float minThrust { get { return engine.minThrust*thrustMod; } }
-		public override float maxThrust { get { return engine.maxThrust*thrustMod; } }
 		public override float finalThrust { get { return engine.finalThrust; } }
 
 		public float nominalCurrentThrust(float throttle)
-		{ return (throttleLocked ? engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle)); }
+		{ return thrustMod * (throttleLocked ? engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle)); }
 
-		public override float thrustPercentage
+		public override float thrustLimit
 		{
-			get { return engine.thrustPercentage; }
+			get { return engine.thrustPercentage/100f; }
 			set
 			{
-				thrustController.Update(value-engine.thrustPercentage);
+				thrustController.Update(value*100-engine.thrustPercentage);
 				engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController.Action, 0, 100);
 			}
 		}

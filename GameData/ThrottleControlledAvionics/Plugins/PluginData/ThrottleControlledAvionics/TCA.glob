@@ -1,6 +1,16 @@
 UseStockAppLauncher  = false
 IntegrateIntoCareer  = true
 RoleSymmetryInFlight = true
+InputDeadZone        = 0.03
+
+RCS
+{
+	MaxIterations = 50
+	OptimizationPrecision = 0.01
+	OptimizationAngleCutoff = 10
+	OptimizationTorqueCutoff = 1
+	TorqueRatioFactor = 0.1
+}
 
 TRQ
 {
@@ -76,6 +86,8 @@ ALT
 
 HSC
 {
+	TranslationThreshold   = 1
+
 	P                     = 0.9
 	If                    = 20
 	MinD                  = 0.02
@@ -88,6 +100,6 @@ HSC
 	MinHvThreshold        = 10
 	MoIFactor             = 0.01
 	TWRf                  = 0.8
-	upF                   = 1
+	TorF                  = 1.2
 }
 //:mode=c#:

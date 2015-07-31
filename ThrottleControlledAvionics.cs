@@ -30,6 +30,7 @@ namespace ThrottleControlledAvionics
 		VerticalSpeedControl vsc;
 		HorizontalSpeedControl hsc;
 		AltitudeControl alt;
+		RCSOptimizer rcs;
 		#endregion
 
 		#region Public Info
@@ -43,7 +44,7 @@ namespace ThrottleControlledAvionics
 		public void OnReloadGlobals()
 		{
 			if(!Available) return;
-			vessel.Init(); trq.Init(); vsc.Init(); hsc.Init(); alt.Init();
+		vessel.Init(); trq.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init();
 		}
 		#endif
 
@@ -74,6 +75,7 @@ namespace ThrottleControlledAvionics
 			vsc = new VerticalSpeedControl(vessel);
 			hsc = new HorizontalSpeedControl(vessel);
 			alt = new AltitudeControl(vessel);
+			rcs = new RCSOptimizer(vessel);
 			hsc.ConnectAutopilot();
 			vessel.OnAutopilotUpdate += block_throttle;
 			init();
@@ -103,13 +105,13 @@ namespace ThrottleControlledAvionics
 		void init()
 		{
 			Available = vessel.TCA_Available = false;
-			vessel.Init(); trq.Init(); vsc.Init(); hsc.Init(); alt.Init();
+			vessel.Init(); trq.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init();
 			if(!vessel.isEVA && 
 			   (!GLB.IntegrateIntoCareer ||
 			    Utils.PartIsPurchased(TCA_PART)))
 			{
 				vessel.UpdateEngines();
-				if(vessel.Engines.Count > 0)
+				if(vessel.Engines.Count > 0 || vessel.RCS.Count > 0)
 				{
 					if(GUI == null) GUI = new TCAGui(this);
 					Utils.Log("TCA is enabled");
@@ -232,40 +234,48 @@ namespace ThrottleControlledAvionics
 			vessel.UpdateState();
 			if(!CFG.Enabled) return;
 			State = TCAState.Enabled;
-			if(vessel.ctrlState.mainThrottle <= 0) return;
-			SetState(TCAState.Throttled);
 			if(!vessel.ElectricChargeAvailible) return;
 			SetState(TCAState.HaveEC);
 			if(!vessel.CheckEngines()) return;
 			SetState(TCAState.HaveActiveEngines);
 			//update state
 			vessel.UpdateCommons();
-			trq.UpdateState();
-			vsc.UpdateState();
-			hsc.UpdateState();
-			alt.UpdateState();
-			if(vsc.IsActive || alt.IsActive) 
-				vessel.UpdateOnPlanetStats();
-			alt.Update();
-			vsc.Update();
+			if(vessel.NumActive > 0)
+			{
+				trq.UpdateState();
+				vsc.UpdateState();
+				hsc.UpdateState();
+				alt.UpdateState();
+				if(vsc.IsActive || alt.IsActive) 
+					vessel.UpdateOnPlanetStats();
+				alt.Update();
+				vsc.Update();
+			}
 			//handle engines
 			vessel.InitEngines();
 			vessel.SortEngines();
-			//:balance-only engines
-			if(vessel.BalancedEngines.Count > 0)
+			if(vessel.NumActive > 0)
 			{
-				vessel.UpdateTorque(vessel.ManualEngines);
-				trq.OptimizeEngines(vessel.BalancedEngines, Vector3.zero);
+				//:balance-only engines
+				if(vessel.BalancedEngines.Count > 0)
+				{
+					vessel.UpdateTorque(vessel.ManualEngines);
+					trq.Optimize(vessel.BalancedEngines, Vector3.zero);
+				}
+				vessel.UpdateTorque(vessel.ManualEngines, vessel.BalancedEngines);
+				vessel.NormalizeLimits &= vessel.SteeringEngines.Count > vessel.ManeuverEngines.Count;
+				//:optimize limits for steering
+				vessel.UpdateETorqueLimits();
+				if(hsc.IsActive) 
+				{
+					vessel.UpdateWTorqueLimits();
+					vessel.UpdateRTorqueLimits();
+				}
+				if(CFG.AutoTune || hsc.IsActive) 
+					vessel.UpdateRotationalStats();
+				trq.Steer();
 			}
-			vessel.UpdateTorque(vessel.ManualEngines, vessel.BalancedEngines);
-			vessel.NormalizeLimits &= vessel.SteeringEngines.Count > vessel.ManeuverEngines.Count;
-			//:optimize limits for steering
-			vessel.UpdateETorqueLimits();
-			if(hsc.IsActive) 
-				vessel.UpdateRTorqueLimits();
-			if(CFG.AutoTune || hsc.IsActive) 
-				vessel.UpdateRotationalStats();
-			trq.SteerWithEngines();
+			rcs.Steer();
 			vessel.SetThrustLimiters();
 		}
 
@@ -282,15 +292,14 @@ namespace ThrottleControlledAvionics
 	{ 
 		Disabled 			   = 0,
 		Enabled 			   = 1 << 0,
-		Throttled 			   = 1 << 1,
-		HaveEC 				   = 1 << 2, 
-		HaveActiveEngines 	   = 1 << 3,
-		VerticalSpeedControl   = 1 << 4,
-		AltitudeControl        = 1 << 5,
-		LoosingAltitude 	   = 1 << 6,
-		Unoptimized			   = 1 << 7,
-		Nominal				   = Enabled | Throttled | HaveEC | HaveActiveEngines,
-		NoActiveEngines        = Enabled | Throttled | HaveEC,
-		NoEC                   = Enabled | Throttled,
+		HaveEC 				   = 1 << 1, 
+		HaveActiveEngines 	   = 1 << 2,
+		VerticalSpeedControl   = 1 << 3,
+		AltitudeControl        = 1 << 4,
+		LoosingAltitude 	   = 1 << 5,
+		Unoptimized			   = 1 << 6,
+		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
+		NoActiveEngines        = Enabled | HaveEC,
+		NoEC                   = Enabled,
 	}
 }
