@@ -81,16 +81,16 @@ Notes:
 		public override void Save(ConfigNode node) {}
 	}
 
-	public class EnginesConfig : ConfigNodeObject
+	public class LimitsConfig : ConfigNodeObject
 	{
-		[Persistent] public PDictIntFloat  GroupLimits  = new PDictIntFloat();
-		[Persistent] public PDictUIntFloat SingleLimits = new PDictUIntFloat();
+		[Persistent] public PDictIntFloat  Groups = new PDictIntFloat();
+		[Persistent] public PDictUIntFloat Single = new PDictUIntFloat();
 
 		public float GetLimit(EngineWrapper e)
 		{
 			float lim = 1f;
-			if(e.Group > 0) { if(!GroupLimits.TryGetValue(e.Group, out lim)) return 0; }
-			else if(!SingleLimits.TryGetValue(e.part.flightID, out lim)) return e.thrustLimit;
+			if(e.Group > 0) { if(!Groups.TryGetValue(e.Group, out lim)) return 0; }
+			else if(!Single.TryGetValue(e.part.flightID, out lim)) return e.thrustLimit;
 			return lim;
 		}
 	}
@@ -120,7 +120,7 @@ Notes:
 //		[Persistent] public bool    RCSWasEnabled;
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
-		[Persistent] public EnginesConfig ManualLimits = new EnginesConfig();
+		[Persistent] public LimitsConfig ManualLimits = new LimitsConfig();
 		[Persistent] public bool ShowManualLimits;
 
 		public ConfigNode Configuration 
@@ -288,8 +288,7 @@ Notes:
 			var game = CurrentGame;
 			foreach(var n in node.GetNodes())
 			{
-				if(n.name == game ||
-				   n.name == VSL_NODE) //deprecated conversion
+				if(n.name == game)
 				{
 					foreach(var c in n.GetNodes(VesselConfig.NODE_NAME))
 					{

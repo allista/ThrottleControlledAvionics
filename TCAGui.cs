@@ -28,7 +28,7 @@ namespace ThrottleControlledAvionics
 		string config_name = string.Empty;
 		readonly DropDownList namedConfigsListBox = new DropDownList();
 		//dimensions
-		Vector2 enginesScroll, helpScroll, eInfoScroll;
+		Vector2 enginesScroll, helpScroll;
 		public const int controlsWidth = 500, controlsHeight = 100;
 		public const int helpWidth = 500, helpHeight = 500;
 		static Rect ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
@@ -217,9 +217,9 @@ namespace ThrottleControlledAvionics
 				{
 					GUILayout.Label("Altitude: " + 
 					                (vessel.Altitude.ToString("F2")+"m"), 
-					                GUILayout.Width(180));
+					                GUILayout.Width(150));
 					GUILayout.Label("Set Point: " + (CFG.DesiredAltitude.ToString("F1") + "m"), 
-					                GUILayout.Width(180));
+					                GUILayout.Width(150));
 					GUILayout.Label("Vertical Speed: " + 
 					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? vessel.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
@@ -251,11 +251,11 @@ namespace ThrottleControlledAvionics
 			if(vessel.OnPlanet)
 			{
 				if(GUILayout.Button("Kill Horizontal Velocity", 
-				                    CFG.KillHorVel? Styles.red_button : Styles.yellow_button,
+				                    CFG.KillHorVel? Styles.red_button : Styles.dark_yellow_button,
 				                    GUILayout.Width(150)))
 					TCA.ToggleHvAutopilot();
 				if(GUILayout.Button("Maintain Altitude", 
-				                    CFG.ControlAltitude? Styles.red_button : Styles.yellow_button,
+				                    CFG.ControlAltitude? Styles.red_button : Styles.dark_yellow_button,
 				                    GUILayout.Width(150)))
 					TCA.ToggleAltitudeAutopilot();
 				TCA.AltitudeAboveTerrain(GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
@@ -307,7 +307,7 @@ namespace ThrottleControlledAvionics
 			if(vessel.ManualEngines.Count == 0) return;
 			GUILayout.BeginVertical();
 			if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Limits" : "Show Manual Limits", 
-				CFG.ShowManualLimits? Styles.red_button : Styles.green_button,
+			                    CFG.ShowManualLimits? Styles.yellow_button : Styles.dark_yellow_button,
 				GUILayout.ExpandWidth(true)))
 				CFG.ShowManualLimits = !CFG.ShowManualLimits;
 			if(CFG.ShowManualLimits)
@@ -321,7 +321,7 @@ namespace ThrottleControlledAvionics
 					if(!e.Valid || added.Contains(e.Group)) continue;
 					GUILayout.BeginHorizontal();
 					GUILayout.Label(string.Format("Group {0} thrust:", e.Group), GUILayout.Width(180));
-					CFG.ManualLimits.GroupLimits[e.Group] = 
+					CFG.ManualLimits.Groups[e.Group] = 
 						Utils.FloatSlider("", CFG.ManualLimits.GetLimit(e), 0f, 1f, "P1");
 					added.Add(e.Group);
 					GUILayout.EndHorizontal();
@@ -332,7 +332,7 @@ namespace ThrottleControlledAvionics
 					GUILayout.BeginHorizontal();
 					GUILayout.Label(string.Format("{0}:", e.name), GUILayout.Width(180));
 					var lim = Utils.FloatSlider("", CFG.ManualLimits.GetLimit(e), 0f, 1f, "P1");
-					CFG.ManualLimits.SingleLimits[e.part.flightID] = lim;
+					CFG.ManualLimits.Single[e.part.flightID] = lim;
 					e.forceThrustPercentage(lim*100);
 					GUILayout.EndHorizontal();
 				}
@@ -344,6 +344,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
+		Vector2 eInfoScroll;
 		void EnginesInfo()
 		{
 			GUILayout.BeginVertical();
@@ -429,7 +430,7 @@ namespace ThrottleControlledAvionics
 								.PostScreenMessage(string.Format("Unable to convert '{0}' to keycode.\nPlease, try an alphabet character.", e.character), 
 							    	                             5, ScreenMessageStyle.UPPER_CENTER);
 						else TCA_Key = e.keyCode;
-						Utils.Log("TCA: new key slected: {0}", TCA_Key);//debug
+						Utils.Log("TCA: new key slected: {0}", TCA_Key);
 					}
 					selecting_key = false;
 				}
@@ -446,8 +447,11 @@ namespace ThrottleControlledAvionics
 
 		public static GUIStyle normal_button;
 		public static GUIStyle red_button;
+		public static GUIStyle dark_red_button;
 		public static GUIStyle green_button;
+		public static GUIStyle dark_green_button;
 		public static GUIStyle yellow_button;
+		public static GUIStyle dark_yellow_button;
 		public static GUIStyle cyan_button;
 		public static GUIStyle magenta_button;
 		public static GUIStyle white;
@@ -486,13 +490,22 @@ namespace ThrottleControlledAvionics
 			red_button = new GUIStyle(normal_button);
 			red_button.normal.textColor = red_button.focused.textColor = Color.red;
 
+			dark_red_button = new GUIStyle(normal_button);
+			dark_red_button.normal.textColor = dark_red_button.focused.textColor = new Color(0.6f, 0, 0, 1);
+
 			green_button = new GUIStyle(normal_button);
 			green_button.normal.textColor = green_button.focused.textColor = Color.green;
+
+			dark_green_button = new GUIStyle(normal_button);
+			dark_green_button.normal.textColor = dark_green_button.focused.textColor = new Color(0, 0.6f, 0, 1);
 
 			yellow_button = new GUIStyle(normal_button);
 			yellow_button.normal.textColor = yellow_button.focused.textColor = Color.yellow;
 			yellow_button.hover.textColor = yellow_button.active.textColor = Color.green;
 			yellow_button.onNormal.textColor = yellow_button.onFocused.textColor = yellow_button.onHover.textColor = yellow_button.onActive.textColor = Color.green;
+
+			dark_yellow_button = new GUIStyle(yellow_button);
+			dark_yellow_button.normal.textColor = dark_yellow_button.focused.textColor = new Color(0.6f, 0.6f, 0, 1);
 
 			cyan_button = new GUIStyle (normal_button);
 			cyan_button.normal.textColor = cyan_button.focused.textColor = Color.cyan;

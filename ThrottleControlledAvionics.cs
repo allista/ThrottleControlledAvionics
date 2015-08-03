@@ -227,6 +227,9 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		void block_throttle(FlightCtrlState s)
+		{ if(Available && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
+
 		public void FixedUpdate()
 		{
 			//initialize systems
@@ -259,11 +262,10 @@ namespace ThrottleControlledAvionics
 				//:balance-only engines
 				if(vessel.BalancedEngines.Count > 0)
 				{
-					vessel.UpdateTorque(vessel.ManualEngines);
+					vessel.UpdateTorque(vessel.ActiveManualEngines);
 					eng.Optimize(vessel.BalancedEngines, Vector3.zero);
 				}
-				vessel.UpdateTorque(vessel.ManualEngines, vessel.BalancedEngines);
-				vessel.NormalizeLimits &= vessel.SteeringEngines.Count > vessel.ManeuverEngines.Count;
+				vessel.UpdateTorque(vessel.ActiveManualEngines, vessel.BalancedEngines);
 				//:optimize limits for steering
 				vessel.UpdateETorqueLimits();
 				if(hsc.IsActive) 
@@ -279,9 +281,6 @@ namespace ThrottleControlledAvionics
 			rcs.Steer();
 			vessel.SetThrustLimiters();
 		}
-
-		void block_throttle(FlightCtrlState s)
-		{ if(Available && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 	}
 
 	/// <summary>

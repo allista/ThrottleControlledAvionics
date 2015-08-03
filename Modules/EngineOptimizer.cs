@@ -150,13 +150,11 @@ namespace ThrottleControlledAvionics
 				vessel.Translation.z, 
 				vessel.Translation.y)
 				/vessel.Translation.CubeNorm().magnitude;
-			Utils.Log("PresetLimits");//debug
 			for(int i = 0; i < num_engines; i++)
 			{
 				var e = vessel.ManeuverEngines[i];
 				e.limit_tmp = Vector3.Dot(e.thrustDirection, trans);
 				e.limit = e.limit_tmp > 0? e.limit_tmp : 0;
-				Utils.Log("{0} limit: {1}", e.name, e.limit);//debug
 			}
 		}
 
@@ -186,12 +184,13 @@ namespace ThrottleControlledAvionics
 			//optimize engines; if failed, set the flag and kill torque if requested
 			if(!Optimize(vessel.SteeringEngines, needed_torque) && !needed_torque.IsZero())
 			{
-				DebugEngines(vessel.SteeringEngines, needed_torque);//debug
+//				DebugEngines(vessel.SteeringEngines, needed_torque);//debug
 				for(int j = 0; j < num_engines; j++) vessel.SteeringEngines[j].InitLimits();
 				Optimize(vessel.SteeringEngines, Vector3.zero);
 				SetState(TCAState.Unoptimized);
 			}
-			DebugEngines(vessel.SteeringEngines, needed_torque);//debug
+//			DebugEngines(vessel.SteeringEngines, needed_torque);//debug
+//			Utils.Log("================================");//debug
 		}
 
 		void tune_steering_params()

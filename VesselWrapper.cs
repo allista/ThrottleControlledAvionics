@@ -35,12 +35,13 @@ namespace ThrottleControlledAvionics
 		public TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
 
 		public List<EngineWrapper> Engines         = new List<EngineWrapper>();
+		public List<EngineWrapper> ManualEngines   = new List<EngineWrapper>();
 		public List<EngineWrapper> ActiveEngines   = new List<EngineWrapper>();
 		public List<EngineWrapper> BalancedEngines = new List<EngineWrapper>();
 		public List<EngineWrapper> ManeuverEngines = new List<EngineWrapper>();
 		public List<EngineWrapper> SteeringEngines = new List<EngineWrapper>();
-		public List<EngineWrapper> ManualEngines   = new List<EngineWrapper>();
-		public List<ModuleReactionWheel> RWheels   = new List<ModuleReactionWheel>();
+		public List<EngineWrapper> ActiveManualEngines = new List<EngineWrapper>();
+		public List<ModuleReactionWheel> RWheels = new List<ModuleReactionWheel>();
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
 
@@ -49,9 +50,9 @@ namespace ThrottleControlledAvionics
 		public bool NormalizeLimits = true; //if engines' limits should be normalized
 
 		//physics
-		public Vector6 E_TorqueLimits { get; private set; } //torque limits of engines
-		public Vector6 W_TorqueLimits { get; private set; } //torque limits of reaction wheels
-		public Vector6 R_TorqueLimits { get; private set; } //torque limits of rcs
+		public Vector6 E_TorqueLimits { get; private set; } = new Vector6(); //torque limits of engines
+		public Vector6 W_TorqueLimits { get; private set; } = new Vector6(); //torque limits of reaction wheels
+		public Vector6 R_TorqueLimits { get; private set; } = new Vector6(); //torque limits of rcs
 
 		public float M { get; private set; }
 		public float MaxTWR { get; private set; }
@@ -71,6 +72,9 @@ namespace ThrottleControlledAvionics
 		public float   VerticalAccel { get; private set; }
 		public float   Altitude { get; private set; }
 		public float   TerrainAltitude { get; private set; }
+
+		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
+		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, up); } }
 
 		public TCAState State;
 		public bool IsStateSet(TCAState state) { return (State & state) == state; }
@@ -107,15 +111,23 @@ namespace ThrottleControlledAvionics
 			if(vessel == null) return;
 			CFG = TCAConfiguration.GetConfig(vessel);
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
-			Engines.Clear();
+			Engines.Clear(); ManualEngines.Clear();
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
 				{	
 					var engine = module as ModuleEngines;
 					if(engine != null)
-					{ Engines.Add(new EngineWrapper(engine)); continue; }
+					{ 
+						var e = new EngineWrapper(engine);
+						if(e.info.Role == TCARole.MANUAL)
+							ManualEngines.Add(e);
+						Engines.Add(e); 
+						continue; 
+					}
+
 					var rwheel = module as ModuleReactionWheel;
 					if(rwheel != null) { RWheels.Add(rwheel); continue; }
+
 					var rcs = module as ModuleRCS;
 					if(rcs != null) { RCS.Add(new RCSWrapper(rcs)); continue; }
 				}
@@ -124,6 +136,7 @@ namespace ThrottleControlledAvionics
 		public bool CheckEngines()
 		{
 			if(Engines.Any(e => !e.Valid) || RCS.Any(t => !t.Valid)) UpdateEngines();
+			Engines.Where(e => e.engine.flameout).ForEach(e => e.forceThrustPercentage(1));
 			ActiveEngines = Engines.Where(e => e.isOperational).ToList();
 			ActiveRCS = vessel.ActionGroups[KSPActionGroup.RCS]? 
 				RCS.Where(t => t.isOperational).ToList() : new List<RCSWrapper>();
@@ -140,7 +153,7 @@ namespace ThrottleControlledAvionics
 			SteeringEngines.Clear();
 			ManeuverEngines.Clear();
 			BalancedEngines.Clear();
-			ManualEngines.Clear();
+			ActiveManualEngines.Clear();
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
@@ -157,10 +170,11 @@ namespace ThrottleControlledAvionics
 					BalancedEngines.Add(e);
 					break;
 				case TCARole.MANUAL:
-					ManualEngines.Add(e);
+					ActiveManualEngines.Add(e);
 					break;
 				}
 			}
+			NormalizeLimits = SteeringEngines.Count > ManeuverEngines.Count;
 		}
 
 		public void InitEngines()
@@ -328,7 +342,6 @@ namespace ThrottleControlledAvionics
 					Torque += e.Torque(e.throttle * e.limit);
 				}
 			}
-			NormalizeLimits = Torque.IsSmallerThan(GLB.ENG.OptimizationTorqueCutoff);
 		}
 
 		public void UpdateOnPlanetStats()
@@ -343,11 +356,10 @@ namespace ThrottleControlledAvionics
 				var old_alt = Altitude;
 				UpdateAltitude();
 				//use relative vertical speed instead of absolute
-				if(CFG.AltitudeAboveTerrain)
-					upV = Utils.WAverage(VerticalSpeed, (Altitude-old_alt)/TimeWarp.fixedDeltaTime);
-			}
-			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation 
-			else upV = (float)Vector3d.Dot(vessel.srf_velocity, up); //from MechJeb
+				upV = CFG.AltitudeAboveTerrain? 
+					Utils.WAverage(VerticalSpeed, (Altitude - old_alt)/TimeWarp.fixedDeltaTime) : 
+					CoM_verticalSpeed;
+			} else upV = CoM_verticalSpeed;
 			VerticalAccel = Utils.WAverage(VerticalAccel, (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime);
 			VerticalSpeed = upV;
 			//calculate total downward thrust and slow engines' corrections
