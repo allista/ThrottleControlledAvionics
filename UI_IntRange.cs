@@ -77,9 +77,6 @@ namespace ThrottleControlledAvionics
 
 		protected UI_IntRange progBarControl { get { return (UI_IntRange)control; } }
 
-		void Awake ()
-		{ slider.SetValueChangedDelegate(new EZValueChangedDelegate(OnValueChanged)); }
-
 		int GetFieldValue()
 		{ return isModule? field.GetValue<int>(partModule) : field.GetValue<int>(part); }
 
