@@ -40,13 +40,6 @@ namespace ThrottleControlledAvionics
 		public TCARole Role = TCARole.MAIN;
 		public int Group { get { return group; } }
 
-		public override void OnAwake ()
-		{
-			TCAConfiguration.Load();
-			var grp = Fields["group"].uiControlEditor as UI_IntRange;
-			if(grp != null) grp.maxValue = TCAConfiguration.Globals.MaxManualGroups;
-		}
-
 		public override void OnLoad(ConfigNode node)
 		{
 			base.OnLoad(node);
@@ -55,7 +48,13 @@ namespace ThrottleControlledAvionics
 			update_status();
 		}
 
-		public override void OnStart(StartState state) { update_status(); }
+		public override void OnStart(StartState state) 
+		{ 
+			TCAConfiguration.LoadGlobals();
+			var grp = Fields["group"].uiControlEditor as UI_IntRange;
+			if(grp != null) grp.maxValue = TCAConfiguration.Globals.MaxManualGroups;
+			update_status(); 
+		}
 
 		public void SetRole(TCARole R)
 		{
