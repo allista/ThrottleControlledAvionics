@@ -147,7 +147,10 @@ namespace ThrottleControlledAvionics
 				if(fi.FieldType.GetInterface(iface_name) == null) continue;
 				var method = fi.FieldType.GetMethod("Save", new [] {cnode_type});
 				if(method == null) continue;
-				method.Invoke(fi.GetValue(this), new [] {node.AddNode(fi.Name)});
+				var n = node.GetNode(fi.Name);
+				if(n == null) n = node.AddNode(fi.Name);
+				else n.ClearData();
+				method.Invoke(fi.GetValue(this), new [] {n});
 			}
 		}
 	}
@@ -299,4 +302,15 @@ namespace ThrottleControlledAvionics
 			return ret;
 		}
 	}
+
+	#if DEBUG
+	public class DebugCounter
+	{
+		int count = 0;
+		string name = "";
+		public DebugCounter(string name = "Debug") { this.name = name; }
+		public void Log() { Utils.Log("{0}: {1}", name, count++); }
+		public void Reset() { count = 0; }
+	}
+	#endif
 }
