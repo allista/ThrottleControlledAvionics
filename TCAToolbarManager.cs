@@ -43,7 +43,7 @@ namespace ThrottleControlledAvionics
 				ToolbarManager.ToolbarAvailable && 
 			   !TCAConfiguration.Globals.UseStockAppLauncher)
 			{
-				Utils.Log("Using Blizzy's toolbar");//debug
+				Utils.Log("Using Blizzy's toolbar");
 				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
 				TCAToolbarButton.TexturePath = ICON_OFF;
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
@@ -53,7 +53,7 @@ namespace ThrottleControlledAvionics
 			}
 			else 
 			{
-				Utils.Log("Using stock AppLauncher");//debug
+				Utils.Log("Using stock AppLauncher");
 				textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);
 				textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);
 				textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);
@@ -83,7 +83,7 @@ namespace ThrottleControlledAvionics
 			if(!ApplicationLauncher.Ready) return;
 			if(TCAButton == null)
 			{
-				Utils.Log("Adding AppLauncher button");//debug
+				Utils.Log("Adding AppLauncher button");
 				TCAButton = ApplicationLauncher.Instance.AddModApplication(
 					onAppLaunchToggleOn,
 					onAppLaunchToggleOff,
