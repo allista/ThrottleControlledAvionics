@@ -9,12 +9,21 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
 	public static class Utils
 	{
+		/// <summary>
+		/// The camel case components matching regexp.
+		/// From: http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
+		/// </summary>
+		const string CamelCaseRegexp = "([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))";
+
+		public static string ParseCamelCase(string s) { return Regex.Replace(s, CamelCaseRegexp, "$1 "); }
+
 		public static string formatVector(Vector3 v)
 		{ return string.Format("({0}, {1}, {2}); |v| = {3}", v.x, v.y, v.z, v.magnitude); }
 
@@ -87,7 +96,8 @@ namespace ThrottleControlledAvionics
 
 		public static float FloatSlider(string name, float value, float min, float max, string format="F1")
 		{
-			GUILayout.Label(string.Format("{0}: {1}", name, value.ToString(format)), GUILayout.ExpandWidth(false));
+			var label = name.Length > 0? string.Format("{0}: {1}", name, value.ToString(format)) : value.ToString(format);
+			GUILayout.Label(label, GUILayout.ExpandWidth(false));
 			return GUILayout.HorizontalSlider(value, min, max, GUILayout.ExpandWidth(true));
 		}
 
@@ -139,6 +149,68 @@ namespace ThrottleControlledAvionics
 				if(method == null) continue;
 				method.Invoke(fi.GetValue(this), new [] {node.AddNode(fi.Name)});
 			}
+		}
+	}
+
+	public abstract class PersistentDict<K, V> : ConfigNodeObject
+	{
+		readonly Dictionary<K, V> dict = new Dictionary<K, V>();
+
+		protected abstract K parseK(string k);
+		protected abstract V parseV(string v);
+
+		public override void Save(ConfigNode node)
+		{
+			base.Save(node);
+			foreach(var i in dict)
+				node.AddValue(i.Key.ToString(), i.Value.ToString());
+		}
+
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			foreach(ConfigNode.Value v in node.values)
+				dict[parseK(v.name)] = parseV(v.value);
+		}
+
+		#region dict interface
+		public V this[K k] { get { return dict[k]; } set { dict[k] = value; } }
+		public bool TryGetValue(K k, out V v) { return dict.TryGetValue(k, out v); }
+
+		public void Add(K k, V v) { dict.Add(k, v); }
+		public bool Remove(K k) { return dict.Remove(k); }
+
+		public bool ContainsKey(K k) { return dict.ContainsKey(k); }
+		public bool ContainsValue(V v) { return dict.ContainsValue(v); }
+
+		public int  Count { get { return dict.Count; } }
+		#endregion
+	}
+
+	public abstract class PDictKFloat<K> : PersistentDict<K, float>
+	{
+		protected override float parseV(string v)
+		{
+			var V = 0f;
+			return float.TryParse (v, out V)? V : 0f;
+		}
+	}
+
+	public class PDictIntFloat : PDictKFloat<int>
+	{
+		protected override int parseK(string k)
+		{
+			var K = 0;
+			return int.TryParse (k, out K)? K : 0;
+		}
+	}
+
+	public class PDictUIntFloat : PDictKFloat<uint>
+	{
+		protected override uint parseK(string k)
+		{
+			uint K = 0;
+			return uint.TryParse (k, out K)? K : 0;
 		}
 	}
 
