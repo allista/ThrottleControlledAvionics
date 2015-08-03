@@ -12,7 +12,7 @@ RCS
 	TorqueRatioFactor = 0.1
 }
 
-TRQ
+ENG
 {
 	MaxIterations = 50
 	OptimizationPrecision = 0.01

@@ -15,8 +15,9 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool RoleSymmetryInFlight = true;
 		[Persistent] public bool UseStockAppLauncher  = false;
 		[Persistent] public float InputDeadZone       = 0.01f; //1% of steering or translation control
+		[Persistent] public int MaxManualGroups       = 10; //maximum number of manual control groups
 
-		[Persistent] public TorqueOptimizer.Config        TRQ = new TorqueOptimizer.Config();
+		[Persistent] public EngineOptimizer.Config        ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config   VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config        ALT = new AltitudeControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config HSC = new HorizontalSpeedControl.Config();
@@ -72,7 +73,7 @@ Notes:
 		public void Init()
 		{ 
 			Instructions = string.Format(instructions, TCAGui.TCA_Key, VSC.MaxSpeed);
-			VSC.Init(); ALT.Init(); HSC.Init(); TRQ.Init(); RCS.Init();
+			VSC.Init(); ALT.Init(); HSC.Init(); ENG.Init(); RCS.Init();
 			InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
 		}
 
@@ -80,6 +81,19 @@ Notes:
 		public override void Save(ConfigNode node) {}
 	}
 
+	public class EnginesConfig : ConfigNodeObject
+	{
+		[Persistent] public PDictIntFloat  GroupLimits  = new PDictIntFloat();
+		[Persistent] public PDictUIntFloat SingleLimits = new PDictUIntFloat();
+
+		public float GetLimit(EngineWrapper e)
+		{
+			float lim = 1f;
+			if(e.Group > 0) { if(!GroupLimits.TryGetValue(e.Group, out lim)) return 0; }
+			else if(!SingleLimits.TryGetValue(e.part.flightID, out lim)) return e.thrustLimit;
+			return lim;
+		}
+	}
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{
@@ -103,18 +117,19 @@ Notes:
 		//horizontal velocity
 		[Persistent] public bool    KillHorVel;
 		[Persistent] public bool    SASWasEnabled;
+//		[Persistent] public bool    RCSWasEnabled;
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
+		[Persistent] public EnginesConfig ManualLimits = new EnginesConfig();
+		[Persistent] public bool ShowManualLimits;
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
 
-		public bool VerticalSpeedControl { get { return VerticalCutoff < TCAConfiguration.Globals.VSC.MaxSpeed; } }
-
 		public VesselConfig() //set defaults
 		{
 			VerticalCutoff = TCAConfiguration.Globals.VSC.MaxSpeed;
-			Engines.setPI(TCAConfiguration.Globals.TRQ.EnginesPI);
+			Engines.setPI(TCAConfiguration.Globals.ENG.EnginesPI);
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
 

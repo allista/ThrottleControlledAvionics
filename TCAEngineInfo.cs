@@ -10,6 +10,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
@@ -26,17 +27,31 @@ namespace ThrottleControlledAvionics
 		};
 
 		public static readonly TCARole[] RolesOrder = { TCARole.MAIN, TCARole.BALANCE, TCARole.MANEUVER, TCARole.MANUAL };
-
 		readonly int num_roles = Enum.GetValues(typeof(TCARole)).Length;
+
+		[KSPField(isPersistant = true)]
+		int role;
+		int role_index;
+
+		[UI_IntRange(minValue = 0, maxValue = 10, stepIncrement = 1)]
+		[KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "TCA: Manual Group", guiFormat = "D")]
+		int group;
+
 		public TCARole Role = TCARole.MAIN;
-		[KSPField(isPersistant = true)] int role;
-		int index;
+		public int Group { get { return group; } }
+
+		public override void OnAwake ()
+		{
+			TCAConfiguration.Load();
+			var grp = Fields["group"].uiControlEditor as UI_IntRange;
+			if(grp != null) grp.maxValue = TCAConfiguration.Globals.MaxManualGroups;
+		}
 
 		public override void OnLoad(ConfigNode node)
 		{
 			base.OnLoad(node);
 			Role = (TCARole)role;
-			index = Array.FindIndex(RolesOrder, r => r == Role);
+			role_index = Array.FindIndex(RolesOrder, r => r == Role);
 			update_status();
 		}
 
@@ -51,7 +66,7 @@ namespace ThrottleControlledAvionics
 		[KSPEvent(guiActive = true, guiActiveEditor = true, guiName = "TCA Role", active = true)]
 		public void SwitchRole() 
 		{ 
-			Role = RolesOrder[(++index) % num_roles];
+			Role = RolesOrder[(++role_index) % num_roles];
 			update_status();
 			//set the role of symmetry counterparts, if needed
 			if(!TCAConfiguration.Globals.RoleSymmetryInFlight 

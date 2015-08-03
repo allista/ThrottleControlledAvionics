@@ -16,65 +16,27 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class TorqueOptimizerBase : TCAModule
-	{
-		public class Config : ModuleConfig
-		{
-			new public const string NODE_NAME = "TRQ";
-
-			[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
-			[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
-			[Persistent] public float OptimizationAngleCutoff  = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
-			[Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
-			[Persistent] public float TorqueRatioFactor        = 0.1f;  //torque-ratio curve
-		}
-
-		public float   TorqueError { get; private set; }
-		public float   TorqueAngle { get; private set; }
-
-		protected void init_limits(IList<ThrusterWrapper> engines, int num_engines)
-		{ for(int j = 0; j < num_engines; j++) engines[j].InitLimits(); }
-
-		protected void normalize_limits(IList<ThrusterWrapper> engines, int num_engines)
-		{
-			var limit_norm = 0f;
-			for(int j = 0; j < num_engines; j++) 
-			{ 
-				var e = engines[j];
-				if(limit_norm < e.limit) limit_norm = e.limit; 
-			}
-			if(limit_norm > 0)
-			{
-				for(int j = 0; j < num_engines; j++) 
-				{ var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
-			}
-		}
-
-		protected void save_best_limits(IList<ThrusterWrapper> engines, int num_engines)
-		{
-			for(int j = 0; j < num_engines; j++) 
-			{ var e = engines[j]; e.best_limit = e.limit; }
-		}
-			
-		protected void restore_best_limits(IList<ThrusterWrapper> engines, int num_engines)
-		{
-			for(int j = 0; j < num_engines; j++) 
-			{ var e = engines[j]; e.limit = e.best_limit; }
-		}
-	}
-
 	public class TorqueOptimizer : TCAModule
 	{
 		public class Config : ModuleConfig
 		{
 			new public const string NODE_NAME = "TRQ";
 
-			//engine balancing parameters
 			[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
 			[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
 			[Persistent] public float OptimizationAngleCutoff  = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
 			[Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
 			[Persistent] public float TorqueRatioFactor        = 0.1f;  //torque-ratio curve
+		}
+
+		public float TorqueError { get; protected set; }
+		public float TorqueAngle { get; protected set; }
+	}
+
+	public class EngineOptimizer : TorqueOptimizer
+	{
+		public new class Config : TorqueOptimizer.Config
+		{
 			//default values for PI controllers
 			[Persistent] public float MaxP = 1f; //value of P slider
 			[Persistent] public float MaxI = 1f; //value of I slider
@@ -82,14 +44,11 @@ namespace ThrottleControlledAvionics
 			[Persistent] public FloatCurve EnginesCurve  = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 			[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
 		}
-		static Config TRQ { get { return TCAConfiguration.Globals.TRQ; } }
+		static Config ENG { get { return TCAConfiguration.Globals.ENG; } }
 
-		public TorqueOptimizer(VesselWrapper vsl) { vessel = vsl; }
-		public override void Init() {  }
+		public EngineOptimizer(VesselWrapper vsl) { vessel = vsl; }
 
 		public Vector3 Steering { get; private set; }
-		public float   TorqueError { get; private set; }
-		public float   TorqueAngle { get; private set; }
 
 		static bool optimization_pass(IList<EngineWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
 		{
@@ -130,7 +89,7 @@ namespace ThrottleControlledAvionics
 			float error, angle;
 			var last_error = -1f;
 			Vector3 cur_imbalance, target;
-			for(int i = 0; i < TRQ.MaxIterations; i++)
+			for(int i = 0; i < ENG.MaxIterations; i++)
 			{
 				//calculate current errors and target
 				cur_imbalance = vessel.Torque;
@@ -148,13 +107,13 @@ namespace ThrottleControlledAvionics
 					TorqueError = error;
 				}
 				//check convergence conditions
-				if(error < TRQ.OptimizationPrecision || 
-				   last_error > 0 && Mathf.Abs(error-last_error) < TRQ.OptimizationPrecision*last_error)
+				if(error < ENG.OptimizationPrecision || 
+				   last_error > 0 && Mathf.Abs(error-last_error) < ENG.OptimizationPrecision*last_error)
 					break;
 				last_error = error;
 				//normalize limits before optimization
-				if(vessel.NormalizeLimits)
-				{   //this is much faster than linq
+				if(vessel.NormalizeLimits) 
+				{
 					var limit_norm = 0f;
 					for(int j = 0; j < num_engines; j++) 
 					{ 
@@ -168,11 +127,11 @@ namespace ThrottleControlledAvionics
 					}
 				}
 				//optimize limits
-				if(!optimization_pass(engines, num_engines, target, error, TRQ.OptimizationPrecision)) 
+				if(!optimization_pass(engines, num_engines, target, error, ENG.OptimizationPrecision)) 
 					break;
 			}
-			var optimized = TorqueError < TRQ.OptimizationTorqueCutoff || 
-				(!zero_torque && TorqueAngle < TRQ.OptimizationAngleCutoff);
+			var optimized = TorqueError < ENG.OptimizationTorqueCutoff || 
+				(!zero_torque && TorqueAngle < ENG.OptimizationAngleCutoff);
 			//treat single-engine crafts specially
 			if(num_engines == 1) 
 				engines[0].limit = optimized? 1f : 0f;
@@ -180,6 +139,25 @@ namespace ThrottleControlledAvionics
 				for(int j = 0; j < num_engines; j++) 
 				{ var e = engines[j]; e.limit = e.best_limit; }
 			return optimized;
+		}
+
+		public void PresetLimitsForTranslation()
+		{
+			var num_engines = vessel.ManeuverEngines.Count;
+			if(num_engines == 0 || vessel.Translation.IsZero()) return;
+			var trans = new Vector3(
+				vessel.Translation.x, 
+				vessel.Translation.z, 
+				vessel.Translation.y)
+				/vessel.Translation.CubeNorm().magnitude;
+			Utils.Log("PresetLimits");//debug
+			for(int i = 0; i < num_engines; i++)
+			{
+				var e = vessel.ManeuverEngines[i];
+				e.limit_tmp = Vector3.Dot(e.thrustDirection, trans);
+				e.limit = e.limit_tmp > 0? e.limit_tmp : 0;
+				Utils.Log("{0} limit: {1}", e.name, e.limit);//debug
+			}
 		}
 
 		public void Steer()
@@ -208,22 +186,22 @@ namespace ThrottleControlledAvionics
 			//optimize engines; if failed, set the flag and kill torque if requested
 			if(!Optimize(vessel.SteeringEngines, needed_torque) && !needed_torque.IsZero())
 			{
-//				DebugEngines(vessel.SteeringEngines, needed_torque);//debug
+				DebugEngines(vessel.SteeringEngines, needed_torque);//debug
 				for(int j = 0; j < num_engines; j++) vessel.SteeringEngines[j].InitLimits();
 				Optimize(vessel.SteeringEngines, Vector3.zero);
 				SetState(TCAState.Unoptimized);
 			}
-//			DebugEngines(vessel.SteeringEngines, needed_torque);//debug
+			DebugEngines(vessel.SteeringEngines, needed_torque);//debug
 		}
 
 		void tune_steering_params()
 		{
 			//tune steering modifiers
-			CFG.SteeringModifier.x = Mathf.Clamp(TRQ.SteeringCurve.Evaluate(vessel.MaxAngularA.x)/100f, 0, 1);
-			CFG.SteeringModifier.y = Mathf.Clamp(TRQ.SteeringCurve.Evaluate(vessel.MaxAngularA.y)/100f, 0, 1);
-			CFG.SteeringModifier.z = Mathf.Clamp(TRQ.SteeringCurve.Evaluate(vessel.MaxAngularA.z)/100f, 0, 1);
+			CFG.SteeringModifier.x = Mathf.Clamp(ENG.SteeringCurve.Evaluate(vessel.MaxAngularA.x)/100f, 0, 1);
+			CFG.SteeringModifier.y = Mathf.Clamp(ENG.SteeringCurve.Evaluate(vessel.MaxAngularA.y)/100f, 0, 1);
+			CFG.SteeringModifier.z = Mathf.Clamp(ENG.SteeringCurve.Evaluate(vessel.MaxAngularA.z)/100f, 0, 1);
 			//tune PI coefficients
-			CFG.Engines.P = TRQ.EnginesCurve.Evaluate(vessel.MaxAngularA.magnitude);
+			CFG.Engines.P = ENG.EnginesCurve.Evaluate(vessel.MaxAngularA.magnitude);
 			CFG.Engines.I = CFG.Engines.P/2f;
 			#if DEBUG
 			//			Utils.Log("max_torque: {0}\n" + //debug
@@ -238,9 +216,9 @@ namespace ThrottleControlledAvionics
 		{
 			Utils.Log("Engines:\n"+
 			          engines.Aggregate("", (s, e) => s 
-			                            +string.Format("engine(vec{0}, vec{1}, vec{2}, {3}, {4}),\n",
-			                                           vessel.refT.InverseTransformDirection(e.thrustInfo.pos-vessel.wCoM),
-			                                           e.thrustDirection,e.specificTorque, e.nominalCurrentThrust(0), e.nominalCurrentThrust(1))));
+		                +string.Format("engine(vec{0}, vec{1}, vec{2}, {3}, {4}),\n",
+						vessel.refT.InverseTransformDirection(e.wThrustPos-vessel.wCoM),
+                       	e.thrustDirection,e.specificTorque, e.nominalCurrentThrust(0), e.nominalCurrentThrust(1))));
 			Utils.Log("Engines Torque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.Torque(e.throttle*e.limit)+",\n"));
 			Utils.Log(
 				"Steering: {0}\n" +

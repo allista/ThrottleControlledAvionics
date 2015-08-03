@@ -85,9 +85,10 @@
     <Compile Include="Modules\VerticalSpeedControl.cs" />
     <Compile Include="Modules\AltitudeControl.cs" />
     <Compile Include="Modules\HorizontalSpeedControl.cs" />
-    <Compile Include="Modules\TorqueOptimizer.cs" />
     <Compile Include="ThrottleControlledAvionics.cs" />
     <Compile Include="Modules\RCSOptimizer.cs" />
+    <Compile Include="Modules\EngineOptimizer.cs" />
+    <Compile Include="UI_IntRange.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

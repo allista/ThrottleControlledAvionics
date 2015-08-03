@@ -32,6 +32,7 @@ namespace ThrottleControlledAvionics
 		public Vessel vessel { get; private set; }
 		public Transform refT { get; private set; } //transform of the controller-part
 		public VesselConfig CFG { get; private set; }
+		public TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
 
 		public List<EngineWrapper> Engines         = new List<EngineWrapper>();
 		public List<EngineWrapper> ActiveEngines   = new List<EngineWrapper>();
@@ -129,8 +130,8 @@ namespace ThrottleControlledAvionics
 			NumActive = ActiveEngines.Count;
 			NumActiveRCS = ActiveRCS.Count;
 			NoActiveRCS = NumActiveRCS == 0 || 
-				Steering.sqrMagnitude < TCAConfiguration.Globals.InputDeadZone && 
-				Translation.sqrMagnitude < TCAConfiguration.Globals.InputDeadZone;
+				Steering.sqrMagnitude < GLB.InputDeadZone && 
+				Translation.sqrMagnitude < GLB.InputDeadZone;
 			return NumActive > 0 && vessel.ctrlState.mainThrottle > 0 || !NoActiveRCS;
 		}
 
@@ -174,7 +175,7 @@ namespace ThrottleControlledAvionics
 					t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
 					var lever = t.wThrustPos-wCoM;
 					t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(lever, t.wThrustDir));
-					t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, t.wThrustDir))), TCAConfiguration.Globals.RCS.TorqueRatioFactor);
+					t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
 					t.currentTorque = t.Torque(1);
 					t.currentTorque_m = t.currentTorque.magnitude;
 				}
@@ -188,7 +189,8 @@ namespace ThrottleControlledAvionics
 				e.thrustDirection = refT.InverseTransformDirection(e.wThrustDir);
 				var lever = e.wThrustPos-wCoM;
 				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(lever, e.wThrustDir));
-				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, e.wThrustDir))), TCAConfiguration.Globals.TRQ.TorqueRatioFactor);
+				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, e.wThrustDir))), 
+					GLB.ENG.TorqueRatioFactor);
 				min_imbalance += e.Torque(0);
 			}
 			//calculate engine's torue, torque limits and set VSF
@@ -206,7 +208,7 @@ namespace ThrottleControlledAvionics
 					}
 					anti_min_imbalance = Vector3.Project(anti_min_imbalance, min_imbalance);
 					VSF = Mathf.Clamp(VSF, Mathf.Clamp01(min_imbalance.magnitude/anti_min_imbalance.magnitude
-					                                     *TCAConfiguration.Globals.VSC.BalanceCorrection), 1f);
+					                                     *GLB.VSC.BalanceCorrection), 1f);
 				}
 				for(int i = 0; i < NumActive; i++)
 				{
@@ -243,8 +245,8 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
-				if(e.Role == TCARole.MANUAL) continue;
-				e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
+				if(e.Role != TCARole.MANUAL) e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
+				else if(e.Group > 0) e.forceThrustPercentage(CFG.ManualLimits.GetLimit(e)*100);
 			}
 			if(NoActiveRCS) return;
 			for(int i = 0; i < NumActiveRCS; i++)
@@ -326,7 +328,7 @@ namespace ThrottleControlledAvionics
 					Torque += e.Torque(e.throttle * e.limit);
 				}
 			}
-			NormalizeLimits = Torque.IsSmallerThan(TCAConfiguration.Globals.TRQ.OptimizationTorqueCutoff);
+			NormalizeLimits = Torque.IsSmallerThan(GLB.ENG.OptimizationTorqueCutoff);
 		}
 
 		public void UpdateOnPlanetStats()
@@ -380,8 +382,8 @@ namespace ThrottleControlledAvionics
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
 			//correct setpoint for current TWR and slow engines
-			if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*TCAConfiguration.Globals.VSC.ASf;
-			if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*TCAConfiguration.Globals.VSC.DSf;
+			if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
+			if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
 		}
 
 		public void UpdateRotationalStats()

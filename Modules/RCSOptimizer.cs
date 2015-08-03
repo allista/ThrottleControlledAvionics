@@ -15,25 +15,10 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class RCSOptimizer : TCAModule
+	public class RCSOptimizer : TorqueOptimizer
 	{
-		public class Config : ModuleConfig
-		{
-			new public const string NODE_NAME = "RCS";
-
-			[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
-			[Persistent] public float OptimizationPrecision    = 0.01f; //optimize engines limits until torque error or delta torque error is less than this
-			[Persistent] public float OptimizationAngleCutoff  = 5f;    //maximum angle between torque imbalance and torque demand that is considered optimized
-			[Persistent] public float OptimizationTorqueCutoff = 0.1f;  //maximum torque delta between imbalance and demand that is considered optimized
-			[Persistent] public float TorqueRatioFactor        = 0.1f;  //torque-ratio curve
-		}
 		static RCSOptimizer.Config RCS { get { return TCAConfiguration.Globals.RCS; } }
-
 		public RCSOptimizer(VesselWrapper vsl) { vessel = vsl; }
-		public override void Init() {  }
-
-		public float TorqueError { get; private set; }
-		public float TorqueAngle { get; private set; }
 
 		static bool optimization_pass(IList<RCSWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
 		{
@@ -60,7 +45,6 @@ namespace ThrottleControlledAvionics
 		{
 			var num_engines = engines.Count;
 			var zero_torque = needed_torque.IsZero();
-//			var error_threshold = RCS.OptimizationTorqueCutoff*vessel.StockMoI.magnitude;
 			TorqueAngle = TorqueError = -1f;
 			float error, angle;
 			var last_error = -1f;
@@ -99,7 +83,6 @@ namespace ThrottleControlledAvionics
 					for(int j = 0; j < num_engines; j++) 
 					{ var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
 				}
-				//optimize limits
 				if(!optimization_pass(engines, num_engines, target, error, RCS.OptimizationPrecision)) 
 					break;
 			}

@@ -109,12 +109,13 @@ namespace ThrottleControlledAvionics
 
 		public readonly ModuleEngines engine;
 		readonly TCAEngineInfo einfo;
+		public string name { get; private set; }
 
-		public bool    throttleLocked;
 		public float   throttle;
 		public float   VSF;   //vertical speed factor
 		public bool    isVSC; //vertical speed controller
 		public TCARole Role;
+		public int     Group;
 		public CenterOfThrustQuery thrustInfo;
 
 		public EngineWrapper(ModuleEngines engine) 
@@ -122,6 +123,9 @@ namespace ThrottleControlledAvionics
 			thrustController.setMaster(ThrustPI);
 			einfo = engine.part.GetModule<TCAEngineInfo>();
 			zeroISP = engine.atmosphereCurve.Evaluate(0f);
+			name = Utils.ParseCamelCase(engine.part.name);
+			if(engine.engineID.Length > 0 && engine.engineID != "Engine") 
+				name += " (" + engine.engineID + ")";
 			this.engine = engine;
 		}
 
@@ -162,12 +166,12 @@ namespace ThrottleControlledAvionics
 			if(engine.useVelCurve)
 				thrustMod *= engine.velCurve.Evaluate((float)engine.part.machNumber);
 			//update Role
-			throttleLocked =  engine.throttleLocked;
 			if(einfo != null)
 			{
-				if(throttleLocked && einfo.Role != TCARole.MANUAL) 
+				if(engine.throttleLocked && einfo.Role != TCARole.MANUAL) 
 					einfo.SetRole(TCARole.MANUAL);
 				Role = einfo.Role;
+				Group = einfo.Group;
 			} else Role = TCARole.MAIN;
 			InitLimits();
 		}
@@ -195,7 +199,10 @@ namespace ThrottleControlledAvionics
 		public override float finalThrust { get { return engine.finalThrust; } }
 
 		public float nominalCurrentThrust(float throttle)
-		{ return thrustMod * (throttleLocked ? engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle)); }
+		{ 
+			return thrustMod * (engine.throttleLocked ? 
+				engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle)); 
+		}
 
 		public override float thrustLimit
 		{
@@ -203,24 +210,15 @@ namespace ThrottleControlledAvionics
 			set
 			{
 				thrustController.Update(value*100-engine.thrustPercentage);
+				Utils.Log("Old thrust limit {0}; new value {1}; action {2}, P {3}, I {4}", 
+				          engine.thrustPercentage, value, thrustController.Action, thrustController.P, thrustController.I);//debug
 				engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController.Action, 0, 100);
+				Utils.Log("New thrust limit: {0}", engine.thrustPercentage);//debug
 			}
 		}
 		public void forceThrustPercentage(float value) { engine.thrustPercentage = Mathf.Clamp(value, 0, 100); }
 
 		public override bool isOperational { get { return engine.isOperational; } }
-
-		public string name
-		{
-			get 
-			{
-				var r = "";
-				r += engine.part.name;
-				if(engine.engineID.Length > 0)
-					r += " (" + engine.engineID + ")";
-				return r;
-			}
-		}
 		#endregion
 	}
 }

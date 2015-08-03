@@ -6,6 +6,7 @@
 using System;
 using System.Reflection;
 using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using KSP.IO;
 
@@ -16,9 +17,10 @@ namespace ThrottleControlledAvionics
 		static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
 		readonly ThrottleControlledAvionics TCA;
 		VesselWrapper vessel { get { return TCA.vessel; } }
+		static TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
+		VesselConfig CFG { get { return TCA.CFG; } }
 
 		#region GUI Parameters
-		bool showEngines;
 		bool showHelp;
 		bool showHUD = true;
 		//named configs
@@ -26,7 +28,7 @@ namespace ThrottleControlledAvionics
 		string config_name = string.Empty;
 		readonly DropDownList namedConfigsListBox = new DropDownList();
 		//dimensions
-		Vector2 enginesScroll, helpScroll;
+		Vector2 enginesScroll, helpScroll, eInfoScroll;
 		public const int controlsWidth = 500, controlsHeight = 100;
 		public const int helpWidth = 500, helpHeight = 500;
 		static Rect ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
@@ -124,8 +126,8 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
 			//tca toggle
-			if(GUILayout.Button(TCA.CFG.Enabled? "Disable" : "Enable", 
-			                    TCA.CFG.Enabled? Styles.red_button : Styles.green_button,
+			if(GUILayout.Button(CFG.Enabled? "Disable" : "Enable", 
+			                    CFG.Enabled? Styles.red_button : Styles.green_button,
 			                    GUILayout.Width(70)))
 				TCA.ToggleTCA();
 			//change key binding
@@ -134,7 +136,7 @@ namespace ThrottleControlledAvionics
 			                    GUILayout.Width(40)))
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			//autotune switch
-			TCA.CFG.AutoTune = GUILayout.Toggle(TCA.CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(true));
+			CFG.AutoTune = GUILayout.Toggle(CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(true));
 			#if DEBUG
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) 
 			{
@@ -147,7 +149,10 @@ namespace ThrottleControlledAvionics
 			SelectConfig_start();
 			ConfigsGUI();
 			ControllerProperties();
+			ManualEnginesControl();
+			#if DEBUG
 			EnginesInfo();
+			#endif
 			SelectConfig_end();
 			GUILayout.EndVertical();
 			GUI.DragWindow();
@@ -182,38 +187,38 @@ namespace ThrottleControlledAvionics
 		void ControllerProperties()
 		{
 			//steering modifiers
-			if(!TCA.CFG.AutoTune)
+			if(!CFG.AutoTune)
 			{
 				GUILayout.BeginHorizontal();
-				TCA.CFG.SteeringGain = Utils.FloatSlider("Steering Gain", TCA.CFG.SteeringGain, 0, 1, "P1");
-				TCA.CFG.PitchYawLinked = GUILayout.Toggle(TCA.CFG.PitchYawLinked, "Link Pitch&Yaw", GUILayout.ExpandWidth(false));
+				CFG.SteeringGain = Utils.FloatSlider("Steering Gain", CFG.SteeringGain, 0, 1, "P1");
+				CFG.PitchYawLinked = GUILayout.Toggle(CFG.PitchYawLinked, "Link Pitch&Yaw", GUILayout.ExpandWidth(false));
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
-				if(TCA.CFG.PitchYawLinked && !TCA.CFG.AutoTune)
+				if(CFG.PitchYawLinked && !CFG.AutoTune)
 				{
-					TCA.CFG.SteeringModifier.x = Utils.FloatSlider("Pitch&Yaw", TCA.CFG.SteeringModifier.x, 0, 1, "P1");
-					TCA.CFG.SteeringModifier.z = TCA.CFG.SteeringModifier.x;
+					CFG.SteeringModifier.x = Utils.FloatSlider("Pitch&Yaw", CFG.SteeringModifier.x, 0, 1, "P1");
+					CFG.SteeringModifier.z = CFG.SteeringModifier.x;
 				}
 				else
 				{
-					TCA.CFG.SteeringModifier.x = Utils.FloatSlider("Pitch", TCA.CFG.SteeringModifier.x, 0, 1, "P1");
-					TCA.CFG.SteeringModifier.z = Utils.FloatSlider("Yaw", TCA.CFG.SteeringModifier.z, 0, 1, "P1");
+					CFG.SteeringModifier.x = Utils.FloatSlider("Pitch", CFG.SteeringModifier.x, 0, 1, "P1");
+					CFG.SteeringModifier.z = Utils.FloatSlider("Yaw", CFG.SteeringModifier.z, 0, 1, "P1");
 				}
-				TCA.CFG.SteeringModifier.y = Utils.FloatSlider("Roll", TCA.CFG.SteeringModifier.y, 0, 1, "P1");
+				CFG.SteeringModifier.y = Utils.FloatSlider("Roll", CFG.SteeringModifier.y, 0, 1, "P1");
 				GUILayout.EndHorizontal();
 				//engines
-				TCA.CFG.Engines.DrawControls("Engines Controller");
+				CFG.Engines.DrawControls("Engines Controller");
 			}
 			//speed limit
 			if(vessel.OnPlanet)
 			{
 				GUILayout.BeginHorizontal();
-				if(TCA.CFG.ControlAltitude)
+				if(CFG.ControlAltitude)
 				{
 					GUILayout.Label("Altitude: " + 
 					                (vessel.Altitude.ToString("F2")+"m"), 
 					                GUILayout.Width(180));
-					GUILayout.Label("Set Point: " + (TCA.CFG.DesiredAltitude.ToString("F1") + "m"), 
+					GUILayout.Label("Set Point: " + (CFG.DesiredAltitude.ToString("F1") + "m"), 
 					                GUILayout.Width(180));
 					GUILayout.Label("Vertical Speed: " + 
 					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? vessel.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
@@ -225,40 +230,40 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label("Vertical Speed: " + 
 					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? vessel.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
-					GUILayout.Label("Set Point: " + (TCA.CFG.VerticalCutoff < TCAConfiguration.Globals.VSC.MaxSpeed? 
-					                                 TCA.CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
+					GUILayout.Label("Set Point: " + (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
+					                                 CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
 					                GUILayout.ExpandWidth(false));
-					TCA.CFG.VerticalCutoff = GUILayout.HorizontalSlider(TCA.CFG.VerticalCutoff, 
-					                                                    -TCAConfiguration.Globals.VSC.MaxSpeed, 
-					                                                    TCAConfiguration.Globals.VSC.MaxSpeed);
+					CFG.VerticalCutoff = GUILayout.HorizontalSlider(CFG.VerticalCutoff, 
+					                                                    -GLB.VSC.MaxSpeed, 
+					                                                    GLB.VSC.MaxSpeed);
 				}
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
-				TCA.BlockThrottle(GUILayout.Toggle(TCA.CFG.BlockThrottle, 
-				                                   TCA.CFG.ControlAltitude?
+				TCA.BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
+				                                   CFG.ControlAltitude?
 				                                   "Change altitude with throttle controls." :
 				                                   "Set vertical speed with throttle controls.", 
 				                                   GUILayout.ExpandWidth(false)));
-				TCA.CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity", TCA.CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
+				CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity", CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
 				GUILayout.EndHorizontal();
 			}
 			GUILayout.BeginHorizontal();
-			if(vessel.OnPlanet && vessel.NumActive > 0)
+			if(vessel.OnPlanet)
 			{
-				if(GUILayout.Button(TCA.CFG.KillHorVel? "Disengage Autopilot" : "Kill Horizontal Velocity", 
-				                    TCA.CFG.KillHorVel? Styles.red_button : Styles.green_button,
+				if(GUILayout.Button("Kill Horizontal Velocity", 
+				                    CFG.KillHorVel? Styles.red_button : Styles.yellow_button,
 				                    GUILayout.Width(150)))
 					TCA.ToggleHvAutopilot();
-				TCA.MaintainAltitude(GUILayout.Toggle(TCA.CFG.ControlAltitude, 
-				                                      "Maintain Altitude", 
-				                                      GUILayout.ExpandWidth(false)));
-				TCA.AltitudeAboveTerrain(GUILayout.Toggle(TCA.CFG.AltitudeAboveTerrain, 
-				                        	              "Altitude Above Terrain", 
+				if(GUILayout.Button("Maintain Altitude", 
+				                    CFG.ControlAltitude? Styles.red_button : Styles.yellow_button,
+				                    GUILayout.Width(150)))
+					TCA.ToggleAltitudeAutopilot();
+				TCA.AltitudeAboveTerrain(GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
+				                        	              "Above Terrain", 
 				                            	          GUILayout.ExpandWidth(false)));
 			}
 			else GUILayout.Label("Autopilot Not Available", Styles.grey);
 			GUILayout.FlexibleSpace();
-			showEngines = GUILayout.Toggle(showEngines, "Show Engines Info");
 			GUILayout.EndHorizontal();
 		}
 
@@ -271,21 +276,21 @@ namespace ThrottleControlledAvionics
 			{
 				if(GUILayout.Button("Overwrite", Styles.red_button, GUILayout.Width(70)))
 				{
-					TCAConfiguration.SaveNamedConfig(config_name, TCA.CFG, true);
+					TCAConfiguration.SaveNamedConfig(config_name, CFG, true);
 					TCAConfiguration.Save();
 				}
 			}
 			else if(GUILayout.Button("Add", Styles.green_button, GUILayout.Width(50)) && 
 			        config_name != string.Empty) 
 			{
-				TCAConfiguration.SaveNamedConfig(config_name, TCA.CFG);
+				TCAConfiguration.SaveNamedConfig(config_name, CFG);
 				TCAConfiguration.Save();
 				updateConfigs();
 				namedConfigsListBox.SelectItem(TCAConfiguration.NamedConfigs.IndexOfKey(config_name));
 			}
 			SelectConfig();
 			if(GUILayout.Button("Load", Styles.yellow_button, GUILayout.Width(50)) && selected_config != null) 
-				TCA.CFG.CopyFrom(selected_config);
+				CFG.CopyFrom(selected_config);
 			if(GUILayout.Button("Delete", Styles.red_button, GUILayout.Width(50)) && selected_config != null)
 			{ 
 				TCAConfiguration.NamedConfigs.Remove(selected_config.Name);
@@ -297,41 +302,81 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 		}
 
-		void EnginesInfo()
+		void ManualEnginesControl()
 		{
-			if(showEngines)
+			if(vessel.ManualEngines.Count == 0) return;
+			GUILayout.BeginVertical();
+			if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Limits" : "Show Manual Limits", 
+				CFG.ShowManualLimits? Styles.red_button : Styles.green_button,
+				GUILayout.ExpandWidth(true)))
+				CFG.ShowManualLimits = !CFG.ShowManualLimits;
+			if(CFG.ShowManualLimits)
 			{
 				GUILayout.BeginVertical();
-				GUILayout.BeginHorizontal();
-				GUILayout.Label(string.Format("Torque Error: {0:F1}kNm", TCA.TorqueError), GUILayout.ExpandWidth(false));
-				GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", vessel.VSF), GUILayout.ExpandWidth(false));
-				GUILayout.EndHorizontal();
-				enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(controlsHeight*4));
+				enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(controlsHeight));
 				GUILayout.BeginVertical();
-				foreach(var e in vessel.ActiveEngines)
+				var added = new HashSet<int>();
+				foreach(var e in vessel.ManualEngines.Where(ew => ew.Group > 0))
+				{
+					if(!e.Valid || added.Contains(e.Group)) continue;
+					GUILayout.BeginHorizontal();
+					GUILayout.Label(string.Format("Group {0} thrust:", e.Group), GUILayout.Width(180));
+					CFG.ManualLimits.GroupLimits[e.Group] = 
+						Utils.FloatSlider("", CFG.ManualLimits.GetLimit(e), 0f, 1f, "P1");
+					added.Add(e.Group);
+					GUILayout.EndHorizontal();
+				}
+				foreach(var e in vessel.ManualEngines.Where(ew => ew.Group == 0))
 				{
 					if(!e.Valid) continue;
 					GUILayout.BeginHorizontal();
-					GUILayout.Label(e.name + "\n" +
-					                string.Format(
-						                "Torque: {0}\n" +
-						                "Attitude Modifier: {1:P1}\n" +
-						                "Thrust Limit:      {2:F1}%",
-						                e.currentTorque,
-						                e.limit, e.thrustLimit));
+					GUILayout.Label(string.Format("{0}:", e.name), GUILayout.Width(180));
+					var lim = Utils.FloatSlider("", CFG.ManualLimits.GetLimit(e), 0f, 1f, "P1");
+					CFG.ManualLimits.SingleLimits[e.part.flightID] = lim;
+					e.forceThrustPercentage(lim*100);
 					GUILayout.EndHorizontal();
 				}
 				GUILayout.EndVertical();
 				GUILayout.EndScrollView();
 				GUILayout.EndVertical();
 			}
+			GUILayout.EndVertical();
 		}
+
+		#if DEBUG
+		void EnginesInfo()
+		{
+			GUILayout.BeginVertical();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label(string.Format("Torque Error: {0:F1}kNm", TCA.TorqueError), GUILayout.ExpandWidth(false));
+			GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", vessel.VSF), GUILayout.ExpandWidth(false));
+			GUILayout.EndHorizontal();
+			eInfoScroll = GUILayout.BeginScrollView(eInfoScroll, GUILayout.Height(controlsHeight*4));
+			GUILayout.BeginVertical();
+			foreach(var e in vessel.ActiveEngines)
+			{
+				if(!e.Valid) continue;
+				GUILayout.BeginHorizontal();
+				GUILayout.Label(e.name + "\n" +
+				                string.Format(
+					                "Torque: {0}\n" +
+					                "Attitude Modifier: {1:P1}\n" +
+					                "Thrust Limit:      {2:F1}%",
+					                e.currentTorque,
+					                e.limit, e.thrustLimit*100));
+				GUILayout.EndHorizontal();
+			}
+			GUILayout.EndVertical();
+			GUILayout.EndScrollView();
+			GUILayout.EndVertical();
+		}
+		#endif
 
 		void windowHelp(int windowID)
 		{
 			GUILayout.BeginVertical();
 			helpScroll = GUILayout.BeginScrollView(helpScroll);
-			GUILayout.Label(TCAConfiguration.Globals.Instructions, GUILayout.MaxWidth(helpWidth));
+			GUILayout.Label(GLB.Instructions, GUILayout.MaxWidth(helpWidth));
 			GUILayout.EndScrollView();
 			if(GUILayout.Button("Close")) showHelp = !showHelp;
 			GUILayout.EndVertical();
@@ -340,7 +385,7 @@ namespace ThrottleControlledAvionics
 
 		public void DrawGUI()
 		{
-			if(!TCA.CFG.GUIVisible || !showHUD) return;
+			if(!CFG.GUIVisible || !showHUD) return;
 			ControlsPos = 
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 ControlsPos, 
