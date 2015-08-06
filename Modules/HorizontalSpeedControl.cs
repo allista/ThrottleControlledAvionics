@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class HorizontalSpeedControl : TCAModule
+	public class HorizontalSpeedControl : AutopilotModule
 	{
 		public class Config : ModuleConfig
 		{
@@ -43,25 +43,25 @@ namespace ThrottleControlledAvionics
 		public Vector3  angularVelocity { get { return VSL.vessel.angularVelocity; } }
 		readonly PIDv_Controller pid = new PIDv_Controller();
 
-		public Vector3d NeededHorVelocity;
-
 		public HorizontalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
 		public override void Init() { pid.P = HSC.P; }
 		public override void UpdateState() { IsActive = (CFG.CruiseControl || CFG.KillHorVel) && VSL.OnPlanet; }
 
-		public void ConnectAutopilot() { VSL.OnAutopilotUpdate += Update; }
-		public void DisconnectAutopilot() { VSL.OnAutopilotUpdate -= Update; }
+		public void Enable(bool enable = true)
+		{
+			CFG.KillHorVel = enable;
+			if(CFG.CruiseControl) VSL.UpdateHorizontalStats();
+			BlockSAS(CFG.KillHorVel);
+		}
 
-		void Update(FlightCtrlState s)
+		protected override void Update(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && 
 			     (CFG.CruiseControl || CFG.KillHorVel) && 
 			     VSL.refT != null && VSL.OnPlanet)) return;
 			//allow user to intervene
-			if(!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
-			   !Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
-			   !Mathfx.Approx(s.yaw, s.yawTrim, 0.1f)) return;
+			if(UserIntervening(s)) { pid.Reset(); return; }
 			//if the vessel is not moving, nothing to do
 			if(VSL.LandedOrSplashed || srfSpeed < 0.01) return;
 			//calculate total current thrust
@@ -70,7 +70,7 @@ namespace ThrottleControlledAvionics
 			//disable SAS
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//calculate horizontal velocity
-			var hV  = VSL.HorizontalVelocity-NeededHorVelocity;
+			var hV  = VSL.HorizontalVelocity-CFG.NeededHorVelocity;
 			var hVl = VSL.refT.InverseTransformDirection(hV);
 			var hVm = hV.magnitude;
 			//calculate needed thrust direction
@@ -128,9 +128,7 @@ namespace ThrottleControlledAvionics
 			pid.I = pid.P / (HSC.If * Tf/HSC.MinTf);
 			//update PID controller and set steering
 			pid.Update(steering_error, angularVelocity);
-			s.pitch = pid.Action.x;
-			s.roll  = pid.Action.y;
-			s.yaw   = pid.Action.z;
+			SetRot(pid.Action, s);
 			#if DEBUG
 //			Utils.Log(//debug
 //			          "hV: {0}\n" +

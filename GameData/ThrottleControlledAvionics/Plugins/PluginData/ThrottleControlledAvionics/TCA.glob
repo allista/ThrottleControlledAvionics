@@ -103,4 +103,15 @@ HSC
 	TWRf                  = 0.8
 	TorF                  = 1.2
 }
+
+CC
+{
+	Delay = 1
+	DirectionPID
+	{
+		P = 4.0
+		I = 0.0
+		D = 6.0
+	}
+}
 //:mode=c#:

@@ -9,6 +9,8 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using UnityEngine;
+
 namespace ThrottleControlledAvionics
 {
 	public interface ITCAModule
@@ -52,6 +54,27 @@ namespace ThrottleControlledAvionics
 					VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
 				if(CFG.SASIsControlled > 0) CFG.SASIsControlled--;
 			}
+		}
+	}
+
+	public abstract class AutopilotModule : TCAModule
+	{
+		public void ConnectAutopilot() { VSL.OnAutopilotUpdate += Update; }
+		public void DisconnectAutopilot() { VSL.OnAutopilotUpdate -= Update; }
+		protected abstract void Update(FlightCtrlState s);
+
+		protected bool UserIntervening(FlightCtrlState s)
+		{
+			return !Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
+				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
+				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
+		}
+
+		protected void SetRot(Vector3 rot, FlightCtrlState s)
+		{
+			s.pitch = s.pitchTrim = rot.x;
+			s.roll = s.rollTrim = rot.y;
+			s.yaw = s.yawTrim = rot.z;
 		}
 	}
 }

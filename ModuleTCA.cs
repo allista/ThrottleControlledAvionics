@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
 		HorizontalSpeedControl hsc;
 		AltitudeControl alt;
 		RCSOptimizer rcs;
-//		CruiseControl cc;
+		CruiseControl cc;
 		#endregion
 
 		#region Public Info
@@ -44,7 +44,7 @@ namespace ThrottleControlledAvionics
 		#region Initialization
 		#if DEBUG
 		public void OnReloadGlobals()
-		{ VSL.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); }
+		{ VSL.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); cc.Init(); }
 		#endif
 
 		public override string GetInfo()
@@ -57,6 +57,7 @@ namespace ThrottleControlledAvionics
 		public override void OnAwake()
 		{
 			base.OnAwake();
+
 			GameEvents.onVesselWasModified.Add(onVesselModify);
 		}
 
@@ -112,9 +113,13 @@ namespace ThrottleControlledAvionics
 			hsc = new HorizontalSpeedControl(VSL);
 			alt = new AltitudeControl(VSL);
 			rcs = new RCSOptimizer(VSL);
-			hsc.ConnectAutopilot();
+			cc  = new CruiseControl(VSL);
+			VSL.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); cc.Init();
 			vessel.OnAutopilotUpdate += block_throttle;
-			VSL.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init();
+			hsc.ConnectAutopilot();
+			cc.ConnectAutopilot();
+			if(CFG.CruiseControl) 
+				StartCoroutine(cc.UpdateNeededVelocity());
 			ThrottleControlledAvionics.AttachTCA(this);
 		}
 
@@ -124,8 +129,11 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.OnAutopilotUpdate -= block_throttle;
 				hsc.DisconnectAutopilot();
+				cc.DisconnectAutopilot();
+				if(cc.NeededVelocityUpdater != null) 
+					StopCoroutine(cc.NeededVelocityUpdater);
 			}
-			VSL = null; eng = null; vsc = null; hsc = null; alt = null; rcs = null;
+			VSL = null; eng = null; vsc = null; hsc = null; alt = null; rcs = null; cc = null;
 		}
 		#endregion
 
@@ -153,8 +161,7 @@ namespace ThrottleControlledAvionics
 		public void KillHorizontalVelocity(bool state)
 		{
 			if(state == CFG.KillHorVel) return;
-			CFG.KillHorVel = state;
-			hsc.BlockSAS(CFG.KillHorVel);
+			hsc.Enable(state);
 			if(CFG.KillHorVel) CruiseControl(false);
 		}
 		public void ToggleHvAutopilot() { KillHorizontalVelocity(!CFG.KillHorVel); }
@@ -162,37 +169,31 @@ namespace ThrottleControlledAvionics
 		public void MaintainAltitude(bool state)
 		{
 			if(state == CFG.ControlAltitude) return;
-			CFG.ControlAltitude = state;
-			if(CFG.ControlAltitude)
-			{
-				VSL.UpdateAltitude();
-				CFG.DesiredAltitude = VSL.Altitude;
-			}
+			alt.Enable(state);
 		}
 		public void ToggleAltitudeAutopilot() { MaintainAltitude(!CFG.ControlAltitude); }
 
 		public void AltitudeAboveTerrain(bool state)
 		{
 			if(state == CFG.AltitudeAboveTerrain) return;
-			CFG.AltitudeAboveTerrain = state;
-			VSL.UpdateAltitude();
-			if(CFG.AltitudeAboveTerrain)
-				CFG.DesiredAltitude -= VSL.TerrainAltitude;
-			else CFG.DesiredAltitude += VSL.TerrainAltitude;
+			alt.SetAltitudeAboveTerrain(state);
 		}
 		public void ToggleAltitudeAboveTerrain() { AltitudeAboveTerrain(!CFG.AltitudeAboveTerrain); }
 
 		public void CruiseControl(bool state)
 		{
 			if(state == CFG.CruiseControl) return;
-			CFG.CruiseControl = state;
-			hsc.BlockSAS(CFG.CruiseControl);
-			if(CFG.CruiseControl)
+			cc.Enable(state);
+			if(CFG.CruiseControl) 
 			{
-				hsc.NeededHorVelocity = VSL.HorizontalVelocity;
 				KillHorizontalVelocity(false);
+				StartCoroutine(cc.UpdateNeededVelocity());
 			}
-			else hsc.NeededHorVelocity = Vector3d.zero;
+			else if(cc.NeededVelocityUpdater != null)
+			{
+				StopCoroutine(cc.NeededVelocityUpdater);
+				cc.NeededVelocityUpdater = null; 
+			}
 		}
 		public void ToggleCruiseControl() { CruiseControl(!CFG.CruiseControl);}
 		#endregion
@@ -218,8 +219,12 @@ namespace ThrottleControlledAvionics
 				vsc.UpdateState();
 				hsc.UpdateState();
 				alt.UpdateState();
-				if(vsc.IsActive || alt.IsActive || hsc.IsActive) 
-					VSL.UpdateOnPlanetStats();
+				rcs.UpdateState();
+				cc.UpdateState();
+				if(vsc.IsActive || alt.IsActive) 
+					VSL.UpdateVerticalStats();
+				if(hsc.IsActive || cc.IsActive)
+					VSL.UpdateHorizontalStats();
 				alt.Update();
 				vsc.Update();
 			}

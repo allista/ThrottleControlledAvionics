@@ -347,10 +347,14 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void UpdateOnPlanetStats()
+		public void UpdateHorizontalStats()
+		{
+			HorizontalVelocity = Vector3d.Exclude(up, vessel.srf_velocity);
+		}
+
+		public void UpdateVerticalStats()
 		{
 			AccelSpeed = 0f; DecelSpeed = 0f; MaxTWR = 0f;
-			if(!OnPlanet) return;
 			//calculate altitude, vertical speed and acceleration
 			var upV = 0f;
 			if(CFG.ControlAltitude)
@@ -365,8 +369,6 @@ namespace ThrottleControlledAvionics
 			} else upV = CoM_verticalSpeed;
 			VerticalAccel = Utils.WAverage(VerticalAccel, (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime);
 			VerticalSpeed = upV;
-			//calculate horizontal velocity
-			HorizontalVelocity = Vector3d.Exclude(up, vessel.srf_velocity);
 			//calculate total downward thrust and slow engines' corrections
 			var down_thrust = 0f;
 			var slow_thrust = 0f;

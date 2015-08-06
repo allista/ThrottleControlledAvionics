@@ -45,8 +45,28 @@ namespace ThrottleControlledAvionics
 			rocket_pid.setPID(ALT.RocketPID);
 			jets_pid.setPID(ALT.JetsPID);
 		}
+
 		public override void UpdateState()
 		{ IsActive = CFG.ControlAltitude && VSL.OnPlanet; }
+
+		public void SetAltitudeAboveTerrain(bool enable = true)
+		{
+			CFG.AltitudeAboveTerrain = enable;
+			VSL.UpdateAltitude();
+			if(CFG.AltitudeAboveTerrain)
+				CFG.DesiredAltitude -= VSL.TerrainAltitude;
+			else CFG.DesiredAltitude += VSL.TerrainAltitude;
+		}
+
+		public void Enable(bool enable = true)
+		{
+			CFG.ControlAltitude = enable;
+			if(CFG.ControlAltitude)
+			{
+				VSL.UpdateAltitude();
+				CFG.DesiredAltitude = VSL.Altitude;
+			}
+		}
 
 		public void Update()
 		{
@@ -67,15 +87,6 @@ namespace ThrottleControlledAvionics
 			}
 			else 
 			{
-//				if(VSL.VerticalSpeed > 0)
-//				if(!alt_error.Equals(0))
-//					rocket_pid.D = Mathf.Clamp(ALT.ErrF*Mathf.Abs(1/alt_error), 
-//					                           0, rocket_pid.D);
-//				else if(VSL.VerticalSpeed < 0)
-//					rocket_pid.D = Mathf.Clamp(Mathf.Pow(VSL.MaxTWR, ALT.TWRp)/Mathf.Abs(VSL.VerticalSpeed), 
-//					                           0, Utils.ClampH(jets_pid.D/VSL.MaxTWR/ALT.TWRd, rocket_pid.D));
-//				else rocket_pid.D = ALT.RocketPID.D;
-//				Utils.Log("Rocket PID: {0}", rocket_pid);//debug
 				rocket_pid.Update(alt_error);
 				CFG.VerticalCutoff = rocket_pid.Action;
 			}

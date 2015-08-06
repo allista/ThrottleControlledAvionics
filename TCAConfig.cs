@@ -121,6 +121,8 @@ Notes:
 		[Persistent] public int     SASIsControlled;
 		[Persistent] public bool    SASWasEnabled;
 //		[Persistent] public bool    RCSWasEnabled;
+		[Persistent] public Vector3 Starboard;
+		public Vector3d NeededHorVelocity;
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
 		[Persistent] public LimitsConfig ManualLimits = new LimitsConfig();
