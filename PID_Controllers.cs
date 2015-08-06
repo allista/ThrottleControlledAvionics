@@ -37,6 +37,8 @@ namespace ThrottleControlledAvionics
 			i = Utils.FloatSlider(" I", I, 0, TCAConfiguration.Globals.ENG.MaxI, "F2");
 			GUILayout.EndHorizontal();
 		}
+
+		public override string ToString() { return string.Format("[P={0}, I={1}]", P, I); }
 	}
 
 	public abstract class PI_Controller<T> : PI_Controller
@@ -90,6 +92,9 @@ namespace ThrottleControlledAvionics
 		{ P = c.P; I = c.I; D = c.D; Min = c.Min; Max = c.Max; }
 
 		public virtual void Reset() {}
+
+		public override string ToString()
+		{ return string.Format("[P={0}, I={1}, D={2}, Min={3}, Max={4}]", P, I, D, Min, Max); }
 	}
 
 	public class PID_Controller<T> : PID_Controller
@@ -138,6 +143,7 @@ namespace ThrottleControlledAvionics
 
 		public void Update(float error)
 		{
+			if(last_error.Equals(0)) last_error = error;
 			var old_ierror = integral_error;
 			integral_error += error*TimeWarp.fixedDeltaTime;
 			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
@@ -155,10 +161,12 @@ namespace ThrottleControlledAvionics
 
 		public void Update(float error)
 		{
-			var derivative = D * (error - last_error)/TimeWarp.fixedDeltaTime;
-			integral_error = (Math.Abs(derivative) < 0.6f * Max) ? integral_error + (error * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error;
-			if(integral_error > Max) integral_error = Max;
+			if(last_error.Equals(0)) last_error = error;
+			var derivative = D*(error-last_error)/TimeWarp.fixedDeltaTime;
+			integral_error = Mathf.Clamp((Math.Abs(derivative) < 0.6f * Max) ? integral_error + (error * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error, Min, Max);
 			action = Mathf.Clamp(error * P + integral_error + derivative, Min, Max);
+//			Utils.Log("Pe {0}; Ie {1}; De {2}; action {3}", P*error, integral_error, derivative, action);//debug
+			last_error = error;
 		}
 	}
 	#endregion

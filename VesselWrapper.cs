@@ -9,6 +9,7 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
@@ -59,6 +60,7 @@ namespace ThrottleControlledAvionics
 		public float AccelSpeed { get; private set; }
 		public float DecelSpeed { get; private set; }
 		public float VSF; //vertical speed factor
+		public float MinVSF;
 
 		public Vector3d   up { get; private set; }  //up unit vector in world space
 		public Vector3    CoM { get { return vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime; } } //current center of mass of unpacked vessel
@@ -66,12 +68,14 @@ namespace ThrottleControlledAvionics
 		public Vector3    MoI { get; private set; } = Vector3.one; //main diagonal of inertia tensor
 		public Matrix3x3f InertiaTensor { get; private set; }
 		public Vector3    MaxAngularA { get; private set; } //current maximum angular acceleration
+		public float      MaxAngularA_m { get; private set; } //current maximum angular acceleration
 
-		public Vector3 Torque { get; private set; } //current torque applied to the vessel by the engines
-		public float   VerticalSpeed { get; private set; }
-		public float   VerticalAccel { get; private set; }
-		public float   Altitude { get; private set; }
-		public float   TerrainAltitude { get; private set; }
+		public Vector3  Torque { get; private set; } //current torque applied to the vessel by the engines
+		public float    VerticalSpeed { get; private set; }
+		public float    VerticalAccel { get; private set; }
+		public float    Altitude { get; private set; }
+		public float    TerrainAltitude { get; private set; }
+		public Vector3d HorizontalVelocity { get; private set; }
 
 		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
 		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, up); } }
@@ -97,9 +101,6 @@ namespace ThrottleControlledAvionics
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
 		public bool NoActiveRCS { get; private set; }
-
-		public bool TCA_Available;
-		public bool IsControllable { get { return vessel.IsControllable; } }
 
 		public VesselWrapper(Vessel vsl) { vessel = vsl; }
 
@@ -229,7 +230,7 @@ namespace ThrottleControlledAvionics
 					var e = ActiveEngines[i];
 					if(e.isVSC)
 					{
-						if(e.VSF > 0) e.VSF = VSF;
+						e.VSF = e.VSF > 0 ? VSF : MinVSF;
 						e.throttle = e.VSF * vessel.ctrlState.mainThrottle;
 					}
 					else 
@@ -296,6 +297,8 @@ namespace ThrottleControlledAvionics
 			wCoM = vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime;
 			refT = vessel.ReferenceTransform;
 			up   = (wCoM - vessel.mainBody.position).normalized;
+			update_MoI();
+			update_MaxAngularA();
 		}
 
 		public void UpdateETorqueLimits()
@@ -362,6 +365,8 @@ namespace ThrottleControlledAvionics
 			} else upV = CoM_verticalSpeed;
 			VerticalAccel = Utils.WAverage(VerticalAccel, (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime);
 			VerticalSpeed = upV;
+			//calculate horizontal velocity
+			HorizontalVelocity = Vector3d.Exclude(up, vessel.srf_velocity);
 			//calculate total downward thrust and slow engines' corrections
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
@@ -374,7 +379,7 @@ namespace ThrottleControlledAvionics
 				if(e.isVSC)
 				{
 					var dcomponent = -Vector3.Dot(e.wThrustDir, up);
-					if(dcomponent <= 0) e.VSF = 0f;
+					if(dcomponent <= 0) e.VSF = 0;
 					else 
 					{
 						var dthrust = e.nominalCurrentThrust(e.best_limit)*e.thrustMod*dcomponent;
@@ -391,17 +396,12 @@ namespace ThrottleControlledAvionics
 			}
 			M = vessel.GetTotalMass();
 			MaxTWR = down_thrust/TCAConfiguration.G/M;
+			MinVSF = (MaxAngularA_m > 0)? Mathf.Clamp(GLB.VSC.MinVSFf/MaxAngularA_m, 0, 0.5f/(MaxTWR > 0? MaxTWR : 1)) : 0;
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
 			//correct setpoint for current TWR and slow engines
 			if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
 			if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
-		}
-
-		public void UpdateRotationalStats()
-		{
-			update_MoI();
-			update_MaxAngularA();
 		}
 
 		void update_MaxAngularA()
@@ -414,6 +414,7 @@ namespace ThrottleControlledAvionics
 					!MoI.z.Equals(0)? max_torque.z/MoI.z : float.MaxValue
 				);
 			MaxAngularA = Utils.WAverage(MaxAngularA, new_angularA);
+			MaxAngularA_m = MaxAngularA.magnitude;
 		}
 
 		#region From MechJeb2
@@ -456,6 +457,26 @@ namespace ThrottleControlledAvionics
 		}
 		#endregion
 		#endregion
+	}
+
+	/// <summary>
+	/// Binary flags of TCA state.
+	/// They should to be checked in this particular order, as they are set sequentially:
+	/// If a previous flag is not set, the next ones are not either.
+	/// </summary>
+	[Flags] public enum TCAState 
+	{ 
+		Disabled 			   = 0,
+		Enabled 			   = 1 << 0,
+		HaveEC 				   = 1 << 1, 
+		HaveActiveEngines 	   = 1 << 2,
+		VerticalSpeedControl   = 1 << 3,
+		AltitudeControl        = 1 << 4,
+		LoosingAltitude 	   = 1 << 5,
+		Unoptimized			   = 1 << 6,
+		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
+		NoActiveEngines        = Enabled | HaveEC,
+		NoEC                   = Enabled,
 	}
 }
 

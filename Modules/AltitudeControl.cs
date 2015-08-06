@@ -24,8 +24,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float ErrF  = 0.01f; //altitude error coefficient
 			[Persistent] public float TWRp  = 2f;    //twr power factor
 			[Persistent] public float TWRd  = 2f;    //twr denominator
-			[Persistent] public PID_Controller RocketPID = new PIDf_Controller(0.1f, 0.5f, 0.03f, -9.9f, -9.9f);
-			[Persistent] public PID_Controller JetsPID   = new PIDf_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
+			[Persistent] public PID_Controller RocketPID = new PID_Controller(0.1f, 0.5f, 0.03f, -9.9f, -9.9f);
+			[Persistent] public PID_Controller JetsPID   = new PID_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
 
 			public override void Init()
 			{
@@ -38,7 +38,7 @@ namespace ThrottleControlledAvionics
 		readonly PIDf_Controller2 rocket_pid = new PIDf_Controller2();
 		readonly PIDf_Controller  jets_pid   = new PIDf_Controller();
 
-		public AltitudeControl(VesselWrapper vsl) { vessel = vsl; }
+		public AltitudeControl(VesselWrapper vsl) { VSL = vsl; }
 
 		public override void Init()
 		{
@@ -46,31 +46,40 @@ namespace ThrottleControlledAvionics
 			jets_pid.setPID(ALT.JetsPID);
 		}
 		public override void UpdateState()
-		{ IsActive = CFG.ControlAltitude && vessel.OnPlanet; }
+		{ IsActive = CFG.ControlAltitude && VSL.OnPlanet; }
 
 		public void Update()
 		{
 			if(!IsActive) return;
 			SetState(TCAState.AltitudeControl);
-			var alt_error = CFG.DesiredAltitude-vessel.Altitude;
-			if((vessel.AccelSpeed > 0 || vessel.DecelSpeed > 0))
+			var alt_error = CFG.DesiredAltitude-VSL.Altitude;
+			if((VSL.AccelSpeed > 0 || VSL.DecelSpeed > 0))
 			{
-				if(vessel.VerticalSpeed > 0)
-					jets_pid.P = Mathf.Clamp(ALT.ErrF*Mathf.Abs(alt_error/vessel.VerticalSpeed), 
+				if(VSL.VerticalSpeed > 0)
+					jets_pid.P = Mathf.Clamp(ALT.ErrF*Mathf.Abs(alt_error/VSL.VerticalSpeed), 
 					                                    0, jets_pid.D);
-				else if(vessel.VerticalSpeed < 0)
-					jets_pid.P = Mathf.Clamp(Mathf.Pow(vessel.MaxTWR, ALT.TWRp)/Mathf.Abs(vessel.VerticalSpeed), 
-					                                    0, Utils.ClampH(jets_pid.D/vessel.MaxTWR/ALT.TWRd, jets_pid.D));
+				else if(VSL.VerticalSpeed < 0)
+					jets_pid.P = Mathf.Clamp(Mathf.Pow(VSL.MaxTWR, ALT.TWRp)/Mathf.Abs(VSL.VerticalSpeed), 
+					                                    0, Utils.ClampH(jets_pid.D/VSL.MaxTWR/ALT.TWRd, jets_pid.D));
 				else jets_pid.P = ALT.JetsPID.P;
 				jets_pid.Update(alt_error);
 				CFG.VerticalCutoff = jets_pid.Action;
 			}
 			else 
 			{
+//				if(VSL.VerticalSpeed > 0)
+//				if(!alt_error.Equals(0))
+//					rocket_pid.D = Mathf.Clamp(ALT.ErrF*Mathf.Abs(1/alt_error), 
+//					                           0, rocket_pid.D);
+//				else if(VSL.VerticalSpeed < 0)
+//					rocket_pid.D = Mathf.Clamp(Mathf.Pow(VSL.MaxTWR, ALT.TWRp)/Mathf.Abs(VSL.VerticalSpeed), 
+//					                           0, Utils.ClampH(jets_pid.D/VSL.MaxTWR/ALT.TWRd, rocket_pid.D));
+//				else rocket_pid.D = ALT.RocketPID.D;
+//				Utils.Log("Rocket PID: {0}", rocket_pid);//debug
 				rocket_pid.Update(alt_error);
 				CFG.VerticalCutoff = rocket_pid.Action;
 			}
-//			Utils.CSV(vessel.Altitude, CFG.VerticalCutoff, vessel.VSF, vessel.VerticalSpeed);//debug
+//			Utils.CSV(VSL.Altitude, alt_error, CFG.VerticalCutoff, VSL.VSF, VSL.VerticalSpeed);//debug
 		}
 	}
 }

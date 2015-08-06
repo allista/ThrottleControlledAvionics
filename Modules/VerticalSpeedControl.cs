@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
 
 			[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f;    //vertical speed limit control coefficients
 			[Persistent] public float MaxSpeed              = 10f;   //max. positive vertical speed m/s (configuration limit)
-			[Persistent] public float MinVSF                = 0.05f; //minimum vertical speed factor; so as not to lose control during a rapid descent
+			[Persistent] public float MinVSFf               = 1.2f;  //minimum vertical speed factor; so as not to lose control during a rapid descent
 			[Persistent] public float BalanceCorrection     = 1.5f;  //multiplier for the vertical speed factor correction; 1.2 means +20% of thrust above the minimal value sufficient for zero balance
 			[Persistent] public float TWRf                  = 2.0f;  //factor for the TWR adjustment of VerticalCutoff
 			[Persistent] public float UpAf                  = 0.2f;  //factor for the upA adjustment of VerticalCutoff
@@ -31,32 +31,32 @@ namespace ThrottleControlledAvionics
 		}
 		static Config VSC { get { return TCAConfiguration.Globals.VSC; } }
 
-		public VerticalSpeedControl(VesselWrapper vsl) { vessel = vsl; }
+		public VerticalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
 
 		public override void UpdateState()
-		{ IsActive = (CFG.ControlAltitude || CFG.VerticalCutoff < VSC.MaxSpeed) && vessel.OnPlanet; }
+		{ IsActive = (CFG.ControlAltitude || CFG.VerticalCutoff < VSC.MaxSpeed) && VSL.OnPlanet; }
 
 		public void Update()
 		{
-			vessel.VSF = 1f;
+			VSL.VSF = 1f;
 			if(!IsActive) return;
 			SetState(TCAState.VerticalSpeedControl);
-			var upAF = -vessel.VerticalAccel
-				*(vessel.VerticalAccel < 0? vessel.AccelSpeed : vessel.DecelSpeed)*VSC.UpAf;
+			var upAF = -VSL.VerticalAccel
+				*(VSL.VerticalAccel < 0? VSL.AccelSpeed : VSL.DecelSpeed)*VSC.UpAf;
 			var setpoint = CFG.VerticalCutoff;
-			if(!vessel.MaxTWR.Equals(0))
-				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/vessel.MaxTWR;
+			if(!VSL.MaxTWR.Equals(0))
+				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/VSL.MaxTWR;
 			//calculate new VSF
-			var err = setpoint-vessel.VerticalSpeed;
+			var err = setpoint-VSL.VerticalSpeed;
 			var K = Mathf.Clamp01(err
 			                      /VSC.K0
-			                      /Mathf.Pow(Utils.ClampL(vessel.VerticalAccel/VSC.K1+1, VSC.L1), 2f)
+			                      /Mathf.Pow(Utils.ClampL(VSL.VerticalAccel/VSC.K1+1, VSC.L1), 2f)
 			                      +upAF);
-			vessel.VSF = vessel.LandedOrSplashed? K : Utils.ClampL(K, VSC.MinVSF);
+			VSL.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.MinVSF);
 			//loosing altitude alert
-			if(vessel.VerticalSpeed < 0 && vessel.VerticalSpeed < vessel.CFG.VerticalCutoff-0.1f && !vessel.LandedOrSplashed)
+			if(VSL.VerticalSpeed < 0 && VSL.VerticalSpeed < VSL.CFG.VerticalCutoff-0.1f && !VSL.LandedOrSplashed)
 				SetState(TCAState.LoosingAltitude);
-			//			Utils.CSV(VerticalSpeed, CFG.VerticalCutoff, maxTWR, VerticalAccel, upAF, setpoint-CFG.VerticalCutoff, K);//debug
+//			Utils.CSV(VerticalSpeed, CFG.VerticalCutoff, maxTWR, VerticalAccel, upAF, setpoint-CFG.VerticalCutoff, K);//debug
 		}
 	}
 }

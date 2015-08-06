@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
 	public class RCSOptimizer : TorqueOptimizer
 	{
 		static RCSOptimizer.Config RCS { get { return TCAConfiguration.Globals.RCS; } }
-		public RCSOptimizer(VesselWrapper vsl) { vessel = vsl; }
+		public RCSOptimizer(VesselWrapper vsl) { VSL = vsl; }
 
 		static bool optimization_pass(IList<RCSWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
 		{
@@ -99,20 +99,20 @@ namespace ThrottleControlledAvionics
 
 		public void Steer()
 		{
-			if(vessel.NoActiveRCS) return;
+			if(VSL.NoActiveRCS) return;
 			//calculate needed torque
 			var needed_torque = Vector3.zero;
-			if(vessel.Steering.sqrMagnitude >= TCAConfiguration.Globals.InputDeadZone)
+			if(VSL.Steering.sqrMagnitude >= TCAConfiguration.Globals.InputDeadZone)
 			{
-				for(int i = 0; i < vessel.NumActiveRCS; i++)
-				{ needed_torque += vessel.ActiveRCS[i].currentTorque; }
-				needed_torque = Vector3.Project(needed_torque, vessel.Steering);
+				for(int i = 0; i < VSL.NumActiveRCS; i++)
+				{ needed_torque += VSL.ActiveRCS[i].currentTorque; }
+				needed_torque = Vector3.Project(needed_torque, VSL.Steering);
 			}
 			//optimize engines; if failed, set the flag and kill torque if requested
-			if(!Optimize(vessel.ActiveRCS, needed_torque) && !needed_torque.IsZero())
+			if(!Optimize(VSL.ActiveRCS, needed_torque) && !needed_torque.IsZero())
 			{
-				for(int j = 0; j < vessel.NumActiveRCS; j++) vessel.ActiveRCS[j].InitLimits();
-				Optimize(vessel.ActiveRCS, Vector3.zero);
+				for(int j = 0; j < VSL.NumActiveRCS; j++) VSL.ActiveRCS[j].InitLimits();
+				Optimize(VSL.ActiveRCS, Vector3.zero);
 			}
 		}
 	}

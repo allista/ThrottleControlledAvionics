@@ -22,6 +22,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public AltitudeControl.Config        ALT = new AltitudeControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config HSC = new HorizontalSpeedControl.Config();
 		[Persistent] public RCSOptimizer.Config           RCS = new RCSOptimizer.Config();
+		[Persistent] public CruiseControl.Config          CC  = new CruiseControl.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -72,7 +73,7 @@ Notes:
 
 		public void Init()
 		{ 
-			Instructions = string.Format(instructions, TCAGui.TCA_Key, VSC.MaxSpeed);
+			Instructions = string.Format(instructions, ThrottleControlledAvionics.TCA_Key, VSC.MaxSpeed);
 			VSC.Init(); ALT.Init(); HSC.Init(); ENG.Init(); RCS.Init();
 			InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
 		}
@@ -115,7 +116,9 @@ Notes:
 		[Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked
 		[Persistent] public bool    AutoTune         = true;        //if true, engine PI coefficients and steering modifier will be tuned automatically
 		//horizontal velocity
+		[Persistent] public bool    CruiseControl;
 		[Persistent] public bool    KillHorVel;
+		[Persistent] public int     SASIsControlled;
 		[Persistent] public bool    SASWasEnabled;
 //		[Persistent] public bool    RCSWasEnabled;
 		//engines
@@ -193,6 +196,7 @@ Notes:
 		public static TCAGlobals Globals = new TCAGlobals();
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
+		public static bool Loaded { get; private set; }
 		static readonly List<ConfigNode> other_games = new List<ConfigNode>();
 
 		#region From KSPPluginFramework
@@ -223,6 +227,7 @@ Notes:
 		#region Runtime Interface
 		public static VesselConfig GetConfig(Vessel vsl)
 		{
+			if(!Loaded) Load();
 			if(!Configs.ContainsKey(vsl.id)) 
 				Configs.Add(vsl.id, new VesselConfig(vsl));
 			return Configs[vsl.id];
@@ -258,6 +263,8 @@ Notes:
 
 		public static void Load(string configs, string globals)
 		{
+			if(Loaded) return;
+
 			var gnode = loadNode(globals);
 			if(gnode != null) LoadGlobals(gnode);
 			else Globals.Init();
@@ -265,6 +272,8 @@ Notes:
 			var cnode = loadNode(configs);
 			if(cnode != null) LoadConfigs(cnode);
 			else Configs.Clear();
+
+			Loaded = true;
 		}
 
 		public static void LoadGlobals()
@@ -322,6 +331,7 @@ Notes:
 
 		public static void Save(string configs)
 		{
+			if(!Loaded) return;
 			var cnode = new ConfigNode(NODE_NAME);
 			SaveConfigs(cnode); saveNode(cnode, configs);
 		}

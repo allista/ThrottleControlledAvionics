@@ -26,18 +26,33 @@ namespace ThrottleControlledAvionics
 			public virtual void Init() {}
 		}
 
-		protected VesselWrapper vessel;
+		protected VesselWrapper VSL;
 
-		public VesselConfig CFG { get { return vessel.CFG; } }
-		public TCAState State { get { return vessel.State; } }
+		public VesselConfig CFG { get { return VSL.CFG; } }
+		public TCAState State { get { return VSL.State; } }
 		public bool IsActive { get; protected set; }
-		public void SetState(TCAState state) { vessel.State |= state; }
-		public bool IsStateSet(TCAState state) { return vessel.IsStateSet(state); }
+		public void SetState(TCAState state) { VSL.State |= state; }
+		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
 
 		public virtual void Load(ConfigNode node) {}
 		public virtual void Init() {}
 		public virtual void UpdateState() {}
 
+		public void BlockSAS(bool block = true) 
+		{ 
+			if(block)
+			{
+				if(CFG.SASIsControlled == 0)
+					CFG.SASWasEnabled = VSL.ActionGroups[KSPActionGroup.SAS]; 
+				CFG.SASIsControlled++;
+			}
+			else
+			{
+				if(CFG.SASIsControlled < 2 && CFG.SASWasEnabled) 
+					VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
+				if(CFG.SASIsControlled > 0) CFG.SASIsControlled--;
+			}
+		}
 	}
 }
 

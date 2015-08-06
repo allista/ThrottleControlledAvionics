@@ -72,7 +72,6 @@
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="ToolbarWrapper.cs" />
     <Compile Include="Utils.cs" />
-    <Compile Include="TCAGui.cs" />
     <Compile Include="TCAConfig.cs" />
     <Compile Include="DropDownList.cs" />
     <Compile Include="Extensions.cs" />
@@ -85,10 +84,14 @@
     <Compile Include="Modules\VerticalSpeedControl.cs" />
     <Compile Include="Modules\AltitudeControl.cs" />
     <Compile Include="Modules\HorizontalSpeedControl.cs" />
-    <Compile Include="ThrottleControlledAvionics.cs" />
     <Compile Include="Modules\RCSOptimizer.cs" />
     <Compile Include="Modules\EngineOptimizer.cs" />
     <Compile Include="UI_IntRange.cs" />
+    <Compile Include="ModuleTCA.cs" />
+    <Compile Include="ThrottleControlledAvionics.cs" />
+    <Compile Include="Styles.cs" />
+    <Compile Include="TCAGui.cs" />
+    <Compile Include="Modules\CruiseControl.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

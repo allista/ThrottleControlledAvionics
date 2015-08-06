@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 		static Texture textureOff;
 		static Texture textureNoCharge;
 		//TCA instance
-		static ThrottleControlledAvionics TCA;
+		static ModuleTCA TCA;
 
 		void Awake()
 		{
@@ -97,7 +97,7 @@ namespace ThrottleControlledAvionics
 		void onAppLaunchToggleOn() { if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = true; }
 		void onAppLaunchToggleOff() { if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = false; }
 
-		public static void AttachTCA(ThrottleControlledAvionics tca)
+		public static void AttachTCA(ModuleTCA tca)
 		{
 			TCA = tca;
 			if(TCA == null)

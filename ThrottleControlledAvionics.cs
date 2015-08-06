@@ -1,197 +1,117 @@
-/* Name: Throttle Controlled Avionics, Fork by Allis Tauri
- *
- * Authors: Quinten Feys & Willem van Vliet & Allis Tauri
- * License: BY: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0): 
- * http://creativecommons.org/licenses/by-sa/3.0/
- * 
+/* The GUI for ThrottleControlledAvionics.
+ * Authors: Quinten Feys, Willem van Vliet, Allis Tauri
+ * License: BY: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0): http://creativecommons.org/licenses/by-sa/3.0/
  */
 
 using System;
+using System.Linq;
 using UnityEngine;
+using KSP.IO;
 
 namespace ThrottleControlledAvionics
 {
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
-	public class ThrottleControlledAvionics : MonoBehaviour, ITCAModule
+	public partial class ThrottleControlledAvionics : MonoBehaviour
 	{
-		const string TCA_PART = "ThrottleControlledAvionics";
+		static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
+		static TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
+		static Vessel ActiveVessel { get { return FlightGlobals.fetch != null? FlightGlobals.fetch.activeVessel : null; } }
 
-		TCAGui GUI;
+		static Vessel vessel;
+		static Part part;
+		static ModuleTCA TCA;
+		static VesselWrapper VSL { get { return TCA.VSL; } }
+		static VesselConfig CFG { get { return TCA.CFG; } }
 
-		public VesselWrapper vessel { get; private set; }
-		public TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
-		public VesselConfig CFG { get { return vessel.CFG; } }
-		public TCAState State { get { return vessel.State; } set { vessel.State = value; } }
-		public void SetState(TCAState state) { vessel.State |= state; }
-		public bool IsStateSet(TCAState state) { return vessel.IsStateSet(state); }
-
-		#region Modules
-		EngineOptimizer eng;
-		VerticalSpeedControl vsc;
-		HorizontalSpeedControl hsc;
-		AltitudeControl alt;
-		RCSOptimizer rcs;
-		#endregion
-
-		#region Public Info
-		public float TorqueError { get { return eng == null? 0f : eng.TorqueError; } }
-		public bool  Available { get; private set; }
-		public bool  Controllable { get { return Available && vessel.IsControllable; } }
-		#endregion
-
-		#region Initialization
-		#if DEBUG
-		public void OnReloadGlobals()
+		public static void LoadConfig()
 		{
-			if(!Available) return;
-		vessel.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init();
+			GUI_CFG.load();
+			ControlsPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {ControlsPos}), ControlsPos);
+			HelpPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpPos}), HelpPos);
+			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
+			TCAConfiguration.Load();
+			updateConfigs();
 		}
-		#endif
+
+		public void SaveConfig(ConfigNode node = null)
+		{
+			TCAConfiguration.Save();
+			GUI_CFG.SetValue(Utils.PropertyName(new {ControlsPos}), ControlsPos);
+			GUI_CFG.SetValue(Utils.PropertyName(new {HelpPos}), HelpPos);
+			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);
+			GUI_CFG.save();
+		}
 
 		public void Awake()
 		{
-			TCAConfiguration.Load();
+			LoadConfig();
+			GameEvents.onGameStateSave.Add(SaveConfig);
 			GameEvents.onVesselChange.Add(onVesselChange);
-			GameEvents.onVesselWasModified.Add(onVesselModify);
-			GameEvents.onGameStateSave.Add(onSave);
+			GameEvents.onHideUI.Add(onHideUI);
+			GameEvents.onShowUI.Add(onShowUI);
 		}
 
-		internal void OnDestroy() 
+		public void OnDestroy() 
 		{ 
-			TCAConfiguration.Save();
-			if(GUI != null) GUI.OnDestroy();
+			TCAToolbarManager.AttachTCA(null);
+			GameEvents.onGameStateSave.Remove(SaveConfig);
 			GameEvents.onVesselChange.Remove(onVesselChange);
-			GameEvents.onVesselWasModified.Remove(onVesselModify);
-			GameEvents.onGameStateSave.Remove(onSave);
+			GameEvents.onHideUI.Remove(onHideUI);
+			GameEvents.onShowUI.Remove(onShowUI);
+			SaveConfig();
 		}
 
 		void onVesselChange(Vessel vsl)
-		{ 
-			if(vsl == null || vsl.Parts == null) return;
-			save(); 
-			reset();
-			vessel = new VesselWrapper(vsl);
-			eng = new EngineOptimizer(vessel);
-			vsc = new VerticalSpeedControl(vessel);
-			hsc = new HorizontalSpeedControl(vessel);
-			alt = new AltitudeControl(vessel);
-			rcs = new RCSOptimizer(vessel);
-			hsc.ConnectAutopilot();
-			vessel.OnAutopilotUpdate += block_throttle;
-			init();
-		}
-
-		void onVesselModify(Vessel vsl)
-		{ if(vessel != null && vessel.vessel == vsl) init(); }
-
-		void onSave(ConfigNode node) { save(); }
-
-		void save() 
-		{ 
-			TCAConfiguration.Save(); 
-			if(GUI != null) GUI.SaveConfig();
-		}
-
-		void reset()
 		{
-			if(vessel != null) 
-			{
-				vessel.OnAutopilotUpdate -= block_throttle;
-				hsc.DisconnectAutopilot();
-			}
-			vessel = null; eng = null; vsc = null; hsc = null; alt = null;
+			if(vsl == null || vsl.parts == null) return;
+			vessel = vsl; init();
 		}
 
-		void init()
+		public static void AttachTCA(ModuleTCA tca) { if(tca.vessel == vessel) init(); }
+
+		static bool init()
 		{
-			Available = vessel.TCA_Available = false;
-			vessel.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init();
-			if(!vessel.isEVA && 
-			   (!GLB.IntegrateIntoCareer ||
-			    Utils.PartIsPurchased(TCA_PART)))
-			{
-				vessel.UpdateEngines();
-				if(vessel.Engines.Count > 0 || vessel.RCS.Count > 0)
-				{
-					if(GUI == null) GUI = new TCAGui(this);
-					Utils.Log("TCA is enabled");
-					Available = vessel.TCA_Available =  true;
-					return;
-				}
-			} 
-			if(GUI != null) { GUI.OnDestroy(); GUI = null; }
-			Utils.Log("TCA is disabled");
-		}
-		#endregion
-
-		#region Controls
-		public void ActivateTCA(bool state)
-		{
-			if(state == CFG.Enabled) return;
-			CFG.Enabled = state;
-			if(!CFG.Enabled) //reset engine limiters
-			{
-				vessel.Engines.ForEach(e => e.forceThrustPercentage(100));
-				State = TCAState.Disabled;
-			}
-		}
-		public void ToggleTCA() { ActivateTCA(!CFG.Enabled); }
-
-		public void BlockThrottle(bool state)
-		{
-			if(state == CFG.BlockThrottle) return;
-			CFG.BlockThrottle = state;
-			if(CFG.BlockThrottle && CFG.VerticalCutoff >= GLB.VSC.MaxSpeed)
-				CFG.VerticalCutoff = 0;
-		}
-
-		public void KillHorizontalVelocity(bool state)
-		{
-			if(state == CFG.KillHorVel) return;
-			CFG.KillHorVel = state;
-			if(CFG.KillHorVel)
-				CFG.SASWasEnabled = vessel.ActionGroups[KSPActionGroup.SAS];
-			else if(CFG.SASWasEnabled)
-				vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
-		}
-		public void ToggleHvAutopilot() { KillHorizontalVelocity(!CFG.KillHorVel); }
-
-		public void MaintainAltitude(bool state)
-		{
-			if(state == CFG.ControlAltitude) return;
-			CFG.ControlAltitude = state;
-			if(CFG.ControlAltitude)
-			{
-				vessel.UpdateAltitude();
-				CFG.DesiredAltitude = vessel.Altitude;
-			}
-		}
-		public void ToggleAltitudeAutopilot() { MaintainAltitude(!CFG.ControlAltitude); }
-
-		public void AltitudeAboveTerrain(bool state)
-		{
-			if(state == CFG.AltitudeAboveTerrain) return;
-			CFG.AltitudeAboveTerrain = state;
-			vessel.UpdateAltitude();
-			if(CFG.AltitudeAboveTerrain)
-				CFG.DesiredAltitude -= vessel.TerrainAltitude;
-			else CFG.DesiredAltitude += vessel.TerrainAltitude;
-		}
-		public void ToggleAltitudeAboveTerrain() { AltitudeAboveTerrain(!CFG.AltitudeAboveTerrain);}
-		#endregion
-
-		public void OnGUI() 
-		{ 
-			if(!Available) return;
-			Styles.Init();
-			if(Controllable) GUI.DrawGUI(); 
-			TCAToolbarManager.UpdateToolbarButton();
+			TCA = null; TCAToolbarManager.AttachTCA(null); 
+			part = vessel.parts.FirstOrDefault(p => p.HasModule<ModuleTCA>());
+			if(part == null) return false;
+			TCA = part.Modules.OfType<ModuleTCA>().FirstOrDefault();
+			if(TCA == null || !TCA.Available) { TCA = null; return false; }
+			TCAToolbarManager.AttachTCA(TCA);
+			LoadConfig();
+			return true;
 		}
 
 		public void Update()
-		{ 
-			if(!Controllable) return;
-			GUI.OnUpdate();
+		{
+			if(TCA == null) return;
+			if(!TCA.Available && !init()) return;
+			TCAToolbarManager.UpdateToolbarButton();
+			if(!TCA.Controllable) return;
+			if(selecting_key)
+			{ 
+				var e = Event.current;
+				if(e.isKey)
+				{
+					if(e.keyCode != KeyCode.Escape)
+					{
+						//try to get the keycode if the Unity provided us only with the character
+						if(e.keyCode == KeyCode.None && e.character >= 'a' && e.character <= 'z')
+						{
+							var ec = new string(e.character, 1).ToUpper();
+							try { e.keyCode = (KeyCode)Enum.Parse(typeof(KeyCode), ec); }
+							catch {}
+						}
+						if(e.keyCode == KeyCode.None) 
+							ScreenMessages
+								.PostScreenMessage(string.Format("Unable to convert '{0}' to keycode.\nPlease, try an alphabet character.", e.character), 
+							    	                             5, ScreenMessageStyle.UPPER_CENTER);
+						else TCA_Key = e.keyCode;
+						Utils.Log("TCA: new key slected: {0}", TCA_Key);
+					}
+					selecting_key = false;
+				}
+			}
+			else if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
 			if(CFG.Enabled && CFG.BlockThrottle)
 			{
 				if(CFG.ControlAltitude)
@@ -226,80 +146,5 @@ namespace ThrottleControlledAvionics
 				}
 			}
 		}
-
-		void block_throttle(FlightCtrlState s)
-		{ if(Available && CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
-
-		public void FixedUpdate()
-		{
-			//initialize systems
-			if(!Available) return;
-			vessel.UpdateState();
-			if(!CFG.Enabled) return;
-			State = TCAState.Enabled;
-			if(!vessel.ElectricChargeAvailible) return;
-			SetState(TCAState.HaveEC);
-			if(!vessel.CheckEngines()) return;
-			SetState(TCAState.HaveActiveEngines);
-			//update state
-			vessel.UpdateCommons();
-			if(vessel.NumActive > 0)
-			{
-				eng.UpdateState();
-				vsc.UpdateState();
-				hsc.UpdateState();
-				alt.UpdateState();
-				if(vsc.IsActive || alt.IsActive) 
-					vessel.UpdateOnPlanetStats();
-				alt.Update();
-				vsc.Update();
-			}
-			//handle engines
-			vessel.InitEngines();
-			if(vessel.NumActive > 0)
-			{
-				vessel.SortEngines();
-				//:balance-only engines
-				if(vessel.BalancedEngines.Count > 0)
-				{
-					vessel.UpdateTorque(vessel.ActiveManualEngines);
-					eng.Optimize(vessel.BalancedEngines, Vector3.zero);
-				}
-				vessel.UpdateTorque(vessel.ActiveManualEngines, vessel.BalancedEngines);
-				//:optimize limits for steering
-				vessel.UpdateETorqueLimits();
-				if(hsc.IsActive) 
-				{
-					vessel.UpdateWTorqueLimits();
-					vessel.UpdateRTorqueLimits();
-				}
-				if(CFG.AutoTune || hsc.IsActive) 
-					vessel.UpdateRotationalStats();
-				eng.PresetLimitsForTranslation();
-				eng.Steer();
-			}
-			rcs.Steer();
-			vessel.SetThrustLimiters();
-		}
-	}
-
-	/// <summary>
-	/// Binary flags of TCA state.
-	/// They should to be checked in this particular order, as they are set sequentially:
-	/// If a previous flag is not set, the next ones are not either.
-	/// </summary>
-	[Flags] public enum TCAState 
-	{ 
-		Disabled 			   = 0,
-		Enabled 			   = 1 << 0,
-		HaveEC 				   = 1 << 1, 
-		HaveActiveEngines 	   = 1 << 2,
-		VerticalSpeedControl   = 1 << 3,
-		AltitudeControl        = 1 << 4,
-		LoosingAltitude 	   = 1 << 5,
-		Unoptimized			   = 1 << 6,
-		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
-		NoActiveEngines        = Enabled | HaveEC,
-		NoEC                   = Enabled,
 	}
 }

@@ -162,8 +162,10 @@ class PID(object):
     #end def
         
     def update(self, err):
+        if self.perror == 0: self.perror = err
         old_ierror = self.ierror
         self.ierror += err*dt
+#         self.ierror  = clamp(self.ierror, self.min, self.max)
         act = self.kp*err + self.ki*self.ierror + self.kd*(err-self.perror)/dt
         clamped = clamp(act, self.min, self.max)
         if clamped != act: self.ierror = old_ierror
@@ -190,9 +192,9 @@ class PID(object):
 
 class PID2(PID):
     def update(self, err):
+        if self.perror == 0: self.perror = err
         d = self.kd * (err-self.perror)/dt
-        self.ierror = self.ierror + self.ki * err * dt if abs(d) < 0.6*self.max else 0.9 * self.ierror
-        if self.ierror > self.max: self.ierror = self.max
+        self.ierror = clamp(self.ierror + self.ki * err * dt if abs(d) < 0.6*self.max else 0.9 * self.ierror, self.min, self.max)
         self.perror = err
         return clamp(self.kp*err + self.ierror + d, self.min, self.max)
 
@@ -219,6 +221,7 @@ class VSF_sim(object):
         self.VSp = []
         
         self.M = 4.0
+        self.MinVSF = 0.1
         
         self.vK1_pid = PID(0.3, 0.1, 0.3, 0.0, 1.0)
     #end def
@@ -243,9 +246,9 @@ class VSF_sim(object):
         K = clamp01(self.E*0.5+self.upAF)
 #         else: 
 #             K = clamp01(self.E*self.upA*0.5+self.upAF)
-        return clampL(K, 0.05)
+        return clampL(K, self.MinVSF)
     
-    _vK = vK1
+    _vK = vK2
         
     @property
     def vK(self):
@@ -334,12 +337,12 @@ class VSF_sim(object):
         self.init(thrust)
         def on_frame():
             alt_err = alt-self.upX
-            if (self.AS > 0 or self.DS > 0) and self.upV != 0:
-#                 if self.upV > 0:
+            if (self.AS > 0 or self.DS > 0):
+                if self.upV > 0:
                     self.pid.kp = clamp(0.01*abs(alt_err/self.upV), 0.0, self.pid.kd)
-#                 else:
-#                     self.pid.kp = clamp(self.twr**2/abs(self.upV), 0.0, clampH(self.pid.kd*self.twr/2, self.pid.kd))
-            else: self.pid.kp = self.pid.kd
+                elif self.upV < 0:
+                    self.pid.kp = clamp(self.twr**2/abs(self.upV), 0.0, clampH(self.pid.kd*self.twr/2, self.pid.kd))
+                else: self.pid.kp = self.pid.kd
             self.maxV = self.pid.update(alt_err)
             self.Vsp.append(self.maxV)
         self.phys_loop(on_frame)
@@ -703,8 +706,8 @@ def sim_VS_Stability():
     
 def sim_Altitude():
     sim1 = VSF_sim()#0.12, 0.5)
-    sim1.t1 = 60.0
-    thrust = np.arange(102, 150, 10)
+    sim1.t1 = 30.0
+    thrust = np.arange(100, 300, 50)
     alt = 10.0
     def run_sim(c, n, A, pid):
         for t in thrust:
@@ -712,7 +715,8 @@ def sim_Altitude():
             sim1.plot_alt(3,c,n)
             sim1.plot_vsp(3,c,c+n)
             sim1.plot_vs(3,c,c*2+n)
-    pid = PID2(0.5, 0.0, 0.5, -9.9, 9.9)
+    pid = PID2(0.3, 0.0, 0.3, -9.9, 9.9)
+#     pid = PID(0.5, 0.0, 0.5, -9.9, 9.9)
     run_sim(4,1, alt/10.0, pid)
     run_sim(4,2, alt, pid)
     run_sim(4,3, -alt/10.0, pid)
@@ -723,11 +727,11 @@ def sim_Altitude():
     
 #==================================================================#
 
-dt = 0.045
+dt = 0.08
 
 if __name__ == '__main__':
-    sim_VSpeed()
+#     sim_VSpeed()
 #     sim_VS_Stability()
-#     sim_Altitude()
+    sim_Altitude()
 #     sim_Attitude()
     
