@@ -114,4 +114,18 @@ CC
 		D = 6.0
 	}
 }
+
+PN
+{
+	Delay = 1
+	MinDistance = 10
+	MinSpeed = 10
+	MaxSpeed = 300
+	DistancePID
+	{
+		P = 2.0
+		I = 0.0
+		D = 6.0
+	}
+}
 //:mode=c#:

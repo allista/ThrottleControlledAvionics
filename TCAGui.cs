@@ -32,10 +32,12 @@ namespace ThrottleControlledAvionics
 		public const int helpWidth = 500, helpHeight = 500;
 		static Rect ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
 		static Rect HelpPos     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
-		static Vector2 enginesScroll, helpScroll;
+		static Vector2 enginesScroll, waypointsScroll, helpScroll;
 		//keybindings
 		public static KeyCode TCA_Key = KeyCode.Y;
 		static bool selecting_key;
+		//map view
+		static bool selecting_map_target;
 		#endregion
 
 		void onShowUI() { showHUD = true; }
@@ -113,6 +115,7 @@ namespace ThrottleControlledAvionics
 			SelectConfig_start();
 			ConfigsGUI();
 			ControllerProperties();
+			WaypointList();
 			ManualEnginesControl();
 			#if DEBUG
 			EnginesInfo();
@@ -146,6 +149,41 @@ namespace ThrottleControlledAvionics
 				{ state = "Unknown State"; style = Styles.magenta_button; }
 			}
 			GUILayout.Label(state, style, GUILayout.ExpandWidth(false));
+		}
+
+		static void ConfigsGUI()
+		{
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Name:", GUILayout.Width(50));
+			config_name = GUILayout.TextField(config_name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
+			if(TCAConfiguration.NamedConfigs.ContainsKey(config_name))
+			{
+				if(GUILayout.Button("Overwrite", Styles.red_button, GUILayout.Width(70)))
+				{
+					TCAConfiguration.SaveNamedConfig(config_name, CFG, true);
+					TCAConfiguration.Save();
+				}
+			}
+			else if(GUILayout.Button("Add", Styles.green_button, GUILayout.Width(50)) && 
+			        config_name != string.Empty) 
+			{
+				TCAConfiguration.SaveNamedConfig(config_name, CFG);
+				TCAConfiguration.Save();
+				updateConfigs();
+				namedConfigsListBox.SelectItem(TCAConfiguration.NamedConfigs.IndexOfKey(config_name));
+			}
+			SelectConfig();
+			if(GUILayout.Button("Load", Styles.yellow_button, GUILayout.Width(50)) && selected_config != null) 
+				CFG.CopyFrom(selected_config);
+			if(GUILayout.Button("Delete", Styles.red_button, GUILayout.Width(50)) && selected_config != null)
+			{ 
+				TCAConfiguration.NamedConfigs.Remove(selected_config.Name);
+				TCAConfiguration.Save();
+				namedConfigsListBox.SelectItem(namedConfigsListBox.SelectedIndex-1);
+				updateConfigs();
+				selected_config = null;
+			}
+			GUILayout.EndHorizontal();
 		}
 
 		static void ControllerProperties()
@@ -215,20 +253,40 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
 				if(GUILayout.Button("Kill Horizontal Velocity", 
-				                    CFG.KillHorVel? Styles.red_button : Styles.dark_yellow_button,
+				                    CFG.KillHorVel? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(150)))
 					TCA.ToggleHvAutopilot();
 				if(GUILayout.Button("Cruise Control", 
-				                    CFG.CruiseControl? Styles.red_button : Styles.dark_yellow_button,
+				                    CFG.CruiseControl? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(100)))
 					TCA.ToggleCruiseControl();
 				if(GUILayout.Button("Maintain Altitude", 
-				                    CFG.ControlAltitude? Styles.red_button : Styles.dark_yellow_button,
+				                    CFG.ControlAltitude? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(120)))
 					TCA.ToggleAltitudeAutopilot();
 				TCA.AltitudeAboveTerrain(GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
 				                                          "Above Terrain", 
 				                                          GUILayout.ExpandWidth(false)));
+				GUILayout.EndHorizontal();
+				//navigator toggles
+				GUILayout.BeginHorizontal();
+				if(GUILayout.Button("Go To Target", 
+				                    CFG.GoToTarget? Styles.green_button : Styles.yellow_button,
+				                    GUILayout.Width(100)))
+					TCA.ToggleGoToTarget();
+				if(GUILayout.Button(selecting_map_target? "Cancel" : "Add Waypoint", 
+				                    selecting_map_target? Styles.red_button : Styles.yellow_button,
+				                    GUILayout.Width(100)))
+				{
+					selecting_map_target = !selecting_map_target;
+					if(selecting_map_target) MapView.EnterMapView();
+					else MapView.ExitMapView();
+				}
+				if(GUILayout.Button("Follow Path", 
+				                    CFG.FollowPath? Styles.green_button : Styles.yellow_button,
+				                    GUILayout.Width(100)))
+					TCA.ToggleFollowPath();
+				CFG.MaxNavSpeed = Utils.FloatSlider("Max.V m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 120);
 				GUILayout.EndHorizontal();
 			}
 			else 
@@ -240,39 +298,37 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		static void ConfigsGUI()
+		static void WaypointList()
 		{
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Name:", GUILayout.Width(50));
-			config_name = GUILayout.TextField(config_name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
-			if(TCAConfiguration.NamedConfigs.ContainsKey(config_name))
+			if(CFG.Waypoints.Count == 0) return;
+			GUILayout.BeginVertical();
+			if(GUILayout.Button(CFG.ShowWaypoints? "Hide Waypoints" : "Show Waypoints", 
+			                    Styles.yellow_button,
+			                    GUILayout.ExpandWidth(true)))
+				CFG.ShowWaypoints = !CFG.ShowWaypoints;
+			if(CFG.ShowWaypoints)
 			{
-				if(GUILayout.Button("Overwrite", Styles.red_button, GUILayout.Width(70)))
+				GUILayout.BeginVertical();
+				waypointsScroll = GUILayout.BeginScrollView(waypointsScroll, GUILayout.Height(controlsHeight));
+				GUILayout.BeginVertical();
+				var del = new HashSet<MapTarget>();
+				foreach(var wp in CFG.Waypoints)
 				{
-					TCAConfiguration.SaveNamedConfig(config_name, CFG, true);
-					TCAConfiguration.Save();
+					GUILayout.BeginHorizontal();
+					GUILayout.Label(wp.Name, GUILayout.Width(180));
+					if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(25))) del.Add(wp);
+					GUILayout.EndHorizontal();
 				}
+				if(del.Count > 0)
+				{
+					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
+					CFG.Waypoints = new Queue<MapTarget>(edited);
+				}
+				GUILayout.EndVertical();
+				GUILayout.EndScrollView();
+				GUILayout.EndVertical();
 			}
-			else if(GUILayout.Button("Add", Styles.green_button, GUILayout.Width(50)) && 
-			        config_name != string.Empty) 
-			{
-				TCAConfiguration.SaveNamedConfig(config_name, CFG);
-				TCAConfiguration.Save();
-				updateConfigs();
-				namedConfigsListBox.SelectItem(TCAConfiguration.NamedConfigs.IndexOfKey(config_name));
-			}
-			SelectConfig();
-			if(GUILayout.Button("Load", Styles.yellow_button, GUILayout.Width(50)) && selected_config != null) 
-				CFG.CopyFrom(selected_config);
-			if(GUILayout.Button("Delete", Styles.red_button, GUILayout.Width(50)) && selected_config != null)
-			{ 
-				TCAConfiguration.NamedConfigs.Remove(selected_config.Name);
-				TCAConfiguration.Save();
-				namedConfigsListBox.SelectItem(namedConfigsListBox.SelectedIndex-1);
-				updateConfigs();
-				selected_config = null;
-			}
-			GUILayout.EndHorizontal();
+			GUILayout.EndVertical();
 		}
 
 		static void ManualEnginesControl()
@@ -280,7 +336,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.ManualEngines.Count == 0) return;
 			GUILayout.BeginVertical();
 			if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Limits" : "Show Manual Limits", 
-			                    CFG.ShowManualLimits? Styles.yellow_button : Styles.dark_yellow_button,
+			                    Styles.yellow_button,
 			                    GUILayout.ExpandWidth(true)))
 				CFG.ShowManualLimits = !CFG.ShowManualLimits;
 			if(CFG.ShowManualLimits)
@@ -314,6 +370,34 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndVertical();
 			}
 			GUILayout.EndVertical();
+		}
+
+		//adapted from MechJeb
+		void MapOverlay()
+		{
+			if(selecting_map_target)
+			{
+				//stop picking on leaving map view
+				selecting_map_target &= MapView.MapIsEnabled;
+				if(!selecting_map_target) return;
+				var coords = Utils.GetMouseCoordinates(vessel.mainBody);
+				if(coords != null)
+				{
+					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f));
+					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50), 
+					          coords + "\n" + ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon));
+					if(Input.GetMouseButtonDown(0))
+					{
+						CFG.Waypoints.Enqueue(new MapTarget(coords));
+						selecting_map_target = false;
+					}
+				}
+			}
+			if(!MapView.MapIsEnabled) return;
+			var i = 0;
+			var fnum = (float)CFG.Waypoints.Count-1;
+			foreach(var t in CFG.Waypoints)
+				GLUtils.DrawMapViewGroundMarker(vessel.mainBody, t.Lat, t.Lon, Color.Lerp(Color.green, Color.blue, fnum > 0? i++/fnum : 0));
 		}
 
 		#if DEBUG

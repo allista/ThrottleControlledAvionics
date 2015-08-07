@@ -33,6 +33,7 @@ namespace ThrottleControlledAvionics
 		AltitudeControl alt;
 		RCSOptimizer rcs;
 		CruiseControl cc;
+		PointNavigator pn;
 		#endregion
 
 		#region Public Info
@@ -44,7 +45,7 @@ namespace ThrottleControlledAvionics
 		#region Initialization
 		#if DEBUG
 		public void OnReloadGlobals()
-		{ VSL.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); cc.Init(); }
+		{ VSL.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); cc.Init(); pn.Init(); }
 		#endif
 
 		public override string GetInfo()
@@ -101,6 +102,31 @@ namespace ThrottleControlledAvionics
 			enabled = isEnabled = !GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCA_PART);
 		}
 
+//		void create_modules()
+//		{
+//			var mt = typeof(TCAModule);
+//			var vt = typeof(VesselWrapper);
+//			foreach(var fi in GetType().GetFields())
+//			{
+//				if(!fi.FieldType.IsSubclassOf(mt)) continue;
+//				var method = fi.FieldType.GetConstructor(new [] {vt});
+//				if(method == null) continue;
+//				fi.SetValue(this, method.Invoke(fi.GetValue(this), new [] {VSL}));
+//			}
+//		}
+//
+//		void init_modules()
+//		{
+//			var mt = typeof(TCAModule);
+//			foreach(var fi in GetType().GetFields())
+//			{
+//				if(!fi.FieldType.IsSubclassOf(mt)) continue;
+//				var method = fi.FieldType.GetMethod("Init");
+//				if(method == null) continue;
+//				method.Invoke(fi.GetValue(this), null);
+//			}
+//		}
+
 		void init()
 		{
 			if(!enabled) return;
@@ -108,13 +134,17 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateEngines();
 			enabled = isEnabled = VSL.Engines.Count > 0 || VSL.RCS.Count > 0;
 			if(!enabled) { VSL = null; return; }
+//			create_modules();
 			eng = new EngineOptimizer(VSL);
 			vsc = new VerticalSpeedControl(VSL);
 			hsc = new HorizontalSpeedControl(VSL);
 			alt = new AltitudeControl(VSL);
 			rcs = new RCSOptimizer(VSL);
 			cc  = new CruiseControl(VSL);
-			VSL.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); cc.Init();
+			pn  = new PointNavigator(VSL);
+			VSL.Init(); 
+//			init_modules();
+			eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); cc.Init(); pn.Init();
 			vessel.OnAutopilotUpdate += block_throttle;
 			hsc.ConnectAutopilot();
 			cc.ConnectAutopilot();
@@ -133,7 +163,7 @@ namespace ThrottleControlledAvionics
 				if(cc.NeededVelocityUpdater != null) 
 					StopCoroutine(cc.NeededVelocityUpdater);
 			}
-			VSL = null; eng = null; vsc = null; hsc = null; alt = null; rcs = null; cc = null;
+			VSL = null; eng = null; vsc = null; hsc = null; alt = null; rcs = null; cc = null; pn = null;
 		}
 		#endregion
 
@@ -158,26 +188,13 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 
-		public void KillHorizontalVelocity(bool state)
-		{
-			if(state == CFG.KillHorVel) return;
-			hsc.Enable(state);
-			if(CFG.KillHorVel) CruiseControl(false);
-		}
+		public void KillHorizontalVelocity(bool state) { hsc.Enable(state); }
 		public void ToggleHvAutopilot() { KillHorizontalVelocity(!CFG.KillHorVel); }
 
-		public void MaintainAltitude(bool state)
-		{
-			if(state == CFG.ControlAltitude) return;
-			alt.Enable(state);
-		}
+		public void MaintainAltitude(bool state) { alt.Enable(state); }
 		public void ToggleAltitudeAutopilot() { MaintainAltitude(!CFG.ControlAltitude); }
 
-		public void AltitudeAboveTerrain(bool state)
-		{
-			if(state == CFG.AltitudeAboveTerrain) return;
-			alt.SetAltitudeAboveTerrain(state);
-		}
+		public void AltitudeAboveTerrain(bool state) { alt.SetAltitudeAboveTerrain(state); }
 		public void ToggleAltitudeAboveTerrain() { AltitudeAboveTerrain(!CFG.AltitudeAboveTerrain); }
 
 		public void CruiseControl(bool state)
@@ -185,10 +202,7 @@ namespace ThrottleControlledAvionics
 			if(state == CFG.CruiseControl) return;
 			cc.Enable(state);
 			if(CFG.CruiseControl) 
-			{
-				KillHorizontalVelocity(false);
 				StartCoroutine(cc.UpdateNeededVelocity());
-			}
 			else if(cc.NeededVelocityUpdater != null)
 			{
 				StopCoroutine(cc.NeededVelocityUpdater);
@@ -196,6 +210,12 @@ namespace ThrottleControlledAvionics
 			}
 		}
 		public void ToggleCruiseControl() { CruiseControl(!CFG.CruiseControl);}
+
+		public void GoToTarget(bool state) { pn.GoToTarget(state); }
+		public void ToggleGoToTarget() { GoToTarget(!CFG.GoToTarget);}
+
+		public void FollowPath(bool state) { pn.FollowPath(state); }
+		public void ToggleFollowPath() { FollowPath(!CFG.FollowPath);}
 		#endregion
 
 		void block_throttle(FlightCtrlState s)
@@ -221,12 +241,14 @@ namespace ThrottleControlledAvionics
 				alt.UpdateState();
 				rcs.UpdateState();
 				cc.UpdateState();
+				pn.UpdateState();
 				if(vsc.IsActive || alt.IsActive) 
 					VSL.UpdateVerticalStats();
 				if(hsc.IsActive || cc.IsActive)
 					VSL.UpdateHorizontalStats();
 				alt.Update();
 				vsc.Update();
+				pn.Update();
 			}
 			//handle engines
 			VSL.InitEngines();
@@ -241,12 +263,6 @@ namespace ThrottleControlledAvionics
 				}
 				VSL.UpdateTorque(VSL.ActiveManualEngines, VSL.BalancedEngines);
 				//:optimize limits for steering
-				VSL.UpdateETorqueLimits();
-				if(hsc.IsActive) 
-				{
-					VSL.UpdateWTorqueLimits();
-					VSL.UpdateRTorqueLimits();
-				}
 				eng.PresetLimitsForTranslation();
 				eng.Steer();
 			}

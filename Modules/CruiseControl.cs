@@ -42,7 +42,7 @@ namespace ThrottleControlledAvionics
 		public override void UpdateState() 
 		{ 
 			IsActive = CFG.CruiseControl && VSL.OnPlanet; 
-			if(!inited && IsActive && !VSL.up.IsZero())
+			if(!inited && IsActive && !VSL.Up.IsZero())
 			{
 				CFG.NeededHorVelocity = needed_hor_velocity;
 				inited = true;
@@ -55,15 +55,13 @@ namespace ThrottleControlledAvionics
 			{ 
 				return CFG.Starboard.IsZero()? 
 					Vector3.zero : 
-					Quaternion.FromToRotation(Vector3.up, VSL.up) * Vector3.Cross(Vector3.up, CFG.Starboard);
+					Quaternion.FromToRotation(Vector3.up, VSL.Up) * Vector3.Cross(Vector3.up, CFG.Starboard);
 			}
 		}
 
 		void set_needed_velocity(bool set = true)
 		{ 
-			CFG.Starboard = set? 
-				Quaternion.FromToRotation(VSL.up, Vector3.up)*Vector3d.Cross(VSL.HorizontalVelocity, VSL.up) :
-				Vector3.zero;
+			CFG.Starboard = set? VSL.CurrentStarboard : Vector3.zero;
 			CFG.NeededHorVelocity = set? VSL.HorizontalVelocity : Vector3d.zero;
 		}
 
@@ -73,12 +71,18 @@ namespace ThrottleControlledAvionics
 			yield return new WaitForSeconds(CC.Delay);
 		}
 
-		public void Enable(bool enable = true)
+		public override void Enable(bool enable = true)
 		{
 			CFG.CruiseControl = enable;
 			pid.Reset();
+			if(CFG.CruiseControl) 
+			{
+				CFG.KillHorVel = false;
+				CFG.GoToTarget = false;
+				CFG.FollowPath = false;
+				VSL.UpdateHorizontalStats();
+			}
 			BlockSAS(CFG.CruiseControl);
-			if(CFG.CruiseControl) VSL.UpdateHorizontalStats();
 			set_needed_velocity(CFG.CruiseControl);
 		}
 
@@ -94,12 +98,13 @@ namespace ThrottleControlledAvionics
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && CFG.CruiseControl && VSL.OnPlanet && VSL.refT != null )) return;
 			//allow user to intervene
-			if(!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f)) { pid.Reset(); return; }
-			var hDir = Vector3.ProjectOnPlane(VSL.refT.up, VSL.up).normalized;
+			if(UserIntervening(s)) { pid.Reset(); return; }
+			var hDir = Vector3.ProjectOnPlane(VSL.Fwd, VSL.Up).normalized;
 			var attitude_error = Quaternion.FromToRotation(hDir, CFG.NeededHorVelocity);
-			var angle = Utils.CenterAngle(attitude_error.eulerAngles.z);
-			pid.Update(angle/180);
-			s.yaw = s.yawTrim = pid.Action;
+			var angle = Utils.CenterAngle(attitude_error.eulerAngles.z)/180;
+			pid.Update(angle);
+			if(VSL.NoseUp) s.roll = s.rollTrim = pid.Action;
+			else s.yaw = s.yawTrim = pid.Action;
 		}
 	}
 }

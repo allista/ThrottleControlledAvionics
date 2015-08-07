@@ -62,7 +62,9 @@ namespace ThrottleControlledAvionics
 		public float VSF; //vertical speed factor
 		public float MinVSF;
 
-		public Vector3d   up { get; private set; }  //up unit vector in world space
+		public Vector3d   Up { get; private set; }  //up unit vector in world space
+		public Vector3    Fwd { get; private set; }  //fwd unit vector of the Control module in world space
+		public bool       NoseUp { get; private set; }  //if the forward is refT.forward or refT.up
 		public Vector3    CoM { get { return vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime; } } //current center of mass of unpacked vessel
 		public Vector3    wCoM { get; private set; } //center of mass in world space
 		public Vector3    MoI { get; private set; } = Vector3.one; //main diagonal of inertia tensor
@@ -71,6 +73,7 @@ namespace ThrottleControlledAvionics
 		public float      MaxAngularA_m { get; private set; } //current maximum angular acceleration
 
 		public Vector3  Torque { get; private set; } //current torque applied to the vessel by the engines
+		public Vector3  MaxTorque { get; private set; }
 		public float    VerticalSpeed { get; private set; }
 		public float    VerticalAccel { get; private set; }
 		public float    Altitude { get; private set; }
@@ -78,7 +81,7 @@ namespace ThrottleControlledAvionics
 		public Vector3d HorizontalVelocity { get; private set; }
 
 		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
-		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, up); } }
+		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, Up); } }
 
 		public TCAState State;
 		public bool IsStateSet(TCAState state) { return (State & state) == state; }
@@ -105,6 +108,9 @@ namespace ThrottleControlledAvionics
 		public VesselWrapper(Vessel vsl) { vessel = vsl; }
 
 		public void Init() {}
+
+		public Vector3 GetStarboard(Vector3d hV) { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
+		public Vector3 CurrentStarboard { get { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(HorizontalVelocity, Up); } }
 
 		#region Engines
 		public void UpdateEngines()
@@ -296,8 +302,11 @@ namespace ThrottleControlledAvionics
 		{
 			wCoM = vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime;
 			refT = vessel.ReferenceTransform;
-			up   = (wCoM - vessel.mainBody.position).normalized;
+			Up   = (wCoM - vessel.mainBody.position).normalized;
 			update_MoI();
+			UpdateETorqueLimits();
+			UpdateRTorqueLimits();
+			UpdateWTorqueLimits();
 			update_MaxAngularA();
 		}
 
@@ -349,7 +358,17 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateHorizontalStats()
 		{
-			HorizontalVelocity = Vector3d.Exclude(up, vessel.srf_velocity);
+			HorizontalVelocity = Vector3d.Exclude(Up, vessel.srf_velocity);
+			var f = Vector3.Cross(refT.right, Up);
+			if(Vector3.Dot(f, refT.up) > Vector3.Dot(f, refT.forward))
+			{ Fwd = refT.up; NoseUp = false; }
+			else { Fwd = -refT.forward; NoseUp = true; } //but why -forward? O_o
+
+//			Utils.Log("up {0}\nfwd {1}\nf {2}\nUp {3}\nFwd {4}\nNoseUp {5}, f*up {6}, f*fwd {7}",
+//			          refT.up, refT.forward,
+//			          f, Up, Fwd, NoseUp,
+//			          Vector3.Dot(f, refT.up),
+//			          Vector3.Dot(f, refT.forward));//debug
 		}
 
 		public void UpdateVerticalStats()
@@ -380,7 +399,7 @@ namespace ThrottleControlledAvionics
 				if(e.thrustInfo == null) continue;
 				if(e.isVSC)
 				{
-					var dcomponent = -Vector3.Dot(e.wThrustDir, up);
+					var dcomponent = -Vector3.Dot(e.wThrustDir, Up);
 					if(dcomponent <= 0) e.VSF = 0;
 					else 
 					{
@@ -408,12 +427,12 @@ namespace ThrottleControlledAvionics
 
 		void update_MaxAngularA()
 		{
-			var max_torque = E_TorqueLimits.Max;
+			MaxTorque = E_TorqueLimits.Max+W_TorqueLimits.Max+W_TorqueLimits.Max;
 			var new_angularA = new Vector3
 				(
-					!MoI.x.Equals(0)? max_torque.x/MoI.x : float.MaxValue,
-					!MoI.y.Equals(0)? max_torque.y/MoI.y : float.MaxValue,
-					!MoI.z.Equals(0)? max_torque.z/MoI.z : float.MaxValue
+					!MoI.x.Equals(0)? MaxTorque.x/MoI.x : float.MaxValue,
+					!MoI.y.Equals(0)? MaxTorque.y/MoI.y : float.MaxValue,
+					!MoI.z.Equals(0)? MaxTorque.z/MoI.z : float.MaxValue
 				);
 			MaxAngularA = Utils.WAverage(MaxAngularA, new_angularA);
 			MaxAngularA_m = MaxAngularA.magnitude;

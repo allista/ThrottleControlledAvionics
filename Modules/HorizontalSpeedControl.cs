@@ -47,10 +47,19 @@ namespace ThrottleControlledAvionics
 		public override void Init() { pid.P = HSC.P; }
 		public override void UpdateState() { IsActive = (CFG.CruiseControl || CFG.KillHorVel) && VSL.OnPlanet; }
 
-		public void Enable(bool enable = true)
+		public override void Enable(bool enable = true)
 		{
+			if(enable == CFG.KillHorVel) return;
 			CFG.KillHorVel = enable;
-			if(CFG.CruiseControl) VSL.UpdateHorizontalStats();
+			pid.Reset();
+			if(CFG.KillHorVel) 
+			{
+				CFG.CruiseControl = false;
+				CFG.GoToTarget = false;
+				CFG.FollowPath = false;
+				VSL.UpdateHorizontalStats();
+				CFG.NeededHorVelocity = Vector3d.zero;
+			}
 			BlockSAS(CFG.KillHorVel);
 		}
 
@@ -75,15 +84,14 @@ namespace ThrottleControlledAvionics
 			var hVm = hV.magnitude;
 			//calculate needed thrust direction
 			var MaxHv = Math.Max(acceleration.magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-			var max_torque = VSL.E_TorqueLimits.Max+VSL.W_TorqueLimits.Max+VSL.R_TorqueLimits.Max;
 			Vector3 needed_thrust_dir;
 			if(hVm > HSC.RotationLowerThreshold)
 			{
 				//correction for low TWR and torque
-				var upl  = VSL.refT.InverseTransformDirection(VSL.up);
+				var upl  = VSL.refT.InverseTransformDirection(VSL.Up);
 				var TWR = Vector3.Dot(thrust, upl) < 0? Vector3.Project(thrust, upl).magnitude/TCAConfiguration.G/VSL.M : 0f;
 				var twrF = Utils.ClampH(TWR/HSC.TWRf, 1);
-				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(max_torque, hVl), VSL.MoI.Inverse()).magnitude*HSC.TorF, 1);
+				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(VSL.MaxTorque, hVl), VSL.MoI.Inverse()).magnitude*HSC.TorF, 1);
 				var upF  = Vector3.Dot(thrust, hVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);
 				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)(MaxHv/hVm), 1)/upF;
 //				Utils.Log("needed thrust direction: {0}\n" +
@@ -98,11 +106,11 @@ namespace ThrottleControlledAvionics
 //				          torF,
 //				          upF, 
 //				          TWR, 
-//				          max_torque, 
+//				          VSL.MaxTorque, 
 //				          VSL.MoI
 //				         );//debug
 			}
-			else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.up);
+			else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
 			if(hVm > HSC.TranslationLowerThreshold)
 			{
 				//also try to use translation control to slow down
@@ -118,7 +126,7 @@ namespace ThrottleControlledAvionics
 			var angularM = Vector3.Scale(angularVelocity, VSL.MoI);
 			var inertia  = Vector3.Scale(angularM.Sign(),
 			                             Vector3.Scale(Vector3.Scale(angularM, angularM),
-			                                           Vector3.Scale(max_torque, VSL.MoI).Inverse()))
+			                                           Vector3.Scale(VSL.MaxTorque, VSL.MoI).Inverse()))
 				.ClampComponents(-Mathf.PI, Mathf.PI);
 			var Tf = Mathf.Clamp(1/VSL.MaxAngularA_m, HSC.MinTf, HSC.MaxTf);
 			steering_error += inertia / Mathf.Lerp(HSC.InertiaFactor, 1, 

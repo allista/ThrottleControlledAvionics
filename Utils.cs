@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 
 		public static string ParseCamelCase(string s) { return Regex.Replace(s, CamelCaseRegexp, "$1 "); }
 
+		#region Logging
 		public static string formatVector(Vector3 v)
 		{ return string.Format("({0}, {1}, {2}); |v| = {3}", v.x, v.y, v.z, v.magnitude); }
 
@@ -41,6 +42,7 @@ namespace ThrottleControlledAvionics
 			Debug.Log(string.Format("[TCA] "+msg, args)); 
 		}
 
+		#if DEBUG
 		public static void CSV(params object[] args)
 		{ 
 			var row = "tag: ";
@@ -49,7 +51,10 @@ namespace ThrottleControlledAvionics
 			row += "{"+(args.Length-1)+"}\n";
 			Log(row, args);
 		}
+		#endif
+		#endregion
 
+		#region Math
 		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
 		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
 		public static float ClampH(float x, float high) { return x > high ? high : x;  }
@@ -60,6 +65,7 @@ namespace ThrottleControlledAvionics
 
 		public static Vector3 WAverage(Vector3 old, Vector3 cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
+		#endregion
 
 		#region Vector3
 		public static Vector3 Inverse(this Vector3 v) { return new Vector3(1f/v.x, 1f/v.y, 1f/v.z); }
@@ -78,6 +84,7 @@ namespace ThrottleControlledAvionics
 		{ return new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z)); }
 		#endregion
 
+		#region GUI
 		public static void CheckRect(ref Rect R)
 		{
 			//check size
@@ -90,16 +97,17 @@ namespace ThrottleControlledAvionics
 			else if(R.yMax > Screen.height) R.y -= R.yMax-Screen.height;
 		}
 
+		public static float FloatSlider(string name, float value, float min, float max, string format="F1", int label_width = -1)
+		{
+			var label = name.Length > 0? string.Format("{0}: {1}", name, value.ToString(format)) : value.ToString(format);
+			GUILayout.Label(label, label_width > 0? GUILayout.Width(label_width) : GUILayout.ExpandWidth(false));
+			return GUILayout.HorizontalSlider(value, min, max, GUILayout.ExpandWidth(true));
+		}
+		#endregion
+
 		//from http://stackoverflow.com/questions/716399/c-sharp-how-do-you-get-a-variables-name-as-it-was-physically-typed-in-its-dec
 		//second answer
 		public static string PropertyName<T>(T obj) { return typeof(T).GetProperties()[0].Name; }
-
-		public static float FloatSlider(string name, float value, float min, float max, string format="F1")
-		{
-			var label = name.Length > 0? string.Format("{0}: {1}", name, value.ToString(format)) : value.ToString(format);
-			GUILayout.Label(label, GUILayout.ExpandWidth(false));
-			return GUILayout.HorizontalSlider(value, min, max, GUILayout.ExpandWidth(true));
-		}
 
 		//ResearchAndDevelopment.PartModelPurchased is broken and always returns 'true'
 		public static bool PartIsPurchased(string name)
@@ -116,6 +124,145 @@ namespace ThrottleControlledAvionics
 			var en = E.GetEnumerator();
 			while(en.MoveNext()) action(en.Current);
 		}
+
+		#region From MechJeb
+		public static double TerrainAltitude(CelestialBody body, double Lat, double Lon)
+		{
+			if (body.pqsController == null) return 0;
+			//			var pqsRadialVector = QuaternionD.AngleAxis(longitude, Vector3d.down) * QuaternionD.AngleAxis(latitude, Vector3d.forward) * Vector3d.right;
+			var alt = body.pqsController.GetSurfaceHeight(body.GetRelSurfaceNVector(Lat, Lon)) - body.pqsController.radius;
+			return body.ocean && alt < 0? 0 : alt;
+		}
+
+		public static Coordinates GetMouseCoordinates(CelestialBody body)
+		{
+			var mouseRay = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
+			mouseRay.origin = ScaledSpace.ScaledToLocalSpace(mouseRay.origin);
+			Vector3d relOrigin = mouseRay.origin - body.position;
+			Vector3d relSurfacePosition;
+			double curRadius = body.pqsController.radiusMax;
+			double lastRadius = 0;
+			double error = 0;
+			double threshold = (body.pqsController.radiusMax - body.pqsController.radiusMin)/100;
+			int loops = 0;
+			while(loops < 50)
+			{
+				if(PQS.LineSphereIntersection(relOrigin, mouseRay.direction, curRadius, out relSurfacePosition))
+				{
+					var surfacePoint = body.position + relSurfacePosition;
+					var alt = TerrainAltitude(body, body.GetLongitude(surfacePoint), body.GetLatitude(surfacePoint))+body.Radius;
+					error = Math.Abs(curRadius - alt);
+					if(error < threshold)
+						return new Coordinates(body.GetLatitude(surfacePoint), body.GetLongitude(surfacePoint));
+					else
+					{
+						lastRadius = curRadius;
+						curRadius = alt;
+						loops++;
+					}
+				}
+				else
+				{
+					if(loops > 0)
+					{ // Went too low, needs to try higher
+						curRadius = (lastRadius * 9 + curRadius) / 10;
+						loops++;
+					} else break;
+				}
+			}
+			return null;
+		}
+		#endregion
+	}
+
+	//adapted from MechJeb
+	public static class GLUtils
+	{
+		static Material _material;
+		static Material material
+		{
+			get
+			{
+				if(_material == null) _material = new Material(Shader.Find("Particles/Additive"));
+				return _material;
+			}
+		}
+
+		public static void DrawMapViewGroundMarker(CelestialBody body, double lat, double lon, Color c, double rotation = 0, double radius = 0)
+		{
+			var up = body.GetSurfaceNVector(lat, lon);
+			var height = Utils.TerrainAltitude(body, lat, lon);
+			if(height < body.Radius) height = body.Radius;
+			var center = body.position + height * up;
+			if(IsOccluded(center, body)) return;
+
+			if(radius <= 0) radius = body.Radius/300;
+			var north = Vector3d.Exclude(up, body.transform.up).normalized;
+
+			GLTriangleMap(new Vector3d[]{
+				center,
+				center + radius * (QuaternionD.AngleAxis(rotation - 10, up) * north),
+				center + radius * (QuaternionD.AngleAxis(rotation + 10, up) * north)
+			}, c);
+
+			GLTriangleMap(new Vector3d[]{
+				center,
+				center + radius * (QuaternionD.AngleAxis(rotation + 110, up) * north),
+				center + radius * (QuaternionD.AngleAxis(rotation + 130, up) * north)
+			}, c);
+
+			GLTriangleMap(new Vector3d[]{
+				center,
+				center + radius * (QuaternionD.AngleAxis(rotation - 110, up) * north),
+				center + radius * (QuaternionD.AngleAxis(rotation - 130, up) * north)
+			}, c);
+		}
+
+		public static void DrawMapViewPointer(CelestialBody body, MapTarget t0, MapTarget t1, Color c)
+		{
+			
+		}
+
+		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)
+		{
+			GL.PushMatrix();
+			material.SetPass(0);
+			GL.LoadOrtho();
+			GL.Begin(GL.TRIANGLES);
+			GL.Color(c);
+			GLVertexMap(worldVertices[0]);
+			GLVertexMap(worldVertices[1]);
+			GLVertexMap(worldVertices[2]);
+			GL.End();
+			GL.PopMatrix();
+		}
+
+		public static void GLVertexMap(Vector3d worldPosition)
+		{
+			Vector3 screenPoint = PlanetariumCamera.Camera.WorldToScreenPoint(ScaledSpace.LocalToScaledSpace(worldPosition));
+			GL.Vertex3(screenPoint.x / Camera.main.pixelWidth, screenPoint.y / Camera.main.pixelHeight, 0);
+		}
+
+		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
+		public static bool IsOccluded(Vector3d worldPosition, CelestialBody byBody)
+		{
+			if(Vector3d.Distance(worldPosition, byBody.position) < byBody.Radius - 100) return true;
+			var camPos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position);
+			if(Vector3d.Angle(camPos - worldPosition, byBody.position - worldPosition) > 90) return false;
+			double bodyDistance = Vector3d.Distance(camPos, byBody.position);
+			double separationAngle = Vector3d.Angle(worldPosition - camPos, byBody.position - camPos);
+			double altitude = bodyDistance * Math.Sin(Math.PI / 180 * separationAngle);
+			return (altitude < byBody.Radius);
+		}
+	}
+
+	//adapted from MechJeb
+	public class Coordinates
+	{
+		public double Lat, Lon;
+		public Coordinates(double lat, double lon) { Lat = lat; Lon = lon; }
+		public override string ToString()
+		{ return string.Format("Lat: {0:F2}\nLon: {1:F2}", Lat, Lon); }
 	}
 
 	public class ConfigNodeObject : IConfigNode

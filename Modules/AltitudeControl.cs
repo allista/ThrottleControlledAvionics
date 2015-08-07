@@ -51,6 +51,7 @@ namespace ThrottleControlledAvionics
 
 		public void SetAltitudeAboveTerrain(bool enable = true)
 		{
+			if(enable == CFG.AltitudeAboveTerrain) return;
 			CFG.AltitudeAboveTerrain = enable;
 			VSL.UpdateAltitude();
 			if(CFG.AltitudeAboveTerrain)
@@ -58,8 +59,9 @@ namespace ThrottleControlledAvionics
 			else CFG.DesiredAltitude += VSL.TerrainAltitude;
 		}
 
-		public void Enable(bool enable = true)
+		public override void Enable(bool enable = true)
 		{
+			if(enable == CFG.ControlAltitude) return;
 			CFG.ControlAltitude = enable;
 			if(CFG.ControlAltitude)
 			{

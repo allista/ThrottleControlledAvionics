@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public HorizontalSpeedControl.Config HSC = new HorizontalSpeedControl.Config();
 		[Persistent] public RCSOptimizer.Config           RCS = new RCSOptimizer.Config();
 		[Persistent] public CruiseControl.Config          CC  = new CruiseControl.Config();
+		[Persistent] public PointNavigator.Config         PN  = new PointNavigator.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -74,8 +75,17 @@ Notes:
 		public void Init()
 		{ 
 			Instructions = string.Format(instructions, ThrottleControlledAvionics.TCA_Key, VSC.MaxSpeed);
-			VSC.Init(); ALT.Init(); HSC.Init(); ENG.Init(); RCS.Init();
 			InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
+			//init all module configs
+			var mt = typeof(TCAModule.ModuleConfig);
+			foreach(var fi in GetType().GetFields())
+			{
+				if(!fi.FieldType.IsSubclassOf(mt)) continue;
+				var method = fi.FieldType.GetMethod("Init");
+				if(method == null) continue;
+				method.Invoke(fi.GetValue(this), null);
+				Utils.Log("{0} config initialized.", fi.Name);
+			}
 		}
 
 		//Globals are readonly
@@ -116,13 +126,19 @@ Notes:
 		[Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked
 		[Persistent] public bool    AutoTune         = true;        //if true, engine PI coefficients and steering modifier will be tuned automatically
 		//horizontal velocity
-		[Persistent] public bool    CruiseControl;
 		[Persistent] public bool    KillHorVel;
-		[Persistent] public int     SASIsControlled;
+		[Persistent] public bool    SASIsControlled;
 		[Persistent] public bool    SASWasEnabled;
-//		[Persistent] public bool    RCSWasEnabled;
+		//cruise control
+		[Persistent] public bool    CruiseControl;
 		[Persistent] public Vector3 Starboard;
 		public Vector3d NeededHorVelocity;
+		//waypoint navigation
+		[Persistent] public bool    GoToTarget;
+		[Persistent] public bool    FollowPath;
+		[Persistent] public float   MaxNavSpeed = 100;
+		[Persistent] public bool    ShowWaypoints;
+		public Queue<MapTarget>     Waypoints = new Queue<MapTarget>();
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
 		[Persistent] public LimitsConfig ManualLimits = new LimitsConfig();
@@ -143,11 +159,15 @@ Notes:
 			base.Load(node);
 			var val = node.GetValue(Utils.PropertyName(new {VesselID}));
 			if(!string.IsNullOrEmpty(val)) VesselID = new Guid(val);
+			foreach(var n in node.GetNodes(MapTarget.NODE_NAME))
+				Waypoints.Enqueue(MapTarget.FromConfig(n));
 		}
 
 		public override void Save(ConfigNode node)
 		{
 			node.AddValue(Utils.PropertyName(new {VesselID}), VesselID.ToString());
+			foreach(var wp in Waypoints)
+				wp.Save(node.AddNode(MapTarget.NODE_NAME));
 			base.Save(node);
 		}
 

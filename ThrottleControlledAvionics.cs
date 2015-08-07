@@ -49,6 +49,7 @@ namespace ThrottleControlledAvionics
 			GameEvents.onVesselChange.Add(onVesselChange);
 			GameEvents.onHideUI.Add(onHideUI);
 			GameEvents.onShowUI.Add(onShowUI);
+			RenderingManager.AddToPostDrawQueue(1, MapOverlay);
 		}
 
 		public void OnDestroy() 
@@ -58,6 +59,7 @@ namespace ThrottleControlledAvionics
 			GameEvents.onVesselChange.Remove(onVesselChange);
 			GameEvents.onHideUI.Remove(onHideUI);
 			GameEvents.onShowUI.Remove(onShowUI);
+			RenderingManager.RemoveFromPostDrawQueue(1, MapOverlay);
 			SaveConfig();
 		}
 
