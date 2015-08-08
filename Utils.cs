@@ -56,9 +56,15 @@ namespace ThrottleControlledAvionics
 
 		#region Math
 		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
+
 		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
+		public static double ClampL(double x, double low)  { return x < low  ? low  : x;  }
+
 		public static float ClampH(float x, float high) { return x > high ? high : x;  }
+		public static double ClampH(double x, double high) { return x > high ? high : x;  }
+
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
+		public static double CenterAngle(double a) { return a > 180? a-360 : a; }
 
 		public static float WAverage(float old, float cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
@@ -261,8 +267,15 @@ namespace ThrottleControlledAvionics
 	{
 		public double Lat, Lon;
 		public Coordinates(double lat, double lon) { Lat = lat; Lon = lon; }
+		public static string AngleToDMS(double angle)
+		{
+			var d = (int)Math.Floor(Math.Abs(angle));
+			var m = (int)Math.Floor(60 * (Math.Abs(angle) - d));
+			var s = (int)Math.Floor(3600 * (Math.Abs(angle) - d - m / 60.0));
+			return String.Format("{0:0}°{1:00}'{2:00}\"", d, m, s);
+		}
 		public override string ToString()
-		{ return string.Format("Lat: {0:F2}\nLon: {1:F2}", Lat, Lon); }
+		{ return string.Format("Lat: {0} Lon: {1}", AngleToDMS(Lat), AngleToDMS(Lon)); }
 	}
 
 	public class ConfigNodeObject : IConfigNode
