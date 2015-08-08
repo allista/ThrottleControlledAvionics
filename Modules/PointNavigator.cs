@@ -20,10 +20,11 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "PN";
 
-			[Persistent] public float Delay = 1;
-			[Persistent] public float MinDistance = 10;
-			[Persistent] public float MinSpeed = 10;
-			[Persistent] public float MaxSpeed = 1000;
+			[Persistent] public float MinDistance       = 30;
+			[Persistent] public float OnPathMinDistance = 300;
+			[Persistent] public float MinSpeed          = 10;
+			[Persistent] public float MaxSpeed          = 300;
+			[Persistent] public float MaxSpeedF         = 50;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
 		static Config PN { get { return TCAConfiguration.Globals.PN; } }
@@ -76,6 +77,7 @@ namespace ThrottleControlledAvionics
 		void finish()
 		{
 			target = null;
+			FlightGlobals.fetch.SetVesselTarget(null);
 			CFG.Starboard = Vector3.zero;
 			CFG.NeededHorVelocity = Vector3d.zero;
 			CFG.CruiseControl = false;
@@ -86,11 +88,12 @@ namespace ThrottleControlledAvionics
 
 		public void Update()
 		{
-			if(target == null) return;
+			if(!IsActive || target == null) return;
 			var mt = target as MapTarget;
 			if(mt != null) mt.Update(VSL.vessel.mainBody);
 			var dr = Vector3.ProjectOnPlane(target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
 			var distance = dr.magnitude;
+			//check if we have arrived to the target
 			if(distance < PN.MinDistance) 
 			{
 				if(CFG.FollowPath)
@@ -100,11 +103,16 @@ namespace ThrottleControlledAvionics
 				}
 			   	finish(); return;
 			}
+			//don't slow down on intermediate waypoints too much
+			if(CFG.FollowPath && CFG.Waypoints.Count > 1 && distance < PN.OnPathMinDistance)
+				distance = PN.OnPathMinDistance;
+			//tune the pid and update needed velocity
 			pid.Min = 0;
 			pid.Max = CFG.MaxNavSpeed;
-			pid.Update(distance/PN.MinDistance);
-			CFG.NeededHorVelocity = dr/distance*pid.Action;
+			pid.Update(distance/CFG.MaxNavSpeed*PN.MaxSpeedF);
+			CFG.NeededHorVelocity = dr.normalized*pid.Action;
 			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
+//			Utils.Log("Distance: {0}, max {1}, nvel {2}", distance, PN.OnPathMinDistance, pid.Action);//debug
 		}
 	}
 
@@ -133,6 +141,16 @@ namespace ThrottleControlledAvionics
 		//Call this every frame to make sure the target transform stays up to date
 		public void Update(CelestialBody body) 
 		{ go.transform.position = body.GetWorldSurfacePosition(Lat, Lon, Utils.TerrainAltitude(body, Lat, Lon)); }
+
+
+		//using Spherical Law of Cosines (for other methods see http://www.movable-type.co.uk/scripts/latlong.html)
+		public double DistanceTo(Vessel vsl)
+		{
+			var fi1 = Lat*Mathf.Deg2Rad;
+			var fi2 = vsl.latitude*Mathf.Deg2Rad;
+			var dlambda = (vsl.longitude-Lon)*Mathf.Deg2Rad;
+			return Math.Acos(Math.Sin(fi1)*Math.Sin(fi2)+Math.Cos(fi1)*Math.Cos(fi2)*Math.Cos(dlambda));
+		}
 
 		public Vector3 GetFwdVector() { return Vector3.up; }
 		public string GetName() { return Name; }
