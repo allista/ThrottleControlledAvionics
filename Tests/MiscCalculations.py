@@ -724,14 +724,105 @@ def sim_Altitude():
     sim1.legend()
     plt.show()
 #end def
+
+def sim_Rotation():
+    def _plot(r, c, n, X, Y, aa, ylab):
+        plt.subplot(r, c, n)
+        plt.plot(X, Y, label=("V: AA=%.1f" % aa))
+        plt.xlabel("time (s)")
+        plt.ylabel(ylab)
+        
+    def legend():
+        plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
     
+    MaxAngularA = np.arange(0.5, 30, 5);
+    start_error = 0.8*np.pi
+    end_time = 10.0
+    
+    def test(c, n, pid):
+        p = pid.kp; d = pid.kd
+        for aa in MaxAngularA:
+            A = [start_error]
+            V = [0.0]
+            S = [0.0]
+            T = [0.0]
+            def plot(c, n, Y, ylab):
+                _plot(3, c, n, T, Y, aa, ylab)
+            pid.kp = p/aa
+            pid.kd = d/aa
+            while T[-1] < end_time:
+                S.append(pid.update(A[-1]))
+                V.append(V[-1] - S[-1]*aa*dt)
+                A.append(A[-1] + V[-1]*dt)
+                T.append(T[-1]+dt)
+            plot(c, n, np.fromiter(A, float)/np.pi*180.0, 'Angle')
+            plot(c, c+n, V, 'Angular velocity')
+            plot(c, c*2+n, S, 'Steering')
+        
+    test(2, 1, PID(6.0, 0, 10.0, -1, 1))
+    test(2, 2, PID(4.0, 0, 6.0, -1, 1))
+    legend()
+    plt.show()
+        
 #==================================================================#
 
-dt = 0.08
+dt = 0.09
 
 if __name__ == '__main__':
 #     sim_VSpeed()
 #     sim_VS_Stability()
-    sim_Altitude()
+#     sim_Altitude()
 #     sim_Attitude()
+#     sim_Rotation()
+
+    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.lines as mlines
     
+    
+    x = (1,0,0); y = (0,1,0); z = (0,0,1)
+    
+    NoseUp = [
+                (0.426938, 0.6627575, 0.6152045), #right
+                (-0.9027369, 0.3521126, 0.2471495), #up
+                (-0.05282113, -0.6608852, 0.7486259), #fwd
+                (-0.825050456225237, 0.00142223040578914, 0.565057273153087), #Up
+                vec(-40.7348866753984, 82.6265182495117, -60.7879408364129).norm.v, #vel
+             ]
+    
+    NoseHor = [
+                (0.08697546, -0.9808488, 0.1742723), #right
+                (-0.714894, -0.1832845, -0.6747839), #up
+                (0.6938025, -0.06589657, -0.7171442), #fwd
+                (-0.81582765618581, 0.0281172059882483, 0.577611165170638), #Up
+                vec(31.6364693307456, 11.629711151123, 41.7471178066544).norm.v, #vel
+                (-0.5714493, -0.1924141, -0.7977581), #[r*Up]
+# (-0.714894, -0.1832845, -0.6747839), #Fwd
+             ]
+    
+    def xzy(v): return v[0], v[2], v[1]
+    
+    def draw_vectors(*vecs):
+        if not vecs: return;
+        X, Y, Z, U, V, W = zip(*(xzy(v)+xzy(v) for v in vecs))
+        colors = [(0,1,0)]*3
+        n = float(len(vecs))
+        for i in xrange(1, len(vecs)):
+            c = (i/n, 1-i/n, 1-i/n)
+            colors += c,c,c
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        ax.quiver(X,Y,Z,U,V,W, colors=colors, lw=2, arrow_length_ratio=0.1)
+        ax.set_xlim([-1,1])
+        ax.set_ylim([-1,1])
+        ax.set_zlim([-1,1])
+        ax.set_xlabel('r')
+        ax.set_ylabel('f')
+        ax.set_zlabel('u')
+        legends = []
+        for i in xrange(len(vecs)):
+            legends.append(mlines.Line2D([], [], color=colors[i*3], label=str(i+1)))
+        plt.legend(handles=legends)
+        plt.show()
+    
+    draw_vectors(*NoseUp)
+    draw_vectors(*NoseHor)
