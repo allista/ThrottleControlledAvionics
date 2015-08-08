@@ -58,6 +58,7 @@ namespace ThrottleControlledAvionics
 				CFG.GoToTarget = false;
 				CFG.FollowPath = false;
 				VSL.UpdateHorizontalStats();
+				CFG.Starboard = Vector3.zero;
 				CFG.NeededHorVelocity = Vector3d.zero;
 			}
 			BlockSAS(CFG.KillHorVel);
