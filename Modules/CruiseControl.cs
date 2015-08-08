@@ -102,9 +102,13 @@ namespace ThrottleControlledAvionics
 			var hDir = Vector3.ProjectOnPlane(VSL.Fwd, VSL.Up).normalized;
 			var attitude_error = Quaternion.FromToRotation(hDir, CFG.NeededHorVelocity);
 			var angle = Utils.CenterAngle(attitude_error.eulerAngles.z)/180;
+			var AAf = 1/(VSL.NoseUp? VSL.MaxAngularA.y : VSL.MaxAngularA.z);
+			pid.P = CC.DirectionPID.P*AAf;
+			pid.D = CC.DirectionPID.D*AAf;
 			pid.Update(angle);
-			if(VSL.NoseUp) s.roll = s.rollTrim = pid.Action;
+			if(VSL.NoseUp) s.roll = s.rollTrim = -pid.Action;
 			else s.yaw = s.yawTrim = pid.Action;
+//			Utils.CSV(angle*180, pid.Action, AAf);//debug
 		}
 	}
 }

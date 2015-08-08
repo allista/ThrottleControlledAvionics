@@ -362,13 +362,13 @@ namespace ThrottleControlledAvionics
 			var f = Vector3.Cross(refT.right, Up);
 			if(Vector3.Dot(f, refT.up) > Vector3.Dot(f, refT.forward))
 			{ Fwd = refT.up; NoseUp = false; }
-			else { Fwd = -refT.forward; NoseUp = true; } //but why -forward? O_o
-
-//			Utils.Log("up {0}\nfwd {1}\nf {2}\nUp {3}\nFwd {4}\nNoseUp {5}, f*up {6}, f*fwd {7}",
-//			          refT.up, refT.forward,
-//			          f, Up, Fwd, NoseUp,
-//			          Vector3.Dot(f, refT.up),
-//			          Vector3.Dot(f, refT.forward));//debug
+			else { Fwd = refT.forward; NoseUp = true; }
+//			Utils.Log("{0}, #right\n{1}, #up\n{2}, #fwd\n" +
+//			          "{3}, #Up\nvec{4}.norm.v, #vel\n" +
+//			          "{5}, #[r*Up]\n{6}, #Fwd\nNoseUp {7}",
+//			          refT.right, refT.up, refT.forward,
+//			          Up, vessel.srf_velocity,
+//			          f, Fwd, NoseUp);//debug
 		}
 
 		public void UpdateVerticalStats()
