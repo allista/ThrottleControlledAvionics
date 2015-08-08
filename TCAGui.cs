@@ -308,17 +308,28 @@ namespace ThrottleControlledAvionics
 				CFG.ShowWaypoints = !CFG.ShowWaypoints;
 			if(CFG.ShowWaypoints)
 			{
-				GUILayout.BeginVertical();
+				GUILayout.BeginVertical(Styles.white);
 				waypointsScroll = GUILayout.BeginScrollView(waypointsScroll, GUILayout.Height(controlsHeight));
 				GUILayout.BeginVertical();
+				int i = 0;
+				var num = (float)(CFG.Waypoints.Count-1);
 				var del = new HashSet<MapTarget>();
+				var col = GUI.contentColor;
 				foreach(var wp in CFG.Waypoints)
 				{
 					GUILayout.BeginHorizontal();
-					GUILayout.Label(wp.Name, GUILayout.Width(180));
+					GUI.contentColor = marker_color(i, num);
+					GUILayout.Label(string.Format("{0}) {1}", 1+i, wp.Name)+
+					                ((CFG.FollowPath && i == 0)? 
+					                string.Format(" <= {0:F0}m", wp.DistanceTo(vessel)*vessel.mainBody.Radius) : ""), 
+					                GUILayout.ExpandWidth(true));
+					GUI.contentColor = col;
+					GUILayout.FlexibleSpace();
 					if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(25))) del.Add(wp);
 					GUILayout.EndHorizontal();
+					i++;
 				}
+				GUI.contentColor = col;
 				if(del.Count > 0)
 				{
 					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
@@ -341,7 +352,7 @@ namespace ThrottleControlledAvionics
 				CFG.ShowManualLimits = !CFG.ShowManualLimits;
 			if(CFG.ShowManualLimits)
 			{
-				GUILayout.BeginVertical();
+				GUILayout.BeginVertical(Styles.white);
 				enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(controlsHeight));
 				GUILayout.BeginVertical();
 				var added = new HashSet<int>();
@@ -372,6 +383,12 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 		}
 
+		static double marker_radius(Vessel vsl, MapTarget t)
+		{ return vsl.mainBody.Radius/15 * Utils.ClampL(t.DistanceTo(vsl)/Math.PI, 0.025); }
+
+		static Color marker_color(int i, float N)
+		{ return Color.Lerp(Color.green, Color.blue, N.Equals(0)? 0 : i/N); }
+
 		//adapted from MechJeb
 		void MapOverlay()
 		{
@@ -383,21 +400,26 @@ namespace ThrottleControlledAvionics
 				var coords = Utils.GetMouseCoordinates(vessel.mainBody);
 				if(coords != null)
 				{
-					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f));
+					var t = new MapTarget(coords);
+					var R = marker_radius(vessel, t);
+					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f), 0, R);
 					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50), 
 					          coords + "\n" + ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon));
 					if(Input.GetMouseButtonDown(0))
 					{
-						CFG.Waypoints.Enqueue(new MapTarget(coords));
+						CFG.Waypoints.Enqueue(t);
 						selecting_map_target = false;
 					}
 				}
 			}
-			if(!MapView.MapIsEnabled) return;
-			var i = 0;
-			var fnum = (float)CFG.Waypoints.Count-1;
-			foreach(var t in CFG.Waypoints)
-				GLUtils.DrawMapViewGroundMarker(vessel.mainBody, t.Lat, t.Lon, Color.Lerp(Color.green, Color.blue, fnum > 0? i++/fnum : 0));
+			if(MapView.MapIsEnabled)
+			{
+				var i = 0;
+				var num = (float)(CFG.Waypoints.Count-1);
+				foreach(var t in CFG.Waypoints)
+					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, t.Lat, t.Lon, 
+					                                marker_color(i++, num), 0, marker_radius(vessel, t));
+			}
 		}
 
 		#if DEBUG
