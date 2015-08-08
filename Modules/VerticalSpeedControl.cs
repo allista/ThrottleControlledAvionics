@@ -37,6 +37,8 @@ namespace ThrottleControlledAvionics
 		public override void UpdateState()
 		{ IsActive = (CFG.ControlAltitude || CFG.VerticalCutoff < VSC.MaxSpeed) && VSL.OnPlanet; }
 
+		float deltaV;
+
 		public void Update()
 		{
 			VSL.VSF = 1f;
@@ -55,8 +57,14 @@ namespace ThrottleControlledAvionics
 			                      +upAF);
 			VSL.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.MinVSF);
 			//loosing altitude alert
-			if(VSL.VerticalSpeed < 0 && VSL.VerticalSpeed < VSL.CFG.VerticalCutoff-VSC.MaxDeltaV && !VSL.LandedOrSplashed)
-				SetState(TCAState.LoosingAltitude);
+			if(VSL.LandedOrSplashed) return;
+			var dV = VSL.CFG.VerticalCutoff-VSL.VerticalSpeed;
+			if(VSL.VerticalSpeed < 0 && dV > 0)
+			{
+				if(dV < VSC.MaxDeltaV) deltaV += dV*TimeWarp.fixedDeltaTime;
+				else SetState(TCAState.LoosingAltitude);
+			}
+			else deltaV = 0;
 //			Utils.CSV(VerticalSpeed, CFG.VerticalCutoff, maxTWR, VerticalAccel, upAF, setpoint-CFG.VerticalCutoff, K);//debug
 		}
 	}
