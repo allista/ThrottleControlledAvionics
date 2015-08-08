@@ -28,6 +28,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float UpAf                  = 0.2f;  //factor for the upA adjustment of VerticalCutoff
 			[Persistent] public float ASf                   = 2f;    //factor for the acceleration speed adjustment of VerticalCutoff
 			[Persistent] public float DSf                   = 1f;    //factor for the deceleration speed adjustment of VerticalCutoff
+			[Persistent] public float MaxDeltaV             = 0.5f;  //maximum VS delta that is considered safe enough not to alarm user about Loosing Altitude
 		}
 		static Config VSC { get { return TCAConfiguration.Globals.VSC; } }
 
@@ -54,7 +55,7 @@ namespace ThrottleControlledAvionics
 			                      +upAF);
 			VSL.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.MinVSF);
 			//loosing altitude alert
-			if(VSL.VerticalSpeed < 0 && VSL.VerticalSpeed < VSL.CFG.VerticalCutoff-0.1f && !VSL.LandedOrSplashed)
+			if(VSL.VerticalSpeed < 0 && VSL.VerticalSpeed < VSL.CFG.VerticalCutoff-VSC.MaxDeltaV && !VSL.LandedOrSplashed)
 				SetState(TCAState.LoosingAltitude);
 //			Utils.CSV(VerticalSpeed, CFG.VerticalCutoff, maxTWR, VerticalAccel, upAF, setpoint-CFG.VerticalCutoff, K);//debug
 		}
