@@ -44,18 +44,8 @@ namespace ThrottleControlledAvionics
 			IsActive = CFG.CruiseControl && VSL.OnPlanet; 
 			if(!inited && IsActive && !VSL.Up.IsZero())
 			{
-				CFG.NeededHorVelocity = needed_hor_velocity;
+				UpdateNeededVelocity();
 				inited = true;
-			}
-		}
-
-		Vector3 needed_hor_velocity 
-		{ 
-			get 
-			{ 
-				return CFG.Starboard.IsZero()? 
-					Vector3.zero : 
-					Quaternion.FromToRotation(Vector3.up, VSL.Up) * Vector3.Cross(Vector3.up, CFG.Starboard);
 			}
 		}
 
@@ -63,12 +53,6 @@ namespace ThrottleControlledAvionics
 		{ 
 			CFG.Starboard = set? VSL.CurrentStarboard : Vector3.zero;
 			CFG.NeededHorVelocity = set? VSL.HorizontalVelocity : Vector3d.zero;
-		}
-
-		IEnumerator<YieldInstruction> update_needed_velocity()
-		{
-			if(IsActive) CFG.NeededHorVelocity = needed_hor_velocity;
-			yield return new WaitForSeconds(CC.Delay);
 		}
 
 		public override void Enable(bool enable = true)
@@ -86,11 +70,12 @@ namespace ThrottleControlledAvionics
 			set_needed_velocity(CFG.CruiseControl);
 		}
 
-		public IEnumerator<YieldInstruction> NeededVelocityUpdater;
-		public IEnumerator<YieldInstruction> UpdateNeededVelocity()
+
+		public void UpdateNeededVelocity()
 		{
-			NeededVelocityUpdater = update_needed_velocity();
-			return NeededVelocityUpdater;
+			CFG.NeededHorVelocity = CFG.Starboard.IsZero()? 
+										Vector3.zero : 
+										Quaternion.FromToRotation(Vector3.up, VSL.Up) * Vector3.Cross(Vector3.up, CFG.Starboard);
 		}
 
 		protected override void Update(FlightCtrlState s)

@@ -9,7 +9,8 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -131,6 +132,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!enabled) return;
 			VSL = new VesselWrapper(vessel);
+			VSL.UpdateState();
 			VSL.UpdateEngines();
 			enabled = isEnabled = VSL.Engines.Count > 0 || VSL.RCS.Count > 0;
 			if(!enabled) { VSL = null; return; }
@@ -148,8 +150,9 @@ namespace ThrottleControlledAvionics
 			vessel.OnAutopilotUpdate += block_throttle;
 			hsc.ConnectAutopilot();
 			cc.ConnectAutopilot();
-			if(CFG.CruiseControl) 
-				StartCoroutine(cc.UpdateNeededVelocity());
+			if(CFG.GoToTarget) pn.GoToTarget();
+			else if(CFG.FollowPath) pn.FollowPath();
+			else if(CFG.CruiseControl) UpdateNeededVeloctiy();
 			ThrottleControlledAvionics.AttachTCA(this);
 		}
 
@@ -160,10 +163,25 @@ namespace ThrottleControlledAvionics
 				VSL.OnAutopilotUpdate -= block_throttle;
 				hsc.DisconnectAutopilot();
 				cc.DisconnectAutopilot();
-				if(cc.NeededVelocityUpdater != null) 
-					StopCoroutine(cc.NeededVelocityUpdater);
+				if(NeededVelocityUpdater != null) 
+					StopCoroutine(NeededVelocityUpdater);
 			}
 			VSL = null; eng = null; vsc = null; hsc = null; alt = null; rcs = null; cc = null; pn = null;
+		}
+
+		IEnumerator<YieldInstruction> NeededVelocityUpdater;
+		IEnumerator<YieldInstruction> update_needed_velocity()
+		{
+			while(VSL != null && CFG.CruiseControl && VSL.OnPlanet)
+			{
+				cc.UpdateNeededVelocity();
+				yield return new WaitForSeconds(GLB.CC.Delay);
+			}
+		}
+		void UpdateNeededVeloctiy()
+		{
+			NeededVelocityUpdater = update_needed_velocity();
+			StartCoroutine(NeededVelocityUpdater);
 		}
 		#endregion
 
@@ -201,13 +219,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(state == CFG.CruiseControl) return;
 			cc.Enable(state);
-			if(CFG.CruiseControl) 
-				StartCoroutine(cc.UpdateNeededVelocity());
-			else if(cc.NeededVelocityUpdater != null)
-			{
-				StopCoroutine(cc.NeededVelocityUpdater);
-				cc.NeededVelocityUpdater = null; 
-			}
+			if(CFG.CruiseControl) UpdateNeededVeloctiy();
 		}
 		public void ToggleCruiseControl() { CruiseControl(!CFG.CruiseControl);}
 
