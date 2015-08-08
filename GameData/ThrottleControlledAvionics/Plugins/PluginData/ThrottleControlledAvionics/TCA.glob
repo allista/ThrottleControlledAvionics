@@ -61,6 +61,7 @@ VSC
 	UpAf              = 0.2  //factor for the upA adjustment of VerticalCutoff
 	ASf               = 2    //factor for the acceleration speed adjustment of VerticalCutoff
 	DSf               = 1    //factor for the deceleration speed adjustment of VerticalCutoff
+	MaxDeltaV         = 0.5
 }
 
 ALT
@@ -106,7 +107,7 @@ HSC
 
 CC
 {
-	Delay = 1
+	Delay = 5
 	DirectionPID
 	{
 		P = 4.0
@@ -117,10 +118,12 @@ CC
 
 PN
 {
-	Delay = 1
-	MinDistance = 10
-	MinSpeed = 10
-	MaxSpeed = 300
+	MinDistance       = 30
+	OnPathMinDistance = 300
+	MinSpeed          = 10
+	MaxSpeed          = 300
+	MaxSpeedF         = 10
+	
 	DistancePID
 	{
 		P = 2.0
