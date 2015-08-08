@@ -105,7 +105,12 @@ namespace ThrottleControlledAvionics
 		public Vector3 Translation { get; private set; }
 		public bool NoActiveRCS { get; private set; }
 
-		public VesselWrapper(Vessel vsl) { vessel = vsl; }
+		public VesselWrapper(Vessel vsl) 
+		{
+			vessel = vsl; 
+			if(vessel != null) 
+				CFG = TCAConfiguration.GetConfig(vessel);
+		}
 
 		public void Init() {}
 
@@ -115,8 +120,6 @@ namespace ThrottleControlledAvionics
 		#region Engines
 		public void UpdateEngines()
 		{
-			if(vessel == null) return;
-			CFG = TCAConfiguration.GetConfig(vessel);
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
 			Engines.Clear(); ManualEngines.Clear();
 			foreach(Part p in vessel.Parts)
