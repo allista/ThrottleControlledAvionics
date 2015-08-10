@@ -10,7 +10,6 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -88,11 +87,12 @@ namespace ThrottleControlledAvionics
 			var attitude_error = Quaternion.FromToRotation(hDir, CFG.NeededHorVelocity);
 			var angle = Utils.CenterAngle(attitude_error.eulerAngles.z)/180;
 			var AAf = 1/(VSL.NoseUp? VSL.MaxAngularA.y : VSL.MaxAngularA.z);
+			var eff = Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(VSL.Fwd, VSL.Up)));
 			pid.P = CC.DirectionPID.P*AAf;
 			pid.D = CC.DirectionPID.D*AAf;
 			pid.Update(angle);
-			if(VSL.NoseUp) s.roll = s.rollTrim = -pid.Action;
-			else s.yaw = s.yawTrim = pid.Action;
+			if(VSL.NoseUp) s.roll = s.rollTrim = -pid.Action*eff;
+			else s.yaw = s.yawTrim = pid.Action*eff;
 //			Utils.CSV(angle*180, pid.Action, AAf);//debug
 		}
 	}

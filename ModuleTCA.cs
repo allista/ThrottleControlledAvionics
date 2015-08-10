@@ -150,8 +150,10 @@ namespace ThrottleControlledAvionics
 			vessel.OnAutopilotUpdate += block_throttle;
 			hsc.ConnectAutopilot();
 			cc.ConnectAutopilot();
-			if(CFG.GoToTarget) pn.GoToTarget();
-			else if(CFG.FollowPath) pn.FollowPath();
+			VSL.UpdateCommons();
+			VSL.UpdateVerticalStats();
+			if(CFG.GoToTarget) pn.GoToTarget(VSL.vessel.targetObject != null);
+			else if(CFG.FollowPath) pn.FollowPath(CFG.Waypoints.Count > 0);
 			else if(CFG.CruiseControl) UpdateNeededVeloctiy();
 			ThrottleControlledAvionics.AttachTCA(this);
 		}
@@ -186,17 +188,15 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Controls
-		public void ActivateTCA(bool state)
+		public void ToggleTCA()
 		{
-			if(state == CFG.Enabled) return;
-			CFG.Enabled = state;
+			CFG.Enabled = !CFG.Enabled;
 			if(!CFG.Enabled) //reset engine limiters
 			{
 				VSL.Engines.ForEach(e => e.forceThrustPercentage(100));
 				State = TCAState.Disabled;
 			}
 		}
-		public void ToggleTCA() { ActivateTCA(!CFG.Enabled); }
 
 		public void BlockThrottle(bool state)
 		{
@@ -206,28 +206,18 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 
-		public void KillHorizontalVelocity(bool state) { hsc.Enable(state); }
-		public void ToggleHvAutopilot() { KillHorizontalVelocity(!CFG.KillHorVel); }
-
-		public void MaintainAltitude(bool state) { alt.Enable(state); }
-		public void ToggleAltitudeAutopilot() { MaintainAltitude(!CFG.ControlAltitude); }
-
+		public void ToggleHvAutopilot() { hsc.Enable(!CFG.KillHorVel); }
+		public void ToggleAltitudeAutopilot() { alt.Enable(!CFG.ControlAltitude); }
 		public void AltitudeAboveTerrain(bool state) { alt.SetAltitudeAboveTerrain(state); }
-		public void ToggleAltitudeAboveTerrain() { AltitudeAboveTerrain(!CFG.AltitudeAboveTerrain); }
 
-		public void CruiseControl(bool state)
+		public void ToggleCruiseControl()
 		{
-			if(state == CFG.CruiseControl) return;
-			cc.Enable(state);
+			cc.Enable(!CFG.CruiseControl);
 			if(CFG.CruiseControl) UpdateNeededVeloctiy();
 		}
-		public void ToggleCruiseControl() { CruiseControl(!CFG.CruiseControl);}
 
-		public void GoToTarget(bool state) { pn.GoToTarget(state); }
-		public void ToggleGoToTarget() { GoToTarget(!CFG.GoToTarget);}
-
-		public void FollowPath(bool state) { pn.FollowPath(state); }
-		public void ToggleFollowPath() { FollowPath(!CFG.FollowPath);}
+		public void ToggleGoToTarget() { pn.GoToTarget(!CFG.GoToTarget);}
+		public void ToggleFollowPath() { pn.FollowPath(!CFG.FollowPath);}
 		#endregion
 
 		void block_throttle(FlightCtrlState s)
@@ -245,18 +235,18 @@ namespace ThrottleControlledAvionics
 			SetState(TCAState.HaveActiveEngines);
 			//update state
 			VSL.UpdateCommons();
+			rcs.UpdateState();
 			if(VSL.NumActive > 0)
 			{
 				eng.UpdateState();
 				vsc.UpdateState();
 				hsc.UpdateState();
 				alt.UpdateState();
-				rcs.UpdateState();
 				cc.UpdateState();
 				pn.UpdateState();
-				if(vsc.IsActive || alt.IsActive) 
+				if(vsc.IsActive) 
 					VSL.UpdateVerticalStats();
-				if(hsc.IsActive || cc.IsActive)
+				if(hsc.IsActive)
 					VSL.UpdateHorizontalStats();
 				alt.Update();
 				vsc.Update();

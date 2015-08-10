@@ -30,6 +30,12 @@ namespace ThrottleControlledAvionics
 			return v/max;
 		}
 
+		public static Color Normalized(this Color c)
+		{
+			var max = c.r > c.g? (c.r > c.b? c.r : c.b) : (c.g > c.b? c.g : c.b);
+			return max.Equals(0)? c : new Color(c.r / max, c.g / max, c.b / max);
+		}
+
 		#region ConfigNode
 		public static void AddRect(this ConfigNode n, string name, Rect r)
 		{ n.AddValue(name, ConfigNode.WriteQuaternion(new Quaternion(r.x, r.y, r.width, r.height))); }

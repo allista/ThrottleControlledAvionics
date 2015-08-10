@@ -49,7 +49,7 @@ namespace ThrottleControlledAvionics
 
 		public override void Enable(bool enable = true)
 		{
-			if(enable == CFG.KillHorVel) return;
+//			if(enable == CFG.KillHorVel) return;
 			CFG.KillHorVel = enable;
 			pid.Reset();
 			if(CFG.KillHorVel) 
@@ -73,13 +73,11 @@ namespace ThrottleControlledAvionics
 			//allow user to intervene
 			if(UserIntervening(s)) { pid.Reset(); return; }
 			//if the vessel is not moving, nothing to do
-			if(VSL.LandedOrSplashed || srfSpeed < 0.01) return;
-			//calculate total current thrust
-			var thrust = VSL.ActiveEngines.Aggregate(Vector3.zero, (v, e) => v + e.thrustDirection*e.finalThrust);
-			if(thrust.IsZero()) return;
+			if(VSL.LandedOrSplashed || srfSpeed < 0.01 || VSL.Thrust.IsZero()) return;
 			//disable SAS
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//calculate horizontal velocity
+			var thrust = VSL.refT.InverseTransformDirection(VSL.Thrust);
 			var hV  = VSL.HorizontalVelocity-CFG.NeededHorVelocity;
 			var hVl = VSL.refT.InverseTransformDirection(hV);
 			var hVm = hV.magnitude;
@@ -90,10 +88,11 @@ namespace ThrottleControlledAvionics
 			{
 				//correction for low TWR and torque
 				var upl  = VSL.refT.InverseTransformDirection(VSL.Up);
-				var TWR = Vector3.Dot(thrust, upl) < 0? Vector3.Project(thrust, upl).magnitude/TCAConfiguration.G/VSL.M : 0f;
+				var TWR  = Vector3.Dot(thrust, upl) < 0? Vector3.Project(thrust, upl).magnitude/TCAConfiguration.G/VSL.M : 0f;
 				var twrF = Utils.ClampH(TWR/HSC.TWRf, 1);
 				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(VSL.MaxTorque, hVl), VSL.MoI.Inverse()).magnitude*HSC.TorF, 1);
 				var upF  = Vector3.Dot(thrust, hVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);
+				if(IsStateSet(TCAState.LoosingAltitude)) upF /= 10;
 				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)(MaxHv/hVm), 1)/upF;
 //				Utils.Log("needed thrust direction: {0}\n" +
 //				          "TWR factor: {1}\n" +

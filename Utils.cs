@@ -194,7 +194,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public static void DrawMapViewGroundMarker(CelestialBody body, double lat, double lon, Color c, double rotation = 0, double radius = 0)
+		public static void DrawMapViewGroundMarker(CelestialBody body, double lat, double lon, Color c, double r = 0)
 		{
 			var up = body.GetSurfaceNVector(lat, lon);
 			var height = Utils.TerrainAltitude(body, lat, lon);
@@ -202,31 +202,60 @@ namespace ThrottleControlledAvionics
 			var center = body.position + height * up;
 			if(IsOccluded(center, body)) return;
 
-			if(radius <= 0) radius = body.Radius/300;
+			if(r <= 0) r = body.Radius/15;
 			var north = Vector3d.Exclude(up, body.transform.up).normalized;
 
 			GLTriangleMap(new Vector3d[]{
 				center,
-				center + radius * (QuaternionD.AngleAxis(rotation - 10, up) * north),
-				center + radius * (QuaternionD.AngleAxis(rotation + 10, up) * north)
+				center + r * (QuaternionD.AngleAxis(-10, up) * north),
+				center + r * (QuaternionD.AngleAxis( 10, up) * north)
 			}, c);
 
 			GLTriangleMap(new Vector3d[]{
 				center,
-				center + radius * (QuaternionD.AngleAxis(rotation + 110, up) * north),
-				center + radius * (QuaternionD.AngleAxis(rotation + 130, up) * north)
+				center + r * (QuaternionD.AngleAxis(110, up) * north),
+				center + r * (QuaternionD.AngleAxis(130, up) * north)
 			}, c);
 
 			GLTriangleMap(new Vector3d[]{
 				center,
-				center + radius * (QuaternionD.AngleAxis(rotation - 110, up) * north),
-				center + radius * (QuaternionD.AngleAxis(rotation - 130, up) * north)
+				center + r * (QuaternionD.AngleAxis(-110, up) * north),
+				center + r * (QuaternionD.AngleAxis(-130, up) * north)
 			}, c);
 		}
 
-		public static void DrawMapViewPointer(CelestialBody body, MapTarget t0, MapTarget t1, Color c)
+		public static void DrawMapViewPoint(CelestialBody body, double lat, double lon, Color c, double r)
 		{
-			
+			var height = Utils.TerrainAltitude(body, lat, lon);
+			if(height < body.Radius) height = body.Radius;
+			var up     = body.GetSurfaceNVector(lat, lon);
+			var center = body.position + height * up;
+			var north  = Vector3d.Exclude(up, body.transform.up).normalized;
+
+			GLTriangleMap(new Vector3d[]{
+				center + r * north,
+				center + r * (QuaternionD.AngleAxis(120, up) * north),
+				center + r * (QuaternionD.AngleAxis(240, up) * north)
+			}, c);
+		}
+
+		public static void DrawMapViewPath(CelestialBody body, MapTarget t0, MapTarget t1, double r0, double r1, Color c, double delta = 1)
+		{
+			var dlat = t1.Lat-t0.Lat;
+			var dlon = t1.Lon-t0.Lon;
+			var N = (int)(Math.Max(Math.Abs(dlat), Math.Abs(dlon))/delta)+2;
+			var dr = (r1-r0)/N/2;
+			var rm = r0/2;
+			dlat /= N; dlon /= N;
+			for(int i = 1; i<N; i++)
+				DrawMapViewPoint(body, t0.Lat+dlat*i, t0.Lon+dlon*i, c, rm+dr*i);
+		}
+
+		public static void DrawMapViewPath(Vessel v, MapTarget t1, double r1, Color c, double delta = 1)
+		{
+			var t0 = new MapTarget();
+			t0.Lat = v.latitude; t0.Lon = v.longitude;
+			DrawMapViewPath(v.mainBody, t0, t1, r1/2, r1, c, delta);
 		}
 
 		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)

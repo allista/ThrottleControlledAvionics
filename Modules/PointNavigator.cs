@@ -24,7 +24,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float OnPathMinDistance = 300;
 			[Persistent] public float MinSpeed          = 10;
 			[Persistent] public float MaxSpeed          = 300;
-			[Persistent] public float MaxSpeedF         = 50;
+			[Persistent] public float DistanceF         = 50;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
 		static Config PN { get { return TCAConfiguration.Globals.PN; } }
@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 
 		public void GoToTarget(bool enable = true)
 		{
-			if(enable == CFG.GoToTarget) return;
+//			if(enable == CFG.GoToTarget) return;
 			if(enable && VSL.vessel.targetObject == null) return;
 			CFG.GoToTarget = enable;
 			if(CFG.GoToTarget) start_to(VSL.vessel.targetObject);
@@ -55,7 +55,7 @@ namespace ThrottleControlledAvionics
 
 		public void FollowPath(bool enable = true)
 		{
-			if(enable == CFG.FollowPath) return;
+//			if(enable == CFG.FollowPath) return;
 			if(enable && CFG.Waypoints.Count == 0) return;
 			CFG.FollowPath = enable;
 			if(CFG.FollowPath) start_to(CFG.Waypoints.Peek());
@@ -109,10 +109,12 @@ namespace ThrottleControlledAvionics
 			//tune the pid and update needed velocity
 			pid.Min = 0;
 			pid.Max = CFG.MaxNavSpeed;
-			pid.Update(distance/CFG.MaxNavSpeed*PN.MaxSpeedF);
+			pid.D   = PN.DistancePID.D*VSL.M/Utils.ClampL(VSL.Thrust.magnitude/TCAConfiguration.G, 1);
+			pid.Update(distance*PN.DistanceF);
 			CFG.NeededHorVelocity = dr.normalized*pid.Action;
 			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
-//			Utils.Log("Distance: {0}, max {1}, nvel {2}", distance, PN.OnPathMinDistance, pid.Action);//debug
+//			Utils.Log("Distance: {0}, max {1}, err {2}, nvel {3}", 
+//			          distance, PN.OnPathMinDistance, distance*PN.DistanceF, pid.Action);//debug
 		}
 	}
 
@@ -158,7 +160,11 @@ namespace ThrottleControlledAvionics
 		public Orbit GetOrbit() { return null; }
 		public OrbitDriver GetOrbitDriver() { return null; }
 		public Vector3 GetSrfVelocity() { return Vector3.zero; }
-		public Transform GetTransform() { return go.transform; }
+		public Transform GetTransform() 
+		{ 
+			if(go == null) go = new GameObject();
+			return go.transform; 
+		}
 		public Vessel GetVessel() { return null; }
 		public VesselTargetModes GetTargetingMode() { return VesselTargetModes.Direction; }
 	}

@@ -61,7 +61,7 @@ namespace ThrottleControlledAvionics
 
 		public override void Enable(bool enable = true)
 		{
-			if(enable == CFG.ControlAltitude) return;
+//			if(enable == CFG.ControlAltitude) return;
 			CFG.ControlAltitude = enable;
 			if(CFG.ControlAltitude)
 			{

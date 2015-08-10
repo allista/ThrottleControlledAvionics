@@ -133,6 +133,9 @@ namespace ThrottleControlledAvionics
 			{
 				if(TCA.IsStateSet(TCAState.Unoptimized))
 				{ state = "Engines Unoptimized"; style = Styles.red; }
+				else if(TCA.IsStateSet(TCAState.ObstacleAhead))
+				{ state = string.Format("Obstacle Ahead: {0:F1}s", 
+				                        VSL.DistanceAhead/-VSL.SpeedAhead); style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
 				{ state = "Loosing Altitude"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
@@ -225,14 +228,14 @@ namespace ThrottleControlledAvionics
 					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude -= 10;
 					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude += 10;
 					GUILayout.Label("Vertical Speed: " + 
-					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeedDisplay.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
 					GUILayout.FlexibleSpace();
 				}
 				else
 				{
 					GUILayout.Label("Vertical Speed: " + 
-					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeedDisplay.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
 					GUILayout.Label("Set Point: " + (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
 					                                 CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
@@ -321,7 +324,7 @@ namespace ThrottleControlledAvionics
 					GUI.contentColor = marker_color(i, num);
 					GUILayout.Label(string.Format("{0}) {1}", 1+i, wp.Name)+
 					                ((CFG.FollowPath && i == 0)? 
-					                string.Format(" <= {0:F0}m", wp.DistanceTo(vessel)*vessel.mainBody.Radius) : ""), 
+					                 string.Format(" <= {0}", distance_to_str(vessel, wp)) : ""), 
 					                GUILayout.ExpandWidth(true));
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
@@ -330,7 +333,9 @@ namespace ThrottleControlledAvionics
 					i++;
 				}
 				GUI.contentColor = col;
-				if(del.Count > 0)
+				if(GUILayout.Button("Clear", Styles.red_button, GUILayout.ExpandWidth(true)))
+					CFG.Waypoints.Clear();
+				else if(del.Count > 0)
 				{
 					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
 					CFG.Waypoints = new Queue<MapTarget>(edited);
@@ -387,9 +392,23 @@ namespace ThrottleControlledAvionics
 		{ return vsl.mainBody.Radius/15 * Utils.ClampL(t.DistanceTo(vsl)/Math.PI, 0.025); }
 
 		static Color marker_color(int i, float N)
-		{ return Color.Lerp(Color.green, Color.blue, N.Equals(0)? 0 : i/N); }
+		{ 
+			if(N.Equals(0)) return Color.red;
+			var t = i/N;
+			return t < 0.5f ? 
+				Color.Lerp(Color.red, Color.green, t*2).Normalized() : 
+				Color.Lerp(Color.green, Color.cyan, (t-0.5f)*2).Normalized(); 
+		}
+
+		static string distance_to_str(Vessel vsl, MapTarget t)
+		{
+			var d = t.DistanceTo(vsl)*vsl.mainBody.Radius;
+			var k = d/1000;
+			return k < 1? string.Format("{0:F0}m", d) : string.Format("{0:F1}km", k);
+		}
 
 		//adapted from MechJeb
+		bool clicked;
 		void MapOverlay()
 		{
 			if(selecting_map_target)
@@ -402,23 +421,29 @@ namespace ThrottleControlledAvionics
 				{
 					var t = new MapTarget(coords);
 					var R = marker_radius(vessel, t);
-					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f), 0, R);
+					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f), R);
 					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50), 
-					          coords + "\n" + ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon));
-					if(Input.GetMouseButtonDown(0))
-					{
-						CFG.Waypoints.Enqueue(t);
-						selecting_map_target = false;
-					}
+					          string.Format("{0} {1}\n{2}", coords, distance_to_str(vessel, t), 
+					                        ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon)));
+					if(!clicked && Input.GetMouseButtonDown(0)) clicked = true;
+					if(clicked && Input.GetMouseButtonUp(0)) { CFG.Waypoints.Enqueue(t); clicked = false; }
+					if(Input.GetMouseButtonDown(1)) { selecting_map_target = false; clicked = false; }
 				}
 			}
 			if(MapView.MapIsEnabled)
 			{
 				var i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
+				MapTarget t0 = null; double r0 = 0;
 				foreach(var t in CFG.Waypoints)
-					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, t.Lat, t.Lon, 
-					                                marker_color(i++, num), 0, marker_radius(vessel, t));
+				{
+					var c = marker_color(i, num);
+					var r = marker_radius(vessel, t);
+					if(t0 == null) GLUtils.DrawMapViewPath(vessel, t, r, c);
+					else GLUtils.DrawMapViewPath(vessel.mainBody, t0, t, r0, r, c);
+					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, t.Lat, t.Lon, c, r);
+					t0 = t; r0 = r; i++;
+				}
 			}
 		}
 

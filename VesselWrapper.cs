@@ -72,6 +72,7 @@ namespace ThrottleControlledAvionics
 		public Vector3    MaxAngularA { get; private set; } //current maximum angular acceleration
 		public float      MaxAngularA_m { get; private set; } //current maximum angular acceleration
 
+		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  Torque { get; private set; } //current torque applied to the vessel by the engines
 		public Vector3  MaxTorque { get; private set; }
 		public float    VerticalSpeed { get; private set; }
@@ -84,6 +85,7 @@ namespace ThrottleControlledAvionics
 		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, Up); } }
 
 		public TCAState State;
+		public void SetState(TCAState state) { State |= state; }
 		public bool IsStateSet(TCAState state) { return (State & state) == state; }
 		public bool ElectricChargeAvailible
 		{
@@ -362,16 +364,23 @@ namespace ThrottleControlledAvionics
 		public void UpdateHorizontalStats()
 		{
 			HorizontalVelocity = Vector3d.Exclude(Up, vessel.srf_velocity);
-			var f = Vector3.Cross(refT.right, Up);
-			if(Vector3.Dot(f, refT.up) > Vector3.Dot(f, refT.forward))
-			{ Fwd = refT.up; NoseUp = false; }
-			else { Fwd = refT.forward; NoseUp = true; }
+			Thrust = Vector3.zero;
+			if(refT == null) return;
+			for(int i = 0; i < NumActive; i++)
+			{
+				var e = ActiveEngines[i];
+				if(e.thrustInfo == null) continue;
+				Thrust += e.wThrustDir*e.finalThrust;
+			}
+			Fwd = Vector3.Cross(refT.right, -Thrust).normalized;
+			NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
+
 //			Utils.Log("{0}, #right\n{1}, #up\n{2}, #fwd\n" +
-//			          "{3}, #Up\nvec{4}.norm.v, #vel\n" +
-//			          "{5}, #[r*Up]\n{6}, #Fwd\nNoseUp {7}",
+//			          "{3}, #-T\nvec{4}.norm.v, #vel\n" +
+//			          "{5}, #[r*-T]\nNoseUp {6}",
 //			          refT.right, refT.up, refT.forward,
-//			          Up, vessel.srf_velocity,
-//			          f, Fwd, NoseUp);//debug
+//			          -Thrust, vessel.srf_velocity,
+//			          Fwd, NoseUp);//debug
 		}
 
 		public void UpdateVerticalStats()
@@ -497,7 +506,8 @@ namespace ThrottleControlledAvionics
 		VerticalSpeedControl   = 1 << 3,
 		AltitudeControl        = 1 << 4,
 		LoosingAltitude 	   = 1 << 5,
-		Unoptimized			   = 1 << 6,
+		ObstacleAhead	 	   = 1 << 6,
+		Unoptimized			   = 1 << 7,
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,
 		NoEC                   = Enabled,
