@@ -9,6 +9,7 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using System;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -61,9 +62,12 @@ namespace ThrottleControlledAvionics
 
 	public abstract class AutopilotModule : TCAModule
 	{
-		public void ConnectAutopilot() { VSL.OnAutopilotUpdate += Update; }
-		public void DisconnectAutopilot() { VSL.OnAutopilotUpdate -= Update; }
-
+		public override void Init() 
+		{ 
+			if(VSL.OnAutopilotUpdate == null || 
+			   Array.IndexOf(VSL.OnAutopilotUpdate.GetInvocationList(), (FlightInputCallback)Update) < 0)
+				VSL.OnAutopilotUpdate += Update;
+		}
 		protected abstract void Update(FlightCtrlState s);
 		public override void Reset() { VSL.OnAutopilotUpdate -= Update; }
 

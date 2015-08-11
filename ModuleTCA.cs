@@ -157,23 +157,24 @@ namespace ThrottleControlledAvionics
 			VSL.Init(); 
 			modules.ForEach(m => m.Init());
 			vessel.OnAutopilotUpdate += block_throttle;
-			hsc.ConnectAutopilot();
-			cc.ConnectAutopilot();
 			VSL.UpdateCommons();
 			VSL.UpdateVerticalStats();
 			if(CFG.GoToTarget) pn.GoToTarget(VSL.vessel.targetObject != null);
 			else if(CFG.FollowPath) pn.FollowPath(CFG.Waypoints.Count > 0);
 			else if(CFG.CruiseControl) UpdateNeededVeloctiy();
 			ThrottleControlledAvionics.AttachTCA(this);
+			part.force_activate(); //need to activate the part in order for OnFixedUpdate to work
 		}
 
 		void reset()
 		{
-			if(VSL == null) return;
-			VSL.OnAutopilotUpdate -= block_throttle;
-			if(NeededVelocityUpdater != null) 
-				StopCoroutine(NeededVelocityUpdater);
-			modules.ForEach(m => m.Reset());
+			if(VSL != null)
+			{
+				VSL.OnAutopilotUpdate -= block_throttle;
+				if(NeededVelocityUpdater != null) 
+					StopCoroutine(NeededVelocityUpdater);
+				modules.ForEach(m => m.Reset());
+			}
 			delete_modules();
 			VSL = null; 
 		}
@@ -235,7 +236,7 @@ namespace ThrottleControlledAvionics
 			if(IsStateSet(TCAState.HaveActiveEngines)) VSL.UpdateMoI();
 		}
 
-		public override void OnFixedUpdate()
+		public override void OnFixedUpdate() 
 		{
 			//initialize systems
 			VSL.UpdateState();
@@ -249,13 +250,12 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateCommons();
 			if(VSL.NumActive > 0)
 			{
-//				modules.ForEach(m => m.UpdateState());
 				for(int i = 0; i < modules.Count; i++) modules[i].UpdateState();
 				if(vsc.IsActive) VSL.UpdateVerticalStats();
 				if(hsc.IsActive) VSL.UpdateHorizontalStats();
 				//these follow specific order
 				alt.Update();
-				rad.Update();
+//				rad.Update();
 				vsc.Update();
 				pn.Update();
 			}
