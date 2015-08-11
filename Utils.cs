@@ -41,17 +41,6 @@ namespace ThrottleControlledAvionics
 			}
 			Debug.Log(string.Format("[TCA] "+msg, args)); 
 		}
-
-		#if DEBUG
-		public static void CSV(params object[] args)
-		{ 
-			var row = "tag: ";
-			for(int i = 0; i < args.Length-1; i++) 
-			{ row += "{"+i+"}, "; }
-			row += "{"+(args.Length-1)+"}\n";
-			Log(row, args);
-		}
-		#endif
 		#endregion
 
 		#region Math
@@ -491,15 +480,4 @@ namespace ThrottleControlledAvionics
 			return ret;
 		}
 	}
-
-	#if DEBUG
-	public class DebugCounter
-	{
-		int count = 0;
-		string name = "";
-		public DebugCounter(string name = "Debug") { this.name = name; }
-		public void Log() { Utils.Log("{0}: {1}", name, count++); }
-		public void Reset() { count = 0; }
-	}
-	#endif
 }

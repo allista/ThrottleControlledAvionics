@@ -93,6 +93,7 @@
     <Compile Include="TCAGui.cs" />
     <Compile Include="Modules\CruiseControl.cs" />
     <Compile Include="Modules\PointNavigator.cs" />
+    <Compile Include="DebugUtils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
