@@ -133,7 +133,7 @@ Notes:
 		[Persistent] public bool    CruiseControl;
 		[Persistent] public Vector3 Starboard;
 		public Vector3d NeededHorVelocity;
-		public float NHVf;
+		public float NHVf = 1;
 		//waypoint navigation
 		[Persistent] public bool    GoToTarget;
 		[Persistent] public bool    FollowPath;
