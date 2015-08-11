@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float TranslationUpperThreshold = 5f;
 			[Persistent] public float TranslationLowerThreshold = 0.2f;
 			[Persistent] public float RotationLowerThreshold    = 0.01f;
+			[Persistent] public float FallingCorrection = 0.01f;
 
 			[Persistent] public float P = 0.9f, If = 20f;
 			[Persistent] public float MinD  = 0.02f, MaxD  = 0.07f;
@@ -38,9 +39,10 @@ namespace ThrottleControlledAvionics
 		}
 		static Config HSC { get { return TCAConfiguration.Globals.HSC; } }
 
-		public double   srfSpeed { get { return VSL.vessel.srfSpeed; } }
-		public Vector3d acceleration { get { return VSL.vessel.acceleration; } }
-		public Vector3  angularVelocity { get { return VSL.vessel.angularVelocity; } }
+		double   srfSpeed { get { return VSL.vessel.srfSpeed; } }
+		Vector3d acceleration { get { return VSL.vessel.acceleration; } }
+		Vector3  angularVelocity { get { return VSL.vessel.angularVelocity; } }
+		float    fallingCorrection = 1;
 		readonly PIDv_Controller pid = new PIDv_Controller();
 
 		public HorizontalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
@@ -78,7 +80,7 @@ namespace ThrottleControlledAvionics
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//calculate horizontal velocity
 			var thrust = VSL.refT.InverseTransformDirection(VSL.Thrust);
-			var hV  = VSL.HorizontalVelocity-CFG.NeededHorVelocity;
+			var hV  = VSL.HorizontalVelocity-CFG.NeededHorVelocity*CFG.NHVf;
 			var hVl = VSL.refT.InverseTransformDirection(hV);
 			var hVm = hV.magnitude;
 			//calculate needed thrust direction
@@ -92,7 +94,12 @@ namespace ThrottleControlledAvionics
 				var twrF = Utils.ClampH(TWR/HSC.TWRf, 1);
 				var torF = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(VSL.MaxTorque, hVl), VSL.MoI.Inverse()).magnitude*HSC.TorF, 1);
 				var upF  = Vector3.Dot(thrust, hVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);
-				if(IsStateSet(TCAState.LoosingAltitude)) upF /= 10;
+				if(IsStateSet(TCAState.LoosingAltitude))
+				{
+					fallingCorrection += HSC.FallingCorrection;
+					upF /= fallingCorrection;
+				}
+				else if(fallingCorrection > 1) fallingCorrection = 1;
 				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)(MaxHv/hVm), 1)/upF;
 //				Utils.Log("needed thrust direction: {0}\n" +
 //				          "TWR factor: {1}\n" +

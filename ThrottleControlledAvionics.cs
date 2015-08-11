@@ -61,6 +61,9 @@ namespace ThrottleControlledAvionics
 			GameEvents.onShowUI.Remove(onShowUI);
 			RenderingManager.RemoveFromPostDrawQueue(1, MapOverlay);
 			SaveConfig();
+			#if DEBUG
+			ModuleTCA.prof.TreeReport();
+			#endif
 		}
 
 		void onVesselChange(Vessel vsl)

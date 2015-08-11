@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public RCSOptimizer.Config           RCS = new RCSOptimizer.Config();
 		[Persistent] public CruiseControl.Config          CC  = new CruiseControl.Config();
 		[Persistent] public PointNavigator.Config         PN  = new PointNavigator.Config();
+		[Persistent] public Radar.Config                  RAD = new Radar.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -84,7 +85,6 @@ Notes:
 				var method = fi.FieldType.GetMethod("Init");
 				if(method == null) continue;
 				method.Invoke(fi.GetValue(this), null);
-				Utils.Log("{0} config initialized.", fi.Name);
 			}
 		}
 
@@ -133,6 +133,7 @@ Notes:
 		[Persistent] public bool    CruiseControl;
 		[Persistent] public Vector3 Starboard;
 		public Vector3d NeededHorVelocity;
+		public float NHVf;
 		//waypoint navigation
 		[Persistent] public bool    GoToTarget;
 		[Persistent] public bool    FollowPath;
@@ -218,7 +219,8 @@ Notes:
 		public static TCAGlobals Globals = new TCAGlobals();
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
-		public static bool Loaded { get; private set; }
+		public static bool ConfigsLoaded { get; private set; }
+		public static bool GlobalsLoaded { get; private set; }
 		static readonly List<ConfigNode> other_games = new List<ConfigNode>();
 
 		#region From KSPPluginFramework
@@ -249,7 +251,7 @@ Notes:
 		#region Runtime Interface
 		public static VesselConfig GetConfig(Vessel vsl)
 		{
-			if(!Loaded) Load();
+			if(!ConfigsLoaded) Load();
 			if(!Configs.ContainsKey(vsl.id)) 
 				Configs.Add(vsl.id, new VesselConfig(vsl));
 			return Configs[vsl.id];
@@ -281,28 +283,25 @@ Notes:
 			return node;
 		}
 
-		public static void Load() { Load(FilePath(CONFIGNAME), FilePath(GLOBALSNAME)); }
+		public static void Load(bool reload = false) 
+		{ LoadGlobals(reload); LoadConfigs(reload); }
 
-		public static void Load(string configs, string globals)
+		public static void LoadGlobals(bool reload = false)
 		{
-			if(Loaded) return;
-
-			var gnode = loadNode(globals);
-			if(gnode != null) LoadGlobals(gnode);
-			else Globals.Init();
-
-			var cnode = loadNode(configs);
-			if(cnode != null) LoadConfigs(cnode);
-			else Configs.Clear();
-
-			Loaded = true;
-		}
-
-		public static void LoadGlobals()
-		{
+			if(GlobalsLoaded && !reload) return;
 			var gnode = loadNode(FilePath(GLOBALSNAME));
 			if(gnode != null) LoadGlobals(gnode);
 			else Globals.Init();
+			GlobalsLoaded = true;
+		}
+
+		public static void LoadConfigs(bool reload = false)
+		{
+			if(ConfigsLoaded && !reload) return ;
+			var cnode = loadNode(FilePath(CONFIGNAME));
+			if(cnode != null) LoadConfigs(cnode);
+			else Configs.Clear();
+			ConfigsLoaded = true;
 		}
 
 		public static void LoadGlobals(ConfigNode node) 
@@ -349,13 +348,11 @@ Notes:
 			catch { Utils.Log("TCAConfiguration: unable to write to "+filepath); }
 		}
 
-		public static void Save() { Save(FilePath(CONFIGNAME)); }
-
-		public static void Save(string configs)
+		public static void Save()
 		{
-			if(!Loaded) return;
+			if(!ConfigsLoaded) return;
 			var cnode = new ConfigNode(NODE_NAME);
-			SaveConfigs(cnode); saveNode(cnode, configs);
+			SaveConfigs(cnode); saveNode(cnode, FilePath(CONFIGNAME));
 		}
 
 		public static void SaveConfigs(ConfigNode node) 

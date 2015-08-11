@@ -106,7 +106,7 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) 
 			{
-				TCAConfiguration.LoadGlobals();
+				TCAConfiguration.LoadGlobals(true);
 				TCA.OnReloadGlobals();
 			}
 			#endif
@@ -131,13 +131,17 @@ namespace ThrottleControlledAvionics
 			var style = Styles.grey;
 			if(TCA.IsStateSet(TCAState.Enabled))
 			{
-				if(TCA.IsStateSet(TCAState.Unoptimized))
-				{ state = "Engines Unoptimized"; style = Styles.red; }
+				if(TCA.IsStateSet(TCAState.AvoidingObstacle))
+				{ state = "Avoiding Obstacle"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.ObstacleAhead))
-				{ state = string.Format("Obstacle Ahead: {0:F1}s", 
-				                        VSL.DistanceAhead/-VSL.SpeedAhead); style = Styles.red; }
+				{ state = "Obstacle Ahead"; style = Styles.red; }
+//				else if(TCA.IsStateSet(TCAState.ObstacleAhead))
+//				{ state = string.Format("Obstacle Ahead: {0:F1}s", 
+//				                        VSL.DistanceAhead/-VSL.SpeedAhead); style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
 				{ state = "Loosing Altitude"; style = Styles.red; }
+                else if(TCA.IsStateSet(TCAState.Unoptimized))
+				{ state = "Engines Unoptimized"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
 				{ state = "Altitude Control"; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
@@ -228,14 +232,14 @@ namespace ThrottleControlledAvionics
 					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude -= 10;
 					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude += 10;
 					GUILayout.Label("Vertical Speed: " + 
-					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeedDisplay.ToString("F2")+"m/s" : "N/A"), 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
 					GUILayout.FlexibleSpace();
 				}
 				else
 				{
 					GUILayout.Label("Vertical Speed: " + 
-					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeedDisplay.ToString("F2")+"m/s" : "N/A"), 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
 					GUILayout.Label("Set Point: " + (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
 					                                 CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 

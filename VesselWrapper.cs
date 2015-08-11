@@ -147,9 +147,19 @@ namespace ThrottleControlledAvionics
 
 		public bool CheckEngines()
 		{
-			if(Engines.Any(e => !e.Valid) || RCS.Any(t => !t.Valid)) UpdateEngines();
-			Engines.Where(e => e.engine.flameout).ForEach(e => e.forceThrustPercentage(1));
-			ActiveEngines = Engines.Where(e => e.isOperational).ToList();
+			bool update = false;
+			var num_engines = Engines.Count;
+			for(int i = 0; i < num_engines; i++)
+			{ update |= !Engines[i].Valid; if(update) break; }
+			if(!update)
+				for(int i = 0; i < RCS.Count; i++)
+				{ update |= !RCS[i].Valid; if(update) break; }
+			if(update) UpdateEngines();
+			for(int i = 0; i < num_engines; i++)
+			{ var e = Engines[i]; if(e.engine.flameout) e.forceThrustPercentage(1); }
+			ActiveEngines.Clear(); ActiveEngines.Capacity = Engines.Count;
+			for(int i = 0; i < num_engines; i++)
+			{ var e = Engines[i]; if(e.isOperational) ActiveEngines.Add(e); }
 			ActiveRCS = vessel.ActionGroups[KSPActionGroup.RCS]? 
 				RCS.Where(t => t.isOperational).ToList() : new List<RCSWrapper>();
 			NumActive = ActiveEngines.Count;
@@ -308,7 +318,6 @@ namespace ThrottleControlledAvionics
 			wCoM = vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime;
 			refT = vessel.ReferenceTransform;
 			Up   = (wCoM - vessel.mainBody.position).normalized;
-			update_MoI();
 			UpdateETorqueLimits();
 			UpdateRTorqueLimits();
 			UpdateWTorqueLimits();
@@ -455,7 +464,7 @@ namespace ThrottleControlledAvionics
 		// This function is somewhat expensive :(
 		// Maybe it can be optimized more.
 		static readonly Vector3[] unitVectors = { new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1) };
-		void update_MoI()
+		public void UpdateMoI()
 		{
 			if(vessel == null || vessel.rigidbody == null) return;
 			InertiaTensor = new Matrix3x3f();
@@ -507,7 +516,8 @@ namespace ThrottleControlledAvionics
 		AltitudeControl        = 1 << 4,
 		LoosingAltitude 	   = 1 << 5,
 		ObstacleAhead	 	   = 1 << 6,
-		Unoptimized			   = 1 << 7,
+		AvoidingObstacle 	   = 1 << 7,
+		Unoptimized			   = 1 << 8,
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,
 		NoEC                   = Enabled,

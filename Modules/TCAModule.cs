@@ -40,6 +40,7 @@ namespace ThrottleControlledAvionics
 		public virtual void Init() {}
 		public virtual void Enable(bool enable = true) {}
 		public virtual void UpdateState() {}
+		public virtual void Reset() {}
 
 		public void BlockSAS(bool block = true) 
 		{ 
@@ -62,7 +63,9 @@ namespace ThrottleControlledAvionics
 	{
 		public void ConnectAutopilot() { VSL.OnAutopilotUpdate += Update; }
 		public void DisconnectAutopilot() { VSL.OnAutopilotUpdate -= Update; }
+
 		protected abstract void Update(FlightCtrlState s);
+		public override void Reset() { VSL.OnAutopilotUpdate -= Update; }
 
 		protected bool UserIntervening(FlightCtrlState s)
 		{

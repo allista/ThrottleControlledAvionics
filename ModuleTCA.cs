@@ -9,7 +9,8 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System.Collections;
+using System;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -18,6 +19,10 @@ namespace ThrottleControlledAvionics
 {
 	public class ModuleTCA : PartModule, ITCAModule
 	{
+		#if DEBUG
+		internal static Profiler prof = new Profiler();
+		#endif
+
 		const string TCA_PART = "ThrottleControlledAvionics";
 
 		public static TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
@@ -35,6 +40,9 @@ namespace ThrottleControlledAvionics
 		RCSOptimizer rcs;
 		CruiseControl cc;
 		PointNavigator pn;
+		Radar rad;
+		List<TCAModule> modules;
+		FieldInfo[] mod_fields;
 		#endregion
 
 		#region Public Info
@@ -45,8 +53,7 @@ namespace ThrottleControlledAvionics
 
 		#region Initialization
 		#if DEBUG
-		public void OnReloadGlobals()
-		{ VSL.Init(); eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); cc.Init(); pn.Init(); }
+		public void OnReloadGlobals() { VSL.Init(); invoke_in_modules("Init"); }
 		#endif
 
 		public override string GetInfo()
@@ -59,7 +66,6 @@ namespace ThrottleControlledAvionics
 		public override void OnAwake()
 		{
 			base.OnAwake();
-
 			GameEvents.onVesselWasModified.Add(onVesselModify);
 		}
 
@@ -103,30 +109,41 @@ namespace ThrottleControlledAvionics
 			enabled = isEnabled = !GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCA_PART);
 		}
 
-//		void create_modules()
-//		{
-//			var mt = typeof(TCAModule);
-//			var vt = typeof(VesselWrapper);
-//			foreach(var fi in GetType().GetFields())
-//			{
-//				if(!fi.FieldType.IsSubclassOf(mt)) continue;
-//				var method = fi.FieldType.GetConstructor(new [] {vt});
-//				if(method == null) continue;
-//				fi.SetValue(this, method.Invoke(fi.GetValue(this), new [] {VSL}));
-//			}
-//		}
-//
-//		void init_modules()
-//		{
-//			var mt = typeof(TCAModule);
-//			foreach(var fi in GetType().GetFields())
-//			{
-//				if(!fi.FieldType.IsSubclassOf(mt)) continue;
-//				var method = fi.FieldType.GetMethod("Init");
-//				if(method == null) continue;
-//				method.Invoke(fi.GetValue(this), null);
-//			}
-//		}
+		void create_modules()
+		{
+			var mt = typeof(TCAModule);
+			var vt = typeof(VesselWrapper);
+			if(mod_fields == null)
+				mod_fields = GetType()
+					.GetFields(BindingFlags.DeclaredOnly|BindingFlags.NonPublic|BindingFlags.Instance)
+					.Where(fi => fi.FieldType.IsSubclassOf(mt)).ToArray();
+			modules = new List<TCAModule>(mod_fields.Length);
+			foreach(var fi in mod_fields)
+			{
+				if(!fi.FieldType.IsSubclassOf(mt)) continue;
+				var method = fi.FieldType.GetConstructor(new [] {vt});
+				if(method != null)
+				{
+					fi.SetValue(this, method.Invoke(fi.GetValue(this), new [] {VSL}));
+					modules.Add((TCAModule)fi.GetValue(this));
+				}
+				else Utils.Log("Failed to create {0}. No constructor found.", fi.FieldType);
+			}
+		}
+
+		void delete_modules()
+		{
+			if(mod_fields == null) return;
+			mod_fields.ForEach(mf => mf.SetValue(this, null));
+		}
+
+		void invoke_in_modules(string m)
+		{
+			var mt = typeof(TCAModule);
+			var method = mt.GetMethod(m);
+			if(method == null) Utils.Log("No {0} method in {1} found.", m, mt.Name);
+			for(int i = 0; i<modules.Count; i++) method.Invoke(modules[i], null);
+		}
 
 		void init()
 		{
@@ -136,17 +153,9 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateEngines();
 			enabled = isEnabled = VSL.Engines.Count > 0 || VSL.RCS.Count > 0;
 			if(!enabled) { VSL = null; return; }
-//			create_modules();
-			eng = new EngineOptimizer(VSL);
-			vsc = new VerticalSpeedControl(VSL);
-			hsc = new HorizontalSpeedControl(VSL);
-			alt = new AltitudeControl(VSL);
-			rcs = new RCSOptimizer(VSL);
-			cc  = new CruiseControl(VSL);
-			pn  = new PointNavigator(VSL);
+			create_modules();
 			VSL.Init(); 
-//			init_modules();
-			eng.Init(); vsc.Init(); hsc.Init(); alt.Init(); rcs.Init(); cc.Init(); pn.Init();
+			modules.ForEach(m => m.Init());
 			vessel.OnAutopilotUpdate += block_throttle;
 			hsc.ConnectAutopilot();
 			cc.ConnectAutopilot();
@@ -160,15 +169,13 @@ namespace ThrottleControlledAvionics
 
 		void reset()
 		{
-			if(VSL != null) 
-			{
-				VSL.OnAutopilotUpdate -= block_throttle;
-				hsc.DisconnectAutopilot();
-				cc.DisconnectAutopilot();
-				if(NeededVelocityUpdater != null) 
-					StopCoroutine(NeededVelocityUpdater);
-			}
-			VSL = null; eng = null; vsc = null; hsc = null; alt = null; rcs = null; cc = null; pn = null;
+			if(VSL == null) return;
+			VSL.OnAutopilotUpdate -= block_throttle;
+			if(NeededVelocityUpdater != null) 
+				StopCoroutine(NeededVelocityUpdater);
+			modules.ForEach(m => m.Reset());
+			delete_modules();
+			VSL = null; 
 		}
 
 		IEnumerator<YieldInstruction> NeededVelocityUpdater;
@@ -223,7 +230,12 @@ namespace ThrottleControlledAvionics
 		void block_throttle(FlightCtrlState s)
 		{ if(CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
 
-		public void FixedUpdate()
+		public override void OnUpdate()
+		{
+			if(IsStateSet(TCAState.HaveActiveEngines)) VSL.UpdateMoI();
+		}
+
+		public override void OnFixedUpdate()
 		{
 			//initialize systems
 			VSL.UpdateState();
@@ -235,20 +247,15 @@ namespace ThrottleControlledAvionics
 			SetState(TCAState.HaveActiveEngines);
 			//update state
 			VSL.UpdateCommons();
-			rcs.UpdateState();
 			if(VSL.NumActive > 0)
 			{
-				eng.UpdateState();
-				vsc.UpdateState();
-				hsc.UpdateState();
-				alt.UpdateState();
-				cc.UpdateState();
-				pn.UpdateState();
-				if(vsc.IsActive) 
-					VSL.UpdateVerticalStats();
-				if(hsc.IsActive)
-					VSL.UpdateHorizontalStats();
+//				modules.ForEach(m => m.UpdateState());
+				for(int i = 0; i < modules.Count; i++) modules[i].UpdateState();
+				if(vsc.IsActive) VSL.UpdateVerticalStats();
+				if(hsc.IsActive) VSL.UpdateHorizontalStats();
+				//these follow specific order
 				alt.Update();
+				rad.Update();
 				vsc.Update();
 				pn.Update();
 			}
