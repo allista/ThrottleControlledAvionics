@@ -382,7 +382,6 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label(string.Format("{0}:", e.name), GUILayout.Width(180));
 					var lim = Utils.FloatSlider("", CFG.ManualLimits.GetLimit(e), 0f, 1f, "P1");
 					CFG.ManualLimits.Single[e.part.flightID] = lim;
-					e.forceThrustPercentage(lim*100);
 					GUILayout.EndHorizontal();
 				}
 				GUILayout.EndVertical();
@@ -494,6 +493,7 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
+			if(Event.current.type != EventType.Layout) return;
 			if(TCA == null || !TCA.Controllable || !CFG.GUIVisible || !showHUD) return;
 			Styles.Init();
 			ControlsPos = 

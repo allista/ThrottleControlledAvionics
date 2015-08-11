@@ -282,7 +282,7 @@ namespace ThrottleControlledAvionics
 			{
 				var e = ActiveEngines[i];
 				if(e.Role != TCARole.MANUAL) e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
-				else if(e.Group > 0) e.forceThrustPercentage(CFG.ManualLimits.GetLimit(e)*100);
+				else e.forceThrustPercentage(CFG.ManualLimits.GetLimit(e)*100);
 			}
 			if(NoActiveRCS) return;
 			for(int i = 0; i < NumActiveRCS; i++)
