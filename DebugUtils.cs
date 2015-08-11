@@ -150,8 +150,12 @@ namespace ThrottleControlledAvionics
 	{
 		int count = 0;
 		string name = "";
-		public DebugCounter(string name = "Debug") { this.name = name; }
-		public void Log() { Utils.Log("{0}: {1}", name, count++); }
+		public DebugCounter(string name = "Debug", params object[] args) { this.name = string.Format(name, args); }
+		public void Log(string msg="", params object[] args) 
+		{ 
+			if(msg == "") Utils.Log("{0}: {1}", name, count++); 
+			else Utils.Log("{0}: {1} {2}", name, count++, string.Format(msg, args)); 
+		}
 		public void Reset() { count = 0; }
 	}
 }
