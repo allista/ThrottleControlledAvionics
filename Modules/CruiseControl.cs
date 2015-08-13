@@ -81,6 +81,7 @@ namespace ThrottleControlledAvionics
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && CFG.CruiseControl && VSL.OnPlanet && VSL.refT != null )) return;
+			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
 			if(UserIntervening(s)) { pid.Reset(); return; }
 			var hDir = Vector3.ProjectOnPlane(VSL.Fwd, VSL.Up).normalized;
@@ -93,7 +94,7 @@ namespace ThrottleControlledAvionics
 			pid.Update(angle);
 			if(VSL.NoseUp) s.roll = s.rollTrim = -pid.Action*eff;
 			else s.yaw = s.yawTrim = pid.Action*eff;
-//			Utils.CSV(angle*180, pid.Action, AAf);//debug
+//			DebugUtils.CSV(angle*180, pid.Action, AAf);//debug
 		}
 	}
 }

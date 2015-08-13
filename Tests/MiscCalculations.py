@@ -763,18 +763,8 @@ def sim_Rotation():
     test(2, 2, PID(4.0, 0, 6.0, -1, 1))
     legend()
     plt.show()
-        
-#==================================================================#
-
-dt = 0.09
-
-if __name__ == '__main__':
-#     sim_VSpeed()
-#     sim_VS_Stability()
-#     sim_Altitude()
-#     sim_Attitude()
-#     sim_Rotation()
-
+    
+def drawVectors():
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.lines as mlines
     
@@ -790,14 +780,19 @@ if __name__ == '__main__':
              ]
     
     NoseHor = [
-                (0.08697546, -0.9808488, 0.1742723), #right
-                (-0.714894, -0.1832845, -0.6747839), #up
-                (0.6938025, -0.06589657, -0.7171442), #fwd
-                (-0.81582765618581, 0.0281172059882483, 0.577611165170638), #Up
-                vec(31.6364693307456, 11.629711151123, 41.7471178066544).norm.v, #vel
-                (-0.5714493, -0.1924141, -0.7977581), #[r*Up]
-# (-0.714894, -0.1832845, -0.6747839), #Fwd
+                (0.9065102, 0.2023994, 0.3705047), #right
+                (-0.4193277, 0.3297398, 0.8458344), #up
+                (0.04902627, -0.9221203, 0.3837842), #fwd
+                vec(-124.8083, 99.28588, 254.6226).norm.v, #-T
+#                 vec(8.85797889364285, 42.9853324890137, 16.2476060788045).norm.v, #vel
+#                 vec(14.74958, -277.06, 115.2648).norm.v, #[r*-T]
              ]
+    
+    LookAhead = [
+                    (-0.853199320849177, 0.0880317238524617, 0.514102455253879), #Up
+                    (0.4738491, -0.3380022, 0.8131552), #r
+                    (0.7306709, -0.3828829, -0.5652617), #lookahead
+                 ]
     
     def xzy(v): return v[0], v[2], v[1]
     
@@ -824,5 +819,46 @@ if __name__ == '__main__':
         plt.legend(handles=legends)
         plt.show()
     
-    draw_vectors(*NoseUp)
-    draw_vectors(*NoseHor)
+#     draw_vectors(*NoseUp)
+    draw_vectors(*LookAhead)
+    
+def Gauss(old, cur, ratio = 0.7, poles = 2):
+    for _i in xrange(poles):
+        old = (1-ratio)*old+ratio*cur
+    return old
+
+def EWA(old, cur, ratio = 0.7):
+    return (1-ratio)*old+ratio*cur
+
+def vFilter(v, flt, **kwargs):
+    f = [v[0]]
+    for val in v[:-1]:
+        f.append(flt(f[-1], val, **kwargs))
+    return f
+
+def simFilters():
+    import os
+    import pandas as pa
+    os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Tests'))
+    df = pa.read_csv('alt-gauss-0.1-2.csv')
+    er = df['error']
+    ewa = vFilter(er, EWA, ratio=0.005)
+    gauss = vFilter(er, Gauss, ratio=0.01, poles=2)
+    T = range(len(er))
+    plt.plot(T, er)
+    plt.plot(T, ewa)
+    plt.plot(T, gauss)
+    plt.show()
+        
+#==================================================================#
+
+dt = 0.09
+
+if __name__ == '__main__':
+#     sim_VSpeed()
+#     sim_VS_Stability()
+#     sim_Altitude()
+#     sim_Attitude()
+#     sim_Rotation()
+    simFilters()
+    

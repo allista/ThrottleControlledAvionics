@@ -23,7 +23,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "TRQ";
 
 			[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
-			[Persistent] public float OptimizationPrecision    = 0.1f;  //optimize engines limits until torque error or delta torque error is less than this
+			[Persistent] public float OptimizationPrecision    = 0.01f;  //optimize engines limits until torque error or delta torque error is less than this
 			[Persistent] public float OptimizationAngleCutoff  = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
 			[Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
 			[Persistent] public float TorqueRatioFactor        = 0.1f;  //torque-ratio curve
@@ -37,6 +37,9 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : TorqueOptimizer.Config
 		{
+			[Persistent] public float ThrustOptimizationPrecision = 0.001f;
+			[Persistent] public float ThrustOptimizationCutoff    = 1f;
+
 			//default values for PI controllers
 			[Persistent] public float MaxP = 1f; //value of P slider
 			[Persistent] public float MaxI = 1f; //value of I slider
@@ -50,7 +53,7 @@ namespace ThrottleControlledAvionics
 
 		public Vector3 Steering { get; private set; }
 
-		static bool optimization_pass(IList<EngineWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
+		static bool optimization_for_torque_pass(IList<EngineWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
 		{
 			var compensation = Vector3.zero;
 			var maneuver = Vector3.zero;
@@ -81,7 +84,7 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		public bool Optimize(IList<EngineWrapper> engines, Vector3 needed_torque)
+		public bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque)
 		{
 			var num_engines = engines.Count;
 			var zero_torque = needed_torque.IsZero();
@@ -127,7 +130,7 @@ namespace ThrottleControlledAvionics
 					}
 				}
 				//optimize limits
-				if(!optimization_pass(engines, num_engines, target, error, ENG.OptimizationPrecision)) 
+				if(!optimization_for_torque_pass(engines, num_engines, target, error, ENG.OptimizationPrecision)) 
 					break;
 			}
 			var optimized = TorqueError < ENG.OptimizationTorqueCutoff || 
@@ -143,8 +146,8 @@ namespace ThrottleControlledAvionics
 
 		public void PresetLimitsForTranslation()
 		{
-			var num_engines = VSL.ManeuverEngines.Count;
-			if(num_engines == 0 || VSL.Translation.IsZero()) return;
+			var num_engines = VSL.ManualEngines.Count;
+			if(VSL.Translation.IsZero()) return;
 			var trans = new Vector3(
 				VSL.Translation.x, 
 				VSL.Translation.z, 
@@ -156,6 +159,89 @@ namespace ThrottleControlledAvionics
 				e.limit_tmp = Vector3.Dot(e.thrustDirection, trans);
 				e.limit = e.limit_tmp > 0? e.limit_tmp : 0;
 			}
+		}
+
+		static bool optimization_for_thrust_pass(IList<EngineWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
+		{ 
+			var compensation = Vector3.zero;
+			for(int i = 0; i < num_engines; i++)
+			{
+				var e = engines[i];
+				e.limit_tmp = 0;
+				if(Vector3.Dot(e.wThrustLever, target) < 0) continue;
+				e.limit_tmp = Vector3.Dot(e.wThrustDir, target)/target_m;
+				if(e.limit_tmp > 0)
+					compensation += e.wThrustDir*e.nominalCurrentThrust(e.throttle * e.limit);
+//				Utils.Log("{0}.limit_tmp = {1}", e.name, e.limit_tmp);//debug
+			}
+//			Utils.Log("target {0}\ncompensatio {1}", target, compensation);//debug
+			var compensation_m = compensation.magnitude;
+			if(compensation_m < eps) return false;
+			var limits_norm = Mathf.Clamp01(target_m/compensation_m);
+			for(int i = 0; i < num_engines; i++)
+			{
+				var e = engines[i];
+				if(e.limit_tmp > 0)
+					e.limit = Mathf.Clamp01(e.limit*(1-e.limit_tmp*limits_norm));
+//				Utils.Log("{0}.limit = {1}", e.name, e.limit);//debug
+			}
+			return true;
+		}
+
+		public bool OptimizeLimitsForLiftoff(IList<EngineWrapper> engines)
+		{
+			var num_engines = engines.Count;
+			if(num_engines < 2 || !VSL.LandedOrSplashed || VSL.VSF.Equals(0)) return true;
+			float angle = -1, last_angle = -1, best_angle = -1;
+			Vector3 up = -VSL.Up;
+			Vector3 thrust, target;
+//			Utils.Log("start: ===============================");//debug
+			for(int i = 0; i < ENG.MaxIterations; i++)
+			{
+//				Utils.Log("pass: ===============================");//debug
+				//calculate current errors and target
+				thrust = Vector3.zero;
+				for(int j = 0; j < num_engines; j++)
+				{ var e = engines[j]; thrust += e.wThrustDir*e.nominalCurrentThrust(e.throttle * e.limit); }
+				angle  = Vector3.Angle(thrust, up);
+				target = thrust-Vector3.Project(thrust, up);
+//				Utils.Log("{0}.Thrust->Up angle: {1}", VSL.vessel.vesselName, angle);//debug
+//				Utils.Log("{0}.Thrust: {1}\nError: {2}; Error->forwad {3}", 
+//				          VSL.vessel.vesselName, thrust, target, Vector3.Angle(target, VSL.refT.up));//debug
+				//remember the best state
+				if(angle < best_angle || best_angle < 0) 
+				{ 
+					for(int j = 0; j < num_engines; j++) 
+					{ var e = engines[j]; e.best_limit = e.limit; }
+					best_angle = angle;
+				}
+				//check convergence conditions
+				if(angle < ENG.OptimizationPrecision || 
+				   last_angle > 0 && Mathf.Abs(angle-last_angle) < ENG.ThrustOptimizationPrecision*last_angle)
+					break;
+				last_angle = angle;
+				//normalize limits before optimization
+				var limit_norm = 0f;
+				for(int j = 0; j < num_engines; j++) 
+				{ 
+					var e = engines[j];
+					if(limit_norm < e.limit) limit_norm = e.limit; 
+				}
+				if(limit_norm > 0)
+				{
+					for(int j = 0; j < num_engines; j++) 
+					{ var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
+				}
+				//optimize limits
+				if(!optimization_for_thrust_pass(engines, num_engines, target, target.magnitude, ENG.OptimizationPrecision)) 
+					break;
+			}
+			var optimized = best_angle < ENG.ThrustOptimizationCutoff;
+			for(int j = 0; j < num_engines; j++) 
+			{ var e = engines[j]; e.limit = e.best_limit; }
+//				Utils.Log("{0}.{1}.best_limit = {2}", VSL.vessel.vesselName, e.name, e.best_limit); }//debug 
+			Utils.Log("Thrust: {0}.optimized {1}; angle {2}", VSL.vessel.vesselName, optimized, best_angle);//debug
+			return optimized;
 		}
 
 		public void Steer()
@@ -182,11 +268,11 @@ namespace ThrottleControlledAvionics
 				needed_torque = VSL.E_TorqueLimits.Clamp(Vector3.Project(needed_torque, Steering) * Steering.magnitude);
 			}
 			//optimize engines; if failed, set the flag and kill torque if requested
-			if(!Optimize(VSL.SteeringEngines, needed_torque) && !needed_torque.IsZero())
+			if(!OptimizeLimitsForTorque(VSL.SteeringEngines, needed_torque) && !needed_torque.IsZero())
 			{
 //				DebugEngines(vessel.SteeringEngines, needed_torque);//debug
 				for(int j = 0; j < num_engines; j++) VSL.SteeringEngines[j].InitLimits();
-				Optimize(VSL.SteeringEngines, Vector3.zero);
+				OptimizeLimitsForTorque(VSL.SteeringEngines, Vector3.zero);
 				SetState(TCAState.Unoptimized);
 			}
 //			DebugEngines(vessel.SteeringEngines, needed_torque);//debug

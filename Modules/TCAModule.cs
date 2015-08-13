@@ -62,12 +62,7 @@ namespace ThrottleControlledAvionics
 
 	public abstract class AutopilotModule : TCAModule
 	{
-		public override void Init() 
-		{ 
-			if(VSL.OnAutopilotUpdate == null || 
-			   Array.IndexOf(VSL.OnAutopilotUpdate.GetInvocationList(), (FlightInputCallback)Update) < 0)
-				VSL.OnAutopilotUpdate += Update;
-		}
+		public override void Init() { VSL.OnAutopilotUpdate -= Update; VSL.OnAutopilotUpdate += Update; }
 		protected abstract void Update(FlightCtrlState s);
 		public override void Reset() { VSL.OnAutopilotUpdate -= Update; }
 

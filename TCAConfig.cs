@@ -139,7 +139,7 @@ Notes:
 		[Persistent] public bool    FollowPath;
 		[Persistent] public float   MaxNavSpeed = 100;
 		[Persistent] public bool    ShowWaypoints;
-		public Queue<MapTarget>     Waypoints = new Queue<MapTarget>();
+		public Queue<WayPoint>      Waypoints = new Queue<WayPoint>();
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
 		[Persistent] public LimitsConfig ManualLimits = new LimitsConfig();
@@ -160,15 +160,15 @@ Notes:
 			base.Load(node);
 			var val = node.GetValue(Utils.PropertyName(new {VesselID}));
 			if(!string.IsNullOrEmpty(val)) VesselID = new Guid(val);
-			foreach(var n in node.GetNodes(MapTarget.NODE_NAME))
-				Waypoints.Enqueue(MapTarget.FromConfig(n));
+			foreach(var n in node.GetNodes(WayPoint.NODE_NAME))
+				Waypoints.Enqueue(WayPoint.FromConfig(n));
 		}
 
 		public override void Save(ConfigNode node)
 		{
 			node.AddValue(Utils.PropertyName(new {VesselID}), VesselID.ToString());
 			foreach(var wp in Waypoints)
-				wp.Save(node.AddNode(MapTarget.NODE_NAME));
+				wp.Save(node.AddNode(WayPoint.NODE_NAME));
 			base.Save(node);
 		}
 
@@ -222,6 +222,7 @@ Notes:
 		public static bool ConfigsLoaded { get; private set; }
 		public static bool GlobalsLoaded { get; private set; }
 		static readonly List<ConfigNode> other_games = new List<ConfigNode>();
+		static string LoadedGame;
 
 		#region From KSPPluginFramework
 		//Combine the Location of the assembly and the provided string.
@@ -297,11 +298,13 @@ Notes:
 
 		public static void LoadConfigs(bool reload = false)
 		{
-			if(ConfigsLoaded && !reload) return ;
+			if(ConfigsLoaded && !reload && 
+			   LoadedGame == CurrentGame) return;
 			var cnode = loadNode(FilePath(CONFIGNAME));
 			if(cnode != null) LoadConfigs(cnode);
 			else Configs.Clear();
 			ConfigsLoaded = true;
+			LoadedGame = CurrentGame;
 		}
 
 		public static void LoadGlobals(ConfigNode node) 

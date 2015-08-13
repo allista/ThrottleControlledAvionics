@@ -254,8 +254,8 @@ namespace ThrottleControlledAvionics
 				if(vsc.IsActive) VSL.UpdateVerticalStats();
 				if(hsc.IsActive) VSL.UpdateHorizontalStats();
 				//these follow specific order
+				rad.Update();
 				alt.Update();
-//				rad.Update();
 				vsc.Update();
 				pn.Update();
 			}
@@ -268,7 +268,7 @@ namespace ThrottleControlledAvionics
 				if(VSL.BalancedEngines.Count > 0)
 				{
 					VSL.UpdateTorque(VSL.ActiveManualEngines);
-					eng.Optimize(VSL.BalancedEngines, Vector3.zero);
+					eng.OptimizeLimitsForTorque(VSL.BalancedEngines, Vector3.zero);
 				}
 				VSL.UpdateTorque(VSL.ActiveManualEngines, VSL.BalancedEngines);
 				//:optimize limits for steering

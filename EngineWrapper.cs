@@ -14,6 +14,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 specificTorque   = Vector3.zero;
 		public Vector3 currentTorque    = Vector3.zero;
 		public Vector3 thrustDirection  = Vector3.zero;
+		public Vector3 wThrustLever     = Vector3.zero;
 		public float   currentTorque_m;
 		public float   torqueRatio;
 		public float   limit, best_limit, limit_tmp;
@@ -95,7 +96,7 @@ namespace ThrottleControlledAvionics
 		public override float thrustLimit
 		{
 			get { return rcs.thrusterPower/nominalThrusterPower; }
-			set { rcs.thrusterPower = Mathf.Clamp(Utils.WAverage(rcs.thrusterPower, value*nominalThrusterPower), 0, nominalThrusterPower); }
+			set { rcs.thrusterPower = Mathf.Clamp(Utils.EWA(rcs.thrusterPower, value*nominalThrusterPower), 0, nominalThrusterPower); }
 		}
 
 		public override bool isOperational 

@@ -149,7 +149,8 @@ namespace ThrottleControlledAvionics
 			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
 			action = Mathf.Clamp(act, Min, Max);
 			if(!act.Equals(action)) integral_error = old_ierror;
-			Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; action {4}", this, P*error, I*integral_error, D*(error-last_error)/TimeWarp.fixedDeltaTime, action);//debug
+//			Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; error {4}, action {5}", 
+//			          this, P*error, I*integral_error, D*(error-last_error)/TimeWarp.fixedDeltaTime, error, action);//debug
 			last_error = error;
 		}
 	}

@@ -131,17 +131,16 @@ namespace ThrottleControlledAvionics
 			var style = Styles.grey;
 			if(TCA.IsStateSet(TCAState.Enabled))
 			{
-				if(TCA.IsStateSet(TCAState.AvoidingObstacle))
-				{ state = "Avoiding Obstacle"; style = Styles.red; }
-				else if(TCA.IsStateSet(TCAState.ObstacleAhead))
+				if(TCA.IsStateSet(TCAState.ObstacleAhead))
 				{ state = "Obstacle Ahead"; style = Styles.red; }
-//				else if(TCA.IsStateSet(TCAState.ObstacleAhead))
-//				{ state = string.Format("Obstacle Ahead: {0:F1}s", 
-//				                        VSL.DistanceAhead/-VSL.SpeedAhead); style = Styles.red; }
+				else if(TCA.IsStateSet(TCAState.GroundCollision))
+				{ state = "Ground Collision"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
 				{ state = "Loosing Altitude"; style = Styles.red; }
                 else if(TCA.IsStateSet(TCAState.Unoptimized))
-				{ state = "Engines Unoptimized"; style = Styles.red; }
+				{ state = "Engines Unoptimized"; style = Styles.yellow; }
+				else if(TCA.IsStateSet(TCAState.Ascending))
+				{ state = "Ascending"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
 				{ state = "Altitude Control"; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
@@ -285,15 +284,23 @@ namespace ThrottleControlledAvionics
 				                    selecting_map_target? Styles.red_button : Styles.yellow_button,
 				                    GUILayout.Width(100)))
 				{
-					selecting_map_target = !selecting_map_target;
-					if(selecting_map_target) MapView.EnterMapView();
-					else MapView.ExitMapView();
+					if(VSL.vessel.targetObject != null && VSL.vessel.targetObject.GetVessel() != null)
+					{
+						CFG.Waypoints.Enqueue(new WayPoint(VSL.vessel.targetObject.GetVessel()));
+						CFG.ShowWaypoints = true;
+					}
+					else
+					{
+						selecting_map_target = !selecting_map_target;
+						if(selecting_map_target) MapView.EnterMapView();
+						else MapView.ExitMapView();
+					}
 				}
 				if(GUILayout.Button("Follow Path", 
 				                    CFG.FollowPath? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(100)))
 					TCA.ToggleFollowPath();
-				CFG.MaxNavSpeed = Utils.FloatSlider("Max.V m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 120);
+				CFG.MaxNavSpeed = Utils.FloatSlider("Max.V m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 100);
 				GUILayout.EndHorizontal();
 			}
 			else 
@@ -320,16 +327,21 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical();
 				int i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
-				var del = new HashSet<MapTarget>();
+				var del = new HashSet<WayPoint>();
 				var col = GUI.contentColor;
 				foreach(var wp in CFG.Waypoints)
 				{
 					GUILayout.BeginHorizontal();
 					GUI.contentColor = marker_color(i, num);
-					GUILayout.Label(string.Format("{0}) {1}", 1+i, wp.Name)+
-					                ((CFG.FollowPath && i == 0)? 
-					                 string.Format(" <= {0}", distance_to_str(vessel, wp)) : ""), 
-					                GUILayout.ExpandWidth(true));
+					var label = string.Format("{0}) {1}", 1+i, wp.Name);
+					if(CFG.FollowPath && i == 0)
+					{
+						var d = wp.DistanceTo(vessel);
+						var t = new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed));
+						label += string.Format(" <= {0}, ETA {1:c}", distance_to_str(d), t);
+					}
+					if(GUILayout.Button(label,GUILayout.ExpandWidth(true)))
+						FlightGlobals.fetch.SetVesselTarget(wp);
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
 					if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(25))) del.Add(wp);
@@ -342,7 +354,7 @@ namespace ThrottleControlledAvionics
 				else if(del.Count > 0)
 				{
 					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
-					CFG.Waypoints = new Queue<MapTarget>(edited);
+					CFG.Waypoints = new Queue<WayPoint>(edited);
 				}
 				GUILayout.EndVertical();
 				GUILayout.EndScrollView();
@@ -391,8 +403,8 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 		}
 
-		static double marker_radius(Vessel vsl, MapTarget t)
-		{ return vsl.mainBody.Radius/15 * Utils.ClampL(t.DistanceTo(vsl)/Math.PI, 0.025); }
+		static double marker_radius(Vessel vsl, WayPoint t)
+		{ return vsl.mainBody.Radius/15 * Utils.ClampL(t.AngleTo(vsl)/Math.PI, 0.025); }
 
 		static Color marker_color(int i, float N)
 		{ 
@@ -403,9 +415,8 @@ namespace ThrottleControlledAvionics
 				Color.Lerp(Color.green, Color.cyan, (t-0.5f)*2).Normalized(); 
 		}
 
-		static string distance_to_str(Vessel vsl, MapTarget t)
+		static string distance_to_str(double d)
 		{
-			var d = t.DistanceTo(vsl)*vsl.mainBody.Radius;
 			var k = d/1000;
 			return k < 1? string.Format("{0:F0}m", d) : string.Format("{0:F1}km", k);
 		}
@@ -422,14 +433,19 @@ namespace ThrottleControlledAvionics
 				var coords = Utils.GetMouseCoordinates(vessel.mainBody);
 				if(coords != null)
 				{
-					var t = new MapTarget(coords);
+					var t = new WayPoint(coords);
 					var R = marker_radius(vessel, t);
 					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f), R);
 					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50), 
-					          string.Format("{0} {1}\n{2}", coords, distance_to_str(vessel, t), 
+					          string.Format("{0} {1}\n{2}", coords, distance_to_str(t.DistanceTo(vessel)), 
 					                        ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon)));
 					if(!clicked && Input.GetMouseButtonDown(0)) clicked = true;
-					if(clicked && Input.GetMouseButtonUp(0)) { CFG.Waypoints.Enqueue(t); clicked = false; }
+					if(clicked && Input.GetMouseButtonUp(0)) 
+					{ 
+						if(CFG.Waypoints.Count == 0) CFG.ShowWaypoints = true;
+						CFG.Waypoints.Enqueue(t); 
+						clicked = false;
+					}
 					if(Input.GetMouseButtonDown(1)) { selecting_map_target = false; clicked = false; }
 				}
 			}
@@ -437,7 +453,7 @@ namespace ThrottleControlledAvionics
 			{
 				var i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
-				MapTarget t0 = null; double r0 = 0;
+				WayPoint t0 = null; double r0 = 0;
 				foreach(var t in CFG.Waypoints)
 				{
 					var c = marker_color(i, num);

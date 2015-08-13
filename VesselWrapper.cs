@@ -56,6 +56,7 @@ namespace ThrottleControlledAvionics
 		public Vector6 R_TorqueLimits { get; private set; } = new Vector6(); //torque limits of rcs
 
 		public float M { get; private set; }
+		public float TWR { get; private set; }
 		public float MaxTWR { get; private set; }
 		public float AccelSpeed { get; private set; }
 		public float DecelSpeed { get; private set; }
@@ -78,6 +79,7 @@ namespace ThrottleControlledAvionics
 		public float    VerticalSpeed { get; private set; }
 		public float    VerticalAccel { get; private set; }
 		public float    Altitude { get; private set; }
+		public float    AltitudeAhead;
 		public float    TerrainAltitude { get; private set; }
 		public Vector3d HorizontalVelocity { get; private set; }
 
@@ -172,9 +174,9 @@ namespace ThrottleControlledAvionics
 
 		public void SortEngines()
 		{
-			SteeringEngines.Clear();
-			ManeuverEngines.Clear();
-			BalancedEngines.Clear();
+			SteeringEngines.Clear(); SteeringEngines.Capacity = NumActive;
+			ManeuverEngines.Clear(); ManeuverEngines.Capacity = NumActive;
+			BalancedEngines.Clear(); BalancedEngines.Capacity = NumActive;
 			ActiveManualEngines.Clear();
 			for(int i = 0; i < NumActive; i++)
 			{
@@ -209,23 +211,23 @@ namespace ThrottleControlledAvionics
 					var t = ActiveRCS[i];
 					t.InitState();
 					t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
-					var lever = t.wThrustPos-wCoM;
-					t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(lever, t.wThrustDir));
-					t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
+					t.wThrustLever = t.wThrustPos-wCoM;
+					t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.wThrustLever, t.wThrustDir));
+					t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(t.wThrustLever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
 					t.currentTorque = t.Torque(1);
 					t.currentTorque_m = t.currentTorque.magnitude;
 				}
 			}
-			//calculate specific torques and min imbalance
+			//init Engine wrappers, calculate min imbalance
 			var min_imbalance = Vector3.zero;
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
 				e.InitState();
 				e.thrustDirection = refT.InverseTransformDirection(e.wThrustDir);
-				var lever = e.wThrustPos-wCoM;
-				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(lever, e.wThrustDir));
-				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(lever.normalized, e.wThrustDir))), 
+				e.wThrustLever = e.wThrustPos-wCoM;
+				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(e.wThrustLever, e.wThrustDir));
+				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(e.wThrustLever.normalized, e.wThrustDir))), 
 					GLB.ENG.TorqueRatioFactor);
 				min_imbalance += e.Torque(0);
 			}
@@ -381,6 +383,7 @@ namespace ThrottleControlledAvionics
 				if(e.thrustInfo == null) continue;
 				Thrust += e.wThrustDir*e.finalThrust;
 			}
+			TWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/TCAConfiguration.G/M : 0f;
 			Fwd = Vector3.Cross(refT.right, -Thrust).normalized;
 			NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
 
@@ -404,10 +407,10 @@ namespace ThrottleControlledAvionics
 				UpdateAltitude();
 				//use relative vertical speed instead of absolute
 				upV = CFG.AltitudeAboveTerrain? 
-					Utils.WAverage(VerticalSpeed, (Altitude - old_alt)/TimeWarp.fixedDeltaTime) : 
+					Utils.EWA(VerticalSpeed, (Altitude - old_alt)/TimeWarp.fixedDeltaTime) : 
 					CoM_verticalSpeed;
 			} else upV = CoM_verticalSpeed;
-			VerticalAccel = Utils.WAverage(VerticalAccel, (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime);
+			VerticalAccel = Utils.EWA(VerticalAccel, (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime);
 			VerticalSpeed = upV;
 			//calculate total downward thrust and slow engines' corrections
 			var down_thrust = 0f;
@@ -455,7 +458,7 @@ namespace ThrottleControlledAvionics
 					!MoI.y.Equals(0)? MaxTorque.y/MoI.y : float.MaxValue,
 					!MoI.z.Equals(0)? MaxTorque.z/MoI.z : float.MaxValue
 				);
-			MaxAngularA = Utils.WAverage(MaxAngularA, new_angularA);
+			MaxAngularA = Utils.EWA(MaxAngularA, new_angularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
 		}
 
@@ -516,8 +519,9 @@ namespace ThrottleControlledAvionics
 		AltitudeControl        = 1 << 4,
 		LoosingAltitude 	   = 1 << 5,
 		ObstacleAhead	 	   = 1 << 6,
-		AvoidingObstacle 	   = 1 << 7,
-		Unoptimized			   = 1 << 8,
+		GroundCollision	 	   = 1 << 7,
+		Ascending		 	   = 1 << 8,
+		Unoptimized			   = 1 << 9,
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,
 		NoEC                   = Enabled,

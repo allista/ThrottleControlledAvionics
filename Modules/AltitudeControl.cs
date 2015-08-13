@@ -20,6 +20,7 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "ALT";
 
+			[Persistent] public float AltAheadFilter = 0.95f; //altitude ahead should less than Altitude*AltAheadFilter to take effect
 			[Persistent] public float MaxSpeed = 100f; //Maximum absolute vertical velocity
 			[Persistent] public float ErrF  = 0.01f; //altitude error coefficient
 			[Persistent] public float TWRp  = 2f;    //twr power factor
@@ -61,7 +62,6 @@ namespace ThrottleControlledAvionics
 
 		public override void Enable(bool enable = true)
 		{
-//			if(enable == CFG.ControlAltitude) return;
 			CFG.ControlAltitude = enable;
 			if(CFG.ControlAltitude)
 			{
@@ -74,25 +74,39 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			SetState(TCAState.AltitudeControl);
-			var alt_error = CFG.DesiredAltitude-VSL.Altitude;
+			var error = CFG.DesiredAltitude; 
+			if(CFG.AltitudeAboveTerrain && 
+			   VSL.AltitudeAhead > 0 &&
+			   VSL.AltitudeAhead < VSL.Altitude*ALT.AltAheadFilter)
+			{
+				SetState(TCAState.Ascending);
+				error -= VSL.AltitudeAhead;
+			}
+			else error -= VSL.Altitude;
 			if((VSL.AccelSpeed > 0 || VSL.DecelSpeed > 0))
 			{
 				if(VSL.VerticalSpeed > 0)
-					jets_pid.P = Mathf.Clamp(ALT.ErrF*Mathf.Abs(alt_error/VSL.VerticalSpeed), 
+					jets_pid.P = Mathf.Clamp(ALT.ErrF*Mathf.Abs(error/VSL.VerticalSpeed), 
 					                                    0, jets_pid.D);
 				else if(VSL.VerticalSpeed < 0)
 					jets_pid.P = Mathf.Clamp(Mathf.Pow(VSL.MaxTWR, ALT.TWRp)/Mathf.Abs(VSL.VerticalSpeed), 
 					                                    0, Utils.ClampH(jets_pid.D/VSL.MaxTWR/ALT.TWRd, jets_pid.D));
 				else jets_pid.P = ALT.JetsPID.P;
-				jets_pid.Update(alt_error);
+				jets_pid.Update(error);
 				CFG.VerticalCutoff = jets_pid.Action;
 			}
 			else 
 			{
-				rocket_pid.Update(alt_error);
+				rocket_pid.Update(error);
 				CFG.VerticalCutoff = rocket_pid.Action;
 			}
-//			Utils.CSV(VSL.Altitude, alt_error, CFG.VerticalCutoff, VSL.VSF, VSL.VerticalSpeed);//debug
+			//slow loosing altitude alert
+//			var next_error = Utils.EWA(prev_error, CFG.DesiredAltitude-VSL.Altitude, 0.005f); 
+//			if(next_error > 0 && next_error > prev_error)
+//				SetState(TCAState.LoosingAltitude);
+//			prev_error = next_error;
+//			DebugUtils.CSV(CFG.DesiredAltitude-VSL.Altitude, prev_error);
+//			DebugUtils.CSV(VSL.Altitude, alt_error, CFG.VerticalCutoff, VSL.VSF, VSL.VerticalSpeed);//debug
 		}
 	}
 }

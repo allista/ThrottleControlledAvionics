@@ -2,6 +2,7 @@ UseStockAppLauncher  = false
 IntegrateIntoCareer  = true
 RoleSymmetryInFlight = true
 InputDeadZone        = 0.03
+MaxManualGroups      = 10
 
 RCS
 {
@@ -18,6 +19,8 @@ ENG
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 45
 	OptimizationTorqueCutoff = 1
+	ThrustOptimizationPrecision = 0.001
+	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 0.1
 	
 	MaxP = 1
@@ -61,7 +64,8 @@ VSC
 	UpAf              = 0.2  //factor for the upA adjustment of VerticalCutoff
 	ASf               = 2    //factor for the acceleration speed adjustment of VerticalCutoff
 	DSf               = 1    //factor for the deceleration speed adjustment of VerticalCutoff
-	MaxDeltaV         = 0.5
+	TimeAhead         = 5
+	FallingTime       = 0.5
 }
 
 ALT
@@ -102,7 +106,7 @@ HSC
 	MinHvThreshold        = 10
 	MoIFactor             = 0.01
 	TWRf                  = 0.8
-	TorF                  = 1.2
+	TorF                  = 0.8
 }
 
 CC
@@ -119,16 +123,32 @@ CC
 PN
 {
 	MinDistance       = 30
+	MinTime           = 10
 	OnPathMinDistance = 300
+	DistanceF         = 0.08
 	MinSpeed          = 10
 	MaxSpeed          = 300
-	MaxSpeedF         = 10
+	DeltaSpeed        = 10
+	DeltaSpeedF       = 0.5
+	FallingCorrection = 10
+	CorrectionTime    = 5
 	
 	DistancePID
 	{
 		P = 2.0
 		I = 0.0
-		D = 6.0
+		D = 8.0
 	}
+}
+
+RAD
+{
+	MaxViewAngle       = 15
+	LookAheadTime      = 20
+	LookAheadFilter    = 1
+	ViewAngleFactor    = 0.04
+	MinAltitudeFactor  = 2
+	MinClosingSpeed    = 4
+	NHVf               = 0.5
 }
 //:mode=c#:

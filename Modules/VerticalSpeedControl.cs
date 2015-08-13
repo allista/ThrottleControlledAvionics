@@ -28,7 +28,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float UpAf                  = 0.2f;  //factor for the upA adjustment of VerticalCutoff
 			[Persistent] public float ASf                   = 2f;    //factor for the acceleration speed adjustment of VerticalCutoff
 			[Persistent] public float DSf                   = 1f;    //factor for the deceleration speed adjustment of VerticalCutoff
-			[Persistent] public float MaxDeltaV             = 0.5f;  //maximum VS delta that is considered safe enough not to alarm user about Loosing Altitude
+			[Persistent] public float TimeAhead             = 5f;
+			[Persistent] public float FallingTime           = 1f;
 		}
 		static Config VSC { get { return TCAConfiguration.Globals.VSC; } }
 
@@ -37,7 +38,7 @@ namespace ThrottleControlledAvionics
 		public override void UpdateState()
 		{ IsActive = (CFG.ControlAltitude || CFG.VerticalCutoff < VSC.MaxSpeed) && VSL.OnPlanet; }
 
-		float deltaV;
+		double StartedFalling;
 
 		public void Update()
 		{
@@ -58,14 +59,15 @@ namespace ThrottleControlledAvionics
 			VSL.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.MinVSF);
 			//loosing altitude alert
 			if(VSL.LandedOrSplashed) return;
-			var dV = VSL.CFG.VerticalCutoff-VSL.VerticalSpeed;
-			if(VSL.VerticalSpeed < 0 && dV > 0)
+			if(VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0 && 
+			   (!CFG.ControlAltitude || VSL.Altitude < CFG.DesiredAltitude-VSL.VerticalSpeed*VSC.TimeAhead))
 			{
-				if(dV < VSC.MaxDeltaV) deltaV += dV*TimeWarp.fixedDeltaTime;
+				if(StartedFalling < 0) { StartedFalling = Planetarium.GetUniversalTime(); return; }
+				if(Planetarium.GetUniversalTime() - StartedFalling < VSC.FallingTime) return;
 				else SetState(TCAState.LoosingAltitude);
 			}
-			else deltaV = 0;
-//			Utils.CSV(VerticalSpeed, CFG.VerticalCutoff, maxTWR, VerticalAccel, upAF, setpoint-CFG.VerticalCutoff, K);//debug
+			else StartedFalling = -1;
+//			DebugUtils.CSV(VerticalSpeed, CFG.VerticalCutoff, maxTWR, VerticalAccel, upAF, setpoint-CFG.VerticalCutoff, K);//debug
 		}
 	}
 }

@@ -21,9 +21,14 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "PN";
 
 			[Persistent] public float MinDistance       = 30;
+			[Persistent] public float MinTime           = 10;
 			[Persistent] public float OnPathMinDistance = 300;
 			[Persistent] public float MinSpeed          = 10;
 			[Persistent] public float MaxSpeed          = 300;
+			[Persistent] public float DeltaSpeed        = 10f;
+			[Persistent] public float DeltaSpeedF       = 0.5f;
+			[Persistent] public float FallingCorrection = 10f;
+			[Persistent] public float CorrectionTime    = 5f;
 			[Persistent] public float DistanceF         = 50;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
@@ -32,6 +37,7 @@ namespace ThrottleControlledAvionics
 
 		readonly PIDf_Controller pid = new PIDf_Controller();
 		ITargetable target;
+		float DeltaSpeed;
 
 		public override void Init()
 		{
@@ -46,19 +52,25 @@ namespace ThrottleControlledAvionics
 
 		public void GoToTarget(bool enable = true)
 		{
-//			if(enable == CFG.GoToTarget) return;
 			if(enable && VSL.vessel.targetObject == null) return;
 			CFG.GoToTarget = enable;
-			if(CFG.GoToTarget) start_to(VSL.vessel.targetObject);
+			if(CFG.GoToTarget) 
+			{
+				CFG.FollowPath = false;
+				start_to(VSL.vessel.targetObject);
+			}
 			else finish();
 		}
 
 		public void FollowPath(bool enable = true)
 		{
-//			if(enable == CFG.FollowPath) return;
 			if(enable && CFG.Waypoints.Count == 0) return;
 			CFG.FollowPath = enable;
-			if(CFG.FollowPath) start_to(CFG.Waypoints.Peek());
+			if(CFG.FollowPath) 
+			{
+				CFG.GoToTarget = false;
+				start_to(CFG.Waypoints.Peek());	
+			}
 			else finish();
 		}
 
@@ -89,7 +101,7 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{
 			if(!IsActive || target == null) return;
-			var mt = target as MapTarget;
+			var mt = target as WayPoint;
 			if(mt != null) mt.Update(VSL.vessel.mainBody);
 			var dr = Vector3.ProjectOnPlane(target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
 			var distance = dr.magnitude;
@@ -101,7 +113,9 @@ namespace ThrottleControlledAvionics
 					while(CFG.Waypoints.Count > 0 && CFG.Waypoints.Peek() == target) CFG.Waypoints.Dequeue();
 					if(CFG.Waypoints.Count > 0) { start_to(CFG.Waypoints.Peek()); return; }
 				}
-			   	finish(); return;
+				//keep trying if we came in too fast
+				if(distance/Vector3d.Dot(VSL.HorizontalVelocity, dr.normalized) > PN.MinTime)
+				{ finish(); return; }
 			}
 			//don't slow down on intermediate waypoints too much
 			if(CFG.FollowPath && CFG.Waypoints.Count > 1 && distance < PN.OnPathMinDistance)
@@ -111,15 +125,34 @@ namespace ThrottleControlledAvionics
 			pid.Max = CFG.MaxNavSpeed;
 			pid.D   = PN.DistancePID.D*VSL.M/Utils.ClampL(VSL.Thrust.magnitude/TCAConfiguration.G, 1);
 			pid.Update(distance*PN.DistanceF);
-			CFG.NeededHorVelocity = dr.normalized*pid.Action;
+			//increase the needed velocity slowly
+			var r = dr.normalized;
+			var cur_vel = Utils.ClampL((float)Vector3d.Dot(VSL.HorizontalVelocity, r), 1);
+			var mtwr = Utils.ClampL(VSL.MaxTWR, 0.1f);
+			DeltaSpeed = PN.DeltaSpeed*mtwr*Mathf.Pow(PN.DeltaSpeed/(cur_vel+PN.DeltaSpeed), PN.DeltaSpeedF);
+			//make a correction if falling or flyin too low
+			if(IsStateSet(TCAState.LoosingAltitude))
+			{
+				DeltaSpeed /= 1-Utils.ClampH(VSL.VerticalSpeed, 0)*PN.FallingCorrection;
+				if(DeltaSpeed < 1) cur_vel *= (10-DeltaSpeed)/10;
+			}
+			if(CFG.ControlAltitude)
+			{
+				var alt_error = CFG.DesiredAltitude-VSL.Altitude;
+				if(alt_error > 0) DeltaSpeed /= 1+alt_error;
+			}
+			//set needed velocity and starboard
+			CFG.NeededHorVelocity = pid.Action-cur_vel > DeltaSpeed? r*(cur_vel+DeltaSpeed) : r*pid.Action;
 			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
+//			Utils.Log("Delta {0}; NHV {1}", 
+//			          DeltaSpeed, CFG.NeededHorVelocity);//debug
 //			Utils.Log("Distance: {0}, max {1}, err {2}, nvel {3}", 
 //			          distance, PN.OnPathMinDistance, distance*PN.DistanceF, pid.Action);//debug
 		}
 	}
 
 	//adapted from MechJeb
-	public class MapTarget : ConfigNodeObject, ITargetable
+	public class WayPoint : ConfigNodeObject, ITargetable
 	{
 		new public const string NODE_NAME = "WAYPOINT";
 
@@ -129,13 +162,15 @@ namespace ThrottleControlledAvionics
 
 		GameObject go = new GameObject();
 
-		public MapTarget() {}
-		public MapTarget(Coordinates c) 
+		public WayPoint() {}
+		public WayPoint(Coordinates c) 
 		{ Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); }
+		public WayPoint(Vessel v) 
+		{ Lat = v.latitude; Lon = v.longitude; Name = v.vesselName; }
 
-		static public MapTarget FromConfig(ConfigNode node)
+		static public WayPoint FromConfig(ConfigNode node)
 		{
-			var wp = new MapTarget();
+			var wp = new WayPoint();
 			wp.Load(node);
 			return wp;
 		}
@@ -146,13 +181,14 @@ namespace ThrottleControlledAvionics
 
 
 		//using Spherical Law of Cosines (for other methods see http://www.movable-type.co.uk/scripts/latlong.html)
-		public double DistanceTo(Vessel vsl)
+		public double AngleTo(Vessel vsl)
 		{
 			var fi1 = Lat*Mathf.Deg2Rad;
 			var fi2 = vsl.latitude*Mathf.Deg2Rad;
 			var dlambda = (vsl.longitude-Lon)*Mathf.Deg2Rad;
 			return Math.Acos(Math.Sin(fi1)*Math.Sin(fi2)+Math.Cos(fi1)*Math.Cos(fi2)*Math.Cos(dlambda));
 		}
+		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
 
 		public Vector3 GetFwdVector() { return Vector3.up; }
 		public string GetName() { return Name; }

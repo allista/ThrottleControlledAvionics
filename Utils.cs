@@ -55,10 +55,17 @@ namespace ThrottleControlledAvionics
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
 		public static double CenterAngle(double a) { return a > 180? a-360 : a; }
 
-		public static float WAverage(float old, float cur, float ratio = 0.7f)
+		public static float EWA(float old, float cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
 
-		public static Vector3 WAverage(Vector3 old, Vector3 cur, float ratio = 0.7f)
+		public static float Gauss(float old, float cur, float ratio = 0.7f, int poles = 2)
+		{ 
+			for(int i = 0; i < poles; i++) 
+				old = (1-ratio)*old + ratio*cur; 
+			return old;
+		}
+
+		public static Vector3 EWA(Vector3 old, Vector3 cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
 		#endregion
 
@@ -228,7 +235,7 @@ namespace ThrottleControlledAvionics
 			}, c);
 		}
 
-		public static void DrawMapViewPath(CelestialBody body, MapTarget t0, MapTarget t1, double r0, double r1, Color c, double delta = 1)
+		public static void DrawMapViewPath(CelestialBody body, WayPoint t0, WayPoint t1, double r0, double r1, Color c, double delta = 1)
 		{
 			var dlat = t1.Lat-t0.Lat;
 			var dlon = t1.Lon-t0.Lon;
@@ -240,9 +247,9 @@ namespace ThrottleControlledAvionics
 				DrawMapViewPoint(body, t0.Lat+dlat*i, t0.Lon+dlon*i, c, rm+dr*i);
 		}
 
-		public static void DrawMapViewPath(Vessel v, MapTarget t1, double r1, Color c, double delta = 1)
+		public static void DrawMapViewPath(Vessel v, WayPoint t1, double r1, Color c, double delta = 1)
 		{
-			var t0 = new MapTarget();
+			var t0 = new WayPoint();
 			t0.Lat = v.latitude; t0.Lon = v.longitude;
 			DrawMapViewPath(v.mainBody, t0, t1, r1/2, r1, c, delta);
 		}
