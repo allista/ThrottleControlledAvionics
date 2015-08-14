@@ -98,14 +98,12 @@ namespace ThrottleControlledAvionics
 //				          "TWR factor: {1}\n" +
 //				          "torque factor: {2}\n" +
 //				          "up factor: {3}\n" +
-//				          "TWR: {4}\n" +
-//				          "torque limits {5}\n" +
-//				          "MoI {6}\n", 
+//				          "torque limits {4}\n" +
+//				          "MoI {5}\n", 
 //				          needed_thrust_dir,
 //				          twrF,
 //				          torF,
 //				          upF, 
-//				          TWR, 
 //				          VSL.MaxTorque, 
 //				          VSL.MoI
 //				         );//debug
@@ -151,9 +149,8 @@ namespace ThrottleControlledAvionics
 //			          "inertia: {10}\n" +
 //			          "angularM: {11}\n" +
 //			          "inertiaF: {12}\n" +
-//			          "MaxHv: {13}\n" +
-//			          "pitch, roll, yaw: {14}," +
-//			          "X, Y, Z {15}",
+//			          "pitch, roll, yaw: {13}," +
+//			          "X, Y, Z {14}",
 //			          VSL.refT.InverseTransformDirection(hV),
 //			          thrust, needed_thrust_dir,
 //                      Vector3.Angle(VSL.refT.InverseTransformDirection(hV), needed_thrust_dir),
@@ -164,7 +161,6 @@ namespace ThrottleControlledAvionics
 //                      VSL.MaxAngularA, inertia, angularM,
 //			          Mathf.Lerp(HSC.InertiaFactor, 1, 
 //                      VSL.MoI.magnitude*HSC.MoIFactor),
-//			          MaxHv,
 //			          pid.Action, new Vector3(s.X, s.Y, s.Z)
 //			);
 		}
