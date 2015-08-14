@@ -108,6 +108,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
 		public bool NoActiveRCS { get; private set; }
+		public bool HasTarget { get; private set; }
 
 		public VesselWrapper(Vessel vsl) 
 		{
@@ -313,6 +314,7 @@ namespace ThrottleControlledAvionics
 			            vessel.situation != Vessel.Situations.ESCAPING);
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Y, vessel.ctrlState.Z);
+			HasTarget = vessel.targetObject != null && !(vessel.targetObject is CelestialBody);
 		}
 
 		public void UpdateCommons()
