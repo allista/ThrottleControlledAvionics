@@ -53,6 +53,27 @@ namespace ThrottleControlledAvionics
 			return -1;
 		}
 
+		#if DEBUG
+		public void RadarBeam()
+		{
+			var d = Quaternion.AngleAxis(ViewAngle, VSL.refT.right)*Dir;
+			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right, VSL.CoM+VSL.refT.right, VSL.CoM+Dir*MaxDistance }, Color.green);
+			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right, VSL.CoM+VSL.refT.right, VSL.CoM+d*MaxDistance }, Color.red);
+		}
+
+		public override void Init()
+		{
+			base.Init();
+			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+		}
+
+		public override void Reset()
+		{
+			base.Reset();
+			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+		}
+		#endif
+
 		public override void UpdateState() { IsActive = CFG.ControlAltitude && CFG.AltitudeAboveTerrain && VSL.OnPlanet; }
 
 		public static Vector3[] BoundCorners(Bounds b)
@@ -107,7 +128,7 @@ namespace ThrottleControlledAvionics
 			ClosingSpeed = Vector3.Dot(SurfaceVelocity, Dir);
 			if(ClosingSpeed <= RAD.MinClosingSpeed) return;
 			//look right ahead
-			ViewAngle     = Utils.ClampH(RAD.MaxViewAngle/ClosingSpeed*VSL.Altitude/Utils.ClampL(DownSpeed, 1)*RAD.ViewAngleFactor, RAD.MaxViewAngle);
+			ViewAngle     = Utils.ClampH(RAD.MaxViewAngle/ClosingSpeed*VSL.Altitude*RAD.ViewAngleFactor, RAD.MaxViewAngle);
 			MaxDistance   = (DetectedSpeed < 0? ClosingSpeed : DetectedSpeed)*RAD.LookAheadTime;
 			DistanceAhead = ray_distance(ViewAngle, MaxDistance);
 //			Utils.Log("Alt {0}, MaxDist {1}, Dist {2}, Angle {3}", VSL.Altitude, MaxDistance, DistanceAhead, ViewAngle);//debug
