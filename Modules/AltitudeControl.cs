@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float ErrF  = 0.01f; //altitude error coefficient
 			[Persistent] public float TWRp  = 2f;    //twr power factor
 			[Persistent] public float TWRd  = 2f;    //twr denominator
+			[Persistent] public float RelAltitudeFilter = 0.01f;
 			[Persistent] public PID_Controller RocketPID = new PID_Controller(0.1f, 0.5f, 0.03f, -9.9f, -9.9f);
 			[Persistent] public PID_Controller JetsPID   = new PID_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
 
@@ -38,6 +39,8 @@ namespace ThrottleControlledAvionics
 
 		readonly PIDf_Controller2 rocket_pid = new PIDf_Controller2();
 		readonly PIDf_Controller  jets_pid   = new PIDf_Controller();
+
+		EWA Error = new EWA();
 
 		public AltitudeControl(VesselWrapper vsl) { VSL = vsl; }
 
@@ -77,12 +80,14 @@ namespace ThrottleControlledAvionics
 			var error = CFG.DesiredAltitude; 
 			if(CFG.AltitudeAboveTerrain && 
 			   VSL.AltitudeAhead > 0 &&
-			   VSL.AltitudeAhead < VSL.Altitude*ALT.AltAheadFilter)
+			   VSL.AltitudeAhead < VSL.Altitude)
 			{
 				SetState(TCAState.Ascending);
 				error -= VSL.AltitudeAhead;
 			}
 			else error -= VSL.Altitude;
+			if(CFG.AltitudeAboveTerrain)
+				error = Error.Update(error, ALT.RelAltitudeFilter);
 			if((VSL.AccelSpeed > 0 || VSL.DecelSpeed > 0))
 			{
 				if(VSL.VerticalSpeed > 0)
@@ -100,13 +105,7 @@ namespace ThrottleControlledAvionics
 				rocket_pid.Update(error);
 				CFG.VerticalCutoff = rocket_pid.Action;
 			}
-			//slow loosing altitude alert
-//			var next_error = Utils.EWA(prev_error, CFG.DesiredAltitude-VSL.Altitude, 0.005f); 
-//			if(next_error > 0 && next_error > prev_error)
-//				SetState(TCAState.LoosingAltitude);
-//			prev_error = next_error;
-//			DebugUtils.CSV(CFG.DesiredAltitude-VSL.Altitude, prev_error);
-//			DebugUtils.CSV(VSL.Altitude, alt_error, CFG.VerticalCutoff, VSL.VSF, VSL.VerticalSpeed);//debug
+//			DebugUtils.CSV(VSL.Altitude, error, CFG.VerticalCutoff, VSL.VSF, VSL.VerticalSpeed);//debug
 		}
 	}
 }
