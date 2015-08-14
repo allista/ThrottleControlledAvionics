@@ -794,6 +794,24 @@ def drawVectors():
                     (0.7306709, -0.3828829, -0.5652617), #lookahead
                  ]
     
+    GreatCircle = [
+                   (-0.853199320849177, 0.0880317238524617, 0.514102455253879), #Up
+                   (0.553682, -0.2360972, 0.7985577), #VDir0
+                   (-0.4253684, -0.6641812, -0.6147562) #VDir0
+                   ]
+    
+    GreatCircle = [
+                   (0, 1, 0), #Up
+                   (np.sin(-103.6567/180*np.pi), 0, np.cos(-103.6567/180*np.pi)) #VDir0
+                   ]
+    
+    Radar = [
+(0.4143046, -0.6872179, 0.5967271), #Dir
+(0.615147, -0.6593181, 0.4323122), #d
+(-0.821889802172869, -0.00085793802058045, 0.569645869840723), #Up
+(0.3722304, 0.7262448, 0.5779386), #right
+             ]
+    
     def xzy(v): return v[0], v[2], v[1]
     
     def draw_vectors(*vecs):
@@ -820,7 +838,7 @@ def drawVectors():
         plt.show()
     
 #     draw_vectors(*NoseUp)
-    draw_vectors(*LookAhead)
+    draw_vectors(*Radar)
     
 def Gauss(old, cur, ratio = 0.7, poles = 2):
     for _i in xrange(poles):
@@ -837,18 +855,113 @@ def vFilter(v, flt, **kwargs):
     return f
 
 def simFilters():
-    import os
-    import pandas as pa
-    os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Tests'))
-    df = pa.read_csv('alt-gauss-0.1-2.csv')
-    er = df['error']
-    ewa = vFilter(er, EWA, ratio=0.005)
-    gauss = vFilter(er, Gauss, ratio=0.01, poles=2)
-    T = range(len(er))
+#     import os
+#     import pandas as pa
+#     os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Tests'))
+#     df = pa.read_csv('alt-gauss-0.1-2.csv')
+#     er = df['error']
+    t1 = 20
+    T = np.arange(0, t1, dt)
+    er = np.sin(T*0.5)+np.random.normal(size=len(T))/10.0
+    ewa = vFilter(er, EWA, ratio=0.5)
+    gauss = vFilter(er, Gauss, ratio=0.1, poles=2)
     plt.plot(T, er)
     plt.plot(T, ewa)
-    plt.plot(T, gauss)
+#     plt.plot(T, gauss)
     plt.show()
+    
+def simGC():
+    import math as m
+    
+    class angle(object):
+        def __init__(self, d=0, m=0, s=0):
+            self.deg = d+m/60.0+s/3600.0
+            self.rad = self.deg/180.0*np.pi
+        
+        def _update(self):
+            self.deg = self.rad/m.pi*180.0
+        
+        @classmethod
+        def from_rad(cls, rad):
+            a = angle()
+            a.rad = rad
+            a._update()
+            return a
+        
+        def __float__(self): return self.rad
+        def __str__(self, *args, **kwargs): 
+            return '%fd' % self.deg
+        
+        def __add__(self, a):
+            a1 = self.from_rad(self.rad + a.rad)
+            return a1
+            
+        def __sub__(self, a):
+            a1 = self.from_rad(self.rad - a.rad)
+            return a1
+        
+        def __mul__(self, r):
+            a1 = self.from_rad(self.rad*r)
+            return a1
+            
+    class point(object):
+        def __init__(self, lat, lon):
+            self.lat = lat
+            self.lon = lon
+            
+        def __str__(self, *args, **kwargs):
+            return 'lat: %s, lon: %s' % (self.lat, self.lon)
+    
+    def bearing(p1, p2):
+        cos_lat2 = m.cos(p2.lat)
+        dlon = p2.lon-p1.lon
+        y = m.sin(dlon)*cos_lat2;
+        x = m.cos(p1.lat)*m.sin(p2.lat) - m.sin(p1.lat)*cos_lat2*m.cos(dlon);
+        return m.atan2(y, x)
+    
+    def point_between(p1, p2, dist):
+        b = bearing(p1, p2);
+        sin_dist = m.sin(dist);
+        cos_dist = m.cos(dist);
+        sin_lat1 = m.sin(p1.lat);
+        cos_lat1 = m.cos(p1.lat);
+        lat2 = m.asin(sin_lat1*cos_dist + cos_lat1*sin_dist*m.cos(b));
+        dlon2 = m.atan2(m.sin(b)*sin_dist*cos_lat1, cos_dist-sin_lat1*m.sin(lat2));
+        return point(angle.from_rad(lat2), 
+                     angle.from_rad(p1.lon.rad+dlon2));
+    
+    p1 = point(angle(1,12,13), angle(284,30,41))
+    p2 = point(angle(5,22,20), angle(254,58,00))
+    
+    r = 600000.0
+    v = 100.0
+    
+    t = 0; dt = 0.01
+    pt = p1; pa = p1
+    while t < 2000:
+        da = v*dt/r
+        pt = point_between(pt, p2, da)
+        ba = angle.from_rad(bearing(pa, p2))
+        pa = point(pa.lat+angle.from_rad(da*m.cos(ba)), pa.lon+angle.from_rad(da*m.sin(ba)))
+        t += dt
+    
+    print p1
+    print pt
+    print pa
+    print (pa.lat-pt.lat).rad*r,(pa.lon-pt.lon).rad*r
+    print p2
+    
+#     P = [p1]
+#     for d in np.arange(0.01, 0.6, 0.01):
+#         P.append(point_between(p1, p2, d))
+#         print P[-1]
+#     P.append(p2)
+#     
+#     lat = [p.lat.deg for p in P]
+#     lon = [p.lon.deg for p in P]
+#     
+#     plt.plot(lon, lat, '*')
+#     plt.show()
         
 #==================================================================#
 
@@ -860,5 +973,6 @@ if __name__ == '__main__':
 #     sim_Altitude()
 #     sim_Attitude()
 #     sim_Rotation()
-    simFilters()
-    
+    drawVectors()
+#     simFilters()
+#     simGC()

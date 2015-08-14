@@ -115,6 +115,7 @@ namespace ThrottleControlledAvionics
 			SelectConfig_start();
 			ConfigsGUI();
 			ControllerProperties();
+			AutopilotControls();
 			WaypointList();
 			ManualEnginesControl();
 			#if DEBUG
@@ -194,29 +195,31 @@ namespace ThrottleControlledAvionics
 
 		static void ControllerProperties()
 		{
+			if(CFG.AutoTune) return;
 			//steering modifiers
-			if(!CFG.AutoTune)
+			GUILayout.BeginHorizontal();
+			CFG.SteeringGain = Utils.FloatSlider("Steering Gain", CFG.SteeringGain, 0, 1, "P1");
+			CFG.PitchYawLinked = GUILayout.Toggle(CFG.PitchYawLinked, "Link Pitch&Yaw", GUILayout.ExpandWidth(false));
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			if(CFG.PitchYawLinked && !CFG.AutoTune)
 			{
-				GUILayout.BeginHorizontal();
-				CFG.SteeringGain = Utils.FloatSlider("Steering Gain", CFG.SteeringGain, 0, 1, "P1");
-				CFG.PitchYawLinked = GUILayout.Toggle(CFG.PitchYawLinked, "Link Pitch&Yaw", GUILayout.ExpandWidth(false));
-				GUILayout.EndHorizontal();
-				GUILayout.BeginHorizontal();
-				if(CFG.PitchYawLinked && !CFG.AutoTune)
-				{
-					CFG.SteeringModifier.x = Utils.FloatSlider("Pitch&Yaw", CFG.SteeringModifier.x, 0, 1, "P1");
-					CFG.SteeringModifier.z = CFG.SteeringModifier.x;
-				}
-				else
-				{
-					CFG.SteeringModifier.x = Utils.FloatSlider("Pitch", CFG.SteeringModifier.x, 0, 1, "P1");
-					CFG.SteeringModifier.z = Utils.FloatSlider("Yaw", CFG.SteeringModifier.z, 0, 1, "P1");
-				}
-				CFG.SteeringModifier.y = Utils.FloatSlider("Roll", CFG.SteeringModifier.y, 0, 1, "P1");
-				GUILayout.EndHorizontal();
-				//engines
-				CFG.Engines.DrawControls("Engines Controller");
+				CFG.SteeringModifier.x = Utils.FloatSlider("Pitch&Yaw", CFG.SteeringModifier.x, 0, 1, "P1");
+				CFG.SteeringModifier.z = CFG.SteeringModifier.x;
 			}
+			else
+			{
+				CFG.SteeringModifier.x = Utils.FloatSlider("Pitch", CFG.SteeringModifier.x, 0, 1, "P1");
+				CFG.SteeringModifier.z = Utils.FloatSlider("Yaw", CFG.SteeringModifier.z, 0, 1, "P1");
+			}
+			CFG.SteeringModifier.y = Utils.FloatSlider("Roll", CFG.SteeringModifier.y, 0, 1, "P1");
+			GUILayout.EndHorizontal();
+			//engines
+			CFG.Engines.DrawControls("Engines Controller");
+		}
+
+		static void AutopilotControls()
+		{
 			if(VSL.OnPlanet)
 			{
 				//vertical speed or altitude limit
@@ -277,25 +280,33 @@ namespace ThrottleControlledAvionics
 				//navigator toggles
 				GUILayout.BeginHorizontal();
 				if(GUILayout.Button("Go To Target", 
-				                    CFG.GoToTarget? Styles.green_button : Styles.yellow_button,
+				                    CFG.GoToTarget? Styles.green_button 
+				                    : (VSL.HasTarget? Styles.yellow_button : Styles.grey),
 				                    GUILayout.Width(100)))
 					TCA.ToggleGoToTarget();
-				if(GUILayout.Button(selecting_map_target? "Cancel" 
-				                    : (VSL.vessel.targetObject != null? "Add as Waypoint" : "Add Waypoint"), 
-				                    selecting_map_target? Styles.red_button : Styles.yellow_button,
-				                    GUILayout.Width(120)))
+				if(selecting_map_target)
 				{
-					if(VSL.vessel.targetObject != null && !(VSL.vessel.targetObject is CelestialBody))
+					if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.Width(120)))
+					{
+						selecting_map_target = false;
+						MapView.ExitMapView();
+					}
+				}
+				else if(VSL.HasTarget && 
+				        !(VSL.vessel.targetObject is WayPoint) && 
+				        (CFG.Waypoints.Count == 0 || VSL.vessel.targetObject != CFG.Waypoints.Peek().GetTarget()))
+				{
+					if(GUILayout.Button("Add as Waypoint", Styles.yellow_button, GUILayout.Width(120)))
 					{
 						CFG.Waypoints.Enqueue(new WayPoint(VSL.vessel.targetObject));
 						CFG.ShowWaypoints = true;
 					}
-					else
-					{
-						selecting_map_target = !selecting_map_target;
-						if(selecting_map_target) MapView.EnterMapView();
-						else MapView.ExitMapView();
-					}
+				}
+				else if(GUILayout.Button("Add Waypoint", Styles.yellow_button, GUILayout.Width(120)))
+				{
+					selecting_map_target = true;
+					CFG.ShowWaypoints = true;
+					MapView.EnterMapView();
 				}
 				if(GUILayout.Button("Follow Path", 
 				                    CFG.FollowPath? Styles.green_button : Styles.yellow_button,
@@ -334,12 +345,13 @@ namespace ThrottleControlledAvionics
 				{
 					GUILayout.BeginHorizontal();
 					GUI.contentColor = marker_color(i, num);
-					var label = string.Format("{0}) {1}", 1+i, wp.Name);
+					var label = string.Format("{0}) {1}", 1+i, wp.GetName());
 					if(CFG.FollowPath && i == 0)
 					{
 						var d = wp.DistanceTo(vessel);
-						var t = new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed));
-						label += string.Format(" <= {0}, ETA {1:c}", distance_to_str(d), t);
+						label += string.Format(" <= {0}", distance_to_str(d)); 
+						if(vessel.horizontalSrfSpeed > 0.1)
+							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed)));
 					}
 					if(GUILayout.Button(label,GUILayout.ExpandWidth(true)))
 						FlightGlobals.fetch.SetVesselTarget(wp);
@@ -424,6 +436,7 @@ namespace ThrottleControlledAvionics
 
 		//adapted from MechJeb
 		bool clicked;
+		double clicked_time;
 		void MapOverlay()
 		{
 			if(selecting_map_target)
@@ -440,24 +453,36 @@ namespace ThrottleControlledAvionics
 					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50), 
 					          string.Format("{0} {1}\n{2}", coords, distance_to_str(t.DistanceTo(vessel)), 
 					                        ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon)));
-					if(!clicked && Input.GetMouseButtonDown(0)) clicked = true;
-					if(clicked && Input.GetMouseButtonUp(0)) 
+					if(!clicked)
 					{ 
-						if(CFG.Waypoints.Count == 0) CFG.ShowWaypoints = true;
-						CFG.Waypoints.Enqueue(t); 
-						clicked = false;
+						if(Input.GetMouseButtonDown(0)) clicked = true;
+						else if(Input.GetMouseButtonDown(1))  
+						{ clicked_time = Planetarium.GetUniversalTime(); clicked = true; }
 					}
-					if(Input.GetMouseButtonDown(1)) { selecting_map_target = false; clicked = false; }
+					else 
+					{
+						if(Input.GetMouseButtonUp(0))
+						{ 
+							CFG.Waypoints.Enqueue(t);
+							CFG.ShowWaypoints = true;
+							clicked = false;
+						}
+						if(Input.GetMouseButtonUp(1))
+						{ 
+							selecting_map_target &= Planetarium.GetUniversalTime() - clicked_time >= 0.5;
+							clicked = false; 
+						}
+					}
 				}
 			}
-			if(MapView.MapIsEnabled)
+			if(MapView.MapIsEnabled && CFG.ShowWaypoints)
 			{
 				var i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
 				WayPoint wp0 = null; double r0 = 0;
 				foreach(var wp in CFG.Waypoints)
 				{
-					if(i > 0) wp.UpdateCoordinates(vessel.mainBody);
+					wp.UpdateCoordinates(vessel.mainBody);
 					var c = marker_color(i, num);
 					var r = marker_radius(vessel, wp);
 					if(wp0 == null) GLUtils.DrawMapViewPath(vessel, wp, r, c);

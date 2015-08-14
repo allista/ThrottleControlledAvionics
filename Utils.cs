@@ -67,6 +67,8 @@ namespace ThrottleControlledAvionics
 
 		public static Vector3 EWA(Vector3 old, Vector3 cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
+
+		public static double Haversine(double a) { return (1-Math.Cos(a))/2; }
 		#endregion
 
 		#region Vector3
@@ -201,19 +203,19 @@ namespace ThrottleControlledAvionics
 			if(r <= 0) r = body.Radius/15;
 			var north = Vector3d.Exclude(up, body.transform.up).normalized;
 
-			GLTriangleMap(new Vector3d[]{
+			GLTriangleMap(new []{
 				center,
 				center + r * (QuaternionD.AngleAxis(-10, up) * north),
 				center + r * (QuaternionD.AngleAxis( 10, up) * north)
 			}, c);
 
-			GLTriangleMap(new Vector3d[]{
+			GLTriangleMap(new []{
 				center,
 				center + r * (QuaternionD.AngleAxis(110, up) * north),
 				center + r * (QuaternionD.AngleAxis(130, up) * north)
 			}, c);
 
-			GLTriangleMap(new Vector3d[]{
+			GLTriangleMap(new []{
 				center,
 				center + r * (QuaternionD.AngleAxis(-110, up) * north),
 				center + r * (QuaternionD.AngleAxis(-130, up) * north)
@@ -228,30 +230,32 @@ namespace ThrottleControlledAvionics
 			var center = body.position + height * up;
 			var north  = Vector3d.Exclude(up, body.transform.up).normalized;
 
-			GLTriangleMap(new Vector3d[]{
+			GLTriangleMap(new []{
 				center + r * north,
 				center + r * (QuaternionD.AngleAxis(120, up) * north),
 				center + r * (QuaternionD.AngleAxis(240, up) * north)
 			}, c);
 		}
 
-		public static void DrawMapViewPath(CelestialBody body, WayPoint t0, WayPoint t1, double r0, double r1, Color c, double delta = 1)
+		public static void DrawMapViewPath(CelestialBody body, WayPoint wp0, WayPoint wp1, double r0, double r1, Color c, double delta = 1)
 		{
-			var dlat = t1.Lat-t0.Lat;
-			var dlon = t1.Lon-t0.Lon;
-			var N = (int)(Math.Max(Math.Abs(dlat), Math.Abs(dlon))/delta)+2;
+			var D = wp1.AngleTo(wp0);
+			var N = (int)Mathf.Clamp((float)D*Mathf.Rad2Deg, 2, 5);
 			var dr = (r1-r0)/N/2;
 			var rm = r0/2;
-			dlat /= N; dlon /= N;
+			var dD = D/N;
 			for(int i = 1; i<N; i++)
-				DrawMapViewPoint(body, t0.Lat+dlat*i, t0.Lon+dlon*i, c, rm+dr*i);
+			{
+				var p = wp0.PointBetween(wp1, dD*i);
+				DrawMapViewPoint(body, p.Lat, p.Lon, c, rm+dr*i);
+			}
 		}
 
-		public static void DrawMapViewPath(Vessel v, WayPoint t1, double r1, Color c, double delta = 1)
+		public static void DrawMapViewPath(Vessel v, WayPoint wp1, double r1, Color c, double delta = 1)
 		{
-			var t0 = new WayPoint();
-			t0.Lat = v.latitude; t0.Lon = v.longitude;
-			DrawMapViewPath(v.mainBody, t0, t1, r1/2, r1, c, delta);
+			var wp0 = new WayPoint();
+			wp0.Lat = v.latitude; wp0.Lon = v.longitude;
+			DrawMapViewPath(v.mainBody, wp0, wp1, r1/2, r1, c, delta);
 		}
 
 		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)
@@ -268,7 +272,21 @@ namespace ThrottleControlledAvionics
 			GL.PopMatrix();
 		}
 
-		public static void GLVertexMap(Vector3d worldPosition)
+		public static void GLTriangleMap(Vector3[] worldVertices, Color c)
+		{
+			GL.PushMatrix();
+			material.SetPass(0);
+			GL.LoadOrtho();
+			GL.Begin(GL.TRIANGLES);
+			GL.Color(c);
+			GLVertexMap(worldVertices[0]);
+			GLVertexMap(worldVertices[1]);
+			GLVertexMap(worldVertices[2]);
+			GL.End();
+			GL.PopMatrix();
+		}
+
+		public static void GLVertexMap(Vector3 worldPosition)
 		{
 			Vector3 screenPoint = PlanetariumCamera.Camera.WorldToScreenPoint(ScaledSpace.LocalToScaledSpace(worldPosition));
 			GL.Vertex3(screenPoint.x / Camera.main.pixelWidth, screenPoint.y / Camera.main.pixelHeight, 0);
@@ -400,6 +418,21 @@ namespace ThrottleControlledAvionics
 			uint K = 0;
 			return uint.TryParse (k, out K)? K : 0;
 		}
+	}
+
+	public class EWA
+	{
+		float old, value;
+
+		public EWA(float v = 0) { old = v; value = v; }
+
+		public float Update(float v, float ratio = 0.1f)
+		{
+			value = Utils.EWA(old, v, ratio);
+			old = value;
+			return value;
+		}
+		public static implicit operator float(EWA ewa) { return ewa.value; }
 	}
 
 	//convergent with Anatid's Vector6, but not taken from it

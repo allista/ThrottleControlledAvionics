@@ -65,7 +65,7 @@ VSC
 	ASf               = 2    //factor for the acceleration speed adjustment of VerticalCutoff
 	DSf               = 1    //factor for the deceleration speed adjustment of VerticalCutoff
 	TimeAhead         = 5
-	FallingTime       = 0.5
+	FallingTime       = 0.5  //min. time falling to trigger Loosing Altitude alert
 }
 
 ALT
@@ -74,6 +74,10 @@ ALT
 	ErrF = 0.01 //altitude error coefficient
 	TWRp = 2    //twr power factor
 	TWRd = 2    //twr denominator
+	
+	//1 -- no filtering; <0.01 strong filtering
+	RelAltitudeFilter = 0.01 
+	
 	RocketPID
 	{
 		P = 0.3	
@@ -132,6 +136,8 @@ PN
 	DeltaSpeedF       = 0.5
 	FallingCorrection = 10
 	CorrectionTime    = 5
+	DirectNavThreshold = 1
+	GCNavStep          = 0.1
 	
 	DistancePID
 	{

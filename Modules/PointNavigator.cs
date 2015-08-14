@@ -20,23 +20,32 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "PN";
 
-			[Persistent] public float MinDistance       = 30;
-			[Persistent] public float MinTime           = 10;
-			[Persistent] public float OnPathMinDistance = 300;
-			[Persistent] public float MinSpeed          = 10;
-			[Persistent] public float MaxSpeed          = 300;
-			[Persistent] public float DeltaSpeed        = 10f;
-			[Persistent] public float DeltaSpeedF       = 0.5f;
-			[Persistent] public float FallingCorrection = 10f;
-			[Persistent] public float CorrectionTime    = 5f;
-			[Persistent] public float DistanceF         = 50;
+			[Persistent] public float MinDistance        = 30;
+			[Persistent] public float MinTime            = 10;
+			[Persistent] public float OnPathMinDistance  = 300;
+			[Persistent] public float MinSpeed           = 10;
+			[Persistent] public float MaxSpeed           = 300;
+			[Persistent] public float DeltaSpeed         = 10f;
+			[Persistent] public float DeltaSpeedF        = 0.5f;
+			[Persistent] public float FallingCorrection  = 10f;
+			[Persistent] public float CorrectionTime     = 5f;
+			[Persistent] public float DistanceF          = 50;
+			[Persistent] public float DirectNavThreshold = 1;
+			[Persistent] public float GCNavStep          = 0.1f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
+
+			public override void Init()
+			{
+				base.Init();
+				DirectNavThreshold *= Mathf.Deg2Rad;
+				GCNavStep *= Mathf.Deg2Rad;
+			}
 		}
 		static Config PN { get { return TCAConfiguration.Globals.PN; } }
 		public PointNavigator(VesselWrapper vsl) { VSL = vsl; }
 
 		readonly PIDf_Controller pid = new PIDf_Controller();
-		ITargetable target;
+		WayPoint target;
 		float DeltaSpeed;
 
 		public override void Init()
@@ -52,12 +61,12 @@ namespace ThrottleControlledAvionics
 
 		public void GoToTarget(bool enable = true)
 		{
-			if(enable && VSL.vessel.targetObject == null) return;
+			if(enable && !VSL.HasTarget) return;
 			CFG.GoToTarget = enable;
 			if(CFG.GoToTarget) 
 			{
 				CFG.FollowPath = false;
-				start_to(VSL.vessel.targetObject);
+				start_to(new WayPoint(VSL.vessel.targetObject));
 			}
 			else finish();
 		}
@@ -74,12 +83,10 @@ namespace ThrottleControlledAvionics
 			else finish();
 		}
 
-		void start_to(ITargetable t)
+		void start_to(WayPoint wp)
 		{
-			var wp = t as WayPoint;
-			target = wp == null? t : wp.GetTarget();
-			if(target == null) return;
-			FlightGlobals.fetch.SetVesselTarget(t);
+			target = wp;
+			FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
 			BlockSAS();
 			pid.Reset();
 			VSL.UpdateHorizontalStats();
@@ -102,10 +109,19 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{
 			if(!IsActive || target == null) return;
-			var mt = target as WayPoint;
-			if(mt != null) mt.Update(VSL.vessel.mainBody);
-			var dr = Vector3.ProjectOnPlane(target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
-			var distance = dr.magnitude;
+			target.Update(VSL.vessel.mainBody);
+			//calculate direct distance
+			var vdir = Vector3.ProjectOnPlane(target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
+			var distance = vdir.magnitude;
+			//if it is greater that the threshold (in radians), use Great Circle navigation
+			if(distance/VSL.vessel.mainBody.Radius > PN.DirectNavThreshold)
+			{
+				var next = target.PointFrom(VSL.vessel, 0.1);
+				distance = (float)target.DistanceTo(VSL.vessel);
+				vdir = Vector3.ProjectOnPlane(VSL.vessel.mainBody.GetWorldSurfacePosition(next.Lat, next.Lon, VSL.vessel.altitude)
+				                              -VSL.vessel.transform.position, VSL.Up);
+			}
+			vdir.Normalize();
 			//check if we have arrived to the target
 			if(distance < PN.MinDistance) 
 			{
@@ -115,7 +131,7 @@ namespace ThrottleControlledAvionics
 					if(CFG.Waypoints.Count > 0) { start_to(CFG.Waypoints.Peek()); return; }
 				}
 				//keep trying if we came in too fast
-				if(distance/Vector3d.Dot(VSL.HorizontalVelocity, dr.normalized) > PN.MinTime)
+				if(distance/Vector3d.Dot(VSL.HorizontalVelocity, vdir) > PN.MinTime)
 				{ finish(); return; }
 			}
 			//don't slow down on intermediate waypoints too much
@@ -127,15 +143,18 @@ namespace ThrottleControlledAvionics
 			pid.D   = PN.DistancePID.D*VSL.M/Utils.ClampL(VSL.Thrust.magnitude/TCAConfiguration.G, 1);
 			pid.Update(distance*PN.DistanceF);
 			//increase the needed velocity slowly
-			var r = dr.normalized;
-			var cur_vel = Utils.ClampL((float)Vector3d.Dot(VSL.HorizontalVelocity, r), 1);
+			var cur_vel = Utils.ClampL((float)Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 1);
 			var mtwr = Utils.ClampL(VSL.MaxTWR, 0.1f);
 			DeltaSpeed = PN.DeltaSpeed*mtwr*Mathf.Pow(PN.DeltaSpeed/(cur_vel+PN.DeltaSpeed), PN.DeltaSpeedF);
 			//make a correction if falling or flyin too low
 			if(IsStateSet(TCAState.LoosingAltitude))
 			{
 				DeltaSpeed /= 1-Utils.ClampH(VSL.VerticalSpeed, 0)*PN.FallingCorrection;
-				if(DeltaSpeed < 1) cur_vel *= (10-DeltaSpeed)/10;
+				if(DeltaSpeed < 1) 
+				{
+					var a = Utils.ClampL(2/-VSL.VerticalSpeed, 2);
+					cur_vel *= (a-1+DeltaSpeed)/a;
+				}
 			}
 			if(CFG.ControlAltitude)
 			{
@@ -143,7 +162,7 @@ namespace ThrottleControlledAvionics
 				if(alt_error > 0) DeltaSpeed /= 1+alt_error;
 			}
 			//set needed velocity and starboard
-			CFG.NeededHorVelocity = pid.Action-cur_vel > DeltaSpeed? r*(cur_vel+DeltaSpeed) : r*pid.Action;
+			CFG.NeededHorVelocity = pid.Action-cur_vel > DeltaSpeed? vdir*(cur_vel+DeltaSpeed) : vdir*pid.Action;
 			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
 //			Utils.Log("Delta {0}; NHV {1}", 
 //			          DeltaSpeed, CFG.NeededHorVelocity);//debug
