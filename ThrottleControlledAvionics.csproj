@@ -95,6 +95,7 @@
     <Compile Include="Modules\PointNavigator.cs" />
     <Compile Include="Modules\Radar.cs" />
     <Compile Include="DebugUtils.cs" />
+    <Compile Include="WayPoints.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

@@ -76,7 +76,8 @@ namespace ThrottleControlledAvionics
 
 		void start_to(ITargetable t)
 		{
-			target = t;
+			var wp = t as WayPoint;
+			target = wp == null? t : wp.GetTarget();
 			if(target == null) return;
 			FlightGlobals.fetch.SetVesselTarget(t);
 			BlockSAS();
@@ -149,60 +150,6 @@ namespace ThrottleControlledAvionics
 //			Utils.Log("Distance: {0}, max {1}, err {2}, nvel {3}", 
 //			          distance, PN.OnPathMinDistance, distance*PN.DistanceF, pid.Action);//debug
 		}
-	}
-
-	//adapted from MechJeb
-	public class WayPoint : ConfigNodeObject, ITargetable
-	{
-		new public const string NODE_NAME = "WAYPOINT";
-
-		[Persistent] public string Name;
-		[Persistent] public double Lat;
-		[Persistent] public double Lon;
-
-		GameObject go = new GameObject();
-
-		public WayPoint() {}
-		public WayPoint(Coordinates c) 
-		{ Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); }
-		public WayPoint(Vessel v) 
-		{ Lat = v.latitude; Lon = v.longitude; Name = v.vesselName; }
-
-		static public WayPoint FromConfig(ConfigNode node)
-		{
-			var wp = new WayPoint();
-			wp.Load(node);
-			return wp;
-		}
-
-		//Call this every frame to make sure the target transform stays up to date
-		public void Update(CelestialBody body) 
-		{ go.transform.position = body.GetWorldSurfacePosition(Lat, Lon, Utils.TerrainAltitude(body, Lat, Lon)); }
-
-
-		//using Spherical Law of Cosines (for other methods see http://www.movable-type.co.uk/scripts/latlong.html)
-		public double AngleTo(Vessel vsl)
-		{
-			var fi1 = Lat*Mathf.Deg2Rad;
-			var fi2 = vsl.latitude*Mathf.Deg2Rad;
-			var dlambda = (vsl.longitude-Lon)*Mathf.Deg2Rad;
-			return Math.Acos(Math.Sin(fi1)*Math.Sin(fi2)+Math.Cos(fi1)*Math.Cos(fi2)*Math.Cos(dlambda));
-		}
-		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
-
-		public Vector3 GetFwdVector() { return Vector3.up; }
-		public string GetName() { return Name; }
-		public Vector3 GetObtVelocity() { return Vector3.zero; }
-		public Orbit GetOrbit() { return null; }
-		public OrbitDriver GetOrbitDriver() { return null; }
-		public Vector3 GetSrfVelocity() { return Vector3.zero; }
-		public Transform GetTransform() 
-		{ 
-			if(go == null) go = new GameObject();
-			return go.transform; 
-		}
-		public Vessel GetVessel() { return null; }
-		public VesselTargetModes GetTargetingMode() { return VesselTargetModes.Direction; }
 	}
 }
 

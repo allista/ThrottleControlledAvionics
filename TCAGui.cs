@@ -271,7 +271,7 @@ namespace ThrottleControlledAvionics
 				                    GUILayout.Width(120)))
 					TCA.ToggleAltitudeAutopilot();
 				TCA.AltitudeAboveTerrain(GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
-				                                          "Above Terrain", 
+				                                          "Follow Terrain", 
 				                                          GUILayout.ExpandWidth(false)));
 				GUILayout.EndHorizontal();
 				//navigator toggles
@@ -280,13 +280,14 @@ namespace ThrottleControlledAvionics
 				                    CFG.GoToTarget? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(100)))
 					TCA.ToggleGoToTarget();
-				if(GUILayout.Button(selecting_map_target? "Cancel" : "Add Waypoint", 
+				if(GUILayout.Button(selecting_map_target? "Cancel" 
+				                    : (VSL.vessel.targetObject != null? "Add as Waypoint" : "Add Waypoint"), 
 				                    selecting_map_target? Styles.red_button : Styles.yellow_button,
-				                    GUILayout.Width(100)))
+				                    GUILayout.Width(120)))
 				{
-					if(VSL.vessel.targetObject != null && VSL.vessel.targetObject.GetVessel() != null)
+					if(VSL.vessel.targetObject != null && !(VSL.vessel.targetObject is CelestialBody))
 					{
-						CFG.Waypoints.Enqueue(new WayPoint(VSL.vessel.targetObject.GetVessel()));
+						CFG.Waypoints.Enqueue(new WayPoint(VSL.vessel.targetObject));
 						CFG.ShowWaypoints = true;
 					}
 					else
@@ -453,15 +454,16 @@ namespace ThrottleControlledAvionics
 			{
 				var i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
-				WayPoint t0 = null; double r0 = 0;
-				foreach(var t in CFG.Waypoints)
+				WayPoint wp0 = null; double r0 = 0;
+				foreach(var wp in CFG.Waypoints)
 				{
+					if(i > 0) wp.UpdateCoordinates(vessel.mainBody);
 					var c = marker_color(i, num);
-					var r = marker_radius(vessel, t);
-					if(t0 == null) GLUtils.DrawMapViewPath(vessel, t, r, c);
-					else GLUtils.DrawMapViewPath(vessel.mainBody, t0, t, r0, r, c);
-					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, t.Lat, t.Lon, c, r);
-					t0 = t; r0 = r; i++;
+					var r = marker_radius(vessel, wp);
+					if(wp0 == null) GLUtils.DrawMapViewPath(vessel, wp, r, c);
+					else GLUtils.DrawMapViewPath(vessel.mainBody, wp0, wp, r0, r, c);
+					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, wp.Lat, wp.Lon, c, r);
+					wp0 = wp; r0 = r; i++;
 				}
 			}
 		}
