@@ -725,15 +725,15 @@ def sim_Altitude():
     plt.show()
 #end def
 
+def legend():
+    plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+
 def sim_Rotation():
     def _plot(r, c, n, X, Y, aa, ylab):
         plt.subplot(r, c, n)
         plt.plot(X, Y, label=("V: AA=%.1f" % aa))
         plt.xlabel("time (s)")
         plt.ylabel(ylab)
-        
-    def legend():
-        plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
     
     MaxAngularA = np.arange(0.5, 30, 5);
     start_error = 0.8*np.pi
@@ -817,11 +817,7 @@ def drawVectors():
     def draw_vectors(*vecs):
         if not vecs: return;
         X, Y, Z, U, V, W = zip(*(xzy(v)+xzy(v) for v in vecs))
-        colors = [(0,1,0)]*3
-        n = float(len(vecs))
-        for i in xrange(1, len(vecs)):
-            c = (i/n, 1-i/n, 1-i/n)
-            colors += c,c,c
+        colors = color_grad(len(vecs), 3)
         fig = plt.figure()
         ax = fig.gca(projection='3d')
         ax.quiver(X,Y,Z,U,V,W, colors=colors, lw=2, arrow_length_ratio=0.1)
@@ -839,6 +835,14 @@ def drawVectors():
     
 #     draw_vectors(*NoseUp)
     draw_vectors(*Radar)
+    
+def color_grad(num, repeat=1):
+    colors = [(0,1,0)]*repeat
+    n = float(num)
+    for i in xrange(1, num):
+        c = (i/n, 1-i/n, 1-i/n)
+        colors += (c,)*repeat
+    return colors
     
 def Gauss(old, cur, ratio = 0.7, poles = 2):
     for _i in xrange(poles):
@@ -962,10 +966,65 @@ def simGC():
 #     
 #     plt.plot(lon, lat, '*')
 #     plt.show()
+
+
+def loadCSV(filename, columns=None, header=None):
+    import os
+    import pandas as pa
+    os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Tests'))
+    df = pa.read_csv(filename, header=header, names=columns)
+    return df
+
+def drawDF(df, columns=None, axes=None, colors=None):
+    l = df.shape[0]
+    T = np.arange(0, l*dt, dt)
+    cols = df.keys() if columns is None else columns
+    if colors is None: colors = color_grad(len(cols))
+    if axes is not None:
+        axd = {axes[0]: plt.subplot()}
+        lns = []
+    for i, k in enumerate(cols):
+        if axes is None:
+            plt.plot(T, df[k], label=k, color=colors[i])
+        else:
+            if axes[i] not in axd:
+                axd[axes[i]] = axd[axes[0]].twinx()
+            ax = axd[axes[i]]
+            lns += ax.plot(T, df[k], label=k, color=colors[i])
+    if axes is None:
+        plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    else:
+        ax.legend(lns, [l.get_label() for l in lns], 
+                  bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    plt_show_maxed()
+
+def plt_show_maxed():
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+    plt.show()
+
+def boxplot(df, columns=None):
+    cnames = df.keys() if columns is None else columns
+    plt.boxplot([df[k] for k in cnames], labels=cnames)
+    plt_show_maxed()
+    
+def describe(df, columns=None):
+    from scipy import stats
+    cnames = df.keys() if columns is None else columns
+    for k in cnames: 
+        d = stats.describe(df[k])
+        print '%s:' % k
+        print '   sum:    ', sum(df[k])
+        print '   min-max:', d.minmax
+        print '   mean:   ', d.mean
+        print '   std:    ', np.std(df[k])
+        print '   sem:    ', stats.sem(df[k])
+        print '   skew:   ', d.skewness
+    print ''
         
 #==================================================================#
 
-dt = 0.09
+dt = 0.01
 
 if __name__ == '__main__':
 #     sim_VSpeed()
@@ -973,6 +1032,16 @@ if __name__ == '__main__':
 #     sim_Altitude()
 #     sim_Attitude()
 #     sim_Rotation()
-    drawVectors()
 #     simFilters()
 #     simGC()
+
+#     drawVectors()
+    
+    def analyzeVS(filename):
+        vs = loadCSV(filename, ('Alt', 'Err', 'VSP', 'K', 'V'))
+        vs = vs[vs.V > -1000]
+        describe(vs)
+        drawDF(vs, ('Alt', 'Err', 'VSP', 'V'), (0,0,1,1))
+
+    analyzeVS('VS-filtering-4.csv')
+    analyzeVS('VS-filtering-6.csv')
