@@ -39,8 +39,7 @@ namespace ThrottleControlledAvionics
 
 		readonly PIDf_Controller2 rocket_pid = new PIDf_Controller2();
 		readonly PIDf_Controller  jets_pid   = new PIDf_Controller();
-
-		EWA Error = new EWA();
+		readonly EWA              Error      = new EWA();
 
 		public AltitudeControl(VesselWrapper vsl) { VSL = vsl; }
 
@@ -79,10 +78,11 @@ namespace ThrottleControlledAvionics
 			SetState(TCAState.AltitudeControl);
 			var error = CFG.DesiredAltitude; 
 			if(CFG.AltitudeAboveTerrain && 
-			   VSL.AltitudeAhead > 0 &&
-			   VSL.AltitudeAhead < VSL.Altitude)
+			   VSL.AltitudeAhead >= 0 &&
+			   VSL.AltitudeAhead < VSL.Altitude*ALT.AltAheadFilter)
 			{
-				SetState(TCAState.Ascending);
+				if(VSL.AbsVerticalSpeed > 0)
+					SetState(TCAState.Ascending);
 				error -= VSL.AltitudeAhead;
 			}
 			else error -= VSL.Altitude;
@@ -105,7 +105,7 @@ namespace ThrottleControlledAvionics
 				rocket_pid.Update(error);
 				CFG.VerticalCutoff = rocket_pid.Action;
 			}
-//			DebugUtils.CSV(VSL.Altitude, error, CFG.VerticalCutoff, VSL.VSF, VSL.VerticalSpeed);//debug
+			DebugUtils.CSV(VSL.Altitude, error, CFG.VerticalCutoff, VSL.VSF, VSL.AbsVerticalSpeed);//debug
 		}
 	}
 }
