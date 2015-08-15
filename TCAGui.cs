@@ -234,14 +234,14 @@ namespace ThrottleControlledAvionics
 					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude -= 10;
 					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude += 10;
 					GUILayout.Label("Vertical Speed: " + 
-					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeedDisp.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
 					GUILayout.FlexibleSpace();
 				}
 				else
 				{
 					GUILayout.Label("Vertical Speed: " + 
-					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeed.ToString("F2")+"m/s" : "N/A"), 
+					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeedDisp.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
 					GUILayout.Label("Set Point: " + (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
 					                                 CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 

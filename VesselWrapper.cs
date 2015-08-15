@@ -76,7 +76,10 @@ namespace ThrottleControlledAvionics
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  Torque { get; private set; } //current torque applied to the vessel by the engines
 		public Vector3  MaxTorque { get; private set; }
+		public float    AbsVerticalSpeed { get; private set; }
+		public float    RelVerticalSpeed { get; private set; }
 		public float    VerticalSpeed { get; private set; }
+		public float    VerticalSpeedDisp { get; private set; }
 		public float    VerticalAccel { get; private set; }
 		public float    Altitude { get; private set; }
 		public float    AltitudeAhead;
@@ -401,17 +404,22 @@ namespace ThrottleControlledAvionics
 		{
 			AccelSpeed = 0f; DecelSpeed = 0f; MaxTWR = 0f;
 			//calculate altitude, vertical speed and acceleration
-			var upV = 0f;
+			AbsVerticalSpeed = CoM_verticalSpeed;
+			VerticalSpeedDisp = AbsVerticalSpeed;
+			var upV = AbsVerticalSpeed;
 			if(CFG.ControlAltitude)
 			{
 				//update vessel altitude
 				var old_alt = Altitude;
 				UpdateAltitude();
-				//use relative vertical speed instead of absolute
-				upV = CFG.AltitudeAboveTerrain? 
-					Utils.EWA(VerticalSpeed, (Altitude - old_alt)/TimeWarp.fixedDeltaTime) : 
-					CoM_verticalSpeed;
-			} else upV = CoM_verticalSpeed;
+				//use relative vertical speed instead of absolute if following terrain
+				if(CFG.AltitudeAboveTerrain)
+				{
+					RelVerticalSpeed  = (Altitude - old_alt)/TimeWarp.fixedDeltaTime;
+					VerticalSpeedDisp = RelVerticalSpeed;
+					upV = Utils.EWA(VerticalSpeed, RelVerticalSpeed);
+				}
+			}
 			VerticalAccel = Utils.EWA(VerticalAccel, (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime);
 			VerticalSpeed = upV;
 			//calculate total downward thrust and slow engines' corrections
@@ -443,7 +451,8 @@ namespace ThrottleControlledAvionics
 			}
 			M = vessel.GetTotalMass();
 			MaxTWR = down_thrust/TCAConfiguration.G/M;
-			MinVSF = (MaxAngularA_m > 0)? Mathf.Clamp(GLB.VSC.MinVSFf/MaxAngularA_m, 0, 0.5f/(MaxTWR > 0? MaxTWR : 1)) : 0;
+			MinVSF = (MaxAngularA_m > 0)? 
+				Mathf.Clamp(GLB.VSC.MinVSFf/MaxAngularA_m, 0, Utils.ClampH(0.5f/(MaxTWR > 0? MaxTWR : 1), 0.5f)) : 0;
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
 			//correct setpoint for current TWR and slow engines
