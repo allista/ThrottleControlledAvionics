@@ -27,8 +27,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxSpeed           = 300;
 			[Persistent] public float DeltaSpeed         = 10f;
 			[Persistent] public float DeltaSpeedF        = 0.5f;
-			[Persistent] public float FallingCorrection  = 10f;
-			[Persistent] public float CorrectionTime     = 5f;
+			[Persistent] public float FallingSensitivity = 10f;
+			[Persistent] public float FallingCorrection  = 3f;
 			[Persistent] public float DistanceF          = 50;
 			[Persistent] public float DirectNavThreshold = 1;
 			[Persistent] public float GCNavStep          = 0.1f;
@@ -149,16 +149,18 @@ namespace ThrottleControlledAvionics
 			//make a correction if falling or flyin too low
 			if(IsStateSet(TCAState.LoosingAltitude))
 			{
-				DeltaSpeed /= 1-Utils.ClampH(VSL.VerticalSpeed, 0)*PN.FallingCorrection;
+				DeltaSpeed /= 1-Utils.ClampH(VSL.VerticalSpeed, 0)*PN.FallingSensitivity
+					/(CFG.AltitudeAboveTerrain? VSL.Altitude : 1);
 				if(DeltaSpeed < 1) 
 				{
-					var a = Utils.ClampL(2/-VSL.VerticalSpeed, 2);
+					var a = Utils.ClampL(PN.FallingCorrection/-VSL.VerticalSpeed, PN.FallingCorrection);
 					cur_vel *= (a-1+DeltaSpeed)/a;
 				}
 			}
 			if(CFG.ControlAltitude)
 			{
-				var alt_error = CFG.DesiredAltitude-VSL.Altitude;
+				var alt_error = (CFG.DesiredAltitude-VSL.Altitude);
+				if(CFG.AltitudeAboveTerrain) alt_error /= VSL.Altitude*9;
 				if(alt_error > 0) DeltaSpeed /= 1+alt_error;
 			}
 			//set needed velocity and starboard
