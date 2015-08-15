@@ -21,15 +21,15 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "VSC";
 
 			[Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f;    //vertical speed limit control coefficients
-			[Persistent] public float MaxSpeed              = 10f;   //max. positive vertical speed m/s (configuration limit)
-			[Persistent] public float MinVSFf               = 1.2f;  //minimum vertical speed factor; so as not to lose control during a rapid descent
-			[Persistent] public float BalanceCorrection     = 1.5f;  //multiplier for the vertical speed factor correction; 1.2 means +20% of thrust above the minimal value sufficient for zero balance
-			[Persistent] public float TWRf                  = 2.0f;  //factor for the TWR adjustment of VerticalCutoff
-			[Persistent] public float UpAf                  = 0.2f;  //factor for the upA adjustment of VerticalCutoff
-			[Persistent] public float ASf                   = 2f;    //factor for the acceleration speed adjustment of VerticalCutoff
-			[Persistent] public float DSf                   = 1f;    //factor for the deceleration speed adjustment of VerticalCutoff
-			[Persistent] public float TimeAhead             = 5f;
-			[Persistent] public float FallingTime           = 1f;
+			[Persistent] public float MaxSpeed          = 10f;   //max. positive vertical speed m/s (configuration limit)
+			[Persistent] public float MinVSFf           = 1.2f;  //minimum vertical speed factor; so as not to lose control during a rapid descent
+			[Persistent] public float BalanceCorrection = 1.5f;  //multiplier for the vertical speed factor correction; 1.2 means +20% of thrust above the minimal value sufficient for zero balance
+			[Persistent] public float TWRf              = 2.0f;  //factor for the TWR adjustment of VerticalCutoff
+			[Persistent] public float UpAf              = 0.2f;  //factor for the upA adjustment of VerticalCutoff
+			[Persistent] public float ASf               = 2f;    //factor for the acceleration speed adjustment of VerticalCutoff
+			[Persistent] public float DSf               = 1f;    //factor for the deceleration speed adjustment of VerticalCutoff
+			[Persistent] public float TimeAhead         = 5f;
+			[Persistent] public float FallingTime       = 1f;
 		}
 		static Config VSC { get { return TCAConfiguration.Globals.VSC; } }
 
@@ -67,7 +67,7 @@ namespace ThrottleControlledAvionics
 				else SetState(TCAState.LoosingAltitude);
 			}
 			else StartedFalling = -1;
-//			DebugUtils.CSV(VerticalSpeed, CFG.VerticalCutoff, maxTWR, VerticalAccel, upAF, setpoint-CFG.VerticalCutoff, K);//debug
+//			DebugUtils.CSV(VSL.VerticalSpeed, CFG.VerticalCutoff, VSL.VerticalAccel, VSL.Altitude);//debug
 		}
 	}
 }
