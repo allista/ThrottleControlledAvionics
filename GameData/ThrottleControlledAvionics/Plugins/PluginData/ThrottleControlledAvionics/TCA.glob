@@ -66,6 +66,7 @@ VSC
 	DSf               = 1    //factor for the deceleration speed adjustment of VerticalCutoff
 	TimeAhead         = 5
 	FallingTime       = 0.5  //min. time falling to trigger Loosing Altitude alert
+	RelAltitudeFilter = 1000
 }
 
 ALT
@@ -126,16 +127,16 @@ CC
 
 PN
 {
-	MinDistance       = 30
-	MinTime           = 10
-	OnPathMinDistance = 300
-	DistanceF         = 0.08
-	MinSpeed          = 10
-	MaxSpeed          = 300
-	DeltaSpeed        = 10
-	DeltaSpeedF       = 0.5
-	FallingCorrection = 10
-	CorrectionTime    = 5
+	MinDistance        = 30
+	MinTime            = 10
+	OnPathMinDistance  = 300
+	DistanceF          = 0.08
+	MinSpeed           = 10
+	MaxSpeed           = 300
+	DeltaSpeed         = 10
+	DeltaSpeedF        = 0.5
+	FallingSensitivity = 10
+	FallingCorrection  = 3
 	DirectNavThreshold = 1
 	GCNavStep          = 0.1
 	
@@ -149,10 +150,10 @@ PN
 
 RAD
 {
-	MaxViewAngle       = 15
+	MaxViewAngle       = 10
 	LookAheadTime      = 20
 	LookAheadFilter    = 1
-	ViewAngleFactor    = 0.04
+	NumRays            = 20
 	MinAltitudeFactor  = 2
 	MinClosingSpeed    = 4
 	NHVf               = 0.5

@@ -23,10 +23,17 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxViewAngle       = 15;
 			[Persistent] public float LookAheadTime      = 20;
 			[Persistent] public float LookAheadFilter    = 1;
-			[Persistent] public float ViewAngleFactor    = 10;
+			[Persistent] public int   NumRays            = 30;
 			[Persistent] public float MinAltitudeFactor  = 2;
 			[Persistent] public float MinClosingSpeed    = 4;
 			[Persistent] public float NHVf               = 0.5f;
+			public float DeltaAngle;
+
+			public override void Init()
+			{
+				base.Init();
+				DeltaAngle = MaxViewAngle/NumRays;
+			}
 		}
 		static Config RAD { get { return TCAConfiguration.Globals.RAD; } }
 
@@ -39,6 +46,7 @@ namespace ThrottleControlledAvionics
 		float   ClosingSpeed;
 		double  DetectedTime;
 		float   DetectedSpeed = -1;
+		int     Ray;
 
 		public Vector3d SurfaceVelocity { get { return VSL.vessel.srf_velocity; } }
 
@@ -116,35 +124,45 @@ namespace ThrottleControlledAvionics
 			return lowest_h;
 		}
 
+		void reset()
+		{
+			DetectedTime = -1; 
+			DetectedSpeed = -1;
+			VSL.AltitudeAhead = -1;
+			CFG.NHVf = 1;
+			Ray = 0;
+		}
+
 		public void Update()
 		{
 			if(!IsActive) return;
-			CFG.NHVf = 1;
-			VSL.AltitudeAhead = -1;
-			var DownSpeed = -Vector3.Dot(SurfaceVelocity, VSL.Up);
-			Dir = DownSpeed > 0?
+			Dir = VSL.AbsVerticalSpeed < 0?
 				Vector3.ProjectOnPlane(SurfaceVelocity, VSL.refT.right).normalized :
 				Vector3.Cross(VSL.refT.right, VSL.Up).normalized;
 			ClosingSpeed = Vector3.Dot(SurfaceVelocity, Dir);
-			if(ClosingSpeed <= RAD.MinClosingSpeed) return;
-			//look right ahead
-			ViewAngle     = Utils.ClampH(RAD.MaxViewAngle/ClosingSpeed*VSL.Altitude*RAD.ViewAngleFactor, RAD.MaxViewAngle);
-			MaxDistance   = (DetectedSpeed < 0? ClosingSpeed : DetectedSpeed)*RAD.LookAheadTime;
+			if(ClosingSpeed <= RAD.MinClosingSpeed) { reset(); return; }
+			//set state if previously detected an obstacle
+			if(DetectedSpeed > 0) SetState(VSL.AbsVerticalSpeed < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
+			//cast the ray
+			ViewAngle     = RAD.DeltaAngle*Ray++;
+			MaxDistance   = (DetectedSpeed < ClosingSpeed? ClosingSpeed : DetectedSpeed)*RAD.LookAheadTime;
 			DistanceAhead = ray_distance(ViewAngle, MaxDistance);
 //			Utils.Log("Alt {0}, MaxDist {1}, Dist {2}, Angle {3}", VSL.Altitude, MaxDistance, DistanceAhead, ViewAngle);//debug
+			if(DistanceAhead < 0) { if(Ray > RAD.NumRays) reset(); return; }
+			//reset the ray if something is found
+			Ray = 0;
 			//filter out terrain noise
-			if(DistanceAhead < 0) { DetectedTime = -1; DetectedSpeed = -1; return; }
 			if(DetectedTime < 0) { DetectedTime = Planetarium.GetUniversalTime(); return; }
 			if(Planetarium.GetUniversalTime() - DetectedTime < RAD.LookAheadFilter) return;
-			//compute altitude and chech for possible collision
+			//compute altitude and check for possible collision
 			VSL.AltitudeAhead = DistanceAhead*Mathf.Sin(ViewAngle*Mathf.Deg2Rad);
 			var dH = lowest_vessel_point();
 			if(VSL.AltitudeAhead-dH*RAD.MinAltitudeFactor*(DetectedSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
 			{
 				if(DetectedSpeed < 0) DetectedSpeed = ClosingSpeed;
-				SetState(DownSpeed > 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
 				CFG.NHVf = Utils.ClampH(DistanceAhead/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1);
-			} else DetectedSpeed = -1;
+			} 
+			else { DetectedSpeed = -1; CFG.NHVf = 1; }
 //			Utils.Log("ALtAhead {0}, dH {1}, Obstacle {2}, NHVf {3}, DetectedSpeed {4}", 
 //			          VSL.AltitudeAhead, dH, 
 //			          IsStateSet(TCAState.ObstacleAhead)||IsStateSet(TCAState.GroundCollision), 
