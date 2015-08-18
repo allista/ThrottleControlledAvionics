@@ -224,7 +224,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.CruiseControl) UpdateNeededVeloctiy();
 		}
 
-		public void ToggleGoToTarget() { pn.GoToTarget(!CFG.GoToTarget);}
+		public void GoToTarget(bool enable) { pn.GoToTarget(enable);}
 		public void ToggleFollowPath() { pn.FollowPath(!CFG.FollowPath);}
 		#endregion
 

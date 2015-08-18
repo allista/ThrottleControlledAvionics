@@ -283,7 +283,7 @@ namespace ThrottleControlledAvionics
 				                    CFG.GoToTarget? Styles.green_button 
 				                    : (VSL.HasTarget? Styles.yellow_button : Styles.grey),
 				                    GUILayout.Width(100)))
-					TCA.ToggleGoToTarget();
+					TCA.GoToTarget(VSL.HasTarget);
 				if(selecting_map_target)
 				{
 					if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.Width(120)))
@@ -309,7 +309,8 @@ namespace ThrottleControlledAvionics
 					MapView.EnterMapView();
 				}
 				if(GUILayout.Button("Follow Path", 
-				                    CFG.FollowPath? Styles.green_button : Styles.yellow_button,
+				                    CFG.FollowPath? Styles.green_button 
+				                    : (CFG.Waypoints.Count > 0? Styles.yellow_button : Styles.grey),
 				                    GUILayout.Width(100)))
 					TCA.ToggleFollowPath();
 				CFG.MaxNavSpeed = Utils.FloatSlider("Max.V m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 100);
