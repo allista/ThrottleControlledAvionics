@@ -321,6 +321,48 @@ namespace ThrottleControlledAvionics
 		{ return string.Format("Lat: {0} Lon: {1}", AngleToDMS(Lat), AngleToDMS(Lon)); }
 	}
 
+	public class TimerBase
+	{
+		protected double next_time;
+		public double Period;
+
+		public TimerBase(double period) { Period = period; next_time = -1; }
+		public void Reset() { next_time = -1; }
+	}
+
+	public class ActionDamper : TimerBase
+	{
+		public ActionDamper(double period = 0.1) : base(period) {}
+
+		public void Run(Action action)
+		{
+			var time = Planetarium.GetUniversalTime();
+			Utils.Log("time {0}; next_time {1}", time, next_time);//debug
+			if(next_time > time) return;
+			next_time = time+Period;
+			action();
+			Utils.Log("action executed");//debug
+		}
+	}
+
+	public class Timer : TimerBase
+	{
+		public Timer(double period = 1) : base(period) {}
+
+		public bool Check
+		{
+			get 
+			{
+				if(next_time < 0)
+				{
+					next_time = Planetarium.GetUniversalTime()+Period; 
+					return true;
+				}
+				else return next_time > Planetarium.GetUniversalTime();
+			}
+		}
+	}
+
 	public class ConfigNodeObject : IConfigNode
 	{
 		public const string NODE_NAME = "NODE";
