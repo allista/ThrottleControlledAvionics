@@ -22,6 +22,8 @@ namespace ThrottleControlledAvionics
 		static ModuleTCA TCA;
 		static VesselWrapper VSL { get { return TCA.VSL; } }
 		static VesselConfig CFG { get { return TCA.CFG; } }
+		static ActionDamper UpDamper = new ActionDamper(0.1);
+		static ActionDamper DownDamper = new ActionDamper(0.1);
 
 		public static void LoadConfig()
 		{
@@ -30,6 +32,8 @@ namespace ThrottleControlledAvionics
 			HelpPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpPos}), HelpPos);
 			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
 			TCAConfiguration.Load();
+			UpDamper.Period = GLB.KeyRepeatTime;
+			DownDamper.Period = GLB.KeyRepeatTime;
 			updateConfigs();
 		}
 
@@ -130,9 +134,12 @@ namespace ThrottleControlledAvionics
 						                                 CFG.DesiredAltitude-10, 
 						                                 CFG.VSControlSensitivity);
 					else if(GameSettings.THROTTLE_FULL.GetKey())
-						CFG.DesiredAltitude = CFG.DesiredAltitude+10;
+						UpDamper.Run(() => CFG.DesiredAltitude = CFG.DesiredAltitude+10);
 					else if(GameSettings.THROTTLE_CUTOFF.GetKey())
-						CFG.DesiredAltitude = CFG.DesiredAltitude-10;
+					{
+						Utils.Log("THROTTLE_CUTOFF");//debug
+						DownDamper.Run(() => CFG.DesiredAltitude = CFG.DesiredAltitude-10);
+					}
 				}
 				else
 				{

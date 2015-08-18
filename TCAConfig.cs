@@ -16,6 +16,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool UseStockAppLauncher  = false;
 		[Persistent] public float InputDeadZone       = 0.01f; //1% of steering or translation control
 		[Persistent] public int MaxManualGroups       = 10; //maximum number of manual control groups
+		[Persistent] public float KeyRepeatTime       = 0.1f;
 
 		[Persistent] public EngineOptimizer.Config        ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config   VSC = new VerticalSpeedControl.Config();
