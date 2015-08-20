@@ -119,16 +119,16 @@ namespace ThrottleControlledAvionics
 			}
 			vdir.Normalize();
 			//check if we have arrived to the target
-			if(distance < PN.MinDistance) 
+			if(distance < target.Distance &&
+			   //but keep trying if we came in too fast
+			   distance/Vector3d.Dot(VSL.HorizontalVelocity, vdir) > PN.MinTime) 
 			{
 				if(CFG.Nav[Navigation.FollowPath])
 				{
 					while(CFG.Waypoints.Count > 0 && CFG.Waypoints.Peek() == target) CFG.Waypoints.Dequeue();
 					if(CFG.Waypoints.Count > 0) { start_to(CFG.Waypoints.Peek()); return; }
 				}
-				//keep trying if we came in too fast
-				if(distance/Vector3d.Dot(VSL.HorizontalVelocity, vdir) > PN.MinTime)
-				{ finish(); return; }
+				finish(); return;
 			}
 			//don't slow down on intermediate waypoints too much
 			if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 1 && distance < PN.OnPathMinDistance)

@@ -22,6 +22,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public string Name;
 		[Persistent] public double Lat;
 		[Persistent] public double Lon;
+		[Persistent] public float  Distance;
 		//target proxy
 		[Persistent] ProtoTargetInfo TargetInfo = new ProtoTargetInfo();
 		ITargetable target;
@@ -30,9 +31,9 @@ namespace ThrottleControlledAvionics
 
 		public override string ToString() { return string.Format("[{0}] {1}", GetName(), new Coordinates(Lat, Lon)); }
 
-		public WayPoint() {}
-		public WayPoint(Coordinates c) { Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); go = new GameObject(); }
-		public WayPoint(ITargetable t) { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
+		public WayPoint() { Distance = TCAConfiguration.Globals.PN.MinDistance; }
+		public WayPoint(Coordinates c) : this() { Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); go = new GameObject(); }
+		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
 
 		static public WayPoint FromConfig(ConfigNode node)
 		{
