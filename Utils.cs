@@ -363,6 +363,30 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	public class TimeDiff
+	{
+		public readonly float dT;
+		protected float t, val, new_val;
+		public float Value { get; protected set; }
+		public TimeDiff(float dt = 0.05f) { dT = dt; }
+
+		public bool Update(float v)
+		{
+			val += v;
+			t += TimeWarp.fixedDeltaTime;
+			Value = Utils.EWA(Value, new_val, 0.1f);
+			if(t < dT) return false;
+			new_val = val/t;
+			val = t = 0;
+			return true;
+		}
+
+		public static implicit operator float(TimeDiff td) { return td.Value; }
+
+		public override string ToString() { return Value.ToString(); }
+		public string ToString(string format) { return Value.ToString(format); }
+	}
+
 	public class ConfigNodeObject : IConfigNode
 	{
 		public const string NODE_NAME = "NODE";
@@ -459,6 +483,43 @@ namespace ThrottleControlledAvionics
 		{
 			uint K = 0;
 			return uint.TryParse (k, out K)? K : 0;
+		}
+	}
+
+	public class Multiplexer<T> : ConfigNodeObject where T : struct
+	{
+		[Persistent] public string State;
+		public T state;
+
+		public Multiplexer() 
+		{ if(!typeof(T).IsEnum) throw new ArgumentException("Multiplexer<T> T must be an enumerated type"); }
+
+		public bool this[T key] 
+		{ 
+			get { return key.Equals(state); } 
+			set 
+			{ 
+				if(value) state = key;
+				else if(key.Equals(state)) state = default(T); 
+          	}
+		}
+		public void Toggle(T key) { this[key] = !this[key]; }
+		public void On(T key) { state = key; }
+		public void Off() { state = default(T); }
+
+		public static implicit operator bool(Multiplexer<T> m) { return !m[default(T)]; }
+
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			try { state = (T)Enum.Parse(typeof(T), State); }
+			catch { state = default(T); }
+		}
+
+		public override void Save(ConfigNode node)
+		{
+			State = Enum.GetName(typeof(T), state);
+			base.Save(node);
 		}
 	}
 
