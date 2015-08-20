@@ -93,7 +93,11 @@ namespace ThrottleControlledAvionics
 			   HighLogic.LoadedSceneIsFlight)
 			{
 				target = TargetInfo.FindTarget();
-				if(target == null) TargetInfo.targetType = ProtoTargetInfo.Type.Null;
+				if(target == null) 
+				{
+					TargetInfo.targetType = ProtoTargetInfo.Type.Null;
+					Name += " last location";
+				}
 				else UpdateCoordinates(body);
 			}
 			else
