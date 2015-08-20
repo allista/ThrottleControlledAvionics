@@ -72,7 +72,6 @@ ALT
 {
 	MaxSpeed = 10
 	ErrF = 1 //altitude error coefficient
-	TWRp = 2    //twr power factor
 	TWRd = 2  //twr denominator
 	
 	RelAltitudeFactor = 50  //meters
@@ -80,8 +79,6 @@ ALT
 
 	TimeAhead         = 5
 	FallingTime       = 1  //min. time falling to trigger Loosing Altitude alert
-	
-	AltAheadFilter = 1
 	
 	RocketPID
 	{
@@ -161,6 +158,7 @@ RAD
 	NumRays            = 20
 	MinAltitudeFactor  = 2
 	MinClosingSpeed    = 4
+	MinAltitude        = 10
 	NHVf               = 0.5
 }
 //:mode=c#:

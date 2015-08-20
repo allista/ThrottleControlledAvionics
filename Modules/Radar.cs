@@ -26,6 +26,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public int   NumRays            = 30;
 			[Persistent] public float MinAltitudeFactor  = 2;
 			[Persistent] public float MinClosingSpeed    = 4;
+			[Persistent] public float MinAltitude        = 10;
 			[Persistent] public float NHVf               = 0.5f;
 			public float DeltaAngle;
 
@@ -48,7 +49,9 @@ namespace ThrottleControlledAvionics
 		float    CollisionSpeed = -1;
 		readonly Hit BestHit     = new Hit();
 		readonly Hit DetectedHit = new Hit();
+		static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts"));
 		int      Ray;
+
 
 		public Vector3d SurfaceVelocity { get { return VSL.vessel.srf_velocity; } }
 
@@ -58,7 +61,7 @@ namespace ThrottleControlledAvionics
 			RaycastHit raycastHit;
 			if(Physics.Raycast(VSL.wCoM, 
 			                   Quaternion.AngleAxis(angle, VSL.refT.right)*Dir,
-			                   out raycastHit, dist, 32768))
+			                   out raycastHit, dist, RadarMask))
 				return raycastHit.distance;
 			return -1;
 		}
@@ -141,14 +144,17 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{
 			if(!IsActive) return;
+			if(VSL.HorizontalSpeed <= RAD.MinClosingSpeed && 
+			   (CFG.HF[HFlight.Stop] || CFG.DesiredAltitude < RAD.MinAltitude))
+			{ reset(); return; }
 			//closing speed and starting ray direction
 			Dir = Vector3.Cross(VSL.refT.right, VSL.Up).normalized;
-			if(VSL.RelVerticalSpeed < 0 && VSL.AbsVerticalSpeed < 0)
-				Dir = Vector3.Lerp(Dir,
+			if(VSL.RelVerticalSpeed < 0 && VSL.AbsVerticalSpeed < 0 && Vector3.Dot(SurfaceVelocity, Dir) >= 0)
+				Dir = Vector3.Lerp(Dir, 
 				                   Vector3.ProjectOnPlane(SurfaceVelocity, VSL.refT.right).normalized,
 				                   RAD.LookAheadTime/(VSL.Altitude/-VSL.RelVerticalSpeed)/VSL.MaxTWR);
 			ClosingSpeed = Vector3.Dot(SurfaceVelocity, Dir);
-			if(VSL.HorizontalSpeed <= RAD.MinClosingSpeed) { reset(); return; }
+			if(ClosingSpeed < RAD.MinClosingSpeed) ClosingSpeed = RAD.MinClosingSpeed;
 			//update state if previously detected something
 			if(CollisionSpeed > 0) SetState(VSL.AbsVerticalSpeed < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
 			if(DetectedHit.Altitude >= 0)

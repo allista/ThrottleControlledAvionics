@@ -20,11 +20,9 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "ALT";
 
-			[Persistent] public float AltAheadFilter = 0.95f; //altitude ahead should less than Altitude*AltAheadFilter to take effect
-			[Persistent] public float MaxSpeed = 100f; //Maximum absolute vertical velocity
-			[Persistent] public float ErrF  = 0.01f; //altitude error coefficient
-			[Persistent] public float TWRp  = 2f;    //twr power factor
-			[Persistent] public float TWRd  = 2f;    //twr denominator
+			[Persistent] public float MaxSpeed = 10f; //Maximum absolute vertical velocity
+			[Persistent] public float ErrF  = 1f;     //altitude error coefficient
+			[Persistent] public float TWRd  = 2f;     //twr denominator
 
 			[Persistent] public float RelAltitudeFactor = 100f;
 			[Persistent] public float RelVelocityErrF   = 100f;
@@ -102,11 +100,7 @@ namespace ThrottleControlledAvionics
 			//update pids
 			if((VSL.AccelSpeed > 0 || VSL.DecelSpeed > 0))
 			{
-//				if(VSL.VerticalSpeed > 0)
-//					jets_pid.P = Mathf.Clamp(ALT.ErrF*Mathf.Abs(error)/Utils.ClampL(VSL.VerticalSpeed, 1), 0, ALT.JetsPID.D);
-//				else if(VSL.VerticalSpeed < 0)
 				jets_pid.P = Utils.ClampH(ALT.JetsPID.P/VSL.MaxTWR/ALT.TWRd*Mathf.Clamp(Mathf.Abs(1/VSL.VerticalSpeed)*ALT.ErrF, 1, VSL.MaxTWR*ALT.TWRd), ALT.JetsPID.P);
-//				else jets_pid.P = ALT.JetsPID.P;
 				if(CFG.AltitudeAboveTerrain)
 					jets_pid.D = ALT.JetsPID.D/Utils.ClampL(VSL.HorizontalSpeed, 1);
 				jets_pid.Update(error);
@@ -123,16 +117,9 @@ namespace ThrottleControlledAvionics
 			if(CFG.AltitudeAboveTerrain)
 			{
 				var dV = (VSL.AbsVerticalSpeed-VSL.RelVerticalSpeed)/Utils.ClampL(alt/ALT.RelAltitudeFactor, 1);
-//				if(Mathf.Abs(dV) > ALT.MaxSpeed/10)
-//				{
-//					dV -= dV > 0? ALT.MaxSpeed/10 : ALT.MaxSpeed/-10;
-					if(error < 0) 
-//						dV = dV/Utils.ClampL(alt/ALT.RelAltitudeFactor, 1) +
-					dV += Utils.ClampL(error/CFG.DesiredAltitude/ALT.RelVelocityErrF*VSL.HorizontalSpeed, -10*ALT.MaxSpeed);
-					else 
-						dV = Utils.ClampL(dV, 0);//Utils.ClampL(alt/ALT.RelAltitudeFactor, 1);
-					CFG.VerticalCutoff += dV;
-//				} else dV = 0;
+				if(error < 0) dV += Utils.ClampL(error/CFG.DesiredAltitude/ALT.RelVelocityErrF*VSL.HorizontalSpeed, -10*ALT.MaxSpeed);
+				else dV = Utils.ClampL(dV, 0);
+				CFG.VerticalCutoff += dV;
 				//Loosing Altitude alert
 				if(VSL.RelVerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0 
 				   && VSL.Altitude < CFG.DesiredAltitude-VSL.RelVerticalSpeed*ALT.TimeAhead)
