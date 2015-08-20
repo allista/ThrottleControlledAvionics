@@ -6,7 +6,9 @@ Created on Jan 8, 2015
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pa
 import sys
+import os
 
 
 def clampL(x, L): return x if x > L else L
@@ -159,6 +161,7 @@ class PID(object):
         self.value  = 0
         self.ierror = 0
         self.perror = 0
+        self.action = 0
     #end def
         
     def update(self, err):
@@ -170,7 +173,9 @@ class PID(object):
         clamped = clamp(act, self.min, self.max)
         if clamped != act: self.ierror = old_ierror
         self.perror = err
-        return clamped
+        self.action = clamped
+        
+        return self.action
     #end def
     
     def sim(self, PV, SV, T):
@@ -188,6 +193,10 @@ class PID(object):
         plt.plot(T, V)
         plt.subplot(3,1,3)
         plt.plot(T, V-SV)
+        
+    def __str__(self, *args, **kwargs):
+        return ('p % 8.5f, i % 8.5f, d % 8.5f, min % 8.5f, max % 8.5f; action = % 8.5f'
+                % (self.kp, self.ki, self.kd, self.min, self.max, self.action))
 #end class
 
 class PID2(PID):
@@ -196,28 +205,36 @@ class PID2(PID):
         d = self.kd * (err-self.perror)/dt
         self.ierror = clamp(self.ierror + self.ki * err * dt if abs(d) < 0.6*self.max else 0.9 * self.ierror, self.min, self.max)
         self.perror = err
-        return clamp(self.kp*err + self.ierror + d, self.min, self.max)
+        self.action = clamp(self.kp*err + self.ierror + d, self.min, self.max)
+#         print '%f %+f %+f' % (self.kp*err, self.ierror, d)
+        return self.action
 
 class VSF_sim(object):
     t1 = 5.0
     
-    def __init__(self, AS=0, DS=0):
-        self.AS = AS
-        self.DS = DS
+    def __init__(self,  ter=None, AS=0, DS=0):
+        self.Ter = list(ter) if ter is not None else None
+        self.N   = 0 if self.Ter is None else len(self.Ter)
+        self.AS  = AS
+        self.DS  = DS
         
         self.maxV = 0.0
         self.VSP  = 0.0
         self.upA  = 0.0
         self.upV  = 0.0
+        self.rV   = 0.0
         self.upX  = 0.0
+        self.dX   = 0.0
         self.E    = 0.0
         self.upAF = 0.0
         
-        self.T = []
-        self.X = []
-        self.V = []
-        self.K = []
-        self.F = []
+        self.T   = []
+        self.X   = []
+        self.rX  = []
+        self.V   = []
+        self.rV  = []
+        self.K   = []
+        self.F   = []
         self.VSp = []
         
         self.M = 4.0
@@ -260,12 +277,16 @@ class VSF_sim(object):
         self.add_thrust = 0
         self.twr = thrust/9.81/self.M
         self.upA = 0.0
-        self.T = [0.0]
-        self.A = [self.upA]
-        self.V = [self.upV]
-        self.X = [self.upX]
-        self.K = [self.vK]
-        self.F = [0.0]
+        self.dV  = self.upV
+        self.dX = self.upX-self.Ter[0] if self.N > 0 else 0
+        self.T  = [0.0]
+        self.A  = [self.upA]
+        self.V  = [self.upV]
+        self.rV = [self.dV]
+        self.X  = [self.upX]
+        self.rX = [self.dX]
+        self.K  = [self.vK]
+        self.F  = [0.0]
     #end def
     
     def update_upAF(self):
@@ -277,7 +298,8 @@ class VSF_sim(object):
     #end def
     
     def phys_loop(self, on_frame=lambda: None):
-        while self.T[-1] < self.t1: 
+        i = 1
+        while self.dX >= 0 and (self.T[-1] < self.t1 or i < self.N): 
             self.T.append(self.T[-1]+dt)
             self.update_upAF()
             on_frame()
@@ -286,16 +308,21 @@ class VSF_sim(object):
             #thrust
             rthrust = self.thrust*self.K[-1]
             speed   = self.AS if rthrust > self.cthrust else self.DS
-            self.cthrust  = lerp(self.cthrust, rthrust, speed*dt) if speed > 0 else rthrust
+            self.cthrust = lerp(self.cthrust, rthrust, speed*dt) if speed > 0 else rthrust
             #dynamics
-            self.upA = (self.add_thrust + self.cthrust - self.M*9.81)/self.M
+            self.upA  = (self.add_thrust + self.cthrust - self.M*9.81)/self.M
             self.upV += self.upA*dt
             self.upX += self.upV*dt
+            self.dX   = self.upX - (self.Ter[i] if self.N > 0 else 0)
+            self.dV   = EWA(self.dV, (self.dX-self.rX[-1])/dt, 0.1) 
             #logging
             self.F.append(self.cthrust * dt)
             self.A.append(self.upA)
             self.V.append(self.upV)
+            self.rV.append(self.dV)
             self.X.append(self.upX)
+            self.rX.append(self.dX)
+            i += 1
     #end def
     
     def run(self, upV, maxV=1.0, thrust=20.0, vK = None):
@@ -325,25 +352,40 @@ class VSF_sim(object):
         self.phys_loop(on_frame)
     #end def
             
-    def run_alt(self, alt=10.0, thrust=20.0, pid = PID(0.5, 0.0, 0.5, -9.9, 9.9)):
+    def run_alt(self, alt, salt = 0.0, thrust=20.0, pid = PID(0.5, 0.0, 0.5, -9.9, 9.9)):
         self.pid = pid
         self._vK = self.vK2
         self.cthrust = self.M*9.81
         self.maxV = 0.0
         self.VSP  = 0.0
         self.upV  = 0.0
-        self.upX  = 0.0
-        self.Vsp = [self.maxV]
+        self.upX  = salt if self.Ter is None else self.Ter[0]+10
+        self.Vsp  = [self.maxV]
+        self.dVsp = [0] 
         self.init(thrust)
+        d = pid.kd
         def on_frame():
-            alt_err = alt-self.upX
+            alt_err = alt-self.dX
             if (self.AS > 0 or self.DS > 0):
-                if self.upV > 0:
-                    self.pid.kp = clamp(0.01*abs(alt_err/self.upV), 0.0, self.pid.kd)
-                elif self.upV < 0:
-                    self.pid.kp = clamp(self.twr**2/abs(self.upV), 0.0, clampH(self.pid.kd*self.twr/2, self.pid.kd))
-                else: self.pid.kp = self.pid.kd
+                if alt_err > 0:
+                    self.pid.kp = clamp(0.01*abs(alt_err)/clampL(self.upV, 1), 0.0, d)
+                elif alt_err < 0:
+                    self.pid.kp = clamp(self.twr**2/clampL(-self.upV, 1), 0.0, clampH(d*self.twr/2, d))
+                else: self.pid.kp = d
+            self.pid.kd = d/clampL(self.dX, 1)
+            if alt_err < 0: alt_err = alt_err/clampL(self.dX, 1)
             self.maxV = self.pid.update(alt_err)
+            print self.pid, alt_err, clamp(0.01*abs(alt_err)/clampL(self.upV, 1), 0.0, d), d 
+            if self.N > 0:
+                dV = (self.upV-self.dV)/clampL(self.dX, 1)
+                if alt_err < 0: 
+#                     print '% f %+f = %f' % (dV/clampL(self.dX/50, 1), clampL(alt_err*self.dX/5000*self.twr, self.pid.min*10), dV/clampL(self.dX/50, 1) + clampL(alt_err*self.dX/5000*self.twr, self.pid.min*10))
+                    dV = dV + clampL(alt_err*self.dX/500*self.twr, self.pid.min*10)
+                else: 
+                    dV = clampL(dV, 0)
+#                 print dV
+                self.dVsp.append(dV)
+                self.maxV += dV
             self.Vsp.append(self.maxV)
         self.phys_loop(on_frame)
     #end def
@@ -354,10 +396,31 @@ class VSF_sim(object):
 #               % (upV, self.K1, self.L1, self.K2, self.L2, sum(self.F)))
     #end def
     
+    def describe(self):
+        from scipy import stats
+        cols = ('X', 'rX', 'V', 'rV', 'Vsp', 'dVsp', 'K')
+        for n in cols: 
+            c = getattr(self, n)
+            d = stats.describe(c)
+            print '%s:' % n
+            print '   sum:    ', sum(c)
+            print '   min-max:', d.minmax
+            print '   mean:   ', d.mean
+            print '   median: ', np.median(c)
+            print '   std:    ', np.std(c)
+            print '   sem:    ', stats.sem(c)
+            print '   skew:   ', d.skewness
+            print '   hist:   '
+            h = np.histogram(c, normed=True)
+            for i, e in enumerate(h[1][1:]):
+                e0 = h[1][i]
+                print '[% 8.3f : % 8.3f]: %s' %(e0, e, "#"*int(h[0][i]*80))
+            print ''
+        print '\n'
+    
     def _plot(self, r, c, n, Y, ylab):
         plt.subplot(r, c, n)
         plt.plot(self.T, Y, label=("V: twr=%.1f" % self.twr))
-        plt.xlabel("time (s)")
         plt.ylabel(ylab)
         
     def legend(self):
@@ -369,11 +432,22 @@ class VSF_sim(object):
     def plot_vs(self, r, c, n):
         self._plot(r, c, n, self.V, ylab="vertical speed (m/s)")
         
+    def plot_ter(self, r, c, n):
+        if self.N == 0: return
+        self._plot(r, c, n, self.Ter[:len(self.T)], ylab="terrain (m)")
+        
     def plot_alt(self, r, c, n):
         self._plot(r, c, n, self.X, ylab="altitude (m)")
         
+    def plot_ralt(self, r, c, n):
+        self._plot(r, c, n, self.rX, ylab="relative altitude (m)")
+        
     def plot_vsp(self, r, c, n):
-        self._plot(r, c, n, self.Vsp, ylab="vsp (m/s)")
+        self._plot(r, c, n, self.Vsp, ylab="VSP (m/s)")
+        
+    def plot_dvsp(self, r, c, n):
+        if len(self.dVsp) != len(self.T): return
+        self._plot(r, c, n, self.dVsp, ylab="dVSP (m/s)")
         
     def plot_k(self, r, c, n):
         self._plot(r, c, n, self.K, ylab="K")
@@ -705,24 +779,33 @@ def sim_VS_Stability():
 #end def
     
 def sim_Altitude():
-    sim1 = VSF_sim()#0.12, 0.5)
-    sim1.t1 = 30.0
-    thrust = np.arange(100, 300, 50)
-    alt = 10.0
-    def run_sim(c, n, A, pid):
+#     vs = loadCSV('VS-filtering-26.csv', ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'aV', 'rV', 'dV'))
+# #     ter = vs.TerAlt[-10:10:-1]
+#     vs = vs[vs.Alt > 3]
+#     ter = vs.TerAlt[17000:22000]
+    
+    sim1 = VSF_sim(AS=0.12, DS=0.5)
+    sim1.t1 = 60.0
+    thrust = [100] #np.arange(100, 300, 50)
+    def run_sim(c, n, A, sA, pid):
         for t in thrust:
-            sim1.run_alt(A, thrust = t, pid = pid)
-            sim1.plot_alt(3,c,n)
-            sim1.plot_vsp(3,c,c+n)
-            sim1.plot_vs(3,c,c*2+n)
-    pid = PID2(0.3, 0.0, 0.3, -9.9, 9.9)
-#     pid = PID(0.5, 0.0, 0.5, -9.9, 9.9)
-    run_sim(4,1, alt/10.0, pid)
-    run_sim(4,2, alt, pid)
-    run_sim(4,3, -alt/10.0, pid)
-    run_sim(4,4, -alt, pid)
+            sim1.run_alt(A, sA, thrust = t, pid = pid)
+            i = 0; r = 7
+            sim1.plot_alt( r, c, c*i+n); i += 1
+            sim1.plot_ter( r, c, c*i+n); i += 1
+            sim1.plot_ralt(r, c, c*i+n); i += 1
+            sim1.plot_vs(  r, c, c*i+n); i += 1
+            sim1.plot_vsp( r, c, c*i+n); i += 1
+            sim1.plot_dvsp(r, c, c*i+n); i += 1
+            sim1.plot_k(r, c, c*i+n); i += 1
+            sim1.describe()
+#     run_sim(2,1, 100.0, pid)
+    run_sim(2,1, 50.0, 0.0, PID2(0.3, 0.0, 0.3, -9.9, 9.9))
+    run_sim(2,2, 50.0, 105.0, PID2(0.3, 0.0, 0.3, -9.9, 9.9))
+#    run_sim(4,3, -alt/10.0, pid)
+#    run_sim(4,4, -alt, pid)
     sim1.legend()
-    plt.show()
+    plt_show_maxed()
 #end def
 
 def legend():
@@ -846,32 +929,42 @@ def color_grad(num, repeat=1):
     
 def Gauss(old, cur, ratio = 0.7, poles = 2):
     for _i in xrange(poles):
-        old = (1-ratio)*old+ratio*cur
-    return old
+        cur = (1-ratio)*old+ratio*cur
+    return cur
 
 def EWA(old, cur, ratio = 0.7):
+    return (1-ratio)*old+ratio*cur
+
+def EWA2(old, cur, ratio = 0.7):
+    if cur < old: ratio = clamp01(1-ratio)
     return (1-ratio)*old+ratio*cur
 
 def vFilter(v, flt, **kwargs):
     f = [v[0]]
     for val in v[:-1]:
         f.append(flt(f[-1], val, **kwargs))
-    return f
+    return np.fromiter(f, float)
 
 def simFilters():
-#     import os
-#     import pandas as pa
-#     os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Tests'))
-#     df = pa.read_csv('alt-gauss-0.1-2.csv')
-#     er = df['error']
-    t1 = 20
-    T = np.arange(0, t1, dt)
-    er = np.sin(T*0.5)+np.random.normal(size=len(T))/10.0
-    ewa = vFilter(er, EWA, ratio=0.5)
-    gauss = vFilter(er, Gauss, ratio=0.1, poles=2)
-    plt.plot(T, er)
-    plt.plot(T, ewa)
-#     plt.plot(T, gauss)
+    df = loadCSV('VS-filtering-34.csv', ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'VSF', 'MinVSF', 'aV', 'rV', 'dV', 'mdTWR', 'mTWR', 'hV'))
+    df = df[df.Alt > 3].reset_index()
+    addL(df)
+    L = df.L
+    a = df.TerAlt
+    aa = df.AltAhead
+#     t1 = 20
+    T = np.arange(0, df.shape[0]*dt, dt)
+#     er = np.sin(T*0.5)+np.random.normal(size=len(L))/10.0
+    ewa = vFilter(aa, EWA, ratio=0.1)
+    ewa2 = vFilter(aa, EWA2, ratio=0.9)
+    ax = plt.subplot()
+    ax1 = ax.twinx()
+    ax.plot(T, a, label='Alt')
+    ax1.plot(T, -aa, label='Rad')
+    ax1.plot(T, -ewa, label='EWA')
+    ax1.plot(T, -ewa2, label='EWA2')
+#     ax1.plot(L, g2, label='Gauss2')
+    legend()
     plt.show()
     
 def simGC():
@@ -969,36 +1062,32 @@ def simGC():
 
 
 def loadCSV(filename, columns=None, header=None):
-    import os
-    import pandas as pa
     os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Tests'))
     df = pa.read_csv(filename, header=header, names=columns)
     return df
 
-def drawDF(df, columns=None, axes=None, colors=None):
+def drawDF(df, columns=None, colors=None, axes=None):
+    from collections import Counter 
     l = df.shape[0]
-    T = np.arange(0, l*dt, dt)
+    L = df.L if 'L' in df else np.arange(0, l, 1)
     cols = df.keys() if columns is None else columns
+    num_axes = Counter(axes)
+    nrows = max(num_axes.values())
+    ncols = len(num_axes.keys())
     if colors is None: colors = color_grad(len(cols))
-    if axes is not None:
-        axd = {axes[0]: plt.subplot()}
-        lns = []
     for i, k in enumerate(cols):
         if axes is None:
-            plt.plot(T, df[k], label=k, color=colors[i])
+            plt.plot(L, df[k], label=k, color=colors[i])
         else:
-            if axes[i] not in axd:
-                axd[axes[i]] = axd[axes[0]].twinx()
-            ax = axd[axes[i]]
-            lns += ax.plot(T, df[k], label=k, color=colors[i])
-    if axes is None:
-        plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-    else:
-        ax.legend(lns, [l.get_label() for l in lns], 
-                  bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+            plt.subplot(nrows, ncols, ncols*(i%nrows)+axes[i])
+            plt.plot(L, df[k], label=k, color=colors[i])
+            plt.ylabel(k)
+#     plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.0)
     plt_show_maxed()
 
 def plt_show_maxed():
+    plt.tight_layout(pad=0, h_pad=0, w_pad=0)
+    plt.subplots_adjust(top=0.99, bottom=0.03, left=0.05, right=0.99, hspace=0.25, wspace = 0.1)
     mng = plt.get_current_fig_manager()
     mng.window.showMaximized()
     plt.show()
@@ -1011,20 +1100,56 @@ def boxplot(df, columns=None):
 def describe(df, columns=None):
     from scipy import stats
     cnames = df.keys() if columns is None else columns
-    for k in cnames: 
-        d = stats.describe(df[k])
+    for k in cnames:
+        c = df[k] 
+        d = stats.describe(c)
         print '%s:' % k
-        print '   sum:    ', sum(df[k])
+        print '   len:    ', len(c)
+        print '   sum:    ', sum(c)
         print '   min-max:', d.minmax
         print '   mean:   ', d.mean
-        print '   std:    ', np.std(df[k])
-        print '   sem:    ', stats.sem(df[k])
+        print '   median: ', np.median(c)
+        print '   std:    ', np.std(c)
+        print '   sem:    ', stats.sem(c)
         print '   skew:   ', d.skewness
-    print ''
-        
+        print '   hist:   '
+        h = np.histogram(c, normed=True)
+        for i, e in enumerate(h[1][1:]):
+            e0 = h[1][i]
+            print '[% 8.3f : % 8.3f]: %s' %(e0, e, "#"*int(h[0][i]*80))
+        print ''
+    print '\n'
+      
+      
+def addL(df):
+    '''add horizontal coordinate column'''
+    L = [0]
+    if 'hV' in df:
+        for hv in df.hV[:-1]:
+            L.append(L[-1]+hv*dt) 
+    else: 
+        L = np.arange(0, df.shape[0], 1)
+    df['L'] = pa.Series(L, index=df.index)
+      
+def analyzeCSV(filename, header, cols=None, region = None):
+    df = loadCSV(filename, header)
+    if 'Alt' in df:
+        df = df[df.Alt > 3].reset_index()
+    addL(df)
+    #slice by L
+    if region:
+        region = list(region)
+        if len(region) < 2: region.append(None)
+        if region[0] == None: region[0] = 0
+        if region[1] == None: region[1]  = df.L.last
+        df = df[(df.L > region[0]) & (df.L <= region[1])]
+#     describe(df)
+#     print df.iloc[500]
+    drawDF(df, cols, axes=[1]*(len(df.keys()) if cols is None else len(cols)))
+  
 #==================================================================#
 
-dt = 0.01
+dt = 0.05
 
 if __name__ == '__main__':
 #     sim_VSpeed()
@@ -1034,14 +1159,14 @@ if __name__ == '__main__':
 #     sim_Rotation()
 #     simFilters()
 #     simGC()
-
-#     drawVectors()
+    analyzeCSV('VS-filtering-43.csv',
+               ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'VSF', 'MinVSF', 'aV', 'rV', 'dV', 'mdTWR', 'mTWR', 'hV'),
+                ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'VSF', 'aV', 'rV', 'dV', 'mdTWR', 'hV'))
+#                 ('Alt', 'Err', 'VSP', 'VSF', 'dV'))
+# #                ['AltAhead']
+#                 , (13,))
     
-    def analyzeVS(filename):
-        vs = loadCSV(filename, ('Alt', 'Err', 'VSP', 'K', 'V'))
-        vs = vs[vs.V > -1000]
-        describe(vs)
-        drawDF(vs, ('Alt', 'Err', 'VSP', 'V'), (0,0,1,1))
-
-    analyzeVS('VS-filtering-4.csv')
-    analyzeVS('VS-filtering-6.csv')
+#     analyzeCSV('VS-filtering-39.csv',
+#                ('BestAlt', 'DetAlt', 'AltAhead')
+#                )
+#     drawVectors()

@@ -158,10 +158,10 @@ namespace ThrottleControlledAvionics
 			modules.ForEach(m => m.Init());
 			vessel.OnAutopilotUpdate += block_throttle;
 			VSL.UpdateCommons();
-			VSL.UpdateVerticalStats();
-			if(CFG.GoToTarget) pn.GoToTarget(VSL.vessel.targetObject != null);
-			else if(CFG.FollowPath) pn.FollowPath(CFG.Waypoints.Count > 0);
-			else if(CFG.CruiseControl) UpdateNeededVeloctiy();
+			VSL.UpdateOnPlanetStats();
+			if(CFG.Nav[Navigation.GoToTarget]) pn.GoToTarget(VSL.vessel.targetObject != null);
+			else if(CFG.Nav[Navigation.FollowPath]) pn.FollowPath(CFG.Waypoints.Count > 0);
+			else if(CFG.HF[HFlight.CruiseControl]) UpdateNeededVeloctiy();
 			ThrottleControlledAvionics.AttachTCA(this);
 			part.force_activate(); //need to activate the part in order for OnFixedUpdate to work
 		}
@@ -182,7 +182,7 @@ namespace ThrottleControlledAvionics
 		IEnumerator<YieldInstruction> NeededVelocityUpdater;
 		IEnumerator<YieldInstruction> update_needed_velocity()
 		{
-			while(VSL != null && CFG.CruiseControl && VSL.OnPlanet)
+			while(VSL != null && CFG.HF[HFlight.CruiseControl] && VSL.OnPlanet)
 			{
 				cc.UpdateNeededVelocity();
 				yield return new WaitForSeconds(GLB.CC.Delay);
@@ -214,18 +214,18 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 
-		public void ToggleHvAutopilot() { hsc.Enable(!CFG.KillHorVel); }
-		public void ToggleAltitudeAutopilot() { alt.Enable(!CFG.ControlAltitude); }
+		public void ToggleHvAutopilot() { hsc.Enable(!CFG.HF[HFlight.Stop]); }
+		public void ToggleAltitudeAutopilot() { alt.Enable(!CFG.VF[VFlight.AltitudeControl]); }
 		public void AltitudeAboveTerrain(bool state) { alt.SetAltitudeAboveTerrain(state); }
 
 		public void ToggleCruiseControl()
 		{
-			cc.Enable(!CFG.CruiseControl);
-			if(CFG.CruiseControl) UpdateNeededVeloctiy();
+			cc.Enable(!CFG.HF[HFlight.CruiseControl]);
+			if(CFG.HF[HFlight.CruiseControl]) UpdateNeededVeloctiy();
 		}
 
 		public void GoToTarget(bool enable) { pn.GoToTarget(enable);}
-		public void ToggleFollowPath() { pn.FollowPath(!CFG.FollowPath);}
+		public void ToggleFollowPath() { pn.FollowPath(!CFG.Nav[Navigation.FollowPath]);}
 		#endregion
 
 		void block_throttle(FlightCtrlState s)
@@ -250,9 +250,9 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateCommons();
 			if(VSL.NumActive > 0)
 			{
+				VSL.InitEgnines();
 				for(int i = 0; i < modules.Count; i++) modules[i].UpdateState();
-				if(vsc.IsActive) VSL.UpdateVerticalStats();
-				if(hsc.IsActive) VSL.UpdateHorizontalStats();
+				if(vsc.IsActive || hsc.IsActive) VSL.UpdateOnPlanetStats();
 				//these follow specific order
 				rad.Update();
 				alt.Update();
@@ -260,7 +260,7 @@ namespace ThrottleControlledAvionics
 				pn.Update();
 			}
 			//handle engines
-			VSL.InitEngines();
+			VSL.UpdateThrustersParams();
 			if(VSL.NumActive > 0)
 			{
 				VSL.SortEngines();

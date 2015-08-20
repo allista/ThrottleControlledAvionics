@@ -87,6 +87,8 @@ namespace ThrottleControlledAvionics
 			if(TCA == null || !TCA.Available) { TCA = null; return false; }
 			TCAToolbarManager.AttachTCA(TCA);
 			LoadConfig();
+			UpDamper.Reset();
+			DownDamper.Reset();
 			return true;
 		}
 
@@ -123,7 +125,7 @@ namespace ThrottleControlledAvionics
 			else if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
 			if(CFG.Enabled && CFG.BlockThrottle)
 			{
-				if(CFG.ControlAltitude)
+				if(CFG.VF[VFlight.AltitudeControl])
 				{
 					if(GameSettings.THROTTLE_UP.GetKey())
 						CFG.DesiredAltitude = Mathf.Lerp(CFG.DesiredAltitude, 

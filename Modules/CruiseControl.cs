@@ -40,7 +40,7 @@ namespace ThrottleControlledAvionics
 
 		public override void UpdateState() 
 		{ 
-			IsActive = CFG.CruiseControl && VSL.OnPlanet; 
+			IsActive = CFG.HF[HFlight.CruiseControl] && VSL.OnPlanet; 
 			if(!inited && IsActive && !VSL.Up.IsZero())
 			{
 				UpdateNeededVelocity();
@@ -56,17 +56,15 @@ namespace ThrottleControlledAvionics
 
 		public override void Enable(bool enable = true)
 		{
-			CFG.CruiseControl = enable;
 			pid.Reset();
-			if(CFG.CruiseControl) 
+			CFG.HF[HFlight.CruiseControl] = enable;
+			if(enable) 
 			{
-				CFG.KillHorVel = false;
-				CFG.GoToTarget = false;
-				CFG.FollowPath = false;
-				VSL.UpdateHorizontalStats();
+				CFG.Nav.Off();
+				VSL.UpdateOnPlanetStats();
 			}
-			BlockSAS(CFG.CruiseControl);
-			set_needed_velocity(CFG.CruiseControl);
+			BlockSAS(enable);
+			set_needed_velocity(enable);
 		}
 
 
@@ -80,7 +78,7 @@ namespace ThrottleControlledAvionics
 		protected override void Update(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
-			if(!(CFG.Enabled && CFG.CruiseControl && VSL.OnPlanet && VSL.refT != null )) return;
+			if(!(CFG.Enabled && CFG.HF[HFlight.CruiseControl] && VSL.OnPlanet && VSL.refT != null )) return;
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
 			if(UserIntervening(s)) { pid.Reset(); return; }

@@ -28,7 +28,6 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float UpAf              = 0.2f;  //factor for the upA adjustment of VerticalCutoff
 			[Persistent] public float ASf               = 2f;    //factor for the acceleration speed adjustment of VerticalCutoff
 			[Persistent] public float DSf               = 1f;    //factor for the deceleration speed adjustment of VerticalCutoff
-			[Persistent] public float TimeAhead         = 5f;
 			[Persistent] public float FallingTime       = 1f;
 		}
 		static Config VSC { get { return TCAConfiguration.Globals.VSC; } }
@@ -36,9 +35,15 @@ namespace ThrottleControlledAvionics
 		public VerticalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
 
 		public override void UpdateState()
-		{ IsActive = (CFG.ControlAltitude || CFG.VerticalCutoff < VSC.MaxSpeed) && VSL.OnPlanet; }
+		{ IsActive = (CFG.VF || CFG.VerticalCutoff < VSC.MaxSpeed) && VSL.OnPlanet; }
 
-		double StartedFalling;
+		public override void Init()
+		{
+			base.Init();
+			Falling.Period = VSC.FallingTime;
+		}
+
+		readonly Timer Falling = new Timer();
 
 		public void Update()
 		{
@@ -48,8 +53,8 @@ namespace ThrottleControlledAvionics
 			var upAF = -VSL.VerticalAccel
 				*(VSL.VerticalAccel < 0? VSL.AccelSpeed : VSL.DecelSpeed)*VSC.UpAf;
 			var setpoint = CFG.VerticalCutoff;
-			if(!VSL.MaxTWR.Equals(0))
-				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/VSL.MaxTWR;
+			if(VSL.MaxDTWR > 0)
+				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/VSL.MaxDTWR;
 			//calculate new VSF
 			var err = setpoint-VSL.VerticalSpeed;
 			var K = Mathf.Clamp01(err
@@ -57,16 +62,16 @@ namespace ThrottleControlledAvionics
 			                      /Mathf.Pow(Utils.ClampL(VSL.VerticalAccel/VSC.K1+1, VSC.L1), 2f)
 			                      +upAF);
 			VSL.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.MinVSF);
-			//loosing altitude alert
+//			Utils.Log("VSC.VSF {0}, K {1}, VSP {2}, setpoint {3}, tdif {4}, cdif {5}, mDTWR {6}", 
+//			          VSL.VSF, K, CFG.VerticalCutoff, setpoint, setpoint-CFG.VerticalCutoff, VSC.TWRf/VSL.MaxDTWR, VSL.MaxDTWR);//debug
 			if(VSL.LandedOrSplashed) return;
-			if(VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0 && 
-			   (!CFG.ControlAltitude || VSL.Altitude < CFG.DesiredAltitude-VSL.VerticalSpeed*VSC.TimeAhead))
+			//loosing altitude alert
+			if(!CFG.VF)
 			{
-				if(StartedFalling < 0) { StartedFalling = Planetarium.GetUniversalTime(); return; }
-				if(Planetarium.GetUniversalTime() - StartedFalling < VSC.FallingTime) return;
-				else SetState(TCAState.LoosingAltitude);
+				if(VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0)
+				{ if(Falling.Check) return; SetState(TCAState.LoosingAltitude);	}
+				else Falling.Reset();
 			}
-			else StartedFalling = -1;
 //			DebugUtils.CSV(VSL.VerticalSpeed, CFG.VerticalCutoff, VSL.VerticalAccel, VSL.Altitude);//debug
 		}
 	}

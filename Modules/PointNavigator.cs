@@ -29,6 +29,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float DeltaSpeedF        = 0.5f;
 			[Persistent] public float FallingSensitivity = 10f;
 			[Persistent] public float FallingCorrection  = 3f;
+			[Persistent] public float AltErrSensitivity  = 10f;
 			[Persistent] public float DistanceF          = 50;
 			[Persistent] public float DirectNavThreshold = 1;
 			[Persistent] public float GCNavStep          = 0.1f;
@@ -53,19 +54,18 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			pid.setPID(PN.DistancePID);
 			pid.Reset();
-			if(CFG.GoToTarget) GoToTarget();
-			else if(CFG.FollowPath) FollowPath();
+			if(CFG.Nav[Navigation.GoToTarget]) GoToTarget();
+			else if(CFG.Nav[Navigation.FollowPath]) FollowPath();
 		}
 
-		public override void UpdateState() { IsActive = (CFG.GoToTarget || CFG.FollowPath) && VSL.OnPlanet; }
+		public override void UpdateState() { IsActive = CFG.Nav && VSL.OnPlanet; }
 
 		public void GoToTarget(bool enable = true)
 		{
 			if(enable && !VSL.HasTarget) return;
-			CFG.GoToTarget = enable;
-			if(CFG.GoToTarget) 
+			if(enable) 
 			{
-				CFG.FollowPath = false;
+				CFG.Nav.On(Navigation.GoToTarget);	
 				start_to(new WayPoint(VSL.vessel.targetObject));
 			}
 			else finish();
@@ -74,10 +74,9 @@ namespace ThrottleControlledAvionics
 		public void FollowPath(bool enable = true)
 		{
 			if(enable && CFG.Waypoints.Count == 0) return;
-			CFG.FollowPath = enable;
-			if(CFG.FollowPath) 
+			if(enable) 
 			{
-				CFG.GoToTarget = false;
+				CFG.Nav.On(Navigation.FollowPath);
 				start_to(CFG.Waypoints.Peek());	
 			}
 			else finish();
@@ -89,9 +88,8 @@ namespace ThrottleControlledAvionics
 			FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
 			BlockSAS();
 			pid.Reset();
-			VSL.UpdateHorizontalStats();
-			CFG.CruiseControl = true;
-			CFG.KillHorVel = false;
+			VSL.UpdateOnPlanetStats();
+			CFG.HF.On(HFlight.CruiseControl);
 		}
 
 		void finish()
@@ -100,10 +98,8 @@ namespace ThrottleControlledAvionics
 			FlightGlobals.fetch.SetVesselTarget(null);
 			CFG.Starboard = Vector3.zero;
 			CFG.NeededHorVelocity = Vector3d.zero;
-			CFG.CruiseControl = false;
-			CFG.KillHorVel = true;
-			CFG.GoToTarget = false;
-			CFG.FollowPath = false;
+			CFG.HF.On(HFlight.Stop);
+			CFG.Nav.Off();
 		}
 
 		public void Update()
@@ -125,7 +121,7 @@ namespace ThrottleControlledAvionics
 			//check if we have arrived to the target
 			if(distance < PN.MinDistance) 
 			{
-				if(CFG.FollowPath)
+				if(CFG.Nav[Navigation.FollowPath])
 				{
 					while(CFG.Waypoints.Count > 0 && CFG.Waypoints.Peek() == target) CFG.Waypoints.Dequeue();
 					if(CFG.Waypoints.Count > 0) { start_to(CFG.Waypoints.Peek()); return; }
@@ -135,7 +131,7 @@ namespace ThrottleControlledAvionics
 				{ finish(); return; }
 			}
 			//don't slow down on intermediate waypoints too much
-			if(CFG.FollowPath && CFG.Waypoints.Count > 1 && distance < PN.OnPathMinDistance)
+			if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 1 && distance < PN.OnPathMinDistance)
 				distance = PN.OnPathMinDistance;
 			//tune the pid and update needed velocity
 			pid.Min = 0;
@@ -147,21 +143,23 @@ namespace ThrottleControlledAvionics
 			var mtwr = Utils.ClampL(VSL.MaxTWR, 0.1f);
 			DeltaSpeed = PN.DeltaSpeed*mtwr*Mathf.Pow(PN.DeltaSpeed/(cur_vel+PN.DeltaSpeed), PN.DeltaSpeedF);
 			//make a correction if falling or flyin too low
-			if(IsStateSet(TCAState.LoosingAltitude))
+			var V = (CFG.AltitudeAboveTerrain? VSL.RelVerticalSpeed : VSL.AbsVerticalSpeed);
+			if(V < 0 && IsStateSet(TCAState.LoosingAltitude))
 			{
-				DeltaSpeed /= 1-Utils.ClampH(VSL.VerticalSpeed, 0)*PN.FallingSensitivity
-					/(CFG.AltitudeAboveTerrain? VSL.Altitude : 1);
+				DeltaSpeed /= 1-Utils.ClampH(V, 0)
+					/(CFG.AltitudeAboveTerrain? VSL.Altitude : 1)
+					*PN.FallingSensitivity/mtwr;
 				if(DeltaSpeed < 1) 
 				{
-					var a = Utils.ClampL(PN.FallingCorrection/-VSL.VerticalSpeed, PN.FallingCorrection);
+					var a = Utils.ClampL(PN.FallingCorrection/mtwr/-V, PN.FallingCorrection);
 					cur_vel *= (a-1+DeltaSpeed)/a;
 				}
 			}
-			if(CFG.ControlAltitude)
+			if(CFG.VF[VFlight.AltitudeControl])
 			{
 				var alt_error = (CFG.DesiredAltitude-VSL.Altitude);
-				if(CFG.AltitudeAboveTerrain) alt_error /= VSL.Altitude*9;
-				if(alt_error > 0) DeltaSpeed /= 1+alt_error;
+				if(CFG.AltitudeAboveTerrain) alt_error /= VSL.Altitude;
+				if(alt_error > 0) DeltaSpeed /= 1+alt_error*PN.AltErrSensitivity/mtwr;
 			}
 			//set needed velocity and starboard
 			CFG.NeededHorVelocity = pid.Action-cur_vel > DeltaSpeed? vdir*(cur_vel+DeltaSpeed) : vdir*pid.Action;

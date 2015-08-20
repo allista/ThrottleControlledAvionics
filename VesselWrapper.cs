@@ -56,7 +56,8 @@ namespace ThrottleControlledAvionics
 		public Vector6 R_TorqueLimits { get; private set; } = new Vector6(); //torque limits of rcs
 
 		public float M { get; private set; }
-		public float TWR { get; private set; }
+		public float DTWR { get; private set; }
+		public float MaxDTWR { get; private set; }
 		public float MaxTWR { get; private set; }
 		public float AccelSpeed { get; private set; }
 		public float DecelSpeed { get; private set; }
@@ -85,6 +86,7 @@ namespace ThrottleControlledAvionics
 		public float    AltitudeAhead;
 		public float    TerrainAltitude { get; private set; }
 		public Vector3d HorizontalVelocity { get; private set; }
+		public float    HorizontalSpeed { get; private set; }
 
 		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
 		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, Up); } }
@@ -120,7 +122,10 @@ namespace ThrottleControlledAvionics
 				CFG = TCAConfiguration.GetConfig(vessel);
 		}
 
-		public void Init() {}
+		public void Init() 
+		{
+			AltitudeAhead = -1;
+		}
 
 		public Vector3 GetStarboard(Vector3d hV) { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
 		public Vector3 CurrentStarboard { get { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(HorizontalVelocity, Up); } }
@@ -205,7 +210,10 @@ namespace ThrottleControlledAvionics
 			NormalizeLimits = SteeringEngines.Count > ManeuverEngines.Count;
 		}
 
-		public void InitEngines()
+		public void InitEgnines()
+		{ for(int i = 0; i < NumActive; i++) ActiveEngines[i].InitState(); }
+
+		public void UpdateThrustersParams()
 		{
 			NormalizeLimits = true;
 			if(!NoActiveRCS)
@@ -227,7 +235,6 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
-				e.InitState();
 				e.thrustDirection = refT.InverseTransformDirection(e.wThrustDir);
 				e.wThrustLever = e.wThrustPos-wCoM;
 				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(e.wThrustLever, e.wThrustDir));
@@ -322,9 +329,9 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateCommons()
 		{
-			wCoM = vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime;
+			wCoM = vessel.CurrentCoM;
 			refT = vessel.ReferenceTransform;
-			Up   = (wCoM - vessel.mainBody.position).normalized;
+			Up   = (wCoM - vessel.mainBody.position).normalized; //duplicates vessel.upAxis, except it uses CoM instead of CurrentCoM
 			UpdateETorqueLimits();
 			UpdateRTorqueLimits();
 			UpdateWTorqueLimits();
@@ -377,39 +384,16 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void UpdateHorizontalStats()
+		public void UpdateOnPlanetStats()
 		{
-			HorizontalVelocity = Vector3d.Exclude(Up, vessel.srf_velocity);
-			Thrust = Vector3.zero;
-			if(refT == null) return;
-			for(int i = 0; i < NumActive; i++)
-			{
-				var e = ActiveEngines[i];
-				if(e.thrustInfo == null) continue;
-				Thrust += e.wThrustDir*e.finalThrust;
-			}
-			TWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/TCAConfiguration.G/M : 0f;
-			Fwd = Vector3.Cross(refT.right, -Thrust).normalized;
-			NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
-
-//			Utils.Log("{0}, #right\n{1}, #up\n{2}, #fwd\n" +
-//			          "{3}, #-T\nvec{4}.norm.v, #vel\n" +
-//			          "{5}, #[r*-T]\nNoseUp {6}",
-//			          refT.right, refT.up, refT.forward,
-//			          -Thrust, vessel.srf_velocity,
-//			          Fwd, NoseUp);//debug
-		}
-
-		public void UpdateVerticalStats()
-		{
-			AccelSpeed = 0f; DecelSpeed = 0f; MaxTWR = 0f;
-			//calculate altitude, vertical speed and acceleration
-			AbsVerticalSpeed = CoM_verticalSpeed;
+			AccelSpeed = 0f; DecelSpeed = 0f;
+			//calculate altitude, vertical and horizontal speed and acceleration
+			AbsVerticalSpeed  = CoM_verticalSpeed;
+			VerticalAccel     = (AbsVerticalSpeed-VerticalSpeed)/TimeWarp.fixedDeltaTime;
+			VerticalSpeed     = AbsVerticalSpeed;
 			VerticalSpeedDisp = AbsVerticalSpeed;
-			var upV = AbsVerticalSpeed;
-			if(CFG.ControlAltitude)
+			if(CFG.VF[VFlight.AltitudeControl])
 			{
-				//update vessel altitude
 				var old_alt = Altitude;
 				UpdateAltitude();
 				//use relative vertical speed instead of absolute if following terrain
@@ -417,12 +401,13 @@ namespace ThrottleControlledAvionics
 				{
 					RelVerticalSpeed  = (Altitude - old_alt)/TimeWarp.fixedDeltaTime;
 					VerticalSpeedDisp = RelVerticalSpeed;
-					upV = Utils.EWA(VerticalSpeed, RelVerticalSpeed);
 				}
 			}
-			VerticalAccel = Utils.EWA(VerticalAccel, (upV-VerticalSpeed)/TimeWarp.fixedDeltaTime);
-			VerticalSpeed = upV;
+			HorizontalVelocity = Vector3d.Exclude(Up, vessel.srf_velocity);
+			HorizontalSpeed = (float)HorizontalVelocity.magnitude;
 			//calculate total downward thrust and slow engines' corrections
+			Thrust = Vector3.zero;
+			var max_thrust  = Vector3.zero;
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
@@ -437,7 +422,7 @@ namespace ThrottleControlledAvionics
 					if(dcomponent <= 0) e.VSF = 0;
 					else 
 					{
-						var dthrust = e.nominalCurrentThrust(e.best_limit)*e.thrustMod*dcomponent;
+						var dthrust = e.nominalCurrentThrust(e.best_limit)*dcomponent;
 						if(e.useEngineResponseTime && dthrust > 0) 
 						{
 							slow_thrust += dthrust;
@@ -446,13 +431,22 @@ namespace ThrottleControlledAvionics
 						}
 						else fast_thrust = dthrust;
 						down_thrust += dthrust;
+						max_thrust += e.wThrustDir*e.nominalCurrentThrust(1);
 					}
-				} 
+				}
+				Thrust += e.wThrustDir*e.finalThrust;
 			}
 			M = vessel.GetTotalMass();
-			MaxTWR = down_thrust/TCAConfiguration.G/M;
-			MinVSF = (MaxAngularA_m > 0)? 
-				Mathf.Clamp(GLB.VSC.MinVSFf/MaxAngularA_m, 0, Utils.ClampH(0.5f/(MaxTWR > 0? MaxTWR : 1), 0.5f)) : 0;
+			MaxTWR  = max_thrust.magnitude/TCAConfiguration.G/M;
+			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/TCAConfiguration.G/M, 0.1f);
+			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/TCAConfiguration.G/M : 0f;
+			if(refT != null)
+			{
+				Fwd  = Vector3.Cross(refT.right, -Thrust).normalized;
+				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
+			}
+			MinVSF  = (MaxAngularA_m > 0)? 
+				Mathf.Clamp(GLB.VSC.MinVSFf/MaxAngularA_m, 0, Utils.ClampH(0.5f/(MaxDTWR > 0? MaxDTWR : 1), 0.5f)) : 0;
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
 			//correct setpoint for current TWR and slow engines

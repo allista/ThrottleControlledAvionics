@@ -3,6 +3,7 @@ IntegrateIntoCareer  = true
 RoleSymmetryInFlight = true
 InputDeadZone        = 0.03
 MaxManualGroups      = 10
+KeyRepeatTime        = 0.1
 
 RCS
 {
@@ -64,20 +65,23 @@ VSC
 	UpAf              = 0.2  //factor for the upA adjustment of VerticalCutoff
 	ASf               = 2    //factor for the acceleration speed adjustment of VerticalCutoff
 	DSf               = 1    //factor for the deceleration speed adjustment of VerticalCutoff
-	TimeAhead         = 5
 	FallingTime       = 0.5  //min. time falling to trigger Loosing Altitude alert
-	RelAltitudeFilter = 1000
 }
 
 ALT
 {
 	MaxSpeed = 10
-	ErrF = 0.01 //altitude error coefficient
+	ErrF = 1 //altitude error coefficient
 	TWRp = 2    //twr power factor
-	TWRd = 2    //twr denominator
+	TWRd = 2  //twr denominator
 	
-	//1 -- no filtering; <0.01 strong filtering
-	RelAltitudeFilter = 0.01 
+	RelAltitudeFactor = 50  //meters
+	RelVelocityErrF   = 1
+
+	TimeAhead         = 5
+	FallingTime       = 1  //min. time falling to trigger Loosing Altitude alert
+	
+	AltAheadFilter = 1
 	
 	RocketPID
 	{
@@ -136,7 +140,8 @@ PN
 	DeltaSpeed         = 10
 	DeltaSpeedF        = 0.5
 	FallingSensitivity = 10
-	FallingCorrection  = 3
+	FallingCorrection  = 2
+	AltErrSensitivity  = 20
 	DirectNavThreshold = 1
 	GCNavStep          = 0.1
 	
@@ -150,9 +155,9 @@ PN
 
 RAD
 {
-	MaxViewAngle       = 10
+	MaxViewAngle       = 20
 	LookAheadTime      = 20
-	LookAheadFilter    = 1
+	AltitudeFilter     = 0.1
 	NumRays            = 20
 	MinAltitudeFactor  = 2
 	MinClosingSpeed    = 4

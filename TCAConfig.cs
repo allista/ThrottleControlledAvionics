@@ -107,6 +107,10 @@ Notes:
 		}
 	}
 
+	public enum HFlight { None, Stop, CruiseControl }
+	public enum VFlight { None, TakeOff, Land, AltitudeControl }
+	public enum Navigation { None, GoToTarget, FollowPath }
+
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{
 		new public const string NODE_NAME = "VSLCONFIG";
@@ -115,7 +119,7 @@ Notes:
 		[Persistent] public bool    Enabled;
 		[Persistent] public bool    GUIVisible;
 		//vertical speed and altitude
-		[Persistent] public bool    ControlAltitude;
+		[Persistent] public Multiplexer<VFlight> VF = new Multiplexer<VFlight>();
 		[Persistent] public bool    AltitudeAboveTerrain;
 		[Persistent] public float   DesiredAltitude; //desired altitude m (configurable)
 		[Persistent] public float   VerticalCutoff; //desired positive vertical speed m/s (configurable)
@@ -127,17 +131,15 @@ Notes:
 		[Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked
 		[Persistent] public bool    AutoTune         = true;        //if true, engine PI coefficients and steering modifier will be tuned automatically
 		//horizontal velocity
-		[Persistent] public bool    KillHorVel;
+		[Persistent] public Multiplexer<HFlight> HF = new Multiplexer<HFlight>();
 		[Persistent] public bool    SASIsControlled;
 		[Persistent] public bool    SASWasEnabled;
 		//cruise control
-		[Persistent] public bool    CruiseControl;
 		[Persistent] public Vector3 Starboard;
 		public Vector3d NeededHorVelocity;
 		public float NHVf = 1;
 		//waypoint navigation
-		[Persistent] public bool    GoToTarget;
-		[Persistent] public bool    FollowPath;
+		[Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();
 		[Persistent] public float   MaxNavSpeed = 100;
 		[Persistent] public bool    ShowWaypoints;
 		public Queue<WayPoint>      Waypoints = new Queue<WayPoint>();

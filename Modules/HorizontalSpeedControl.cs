@@ -45,30 +45,26 @@ namespace ThrottleControlledAvionics
 
 		public HorizontalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
 		public override void Init() { base.Init(); pid.P = HSC.P; }
-		public override void UpdateState() { IsActive = (CFG.CruiseControl || CFG.KillHorVel) && VSL.OnPlanet; }
+		public override void UpdateState() { IsActive = CFG.HF && VSL.OnPlanet; }
 
 		public override void Enable(bool enable = true)
 		{
-			CFG.KillHorVel = enable;
 			pid.Reset();
-			if(CFG.KillHorVel) 
+			CFG.HF[HFlight.Stop] = enable;
+			if(enable) 
 			{
-				CFG.CruiseControl = false;
-				CFG.GoToTarget = false;
-				CFG.FollowPath = false;
-				VSL.UpdateHorizontalStats();
+				CFG.Nav.Off();
+				VSL.UpdateOnPlanetStats();
 				CFG.Starboard = Vector3.zero;
 				CFG.NeededHorVelocity = Vector3d.zero;
 			}
-			BlockSAS(CFG.KillHorVel);
+			BlockSAS(enable);
 		}
 
 		protected override void Update(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
-			if(!(CFG.Enabled && 
-			     (CFG.CruiseControl || CFG.KillHorVel) && 
-			     VSL.refT != null && VSL.OnPlanet)) return;
+			if(!(CFG.Enabled && CFG.HF && VSL.refT != null && VSL.OnPlanet)) return;
 			//disable SAS
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
@@ -87,7 +83,7 @@ namespace ThrottleControlledAvionics
 			{
 				//correction for low TWR and torque
 				var upl   = VSL.refT.InverseTransformDirection(VSL.Up);
-				var twrF  = Utils.ClampH(VSL.TWR/HSC.TWRf, 1);
+				var twrF  = Utils.ClampH(VSL.DTWR/HSC.TWRf, 1);
 				var torF  = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(VSL.MaxTorque, hVl), 
 				                                       VSL.MoI.Inverse())
 				                         .magnitude*(float)VSL.HorizontalVelocity.magnitude*HSC.TorF, 1);

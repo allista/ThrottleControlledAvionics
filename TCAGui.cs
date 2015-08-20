@@ -224,7 +224,7 @@ namespace ThrottleControlledAvionics
 			{
 				//vertical speed or altitude limit
 				GUILayout.BeginHorizontal();
-				if(CFG.ControlAltitude)
+				if(CFG.VF[VFlight.AltitudeControl])
 				{
 					GUILayout.Label("Altitude: " + 
 					                (VSL.Altitude.ToString("F2")+"m"), 
@@ -254,7 +254,7 @@ namespace ThrottleControlledAvionics
 				//autopilot toggles
 				GUILayout.BeginHorizontal();
 				TCA.BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
-				                                   CFG.ControlAltitude?
+				                                   CFG.VF[VFlight.AltitudeControl]?
 				                                   "Change altitude with throttle controls." :
 				                                   "Set vertical speed with throttle controls.", 
 				                                   GUILayout.ExpandWidth(false)));
@@ -262,15 +262,15 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
 				if(GUILayout.Button("Kill Horizontal Velocity", 
-				                    CFG.KillHorVel? Styles.green_button : Styles.yellow_button,
+				                    CFG.HF[HFlight.Stop]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(150)))
 					TCA.ToggleHvAutopilot();
 				if(GUILayout.Button("Cruise Control", 
-				                    CFG.CruiseControl? Styles.green_button : Styles.yellow_button,
+				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(100)))
 					TCA.ToggleCruiseControl();
 				if(GUILayout.Button("Maintain Altitude", 
-				                    CFG.ControlAltitude? Styles.green_button : Styles.yellow_button,
+				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(120)))
 					TCA.ToggleAltitudeAutopilot();
 				TCA.AltitudeAboveTerrain(GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
@@ -280,7 +280,7 @@ namespace ThrottleControlledAvionics
 				//navigator toggles
 				GUILayout.BeginHorizontal();
 				if(GUILayout.Button("Go To Target", 
-				                    CFG.GoToTarget? Styles.green_button 
+				                    CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
 				                    : (VSL.HasTarget? Styles.yellow_button : Styles.grey),
 				                    GUILayout.Width(100)))
 					TCA.GoToTarget(VSL.HasTarget);
@@ -309,7 +309,7 @@ namespace ThrottleControlledAvionics
 					MapView.EnterMapView();
 				}
 				if(GUILayout.Button("Follow Path", 
-				                    CFG.FollowPath? Styles.green_button 
+				                    CFG.Nav[Navigation.FollowPath]? Styles.green_button 
 				                    : (CFG.Waypoints.Count > 0? Styles.yellow_button : Styles.grey),
 				                    GUILayout.Width(100)))
 					TCA.ToggleFollowPath();
@@ -347,7 +347,7 @@ namespace ThrottleControlledAvionics
 					GUILayout.BeginHorizontal();
 					GUI.contentColor = marker_color(i, num);
 					var label = string.Format("{0}) {1}", 1+i, wp.GetName());
-					if(CFG.FollowPath && i == 0)
+					if(CFG.Nav[Navigation.FollowPath] && i == 0)
 					{
 						var d = wp.DistanceTo(vessel);
 						label += string.Format(" <= {0}", distance_to_str(d)); 
