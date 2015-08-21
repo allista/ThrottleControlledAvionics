@@ -491,6 +491,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public string State;
 		public T state;
 
+		readonly Dictionary<T, Action<bool>> callbacks = new Dictionary<T, Action<bool>>();
+
 		public Multiplexer() 
 		{ if(!typeof(T).IsEnum) throw new ArgumentException("Multiplexer<T> T must be an enumerated type"); }
 
@@ -499,15 +501,38 @@ namespace ThrottleControlledAvionics
 			get { return key.Equals(state); } 
 			set 
 			{ 
-				if(value) state = key;
-				else if(key.Equals(state)) state = default(T); 
+				if(value) On(key);
+				else if(key.Equals(state)) Off();
           	}
 		}
 		public void Toggle(T key) { this[key] = !this[key]; }
-		public void On(T key) { state = key; }
-		public void Off() { state = default(T); }
+		public void On(T key) 
+		{ 
+			Off();
+			state = key;
+			Action<bool> callback;
+			if(callbacks.TryGetValue(state, out callback))
+				callback(true);
+			
+		}
+		public void Off() 
+		{ 
+			Action<bool> callback;
+			if(callbacks.TryGetValue(state, out callback))
+				callback(false);
+			state = default(T);
+		}
 
 		public static implicit operator bool(Multiplexer<T> m) { return !m[default(T)]; }
+
+		public void ClearCallbacks() { callbacks.Clear(); }
+
+		public void AddCallback(T key, Action<bool> callback)
+		{
+			if(callbacks.ContainsKey(key))
+				callbacks[key] += callback;
+			else callbacks[key] = callback;
+		}
 
 		public override void Load(ConfigNode node)
 		{
