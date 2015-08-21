@@ -156,6 +156,7 @@ namespace ThrottleControlledAvionics
 			create_modules();
 			VSL.Init(); 
 			modules.ForEach(m => m.Init());
+			CFG.HF.AddCallback(HFlight.CruiseControl, UpdateNeededVeloctiy);
 			vessel.OnAutopilotUpdate += block_throttle;
 			VSL.UpdateCommons();
 			VSL.UpdateOnPlanetStats();
@@ -171,8 +172,8 @@ namespace ThrottleControlledAvionics
 			if(VSL != null)
 			{
 				VSL.OnAutopilotUpdate -= block_throttle;
-				if(NeededVelocityUpdater != null) 
-					StopCoroutine(NeededVelocityUpdater);
+				CFG.ClearCallbacks();
+				UpdateNeededVeloctiy(false);
 				modules.ForEach(m => m.Reset());
 			}
 			delete_modules();
@@ -188,10 +189,18 @@ namespace ThrottleControlledAvionics
 				yield return new WaitForSeconds(GLB.CC.Delay);
 			}
 		}
-		void UpdateNeededVeloctiy()
+		void UpdateNeededVeloctiy(bool enable = true)
 		{
-			NeededVelocityUpdater = update_needed_velocity();
-			StartCoroutine(NeededVelocityUpdater);
+			if(enable && NeededVelocityUpdater == null)
+			{
+				NeededVelocityUpdater = update_needed_velocity();
+				StartCoroutine(NeededVelocityUpdater);
+			}
+			else if(!enable && NeededVelocityUpdater != null)
+			{
+				StopCoroutine(NeededVelocityUpdater);
+				NeededVelocityUpdater = null;
+			}
 		}
 		#endregion
 
@@ -214,18 +223,7 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 
-		public void ToggleHvAutopilot() { hsc.Enable(!CFG.HF[HFlight.Stop]); }
-		public void ToggleAltitudeAutopilot() { alt.Enable(!CFG.VF[VFlight.AltitudeControl]); }
 		public void AltitudeAboveTerrain(bool state) { alt.SetAltitudeAboveTerrain(state); }
-
-		public void ToggleCruiseControl()
-		{
-			cc.Enable(!CFG.HF[HFlight.CruiseControl]);
-			if(CFG.HF[HFlight.CruiseControl]) UpdateNeededVeloctiy();
-		}
-
-		public void GoToTarget(bool enable) { pn.GoToTarget(enable);}
-		public void ToggleFollowPath() { pn.FollowPath(!CFG.Nav[Navigation.FollowPath]);}
 		#endregion
 
 		void block_throttle(FlightCtrlState s)

@@ -26,6 +26,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public CruiseControl.Config          CC  = new CruiseControl.Config();
 		[Persistent] public PointNavigator.Config         PN  = new PointNavigator.Config();
 		[Persistent] public Radar.Config                  RAD = new Radar.Config();
+		[Persistent] public AutoLander.Config             LND = new AutoLander.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -107,9 +108,10 @@ Notes:
 		}
 	}
 
-	public enum HFlight { None, Stop, CruiseControl }
-	public enum VFlight { None, TakeOff, Land, AltitudeControl }
+	public enum HFlight { None, Stop, NoseOnCourse, CruiseControl }
+	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowPath }
+	public enum Autopilot { None, Land }
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{
@@ -143,6 +145,8 @@ Notes:
 		[Persistent] public float   MaxNavSpeed = 100;
 		[Persistent] public bool    ShowWaypoints;
 		public Queue<WayPoint>      Waypoints = new Queue<WayPoint>();
+		//autopilot
+		[Persistent] public Multiplexer<Autopilot> AP = new Multiplexer<Autopilot>();
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
 		[Persistent] public LimitsConfig ManualLimits = new LimitsConfig();
@@ -190,6 +194,14 @@ Notes:
 			var vid = VesselID;
 			Load(other.Configuration);
 			VesselID = vid;
+		}
+
+		public void ClearCallbacks()
+		{
+			HF.ClearCallbacks();
+			VF.ClearCallbacks();
+			Nav.ClearCallbacks();
+			AP.ClearCallbacks();
 		}
 	}
 

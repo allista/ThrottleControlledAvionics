@@ -44,13 +44,12 @@ namespace ThrottleControlledAvionics
 		readonly PIDv_Controller pid = new PIDv_Controller();
 
 		public HorizontalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
-		public override void Init() { base.Init(); pid.P = HSC.P; }
+		public override void Init() { base.Init(); pid.P = HSC.P; CFG.HF.AddCallback(HFlight.Stop, Enable); }
 		public override void UpdateState() { IsActive = CFG.HF && VSL.OnPlanet; }
 
 		public override void Enable(bool enable = true)
 		{
 			pid.Reset();
-			CFG.HF[HFlight.Stop] = enable;
 			if(enable) 
 			{
 				CFG.Nav.Off();

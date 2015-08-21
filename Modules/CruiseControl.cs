@@ -36,6 +36,7 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			pid.setPID(CC.DirectionPID);
 			pid.Reset();
+			CFG.HF.AddCallback(HFlight.CruiseControl, Enable);
 		}
 
 		public override void UpdateState() 
@@ -57,7 +58,6 @@ namespace ThrottleControlledAvionics
 		public override void Enable(bool enable = true)
 		{
 			pid.Reset();
-			CFG.HF[HFlight.CruiseControl] = enable;
 			if(enable) 
 			{
 				CFG.Nav.Off();
@@ -78,7 +78,9 @@ namespace ThrottleControlledAvionics
 		protected override void Update(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
-			if(!(CFG.Enabled && CFG.HF[HFlight.CruiseControl] && VSL.OnPlanet && VSL.refT != null )) return;
+			if(!(CFG.Enabled && 
+			     (CFG.HF[HFlight.NoseOnCourse] || CFG.HF[HFlight.CruiseControl]) && 
+			     VSL.OnPlanet && VSL.refT != null )) return;
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
 			if(UserIntervening(s)) { pid.Reset(); return; }

@@ -54,8 +54,8 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			pid.setPID(PN.DistancePID);
 			pid.Reset();
-			if(CFG.Nav[Navigation.GoToTarget]) GoToTarget();
-			else if(CFG.Nav[Navigation.FollowPath]) FollowPath();
+			CFG.Nav.AddCallback(Navigation.GoToTarget, GoToTarget);
+			CFG.Nav.AddCallback(Navigation.FollowPath, FollowPath);
 		}
 
 		public override void UpdateState() { IsActive = CFG.Nav && VSL.OnPlanet; }
@@ -65,8 +65,9 @@ namespace ThrottleControlledAvionics
 			if(enable && !VSL.HasTarget) return;
 			if(enable) 
 			{
-				CFG.Nav.On(Navigation.GoToTarget);	
-				start_to(new WayPoint(VSL.vessel.targetObject));
+				var wp = VSL.vessel.targetObject as WayPoint ?? 
+					new WayPoint(VSL.vessel.targetObject);
+				start_to(wp);
 			}
 			else finish();
 		}
@@ -74,11 +75,7 @@ namespace ThrottleControlledAvionics
 		public void FollowPath(bool enable = true)
 		{
 			if(enable && CFG.Waypoints.Count == 0) return;
-			if(enable) 
-			{
-				CFG.Nav.On(Navigation.FollowPath);
-				start_to(CFG.Waypoints.Peek());	
-			}
+			if(enable) start_to(CFG.Waypoints.Peek());	
 			else finish();
 		}
 
@@ -89,7 +86,7 @@ namespace ThrottleControlledAvionics
 			BlockSAS();
 			pid.Reset();
 			VSL.UpdateOnPlanetStats();
-			CFG.HF.On(HFlight.CruiseControl);
+			CFG.HF.On(HFlight.NoseOnCourse);
 		}
 
 		void finish()
@@ -99,7 +96,6 @@ namespace ThrottleControlledAvionics
 			CFG.Starboard = Vector3.zero;
 			CFG.NeededHorVelocity = Vector3d.zero;
 			CFG.HF.On(HFlight.Stop);
-			CFG.Nav.Off();
 		}
 
 		public void Update()

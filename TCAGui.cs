@@ -264,15 +264,15 @@ namespace ThrottleControlledAvionics
 				if(GUILayout.Button("Kill Horizontal Velocity", 
 				                    CFG.HF[HFlight.Stop]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(150)))
-					TCA.ToggleHvAutopilot();
+					CFG.HF.Toggle(HFlight.Stop);
 				if(GUILayout.Button("Cruise Control", 
 				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(100)))
-					TCA.ToggleCruiseControl();
+					CFG.HF.Toggle(HFlight.CruiseControl);
 				if(GUILayout.Button("Maintain Altitude", 
 				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(120)))
-					TCA.ToggleAltitudeAutopilot();
+					CFG.VF.Toggle(VFlight.AltitudeControl);
 				TCA.AltitudeAboveTerrain(GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
 				                                          "Follow Terrain", 
 				                                          GUILayout.ExpandWidth(false)));
@@ -283,7 +283,7 @@ namespace ThrottleControlledAvionics
 				                    CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
 				                    : (VSL.HasTarget? Styles.yellow_button : Styles.grey),
 				                    GUILayout.Width(100)))
-					TCA.GoToTarget(VSL.HasTarget);
+					CFG.Nav[Navigation.GoToTarget] = VSL.HasTarget;
 				if(selecting_map_target)
 				{
 					if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.Width(120)))
@@ -312,7 +312,7 @@ namespace ThrottleControlledAvionics
 				                    CFG.Nav[Navigation.FollowPath]? Styles.green_button 
 				                    : (CFG.Waypoints.Count > 0? Styles.yellow_button : Styles.grey),
 				                    GUILayout.Width(100)))
-					TCA.ToggleFollowPath();
+					CFG.Nav.Toggle(Navigation.FollowPath);
 				CFG.MaxNavSpeed = Utils.FloatSlider("Max.V m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 100);
 				GUILayout.EndHorizontal();
 			}

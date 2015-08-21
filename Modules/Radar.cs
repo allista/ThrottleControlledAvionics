@@ -52,7 +52,6 @@ namespace ThrottleControlledAvionics
 		static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts"));
 		int      Ray;
 
-
 		public Vector3d SurfaceVelocity { get { return VSL.vessel.srf_velocity; } }
 
 		float ray_distance(float angle, float dist)

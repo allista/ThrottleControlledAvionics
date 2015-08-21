@@ -52,6 +52,7 @@ namespace ThrottleControlledAvionics
 			rocket_pid.setPID(ALT.RocketPID);
 			jets_pid.setPID(ALT.JetsPID);
 			Falling.Period = ALT.FallingTime;
+			CFG.VF.AddCallback(VFlight.AltitudeControl, Enable);
 		}
 
 		public override void UpdateState()
@@ -72,7 +73,6 @@ namespace ThrottleControlledAvionics
 		public override void Enable(bool enable = true)
 		{
 			Falling.Reset();
-			CFG.VF[VFlight.AltitudeControl] = enable;
 			if(enable)
 			{
 				VSL.UpdateAltitude();
