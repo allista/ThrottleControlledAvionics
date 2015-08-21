@@ -55,14 +55,16 @@ namespace ThrottleControlledAvionics
 		public Vector6 W_TorqueLimits { get; private set; } = new Vector6(); //torque limits of reaction wheels
 		public Vector6 R_TorqueLimits { get; private set; } = new Vector6(); //torque limits of rcs
 
-		public float M { get; private set; }
-		public float DTWR { get; private set; }
-		public float MaxDTWR { get; private set; }
-		public float MaxTWR { get; private set; }
-		public float AccelSpeed { get; private set; }
-		public float DecelSpeed { get; private set; }
-		public float VSF; //vertical speed factor
-		public float MinVSF;
+		public Bounds B { get; private set; }
+		public Vector3[] BV { get; private set; }
+		public float  M { get; private set; }
+		public float  DTWR { get; private set; }
+		public float  MaxDTWR { get; private set; }
+		public float  MaxTWR { get; private set; }
+		public float  AccelSpeed { get; private set; }
+		public float  DecelSpeed { get; private set; }
+		public float  VSF; //vertical speed factor
+		public float  MinVSF;
 
 		public Vector3d   Up { get; private set; }  //up unit vector in world space
 		public Vector3    Fwd { get; private set; }  //fwd unit vector of the Control module in world space
@@ -113,7 +115,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
 		public bool NoActiveRCS { get; private set; }
-		public bool HasTarget { get; private set; }
+		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 
 		public VesselWrapper(Vessel vsl) 
 		{
@@ -324,7 +326,6 @@ namespace ThrottleControlledAvionics
 			            vessel.situation != Vessel.Situations.ESCAPING);
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Y, vessel.ctrlState.Z);
-			HasTarget = vessel.targetObject != null && !(vessel.targetObject is CelestialBody);
 		}
 
 		public void UpdateCommons()
@@ -392,16 +393,13 @@ namespace ThrottleControlledAvionics
 			VerticalAccel     = (AbsVerticalSpeed-VerticalSpeed)/TimeWarp.fixedDeltaTime;
 			VerticalSpeed     = AbsVerticalSpeed;
 			VerticalSpeedDisp = AbsVerticalSpeed;
-			if(CFG.VF[VFlight.AltitudeControl])
+			var old_alt = Altitude;
+			UpdateAltitude();
+			//use relative vertical speed instead of absolute if following terrain
+			if(CFG.AltitudeAboveTerrain)
 			{
-				var old_alt = Altitude;
-				UpdateAltitude();
-				//use relative vertical speed instead of absolute if following terrain
-				if(CFG.AltitudeAboveTerrain)
-				{
-					RelVerticalSpeed  = (Altitude - old_alt)/TimeWarp.fixedDeltaTime;
-					VerticalSpeedDisp = RelVerticalSpeed;
-				}
+				RelVerticalSpeed  = (Altitude - old_alt)/TimeWarp.fixedDeltaTime;
+				VerticalSpeedDisp = RelVerticalSpeed;
 			}
 			HorizontalVelocity = Vector3d.Exclude(Up, vessel.srf_velocity);
 			HorizontalSpeed = (float)HorizontalVelocity.magnitude;
@@ -452,6 +450,36 @@ namespace ThrottleControlledAvionics
 			//correct setpoint for current TWR and slow engines
 			if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
 			if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
+		}
+
+		public void UpdateBounds()
+		{
+			var b = new Bounds();
+			bool inited = false;
+			var parts = vessel.parts;
+			for(int i = 0, partsCount = parts.Count; i < partsCount; i++)
+			{
+				Part p = parts[i];
+				if(p == null) continue;
+				foreach(var m in p.FindModelComponents<MeshFilter>())
+				{
+					//skip meshes without renderer
+					if(m.renderer == null || !m.renderer.enabled) continue;
+					var bounds = Utils.BoundCorners(m.sharedMesh.bounds);
+					for(int j = 0; j < 8; j++)
+					{
+						var c = m.transform.TransformPoint(bounds[j]);
+						if(inited) b.Encapsulate(c);
+						else
+						{
+							b = new Bounds(c, Vector3.zero);
+							inited = true;
+						}
+					}
+				}
+			}
+			B  = b;
+			BV = Utils.BoundCorners(b);
 		}
 
 		void update_MaxAngularA()
@@ -516,17 +544,24 @@ namespace ThrottleControlledAvionics
 	/// </summary>
 	[Flags] public enum TCAState 
 	{ 
+		//basic state
 		Disabled 			   = 0,
 		Enabled 			   = 1 << 0,
 		HaveEC 				   = 1 << 1, 
 		HaveActiveEngines 	   = 1 << 2,
-		VerticalSpeedControl   = 1 << 3,
-		AltitudeControl        = 1 << 4,
-		LoosingAltitude 	   = 1 << 5,
-		ObstacleAhead	 	   = 1 << 6,
-		GroundCollision	 	   = 1 << 7,
-		Ascending		 	   = 1 << 8,
-		Unoptimized			   = 1 << 9,
+		Unoptimized			   = 1 << 3,
+		//vertical flight
+		VerticalSpeedControl   = 1 << 4,
+		AltitudeControl        = 1 << 5,
+		LoosingAltitude 	   = 1 << 6,
+		//cruise radar
+		ObstacleAhead	 	   = 1 << 7,
+		GroundCollision	 	   = 1 << 8,
+		Ascending		 	   = 1 << 9,
+		//autopilot
+		Searching              = 1 << 10,
+		Landing                = 1 << 11,
+		//composite
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,
 		NoEC                   = Enabled,
