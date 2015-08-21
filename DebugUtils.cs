@@ -27,6 +27,16 @@ namespace ThrottleControlledAvionics
 			row += "{"+(args.Length-1)+"}\n";
 			Utils.Log(row, args);
 		}
+
+		public static void logBounds(string name, Bounds b)
+		{
+			Utils.Log("Bounds:  {0}\n" +
+			    "Center:  {1}\n" +
+			    "Extents: {2}\n" +
+			    "Min:     {3}\n" +
+			    "Max:     {4}", 
+			    name, b.center, b.extents, b.min, b.max);
+		}
 	}
 
 	class NamedStopwatch
