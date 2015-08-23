@@ -28,14 +28,27 @@ namespace ThrottleControlledAvionics
 			Utils.Log(row, args);
 		}
 
+		public static void logVectors(string tag, params Vector3[] vecs)
+		{
+			var s = tag+":\n";
+			foreach(var v in vecs)
+			{
+				var vn = v.normalized;
+				s += string.Format("({0}, {1}, {2}),\n", vn.x, vn.y, vn.z);
+			}
+			Utils.Log(s);
+		}
+
 		public static void logBounds(string name, Bounds b)
 		{
 			Utils.Log("Bounds:  {0}\n" +
 			    "Center:  {1}\n" +
 			    "Extents: {2}\n" +
 			    "Min:     {3}\n" +
-			    "Max:     {4}", 
-			    name, b.center, b.extents, b.min, b.max);
+			    "Max:     {4}\n" +
+			    "Volume:  {5}", 
+			    name, b.center, b.extents, b.min, b.max,
+			          b.size.x*b.size.y*b.size.z);
 		}
 	}
 
