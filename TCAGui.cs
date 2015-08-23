@@ -144,10 +144,12 @@ namespace ThrottleControlledAvionics
 				{ state = "Ascending"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Landing))
 				{ state = "Landing..."; style = Styles.green; }
-				else if(TCA.IsStateSet(TCAState.CheckingSpot))
-				{ state = "Checking Spot..."; style = Styles.yellow; }
+				else if(TCA.IsStateSet(TCAState.CheckingSite))
+				{ state = "Checking Site..."; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Searching))
 				{ state = "Searching..."; style = Styles.yellow; }
+				else if(TCA.IsStateSet(TCAState.Scanning))
+				{ state = "Scanning..."; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
 				{ state = "Altitude Control"; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
@@ -324,7 +326,8 @@ namespace ThrottleControlledAvionics
 				//landing autopilot
 				GUILayout.BeginHorizontal();
 				if(GUILayout.Button("Anchor", 
-				                    CFG.HF[HFlight.AnchorHere]? Styles.green_button : Styles.yellow_button,
+				                    CFG.HF[HFlight.AnchorHere] || CFG.HF[HFlight.Anchor]? 
+				                    Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(100)))
 					CFG.HF.Toggle(HFlight.AnchorHere);
 				if(GUILayout.Button("Land", 

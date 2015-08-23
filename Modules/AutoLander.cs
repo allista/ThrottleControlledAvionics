@@ -38,14 +38,15 @@ namespace ThrottleControlledAvionics
 		static Config LND { get { return TCAConfiguration.Globals.LND; } }
 
 		static int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts"));
-		enum Stage { None, Start, PointCheck, WideCheck, MoveNext, Land }
+		enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, Land }
 
 		Stage stage;
 		IEnumerator scanner;
 		SurfaceNode[,] Nodes;
+		readonly List<SurfaceNode> FlatNodes = new List<SurfaceNode>();
 		SurfaceNode NextNode;
 		int side, bside, center;
-		Vector3 right, fwd, up, down, dir;
+		Vector3 right, fwd, up, down, dir, sdir;
 		float MaxDistance, delta;
 		float DesiredAltitude;
 		readonly Timer StopTimer = new Timer();
@@ -85,7 +86,7 @@ namespace ThrottleControlledAvionics
 			return null;
 		}
 
-		IEnumerator surface_scanner(int lvl, float d = 0)
+		IEnumerator surface_scanner(int lvl, SurfaceNode start = null, float d = 0)
 		{
 			if(VSL.refT == null) yield break;
 			//initialize the system
@@ -98,14 +99,23 @@ namespace ThrottleControlledAvionics
 			fwd    = Vector3.Cross(right, up);
 			Nodes  = new SurfaceNode[bside,bside];
 			delta  = d > 0? d : DesiredAltitude/bside*lvl;
-			MaxDistance = VSL.Altitude * 10;
+			if(start == null)
+			{
+				sdir = down;
+				MaxDistance = VSL.Altitude * 10;
+			}
+			else 
+			{
+				sdir = start.position-VSL.wCoM;
+				MaxDistance = sdir.magnitude * 10;
+			}
 			Utils.Log("Scanning Surface: {0}x{0} -> {1}x{1}", bside, side);//debug
 			yield return null;
 			//cast the rays
 			for(int i = 0; i < bside; i++)
 				for(int j = 0; j < bside; j++)
 				{
-					dir = (down+right*(i-center)*delta+fwd*(j-center)*delta).normalized;
+					dir = (sdir+right*(i-center)*delta+fwd*(j-center)*delta).normalized;
 					Nodes[i,j] = get_surface_node();
 					yield return null;
 				}
@@ -124,6 +134,19 @@ namespace ThrottleControlledAvionics
 						}
 					yield return null;
 				}
+			if(lvl > 1)
+			{
+				FlatNodes.Clear();
+				for(int i = 1; i <= side; i++)
+					for(int j = 1; j <= side; j++)
+					{
+						var n = Nodes[i,j];
+						if(n != null && n.flat)
+							FlatNodes.Add(n);
+					}
+				yield return null;
+				FlatNodes.Sort((n1, n2) => n1.unevenness.CompareTo(n2.unevenness));
+			}
 			print_nodes();//debug
 		}
 
@@ -138,14 +161,8 @@ namespace ThrottleControlledAvionics
 					{
 						var n = Nodes[i,j];
 						if(flattest == null) flattest = n;
-						else if(flattest.flat)
-						{
-							if(n.flat && flattest.distance > n.distance)
-								flattest = n;
-						}
 						else if(flattest.unevenness > n.unevenness)
 							flattest = n;
-							
 					}
 				return flattest;
 			}
@@ -206,7 +223,6 @@ namespace ThrottleControlledAvionics
 		{
 			get
 			{
-				StopTimer.Reset();
 				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(CFG.Anchor.DistanceTo(VSL.vessel) < CFG.Anchor.Distance)
@@ -215,7 +231,8 @@ namespace ThrottleControlledAvionics
 					if(NextNode.flat)
 					{
 						CFG.HF.OnIfNot(HFlight.Anchor);
-						return CFG.Anchor.DistanceTo(VSL.vessel) < LND.NodeAnchorRange;
+						if(CFG.Anchor.DistanceTo(VSL.vessel) < LND.NodeAnchorRange)
+							return StopTimer.Check;
 					}
 					else return true;
 				}
@@ -225,6 +242,7 @@ namespace ThrottleControlledAvionics
 					FlightGlobals.fetch.SetVesselTarget(CFG.Anchor);
 					CFG.Nav.On(Navigation.GoToTarget);
 				}
+				StopTimer.Reset();
 				return false;
 			}
 		}
@@ -242,6 +260,14 @@ namespace ThrottleControlledAvionics
 			else stage = Stage.WideCheck;
 		}
 
+		void try_move_to_flattest()
+		{
+			NextNode = flattest_node;
+			if(NextNode == null) CFG.AP.Off(); //if failed somehow, just switch off
+			if(distance_to_node(NextNode) > LND.NodeTargetRange*2) move_next();
+			else wide_check(LND.WideCheckAltitude);
+		}
+
 		void move_next()
 		{
 			CFG.Anchor = new WayPoint(VSL.vessel.mainBody.GetLatitude(NextNode.position),
@@ -252,17 +278,19 @@ namespace ThrottleControlledAvionics
 
 		void land()
 		{
+			CFG.HF.Off();
 			var c = center_node;
 			CFG.Anchor = new WayPoint(VSL.vessel.mainBody.GetLatitude(c.position),
 			                          VSL.vessel.mainBody.GetLongitude(c.position));
 			CFG.Anchor.Distance = LND.NodeTargetRange;
+			CFG.HF.On(HFlight.Anchor);
 			DesiredAltitude = LND.LandingAlt+VSL.H;
 			stage = Stage.Land;
 		}
 
-		bool scan(int lvl, float d = 0)
+		bool scan(int lvl, SurfaceNode start = null, float d = 0)
 		{
-			if(scanner == null) scanner = surface_scanner(lvl, d);
+			if(scanner == null) scanner = surface_scanner(lvl, start, d);
 			if(scanner.MoveNext()) return true;
 			scanner = null;
 			return false;
@@ -291,27 +319,38 @@ namespace ThrottleControlledAvionics
 				if(stopped) stage = Stage.PointCheck;
 				break;
 			case Stage.PointCheck:
-				SetState(TCAState.CheckingSpot);
+				SetState(TCAState.CheckingSite);
 				if(!fully_stopped) break;
-				if(scan(1, VSL.R*2)) break;
-				if(Nodes == null) CFG.AP.Off(); //if failed somehow, just switch off
+				if(scan(1, null, VSL.R*2)) break;
+				if(Nodes == null || center_node == null) CFG.AP.Off(); //if failed somehow, just switch off
 				else if(center_node.flat) land();
-				else if(NextNode != null &&
-				        center_node.DistanceTo(NextNode) < LND.NodeTargetRange*2) 
-					wide_check(LND.WideCheckAltitude);
 				else wide_check();
 				break;
+			case Stage.FlatCheck:
+				SetState(TCAState.Scanning);
+				if(!fully_stopped) break;
+				if(FlatNodes.Count > 0)
+				{
+					if(scan(1, FlatNodes[0], VSL.R*2)) break;
+					FlatNodes.RemoveAt(0);
+					var c = center_node;
+					if(c == null || !c.flat) break;
+					NextNode = c;
+					move_next();
+					break;
+				}
+				else try_move_to_flattest();
+				break;
 			case Stage.WideCheck:
-				SetState(TCAState.Searching);
+				SetState(TCAState.Scanning);
 				if(!fully_stopped) break;
 				if(scan(LND.WideCheckLevel)) break;
-				NextNode = flattest_node;
-				if(NextNode == null) CFG.AP.Off(); //if failed somehow, just switch off
-				if(NextNode.flat || distance_to_node(NextNode) > LND.NodeTargetRange*2) move_next();
-				else wide_check(LND.WideCheckAltitude);
+				if(FlatNodes.Count > 0) 
+				{ stage = Stage.FlatCheck; break; }
+				else try_move_to_flattest();
 				break;
 			case Stage.MoveNext:
-				SetState(NextNode.flat? TCAState.CheckingSpot : TCAState.Searching);
+				SetState(NextNode.flat? TCAState.CheckingSite : TCAState.Searching);
 				if(!moved_to_next_node) break;
 				DesiredAltitude = VSL.Altitude;
 				if(NextNode.flat) stage = Stage.PointCheck;

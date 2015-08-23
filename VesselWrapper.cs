@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 		public Matrix3x3f InertiaTensor { get; private set; }
 		public Vector3    MaxAngularA { get; private set; } //current maximum angular acceleration
 		public float      MaxAngularA_m { get; private set; } //current maximum angular acceleration
-		public float      MaxPitchYawAA { get; private set; } //current minimal maximum angular acceleration
+		public float      MaxPitchRollAA { get; private set; } //current minimal maximum angular acceleration
 
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
@@ -461,11 +461,11 @@ namespace ThrottleControlledAvionics
 				Fwd  = Vector3.Cross(refT.right, -MaxThrust).normalized;
 				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
 			}
-			var mVSFtwr = 0.5f/Utils.ClampL(MaxDTWR, 1);
-			var mVSFtor = (MaxPitchYawAA > 0)? GLB.VSC.MinVSFf/MaxPitchYawAA : mVSFtwr;
-			MinVSF = Mathf.Lerp(mVSFtwr, mVSFtor, Mathf.Sqrt(Steering.magnitude));
+			var mVSFtwr = 1/Utils.ClampL(MaxDTWR, 1);
+			var mVSFtor = (MaxPitchRollAA > 0)? Utils.ClampH(GLB.VSC.MinVSFf/MaxPitchRollAA, 0.9f*mVSFtwr) : 0.1f*mVSFtwr;
+			MinVSF = Mathf.Lerp(0.1f*mVSFtwr, mVSFtor, Mathf.Pow(Steering.sqrMagnitude, 0.25f));
 			Utils.Log("MaxDTWR {0}, G {1}, MaxPitchYawAA {2}, mVSFtwr {3}, mVSFtor {4}, MinVSF {5}", 
-			          MaxDTWR, G, MaxPitchYawAA, mVSFtwr, mVSFtor, MinVSF);//debug
+			          MaxDTWR, G, MaxPitchRollAA, 0.1f*mVSFtwr, mVSFtor, MinVSF);//debug
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
 			//correct setpoint for current TWR and slow engines
@@ -530,7 +530,7 @@ namespace ThrottleControlledAvionics
 				);
 			MaxAngularA = Utils.EWA(MaxAngularA, new_angularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
-			MaxPitchYawAA = Vector3.ProjectOnPlane(refT.TransformDirection(MaxAngularA), Up).magnitude;
+			MaxPitchRollAA = Vector3.ProjectOnPlane(refT.TransformDirection(MaxAngularA), Up).magnitude;
 		}
 
 		#region From MechJeb2
@@ -597,9 +597,10 @@ namespace ThrottleControlledAvionics
 		GroundCollision	 	   = 1 << 8,
 		Ascending		 	   = 1 << 9,
 		//autopilot
-		Searching              = 1 << 10,
-		CheckingSpot           = 1 << 11,
-		Landing                = 1 << 12,
+		Scanning               = 1 << 10,
+		Searching              = 1 << 11,
+		CheckingSite           = 1 << 12,
+		Landing                = 1 << 13,
 		//composite
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,
