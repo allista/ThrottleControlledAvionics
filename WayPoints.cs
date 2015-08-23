@@ -34,6 +34,7 @@ namespace ThrottleControlledAvionics
 		public WayPoint() { Distance = TCAConfiguration.Globals.PN.MinDistance; }
 		public WayPoint(Coordinates c) : this() { Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); go = new GameObject(); }
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
+		public WayPoint(double lat, double lon) : this(new Coordinates(lat,lon)) {}
 
 		static public WayPoint FromConfig(ConfigNode node)
 		{
