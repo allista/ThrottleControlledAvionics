@@ -36,11 +36,13 @@ namespace ThrottleControlledAvionics
 		EngineOptimizer eng;
 		VerticalSpeedControl vsc;
 		HorizontalSpeedControl hsc;
+		Anchor anc;
 		AltitudeControl alt;
 		RCSOptimizer rcs;
 		CruiseControl cc;
 		PointNavigator pn;
 		Radar rad;
+		AutoLander lnd;
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
@@ -158,9 +160,12 @@ namespace ThrottleControlledAvionics
 			modules.ForEach(m => m.Init());
 			CFG.HF.AddCallback(HFlight.CruiseControl, UpdateNeededVeloctiy);
 			vessel.OnAutopilotUpdate += block_throttle;
+			VSL.UpdateState();
 			VSL.UpdateCommons();
 			VSL.UpdateOnPlanetStats();
-			if(CFG.Nav[Navigation.GoToTarget]) pn.GoToTarget(VSL.vessel.targetObject != null);
+			VSL.UpdateBounds();
+			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
+			else if(CFG.Nav[Navigation.GoToTarget]) pn.GoToTarget(VSL.vessel.targetObject != null);
 			else if(CFG.Nav[Navigation.FollowPath]) pn.FollowPath(CFG.Waypoints.Count > 0);
 			else if(CFG.HF[HFlight.CruiseControl]) UpdateNeededVeloctiy();
 			ThrottleControlledAvionics.AttachTCA(this);
@@ -172,9 +177,9 @@ namespace ThrottleControlledAvionics
 			if(VSL != null)
 			{
 				VSL.OnAutopilotUpdate -= block_throttle;
-				CFG.ClearCallbacks();
 				UpdateNeededVeloctiy(false);
 				modules.ForEach(m => m.Reset());
+				CFG.ClearCallbacks();
 			}
 			delete_modules();
 			VSL = null; 
@@ -212,6 +217,7 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.Engines.ForEach(e => e.forceThrustPercentage(100));
 				State = TCAState.Disabled;
+				VSL.UnblockSAS(false);
 			}
 		}
 
@@ -225,13 +231,13 @@ namespace ThrottleControlledAvionics
 
 		public void AltitudeAboveTerrain(bool state) { alt.SetAltitudeAboveTerrain(state); }
 		#endregion
-
 		void block_throttle(FlightCtrlState s)
-		{ if(CFG.Enabled && CFG.BlockThrottle) s.mainThrottle = 1f; }
+		{ if(CFG.Enabled && CFG.BlockThrottle && VSL.OnPlanet) s.mainThrottle = 1f; }
 
 		public override void OnUpdate()
 		{
 			if(IsStateSet(TCAState.HaveActiveEngines)) VSL.UpdateMoI();
+			if(rad.IsActive || lnd.IsActive) VSL.UpdateBounds();
 		}
 
 		public override void OnFixedUpdate() 
@@ -250,11 +256,13 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.InitEgnines();
 				for(int i = 0; i < modules.Count; i++) modules[i].UpdateState();
-				if(vsc.IsActive || hsc.IsActive) VSL.UpdateOnPlanetStats();
+				VSL.UpdateOnPlanetStats();
 				//these follow specific order
+				lnd.Update();
 				rad.Update();
 				alt.Update();
 				vsc.Update();
+				anc.Update();
 				pn.Update();
 			}
 			//handle engines

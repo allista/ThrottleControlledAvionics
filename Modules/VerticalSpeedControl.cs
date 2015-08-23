@@ -28,11 +28,17 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float UpAf              = 0.2f;  //factor for the upA adjustment of VerticalCutoff
 			[Persistent] public float ASf               = 2f;    //factor for the acceleration speed adjustment of VerticalCutoff
 			[Persistent] public float DSf               = 1f;    //factor for the deceleration speed adjustment of VerticalCutoff
-			[Persistent] public float FallingTime       = 1f;
+			[Persistent] public float MaxDeltaV         = 0.5f;
+			[Persistent] public float FallingTime       = 0.5f;
+			[Persistent] public float AccelThreshold    = 0.1f;
 		}
 		static Config VSC { get { return TCAConfiguration.Globals.VSC; } }
 
 		public VerticalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
+
+		float old_accel, accelV;
+		readonly EWA setpoint_correction = new EWA();
+		readonly Timer Falling = new Timer();
 
 		public override void UpdateState()
 		{ IsActive = (CFG.VF || CFG.VerticalCutoff < VSC.MaxSpeed) && VSL.OnPlanet; }
@@ -42,8 +48,6 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			Falling.Period = VSC.FallingTime;
 		}
-
-		readonly Timer Falling = new Timer();
 
 		public void Update()
 		{
@@ -56,7 +60,16 @@ namespace ThrottleControlledAvionics
 			if(VSL.MaxDTWR > 0)
 				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/VSL.MaxDTWR;
 			//calculate new VSF
-			var err = setpoint-VSL.VerticalSpeed;
+			if(!VSL.LandedOrSplashed)
+			{
+				accelV = (VSL.VerticalAccel-old_accel)/TimeWarp.fixedDeltaTime;
+				old_accel = VSL.VerticalAccel;
+				if(Mathf.Abs(VSL.VerticalAccel) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
+					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.VerticalSpeed+setpoint_correction, 0));
+//				Utils.Log("VSP {0}, V {1}, accel {2}, accelV {3}, correction: {4}", 
+//				          CFG.VerticalCutoff, VSL.VerticalSpeed, VSL.VerticalAccel, accelV, setpoint_correction);//debug
+			}
+			var err = setpoint-VSL.VerticalSpeed+setpoint_correction;
 			var K = Mathf.Clamp01(err
 			                      /VSC.K0
 			                      /Mathf.Pow(Utils.ClampL(VSL.VerticalAccel/VSC.K1+1, VSC.L1), 2f)
@@ -68,7 +81,7 @@ namespace ThrottleControlledAvionics
 			//loosing altitude alert
 			if(!CFG.VF)
 			{
-				if(VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0)
+				if(VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV)
 				{ if(Falling.Check) return; SetState(TCAState.LoosingAltitude);	}
 				else Falling.Reset();
 			}

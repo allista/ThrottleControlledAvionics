@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public HorizontalSpeedControl.Config HSC = new HorizontalSpeedControl.Config();
 		[Persistent] public RCSOptimizer.Config           RCS = new RCSOptimizer.Config();
 		[Persistent] public CruiseControl.Config          CC  = new CruiseControl.Config();
+		[Persistent] public Anchor.Config                 ANC = new Anchor.Config();
 		[Persistent] public PointNavigator.Config         PN  = new PointNavigator.Config();
 		[Persistent] public Radar.Config                  RAD = new Radar.Config();
 		[Persistent] public AutoLander.Config             LND = new AutoLander.Config();
@@ -108,7 +109,7 @@ Notes:
 		}
 	}
 
-	public enum HFlight { None, Stop, NoseOnCourse, CruiseControl }
+	public enum HFlight { None, Stop, Anchor, AnchorHere, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowPath }
 	public enum Autopilot { None, Land }
@@ -136,6 +137,7 @@ Notes:
 		[Persistent] public Multiplexer<HFlight> HF = new Multiplexer<HFlight>();
 		[Persistent] public bool    SASIsControlled;
 		[Persistent] public bool    SASWasEnabled;
+		[Persistent] public WayPoint Anchor;
 		//cruise control
 		[Persistent] public Vector3 Starboard;
 		public Vector3d NeededHorVelocity;
@@ -169,6 +171,8 @@ Notes:
 			if(!string.IsNullOrEmpty(val)) VesselID = new Guid(val);
 			foreach(var n in node.GetNodes(WayPoint.NODE_NAME))
 				Waypoints.Enqueue(WayPoint.FromConfig(n));
+			if(Anchor != null && string.IsNullOrEmpty(Anchor.Name))
+				Anchor = null;
 		}
 
 		public override void Save(ConfigNode node)
@@ -224,8 +228,6 @@ Notes:
 
 	public static class TCAConfiguration
 	{
-		public const float G = 9.82f;
-
 		public const string CONFIGNAME  = "TCA.conf";
 		public const string GLOBALSNAME = "TCA.glob";
 		public const string NODE_NAME   = "TCACONFIG";

@@ -45,18 +45,10 @@ namespace ThrottleControlledAvionics
 
 		public void BlockSAS(bool block = true) 
 		{ 
-			if(block)
-			{
-				if(!CFG.SASIsControlled)
-					CFG.SASWasEnabled = VSL.ActionGroups[KSPActionGroup.SAS]; 
-				CFG.SASIsControlled = true;
-			}
-			else
-			{
-				if(CFG.SASIsControlled && CFG.SASWasEnabled) 
-					VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
-				CFG.SASIsControlled = false;
-			}
+			if(!block) return;
+			if(!CFG.SASIsControlled)
+				CFG.SASWasEnabled = VSL.ActionGroups[KSPActionGroup.SAS]; 
+			CFG.SASIsControlled = true;
 		}
 	}
 

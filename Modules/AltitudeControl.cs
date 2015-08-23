@@ -76,7 +76,7 @@ namespace ThrottleControlledAvionics
 			if(enable)
 			{
 				VSL.UpdateAltitude();
-				CFG.DesiredAltitude = VSL.Altitude;
+				CFG.DesiredAltitude = VSL.LandedOrSplashed? -10 : VSL.Altitude;
 			}
 		}
 
@@ -126,8 +126,8 @@ namespace ThrottleControlledAvionics
 				{ if(!Falling.Check) SetState(TCAState.LoosingAltitude); }
 				else Falling.Reset();
 
-				DebugUtils.CSV(VSL.vessel.altitude, VSL.TerrainAltitude, VSL.Altitude, VSL.AltitudeAhead, error, 
-				               CFG.VerticalCutoff, VSL.VSF, VSL.MinVSF, VSL.AbsVerticalSpeed, VSL.RelVerticalSpeed, dV, VSL.MaxDTWR, VSL.MaxTWR, VSL.HorizontalVelocity.magnitude);//debug
+//				DebugUtils.CSV(VSL.vessel.altitude, VSL.TerrainAltitude, VSL.Altitude, VSL.AltitudeAhead, error, 
+//				               CFG.VerticalCutoff, VSL.VSF, VSL.MinVSF, VSL.AbsVerticalSpeed, VSL.RelVerticalSpeed, dV, VSL.MaxDTWR, VSL.MaxTWR, VSL.HorizontalVelocity.magnitude);//debug
 			}
 		}
 	}

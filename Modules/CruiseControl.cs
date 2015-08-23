@@ -37,6 +37,7 @@ namespace ThrottleControlledAvionics
 			pid.setPID(CC.DirectionPID);
 			pid.Reset();
 			CFG.HF.AddCallback(HFlight.CruiseControl, Enable);
+			CFG.HF.AddCallback(HFlight.NoseOnCourse, NoseOnCourse);
 		}
 
 		public override void UpdateState() 
@@ -67,6 +68,12 @@ namespace ThrottleControlledAvionics
 			set_needed_velocity(enable);
 		}
 
+		public void NoseOnCourse(bool enable = true)
+		{
+			pid.Reset();
+			if(enable) VSL.UpdateOnPlanetStats();
+			BlockSAS(enable);
+		}
 
 		public void UpdateNeededVelocity()
 		{
@@ -84,17 +91,21 @@ namespace ThrottleControlledAvionics
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
 			if(UserIntervening(s)) { pid.Reset(); return; }
-			var hDir = Vector3.ProjectOnPlane(VSL.Fwd, VSL.Up).normalized;
-			var attitude_error = Quaternion.FromToRotation(hDir, CFG.NeededHorVelocity);
-			var angle = Utils.CenterAngle(attitude_error.eulerAngles.z)/180;
+			var hDir = VSL.refT.InverseTransformDirection(Vector3.ProjectOnPlane(VSL.Fwd, VSL.Up).normalized);
+			var lHv  = VSL.refT.InverseTransformDirection(CFG.NeededHorVelocity);
+			var attitude_error = Quaternion.FromToRotation(hDir, lHv);
+			var angle = Utils.CenterAngle(VSL.NoseUp? attitude_error.eulerAngles.y : attitude_error.eulerAngles.z)/180;
 			var AAf = 1/(VSL.NoseUp? VSL.MaxAngularA.y : VSL.MaxAngularA.z);
 			var eff = Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(VSL.Fwd, VSL.Up)));
 			pid.P = CC.DirectionPID.P*AAf;
 			pid.D = CC.DirectionPID.D*AAf;
 			pid.Update(angle);
 			if(VSL.NoseUp) s.roll = s.rollTrim = -pid.Action*eff;
-			else s.yaw = s.yawTrim = pid.Action*eff;
-//			DebugUtils.CSV(angle*180, pid.Action, AAf);//debug
+			else s.yaw = s.yawTrim = -pid.Action*eff;
+//			DebugUtils.logVectors("NoseOnCourse", Vector3.right, Vector3.up, 
+//			                      VSL.refT.InverseTransformDirection(VSL.Fwd), VSL.refT.InverseTransformDirection(VSL.Up), 
+//			                      hDir, lHv);
+//			DebugUtils.CSV(angle*180, pid.Action, AAf, VSL.NoseUp);//debug
 		}
 	}
 }

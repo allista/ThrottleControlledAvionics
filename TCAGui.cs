@@ -142,6 +142,12 @@ namespace ThrottleControlledAvionics
 				{ state = "Engines Unoptimized"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Ascending))
 				{ state = "Ascending"; style = Styles.yellow; }
+				else if(TCA.IsStateSet(TCAState.Landing))
+				{ state = "Landing..."; style = Styles.green; }
+				else if(TCA.IsStateSet(TCAState.CheckingSpot))
+				{ state = "Checking Spot..."; style = Styles.yellow; }
+				else if(TCA.IsStateSet(TCAState.Searching))
+				{ state = "Searching..."; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
 				{ state = "Altitude Control"; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
@@ -314,6 +320,17 @@ namespace ThrottleControlledAvionics
 				                    GUILayout.Width(100)))
 					CFG.Nav.Toggle(Navigation.FollowPath);
 				CFG.MaxNavSpeed = Utils.FloatSlider("Max.V m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 100);
+				GUILayout.EndHorizontal();
+				//landing autopilot
+				GUILayout.BeginHorizontal();
+				if(GUILayout.Button("Anchor", 
+				                    CFG.HF[HFlight.AnchorHere]? Styles.green_button : Styles.yellow_button,
+				                    GUILayout.Width(100)))
+					CFG.HF.Toggle(HFlight.AnchorHere);
+				if(GUILayout.Button("Land", 
+				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
+				                    GUILayout.Width(120)))
+					CFG.AP.Toggle(Autopilot.Land);
 				GUILayout.EndHorizontal();
 			}
 			else 

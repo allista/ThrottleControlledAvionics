@@ -97,6 +97,7 @@
     <Compile Include="DebugUtils.cs" />
     <Compile Include="WayPoints.cs" />
     <Compile Include="Modules\AutoLander.cs" />
+    <Compile Include="Modules\Anchor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

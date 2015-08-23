@@ -18,6 +18,8 @@ namespace ThrottleControlledAvionics
 {
 	public class VesselWrapper
 	{
+		const float Gee = 9.82f;
+
 		const string ElectricChargeName = "ElectricCharge";
 		static PartResourceDefinition _electric_charge;
 		public static PartResourceDefinition ElectricCharge
@@ -56,8 +58,10 @@ namespace ThrottleControlledAvionics
 		public Vector6 R_TorqueLimits { get; private set; } = new Vector6(); //torque limits of rcs
 
 		public Bounds B { get; private set; }
-		public Vector3[] BV { get; private set; }
+		public float  H { get; private set; }
+		public float  R { get; private set; }
 		public float  M { get; private set; }
+		public float  G { get { return (float)vessel.mainBody.GeeASL*Gee; } }
 		public float  DTWR { get; private set; }
 		public float  MaxDTWR { get; private set; }
 		public float  MaxTWR { get; private set; }
@@ -75,8 +79,10 @@ namespace ThrottleControlledAvionics
 		public Matrix3x3f InertiaTensor { get; private set; }
 		public Vector3    MaxAngularA { get; private set; } //current maximum angular acceleration
 		public float      MaxAngularA_m { get; private set; } //current maximum angular acceleration
+		public float      MaxPitchYawAA { get; private set; } //current minimal maximum angular acceleration
 
 		public Vector3  Thrust { get; private set; } //current total thrust
+		public Vector3  MaxThrust { get; private set; }
 		public Vector3  Torque { get; private set; } //current torque applied to the vessel by the engines
 		public Vector3  MaxTorque { get; private set; }
 		public float    AbsVerticalSpeed { get; private set; }
@@ -326,6 +332,10 @@ namespace ThrottleControlledAvionics
 			            vessel.situation != Vessel.Situations.ESCAPING);
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Y, vessel.ctrlState.Z);
+			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
+			if(!Translation.IsZero())Translation = Translation/Translation.CubeNorm().magnitude;
+			if(!OnPlanet) UnblockSAS(false);
+			else if(!CFG.HF) UnblockSAS();
 		}
 
 		public void UpdateCommons()
@@ -343,7 +353,12 @@ namespace ThrottleControlledAvionics
 		{
 			E_TorqueLimits = new Vector6();
 			for(int i = 0; i < SteeringEngines.Count; i++)
-				E_TorqueLimits.Add(SteeringEngines[i].currentTorque);
+//			{
+//				var e = SteeringEngines[i];
+//				if(e.isVSC) E_TorqueLimits.Add(SteeringEngines[i].currentTorque*MinVSF);
+//				else 
+					E_TorqueLimits.Add(SteeringEngines[i].currentTorque);
+//			}
 		}
 
 		public void UpdateWTorqueLimits()
@@ -387,6 +402,7 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateOnPlanetStats()
 		{
+			if(!OnPlanet) return;
 			AccelSpeed = 0f; DecelSpeed = 0f;
 			//calculate altitude, vertical and horizontal speed and acceleration
 			AbsVerticalSpeed  = CoM_verticalSpeed;
@@ -405,7 +421,7 @@ namespace ThrottleControlledAvionics
 			HorizontalSpeed = (float)HorizontalVelocity.magnitude;
 			//calculate total downward thrust and slow engines' corrections
 			Thrust = Vector3.zero;
-			var max_thrust  = Vector3.zero;
+			MaxThrust = Vector3.zero;
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
@@ -429,22 +445,27 @@ namespace ThrottleControlledAvionics
 						}
 						else fast_thrust = dthrust;
 						down_thrust += dthrust;
-						max_thrust += e.wThrustDir*e.nominalCurrentThrust(1);
+						MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
 					}
 				}
-				Thrust += e.wThrustDir*e.finalThrust;
+				//do not include maneuver engines to break the feedback loop with HSC
+				if(e.Role != TCARole.MANEUVER) 
+					Thrust += e.wThrustDir*e.finalThrust;
 			}
 			M = vessel.GetTotalMass();
-			MaxTWR  = max_thrust.magnitude/TCAConfiguration.G/M;
-			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/TCAConfiguration.G/M, 0.1f);
-			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/TCAConfiguration.G/M : 0f;
+			MaxTWR  = MaxThrust.magnitude/M/G;
+			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/M/G, 0.1f);
+			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/M/G : 0f;
 			if(refT != null)
 			{
-				Fwd  = Vector3.Cross(refT.right, -Thrust).normalized;
+				Fwd  = Vector3.Cross(refT.right, -MaxThrust).normalized;
 				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
 			}
-			MinVSF  = (MaxAngularA_m > 0)? 
-				Mathf.Clamp(GLB.VSC.MinVSFf/MaxAngularA_m, 0, Utils.ClampH(0.5f/(MaxDTWR > 0? MaxDTWR : 1), 0.5f)) : 0;
+			var mVSFtwr = 0.5f/Utils.ClampL(MaxDTWR, 1);
+			var mVSFtor = (MaxPitchYawAA > 0)? GLB.VSC.MinVSFf/MaxPitchYawAA : mVSFtwr;
+			MinVSF = Mathf.Lerp(mVSFtwr, mVSFtor, Mathf.Sqrt(Steering.magnitude));
+			Utils.Log("MaxDTWR {0}, G {1}, MaxPitchYawAA {2}, mVSFtwr {3}, mVSFtor {4}, MinVSF {5}", 
+			          MaxDTWR, G, MaxPitchYawAA, mVSFtwr, mVSFtor, MinVSF);//debug
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
 			//correct setpoint for current TWR and slow engines
@@ -454,6 +475,7 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateBounds()
 		{
+			var vT = vessel.vesselTransform;
 			var b = new Bounds();
 			bool inited = false;
 			var parts = vessel.parts;
@@ -468,7 +490,7 @@ namespace ThrottleControlledAvionics
 					var bounds = Utils.BoundCorners(m.sharedMesh.bounds);
 					for(int j = 0; j < 8; j++)
 					{
-						var c = m.transform.TransformPoint(bounds[j]);
+						var c = vT.InverseTransformPoint(m.transform.TransformPoint(bounds[j]));
 						if(inited) b.Encapsulate(c);
 						else
 						{
@@ -478,8 +500,23 @@ namespace ThrottleControlledAvionics
 					}
 				}
 			}
-			B  = b;
-			BV = Utils.BoundCorners(b);
+			B = b;
+			H = Mathf.Abs(Vector3.Dot(vT.TransformDirection(B.extents), Up))
+				-Vector3.Dot(vT.TransformPoint(B.center)-wCoM, Up);
+			R = B.extents.magnitude;
+//			DebugUtils.logBounds("Vessel", B);
+//			Utils.Log("B.center-wCoM {0}\n (c-wCoM)*Up {1}, B.extents*Up {2}, H {3}", 
+//			          vT.TransformPoint(B.center)-wCoM, 
+//			          Vector3.Dot(vT.TransformPoint(B.center)-wCoM, Up), 
+//			          Mathf.Abs(Vector3.Dot(vT.TransformDirection(B.extents), Up)),
+//			          H);//debug
+		}
+
+		public void UnblockSAS(bool set_flag = true)
+		{
+			if(CFG.SASIsControlled) 
+				ActionGroups.SetGroup(KSPActionGroup.SAS, CFG.SASWasEnabled);
+			if(set_flag) CFG.SASIsControlled = false;
 		}
 
 		void update_MaxAngularA()
@@ -493,6 +530,7 @@ namespace ThrottleControlledAvionics
 				);
 			MaxAngularA = Utils.EWA(MaxAngularA, new_angularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
+			MaxPitchYawAA = Vector3.ProjectOnPlane(refT.TransformDirection(MaxAngularA), Up).magnitude;
 		}
 
 		#region From MechJeb2
@@ -560,7 +598,8 @@ namespace ThrottleControlledAvionics
 		Ascending		 	   = 1 << 9,
 		//autopilot
 		Searching              = 1 << 10,
-		Landing                = 1 << 11,
+		CheckingSpot           = 1 << 11,
+		Landing                = 1 << 12,
 		//composite
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,

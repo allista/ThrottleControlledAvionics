@@ -30,6 +30,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinTf = 0.1f,  MaxTf = 1f;
 			[Persistent] public float TWRf  = 5;
 			[Persistent] public float TorF  = 3;
+			[Persistent] public float HVCurve = 2;
 			[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
 			[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
 			[Persistent] public float MoIFactor = 0.01f;
@@ -85,10 +86,10 @@ namespace ThrottleControlledAvionics
 				var twrF  = Utils.ClampH(VSL.DTWR/HSC.TWRf, 1);
 				var torF  = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(VSL.MaxTorque, hVl), 
 				                                       VSL.MoI.Inverse())
-				                         .magnitude*(float)VSL.HorizontalVelocity.magnitude*HSC.TorF, 1);
+				                         .magnitude*(float)VSL.HorizontalSpeed*HSC.TorF, 1);
 				var upF   = Vector3.Dot(thrust, hVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);
 				var MaxHv = Math.Max(acceleration.magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)(MaxHv/hVm), 1)/upF;
+				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)Math.Pow(MaxHv/hVm, HSC.HVCurve), 1)/upF;
 //				Utils.Log("needed thrust direction: {0}\n" +
 //				          "TWR factor: {1}\n" +
 //				          "torque factor: {2}\n" +
@@ -104,7 +105,7 @@ namespace ThrottleControlledAvionics
 //				         );//debug
 			}
 			else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
-			if(nV.IsZero() && hVm > HSC.TranslationLowerThreshold)
+			if(nV.magnitude < HSC.TranslationLowerThreshold && hVm > HSC.TranslationLowerThreshold)
 			{
 				//also try to use translation control to slow down
 				var hVl_dir = Utils.ClampH((float)(hVm/HSC.TranslationUpperThreshold), 1)*hVl.CubeNorm();	

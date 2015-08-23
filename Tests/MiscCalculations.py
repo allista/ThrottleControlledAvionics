@@ -895,6 +895,15 @@ def drawVectors():
 (0.3722304, 0.7262448, 0.5779386), #right
              ]
     
+    MunNoseHor = [
+(1, 0, 0),
+(0, 1, 0),
+(0.00198698, 0.999992, 0.003474206),
+(-0.01996278, -0.1021231, -0.9945714),
+(-0.0001221597, 0.9947699, -0.1021409),
+(0.3317407, 0.9377342, -0.1029695),
+                    ]
+    
     def xzy(v): return v[0], v[2], v[1]
     
     def draw_vectors(*vecs):
@@ -917,7 +926,7 @@ def drawVectors():
         plt.show()
     
 #     draw_vectors(*NoseUp)
-    draw_vectors(*Radar)
+    draw_vectors(*MunNoseHor)
     
 def color_grad(num, repeat=1):
     colors = [(0,1,0)]*repeat
@@ -1147,6 +1156,38 @@ def analyzeCSV(filename, header, cols=None, region = None):
 #     print df.iloc[500]
     drawDF(df, cols, axes=[1]*(len(df.keys()) if cols is None else len(cols)))
   
+  
+def sim_PointNav():
+    P = 2; D = 0.1
+    pid = PID(P, 0, D, 0, 10)
+    accel = np.arange(0.1, 1.1, 0.1);
+    distance = 50
+    distanceF = 1
+    cols = color_grad(len(accel))
+    for i, a in enumerate(accel):
+        d = [distance]
+        v = [0]
+        act = [0]
+        t = 0
+        while d[-1] > 0.08:
+            pid.kp = P*a/clampL(v[-1], 0.1)
+            act.append(pid.update(d[-1]*distanceF))
+            if v[-1] < pid.action:
+                v.append(v[-1]+a*dt)
+            elif v[-1] > pid.action:
+                v.append(v[-1]-a*dt)
+            else: v.append(v[-1])
+            d.append(d[-1]-v[-1]*dt)
+            t += dt
+        print 'accel=%.2f, time: %.1fs' % (a, t)
+        plt.subplot(2, 1, 1)
+        plt.plot(d, v, color=cols[i], label="accel=%.2f"%a)
+        plt.ylabel("V"); plt.xlabel("distance")
+        plt.subplot(2, 1, 2)
+        plt.plot(d, act, color=cols[i], label="accel=%.2f"%a)
+        plt.ylabel("act"); plt.xlabel("distance")
+    plt.legend()
+    plt_show_maxed()
 #==================================================================#
 
 dt = 0.05
@@ -1159,9 +1200,9 @@ if __name__ == '__main__':
 #     sim_Rotation()
 #     simFilters()
 #     simGC()
-    analyzeCSV('VS-filtering-43.csv',
-               ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'VSF', 'MinVSF', 'aV', 'rV', 'dV', 'mdTWR', 'mTWR', 'hV'),
-                ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'VSF', 'aV', 'rV', 'dV', 'mdTWR', 'hV'))
+#     analyzeCSV('VS-filtering-43.csv',
+#                ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'VSF', 'MinVSF', 'aV', 'rV', 'dV', 'mdTWR', 'mTWR', 'hV'),
+#                 ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'VSF', 'aV', 'rV', 'dV', 'mdTWR', 'hV'))
 #                 ('Alt', 'Err', 'VSP', 'VSF', 'dV'))
 # #                ['AltAhead']
 #                 , (13,))
@@ -1170,3 +1211,4 @@ if __name__ == '__main__':
 #                ('BestAlt', 'DetAlt', 'AltAhead')
 #                )
 #     drawVectors()
+    sim_PointNav()

@@ -54,6 +54,10 @@ namespace ThrottleControlledAvionics
 			GameEvents.onHideUI.Add(onHideUI);
 			GameEvents.onShowUI.Add(onShowUI);
 			RenderingManager.AddToPostDrawQueue(1, MapOverlay);
+			#if DEBUG
+			CheatOptions.InfiniteRCS  = true;
+			CheatOptions.InfiniteFuel = true;
+			#endif
 		}
 
 		public void OnDestroy() 
@@ -138,10 +142,7 @@ namespace ThrottleControlledAvionics
 					else if(GameSettings.THROTTLE_FULL.GetKey())
 						UpDamper.Run(() => CFG.DesiredAltitude = CFG.DesiredAltitude+10);
 					else if(GameSettings.THROTTLE_CUTOFF.GetKey())
-					{
-						Utils.Log("THROTTLE_CUTOFF");//debug
 						DownDamper.Run(() => CFG.DesiredAltitude = CFG.DesiredAltitude-10);
-					}
 				}
 				else
 				{

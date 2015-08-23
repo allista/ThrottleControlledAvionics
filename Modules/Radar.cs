@@ -77,8 +77,8 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			var d = Quaternion.AngleAxis(ViewAngle, VSL.refT.right)*Dir;
-			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right, VSL.CoM+VSL.refT.right, VSL.CoM+Dir*MaxDistance }, Color.green);
-			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right, VSL.CoM+VSL.refT.right, VSL.CoM+d*MaxDistance }, DistanceAhead > 0? Color.magenta : Color.red);
+			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, VSL.CoM+Dir*MaxDistance }, Color.green);
+			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, VSL.CoM+d*MaxDistance }, DistanceAhead > 0? Color.magenta : Color.red);
 		}
 
 		public override void Reset()
@@ -89,46 +89,6 @@ namespace ThrottleControlledAvionics
 		#endif
 
 		public override void UpdateState() { IsActive = CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain && VSL.OnPlanet; }
-
-		public static Vector3[] BoundCorners(Bounds b)
-		{
-			var edges = new Vector3[8];
-			Vector3 min = b.min;
-			Vector3 max = b.max;
-			edges[0] = new Vector3(min.x, min.y, min.z); //left-bottom-back
-			edges[1] = new Vector3(min.x, min.y, max.z); //left-bottom-front
-			edges[2] = new Vector3(min.x, max.y, min.z); //left-top-back
-			edges[3] = new Vector3(min.x, max.y, max.z); //left-top-front
-			edges[4] = new Vector3(max.x, min.y, min.z); //right-bottom-back
-			edges[5] = new Vector3(max.x, min.y, max.z); //right-bottom-front
-			edges[6] = new Vector3(max.x, max.y, min.z); //right-top-back
-			edges[7] = new Vector3(max.x, max.y, max.z); //right-top-front
-			return edges;
-		}
-
-		float lowest_vessel_point()
-		{
-			var lowest_h = 0f;
-			var parts = VSL.vessel.parts;
-			var down = Vector3.Cross(VSL.refT.right, Dir);
-			for(int i = 0, partsCount = parts.Count; i < partsCount; i++)
-			{
-				Part p = parts[i];
-				if(p == null) continue;
-				foreach(var m in p.FindModelComponents<MeshFilter>())
-				{
-					//skip meshes without renderer
-					if(m.renderer == null || !m.renderer.enabled) continue;
-					var bounds = BoundCorners(m.sharedMesh.bounds);
-					for(int j = 0, boundsLength = bounds.Length; j < boundsLength; j++)
-					{
-						var h = Vector3.Dot(m.transform.TransformPoint(bounds[j])-VSL.wCoM, down);
-						if(h > lowest_h) lowest_h = h;
-					}
-				}
-			}
-			return lowest_h;
-		}
 
 		void reset()
 		{
@@ -144,7 +104,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			if(VSL.HorizontalSpeed <= RAD.MinClosingSpeed && 
-			   (CFG.HF[HFlight.Stop] || CFG.DesiredAltitude < RAD.MinAltitude))
+			   (CFG.HF[HFlight.Stop] || CFG.HF[HFlight.Anchor] || CFG.HF[HFlight.AnchorHere] || CFG.DesiredAltitude < RAD.MinAltitude))
 			{ reset(); return; }
 			//closing speed and starting ray direction
 			Dir = Vector3.Cross(VSL.refT.right, VSL.Up).normalized;
@@ -178,8 +138,7 @@ namespace ThrottleControlledAvionics
 //			DebugUtils.CSV(BestHit.Altitude, DetectedHit.Altitude, VSL.AltitudeAhead);
 			if(DetectedHit.Altitude < 0) return;
 			//check for possible collision
-			var dH = lowest_vessel_point();
-			if(VSL.AltitudeAhead-dH*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
+			if(VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
 			{
 				if(CollisionSpeed < 0) CollisionSpeed = ClosingSpeed;
 				CFG.NHVf = Utils.ClampH(DetectedHit.Distance/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1);

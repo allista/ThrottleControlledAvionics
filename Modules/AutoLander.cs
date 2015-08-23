@@ -22,85 +22,390 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "LND";
 
-			[Persistent] public float MaxUnevenness = 0.1f;
-			[Persistent] public float MinHorizontalSpeed = 0.5f;
+			[Persistent] public float MaxUnevenness        = 0.1f;
+			[Persistent] public float MaxHorizontalTime    = 5f;
+			[Persistent] public float MinVerticalSpeed     = 0.1f;
+			[Persistent] public float WideCheckAltitude    = 200f;
+			[Persistent] public float MaxWideCheckAltitude = 1000f;
+			[Persistent] public int   WideCheckLevel       = 5;
+			[Persistent] public float NodeTargetRange      = 15;
+			[Persistent] public float NodeAnchorRange      = 5;
+			[Persistent] public float LandingAlt           = 10;
+			[Persistent] public float LandingFinalAlt      = 2;
+			[Persistent] public float StopTimer            = 2;
 
 		}
 		static Config LND { get { return TCAConfiguration.Globals.LND; } }
 
-		enum Mode { None, Moving, Stopping, ChangingAltitude, Landing }
+		static int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts"));
+		enum Stage { None, Start, PointCheck, WideCheck, MoveNext, Land }
 
-		static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts"));
-
-		readonly Multiplexer<Mode> mode = new Multiplexer<Mode>();
+		Stage stage;
+		IEnumerator scanner;
 		SurfaceNode[,] Nodes;
+		SurfaceNode NextNode;
 		int side, bside, center;
-		Vector3 right, fwd, up, down;
-		float MaxDistance;
+		Vector3 right, fwd, up, down, dir;
+		float MaxDistance, delta;
+		float DesiredAltitude;
+		readonly Timer StopTimer = new Timer();
 
 		public AutoLander(VesselWrapper vsl) { VSL = vsl; }
 
-		public override void UpdateState() { IsActive = CFG.AP[Autopilot.Land] && VSL.OnPlanet; }
+		public override void Init()
+		{
+			base.Init();
+			StopTimer.Period = LND.StopTimer;
+			CFG.AP.AddCallback(Autopilot.Land, Enable);
+			#if DEBUG
+			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+			#endif
+		}
 
-		SurfaceNode get_surface_node(Vector3 dir)
+		public override void UpdateState() 
+		{ 
+			IsActive = CFG.AP[Autopilot.Land] && VSL.OnPlanet;
+			if(!IsActive) return;
+		}
+
+		public override void Enable(bool enable = true)
+		{
+			stage = Stage.None;
+			CFG.HF.On(HFlight.Stop);
+			DesiredAltitude = 0;
+			NextNode = null;
+			Nodes = null;
+		}
+
+		SurfaceNode get_surface_node()
 		{
 			RaycastHit raycastHit;
 			if(Physics.Raycast(VSL.wCoM, dir, out raycastHit, MaxDistance, RadarMask))
-				return new SurfaceNode(raycastHit.distance*dir+VSL.wCoM, up);
+				return new SurfaceNode(VSL.wCoM, raycastHit.distance*dir, up);
 			return null;
 		}
 
-		IEnumerator scan_surface(int lvl, float delta)
+		IEnumerator surface_scanner(int lvl, float d = 0)
 		{
-			if(Nodes != null || VSL.refT == null) yield break;
+			if(VSL.refT == null) yield break;
 			//initialize the system
 			side   = lvl*2-1;
 			bside  = side+2;
-			center = bside/2;
+			center = (bside-1)/2;
 			up     = VSL.Up;
 			down   = -VSL.Altitude*up;
 			right  = VSL.refT.right;
 			fwd    = Vector3.Cross(right, up);
 			Nodes  = new SurfaceNode[bside,bside];
-			//cast the rays
+			delta  = d > 0? d : DesiredAltitude/bside*lvl;
 			MaxDistance = VSL.Altitude * 10;
+			Utils.Log("Scanning Surface: {0}x{0} -> {1}x{1}", bside, side);//debug
+			yield return null;
+			//cast the rays
 			for(int i = 0; i < bside; i++)
 				for(int j = 0; j < bside; j++)
 				{
-					Nodes[i,j] = get_surface_node((down+right*(i-center)*delta+fwd*(j-center)*delta).normalized);
+					dir = (down+right*(i-center)*delta+fwd*(j-center)*delta).normalized;
+					Nodes[i,j] = get_surface_node();
 					yield return null;
 				}
 			//compute unevenness
-			for(int i = 1; i < side; i++)
-				for(int j = 1; j < side; j++)
+			for(int i = 1; i <= side; i++)
+				for(int j = 1; j <= side; j++)
 				{
 					var n = Nodes[i,j];
-					for(int u = i-1; u < i+1; u += 2)
-						for(int v = j-1; v < j+1; v += 2)
-							n.UpdateUnevenness(Nodes[u,v]);
+					if(n == null) continue;
+					for(int u = i-1; u <= i+1; u += 2)
+						for(int v = j-1; v <= j+1; v += 2)
+						{
+							var n1 = Nodes[u,v];
+							if(n1 == null) continue;
+							n.UpdateUnevenness(n1);
+						}
 					yield return null;
 				}
+			print_nodes();//debug
+		}
+
+		SurfaceNode flattest_node 
+		{
+			get 
+			{
+				if(Nodes == null) return null;
+				SurfaceNode flattest = null;
+				for(int i = 1; i <= side; i++)
+					for(int j = 1; j <= side; j++)
+					{
+						var n = Nodes[i,j];
+						if(flattest == null) flattest = n;
+						else if(flattest.flat)
+						{
+							if(n.flat && flattest.distance > n.distance)
+								flattest = n;
+						}
+						else if(flattest.unevenness > n.unevenness)
+							flattest = n;
+							
+					}
+				return flattest;
+			}
+		}
+
+		SurfaceNode center_node
+		{ get { return Nodes == null ? null : Nodes[center, center]; } }
+
+		bool altitude_changed
+		{
+			get
+			{
+				CFG.AltitudeAboveTerrain = true;
+				if(DesiredAltitude <= 0) 
+				{
+					VSL.UpdateAltitude();
+					DesiredAltitude = VSL.Altitude;
+				}
+				CFG.DesiredAltitude = DesiredAltitude;
+				var err = Mathf.Abs(VSL.Altitude-DesiredAltitude);
+				if(err > 10)
+				{
+					CFG.VF.OnIfNot(VFlight.AltitudeControl);
+					return false;
+				}
+				else if(err < 5)
+				{
+					CFG.VF.OffIfOn(VFlight.AltitudeControl);
+					CFG.VerticalCutoff = 0;
+				}
+				return Mathf.Abs(VSL.VerticalSpeed) < LND.MinVerticalSpeed;
+			}
+		}
+
+		bool stopped
+		{
+			get
+			{
+				CFG.HF.OnIfNot(HFlight.Stop);
+				if(VSL.R/VSL.HorizontalSpeed > LND.MaxHorizontalTime)
+					return !StopTimer.Check;
+				else StopTimer.Reset();
+				return false;
+			}
+		}
+
+		bool fully_stopped 
+		{ 
+			get 
+			{ 
+				var s = stopped;
+				var a = altitude_changed;
+				return s && a;
+			} 
+		}
+
+		bool moved_to_next_node
+		{
+			get
+			{
+				StopTimer.Reset();
+				CFG.AltitudeAboveTerrain = true;
+				CFG.VF.OnIfNot(VFlight.AltitudeControl);
+				if(CFG.Anchor.DistanceTo(VSL.vessel) < CFG.Anchor.Distance)
+				{
+					CFG.Nav.Off();
+					if(NextNode.flat)
+					{
+						CFG.HF.OnIfNot(HFlight.Anchor);
+						return CFG.Anchor.DistanceTo(VSL.vessel) < LND.NodeAnchorRange;
+					}
+					else return true;
+				}
+				else if(!CFG.HF[HFlight.Anchor] && 
+				        (!CFG.Nav[Navigation.GoToTarget] || VSL.vessel.targetObject != CFG.Anchor))
+				{
+					FlightGlobals.fetch.SetVesselTarget(CFG.Anchor);
+					CFG.Nav.On(Navigation.GoToTarget);
+				}
+				return false;
+			}
+		}
+
+		float distance_to_node(SurfaceNode n)
+		{ return Vector3.ProjectOnPlane(n.position-VSL.wCoM, VSL.Up).magnitude; }
+
+		void wide_check(float delta_alt = 0)
+		{
+			if(DesiredAltitude < LND.WideCheckAltitude)
+				DesiredAltitude = LND.WideCheckAltitude;
+			else DesiredAltitude += delta_alt;
+			if(DesiredAltitude > LND.MaxWideCheckAltitude)
+				CFG.AP.Off();
+			else stage = Stage.WideCheck;
+		}
+
+		void move_next()
+		{
+			CFG.Anchor = new WayPoint(VSL.vessel.mainBody.GetLatitude(NextNode.position),
+			                          VSL.vessel.mainBody.GetLongitude(NextNode.position));
+			CFG.Anchor.Distance = LND.NodeTargetRange;
+			stage = Stage.MoveNext;
+		}
+
+		void land()
+		{
+			var c = center_node;
+			CFG.Anchor = new WayPoint(VSL.vessel.mainBody.GetLatitude(c.position),
+			                          VSL.vessel.mainBody.GetLongitude(c.position));
+			CFG.Anchor.Distance = LND.NodeTargetRange;
+			DesiredAltitude = LND.LandingAlt+VSL.H;
+			stage = Stage.Land;
+		}
+
+		bool scan(int lvl, float d = 0)
+		{
+			if(scanner == null) scanner = surface_scanner(lvl, d);
+			if(scanner.MoveNext()) return true;
+			scanner = null;
+			return false;
+		}
+
+		void gear_on()
+		{
+			if(!VSL.ActionGroups[KSPActionGroup.Gear])
+				VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
 		}
 
 		public void Update()
 		{
 			if(!IsActive) return;
-			//if just started, kill horizontal speed
-			if(!mode) { CFG.HF.On(HFlight.Stop); mode.On(Mode.Stopping); return; }
-			if(mode[Mode.Stopping] && VSL.HorizontalSpeed > LND.MinHorizontalSpeed) return;
-			//if too high, fly lower
-			//check right under the vessel
+			switch(stage)
+			{
+			case Stage.None:
+				CFG.AltitudeAboveTerrain = true;
+				if(DesiredAltitude <= 0) 
+				{   //here we just need the altitude control to prevent smashing into something while stopping
+					VSL.UpdateAltitude();
+					DesiredAltitude = VSL.Altitude;
+					CFG.DesiredAltitude = DesiredAltitude;
+				}
+				CFG.VF.OnIfNot(VFlight.AltitudeControl);
+				if(stopped) stage = Stage.PointCheck;
+				break;
+			case Stage.PointCheck:
+				SetState(TCAState.CheckingSpot);
+				if(!fully_stopped) break;
+				if(scan(1, VSL.R*2)) break;
+				if(Nodes == null) CFG.AP.Off(); //if failed somehow, just switch off
+				else if(center_node.flat) land();
+				else if(NextNode != null &&
+				        center_node.DistanceTo(NextNode) < LND.NodeTargetRange*2) 
+					wide_check(LND.WideCheckAltitude);
+				else wide_check();
+				break;
+			case Stage.WideCheck:
+				SetState(TCAState.Searching);
+				if(!fully_stopped) break;
+				if(scan(LND.WideCheckLevel)) break;
+				NextNode = flattest_node;
+				if(NextNode == null) CFG.AP.Off(); //if failed somehow, just switch off
+				if(NextNode.flat || distance_to_node(NextNode) > LND.NodeTargetRange*2) move_next();
+				else wide_check(LND.WideCheckAltitude);
+				break;
+			case Stage.MoveNext:
+				SetState(NextNode.flat? TCAState.CheckingSpot : TCAState.Searching);
+				if(!moved_to_next_node) break;
+				DesiredAltitude = VSL.Altitude;
+				if(NextNode.flat) stage = Stage.PointCheck;
+				else wide_check();
+				break;
+			case Stage.Land:
+				SetState(TCAState.Landing);
+				CFG.HF.OnIfNot(HFlight.Anchor);
+				if(DesiredAltitude > 0)
+				{
+					if(VSL.Altitude < VSL.H*10)
+					{
+						gear_on();
+						var lalt = LND.LandingAlt+VSL.H;
+						if(lalt > DesiredAltitude) DesiredAltitude = lalt;
+					}
+					if(!altitude_changed) break;
+					DesiredAltitude = -10;
+				}
+				gear_on();
+				CFG.VF.Off();
+				CFG.AltitudeAboveTerrain = true;
+				if(VSL.LandedOrSplashed) { CFG.VerticalCutoff = -10; CFG.AP.Off(); }
+				else if(VSL.Altitude > LND.LandingFinalAlt+VSL.H) CFG.VerticalCutoff = -1;
+				else { CFG.VerticalCutoff = -0.5f; CFG.HF.OnIfNot(HFlight.Stop); }
+				break;
+			default: 
+				CFG.AP.Off();
+				break;
+			}
 		}
+
+		#if DEBUG
+		public void RadarBeam()
+		{
+			if(Nodes == null) return;
+			if(scanner == null && NextNode != null)
+			{
+				GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, NextNode.position }, 
+				                      Color.Lerp(Color.blue, Color.red, NextNode.unevenness));
+				return;
+			}
+			for(int i = 0; i < bside; i++)
+				for(int j = 0; j < bside; j++)
+				{
+					var n = Nodes[i,j];
+					if(n == null) continue;
+					GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, n.position }, 
+					                      Color.Lerp(Color.blue, Color.red, n.unevenness));
+				}
+		}
+
+		public override void Reset()
+		{
+			base.Reset();
+			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+		}
+
+		void print_nodes()
+		{
+			if(Nodes == null) return;
+			var nodes = string.Format("Nodes: {0}x{0}\n", bside);
+			for(int i = 0; i < bside; i++)
+				for(int j = 0; j < bside; j++)
+				{
+					var n = Nodes[i,j];
+					nodes += string.Format("[{0},{1}]: pos ", i, j);
+					if(n == null) { nodes += "null\n"; continue; }
+					nodes += Utils.formatVector(n.position) + "\n";
+					nodes += string.Format("unevenness: {0}", n.unevenness) + "\n";
+					nodes += string.Format("flat: {0}", n.flat) + "\n";
+				}
+			Utils.Log(nodes+"\n");
+		}
+		#endif
 
 		class SurfaceNode
 		{
 			Vector3 up;
 			public Vector3 position;
 			public float unevenness;
+			public float distance;
+			public bool flat;
 			public readonly  HashSet<SurfaceNode> neighbours = new HashSet<SurfaceNode>();
 
-			public SurfaceNode(Vector3 pos, Vector3 up) 
-			{ position = pos; this.up = up; }
+			public SurfaceNode(Vector3 ori, Vector3 ray, Vector3 up) 
+			{ 
+				distance = Vector3.ProjectOnPlane(ray, up).magnitude; 
+				position = ori+ray; 
+				this.up = up; 
+			}
+
+			public float DistanceTo(SurfaceNode n)
+			{ return (n.position-position).magnitude; }
 
 			public void UpdateUnevenness(SurfaceNode n)
 			{
@@ -110,6 +415,7 @@ namespace ThrottleControlledAvionics
 				n.unevenness += unev;
 				neighbours.Add(n);
 				n.neighbours.Add(this);
+				flat = unevenness < LND.MaxUnevenness;
 			}
 		}
 	}

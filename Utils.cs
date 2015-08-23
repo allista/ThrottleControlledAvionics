@@ -129,6 +129,22 @@ namespace ThrottleControlledAvionics
 			while(en.MoveNext()) action(en.Current);
 		}
 
+		public static Vector3[] BoundCorners(Bounds b)
+		{
+			var edges = new Vector3[8];
+			Vector3 min = b.min;
+			Vector3 max = b.max;
+			edges[0] = new Vector3(min.x, min.y, min.z); //left-bottom-back
+			edges[1] = new Vector3(min.x, min.y, max.z); //left-bottom-front
+			edges[2] = new Vector3(min.x, max.y, min.z); //left-top-back
+			edges[3] = new Vector3(min.x, max.y, max.z); //left-top-front
+			edges[4] = new Vector3(max.x, min.y, min.z); //right-bottom-back
+			edges[5] = new Vector3(max.x, min.y, max.z); //right-bottom-front
+			edges[6] = new Vector3(max.x, max.y, min.z); //right-top-back
+			edges[7] = new Vector3(max.x, max.y, max.z); //right-top-front
+			return edges;
+		}
+
 		#region From MechJeb
 		public static double TerrainAltitude(CelestialBody body, double Lat, double Lon)
 		{
@@ -328,6 +344,12 @@ namespace ThrottleControlledAvionics
 
 		public TimerBase(double period) { Period = period; next_time = -1; }
 		public void Reset() { next_time = -1; }
+
+		public override string ToString()
+		{
+			return string.Format("time: {0} < next time {1}: {2}", 
+			                     Planetarium.GetUniversalTime(), next_time, Planetarium.GetUniversalTime() < next_time);
+		}
 	}
 
 	public class ActionDamper : TimerBase
@@ -337,11 +359,9 @@ namespace ThrottleControlledAvionics
 		public void Run(Action action)
 		{
 			var time = Planetarium.GetUniversalTime();
-			Utils.Log("time {0}; next_time {1}", time, next_time);//debug
 			if(next_time > time) return;
 			next_time = time+Period;
 			action();
-			Utils.Log("action executed");//debug
 		}
 	}
 
@@ -363,28 +383,49 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class TimeDiff
+	public class TimeAverage
 	{
-		public readonly float dT;
+		public float dT;
+		protected int n;
 		protected float t, val, new_val;
 		public float Value { get; protected set; }
-		public TimeDiff(float dt = 0.05f) { dT = dt; }
+		public float Speed { get; protected set; }
+		public TimeAverage(float dt = 0.05f) { dT = dt; }
 
 		public bool Update(float v)
 		{
 			val += v;
 			t += TimeWarp.fixedDeltaTime;
-			Value = Utils.EWA(Value, new_val, 0.1f);
+			n += 1;
 			if(t < dT) return false;
-			new_val = val/t;
-			val = t = 0;
+			new_val = val/n;
+			Speed = (new_val-Value)/t;
+			Value = new_val;
+			val = t = n = 0;
 			return true;
 		}
 
-		public static implicit operator float(TimeDiff td) { return td.Value; }
+		public void Reset() { Value = Speed = val = t = n = 0; }
 
-		public override string ToString() { return Value.ToString(); }
-		public string ToString(string format) { return Value.ToString(format); }
+		public static implicit operator float(TimeAverage td) { return td.Value; }
+		public override string ToString() { return string.Format("Value: {0}, Speed: {1}", Value, Speed); }
+	}
+
+	public class EWA
+	{
+		float old, value;
+
+		public EWA(float v = 0) { old = v; value = v; }
+
+		public float Update(float v, float ratio = 0.1f)
+		{
+			value = Utils.EWA(old, v, ratio);
+			old = value;
+			return value;
+		}
+		public static implicit operator float(EWA ewa) { return ewa.value; }
+		public override string ToString() { return value.ToString(); }
+		public string ToString(string F) { return value.ToString(F); }
 	}
 
 	public class ConfigNodeObject : IConfigNode
@@ -404,7 +445,9 @@ namespace ThrottleControlledAvionics
 				if(n == null) continue;
 				var method = fi.FieldType.GetMethod("Load", new [] {cnode_type});
 				if(method == null) continue;
-				method.Invoke(fi.GetValue(this), new [] {n});
+				var f = fi.GetValue(this);
+				if(f == null) continue;
+				method.Invoke(f, new [] {n});
 			}
 		}
 
@@ -416,10 +459,12 @@ namespace ThrottleControlledAvionics
 				if(fi.FieldType.GetInterface(iface_name) == null) continue;
 				var method = fi.FieldType.GetMethod("Save", new [] {cnode_type});
 				if(method == null) continue;
+				var f = fi.GetValue(this);
 				var n = node.GetNode(fi.Name);
 				if(n == null) n = node.AddNode(fi.Name);
 				else n.ClearData();
-				method.Invoke(fi.GetValue(this), new [] {n});
+				if(f == null) continue;
+				method.Invoke(f, new [] {n});
 			}
 		}
 	}
@@ -506,21 +551,23 @@ namespace ThrottleControlledAvionics
           	}
 		}
 		public void Toggle(T key) { this[key] = !this[key]; }
+		public void OnIfNot(T key) { if(!this[key]) On(key); }
+		public void OffIfOn(T key) { if(this[key]) Off(); }
 		public void On(T key) 
 		{ 
-			Off();
+			if(!key.Equals(state)) Off();
 			state = key;
 			Action<bool> callback;
 			if(callbacks.TryGetValue(state, out callback))
-				callback(true);
-			
+			{ if(callback != null) callback(true); }
 		}
 		public void Off() 
 		{ 
-			Action<bool> callback;
-			if(callbacks.TryGetValue(state, out callback))
-				callback(false);
+			var old_state = state; //prevents recursion
 			state = default(T);
+			Action<bool> callback;
+			if(callbacks.TryGetValue(old_state, out callback))
+			{ if(callback != null) callback(false); }
 		}
 
 		public static implicit operator bool(Multiplexer<T> m) { return !m[default(T)]; }
@@ -546,21 +593,6 @@ namespace ThrottleControlledAvionics
 			State = Enum.GetName(typeof(T), state);
 			base.Save(node);
 		}
-	}
-
-	public class EWA
-	{
-		float old, value;
-
-		public EWA(float v = 0) { old = v; value = v; }
-
-		public float Update(float v, float ratio = 0.1f)
-		{
-			value = Utils.EWA(old, v, ratio);
-			old = value;
-			return value;
-		}
-		public static implicit operator float(EWA ewa) { return ewa.value; }
 	}
 
 	//convergent with Anatid's Vector6, but not taken from it

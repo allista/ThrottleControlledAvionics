@@ -30,7 +30,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float FallingSensitivity = 10f;
 			[Persistent] public float FallingCorrection  = 3f;
 			[Persistent] public float AltErrSensitivity  = 10f;
-			[Persistent] public float DistanceF          = 50;
+			[Persistent] public float DistanceF          = 2;
 			[Persistent] public float DirectNavThreshold = 1;
 			[Persistent] public float GCNavStep          = 0.1f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
@@ -83,7 +83,6 @@ namespace ThrottleControlledAvionics
 		{
 			target = wp;
 			FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
-			BlockSAS();
 			pid.Reset();
 			VSL.UpdateOnPlanetStats();
 			CFG.HF.On(HFlight.NoseOnCourse);
@@ -93,8 +92,6 @@ namespace ThrottleControlledAvionics
 		{
 			target = null;
 			FlightGlobals.fetch.SetVesselTarget(null);
-			CFG.Starboard = Vector3.zero;
-			CFG.NeededHorVelocity = Vector3d.zero;
 			CFG.HF.On(HFlight.Stop);
 		}
 
@@ -117,7 +114,7 @@ namespace ThrottleControlledAvionics
 			//check if we have arrived to the target
 			if(distance < target.Distance &&
 			   //but keep trying if we came in too fast
-			   distance/Vector3d.Dot(VSL.HorizontalVelocity, vdir) > PN.MinTime) 
+			   target.Distance/Vector3d.Dot(VSL.HorizontalVelocity, vdir) > PN.MinTime) 
 			{
 				if(CFG.Nav[Navigation.FollowPath])
 				{
@@ -130,12 +127,14 @@ namespace ThrottleControlledAvionics
 			if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 1 && distance < PN.OnPathMinDistance)
 				distance = PN.OnPathMinDistance;
 			//tune the pid and update needed velocity
+			var cur_vel   = Utils.ClampL((float)Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 1);
+			var max_accel = Mathf.Clamp(VSL.MaxThrust.magnitude*VSL.MinVSF/VSL.M, 0.1f, 1);
 			pid.Min = 0;
 			pid.Max = CFG.MaxNavSpeed;
-			pid.D   = PN.DistancePID.D*VSL.M/Utils.ClampL(VSL.Thrust.magnitude/TCAConfiguration.G, 1);
+			pid.P   = PN.DistancePID.P*max_accel/cur_vel;
 			pid.Update(distance*PN.DistanceF);
+			DebugUtils.CSV(distance, max_accel, pid.P, pid.Action);//debug
 			//increase the needed velocity slowly
-			var cur_vel = Utils.ClampL((float)Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 1);
 			var mtwr = Utils.ClampL(VSL.MaxTWR, 0.1f);
 			DeltaSpeed = PN.DeltaSpeed*mtwr*Mathf.Pow(PN.DeltaSpeed/(cur_vel+PN.DeltaSpeed), PN.DeltaSpeedF);
 			//make a correction if falling or flyin too low

@@ -115,20 +115,20 @@ namespace ThrottleControlledAvionics
 					break;
 				last_error = error;
 				//normalize limits before optimization
-				if(VSL.NormalizeLimits) 
-				{
-					var limit_norm = 0f;
-					for(int j = 0; j < num_engines; j++) 
-					{ 
-						var e = engines[j];
-						if(limit_norm < e.limit) limit_norm = e.limit; 
-					}
-					if(limit_norm > 0)
-					{
-						for(int j = 0; j < num_engines; j++) 
-						{ var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
-					}
-				}
+//				if(VSL.NormalizeLimits) 
+//				{
+//					var limit_norm = 0f;
+//					for(int j = 0; j < num_engines; j++) 
+//					{ 
+//						var e = engines[j];
+//						if(limit_norm < e.limit) limit_norm = e.limit; 
+//					}
+//					if(limit_norm > 0)
+//					{
+//						for(int j = 0; j < num_engines; j++) 
+//						{ var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
+//					}
+//				}
 				//optimize limits
 				if(!optimization_for_torque_pass(engines, num_engines, target, error, ENG.OptimizationPrecision)) 
 					break;
@@ -148,15 +148,10 @@ namespace ThrottleControlledAvionics
 		{
 			var num_engines = VSL.ManualEngines.Count;
 			if(VSL.Translation.IsZero()) return;
-			var trans = new Vector3(
-				VSL.Translation.x, 
-				VSL.Translation.z, 
-				VSL.Translation.y)
-				/VSL.Translation.CubeNorm().magnitude;
 			for(int i = 0; i < num_engines; i++)
 			{
 				var e = VSL.ManeuverEngines[i];
-				e.limit_tmp = Vector3.Dot(e.thrustDirection, trans);
+				e.limit_tmp = Vector3.Dot(e.thrustDirection, VSL.Translation);
 				e.limit = e.limit_tmp > 0? e.limit_tmp : 0;
 			}
 		}
@@ -171,8 +166,7 @@ namespace ThrottleControlledAvionics
 			Steering = VSL.Steering;
 			if(Steering.sqrMagnitude >= TCAConfiguration.Globals.InputDeadZone)
 			{
-				//normalize and correct steering
-				Steering = Steering/Steering.CubeNorm().magnitude;
+				//correct steering
 				if(!CFG.AutoTune) Steering *= CFG.SteeringGain;
 				Steering.Scale(CFG.SteeringModifier);
 				//calculate needed torque
