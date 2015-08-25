@@ -88,7 +88,11 @@ namespace ThrottleControlledAvionics
 		}
 		#endif
 
-		public override void UpdateState() { IsActive = CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain && VSL.OnPlanet; }
+		public override void UpdateState() 
+		{ 
+			IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed && 
+				CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain; 
+		}
 
 		void reset()
 		{
