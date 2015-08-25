@@ -20,14 +20,17 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "ANC";
 
-			[Persistent] public float MaxSpeed  = 10;
-			[Persistent] public float DistanceF = 50;
+			[Persistent] public float MaxSpeed      = 10;
+			[Persistent] public float DistanceF     = 50;
+			[Persistent] public float AngularAccelF = 2f;
+			[Persistent] public float MaxAccelF     = 4f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
 		static Config ANC { get { return TCAConfiguration.Globals.ANC; } }
 		public Anchor(VesselWrapper vsl) { VSL = vsl; }
 
 		readonly PIDf_Controller pid = new PIDf_Controller();
+		readonly EWA AccelCorrection = new EWA();
 
 		public override void Init()
 		{
@@ -46,6 +49,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(enable && CFG.Anchor == null) return;
 			pid.Reset();
+			CFG.Nav.Off();
 			BlockSAS(enable);
 			if(enable) VSL.UpdateOnPlanetStats();
 			else CFG.Anchor = null;
@@ -67,7 +71,10 @@ namespace ThrottleControlledAvionics
 			var distance = vdir.magnitude;
 			vdir.Normalize();
 			//tune the pid and update needed velocity
-			pid.D   = ANC.DistancePID.D/Utils.ClampL(VSL.Thrust.magnitude/VSL.M, 0.1f);//need to use real a=thrust/M, not TWR
+			AccelCorrection.Update(Mathf.Clamp(VSL.MaxThrust.magnitude*VSL.MinVSFtwr/VSL.M/ANC.MaxAccelF, 0.01f, 1)*
+			                       Mathf.Clamp(VSL.MaxPitchRollAA/ANC.AngularAccelF, 0.01f, 1), 0.01f);
+			pid.P   = ANC.DistancePID.P*AccelCorrection;
+			pid.D   = ANC.DistancePID.D*(2-AccelCorrection);
 			pid.Update(distance*ANC.DistanceF);
 			//set needed velocity and starboard
 			CFG.NeededHorVelocity = vdir*pid.Action;
