@@ -53,6 +53,8 @@ namespace ThrottleControlledAvionics
 			GameEvents.onVesselChange.Add(onVesselChange);
 			GameEvents.onHideUI.Add(onHideUI);
 			GameEvents.onShowUI.Add(onShowUI);
+			WayPointMarker = GameDatabase.Instance.GetTexture(WPM_ICON, false);
+			PathNodeMarker = GameDatabase.Instance.GetTexture(PN_ICON, false);
 			RenderingManager.AddToPostDrawQueue(1, MapOverlay);
 			#if DEBUG
 			CheatOptions.InfiniteRCS  = true;

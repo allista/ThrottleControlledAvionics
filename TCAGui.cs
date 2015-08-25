@@ -39,6 +39,10 @@ namespace ThrottleControlledAvionics
 		//map view
 		static bool selecting_map_target;
 		static readonly ActionDamper AddTargetDamper = new ActionDamper();
+		const string WPM_ICON = "ThrottleControlledAvionics/Icons/waypoint";
+		const string PN_ICON  = "ThrottleControlledAvionics/Icons/path-node";
+		const float  IconSize = 16;
+		static Texture2D WayPointMarker, PathNodeMarker;
 		#endregion
 
 		void onShowUI() { showHUD = true; }
@@ -378,7 +382,7 @@ namespace ThrottleControlledAvionics
 					if(CFG.Nav[Navigation.FollowPath] && i == 0)
 					{
 						var d = wp.DistanceTo(vessel);
-						label += string.Format(" <= {0}", distance_to_str(d)); 
+						label += string.Format(" <= {0}", Utils.DistanceToStr(d)); 
 						if(vessel.horizontalSrfSpeed > 0.1)
 							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed)));
 					}
@@ -455,8 +459,9 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 		}
 
-		static double marker_radius(Vessel vsl, WayPoint t)
-		{ return vsl.mainBody.Radius/15 * Utils.ClampL(t.AngleTo(vsl)/Math.PI, 0.025); }
+		#region MapView
+//		static float marker_radius(Vessel vsl, WayPoint t)
+//		{ return WayPointMarker.width * Utils.ClampL((float)t.AngleTo(vsl)/Mathf.PI, 0.25f); }
 
 		static Color marker_color(int i, float N)
 		{ 
@@ -465,12 +470,6 @@ namespace ThrottleControlledAvionics
 			return t < 0.5f ? 
 				Color.Lerp(Color.red, Color.green, t*2).Normalized() : 
 				Color.Lerp(Color.green, Color.cyan, (t-0.5f)*2).Normalized(); 
-		}
-
-		static string distance_to_str(double d)
-		{
-			var k = d/1000;
-			return k < 1? string.Format("{0:F0}m", d) : string.Format("{0:F1}km", k);
 		}
 
 		//adapted from MechJeb
@@ -487,10 +486,9 @@ namespace ThrottleControlledAvionics
 				if(coords != null)
 				{
 					var t = new WayPoint(coords);
-					var R = marker_radius(vessel, t);
-					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f), R);
+					DrawMapViewGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f));
 					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50), 
-					          string.Format("{0} {1}\n{2}", coords, distance_to_str(t.DistanceTo(vessel)), 
+					          string.Format("{0} {1}\n{2}", coords, Utils.DistanceToStr(t.DistanceTo(vessel)), 
 					                        ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon)));
 					if(!clicked)
 					{ 
@@ -518,20 +516,77 @@ namespace ThrottleControlledAvionics
 			{
 				var i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
-				WayPoint wp0 = null; double r0 = 0;
+				WayPoint wp0 = null;
 				foreach(var wp in CFG.Waypoints)
 				{
 					wp.UpdateCoordinates(vessel.mainBody);
 					var c = marker_color(i, num);
-					var r = marker_radius(vessel, wp);
-					if(wp0 == null) GLUtils.DrawMapViewPath(vessel, wp, r, c);
-					else GLUtils.DrawMapViewPath(vessel.mainBody, wp0, wp, r0, r, c);
-					GLUtils.DrawMapViewGroundMarker(vessel.mainBody, wp.Lat, wp.Lon, c, r);
-					wp0 = wp; r0 = r; i++;
+					if(wp0 == null) DrawMapViewPath(vessel, wp, c);
+					else DrawMapViewPath(vessel.mainBody, wp0, wp, c);
+					DrawMapViewGroundMarker(vessel.mainBody, wp.Lat, wp.Lon, c);
+					wp0 = wp; i++;
 				}
 			}
 		}
 
+		static Material _icon_material;
+		static Material IconMaterial
+		{
+			get
+			{
+				if(_icon_material == null) 
+					_icon_material = new Material(Shader.Find("Particles/Additive"));
+				return _icon_material;
+			}
+		}
+
+		public static void DrawMapViewGroundMarker(CelestialBody body, double lat, double lon, Color c, float r = IconSize, Texture2D texture = null)
+		{
+			var up = body.GetSurfaceNVector(lat, lon);
+			var height = Utils.TerrainAltitude(body, lat, lon);
+			if(height < body.Radius) height = body.Radius;
+			var center = body.position + height * up;
+			if(IsOccluded(center, body)) return;
+
+			if(texture == null) texture = WayPointMarker;
+			var icon_center = PlanetariumCamera.Camera.WorldToScreenPoint(ScaledSpace.LocalToScaledSpace(center));
+			var icon_rect = new Rect(icon_center.x - r * 0.5f, (float)Screen.height - icon_center.y - r * 0.5f, r, r);
+			Graphics.DrawTexture(icon_rect, texture, new Rect(0f, 0f, 1f, 1f), 0, 0, 0, 0, c, IconMaterial);
+		}
+
+		public static void DrawMapViewPath(CelestialBody body, WayPoint wp0, WayPoint wp1, Color c)
+		{
+			var D = wp1.AngleTo(wp0);
+			var N = (int)Mathf.Clamp((float)D*Mathf.Rad2Deg, 2, 5);
+			var dD = D/N;
+			for(int i = 1; i<N; i++)
+			{
+				var p = wp0.PointBetween(wp1, dD*i);
+				DrawMapViewGroundMarker(body, p.Lat, p.Lon, c, IconSize/2, PathNodeMarker);
+			}
+		}
+
+		static void DrawMapViewPath(Vessel v, WayPoint wp1, Color c)
+		{
+			var wp0 = new WayPoint();
+			wp0.Lat = v.latitude; wp0.Lon = v.longitude;
+			DrawMapViewPath(v.mainBody, wp0, wp1, c);
+		}
+
+		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
+		static bool IsOccluded(Vector3d worldPosition, CelestialBody byBody)
+		{
+			if(Vector3d.Distance(worldPosition, byBody.position) < byBody.Radius - 100) return true;
+			var camPos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position);
+			if(Vector3d.Angle(camPos - worldPosition, byBody.position - worldPosition) > 90) return false;
+			double bodyDistance = Vector3d.Distance(camPos, byBody.position);
+			double separationAngle = Vector3d.Angle(worldPosition - camPos, byBody.position - camPos);
+			double altitude = bodyDistance * Math.Sin(Math.PI / 180 * separationAngle);
+			return (altitude < byBody.Radius);
+		}
+		#endregion
+
+		#region Tooltips
 		//from blizzy's Toolbar
 		static string tooltip = "";
 
@@ -563,6 +618,7 @@ namespace ThrottleControlledAvionics
 			}
 			GUI.Label(rect, tooltip, Styles.white);
 		}
+		#endregion
 
 		#if DEBUG
 		static Vector2 eInfoScroll;
@@ -609,7 +665,6 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCA == null || !TCA.Controllable || !CFG.GUIVisible || !showHUD) return;
 			Styles.Init();
-//			if(Event.current.type != EventType.Layout) return;
 			ControlsPos = 
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 ControlsPos, 

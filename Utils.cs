@@ -133,6 +133,12 @@ namespace ThrottleControlledAvionics
 			return edges;
 		}
 
+		public static string DistanceToStr(double d)
+		{
+			var k = d/1000;
+			return k < 1? string.Format("{0:F0}m", d) : string.Format("{0:F1}km", k);
+		}
+
 		#region From MechJeb
 		public static double TerrainAltitude(CelestialBody body, double Lat, double Lon)
 		{
@@ -187,132 +193,6 @@ namespace ThrottleControlledAvionics
 			return null;
 		}
 		#endregion
-	}
-
-	//adapted from MechJeb
-	public static class GLUtils
-	{
-		static Material _material;
-		static Material material
-		{
-			get
-			{
-				if(_material == null) _material = new Material(Shader.Find("Particles/Additive"));
-				return _material;
-			}
-		}
-
-		public static void DrawMapViewGroundMarker(CelestialBody body, double lat, double lon, Color c, double r = 0)
-		{
-			var up = body.GetSurfaceNVector(lat, lon);
-			var height = Utils.TerrainAltitude(body, lat, lon);
-			if(height < body.Radius) height = body.Radius;
-			var center = body.position + height * up;
-			if(IsOccluded(center, body)) return;
-
-			if(r <= 0) r = body.Radius/15;
-			var north = Vector3d.Exclude(up, body.transform.up).normalized;
-
-			GLTriangleMap(new []{
-				center,
-				center + r * (QuaternionD.AngleAxis(-10, up) * north),
-				center + r * (QuaternionD.AngleAxis( 10, up) * north)
-			}, c);
-
-			GLTriangleMap(new []{
-				center,
-				center + r * (QuaternionD.AngleAxis(110, up) * north),
-				center + r * (QuaternionD.AngleAxis(130, up) * north)
-			}, c);
-
-			GLTriangleMap(new []{
-				center,
-				center + r * (QuaternionD.AngleAxis(-110, up) * north),
-				center + r * (QuaternionD.AngleAxis(-130, up) * north)
-			}, c);
-		}
-
-		public static void DrawMapViewPoint(CelestialBody body, double lat, double lon, Color c, double r)
-		{
-			var height = Utils.TerrainAltitude(body, lat, lon);
-			if(height < body.Radius) height = body.Radius;
-			var up     = body.GetSurfaceNVector(lat, lon);
-			var center = body.position + height * up;
-			var north  = Vector3d.Exclude(up, body.transform.up).normalized;
-
-			GLTriangleMap(new []{
-				center + r * north,
-				center + r * (QuaternionD.AngleAxis(120, up) * north),
-				center + r * (QuaternionD.AngleAxis(240, up) * north)
-			}, c);
-		}
-
-		public static void DrawMapViewPath(CelestialBody body, WayPoint wp0, WayPoint wp1, double r0, double r1, Color c, double delta = 1)
-		{
-			var D = wp1.AngleTo(wp0);
-			var N = (int)Mathf.Clamp((float)D*Mathf.Rad2Deg, 2, 5);
-			var dr = (r1-r0)/N/2;
-			var rm = r0/2;
-			var dD = D/N;
-			for(int i = 1; i<N; i++)
-			{
-				var p = wp0.PointBetween(wp1, dD*i);
-				DrawMapViewPoint(body, p.Lat, p.Lon, c, rm+dr*i);
-			}
-		}
-
-		public static void DrawMapViewPath(Vessel v, WayPoint wp1, double r1, Color c, double delta = 1)
-		{
-			var wp0 = new WayPoint();
-			wp0.Lat = v.latitude; wp0.Lon = v.longitude;
-			DrawMapViewPath(v.mainBody, wp0, wp1, r1/2, r1, c, delta);
-		}
-
-		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)
-		{
-			GL.PushMatrix();
-			material.SetPass(0);
-			GL.LoadOrtho();
-			GL.Begin(GL.TRIANGLES);
-			GL.Color(c);
-			GLVertexMap(worldVertices[0]);
-			GLVertexMap(worldVertices[1]);
-			GLVertexMap(worldVertices[2]);
-			GL.End();
-			GL.PopMatrix();
-		}
-
-		public static void GLTriangleMap(Vector3[] worldVertices, Color c)
-		{
-			GL.PushMatrix();
-			material.SetPass(0);
-			GL.LoadOrtho();
-			GL.Begin(GL.TRIANGLES);
-			GL.Color(c);
-			GLVertexMap(worldVertices[0]);
-			GLVertexMap(worldVertices[1]);
-			GLVertexMap(worldVertices[2]);
-			GL.End();
-			GL.PopMatrix();
-		}
-
-		public static void GLVertexMap(Vector3 worldPosition)
-		{
-			Vector3 screenPoint = PlanetariumCamera.Camera.WorldToScreenPoint(ScaledSpace.LocalToScaledSpace(worldPosition));
-			GL.Vertex3(screenPoint.x / Camera.main.pixelWidth, screenPoint.y / Camera.main.pixelHeight, 0);
-		}
-
-		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
-		public static bool IsOccluded(Vector3d worldPosition, CelestialBody byBody)
-		{
-			if(Vector3d.Distance(worldPosition, byBody.position) < byBody.Radius - 100) return true;
-			var camPos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position);
-			if(Vector3d.Angle(camPos - worldPosition, byBody.position - worldPosition) > 90) return false;
-			double bodyDistance = Vector3d.Distance(camPos, byBody.position);
-			double separationAngle = Vector3d.Angle(worldPosition - camPos, byBody.position - camPos);
-			double altitude = bodyDistance * Math.Sin(Math.PI / 180 * separationAngle);
-			return (altitude < byBody.Radius);
-		}
 	}
 
 	//adapted from MechJeb

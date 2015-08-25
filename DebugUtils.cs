@@ -52,6 +52,54 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	//adapted from MechJeb
+	public static class GLUtils
+	{
+		static Material _material;
+		static Material material
+		{
+			get
+			{
+				if(_material == null) _material = new Material(Shader.Find("Particles/Additive"));
+				return _material;
+			}
+		}
+
+		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)
+		{
+			GL.PushMatrix();
+			material.SetPass(0);
+			GL.LoadOrtho();
+			GL.Begin(GL.TRIANGLES);
+			GL.Color(c);
+			GLVertexMap(worldVertices[0]);
+			GLVertexMap(worldVertices[1]);
+			GLVertexMap(worldVertices[2]);
+			GL.End();
+			GL.PopMatrix();
+		}
+
+		public static void GLTriangleMap(Vector3[] worldVertices, Color c)
+		{
+			GL.PushMatrix();
+			material.SetPass(0);
+			GL.LoadOrtho();
+			GL.Begin(GL.TRIANGLES);
+			GL.Color(c);
+			GLVertexMap(worldVertices[0]);
+			GLVertexMap(worldVertices[1]);
+			GLVertexMap(worldVertices[2]);
+			GL.End();
+			GL.PopMatrix();
+		}
+
+		public static void GLVertexMap(Vector3 worldPosition)
+		{
+			Vector3 screenPoint = PlanetariumCamera.Camera.WorldToScreenPoint(ScaledSpace.LocalToScaledSpace(worldPosition));
+			GL.Vertex3(screenPoint.x / Camera.main.pixelWidth, screenPoint.y / Camera.main.pixelHeight, 0);
+		}
+	}
+
 	class NamedStopwatch
 	{
 		readonly System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
