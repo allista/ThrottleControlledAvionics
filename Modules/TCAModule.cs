@@ -50,6 +50,14 @@ namespace ThrottleControlledAvionics
 				CFG.SASWasEnabled = VSL.ActionGroups[KSPActionGroup.SAS]; 
 			CFG.SASIsControlled = true;
 		}
+
+		#if DEBUG
+		protected void Log(string msg, params object[] args)
+		{ 
+			var s = string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg);
+			Utils.Log(s, args);
+		}
+		#endif
 	}
 
 	public abstract class AutopilotModule : TCAModule
