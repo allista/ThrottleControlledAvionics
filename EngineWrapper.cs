@@ -69,6 +69,7 @@ namespace ThrottleControlledAvionics
 			{
 				var sthrust = rcs.thrustForces[i];
 				var T = rcs.thrusterTransforms[i];
+				if(T == null) continue;
 				avg_thrust_dir += T.up*sthrust;
 				avg_thrust_pos += T.position*sthrust;
 				total_sthrust += sthrust;
