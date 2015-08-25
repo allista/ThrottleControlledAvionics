@@ -138,7 +138,6 @@ namespace ThrottleControlledAvionics
 			var k = d/1000;
 			return k < 1? string.Format("{0:F0}m", d) : string.Format("{0:F1}km", k);
 		}
-
 		#region From MechJeb
 		public static double TerrainAltitude(CelestialBody body, double Lat, double Lon)
 		{
@@ -153,7 +152,6 @@ namespace ThrottleControlledAvionics
 			var mouse_pos = Input.mousePosition;
 			return new Vector2(mouse_pos.x-window.x, Screen.height-mouse_pos.y-window.y).clampToScreen();
 		}
-
 		public static Coordinates GetMouseCoordinates(CelestialBody body)
 		{
 			var mouseRay = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
@@ -340,6 +338,14 @@ namespace ThrottleControlledAvionics
 				if(f == null) continue;
 				method.Invoke(f, new [] {n});
 			}
+		}
+
+		public static CNO FromConfig<CNO>(ConfigNode node)
+			where CNO : ConfigNodeObject, new()
+		{
+			var cno = new CNO();
+			cno.Load(node);
+			return cno;
 		}
 	}
 
