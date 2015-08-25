@@ -67,8 +67,10 @@ namespace ThrottleControlledAvionics
 		public float  MaxTWR { get; private set; }
 		public float  AccelSpeed { get; private set; }
 		public float  DecelSpeed { get; private set; }
+		public bool   SlowEngines { get; private set; }
 		public float  VSF; //vertical speed factor
 		public float  MinVSF;
+		public float  MinVSFtwr;
 
 		public Vector3d   Up { get; private set; }  //up unit vector in world space
 		public Vector3    Fwd { get; private set; }  //fwd unit vector of the Control module in world space
@@ -133,6 +135,8 @@ namespace ThrottleControlledAvionics
 		public void Init() 
 		{
 			AltitudeAhead = -1;
+			if(vessel.ctrlState.gearDown)
+				vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
 		}
 
 		public Vector3 GetStarboard(Vector3d hV) { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
@@ -218,41 +222,15 @@ namespace ThrottleControlledAvionics
 			NormalizeLimits = SteeringEngines.Count > ManeuverEngines.Count;
 		}
 
-		public void InitEgnines()
-		{ for(int i = 0; i < NumActive; i++) ActiveEngines[i].InitState(); }
-
-		public void UpdateThrustersParams()
+		public void TuneEngines()
 		{
 			NormalizeLimits = true;
-			if(!NoActiveRCS)
-			{ //init RCS wrappers if needed
-				for(int i = 0; i < NumActiveRCS; i++)
-				{
-					var t = ActiveRCS[i];
-					t.InitState();
-					t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
-					t.wThrustLever = t.wThrustPos-wCoM;
-					t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.wThrustLever, t.wThrustDir));
-					t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(t.wThrustLever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
-					t.currentTorque = t.Torque(1);
-					t.currentTorque_m = t.currentTorque.magnitude;
-				}
-			}
-			//init Engine wrappers, calculate min imbalance
-			var min_imbalance = Vector3.zero;
-			for(int i = 0; i < NumActive; i++)
-			{
-				var e = ActiveEngines[i];
-				e.thrustDirection = refT.InverseTransformDirection(e.wThrustDir);
-				e.wThrustLever = e.wThrustPos-wCoM;
-				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(e.wThrustLever, e.wThrustDir));
-				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(e.wThrustLever.normalized, e.wThrustDir))), 
-					GLB.ENG.TorqueRatioFactor);
-				min_imbalance += e.Torque(0);
-			}
-			//calculate engine's torue, torque limits and set VSF
+			//calculate VSF correction
 			if(IsStateSet(TCAState.VerticalSpeedControl))
 			{
+				//calculate min imbalance
+				var min_imbalance = Vector3.zero;
+				for(int i = 0; i < NumActive; i++) min_imbalance += ActiveEngines[i].Torque(0);
 				//correct VerticalSpeedFactor if needed
 				if(!min_imbalance.IsZero())
 				{
@@ -322,7 +300,7 @@ namespace ThrottleControlledAvionics
 				TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
 				Altitude = (float)(vessel.altitude) - TerrainAltitude;
 			}
-			else Altitude = (float)vessel.altitude; 
+			else Altitude = (float)vessel.altitude;
 		}
 
 		public void UpdateState()
@@ -343,6 +321,32 @@ namespace ThrottleControlledAvionics
 			wCoM = vessel.CurrentCoM;
 			refT = vessel.ReferenceTransform;
 			Up   = (wCoM - vessel.mainBody.position).normalized; //duplicates vessel.upAxis, except it uses CoM instead of CurrentCoM
+			//init engine wrappers
+			for(int i = 0; i < NumActive; i++) 
+			{
+				var e = ActiveEngines[i];
+				e.InitState();
+				e.thrustDirection = refT.InverseTransformDirection(e.wThrustDir);
+				e.wThrustLever = e.wThrustPos-wCoM;
+				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(e.wThrustLever, e.wThrustDir));
+				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(e.wThrustLever.normalized, e.wThrustDir))), 
+				                          GLB.ENG.TorqueRatioFactor);
+			}
+			//init RCS wrappers if needed
+			if(!NoActiveRCS)
+			{
+				for(int i = 0; i < NumActiveRCS; i++)
+				{
+					var t = ActiveRCS[i];
+					t.InitState();
+					t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
+					t.wThrustLever = t.wThrustPos-wCoM;
+					t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.wThrustLever, t.wThrustDir));
+					t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(t.wThrustLever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
+					t.currentTorque = t.Torque(1);
+					t.currentTorque_m = t.currentTorque.magnitude;
+				}
+			}
 			UpdateETorqueLimits();
 			UpdateRTorqueLimits();
 			UpdateWTorqueLimits();
@@ -353,12 +357,7 @@ namespace ThrottleControlledAvionics
 		{
 			E_TorqueLimits = new Vector6();
 			for(int i = 0; i < SteeringEngines.Count; i++)
-//			{
-//				var e = SteeringEngines[i];
-//				if(e.isVSC) E_TorqueLimits.Add(SteeringEngines[i].currentTorque*MinVSF);
-//				else 
-					E_TorqueLimits.Add(SteeringEngines[i].currentTorque);
-//			}
+				E_TorqueLimits.Add(SteeringEngines[i].currentTorque);
 		}
 
 		public void UpdateWTorqueLimits()
@@ -382,6 +381,7 @@ namespace ThrottleControlledAvionics
 				for(int j = 0; j < r.rcs.thrusterTransforms.Count; j++)
 				{
 					var t = r.rcs.thrusterTransforms[j];
+					if(t == null) continue;
 					R_TorqueLimits.Add(refT.InverseTransformDirection(Vector3.Cross(t.position-wCoM, t.up)*r.nominalThrusterPower));
 				}
 			}
@@ -403,7 +403,7 @@ namespace ThrottleControlledAvionics
 		public void UpdateOnPlanetStats()
 		{
 			if(!OnPlanet) return;
-			AccelSpeed = 0f; DecelSpeed = 0f;
+			AccelSpeed = 0f; DecelSpeed = 0f; SlowEngines = false;
 			//calculate altitude, vertical and horizontal speed and acceleration
 			AbsVerticalSpeed  = CoM_verticalSpeed;
 			VerticalAccel     = (AbsVerticalSpeed-VerticalSpeed)/TimeWarp.fixedDeltaTime;
@@ -456,21 +456,24 @@ namespace ThrottleControlledAvionics
 			MaxTWR  = MaxThrust.magnitude/M/G;
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/M/G, 0.1f);
 			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/M/G : 0f;
+			MaxPitchRollAA = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(Thrust)).magnitude;
 			if(refT != null)
 			{
 				Fwd  = Vector3.Cross(refT.right, -MaxThrust).normalized;
 				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
 			}
-			var mVSFtwr = 1/Utils.ClampL(MaxDTWR, 1);
-			var mVSFtor = (MaxPitchRollAA > 0)? Utils.ClampH(GLB.VSC.MinVSFf/MaxPitchRollAA, 0.9f*mVSFtwr) : 0.1f*mVSFtwr;
-			MinVSF = Mathf.Lerp(0.1f*mVSFtwr, mVSFtor, Mathf.Pow(Steering.sqrMagnitude, 0.25f));
-			Utils.Log("MaxDTWR {0}, G {1}, MaxPitchYawAA {2}, mVSFtwr {3}, mVSFtor {4}, MinVSF {5}", 
-			          MaxDTWR, G, MaxPitchRollAA, 0.1f*mVSFtwr, mVSFtor, MinVSF);//debug
+			MinVSFtwr = 1/Utils.ClampL(MaxTWR, 1);
+			var mVSFtor = (MaxPitchRollAA > 0)? Utils.ClampH(GLB.VSC.MinVSFf/MaxPitchRollAA, 0.9f*MinVSFtwr) : 0.1f*MinVSFtwr;
+			MinVSF = Mathf.Lerp(0.1f*MinVSFtwr, mVSFtor, Mathf.Pow(Steering.sqrMagnitude, 0.25f));
+//			Utils.Log("MaxAA: {0}\nThrust: {1}\nMaxPRAA {2}", MaxAngularA, refT.InverseTransformDirection(Thrust), MaxPitchRollAA);//debug
+//			Utils.Log("MaxTWR {0}, G {1}, MaxPitchYawAA {2}, mVSFtwr {3}, mVSFtor {4}, MinVSF {5}", 
+//			          MaxTWR, G, MaxPitchRollAA, MinVSFtwr, mVSFtor, MinVSF);//debug
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
 			//correct setpoint for current TWR and slow engines
 			if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
 			if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
+			SlowEngines = AccelSpeed > 0 || DecelSpeed > 0;
 		}
 
 		public void UpdateBounds()
@@ -521,16 +524,15 @@ namespace ThrottleControlledAvionics
 
 		void update_MaxAngularA()
 		{
-			MaxTorque = E_TorqueLimits.Max+W_TorqueLimits.Max+W_TorqueLimits.Max;
+			MaxTorque = E_TorqueLimits.Max+R_TorqueLimits.Max+W_TorqueLimits.Max;
 			var new_angularA = new Vector3
 				(
 					!MoI.x.Equals(0)? MaxTorque.x/MoI.x : float.MaxValue,
 					!MoI.y.Equals(0)? MaxTorque.y/MoI.y : float.MaxValue,
 					!MoI.z.Equals(0)? MaxTorque.z/MoI.z : float.MaxValue
 				);
-			MaxAngularA = Utils.EWA(MaxAngularA, new_angularA);
+			MaxAngularA = new_angularA; //Utils.EWA(MaxAngularA, new_angularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
-			MaxPitchRollAA = Vector3.ProjectOnPlane(refT.TransformDirection(MaxAngularA), Up).magnitude;
 		}
 
 		#region From MechJeb2
@@ -601,6 +603,7 @@ namespace ThrottleControlledAvionics
 		Searching              = 1 << 11,
 		CheckingSite           = 1 << 12,
 		Landing                = 1 << 13,
+		VTOLAssist             = 1 << 14,
 		//composite
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,

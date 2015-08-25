@@ -1158,34 +1158,47 @@ def analyzeCSV(filename, header, cols=None, region = None):
   
   
 def sim_PointNav():
-    P = 2; D = 0.1
+    P = 2; D = 0.1; AAk = 0.5
     pid = PID(P, 0, D, 0, 10)
     accel = np.arange(0.1, 1.1, 0.1);
-    distance = 50
-    distanceF = 1
+    distance = 500
+    distanceF = 0.1
     cols = color_grad(len(accel))
     for i, a in enumerate(accel):
         d = [distance]
         v = [0]
         act = [0]
         t = 0
-        while d[-1] > 0.08:
-            pid.kp = P*a/clampL(v[-1], 0.1)
+        A = [0]
+        while d[-1] > 0:
+            pid.kp = P*a/clampL(v[-1], 0.01)
             act.append(pid.update(d[-1]*distanceF))
-            if v[-1] < pid.action:
-                v.append(v[-1]+a*dt)
+            aa = a*AAk
+            
+            if v[-1] < pid.action: 
+                if A[-1] < a: A.append(A[-1]+a*AAk*dt)
+                else: A.append(a)
             elif v[-1] > pid.action:
-                v.append(v[-1]-a*dt)
-            else: v.append(v[-1])
+                if A[-1] > -a : A.append(A[-1]-a*AAk*dt)
+                else: A.append(-a)
+            elif A[-1] > 0: A.append(A[-1]-a*AAk*dt)
+            elif A[-1] < 0: A.append(A[-1]+a*AAk*dt)
+            else: A.append(0)
+#             print 'd=% 8.4f, v=% 8.4f, act=% 8.4f, A=% 8.4f' % (d[-1], v[-1], act[-1], A[-1])
+            v.append(v[-1]+A[-1]*dt)
             d.append(d[-1]-v[-1]*dt)
             t += dt
         print 'accel=%.2f, time: %.1fs' % (a, t)
-        plt.subplot(2, 1, 1)
+        print len(d), len(A)
+        plt.subplot(3, 1, 1)
         plt.plot(d, v, color=cols[i], label="accel=%.2f"%a)
         plt.ylabel("V"); plt.xlabel("distance")
-        plt.subplot(2, 1, 2)
+        plt.subplot(3, 1, 2)
         plt.plot(d, act, color=cols[i], label="accel=%.2f"%a)
         plt.ylabel("act"); plt.xlabel("distance")
+        plt.subplot(3, 1, 3)
+        plt.plot(d, A, color=cols[i], label="accel=%.2f"%a)
+        plt.ylabel("real accel"); plt.xlabel("distance")
     plt.legend()
     plt_show_maxed()
 #==================================================================#
@@ -1206,9 +1219,14 @@ if __name__ == '__main__':
 #                 ('Alt', 'Err', 'VSP', 'VSF', 'dV'))
 # #                ['AltAhead']
 #                 , (13,))
+
+    analyzeCSV('PN-tuning-8.csv',
+               ('dist', 'V', 'minVSF', 'accel_cor', 'pid.P', 'pid.D', 'pid.Action', 'nV'),
+               ('dist', 'V', 'minVSF', 'accel_cor', 'pid.P', 'pid.D', 'pid.Action', 'nV'),
+                (13000,))
     
 #     analyzeCSV('VS-filtering-39.csv',
 #                ('BestAlt', 'DetAlt', 'AltAhead')
 #                )
 #     drawVectors()
-    sim_PointNav()
+#     sim_PointNav()

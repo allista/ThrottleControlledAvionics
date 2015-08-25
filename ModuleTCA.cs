@@ -43,6 +43,7 @@ namespace ThrottleControlledAvionics
 		PointNavigator pn;
 		Radar rad;
 		AutoLander lnd;
+		VTOLAssist tla;
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
@@ -151,19 +152,18 @@ namespace ThrottleControlledAvionics
 		{
 			if(!enabled) return;
 			VSL = new VesselWrapper(vessel);
+			VSL.Init();
 			VSL.UpdateState();
 			VSL.UpdateEngines();
 			enabled = isEnabled = VSL.Engines.Count > 0 || VSL.RCS.Count > 0;
 			if(!enabled) { VSL = null; return; }
-			create_modules();
-			VSL.Init(); 
-			modules.ForEach(m => m.Init());
-			CFG.HF.AddCallback(HFlight.CruiseControl, UpdateNeededVeloctiy);
-			vessel.OnAutopilotUpdate += block_throttle;
-			VSL.UpdateState();
 			VSL.UpdateCommons();
 			VSL.UpdateOnPlanetStats();
 			VSL.UpdateBounds();
+			create_modules();
+			modules.ForEach(m => m.Init());
+			CFG.HF.AddCallback(HFlight.CruiseControl, UpdateNeededVeloctiy);
+			vessel.OnAutopilotUpdate += block_throttle;
 			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
 			else if(CFG.Nav[Navigation.GoToTarget]) pn.GoToTarget(VSL.vessel.targetObject != null);
 			else if(CFG.Nav[Navigation.FollowPath]) pn.FollowPath(CFG.Waypoints.Count > 0);
@@ -254,7 +254,6 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateCommons();
 			if(VSL.NumActive > 0)
 			{
-				VSL.InitEgnines();
 				for(int i = 0; i < modules.Count; i++) modules[i].UpdateState();
 				VSL.UpdateOnPlanetStats();
 				//these follow specific order
@@ -263,10 +262,11 @@ namespace ThrottleControlledAvionics
 				alt.Update();
 				vsc.Update();
 				anc.Update();
+				tla.Update();
 				pn.Update();
 			}
 			//handle engines
-			VSL.UpdateThrustersParams();
+			VSL.TuneEngines();
 			if(VSL.NumActive > 0)
 			{
 				VSL.SortEngines();

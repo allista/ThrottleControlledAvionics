@@ -45,7 +45,16 @@ namespace ThrottleControlledAvionics
 		readonly PIDv_Controller pid = new PIDv_Controller();
 
 		public HorizontalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
-		public override void Init() { base.Init(); pid.P = HSC.P; CFG.HF.AddCallback(HFlight.Stop, Enable); }
+
+		public override void Init() 
+		{ 
+			base.Init(); 
+			pid.P = HSC.P; 
+			CFG.HF.AddCallback(HFlight.Stop, Enable);
+			CFG.HF.AddCallback(HFlight.Level, Enable);
+			CFG.HF.AddCallback(HFlight.Move, Move);
+		}
+
 		public override void UpdateState() { IsActive = CFG.HF && VSL.OnPlanet; }
 
 		public override void Enable(bool enable = true)
@@ -61,6 +70,13 @@ namespace ThrottleControlledAvionics
 			BlockSAS(enable);
 		}
 
+		public void Move(bool enable = true)
+		{
+			pid.Reset();
+			if(enable) VSL.UpdateOnPlanetStats();
+			BlockSAS(enable);
+		}
+
 		protected override void Update(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
@@ -69,48 +85,50 @@ namespace ThrottleControlledAvionics
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
 			if(UserIntervening(s)) { pid.Reset(); return; }
-			//if the vessel is not moving, nothing to do
-			if(VSL.LandedOrSplashed || srfSpeed < 0.01 || VSL.Thrust.IsZero()) return;
-			//calculate horizontal velocity
-			var nV  = CFG.NeededHorVelocity*CFG.NHVf;
-			var hV  = VSL.HorizontalVelocity-nV;
-			var hVl = VSL.refT.InverseTransformDirection(hV);
-			var hVm = hV.magnitude;
-			//calculate needed thrust direction
 			Vector3 needed_thrust_dir;
 			var thrust = VSL.refT.InverseTransformDirection(VSL.Thrust);
-			if(hVm > HSC.RotationLowerThreshold)
+			if(!CFG.HF[HFlight.Level])
 			{
-				//correction for low TWR and torque
-				var upl   = VSL.refT.InverseTransformDirection(VSL.Up);
-				var twrF  = Utils.ClampH(VSL.DTWR/HSC.TWRf, 1);
-				var torF  = Utils.ClampH(Vector3.Scale(Vector3.ProjectOnPlane(VSL.MaxTorque, hVl), 
-				                                       VSL.MoI.Inverse())
-				                         .magnitude*(float)VSL.HorizontalSpeed*HSC.TorF, 1);
-				var upF   = Vector3.Dot(thrust, hVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);
-				var MaxHv = Math.Max(acceleration.magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-				needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)Math.Pow(MaxHv/hVm, HSC.HVCurve), 1)/upF;
-//				Utils.Log("needed thrust direction: {0}\n" +
-//				          "TWR factor: {1}\n" +
-//				          "torque factor: {2}\n" +
-//				          "up factor: {3}\n" +
-//				          "torque limits {4}\n" +
-//				          "MoI {5}\n", 
-//				          needed_thrust_dir,
-//				          twrF,
-//				          torF,
-//				          upF, 
-//				          VSL.MaxTorque, 
-//				          VSL.MoI
-//				         );//debug
+				//if the vessel is not moving, nothing to do
+				if(VSL.LandedOrSplashed || srfSpeed < 0.01 || VSL.Thrust.IsZero()) return;
+				//calculate horizontal velocity
+				var nV  = CFG.NeededHorVelocity*CFG.NHVf;
+				var hV  = VSL.HorizontalVelocity-nV;
+				var hVl = VSL.refT.InverseTransformDirection(hV);
+				var hVm = hV.magnitude;
+				//calculate needed thrust direction
+				if(hVm > HSC.RotationLowerThreshold)
+				{
+					//correction for low TWR and torque
+					var upl   = VSL.refT.InverseTransformDirection(VSL.Up);
+					var twrF  = Utils.ClampH(VSL.DTWR/HSC.TWRf, 1);
+					var torF  = Utils.ClampH(VSL.MaxPitchRollAA*VSL.HorizontalSpeed*HSC.TorF, 1);
+					var upF   = Vector3.Dot(thrust, hVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);
+					var MaxHv = Math.Max(acceleration.magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
+					needed_thrust_dir = hVl.normalized - upl*Utils.ClampL((float)Math.Pow(MaxHv/hVm, HSC.HVCurve), 1)/upF;
+	//				Utils.Log("needed thrust direction: {0}\n" +
+	//				          "TWR factor: {1}\n" +
+	//				          "torque factor: {2}\n" +
+	//				          "up factor: {3}\n" +
+	//				          "torque limits {4}\n" +
+	//				          "MoI {5}\n", 
+	//				          needed_thrust_dir,
+	//				          twrF,
+	//				          torF,
+	//				          upF, 
+	//				          VSL.MaxTorque, 
+	//				          VSL.MoI
+	//				         );//debug
+				}
+				else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
+				if(nV.magnitude < HSC.TranslationUpperThreshold && hVm > HSC.TranslationLowerThreshold)
+				{
+					//also try to use translation control to slow down
+					var hVl_dir = Utils.ClampH((float)(hVm/HSC.TranslationUpperThreshold), 1)*hVl.CubeNorm();	
+					s.X = hVl_dir.x; s.Z = hVl_dir.y; s.Y = hVl_dir.z;
+				}
 			}
 			else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
-			if(nV.magnitude < HSC.TranslationLowerThreshold && hVm > HSC.TranslationLowerThreshold)
-			{
-				//also try to use translation control to slow down
-				var hVl_dir = Utils.ClampH((float)(hVm/HSC.TranslationUpperThreshold), 1)*hVl.CubeNorm();	
-				s.X = hVl_dir.x; s.Z = hVl_dir.y; s.Y = hVl_dir.z;
-			}
 			//calculate corresponding rotation
 			var attitude_error = Quaternion.FromToRotation(needed_thrust_dir, thrust);
 			var steering_error = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),

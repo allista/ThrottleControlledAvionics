@@ -41,12 +41,14 @@ namespace ThrottleControlledAvionics
 		readonly Timer Falling = new Timer();
 
 		public override void UpdateState()
-		{ IsActive = (CFG.VF || CFG.VerticalCutoff < VSC.MaxSpeed) && VSL.OnPlanet; }
+		{ IsActive = VSL.OnPlanet && CFG.VSCIsActive; }
 
 		public override void Init()
 		{
 			base.Init();
 			Falling.Period = VSC.FallingTime;
+			if(VSL.LandedOrSplashed && CFG.VerticalCutoff > 0)
+				CFG.VerticalCutoff = -10;
 		}
 
 		public void Update()
@@ -82,7 +84,7 @@ namespace ThrottleControlledAvionics
 			if(!CFG.VF)
 			{
 				if(VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV)
-				{ if(Falling.Check) return; SetState(TCAState.LoosingAltitude);	}
+				{ if(Falling.Check) SetState(TCAState.LoosingAltitude);	}
 				else Falling.Reset();
 			}
 //			DebugUtils.CSV(VSL.VerticalSpeed, CFG.VerticalCutoff, VSL.VerticalAccel, VSL.Altitude);//debug

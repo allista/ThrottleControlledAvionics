@@ -114,7 +114,7 @@ HSC
 	MinHvThreshold        = 10
 	MoIFactor             = 0.01
 	TWRf                  = 0.8
-	TorF                  = 0.8
+	TorF                  = 0.3
 	HVCurve               = 1.2
 }
 
@@ -131,10 +131,10 @@ CC
 
 PN
 {
-	MinDistance        = 30
+	MinDistance        = 50
 	MinTime            = 5
 	OnPathMinDistance  = 300
-	DistanceF          = 2
+	DistanceF          = 0.1
 	MinSpeed           = 10
 	MaxSpeed           = 300
 	DeltaSpeed         = 10
@@ -144,12 +144,14 @@ PN
 	AltErrSensitivity  = 20
 	DirectNavThreshold = 1
 	GCNavStep          = 0.1
+	AngularAccelF      = 2
+	MaxAccelF          = 4
 	
 	DistancePID
 	{
-		P = 3.0
+		P = 1.5
 		I = 0.0
-		D = 0.1
+		D = 2.0
 	}
 }
 
@@ -166,6 +168,7 @@ LND
 	LandingAlt           = 10
 	LandingFinalAlt      = 2
 	StopTimer            = 1
+	CutoffTimer          = 1
 }
 
 RAD
@@ -182,13 +185,20 @@ RAD
 
 ANC
 {
-	DistanceF          = 0.08
+	DistanceF          = 0.1
 	MaxSpeed           = 10
 	DistancePID
 	{
-		P = 2.0
+		P = 1.0
 		I = 0.0
-		D = 8.0
+		D = 2.0
 	}
+}
+
+TLA
+{
+	MaxHSpeed = 10
+	MinVSpeed = 1
+	GearTimer = 1
 }
 //:mode=c#:

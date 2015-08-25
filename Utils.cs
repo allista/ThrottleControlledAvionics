@@ -89,18 +89,6 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region GUI
-		public static void CheckRect(ref Rect R)
-		{
-			//check size
-			if(R.width > Screen.width) R.width = Screen.width;
-			if(R.height > Screen.height) R.height = Screen.height;
-			//check position
-			if(R.xMin < 0) R.x -= R.xMin;
-			else if(R.xMax > Screen.width) R.x -= R.xMax-Screen.width;
-			if(R.yMin < 0) R.y -= R.yMin;
-			else if(R.yMax > Screen.height) R.y -= R.yMax-Screen.height;
-		}
-
 		public static float FloatSlider(string name, float value, float min, float max, string format="F1", int label_width = -1)
 		{
 			var label = name.Length > 0? string.Format("{0}: {1}", name, value.ToString(format)) : value.ToString(format);
@@ -152,6 +140,12 @@ namespace ThrottleControlledAvionics
 			//			var pqsRadialVector = QuaternionD.AngleAxis(longitude, Vector3d.down) * QuaternionD.AngleAxis(latitude, Vector3d.forward) * Vector3d.right;
 			var alt = body.pqsController.GetSurfaceHeight(body.GetRelSurfaceNVector(Lat, Lon)) - body.pqsController.radius;
 			return body.ocean && alt < 0? 0 : alt;
+		}
+
+		public static Vector2 GetMousePosition(Rect window) 
+		{
+			var mouse_pos = Input.mousePosition;
+			return new Vector2(mouse_pos.x-window.x, Screen.height-mouse_pos.y-window.y).clampToScreen();
 		}
 
 		public static Coordinates GetMouseCoordinates(CelestialBody body)
@@ -376,9 +370,9 @@ namespace ThrottleControlledAvionics
 				if(next_time < 0)
 				{
 					next_time = Planetarium.GetUniversalTime()+Period; 
-					return true;
+					return false;
 				}
-				else return next_time > Planetarium.GetUniversalTime();
+				else return next_time < Planetarium.GetUniversalTime();
 			}
 		}
 	}
@@ -563,6 +557,7 @@ namespace ThrottleControlledAvionics
 		}
 		public void Off() 
 		{ 
+			if(state.Equals(default(T))) return;
 			var old_state = state; //prevents recursion
 			state = default(T);
 			Action<bool> callback;

@@ -98,6 +98,7 @@
     <Compile Include="WayPoints.cs" />
     <Compile Include="Modules\AutoLander.cs" />
     <Compile Include="Modules\Anchor.cs" />
+    <Compile Include="Modules\VTOLAssist.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

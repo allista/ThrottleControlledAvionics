@@ -38,6 +38,7 @@ namespace ThrottleControlledAvionics
 		static bool selecting_key;
 		//map view
 		static bool selecting_map_target;
+		static readonly ActionDamper AddTargetDamper = new ActionDamper();
 		#endregion
 
 		void onShowUI() { showHUD = true; }
@@ -88,7 +89,8 @@ namespace ThrottleControlledAvionics
 		static void TCA_Window(int windowID)
 		{
 			//help button
-			if(GUI.Button(new Rect(ControlsPos.width - 23f, 2f, 20f, 18f), "?")) showHelp = !showHelp;
+			if(GUI.Button(new Rect(ControlsPos.width - 23f, 2f, 20f, 18f), 
+			              new GUIContent("?", "Help"))) showHelp = !showHelp;
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
 			//tca toggle
@@ -97,7 +99,8 @@ namespace ThrottleControlledAvionics
 			                    GUILayout.Width(70)))
 				TCA.ToggleTCA();
 			//change key binding
-			if(GUILayout.Button(selecting_key? "?" : TCA_Key.ToString(), 
+			if(GUILayout.Button(selecting_key? new GUIContent("?") : 
+			                    new GUIContent(TCA_Key.ToString(), "Select TCA Hotkey"), 
 			                    selecting_key? Styles.yellow_button : Styles.green_button, 
 			                    GUILayout.Width(40)))
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
@@ -123,6 +126,8 @@ namespace ThrottleControlledAvionics
 			#endif
 			SelectConfig_end();
 			GUILayout.EndVertical();
+			GetToolTip();
+			DrawToolTip(ControlsPos);
 			GUI.DragWindow();
 		}
 
@@ -142,14 +147,16 @@ namespace ThrottleControlledAvionics
 				{ state = "Engines Unoptimized"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Ascending))
 				{ state = "Ascending"; style = Styles.yellow; }
+				else if(TCA.IsStateSet(TCAState.VTOLAssist))
+				{ state = "VTOL Assist On"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Landing))
 				{ state = "Landing..."; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.CheckingSite))
-				{ state = "Checking Site..."; style = Styles.yellow; }
+				{ state = "Checking Landing Site"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Searching))
-				{ state = "Searching..."; style = Styles.yellow; }
+				{ state = "Searching For Landing Site"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Scanning))
-				{ state = "Scanning..."; style = Styles.yellow; }
+				{ state = "Scanning Surface"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
 				{ state = "Altitude Control"; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
@@ -269,17 +276,26 @@ namespace ThrottleControlledAvionics
 				CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity", CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
-				if(GUILayout.Button("Kill Horizontal Velocity", 
+				if(GUILayout.Button(new GUIContent("Stop", "Kill horizontal velocity"), 
 				                    CFG.HF[HFlight.Stop]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(150)))
+				                    GUILayout.Width(50)))
 					CFG.HF.Toggle(HFlight.Stop);
-				if(GUILayout.Button("Cruise Control", 
+				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
+				                    CFG.HF[HFlight.AnchorHere] || CFG.HF[HFlight.Anchor]? 
+				                    Styles.green_button : Styles.yellow_button,
+				                    GUILayout.Width(65)))
+					CFG.HF.Toggle(HFlight.AnchorHere);
+				if(GUILayout.Button(new GUIContent("Land", "Try to land on a nearest flat surface"), 
+				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
+				                    GUILayout.Width(50)))
+					CFG.AP.Toggle(Autopilot.Land);
+				if(GUILayout.Button(new GUIContent("Cruise", "Maintain course and speed"), 
 				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(100)))
+				                    GUILayout.Width(65)))
 					CFG.HF.Toggle(HFlight.CruiseControl);
-				if(GUILayout.Button("Maintain Altitude", 
+				if(GUILayout.Button(new GUIContent("Hover", "Maintain altitude"), 
 				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(120)))
+				                    GUILayout.Width(60)))
 					CFG.VF.Toggle(VFlight.AltitudeControl);
 				TCA.AltitudeAboveTerrain(GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
 				                                          "Follow Terrain", 
@@ -287,11 +303,15 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 				//navigator toggles
 				GUILayout.BeginHorizontal();
-				if(GUILayout.Button("Go To Target", 
-				                    CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
-				                    : (VSL.HasTarget? Styles.yellow_button : Styles.grey),
-				                    GUILayout.Width(100)))
-					CFG.Nav[Navigation.GoToTarget] = VSL.HasTarget;
+				if(VSL.HasTarget)
+				{
+					if(GUILayout.Button("Go To Target", 
+					                    CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
+					                    : Styles.yellow_button,
+					                    GUILayout.Width(90)))
+						CFG.Nav[Navigation.GoToTarget] = VSL.HasTarget;
+				}
+				else GUILayout.Label("Go To Target", Styles.grey, GUILayout.Width(90));
 				if(selecting_map_target)
 				{
 					if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.Width(120)))
@@ -304,45 +324,33 @@ namespace ThrottleControlledAvionics
 				        !(VSL.vessel.targetObject is WayPoint) && 
 				        (CFG.Waypoints.Count == 0 || VSL.vessel.targetObject != CFG.Waypoints.Peek().GetTarget()))
 				{
-					if(GUILayout.Button("Add as Waypoint", Styles.yellow_button, GUILayout.Width(120)))
+					if(GUILayout.Button(new GUIContent("Add As Waypoint", "Add current target as a waypoint"), 
+					                    Styles.yellow_button, GUILayout.Width(120)))
 					{
 						CFG.Waypoints.Enqueue(new WayPoint(VSL.vessel.targetObject));
 						CFG.ShowWaypoints = true;
 					}
 				}
-				else if(GUILayout.Button("Add Waypoint", Styles.yellow_button, GUILayout.Width(120)))
+				else if(GUILayout.Button(new GUIContent("Add Waypoint", "Select a new waypoint on the map"), 
+				                         Styles.yellow_button, GUILayout.Width(120)))
 				{
 					selecting_map_target = true;
 					CFG.ShowWaypoints = true;
 					MapView.EnterMapView();
 				}
-				if(GUILayout.Button("Follow Path", 
-				                    CFG.Nav[Navigation.FollowPath]? Styles.green_button 
-				                    : (CFG.Waypoints.Count > 0? Styles.yellow_button : Styles.grey),
-				                    GUILayout.Width(100)))
-					CFG.Nav.Toggle(Navigation.FollowPath);
+				if(CFG.Waypoints.Count > 0)
+				{
+					if(GUILayout.Button("Follow Path", 
+					                    CFG.Nav[Navigation.FollowPath]? Styles.green_button 
+					                    : Styles.yellow_button,
+					                    GUILayout.Width(90)))
+						CFG.Nav.Toggle(Navigation.FollowPath);
+				}
+				else GUILayout.Label("Follow Path", Styles.grey, GUILayout.Width(90));
 				CFG.MaxNavSpeed = Utils.FloatSlider("Max.V m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 100);
 				GUILayout.EndHorizontal();
-				//landing autopilot
-				GUILayout.BeginHorizontal();
-				if(GUILayout.Button("Anchor", 
-				                    CFG.HF[HFlight.AnchorHere] || CFG.HF[HFlight.Anchor]? 
-				                    Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(100)))
-					CFG.HF.Toggle(HFlight.AnchorHere);
-				if(GUILayout.Button("Land", 
-				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(120)))
-					CFG.AP.Toggle(Autopilot.Land);
-				GUILayout.EndHorizontal();
 			}
-			else 
-			{
-				GUILayout.BeginHorizontal();
-				GUILayout.Label("Autopilot Not Available", Styles.grey);
-				GUILayout.FlexibleSpace();
-				GUILayout.EndHorizontal();
-			}
+			else GUILayout.Label("Autopilot Not Available", Styles.grey, GUILayout.ExpandWidth(true));
 		}
 
 		static void WaypointList()
@@ -378,7 +386,17 @@ namespace ThrottleControlledAvionics
 						FlightGlobals.fetch.SetVesselTarget(wp);
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
-					if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(25))) del.Add(wp);
+					if(GUILayout.Button(new GUIContent("Land", "Land on arrival"), 
+					                    wp.Land? Styles.green_button : Styles.yellow_button, 
+					                    GUILayout.Width(50))) 
+						wp.Land = !wp.Land;
+					if(GUILayout.Button(new GUIContent("||", "Pause on arrival"), 
+					                    wp.Pause? Styles.green_button : Styles.yellow_button, 
+					                    GUILayout.Width(25))) 
+						wp.Pause = !wp.Pause;
+					if(GUILayout.Button(new GUIContent("X", "Delete waypoint"), 
+					                    Styles.red_button, GUILayout.Width(25))) 
+						del.Add(wp);
 					GUILayout.EndHorizontal();
 					i++;
 				}
@@ -484,7 +502,7 @@ namespace ThrottleControlledAvionics
 					{
 						if(Input.GetMouseButtonUp(0))
 						{ 
-							CFG.Waypoints.Enqueue(t);
+							AddTargetDamper.Run(() => CFG.Waypoints.Enqueue(t));
 							CFG.ShowWaypoints = true;
 							clicked = false;
 						}
@@ -512,6 +530,38 @@ namespace ThrottleControlledAvionics
 					wp0 = wp; r0 = r; i++;
 				}
 			}
+		}
+
+		//from blizzy's Toolbar
+		static string tooltip = "";
+
+		static void GetToolTip()
+		{
+			if(Event.current.type == EventType.repaint)
+				tooltip = GUI.tooltip.Trim();
+		}
+
+		static void DrawToolTip(Rect window) 
+		{
+			if(tooltip.Length == 0) return;
+			var mousePos = Utils.GetMousePosition(window);
+			var size = Styles.white.CalcSize(new GUIContent(tooltip));
+			var rect = new Rect(mousePos.x, mousePos.y + 20, size.x, size.y);
+			Rect orig = rect;
+			rect = rect.clampToWindow(window);
+			//clamping moved the tooltip up -> reposition above mouse cursor
+			if(rect.y < orig.y) 
+			{
+				rect.y = mousePos.y - size.y - 5;
+				rect = rect.clampToScreen();
+			}
+			//clamping moved the tooltip left -> reposition lefto of the mouse cursor
+			if(rect.x < orig.x)
+			{
+				rect.x = mousePos.x - size.x - 5;
+				rect = rect.clampToScreen();
+			}
+			GUI.Label(rect, tooltip, Styles.white);
 		}
 
 		#if DEBUG
@@ -557,9 +607,9 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(Event.current.type != EventType.Layout) return;
 			if(TCA == null || !TCA.Controllable || !CFG.GUIVisible || !showHUD) return;
 			Styles.Init();
+//			if(Event.current.type != EventType.Layout) return;
 			ControlsPos = 
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 ControlsPos, 
@@ -568,7 +618,7 @@ namespace ThrottleControlledAvionics
 				                 Assembly.GetCallingAssembly().GetName().Version,
 				                 GUILayout.Width(controlsWidth),
 				                 GUILayout.Height(controlsHeight));
-			Utils.CheckRect(ref ControlsPos);
+			ControlsPos.clampToScreen();
 			if(showHelp) 
 			{
 				HelpPos = 
@@ -578,7 +628,7 @@ namespace ThrottleControlledAvionics
 					                 "Instructions",
 					                 GUILayout.Width(helpWidth),
 					                 GUILayout.Height(helpHeight));
-				Utils.CheckRect(ref HelpPos);
+				HelpPos.clampToScreen();
 			}
 		}
 	}

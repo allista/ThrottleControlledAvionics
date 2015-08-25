@@ -33,6 +33,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float DistanceF          = 2;
 			[Persistent] public float DirectNavThreshold = 1;
 			[Persistent] public float GCNavStep          = 0.1f;
+			[Persistent] public float AngularAccelF      = 10f;
+			[Persistent] public float MaxAccelF          = 10f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 
 			public override void Init()
@@ -48,12 +50,15 @@ namespace ThrottleControlledAvionics
 		readonly PIDf_Controller pid = new PIDf_Controller();
 		WayPoint target;
 		float DeltaSpeed;
+		readonly Timer ArrivedTimer = new Timer();
+		readonly EWA AccelCorrection = new EWA();
 
 		public override void Init()
 		{
 			base.Init();
 			pid.setPID(PN.DistancePID);
 			pid.Reset();
+			ArrivedTimer.Period = PN.MinTime;
 			CFG.Nav.AddCallback(Navigation.GoToTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowPath, FollowPath);
 		}
@@ -86,6 +91,7 @@ namespace ThrottleControlledAvionics
 			pid.Reset();
 			VSL.UpdateOnPlanetStats();
 			CFG.HF.On(HFlight.NoseOnCourse);
+			VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 		}
 
 		void finish()
@@ -93,6 +99,14 @@ namespace ThrottleControlledAvionics
 			target = null;
 			FlightGlobals.fetch.SetVesselTarget(null);
 			CFG.HF.On(HFlight.Stop);
+		}
+
+		bool on_arrival()
+		{
+			if(target == null) return false;
+			if(target.Pause) { PauseMenu.Display(); target.Pause = false; }
+			if(target.Land)	{ CFG.AP.OnIfNot(Autopilot.Land); return true; }
+			return false;
 		}
 
 		public void Update()
@@ -111,33 +125,59 @@ namespace ThrottleControlledAvionics
 				                              -VSL.vessel.transform.position, VSL.Up);
 			}
 			vdir.Normalize();
-			//check if we have arrived to the target
-			if(distance < target.Distance &&
-			   //but keep trying if we came in too fast
-			   target.Distance/Vector3d.Dot(VSL.HorizontalVelocity, vdir) > PN.MinTime) 
+			//check if we have arrived to the target and stayed long enough
+			if(distance < target.Distance)
 			{
-				if(CFG.Nav[Navigation.FollowPath])
+				CFG.HF.OnIfNot(HFlight.Move);
+				if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 0)
 				{
-					while(CFG.Waypoints.Count > 0 && CFG.Waypoints.Peek() == target) CFG.Waypoints.Dequeue();
-					if(CFG.Waypoints.Count > 0) { start_to(CFG.Waypoints.Peek()); return; }
+					if(CFG.Waypoints.Peek() == target)
+					{
+						if(CFG.Waypoints.Count > 1)
+						{ 
+							CFG.Waypoints.Dequeue();
+							if(on_arrival()) return;
+							start_to(CFG.Waypoints.Peek());
+							return;
+						}
+						else if(ArrivedTimer.Check)
+						{ 
+							CFG.Waypoints.Clear();
+							if(on_arrival()) return;
+							finish();
+							return;
+						}
+					}
+					else 
+					{ 
+						if(on_arrival()) return;
+						start_to(CFG.Waypoints.Peek()); 
+						return; 
+					}
 				}
-				finish(); return;
+				else if(ArrivedTimer.Check) { if(on_arrival()) return; finish(); return; }
+			}
+			else 
+			{
+				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
+				ArrivedTimer.Reset();
 			}
 			//don't slow down on intermediate waypoints too much
 			if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 1 && distance < PN.OnPathMinDistance)
 				distance = PN.OnPathMinDistance;
 			//tune the pid and update needed velocity
-			var cur_vel   = Utils.ClampL((float)Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 1);
-			var max_accel = Mathf.Clamp(VSL.MaxThrust.magnitude*VSL.MinVSF/VSL.M, 0.1f, 1);
+			AccelCorrection.Update(Mathf.Clamp(VSL.MaxThrust.magnitude*VSL.MinVSFtwr/VSL.M/PN.MaxAccelF, 0.01f, 1)*
+			                       Mathf.Clamp(VSL.MaxPitchRollAA/PN.AngularAccelF, 0.01f, 1), 0.01f);
 			pid.Min = 0;
 			pid.Max = CFG.MaxNavSpeed;
-			pid.P   = PN.DistancePID.P*max_accel/cur_vel;
+			pid.P   = PN.DistancePID.P*AccelCorrection;
+			pid.D   = PN.DistancePID.D*(2-AccelCorrection);
 			pid.Update(distance*PN.DistanceF);
-			DebugUtils.CSV(distance, max_accel, pid.P, pid.Action);//debug
 			//increase the needed velocity slowly
-			var mtwr = Utils.ClampL(VSL.MaxTWR, 0.1f);
-			DeltaSpeed = PN.DeltaSpeed*mtwr*Mathf.Pow(PN.DeltaSpeed/(cur_vel+PN.DeltaSpeed), PN.DeltaSpeedF);
+			var cur_vel   = Utils.ClampL((float)Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 1);
+			DeltaSpeed = PN.DeltaSpeed*AccelCorrection*Mathf.Pow(PN.DeltaSpeed/(cur_vel+PN.DeltaSpeed), PN.DeltaSpeedF);
 			//make a correction if falling or flyin too low
+			var mtwr = Utils.ClampL(VSL.MaxTWR, 0.1f);
 			var V = (CFG.AltitudeAboveTerrain? VSL.RelVerticalSpeed : VSL.AbsVerticalSpeed);
 			if(V < 0 && IsStateSet(TCAState.LoosingAltitude))
 			{
@@ -159,10 +199,9 @@ namespace ThrottleControlledAvionics
 			//set needed velocity and starboard
 			CFG.NeededHorVelocity = pid.Action-cur_vel > DeltaSpeed? vdir*(cur_vel+DeltaSpeed) : vdir*pid.Action;
 			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
-//			Utils.Log("Delta {0}; NHV {1}", 
-//			          DeltaSpeed, CFG.NeededHorVelocity);//debug
-//			Utils.Log("Distance: {0}, max {1}, err {2}, nvel {3}", 
-//			          distance, PN.OnPathMinDistance, distance*PN.DistanceF, pid.Action);//debug
+//			DebugUtils.CSV(distance, Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 
+//			               VSL.MinVSFtwr, AccelCorrection, 
+//			               pid.P, pid.D, pid.Action, CFG.NeededHorVelocity.magnitude);//debug
 		}
 	}
 }

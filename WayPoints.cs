@@ -23,6 +23,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public double Lat;
 		[Persistent] public double Lon;
 		[Persistent] public float  Distance;
+		[Persistent] public bool   Pause;
+		[Persistent] public bool   Land;
 		//target proxy
 		[Persistent] ProtoTargetInfo TargetInfo = new ProtoTargetInfo();
 		ITargetable target;

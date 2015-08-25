@@ -53,6 +53,8 @@ namespace ThrottleControlledAvionics
 			jets_pid.setPID(ALT.JetsPID);
 			Falling.Period = ALT.FallingTime;
 			CFG.VF.AddCallback(VFlight.AltitudeControl, Enable);
+			if(VSL.LandedOrSplashed && CFG.DesiredAltitude > 0)
+				CFG.DesiredAltitude = -10;
 		}
 
 		public override void UpdateState()
@@ -98,7 +100,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.AltitudeAboveTerrain && error < 0)
 				error = error/Utils.ClampL(VSL.HorizontalSpeed, 1);
 			//update pids
-			if((VSL.AccelSpeed > 0 || VSL.DecelSpeed > 0))
+			if(VSL.SlowEngines)
 			{
 				jets_pid.P = Utils.ClampH(ALT.JetsPID.P/VSL.MaxTWR/ALT.TWRd*Mathf.Clamp(Mathf.Abs(1/VSL.VerticalSpeed)*ALT.ErrF, 1, VSL.MaxTWR*ALT.TWRd), ALT.JetsPID.P);
 				if(CFG.AltitudeAboveTerrain)
@@ -123,7 +125,7 @@ namespace ThrottleControlledAvionics
 				//Loosing Altitude alert
 				if(VSL.RelVerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0 
 				   && VSL.Altitude < CFG.DesiredAltitude-VSL.RelVerticalSpeed*ALT.TimeAhead)
-				{ if(!Falling.Check) SetState(TCAState.LoosingAltitude); }
+				{ if(Falling.Check) SetState(TCAState.LoosingAltitude); }
 				else Falling.Reset();
 
 //				DebugUtils.CSV(VSL.vessel.altitude, VSL.TerrainAltitude, VSL.Altitude, VSL.AltitudeAhead, error, 

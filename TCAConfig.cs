@@ -28,6 +28,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public PointNavigator.Config         PN  = new PointNavigator.Config();
 		[Persistent] public Radar.Config                  RAD = new Radar.Config();
 		[Persistent] public AutoLander.Config             LND = new AutoLander.Config();
+		[Persistent] public VTOLAssist.Config             TLA = new VTOLAssist.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -109,7 +110,7 @@ Notes:
 		}
 	}
 
-	public enum HFlight { None, Stop, Anchor, AnchorHere, NoseOnCourse, CruiseControl }
+	public enum HFlight { None, Stop, Anchor, AnchorHere, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowPath }
 	public enum Autopilot { None, Land }
@@ -128,6 +129,7 @@ Notes:
 		[Persistent] public float   VerticalCutoff; //desired positive vertical speed m/s (configurable)
 		[Persistent] public bool    BlockThrottle;
 		[Persistent] public float   VSControlSensitivity = 0.01f;
+		public bool VSCIsActive { get { return VF || VerticalCutoff < TCAConfiguration.Globals.VSC.MaxSpeed; } }
 		//steering
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
