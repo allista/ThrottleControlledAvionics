@@ -49,73 +49,62 @@ namespace ThrottleControlledAvionics
 			skin = (GUISkin)UnityEngine.Object.Instantiate(GUI.skin);
 		}
 
+		static GUIStyle OtherColor(this GUIStyle style, Color normal)
+		{
+			var s = new GUIStyle(style);
+			s.normal.textColor = s.focused.textColor = normal;
+			return s;
+		}
+
+		static GUIStyle OtherColor(this GUIStyle style, Color normal, Color hover)
+		{
+			var s = style.OtherColor(normal);
+			s.hover.textColor = s.active.textColor = hover;
+			s.onNormal.textColor = s.onFocused.textColor = s.onHover.textColor = s.onActive.textColor = hover;
+			return s;
+		}
+
 		public static void InitGUI()
 		{
 			if (initialized) return;
 			initialized = true;
 
-			normal_button = new GUIStyle(GUI.skin.button);
-			normal_button.normal.textColor = normal_button.focused.textColor = Color.white;
-			normal_button.hover.textColor = normal_button.active.textColor = Color.yellow;
-			normal_button.onNormal.textColor = normal_button.onFocused.textColor = normal_button.onHover.textColor = normal_button.onActive.textColor = Color.yellow;
+			//buttons
+			normal_button = GUI.skin.button.OtherColor(Color.white, Color.yellow);
 			normal_button.padding = new RectOffset (4, 4, 4, 4);
 
-			red_button = new GUIStyle(normal_button);
-			red_button.normal.textColor = red_button.focused.textColor = Color.red;
+			red_button         = normal_button.OtherColor(Color.red, Color.white);
+			dark_red_button    = red_button.OtherColor(new Color(0.6f, 0, 0, 1));
+			green_button       = red_button.OtherColor(Color.green);
+			dark_green_button  = red_button.OtherColor(new Color(0, 0.6f, 0, 1));
+			yellow_button      = red_button.OtherColor(Color.yellow);
+			dark_yellow_button = red_button.OtherColor(new Color(0.6f, 0.6f, 0, 1));
+			cyan_button        = red_button.OtherColor(Color.cyan);
+			magenta_button     = red_button.OtherColor(Color.magenta);
 
-			dark_red_button = new GUIStyle(normal_button);
-			dark_red_button.normal.textColor = dark_red_button.focused.textColor = new Color(0.6f, 0, 0, 1);
-
-			green_button = new GUIStyle(normal_button);
-			green_button.normal.textColor = green_button.focused.textColor = Color.green;
-
-			dark_green_button = new GUIStyle(normal_button);
-			dark_green_button.normal.textColor = dark_green_button.focused.textColor = new Color(0, 0.6f, 0, 1);
-
-			yellow_button = new GUIStyle(normal_button);
-			yellow_button.normal.textColor = yellow_button.focused.textColor = Color.yellow;
-			yellow_button.hover.textColor = yellow_button.active.textColor = Color.green;
-			yellow_button.onNormal.textColor = yellow_button.onFocused.textColor = yellow_button.onHover.textColor = yellow_button.onActive.textColor = Color.green;
-
-			dark_yellow_button = new GUIStyle(yellow_button);
-			dark_yellow_button.normal.textColor = dark_yellow_button.focused.textColor = new Color(0.6f, 0.6f, 0, 1);
-
-			cyan_button = new GUIStyle (normal_button);
-			cyan_button.normal.textColor = cyan_button.focused.textColor = Color.cyan;
-
-			magenta_button = new GUIStyle (normal_button);
-			magenta_button.normal.textColor = magenta_button.focused.textColor = Color.magenta;
-
-			white = new GUIStyle(GUI.skin.box);
+			//boxes
+			white = GUI.skin.box.OtherColor(Color.white);
 			white.padding = new RectOffset (4, 4, 4, 4);
-			white.normal.textColor = white.focused.textColor = Color.white;
 
-			grey = new GUIStyle(white);
-			grey.normal.textColor = grey.focused.textColor = Color.grey;
+			grey   = white.OtherColor(Color.grey);
+			red    = white.OtherColor(Color.red);
+			yellow = white.OtherColor(Color.yellow);
+			green  = white.OtherColor(Color.green);
+			blue   = white.OtherColor(new Color(0.6f, 0.6f, 1f, 1f));
 
-			red = new GUIStyle(white);
-			red.normal.textColor = red.focused.textColor = Color.red;
-
-			yellow = new GUIStyle(white);
-			yellow.normal.textColor = yellow.focused.textColor = Color.yellow;
-
-			green = new GUIStyle(white);
-			green.normal.textColor = green.focused.textColor = Color.green;
-
-			blue = new GUIStyle(white);
-			blue.normal.textColor = blue.focused.textColor = new Color(0.6f, 0.6f, 1f, 1f);
-
-			label = new GUIStyle (GUI.skin.label);
-			label.normal.textColor = label.focused.textColor = Color.white;
+			//lable
+			label  = GUI.skin.label.OtherColor(Color.white);
 			label.alignment = TextAnchor.MiddleCenter;
 
-			slider = new GUIStyle (GUI.skin.horizontalSlider);
+			//slider
+			slider = new GUIStyle(GUI.skin.horizontalSlider);
 			slider.margin = new RectOffset (0, 0, 0, 0);
 
-			slider_text = new GUIStyle (GUI.skin.label);
+			slider_text = new GUIStyle(GUI.skin.label);
 			slider_text.alignment = TextAnchor.MiddleCenter;
 			slider_text.margin = new RectOffset (0, 0, 0, 0);
 
+			//list box
 			list_item = new GUIStyle(GUI.skin.box);
 			var texInit = new Texture2D(1, 1);
 			texInit.SetPixel(0, 0, new Color(0.05f, 0.05f, 0.05f, 1f));
