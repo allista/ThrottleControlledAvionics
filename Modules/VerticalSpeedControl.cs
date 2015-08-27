@@ -47,7 +47,9 @@ namespace ThrottleControlledAvionics
 		{
 			base.Init();
 			Falling.Period = VSC.FallingTime;
-			if(VSL.LandedOrSplashed && CFG.VerticalCutoff > 0)
+			if(VSL.LandedOrSplashed && 
+			   CFG.VerticalCutoff >= 0 && 
+			   CFG.VerticalCutoff < VSC.MaxSpeed)
 				CFG.VerticalCutoff = -10;
 		}
 
@@ -66,10 +68,12 @@ namespace ThrottleControlledAvionics
 			{
 				accelV = (VSL.VerticalAccel-old_accel)/TimeWarp.fixedDeltaTime;
 				old_accel = VSL.VerticalAccel;
-				if(Mathf.Abs(VSL.VerticalAccel) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
+				var missed = VSL.VerticalSpeed > CFG.VerticalCutoff && VSL.VerticalSpeed < setpoint_correction && VSL.VerticalAccel > 0 ||
+					VSL.VerticalSpeed < CFG.VerticalCutoff && VSL.VerticalSpeed > setpoint_correction && VSL.VerticalAccel < 0;
+				if(missed || Mathf.Abs(VSL.VerticalAccel) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
 					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.VerticalSpeed+setpoint_correction, 0));
-//				Utils.Log("VSP {0}, V {1}, accel {2}, accelV {3}, correction: {4}", 
-//				          CFG.VerticalCutoff, VSL.VerticalSpeed, VSL.VerticalAccel, accelV, setpoint_correction);//debug
+//				Utils.Log("VSP {0}, V {1}, accel {2}, accelV {3}, correction: {4}, missed {5}", 
+//				          CFG.VerticalCutoff, VSL.VerticalSpeed, VSL.VerticalAccel, accelV, setpoint_correction, missed);//debug
 			}
 			var err = setpoint-VSL.VerticalSpeed+setpoint_correction;
 			var K = Mathf.Clamp01(err
@@ -81,12 +85,8 @@ namespace ThrottleControlledAvionics
 //			          VSL.VSF, K, CFG.VerticalCutoff, setpoint, setpoint-CFG.VerticalCutoff, VSC.TWRf/VSL.MaxDTWR, VSL.MaxDTWR);//debug
 			if(VSL.LandedOrSplashed) return;
 			//loosing altitude alert
-			if(!CFG.VF)
-			{
-				if(VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV)
-				{ if(Falling.Check) SetState(TCAState.LoosingAltitude);	}
-				else Falling.Reset();
-			}
+			if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
+				        		      () => VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV);
 //			DebugUtils.CSV(VSL.VerticalSpeed, CFG.VerticalCutoff, VSL.VerticalAccel, VSL.Altitude);//debug
 		}
 	}
