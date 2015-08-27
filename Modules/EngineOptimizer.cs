@@ -146,7 +146,7 @@ namespace ThrottleControlledAvionics
 
 		public void PresetLimitsForTranslation()
 		{
-			var num_engines = VSL.ManualEngines.Count;
+			var num_engines = VSL.ManeuverEngines.Count;
 			if(VSL.Translation.IsZero()) return;
 			for(int i = 0; i < num_engines; i++)
 			{
