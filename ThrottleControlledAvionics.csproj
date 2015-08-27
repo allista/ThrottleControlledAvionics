@@ -99,6 +99,7 @@
     <Compile Include="Modules\AutoLander.cs" />
     <Compile Include="Modules\Anchor.cs" />
     <Compile Include="Modules\VTOLAssist.cs" />
+    <Compile Include="EngineConfig.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

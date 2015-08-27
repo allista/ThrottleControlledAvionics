@@ -153,7 +153,8 @@ Notes:
 		[Persistent] public Multiplexer<Autopilot> AP = new Multiplexer<Autopilot>();
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
-		[Persistent] public LimitsConfig ManualLimits = new LimitsConfig();
+		[Persistent] public EnginesProfileDB EnginesProfiles = new EnginesProfileDB();
+		[Persistent] public bool ShowEnginesProfiles;
 		[Persistent] public bool ShowManualLimits;
 
 		public ConfigNode Configuration 
@@ -172,7 +173,7 @@ Notes:
 			var val = node.GetValue(Utils.PropertyName(new {VesselID}));
 			if(!string.IsNullOrEmpty(val)) VesselID = new Guid(val);
 			foreach(var n in node.GetNodes(WayPoint.NODE_NAME))
-				Waypoints.Enqueue(WayPoint.FromConfig(n));
+				Waypoints.Enqueue(ConfigNodeObject.FromConfig<WayPoint>(n));
 			if(Anchor != null && string.IsNullOrEmpty(Anchor.Name))
 				Anchor = null;
 		}

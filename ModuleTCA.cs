@@ -70,11 +70,13 @@ namespace ThrottleControlledAvionics
 		{
 			base.OnAwake();
 			GameEvents.onVesselWasModified.Add(onVesselModify);
+			GameEvents.onStageActivate.Add(onStageActive);
 		}
 
 		internal void OnDestroy() 
 		{ 
 			GameEvents.onVesselWasModified.Remove(onVesselModify);
+			GameEvents.onStageActivate.Remove(onStageActive);
 			reset();
 		}
 
@@ -94,6 +96,12 @@ namespace ThrottleControlledAvionics
 			reset();
 			check_priority();
 			init();
+		}
+
+		void onStageActive(int stage)
+		{ 
+			if(VSL == null) return;
+			CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines);
 		}
 
 		void check_priority()
@@ -273,10 +281,10 @@ namespace ThrottleControlledAvionics
 				//:balance-only engines
 				if(VSL.BalancedEngines.Count > 0)
 				{
-					VSL.UpdateTorque(VSL.ActiveManualEngines);
+					VSL.UpdateTorque(VSL.ManualEngines);
 					eng.OptimizeLimitsForTorque(VSL.BalancedEngines, Vector3.zero);
 				}
-				VSL.UpdateTorque(VSL.ActiveManualEngines, VSL.BalancedEngines);
+				VSL.UpdateTorque(VSL.ManualEngines, VSL.BalancedEngines);
 				//:optimize limits for steering
 				eng.PresetLimitsForTranslation();
 				eng.Steer();

@@ -18,14 +18,20 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "TLA";
 
-			[Persistent] public float MaxHSpeed = 10;
-			[Persistent] public float GearTimer = 1;
+			[Persistent] public float MinHSpeed   = 0.1f;
+			[Persistent] public float MaxHSpeed   = 10;
+			[Persistent] public float GearTimer   = 1;
+			[Persistent] public float LandedTimer = 2;
+			[Persistent] public float MinDTWR     = 0.5f;
+			[Persistent] public float MinAngularVelocity = 0.001f; //(rad/s)^2 ~= 1.8deg/s
+			[Persistent] public float GearOffAngularVelocity = 0.01f; //(rad/s)^2 ~= 1.8deg/s
 		}
 		static Config TLA { get { return TCAConfiguration.Globals.TLA; } }
 		public VTOLAssist(VesselWrapper vsl) { VSL = vsl; }
 
 		bool last_state, landed, tookoff;
-		readonly Timer GearTimer = new Timer();
+		readonly Timer GearTimer   = new Timer();
+		readonly Timer LandedTimer = new Timer();
 
 		public override void Init()
 		{
@@ -33,7 +39,7 @@ namespace ThrottleControlledAvionics
 			last_state = VSL.LandedOrSplashed;
 			landed = tookoff = false;
 			GearTimer.Period = TLA.GearTimer;
-			if(VSL.LandedOrSplashed) CFG.HF.OnIfNot(HFlight.Level);
+			LandedTimer.Period = TLA.LandedTimer;
 		}
 
 		public override void UpdateState()
@@ -48,37 +54,49 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			//update state
-			if(last_state && !VSL.LandedOrSplashed) tookoff = true;
-			else landed |= VSL.LandedOrSplashed && !last_state;
+			if(last_state && !VSL.LandedOrSplashed) 
+			{ tookoff = true; landed = false; GearTimer.Reset(); }
+			else if(VSL.LandedOrSplashed && !last_state) { landed = true; tookoff = false; }
 			last_state = VSL.LandedOrSplashed;
 			//if flying, nothing to do
 //			Log("landed {0}, tookoff {1}, state {2}, gear {3}, brake {4}",
 //		          landed, tookoff, last_state, VSL.ActionGroups[KSPActionGroup.Gear], VSL.ActionGroups[KSPActionGroup.Brakes]);//debug
 			if(!VSL.LandedOrSplashed && !tookoff) return;
-			SetState(TCAState.VTOLAssist);
+			//just landed
 			if(landed)
 			{
-				tookoff = false;
 				CFG.HF.OnIfNot(HFlight.Level);
 				VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
-				landed &= VSL.HorizontalSpeed >= 0.1;
+				LandedTimer.RunIf(() => landed = false,
+				                  () => VSL.HorizontalSpeed < TLA.MinHSpeed);
+				SetState(TCAState.VTOLAssist);
+				return;
 			}
-			else if(tookoff)
+			//just took off
+			if(tookoff)
 			{
-				landed = false;
 				CFG.HF.OnIfNot(HFlight.Stop);
 				if(GearTimer.Check) 
 				{ 
 					VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 					tookoff = false;
 				}
+				SetState(TCAState.VTOLAssist);
+				return;
 			}
-			else if(VSL.HorizontalSpeed < TLA.MaxHSpeed)
+			//moving on the ground
+			var avSqr = VSL.vessel.angularVelocity.sqrMagnitude;
+			if(VSL.HorizontalSpeed < TLA.MaxHSpeed &&
+			   avSqr > TLA.MinAngularVelocity)
 			{
 				CFG.HF.OnIfNot(HFlight.Level);
-				GearTimer.Reset();
+				if(avSqr > TLA.GearOffAngularVelocity && VSL.DTWR > TLA.MinDTWR)
+					VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+				SetState(TCAState.VTOLAssist);
+				return;
 			}
-			else CFG.HF.OffIfOn(HFlight.Level);
+			//swithch off otherwise
+			CFG.HF.OffIfOn(HFlight.Level);
 		}
 	}
 }

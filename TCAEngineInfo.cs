@@ -20,14 +20,24 @@ namespace ThrottleControlledAvionics
 	{
 		public static readonly string[] RoleNames = 
 		{
-			"TCA: Main Engine",
-			"TCA: Maneuver Engine",
-			"TCA: Manual Control",
-			"TCA: Balanced Thrust",
+			"Main Engine",
+			"Maneuver Engine",
+			"Manual Control",
+			"Balanced Thrust",
 		};
 
 		public static readonly TCARole[] RolesOrder = { TCARole.MAIN, TCARole.BALANCE, TCARole.MANEUVER, TCARole.MANUAL };
-		readonly int num_roles = Enum.GetValues(typeof(TCARole)).Length;
+		public static readonly int NumRoles = Enum.GetValues(typeof(TCARole)).Length;
+
+		public static TCARole NextRole(TCARole cur)
+		{ return RolesOrder[(Array.FindIndex(RolesOrder, r => r == cur)+1) % NumRoles]; }
+
+		public static TCARole PrevRole(TCARole cur)
+		{ 
+			var i = Array.FindIndex(RolesOrder, r => r == cur)-1;
+			if(i < 0) i = NumRoles-1;
+			return RolesOrder[i]; 
+		}
 
 		[KSPField(isPersistant = true)]
 		int role;
@@ -65,7 +75,15 @@ namespace ThrottleControlledAvionics
 		[KSPEvent(guiActive = true, guiActiveEditor = true, guiName = "TCA Role", active = true)]
 		public void SwitchRole() 
 		{ 
-			Role = RolesOrder[(++role_index) % num_roles];
+			if(!HighLogic.LoadedSceneIsEditor && group > 0) 
+			{
+				ScreenMessages.PostScreenMessage(
+					"Cannot change the role of an engine belonging to a group.\n" +
+					"Use in-flight group controls  instead.", 
+					5, ScreenMessageStyle.UPPER_CENTER);
+				return;
+			}
+			Role = RolesOrder[(++role_index) % NumRoles];
 			update_status();
 			//set the role of symmetry counterparts, if needed
 			if(!TCAConfiguration.Globals.RoleSymmetryInFlight 
@@ -73,14 +91,16 @@ namespace ThrottleControlledAvionics
 			foreach(var cp in part.symmetryCounterparts)
 			{
 				var einfo = cp.GetModule<TCAEngineInfo>();
-				if(einfo != null) einfo.SetRole(Role);
+				if(einfo != null && 
+				   (HighLogic.LoadedSceneIsEditor || einfo.Group == 0)) 
+					einfo.SetRole(Role);
 			}
 		}
 
 		void update_status()
 		{
 			role = (int)Role;
-			Events["SwitchRole"].guiName = role > num_roles ? "TCA: Unknown" : RoleNames[role];
+			Events["SwitchRole"].guiName = role > NumRoles ? "TCA: Unknown" : ("TCA: "+RoleNames[role]);
 		}
 	}
 }

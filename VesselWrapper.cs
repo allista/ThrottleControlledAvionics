@@ -38,12 +38,11 @@ namespace ThrottleControlledAvionics
 		public TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
 
 		public List<EngineWrapper> Engines         = new List<EngineWrapper>();
-		public List<EngineWrapper> ManualEngines   = new List<EngineWrapper>();
 		public List<EngineWrapper> ActiveEngines   = new List<EngineWrapper>();
 		public List<EngineWrapper> BalancedEngines = new List<EngineWrapper>();
 		public List<EngineWrapper> ManeuverEngines = new List<EngineWrapper>();
 		public List<EngineWrapper> SteeringEngines = new List<EngineWrapper>();
-		public List<EngineWrapper> ActiveManualEngines = new List<EngineWrapper>();
+		public List<EngineWrapper> ManualEngines = new List<EngineWrapper>();
 		public List<ModuleReactionWheel> RWheels = new List<ModuleReactionWheel>();
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
@@ -113,6 +112,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		public CelestialBody mainBody { get { return vessel.mainBody; } }
 		public bool OnPlanet { get; private set; }
 		public bool isEVA { get { return vessel.isEVA; } }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
@@ -137,6 +137,14 @@ namespace ThrottleControlledAvionics
 			AltitudeAhead = -1;
 			if(vessel.ctrlState.gearDown)
 				vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
+			OnPlanet = _OnPlanet();
+		}
+
+		bool _OnPlanet() 
+		{ 
+			return (vessel.situation != Vessel.Situations.DOCKED   &&
+			        vessel.situation != Vessel.Situations.ORBITING &&
+			        vessel.situation != Vessel.Situations.ESCAPING); 
 		}
 
 		public Vector3 GetStarboard(Vector3d hV) { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
@@ -146,17 +154,14 @@ namespace ThrottleControlledAvionics
 		public void UpdateEngines()
 		{
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
-			Engines.Clear(); ManualEngines.Clear();
+			Engines.Clear(); 
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
 				{	
 					var engine = module as ModuleEngines;
 					if(engine != null)
 					{ 
-						var e = new EngineWrapper(engine);
-						if(e.info.Role == TCARole.MANUAL)
-							ManualEngines.Add(e);
-						Engines.Add(e); 
+						Engines.Add(new EngineWrapper(engine)); 
 						continue; 
 					}
 
@@ -166,23 +171,36 @@ namespace ThrottleControlledAvionics
 					var rcs = module as ModuleRCS;
 					if(rcs != null) { RCS.Add(new RCSWrapper(rcs)); continue; }
 				}
+			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines);
+			else CFG.EnginesProfiles.Active.Update(Engines);
 		}
 
 		public bool CheckEngines()
 		{
+			//update engines' list if needed
 			bool update = false;
 			var num_engines = Engines.Count;
 			for(int i = 0; i < num_engines; i++)
 			{ update |= !Engines[i].Valid; if(update) break; }
 			if(!update)
+			{
 				for(int i = 0; i < RCS.Count; i++)
 				{ update |= !RCS[i].Valid; if(update) break; }
+			}
 			if(update) UpdateEngines();
+			//unflameout engines
 			for(int i = 0; i < num_engines; i++)
 			{ var e = Engines[i]; if(e.engine.flameout) e.forceThrustPercentage(1); }
+			//sync with active profile
+			if(CFG.EnginesProfiles.Active.Changed) CFG.EnginesProfiles.Active.Apply(Engines);
+			else CFG.EnginesProfiles.Active.Update(Engines);
+			//get active engines
 			ActiveEngines.Clear(); ActiveEngines.Capacity = Engines.Count;
 			for(int i = 0; i < num_engines; i++)
-			{ var e = Engines[i]; if(e.isOperational) ActiveEngines.Add(e); }
+			{ 
+				var e = Engines[i]; 
+				if(e.isOperational) ActiveEngines.Add(e); 
+			}
 			ActiveRCS = vessel.ActionGroups[KSPActionGroup.RCS]? 
 				RCS.Where(t => t.isOperational).ToList() : new List<RCSWrapper>();
 			NumActive = ActiveEngines.Count;
@@ -198,7 +216,7 @@ namespace ThrottleControlledAvionics
 			SteeringEngines.Clear(); SteeringEngines.Capacity = NumActive;
 			ManeuverEngines.Clear(); ManeuverEngines.Capacity = NumActive;
 			BalancedEngines.Clear(); BalancedEngines.Capacity = NumActive;
-			ActiveManualEngines.Clear();
+			ManualEngines.Clear();   ManualEngines.Capacity   = NumActive;
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
@@ -215,7 +233,7 @@ namespace ThrottleControlledAvionics
 					BalancedEngines.Add(e);
 					break;
 				case TCARole.MANUAL:
-					ActiveManualEngines.Add(e);
+					ManualEngines.Add(e);
 					break;
 				}
 			}
@@ -281,7 +299,7 @@ namespace ThrottleControlledAvionics
 			{
 				var e = ActiveEngines[i];
 				if(e.Role != TCARole.MANUAL) e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
-				else e.forceThrustPercentage(CFG.ManualLimits.GetLimit(e)*100);
+//				else e.forceThrustPercentage(CFG.ManualLimits.GetLimit(e)*100);
 			}
 			if(NoActiveRCS) return;
 			for(int i = 0; i < NumActiveRCS; i++)
@@ -305,11 +323,11 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateState()
 		{
-			OnPlanet = (vessel.situation != Vessel.Situations.DOCKED   &&
-			            vessel.situation != Vessel.Situations.ORBITING &&
-			            vessel.situation != Vessel.Situations.ESCAPING);
+			var on_planet = _OnPlanet();
+			if(on_planet != OnPlanet) CFG.EnginesProfiles.OnPlanetChanged(on_planet);
+			OnPlanet = on_planet;
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
-			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Y, vessel.ctrlState.Z);
+			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
 			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero())Translation = Translation/Translation.CubeNorm().magnitude;
 			if(!OnPlanet) UnblockSAS(false);

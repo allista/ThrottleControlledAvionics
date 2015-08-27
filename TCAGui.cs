@@ -28,11 +28,11 @@ namespace ThrottleControlledAvionics
 		static string config_name = string.Empty;
 		static readonly DropDownList namedConfigsListBox = new DropDownList();
 		//dimensions
-		public const int controlsWidth = 500, controlsHeight = 100;
-		public const int helpWidth = 500, helpHeight = 500;
+		public const int controlsWidth = 550, controlsHeight = 100;
+		public const int helpWidth = 550, helpHeight = 500;
 		static Rect ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
 		static Rect HelpPos     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
-		static Vector2 enginesScroll, waypointsScroll, helpScroll;
+		static Vector2 waypointsScroll, helpScroll;
 		//keybindings
 		public static KeyCode TCA_Key = KeyCode.Y;
 		static bool selecting_key;
@@ -421,48 +421,24 @@ namespace ThrottleControlledAvionics
 
 		static void ManualEnginesControl()
 		{
-			if(VSL.ManualEngines.Count == 0) return;
 			GUILayout.BeginVertical();
-			if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Limits" : "Show Manual Limits", 
+			if(CFG.EnginesProfiles.Active.Single.Count > 0)
+			{
+				if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Limits" : "Show Manual Limits", 
+				                    Styles.yellow_button,
+				                    GUILayout.ExpandWidth(true)))
+					CFG.ShowManualLimits = !CFG.ShowManualLimits;
+				if(CFG.ShowManualLimits) CFG.EnginesProfiles.DrawManual(controlsHeight);
+			}
+			if(GUILayout.Button(CFG.ShowEnginesProfiles? "Hide Engines Profiles" : "Show Engines Profiles", 
 			                    Styles.yellow_button,
 			                    GUILayout.ExpandWidth(true)))
-				CFG.ShowManualLimits = !CFG.ShowManualLimits;
-			if(CFG.ShowManualLimits)
-			{
-				GUILayout.BeginVertical(Styles.white);
-				enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(controlsHeight));
-				GUILayout.BeginVertical();
-				var added = new HashSet<int>();
-				foreach(var e in VSL.ManualEngines.Where(ew => ew.Group > 0))
-				{
-					if(!e.Valid || added.Contains(e.Group)) continue;
-					GUILayout.BeginHorizontal();
-					GUILayout.Label(string.Format("Group {0} thrust:", e.Group), GUILayout.Width(180));
-					CFG.ManualLimits.Groups[e.Group] = 
-						Utils.FloatSlider("", CFG.ManualLimits.GetLimit(e), 0f, 1f, "P1");
-					added.Add(e.Group);
-					GUILayout.EndHorizontal();
-				}
-				foreach(var e in VSL.ManualEngines.Where(ew => ew.Group == 0))
-				{
-					if(!e.Valid) continue;
-					GUILayout.BeginHorizontal();
-					GUILayout.Label(string.Format("{0}:", e.name), GUILayout.Width(180));
-					var lim = Utils.FloatSlider("", CFG.ManualLimits.GetLimit(e), 0f, 1f, "P1");
-					CFG.ManualLimits.Single[e.part.flightID] = lim;
-					GUILayout.EndHorizontal();
-				}
-				GUILayout.EndVertical();
-				GUILayout.EndScrollView();
-				GUILayout.EndVertical();
-			}
+				CFG.ShowEnginesProfiles = !CFG.ShowEnginesProfiles;
+			if(CFG.ShowEnginesProfiles) CFG.EnginesProfiles.Draw(controlsHeight*2);
 			GUILayout.EndVertical();
 		}
 
 		#region MapView
-//		static float marker_radius(Vessel vsl, WayPoint t)
-//		{ return WayPointMarker.width * Utils.ClampL((float)t.AngleTo(vsl)/Mathf.PI, 0.25f); }
-
 		static Color marker_color(int i, float N)
 		{ 
 			if(N.Equals(0)) return Color.red;
@@ -542,6 +518,7 @@ namespace ThrottleControlledAvionics
 
 		public static void DrawMapViewGroundMarker(CelestialBody body, double lat, double lon, Color c, float r = IconSize, Texture2D texture = null)
 		{
+			//TODO: cache local center coordinates of the marker
 			var up = body.GetSurfaceNVector(lat, lon);
 			var height = Utils.TerrainAltitude(body, lat, lon);
 			if(height < body.Radius) height = body.Radius;
@@ -576,13 +553,8 @@ namespace ThrottleControlledAvionics
 		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
 		static bool IsOccluded(Vector3d worldPosition, CelestialBody byBody)
 		{
-			if(Vector3d.Distance(worldPosition, byBody.position) < byBody.Radius - 100) return true;
-			var camPos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position);
-			if(Vector3d.Angle(camPos - worldPosition, byBody.position - worldPosition) > 90) return false;
-			double bodyDistance = Vector3d.Distance(camPos, byBody.position);
-			double separationAngle = Vector3d.Angle(worldPosition - camPos, byBody.position - camPos);
-			double altitude = bodyDistance * Math.Sin(Math.PI / 180 * separationAngle);
-			return (altitude < byBody.Radius);
+			return Vector3d.Angle(ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) - 
+			                      worldPosition, byBody.position - worldPosition) <= 90.0;
 		}
 		#endregion
 

@@ -158,8 +158,8 @@ PN
 LND
 {
 	MaxUnevenness        = 0.3
-	MaxHorizontalTime    = 3
-	MinVerticalSpeed     = 0.5
+	MaxHorizontalTime    = 2
+	MinVerticalSpeed     = 0.7
 	WideCheckAltitude    = 100
 	MaxWideCheckAltitude = 1000
 	WideCheckLevel       = 7
@@ -185,7 +185,7 @@ RAD
 
 ANC
 {
-	DistanceF          = 0.1
+	DistanceF          = 0.2
 	MaxSpeed           = 10
 	DistancePID
 	{
@@ -200,5 +200,9 @@ TLA
 	MaxHSpeed = 10
 	MinVSpeed = 1
 	GearTimer = 1
+	LandedTimer = 2
+	MinDTWR     = 0.5
+	MinAngularVelocity = 0.001 //(rad/s)^2 ~= 1.8deg/s
+	GearOffAngularVelocity = 0.01 //(rad/s)^2 ~= 5.73deg/s
 }
 //:mode=c#:

@@ -112,16 +112,16 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{
 			if(!IsActive || target == null) return;
-			target.Update(VSL.vessel.mainBody);
+			target.Update(VSL.mainBody);
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
 			var distance = vdir.magnitude;
 			//if it is greater that the threshold (in radians), use Great Circle navigation
-			if(distance/VSL.vessel.mainBody.Radius > PN.DirectNavThreshold)
+			if(distance/VSL.mainBody.Radius > PN.DirectNavThreshold)
 			{
 				var next = target.PointFrom(VSL.vessel, 0.1);
 				distance = (float)target.DistanceTo(VSL.vessel);
-				vdir = Vector3.ProjectOnPlane(VSL.vessel.mainBody.GetWorldSurfacePosition(next.Lat, next.Lon, VSL.vessel.altitude)
+				vdir = Vector3.ProjectOnPlane(VSL.mainBody.GetWorldSurfacePosition(next.Lat, next.Lon, VSL.vessel.altitude)
 				                              -VSL.vessel.transform.position, VSL.Up);
 			}
 			vdir.Normalize();

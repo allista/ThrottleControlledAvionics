@@ -38,13 +38,6 @@ namespace ThrottleControlledAvionics
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
 		public WayPoint(double lat, double lon) : this(new Coordinates(lat,lon)) {}
 
-		static public WayPoint FromConfig(ConfigNode node)
-		{
-			var wp = new WayPoint();
-			wp.Load(node);
-			return wp;
-		}
-
 		//using Haversine formula (see http://www.movable-type.co.uk/scripts/latlong.html)
 		public double AngleTo(double lat, double lon)
 		{

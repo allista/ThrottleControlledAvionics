@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxWideCheckAltitude = 1000f;
 			[Persistent] public int   WideCheckLevel       = 5;
 			[Persistent] public float NodeTargetRange      = 15;
-			[Persistent] public float NodeAnchorRange      = 5;
+			[Persistent] public float NodeAnchorF          = 0.5f;
 			[Persistent] public float LandingAlt           = 10;
 			[Persistent] public float LandingFinalAlt      = 2;
 			[Persistent] public float StopTimer            = 2;
@@ -45,7 +45,7 @@ namespace ThrottleControlledAvionics
 		IEnumerator scanner;
 		SurfaceNode[,] Nodes;
 		readonly List<SurfaceNode> FlatNodes = new List<SurfaceNode>();
-		SurfaceNode NextNode;
+		SurfaceNode NextNode, FlattestNode;
 		int side, bside, center;
 		Vector3 right, fwd, up, down, dir, sdir;
 		float MaxDistance, delta;
@@ -93,7 +93,13 @@ namespace ThrottleControlledAvionics
 		{
 			RaycastHit raycastHit;
 			if(Physics.Raycast(VSL.wCoM, dir, out raycastHit, MaxDistance, RadarMask))
-				return new SurfaceNode(VSL.wCoM, raycastHit.distance*dir, up);
+			{
+				var ray = raycastHit.distance*dir;
+				if(VSL.mainBody.ocean && 
+				   (VSL.wCoM+ray-VSL.mainBody.position).magnitude < VSL.mainBody.Radius)
+					return null;
+				return new SurfaceNode(VSL.wCoM, ray, up);
+			}
 			return null;
 		}
 
@@ -171,6 +177,7 @@ namespace ThrottleControlledAvionics
 					for(int j = 1; j <= side; j++)
 					{
 						var n = Nodes[i,j];
+						if(n == null) continue;
 						if(flattest == null) flattest = n;
 						else if(flattest.unevenness > n.unevenness)
 							flattest = n;
@@ -242,7 +249,7 @@ namespace ThrottleControlledAvionics
 					if(NextNode.flat)
 					{
 						CFG.HF.OnIfNot(HFlight.Anchor);
-						if(CFG.Anchor.DistanceTo(VSL.vessel) < LND.NodeAnchorRange)
+						if(CFG.Anchor.DistanceTo(VSL.vessel) < VSL.R*LND.NodeAnchorF)
 							return StopTimer.Check;
 					}
 					else return true;
@@ -265,24 +272,27 @@ namespace ThrottleControlledAvionics
 		{
 			if(DesiredAltitude < LND.WideCheckAltitude)
 				DesiredAltitude = LND.WideCheckAltitude;
-			else DesiredAltitude += delta_alt;
+			DesiredAltitude += delta_alt;
 			if(DesiredAltitude > LND.MaxWideCheckAltitude)
+			{
+				ScreenMessages.PostScreenMessage("Unable to find suitale place for landing",
+				                                 5, ScreenMessageStyle.UPPER_CENTER);
 				CFG.AP.Off();
+			}
 			else stage = Stage.WideCheck;
 		}
 
 		void try_move_to_flattest()
 		{
-			NextNode = flattest_node;
-			if(NextNode == null) CFG.AP.Off(); //if failed somehow, just switch off
-			else if(distance_to_node(NextNode) > LND.NodeTargetRange*2) move_next();
+			NextNode = FlattestNode;
+			if(NextNode != null && distance_to_node(NextNode) > LND.NodeTargetRange*2) move_next();
 			else wide_check(LND.WideCheckAltitude);
 		}
 
 		void move_next()
 		{
-			CFG.Anchor = new WayPoint(VSL.vessel.mainBody.GetLatitude(NextNode.position),
-			                          VSL.vessel.mainBody.GetLongitude(NextNode.position));
+			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(NextNode.position),
+			                          VSL.mainBody.GetLongitude(NextNode.position));
 			CFG.Anchor.Distance = LND.NodeTargetRange;
 			stage = Stage.MoveNext;
 		}
@@ -291,8 +301,8 @@ namespace ThrottleControlledAvionics
 		{
 			CFG.HF.Off();
 			var c = center_node;
-			CFG.Anchor = new WayPoint(VSL.vessel.mainBody.GetLatitude(c.position),
-			                          VSL.vessel.mainBody.GetLongitude(c.position));
+			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(c.position),
+			                          VSL.mainBody.GetLongitude(c.position));
 			CFG.Anchor.Distance = LND.NodeTargetRange;
 			CFG.HF.On(HFlight.Anchor);
 			DesiredAltitude = LND.LandingAlt+VSL.H;
@@ -337,9 +347,9 @@ namespace ThrottleControlledAvionics
 				SetState(TCAState.CheckingSite);
 				if(!fully_stopped) break;
 				if(scan(1, null, VSL.R*2)) break;
-				if(Nodes == null || center_node == null) CFG.AP.Off(); //if failed somehow, just switch off
-				else if(center_node.flat) land();
-				else wide_check();
+				if(Nodes == null || center_node == null || 
+				   !center_node.flat) wide_check();
+				else land();
 				break;
 			case Stage.FlatCheck:
 				SetState(TCAState.Scanning);
@@ -360,6 +370,7 @@ namespace ThrottleControlledAvionics
 				SetState(TCAState.Scanning);
 				if(!fully_stopped) break;
 				if(scan(LND.WideCheckLevel)) break;
+				FlattestNode = flattest_node;
 				if(FlatNodes.Count > 0) 
 				{ stage = Stage.FlatCheck; break; }
 				else try_move_to_flattest();
@@ -376,13 +387,10 @@ namespace ThrottleControlledAvionics
 				if(DesiredAltitude > 0)
 				{
 					CFG.HF.OnIfNot(HFlight.Anchor);
-					if(VSL.Altitude < VSL.H*10)
-					{
-						gear_on();
-						var lalt = LND.LandingAlt+VSL.H;
-						if(lalt > DesiredAltitude) DesiredAltitude = lalt;
-					}
-					if(!altitude_changed) break;
+					DesiredAltitude = LND.LandingAlt+VSL.H;
+					if(VSL.Altitude < LND.LandingAlt+VSL.H*2) gear_on();
+					if(VSL.Altitude > DesiredAltitude &&
+					   !altitude_changed) break;
 					DesiredAltitude = -10;
 				}
 				gear_on();
@@ -394,13 +402,14 @@ namespace ThrottleControlledAvionics
 					CFG.VerticalCutoff = -10; 
 					CFG.VF.On(VFlight.AltitudeControl);
 				}
-				else if(VSL.Altitude > LND.LandingFinalAlt+VSL.H) 
+				else
 				{
-					CFG.HF.OnIfNot(HFlight.Anchor);
+					if(VSL.Altitude > LND.LandingFinalAlt+VSL.H) 
+						CFG.HF.OnIfNot(HFlight.Anchor);
+					else CFG.HF.OnIfNot(HFlight.Stop);
 					set_VSpeed(VSL.SlowEngines? -0.5f :
 					           Mathf.Lerp(-0.5f, -1, VSL.Altitude/(LND.LandingAlt+VSL.H)));
 				}
-				else CFG.HF.OnIfNot(HFlight.Stop);
 				CutoffTimer.Reset();
 				break;
 			default: 

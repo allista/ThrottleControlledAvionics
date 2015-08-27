@@ -41,6 +41,9 @@ namespace ThrottleControlledAvionics
 			pid.Reset();
 			CFG.HF.AddCallback(HFlight.Anchor, Enable);
 			CFG.HF.AddCallback(HFlight.AnchorHere, AnchorHere);
+			#if DEBUG
+			RenderingManager.AddToPostDrawQueue(1, AnchorPointer);
+			#endif
 		}
 
 		public override void UpdateState() { IsActive = (CFG.HF[HFlight.Anchor] || CFG.HF[HFlight.AnchorHere]) && VSL.OnPlanet; }
@@ -65,7 +68,7 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{
 			if(!IsActive || CFG.Anchor == null) return;
-			CFG.Anchor.Update(VSL.vessel.mainBody);
+			CFG.Anchor.Update(VSL.mainBody);
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
 			var distance = vdir.magnitude;
@@ -79,7 +82,22 @@ namespace ThrottleControlledAvionics
 			//set needed velocity and starboard
 			CFG.NeededHorVelocity = vdir*pid.Action;
 			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
+//			Log("dist {0}, pid {1}, nHV {2}", distance, pid, CFG.NeededHorVelocity);//debug
 		}
+
+		#if DEBUG
+		public void AnchorPointer()
+		{
+			if(CFG.Anchor == null) return;
+			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, CFG.Anchor.GetTransform().position }, Color.cyan);
+		}
+
+		public override void Reset()
+		{
+			base.Reset();
+			RenderingManager.RemoveFromPostDrawQueue(1, AnchorPointer);
+		}
+		#endif
 	}
 }
 
