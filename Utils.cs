@@ -89,10 +89,10 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region GUI
-		public static float FloatSlider(string name, float value, float min, float max, string format="F1", int label_width = -1)
+		public static float FloatSlider(string name, float value, float min, float max, string format="F1", int label_width = -1, string tooltip = "")
 		{
 			var label = name.Length > 0? string.Format("{0}: {1}", name, value.ToString(format)) : value.ToString(format);
-			GUILayout.Label(label, label_width > 0? GUILayout.Width(label_width) : GUILayout.ExpandWidth(false));
+			GUILayout.Label(new GUIContent(label, tooltip), label_width > 0? GUILayout.Width(label_width) : GUILayout.ExpandWidth(false));
 			return GUILayout.HorizontalSlider(value, min, max, GUILayout.ExpandWidth(true));
 		}
 		#endregion
@@ -252,6 +252,12 @@ namespace ThrottleControlledAvionics
 				}
 				else return next_time < Planetarium.GetUniversalTime();
 			}
+		}
+
+		public void RunIf(Action action, Func<bool> predicate)
+		{
+			if(predicate())	{ if(Check) action(); }
+			else Reset();
 		}
 	}
 
