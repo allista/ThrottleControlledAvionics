@@ -116,7 +116,7 @@ namespace ThrottleControlledAvionics
 		public float   throttle;
 		public float   VSF;   //vertical speed factor
 		public bool    isVSC; //vertical speed controller
-		public TCARole Role;
+		public TCARole Role { get { return info.Role; } }
 		public int     Group { get { return info.Group; } }
 		public CenterOfThrustQuery thrustInfo;
 
@@ -125,13 +125,15 @@ namespace ThrottleControlledAvionics
 			thrustController.setMaster(ThrustPI);
 			info = engine.part.GetModule<TCAEngineInfo>();
 			zeroISP = engine.atmosphereCurve.Evaluate(0f);
-			name = Utils.ParseCamelCase(engine.part.name);
+			name = Utils.ParseCamelCase(engine.part.Title());
 			if(engine.engineID.Length > 0 && engine.engineID != "Engine") 
 				name += " (" + engine.engineID + ")";
 			this.engine = engine;
 		}
 
 		#region methods
+		public void SetRole(TCARole role) { info.SetRole(role); }
+
 		public override void InitLimits()
 		{
 			isVSC = false;
@@ -168,12 +170,8 @@ namespace ThrottleControlledAvionics
 			if(engine.useVelCurve)
 				thrustMod *= engine.velCurve.Evaluate((float)engine.part.machNumber);
 			//update Role
-			if(info != null)
-			{
-				if(engine.throttleLocked && info.Role != TCARole.MANUAL) 
-					info.SetRole(TCARole.MANUAL);
-				Role = info.Role;
-			} else Role = TCARole.MAIN;
+			if(engine.throttleLocked && info.Role != TCARole.MANUAL) 
+				info.SetRole(TCARole.MANUAL);
 			InitLimits();
 		}
 
