@@ -353,67 +353,12 @@ namespace ThrottleControlledAvionics
 			cno.Load(node);
 			return cno;
 		}
-	}
 
-	public abstract class PersistentDict<K, V> : ConfigNodeObject
-	{
-		readonly Dictionary<K, V> dict = new Dictionary<K, V>();
-
-		protected abstract K parseK(string k);
-		protected abstract V parseV(string v);
-
-		public override void Save(ConfigNode node)
+		public override string ToString()
 		{
-			base.Save(node);
-			foreach(var i in dict)
-				node.AddValue(i.Key.ToString(), i.Value.ToString());
-		}
-
-		public override void Load(ConfigNode node)
-		{
-			base.Load(node);
-			foreach(ConfigNode.Value v in node.values)
-				dict[parseK(v.name)] = parseV(v.value);
-		}
-
-		#region dict interface
-		public V this[K k] { get { return dict[k]; } set { dict[k] = value; } }
-		public bool TryGetValue(K k, out V v) { return dict.TryGetValue(k, out v); }
-
-		public void Add(K k, V v) { dict.Add(k, v); }
-		public bool Remove(K k) { return dict.Remove(k); }
-
-		public bool ContainsKey(K k) { return dict.ContainsKey(k); }
-		public bool ContainsValue(V v) { return dict.ContainsValue(v); }
-
-		public int  Count { get { return dict.Count; } }
-		#endregion
-	}
-
-	public abstract class PDictKFloat<K> : PersistentDict<K, float>
-	{
-		protected override float parseV(string v)
-		{
-			var V = 0f;
-			return float.TryParse (v, out V)? V : 0f;
-		}
-	}
-
-	public class PDictIntFloat : PDictKFloat<int>
-	{
-		protected override int parseK(string k)
-		{
-			var K = 0;
-			return int.TryParse (k, out K)? K : 0;
-		}
-	}
-
-	public class PDictUIntFloat : PDictKFloat<uint>
-	{
-		protected override uint parseK(string k)
-		{
-			uint K = 0;
-			return uint.TryParse (k, out K)? K : 0;
+			var n = new ConfigNode(GetType().Name);
+			Save(n);
+			return n.ToString();
 		}
 	}
 
