@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
 
 		const string TCA_PART = "ThrottleControlledAvionics";
 
-		public static TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
+		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 		public VesselWrapper VSL { get; private set; }
 		public VesselConfig CFG { get { return VSL.CFG; } }
 		public TCAState State { get { return VSL.State; } set { VSL.State = value; } }
@@ -61,7 +61,6 @@ namespace ThrottleControlledAvionics
 
 		public override string GetInfo()
 		{
-			TCAConfiguration.LoadGlobals();
 			return (!GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCA_PART))?
 				"Software Installed" : "Not Available";
 		}

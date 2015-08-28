@@ -1,6 +1,4 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using UnityEngine;
@@ -96,20 +94,6 @@ Notes:
 		public override void Save(ConfigNode node) {}
 	}
 
-	public class LimitsConfig : ConfigNodeObject
-	{
-		[Persistent] public PDictIntFloat  Groups = new PDictIntFloat();
-		[Persistent] public PDictUIntFloat Single = new PDictUIntFloat();
-
-		public float GetLimit(EngineWrapper e)
-		{
-			float lim = 1f;
-			if(e.Group > 0) { if(!Groups.TryGetValue(e.Group, out lim)) return 0; }
-			else if(!Single.TryGetValue(e.part.flightID, out lim)) return e.thrustLimit;
-			return lim;
-		}
-	}
-
 	public enum HFlight { None, Stop, Anchor, AnchorHere, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowPath }
@@ -129,7 +113,7 @@ Notes:
 		[Persistent] public float   VerticalCutoff; //desired positive vertical speed m/s (configurable)
 		[Persistent] public bool    BlockThrottle;
 		[Persistent] public float   VSControlSensitivity = 0.01f;
-		public bool VSCIsActive { get { return VF || VerticalCutoff < TCAConfiguration.Globals.VSC.MaxSpeed; } }
+		public bool VSCIsActive { get { return VF || VerticalCutoff < TCAScenario.Globals.VSC.MaxSpeed; } }
 		//steering
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
@@ -162,8 +146,8 @@ Notes:
 
 		public VesselConfig() //set defaults
 		{
-			VerticalCutoff = TCAConfiguration.Globals.VSC.MaxSpeed;
-			Engines.setPI(TCAConfiguration.Globals.ENG.EnginesPI);
+			VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed;
+			Engines.setPI(TCAScenario.Globals.ENG.EnginesPI);
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
 
@@ -227,187 +211,4 @@ Notes:
 			Name = name;
 		}
 	}
-
-
-	public static class TCAConfiguration
-	{
-		public const string CONFIGNAME  = "TCA.conf";
-		public const string GLOBALSNAME = "TCA.glob";
-		public const string NODE_NAME   = "TCACONFIG";
-		public const string VSL_NODE    = "VESSELS";
-		public const string NAMED_NODE  = "NAMED";
-		public static TCAGlobals Globals = new TCAGlobals();
-		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
-		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
-		public static bool ConfigsLoaded { get; private set; }
-		public static bool GlobalsLoaded { get; private set; }
-		static readonly List<ConfigNode> other_games = new List<ConfigNode>();
-		static string LoadedGame;
-
-		#region From KSPPluginFramework
-		//Combine the Location of the assembly and the provided string.
-		//This means we can use relative or absolute paths.
-		static public string FilePath(string filename)
-		{ return Path.Combine(_AssemblyFolder, "PluginData/"+_AssemblyName+"/"+filename).Replace("\\","/"); }
-		/// <summary>
-		/// Name of the Assembly that is running this MonoBehaviour
-		/// </summary>
-		internal static String _AssemblyName
-		{ get { return Assembly.GetExecutingAssembly().GetName().Name; } }
-		/// <summary>
-		/// Full Path of the executing Assembly
-		/// </summary>
-		internal static String _AssemblyLocation
-		{ get { return Assembly.GetExecutingAssembly().Location; } }
-		/// <summary>
-		/// Folder containing the executing Assembly
-		/// </summary>
-		internal static String _AssemblyFolder
-		{ get { return Path.GetDirectoryName(_AssemblyLocation); } }
-		#endregion
-
-		static public string CurrentGame
-		{ get { return HighLogic.CurrentGame.Title.Split()[0]; } }
-
-		#region Runtime Interface
-		public static VesselConfig GetConfig(Vessel vsl)
-		{
-			if(!ConfigsLoaded) Load();
-			if(!Configs.ContainsKey(vsl.id)) 
-				Configs.Add(vsl.id, new VesselConfig(vsl));
-			return Configs[vsl.id];
-		}
-
-		public static NamedConfig GetConfig(string name)
-		{ return NamedConfigs.ContainsKey(name) ? NamedConfigs[name] : null; }
-
-		public static NamedConfig GetConfig(int index)
-		{ return NamedConfigs.Count > index ? NamedConfigs.Values[index] : null; }
-
-		public static bool SaveNamedConfig(string name, VesselConfig config, bool overwrite = false)
-		{ 
-			if(name == string.Empty || //do not allow empty name
-			   NamedConfigs.ContainsKey(name) && !overwrite) return false;
-			var nconfig = new NamedConfig(name);
-			nconfig.CopyFrom(config);
-			NamedConfigs[name] = nconfig;
-			return true;
-		}
-		#endregion
-
-		#region Save/Load
-		static ConfigNode loadNode(string filepath)
-		{
-			var node = ConfigNode.Load(filepath);
-			if(node == null)
-				Utils.Log("TCAConfiguration: unable to read "+filepath);
-			return node;
-		}
-
-		public static void Load(bool reload = false) 
-		{ LoadGlobals(reload); LoadConfigs(reload); }
-
-		public static void LoadGlobals(bool reload = false)
-		{
-			if(GlobalsLoaded && !reload) return;
-			var gnode = loadNode(FilePath(GLOBALSNAME));
-			if(gnode != null) LoadGlobals(gnode);
-			else Globals.Init();
-			GlobalsLoaded = true;
-		}
-
-		public static void LoadConfigs(bool reload = false)
-		{
-			if(ConfigsLoaded && !reload && 
-			   LoadedGame == CurrentGame) return;
-			var cnode = loadNode(FilePath(CONFIGNAME));
-			if(cnode != null) LoadConfigs(cnode);
-			else Configs.Clear();
-			ConfigsLoaded = true;
-			LoadedGame = CurrentGame;
-		}
-
-		public static void LoadGlobals(ConfigNode node) 
-		{
-			Globals.Load(node);
-			Globals.Init();
-		}
-
-		public static void LoadConfigs(ConfigNode node) 
-		{
-			Configs.Clear();
-			NamedConfigs.Clear();
-			other_games.Clear();
-			var game = CurrentGame;
-			foreach(var n in node.GetNodes())
-			{
-				if(n.name == game)
-				{
-					foreach(var c in n.GetNodes(VesselConfig.NODE_NAME))
-					{
-						var config = new VesselConfig();
-						config.Load(c);
-						Configs[config.VesselID] = config;
-					}
-				}
-				else if(n.name == NAMED_NODE)
-				{
-					foreach(var c in n.GetNodes(NamedConfig.NODE_NAME))
-					{
-						var config = new NamedConfig();
-						config.Load(c);
-						NamedConfigs[config.Name] = config;
-					}
-				}
-				else other_games.Add(n);
-			}
-		}
-
-		static void saveNode(ConfigNode node, string filepath)
-		{
-			var dir = Path.GetDirectoryName(filepath);
-			if(!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-			try { node.Save(filepath); }
-			catch { Utils.Log("TCAConfiguration: unable to write to "+filepath); }
-		}
-
-		public static void Save()
-		{
-			if(!ConfigsLoaded) return;
-			var cnode = new ConfigNode(NODE_NAME);
-			SaveConfigs(cnode); saveNode(cnode, FilePath(CONFIGNAME));
-		}
-
-		public static void SaveConfigs(ConfigNode node) 
-		{
-			//save per-vessel configurations into the current game's node
-			var current_vessels = new HashSet<Guid>(HighLogic.CurrentGame.flightState.protoVessels.Select(p => p.vesselID));
-			var fg = FlightGlobals.fetch;
-			if(fg != null) fg.vessels.ForEach(v => current_vessels.Add(v.id));
-			var configs = new List<VesselConfig>(Configs.Values);
-			configs.Sort();
-			if(configs.Count > 0)
-			{
-				var n = node.AddNode(CurrentGame);
-				foreach(var c in configs)
-				{
-					if(current_vessels.Contains(c.VesselID))
-						c.Save(n.AddNode(VesselConfig.NODE_NAME));
-					else Utils.Log(
-						"TCAConfiguration.SaveConfigs: vessel {0} is not present in the game. " +
-						"Removing orphan configuration.", c.VesselID);
-				}
-			}
-			//save other games
-			other_games.ForEach(n => node.AddNode(n));
-			if(NamedConfigs.Count > 0)
-			{
-				var n = node.AddNode(NAMED_NODE);
-				foreach(var c in NamedConfigs.Keys)
-					NamedConfigs[c].Save(n.AddNode(NamedConfig.NODE_NAME));
-			}
-		}
-		#endregion
-	}
 }
-

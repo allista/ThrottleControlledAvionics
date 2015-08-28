@@ -26,7 +26,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxAccelF     = 4f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
-		static Config ANC { get { return TCAConfiguration.Globals.ANC; } }
+		static Config ANC { get { return TCAScenario.Globals.ANC; } }
 		public Anchor(VesselWrapper vsl) { VSL = vsl; }
 
 		readonly PIDf_Controller pid = new PIDf_Controller();

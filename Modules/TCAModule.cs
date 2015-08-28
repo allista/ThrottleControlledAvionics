@@ -31,7 +31,7 @@ namespace ThrottleControlledAvionics
 
 		protected VesselWrapper VSL;
 
-		public static TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
+		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 		public VesselConfig CFG { get { return VSL.CFG; } }
 		public TCAState State { get { return VSL.State; } }
 		public bool IsActive { get; protected set; }

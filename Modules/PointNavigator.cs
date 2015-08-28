@@ -44,7 +44,7 @@ namespace ThrottleControlledAvionics
 				GCNavStep *= Mathf.Deg2Rad;
 			}
 		}
-		static Config PN { get { return TCAConfiguration.Globals.PN; } }
+		static Config PN { get { return TCAScenario.Globals.PN; } }
 		public PointNavigator(VesselWrapper vsl) { VSL = vsl; }
 
 		readonly PIDf_Controller pid = new PIDf_Controller();

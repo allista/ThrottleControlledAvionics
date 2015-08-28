@@ -36,7 +36,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float CutoffTimer          = 2;
 
 		}
-		static Config LND { get { return TCAConfiguration.Globals.LND; } }
+		static Config LND { get { return TCAScenario.Globals.LND; } }
 
 		static int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts"));
 		enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, Land }

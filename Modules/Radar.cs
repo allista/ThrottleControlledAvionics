@@ -37,7 +37,7 @@ namespace ThrottleControlledAvionics
 				DeltaAngle = MaxViewAngle/NumRays;
 			}
 		}
-		static Config RAD { get { return TCAConfiguration.Globals.RAD; } }
+		static Config RAD { get { return TCAScenario.Globals.RAD; } }
 
 		public Radar(VesselWrapper vsl) { VSL = vsl; }
 

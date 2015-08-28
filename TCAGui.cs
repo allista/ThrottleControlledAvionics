@@ -51,7 +51,7 @@ namespace ThrottleControlledAvionics
 		#region Configs Selector
 		static void updateConfigs()
 		{ 
-			var configs = TCAConfiguration.NamedConfigs.Keys.ToList();
+			var configs = TCAScenario.NamedConfigs.Keys.ToList();
 			var first = namedConfigsListBox.Items.Count == 0;
 			configs.Add(string.Empty); namedConfigsListBox.Items = configs; 
 			if(first) namedConfigsListBox.SelectItem(configs.Count-1);
@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
 
 		static void SelectConfig_start() 
 		{ 
-			if(TCAConfiguration.NamedConfigs.Count < 2) return;
+			if(TCAScenario.NamedConfigs.Count < 2) return;
 			namedConfigsListBox.styleListBox  = Styles.list_box;
 			namedConfigsListBox.styleListItem = Styles.list_item;
 			namedConfigsListBox.windowRect    = ControlsPos;
@@ -68,12 +68,12 @@ namespace ThrottleControlledAvionics
 
 		static void SelectConfig()
 		{
-			if(TCAConfiguration.NamedConfigs.Count == 0)
+			if(TCAScenario.NamedConfigs.Count == 0)
 				GUILayout.Label("[Nothing Saved]", GUILayout.ExpandWidth(true));
 			else
 			{
 				namedConfigsListBox.DrawButton();
-				var new_config = TCAConfiguration.GetConfig(namedConfigsListBox.SelectedIndex);
+				var new_config = TCAScenario.GetConfig(namedConfigsListBox.SelectedIndex);
 				if(new_config != selected_config)
 				{
 					selected_config = new_config;
@@ -84,7 +84,7 @@ namespace ThrottleControlledAvionics
 
 		static void SelectConfig_end()
 		{
-			if(TCAConfiguration.NamedConfigs.Count < 2) return;
+			if(TCAScenario.NamedConfigs.Count < 2) return;
 			namedConfigsListBox.DrawDropDown();
 			namedConfigsListBox.CloseOnOutsideClick();
 		}
@@ -113,7 +113,7 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) 
 			{
-				TCAConfiguration.LoadGlobals(true);
+				TCAScenario.LoadGlobals();
 				TCA.OnReloadGlobals();
 			}
 			#endif
@@ -182,29 +182,24 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Name:", GUILayout.Width(50));
 			config_name = GUILayout.TextField(config_name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
-			if(TCAConfiguration.NamedConfigs.ContainsKey(config_name))
+			if(TCAScenario.NamedConfigs.ContainsKey(config_name))
 			{
 				if(GUILayout.Button("Overwrite", Styles.red_button, GUILayout.Width(70)))
-				{
-					TCAConfiguration.SaveNamedConfig(config_name, CFG, true);
-					TCAConfiguration.Save();
-				}
+					TCAScenario.SaveNamedConfig(config_name, CFG, true);
 			}
 			else if(GUILayout.Button("Add", Styles.green_button, GUILayout.Width(50)) && 
 			        config_name != string.Empty) 
 			{
-				TCAConfiguration.SaveNamedConfig(config_name, CFG);
-				TCAConfiguration.Save();
+				TCAScenario.SaveNamedConfig(config_name, CFG);
 				updateConfigs();
-				namedConfigsListBox.SelectItem(TCAConfiguration.NamedConfigs.IndexOfKey(config_name));
+				namedConfigsListBox.SelectItem(TCAScenario.NamedConfigs.IndexOfKey(config_name));
 			}
 			SelectConfig();
 			if(GUILayout.Button("Load", Styles.yellow_button, GUILayout.Width(50)) && selected_config != null) 
 				CFG.CopyFrom(selected_config);
 			if(GUILayout.Button("Delete", Styles.red_button, GUILayout.Width(50)) && selected_config != null)
 			{ 
-				TCAConfiguration.NamedConfigs.Remove(selected_config.Name);
-				TCAConfiguration.Save();
+				TCAScenario.NamedConfigs.Remove(selected_config.Name);
 				namedConfigsListBox.SelectItem(namedConfigsListBox.SelectedIndex-1);
 				updateConfigs();
 				selected_config = null;

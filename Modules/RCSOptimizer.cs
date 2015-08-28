@@ -17,7 +17,7 @@ namespace ThrottleControlledAvionics
 {
 	public class RCSOptimizer : TorqueOptimizer
 	{
-		static RCSOptimizer.Config RCS { get { return TCAConfiguration.Globals.RCS; } }
+		static RCSOptimizer.Config RCS { get { return TCAScenario.Globals.RCS; } }
 		public RCSOptimizer(VesselWrapper vsl) { VSL = vsl; }
 
 		static bool optimization_pass(IList<RCSWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
@@ -102,7 +102,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.NoActiveRCS) return;
 			//calculate needed torque
 			var needed_torque = Vector3.zero;
-			if(VSL.Steering.sqrMagnitude >= TCAConfiguration.Globals.InputDeadZone)
+			if(VSL.Steering.sqrMagnitude >= TCAScenario.Globals.InputDeadZone)
 			{
 				for(int i = 0; i < VSL.NumActiveRCS; i++)
 				{ needed_torque += VSL.ActiveRCS[i].currentTorque; }

@@ -26,7 +26,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinAngularVelocity = 0.001f; //(rad/s)^2 ~= 1.8deg/s
 			[Persistent] public float GearOffAngularVelocity = 0.01f; //(rad/s)^2 ~= 1.8deg/s
 		}
-		static Config TLA { get { return TCAConfiguration.Globals.TLA; } }
+		static Config TLA { get { return TCAScenario.Globals.TLA; } }
 		public VTOLAssist(VesselWrapper vsl) { VSL = vsl; }
 
 		bool last_state, landed, tookoff;

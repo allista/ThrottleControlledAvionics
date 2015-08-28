@@ -14,7 +14,7 @@ namespace ThrottleControlledAvionics
 	public partial class ThrottleControlledAvionics : MonoBehaviour
 	{
 		static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
-		static TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
+		static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 		static Vessel ActiveVessel { get { return FlightGlobals.fetch != null? FlightGlobals.fetch.activeVessel : null; } }
 
 		static Vessel vessel;
@@ -31,7 +31,6 @@ namespace ThrottleControlledAvionics
 			ControlsPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {ControlsPos}), ControlsPos);
 			HelpPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpPos}), HelpPos);
 			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
-			TCAConfiguration.Load();
 			UpDamper.Period = GLB.KeyRepeatTime;
 			DownDamper.Period = GLB.KeyRepeatTime;
 			updateConfigs();
@@ -39,7 +38,6 @@ namespace ThrottleControlledAvionics
 
 		public void SaveConfig(ConfigNode node = null)
 		{
-			TCAConfiguration.Save();
 			GUI_CFG.SetValue(Utils.PropertyName(new {ControlsPos}), ControlsPos);
 			GUI_CFG.SetValue(Utils.PropertyName(new {HelpPos}), HelpPos);
 			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);

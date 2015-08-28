@@ -37,11 +37,10 @@ namespace ThrottleControlledAvionics
 
 		void Awake()
 		{
-			TCAConfiguration.LoadGlobals();
 			//setup toolbar/applauncher button
 			if(TCAToolbarButton == null &&
 				ToolbarManager.ToolbarAvailable && 
-			   !TCAConfiguration.Globals.UseStockAppLauncher)
+			   !TCAScenario.Globals.UseStockAppLauncher)
 			{
 				Utils.Log("Using Blizzy's toolbar");
 				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");

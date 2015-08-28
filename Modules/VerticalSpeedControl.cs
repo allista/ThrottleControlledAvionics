@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float FallingTime       = 0.5f;
 			[Persistent] public float AccelThreshold    = 0.1f;
 		}
-		static Config VSC { get { return TCAConfiguration.Globals.VSC; } }
+		static Config VSC { get { return TCAScenario.Globals.VSC; } }
 
 		public VerticalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
 

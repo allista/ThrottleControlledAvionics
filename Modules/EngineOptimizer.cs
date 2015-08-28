@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public FloatCurve EnginesCurve  = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 			[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
 		}
-		static Config ENG { get { return TCAConfiguration.Globals.ENG; } }
+		static Config ENG { get { return TCAScenario.Globals.ENG; } }
 
 		public EngineOptimizer(VesselWrapper vsl) { VSL = vsl; }
 
@@ -164,7 +164,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.AutoTune) tune_steering_params();
 			var needed_torque = Vector3.zero;
 			Steering = VSL.Steering;
-			if(Steering.sqrMagnitude >= TCAConfiguration.Globals.InputDeadZone)
+			if(Steering.sqrMagnitude >= TCAScenario.Globals.InputDeadZone)
 			{
 				//correct steering
 				if(!CFG.AutoTune) Steering *= CFG.SteeringGain;

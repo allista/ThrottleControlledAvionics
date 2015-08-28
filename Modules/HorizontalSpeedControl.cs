@@ -37,7 +37,7 @@ namespace ThrottleControlledAvionics
 			public float TfSpan;
 			public override void Init() { TfSpan = MaxTf-MinTf; }
 		}
-		static Config HSC { get { return TCAConfiguration.Globals.HSC; } }
+		static Config HSC { get { return TCAScenario.Globals.HSC; } }
 
 		double   srfSpeed { get { return VSL.vessel.srfSpeed; } }
 		Vector3d acceleration { get { return VSL.vessel.acceleration; } }

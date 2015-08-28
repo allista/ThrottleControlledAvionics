@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 
 		public override string ToString() { return string.Format("[{0}] {1}", GetName(), new Coordinates(Lat, Lon)); }
 
-		public WayPoint() { Distance = TCAConfiguration.Globals.PN.MinDistance; }
+		public WayPoint() { Distance = TCAScenario.Globals.PN.MinDistance; }
 		public WayPoint(Coordinates c) : this() { Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); go = new GameObject(); }
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
 		public WayPoint(double lat, double lon) : this(new Coordinates(lat,lon)) {}

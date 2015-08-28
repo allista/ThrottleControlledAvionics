@@ -39,7 +39,7 @@ namespace ThrottleControlledAvionics
 				RocketPID.Min = JetsPID.Min = -MaxSpeed;
 			}
 		}
-		static Config ALT { get { return TCAConfiguration.Globals.ALT; } }
+		static Config ALT { get { return TCAScenario.Globals.ALT; } }
 
 		readonly PIDf_Controller2 rocket_pid = new PIDf_Controller2();
 		readonly PIDf_Controller  jets_pid   = new PIDf_Controller();

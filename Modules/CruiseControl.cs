@@ -24,7 +24,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public PID_Controller DirectionPID = new PID_Controller(0.5f, 0f, 0.5f, -1, 1);
 //			[Persistent] public float AeroCoefficient = 1;
 		}
-		static Config CC { get { return TCAConfiguration.Globals.CC; } }
+		static Config CC { get { return TCAScenario.Globals.CC; } }
 
 		readonly PIDf_Controller pid = new PIDf_Controller();
 		bool inited;

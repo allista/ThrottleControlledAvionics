@@ -35,7 +35,7 @@ namespace ThrottleControlledAvionics
 		public Vessel vessel { get; private set; }
 		public Transform refT { get; private set; } //transform of the controller-part
 		public VesselConfig CFG { get; private set; }
-		public TCAGlobals GLB { get { return TCAConfiguration.Globals; } }
+		public TCAGlobals GLB { get { return TCAScenario.Globals; } }
 
 		public List<EngineWrapper> Engines         = new List<EngineWrapper>();
 		public List<EngineWrapper> ActiveEngines   = new List<EngineWrapper>();
@@ -129,7 +129,8 @@ namespace ThrottleControlledAvionics
 		{
 			vessel = vsl; 
 			if(vessel != null) 
-				CFG = TCAConfiguration.GetConfig(vessel);
+				CFG = TCAScenario.GetConfig(vessel);
+			Utils.Log("{0}.CFG: {1}", vessel.vesselName, CFG);//debug
 		}
 
 		public void Init() 

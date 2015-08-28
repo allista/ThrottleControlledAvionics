@@ -60,9 +60,8 @@ namespace ThrottleControlledAvionics
 
 		public override void OnStart(StartState state) 
 		{ 
-			TCAConfiguration.LoadGlobals();
 			var grp = Fields["group"].uiControlEditor as UI_IntRange;
-			if(grp != null) grp.maxValue = TCAConfiguration.Globals.MaxManualGroups;
+			if(grp != null) grp.maxValue = TCAScenario.Globals.MaxManualGroups;
 			update_status(); 
 		}
 
@@ -86,7 +85,7 @@ namespace ThrottleControlledAvionics
 			Role = RolesOrder[(++role_index) % NumRoles];
 			update_status();
 			//set the role of symmetry counterparts, if needed
-			if(!TCAConfiguration.Globals.RoleSymmetryInFlight 
+			if(!TCAScenario.Globals.RoleSymmetryInFlight 
 			   && HighLogic.LoadedSceneIsFlight) return;
 			foreach(var cp in part.symmetryCounterparts)
 			{
