@@ -128,16 +128,12 @@ namespace ThrottleControlledAvionics
 		public VesselWrapper(Vessel vsl) 
 		{
 			vessel = vsl; 
-			if(vessel != null) 
-				CFG = TCAScenario.GetConfig(vessel);
-			Utils.Log("{0}.CFG: {1}", vessel.vesselName, CFG);//debug
+			UpdateEngines();
 		}
 
 		public void Init() 
 		{
 			AltitudeAhead = -1;
-			if(vessel.ctrlState.gearDown)
-				vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
 			OnPlanet = _OnPlanet();
 		}
 
@@ -172,6 +168,7 @@ namespace ThrottleControlledAvionics
 					var rcs = module as ModuleRCS;
 					if(rcs != null) { RCS.Add(new RCSWrapper(rcs)); continue; }
 				}
+			if(CFG == null) CFG = TCAScenario.GetConfig(this);
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines);
 			else CFG.EnginesProfiles.Active.Update(Engines);
 		}

@@ -149,7 +149,7 @@ namespace ThrottleControlledAvionics
 	public class EnginesProfile : ConfigNodeObject
 	{
 		new public const string NODE_NAME = "ENGINESPROF";
-		static readonly string[] OnPlanetStates = { "On Planets", "In Space", "Always" };
+		protected static readonly string[] OnPlanetStates = { "On Planets", "In Space", "Always" };
 
 		[Persistent] public string Name;
 		[Persistent] public bool Active;
@@ -157,23 +157,35 @@ namespace ThrottleControlledAvionics
 		[Persistent] public int  OnPlanet = 2;
 		[Persistent] public int  Stage = -1;
 
-		[Persistent] public EngineConfigUintDB Single = new EngineConfigUintDB();
 		[Persistent] public EngineConfigIntDB  Groups = new EngineConfigIntDB();
-
+		[Persistent] public EngineConfigUintDB Single = new EngineConfigUintDB();
 		public bool Changed, Edit;
 
 		public EnginesProfile() {}
-		public EnginesProfile(string name, IList<EngineWrapper> engines) 
-		{ Name = name; Init(engines); }
-
+		public EnginesProfile(string name, IList<EngineWrapper> engines) { Name = name; Init(engines); }
 		public EnginesProfile(EnginesProfile p)
 		{
 			Name = p.Name+" (Copy)";
 			OnPlanet = p.OnPlanet;
-			foreach(var c in p.Single.DB) 
-				Single[c.Key] = new EngineConfig(c.Value);
 			foreach(var c in p.Groups.DB) 
 				Groups[c.Key] = new EngineConfig(c.Value);
+			foreach(var c in p.Single.DB) 
+				Single[c.Key] = new EngineConfig(c.Value);
+		}
+
+		public void ConvertIDs<From, To>(IList<EngineWrapper> engines)
+			where From : IEngineID, new() where To : IEngineID, new()
+		{
+			var from = new From();
+			var to = new To();
+			var single = new EngineConfigUintDB();
+			foreach(var e in engines)
+			{
+				if(e.Group > 0) continue;
+				EngineConfig c;
+				single[to.GetID(e)] = Single.TryGetValue(from.GetID (e), out c)? 
+					c : new EngineConfig (e);
+			}
 		}
 
 		public void Init(IList<EngineWrapper> engines)
@@ -211,23 +223,11 @@ namespace ThrottleControlledAvionics
 						single[e.part.flightID] = new EngineConfig(e);
 				}
 				else if(e.Group > 0) groups[e.Group] = c;
-				else
-				{
-					c.Update(e);
-					single[e.part.flightID] = c;
-				}
+				else { c.Update(e); single[e.part.flightID] = c; }
 			}
 			Changed = Groups.Count != groups.Count || Single.Count != single.Count;
 			Groups = groups; Single = single;
 			if(Changed) Apply(engines);
-		}
-
-		public EngineConfig GetConfig(EngineWrapper e)
-		{
-			EngineConfig c;
-			if(e.Group > 0) { if(!Groups.TryGetValue(e.Group, out c)) return null; }
-			else if(!Single.TryGetValue(e.part.flightID, out c)) return null;
-			return c;
 		}
 
 		public void Apply(IList<EngineWrapper> engines)
@@ -241,11 +241,19 @@ namespace ThrottleControlledAvionics
 			Changed = false;
 		}
 
+		public EngineConfig GetConfig(EngineWrapper e)
+		{
+			EngineConfig c;
+			if(e.Group > 0) { if(!Groups.TryGetValue(e.Group, out c)) return null; }
+			else if(!Single.TryGetValue(e.part.flightID, out c)) return null;
+			return c;
+		}
+
 		public bool Usable(bool on_planet)
 		{
 			if(Default) return true;
 			if(on_planet) return OnPlanet == 0 || OnPlanet == 2;
-			else return OnPlanet == 1 || OnPlanet == 2;
+			return OnPlanet == 1 || OnPlanet == 2;
 		}
 
 		void StageControl()
@@ -253,8 +261,8 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(15)))
 			{ if(Stage >= 0) Stage--; }
 			GUILayout.Label(new GUIContent(Stage < 0? "Off" : Stage.ToString(), 
-			                              "Automatically activate at stage"), 
-			                GUILayout.Width(20));
+				"Automatically activate at stage"), 
+				GUILayout.Width(20));
 			if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(15)))
 				Stage++;
 		}
@@ -262,8 +270,8 @@ namespace ThrottleControlledAvionics
 		void OnPlanetControl()
 		{
 			if(GUILayout.Button(new GUIContent(OnPlanetStates[OnPlanet],
-			                                  "Should only be active"), 
-			                    Styles.normal_button, GUILayout.Width(80)))
+				"Should only be active"), 
+				Styles.normal_button, GUILayout.Width(80)))
 				OnPlanet = (OnPlanet+1)%3;
 		}
 
@@ -331,6 +339,26 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	public interface IEngineID { uint GetID(EngineWrapper e); }
+
+	public class EngineID : IEngineID
+	{ public uint GetID(EngineWrapper e) { return e.part.flightID; } }
+
+	public class ConstructEngineID : IEngineID
+	{
+		public uint GetID(EngineWrapper e)
+		{
+			var q   = new CenterOfThrustQuery();
+			e.engine.OnCenterOfThrustQuery(q);
+			var rT  = e.part.localRoot.transform;
+			var to  = rT.InverseTransformPoint(q.pos);
+			var t   = rT.InverseTransformDirection(q.dir);
+			var ids = string.Format("{0} {1:F2} {2:F2} {3:F2} {4:F2} {5:F2} {6:F2}",
+				e.part.partInfo.name, to.x, to.y, to.z, t.x, t.y, t.z);
+			return (uint)ids.GetHashCode();
+		}
+	}
+
 	public class EnginesProfileDB : ConfigNodeObject
 	{
 		new public const string NODE_NAME = "ENGPROFILES";
@@ -343,7 +371,7 @@ namespace ThrottleControlledAvionics
 
 		Vector2 enginesScroll, manualScroll;
 
-		public override void Load (ConfigNode node)
+		public override void Load(ConfigNode node)
 		{
 			base.Load(node);
 			DB.Clear();
@@ -363,7 +391,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public override void Save (ConfigNode node)
+		public override void Save(ConfigNode node)
 		{
 			foreach(var p in DB) 
 				p.Save(node.AddNode(EnginesProfile.NODE_NAME));
@@ -384,6 +412,13 @@ namespace ThrottleControlledAvionics
 
 		public void CopyActive()
 		{ if(Active != null) DB.Add(new EnginesProfile(Active)); }
+
+		public void ConvertIDs<From, To>(IList<EngineWrapper> engines)
+			where From : IEngineID, new() where To : IEngineID, new()
+		{
+			for(int i = 0; i < DB.Count; i++)
+				DB[i].ConvertIDs<From, To>(engines);
+		}
 
 		void Activate(EnginesProfile p)
 		{
@@ -418,7 +453,7 @@ namespace ThrottleControlledAvionics
 			foreach(var p in DB)
 			{
 				if(p == Active || p == Default || 
-				   !p.Usable(on_planet)) continue;
+					!p.Usable(on_planet)) continue;
 				Activate(p);
 				found = true;
 				break;

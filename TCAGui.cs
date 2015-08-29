@@ -185,18 +185,18 @@ namespace ThrottleControlledAvionics
 			if(TCAScenario.NamedConfigs.ContainsKey(config_name))
 			{
 				if(GUILayout.Button("Overwrite", Styles.red_button, GUILayout.Width(70)))
-					TCAScenario.SaveNamedConfig(config_name, CFG, true);
+					TCAScenario.SaveNamedConfig(config_name, CFG, VSL.Engines, true);
 			}
 			else if(GUILayout.Button("Add", Styles.green_button, GUILayout.Width(50)) && 
 			        config_name != string.Empty) 
 			{
-				TCAScenario.SaveNamedConfig(config_name, CFG);
+				TCAScenario.SaveNamedConfig(config_name, CFG, VSL.Engines);
 				updateConfigs();
 				namedConfigsListBox.SelectItem(TCAScenario.NamedConfigs.IndexOfKey(config_name));
 			}
 			SelectConfig();
 			if(GUILayout.Button("Load", Styles.yellow_button, GUILayout.Width(50)) && selected_config != null) 
-				CFG.CopyFrom(selected_config);
+				CFG.CopyFromNamed(selected_config, VSL.Engines);
 			if(GUILayout.Button("Delete", Styles.red_button, GUILayout.Width(50)) && selected_config != null)
 			{ 
 				TCAScenario.NamedConfigs.Remove(selected_config.Name);
