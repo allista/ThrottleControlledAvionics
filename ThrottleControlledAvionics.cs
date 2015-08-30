@@ -6,17 +6,12 @@
 using System;
 using System.Linq;
 using UnityEngine;
-using KSP.IO;
 
 namespace ThrottleControlledAvionics
 {
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
-	public partial class ThrottleControlledAvionics : MonoBehaviour
+	public partial class ThrottleControlledAvionics : TCAGuiBase<ThrottleControlledAvionics>
 	{
-		static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<ThrottleControlledAvionics>();
-		static TCAGlobals GLB { get { return TCAScenario.Globals; } }
-		static Vessel ActiveVessel { get { return FlightGlobals.fetch != null? FlightGlobals.fetch.activeVessel : null; } }
-
 		static Vessel vessel;
 		static Part part;
 		static ModuleTCA TCA;
@@ -25,32 +20,28 @@ namespace ThrottleControlledAvionics
 		static ActionDamper UpDamper = new ActionDamper(0.1);
 		static ActionDamper DownDamper = new ActionDamper(0.1);
 
-		public static void LoadConfig()
+		protected static new void LoadConfig()
 		{
-			GUI_CFG.load();
-			ControlsPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {ControlsPos}), ControlsPos);
-			HelpPos = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpPos}), HelpPos);
+			TCAGuiBase<ThrottleControlledAvionics>.LoadConfig();
+			HelpWindow = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpWindow}), HelpWindow);
 			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
 			UpDamper.Period = GLB.KeyRepeatTime;
 			DownDamper.Period = GLB.KeyRepeatTime;
 			updateConfigs();
 		}
 
-		public void SaveConfig(ConfigNode node = null)
+		protected static new void SaveConfig(ConfigNode node)
 		{
-			GUI_CFG.SetValue(Utils.PropertyName(new {ControlsPos}), ControlsPos);
-			GUI_CFG.SetValue(Utils.PropertyName(new {HelpPos}), HelpPos);
+			GUI_CFG.SetValue(Utils.PropertyName(new {HelpWindow}), HelpWindow);
 			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);
-			GUI_CFG.save();
+			TCAGuiBase<ThrottleControlledAvionics>.SaveConfig(node);
 		}
 
-		public void Awake()
+		public override void Awake ()
 		{
-			LoadConfig();
+			base.Awake();
 			GameEvents.onGameStateSave.Add(SaveConfig);
 			GameEvents.onVesselChange.Add(onVesselChange);
-			GameEvents.onHideUI.Add(onHideUI);
-			GameEvents.onShowUI.Add(onShowUI);
 			WayPointMarker = GameDatabase.Instance.GetTexture(WPM_ICON, false);
 			PathNodeMarker = GameDatabase.Instance.GetTexture(PN_ICON, false);
 			RenderingManager.AddToPostDrawQueue(1, MapOverlay);
@@ -60,15 +51,13 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
-		public void OnDestroy() 
-		{ 
+		public override void OnDestroy ()
+		{
+			base.OnDestroy();
 			TCAToolbarManager.AttachTCA(null);
 			GameEvents.onGameStateSave.Remove(SaveConfig);
 			GameEvents.onVesselChange.Remove(onVesselChange);
-			GameEvents.onHideUI.Remove(onHideUI);
-			GameEvents.onShowUI.Remove(onShowUI);
 			RenderingManager.RemoveFromPostDrawQueue(1, MapOverlay);
-			SaveConfig();
 			#if DEBUG
 			ModuleTCA.prof.TreeReport();
 			#endif

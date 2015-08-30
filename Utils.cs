@@ -105,7 +105,9 @@ namespace ThrottleControlledAvionics
 		public static bool PartIsPurchased(string name)
 		{
 			var info = PartLoader.getPartInfoByName(name);
-			if(info == null) return false;
+			if(info == null ||
+				HighLogic.CurrentGame == null ||
+				ResearchAndDevelopment.Instance == null) return false;
 			if(HighLogic.CurrentGame.Mode != Game.Modes.CAREER) return true;
 			var tech = ResearchAndDevelopment.Instance.GetTechState(info.TechRequired);
 			return tech != null && tech.state == RDTech.State.Available && tech.partsPurchased.Contains(info);

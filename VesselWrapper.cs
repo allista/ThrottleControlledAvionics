@@ -128,7 +128,8 @@ namespace ThrottleControlledAvionics
 		public VesselWrapper(Vessel vsl) 
 		{
 			vessel = vsl; 
-			UpdateEngines();
+			if(CFG == null) 
+				CFG = TCAScenario.GetConfig(this);
 		}
 
 		public void Init() 
@@ -151,7 +152,7 @@ namespace ThrottleControlledAvionics
 		public void UpdateEngines()
 		{
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
-			Engines.Clear(); 
+			Engines.Clear();
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
 				{	
@@ -168,7 +169,6 @@ namespace ThrottleControlledAvionics
 					var rcs = module as ModuleRCS;
 					if(rcs != null) { RCS.Add(new RCSWrapper(rcs)); continue; }
 				}
-			if(CFG == null) CFG = TCAScenario.GetConfig(this);
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines);
 			else CFG.EnginesProfiles.Active.Update(Engines);
 		}

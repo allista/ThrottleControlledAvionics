@@ -183,16 +183,10 @@ Notes:
 			VesselID = vid;
 		}
 
-		public void CopyFromNamed(NamedConfig named, IList<EngineWrapper> engines)
-		{
-			CopyFrom(named);
-			EnginesProfiles.ConvertIDs<ConstructEngineID, EngineID>(engines);
-		}
-
-		public static VesselConfig FromNamedConfig(NamedConfig config, IList<EngineWrapper> engines)
+		public static VesselConfig FromVesselConfig(VesselConfig other)
 		{
 			var c = new VesselConfig();
-			c.CopyFromNamed(config, engines);
+			c.CopyFrom(other);
 			return c;
 		}
 
@@ -205,17 +199,15 @@ Notes:
 		}
 	}
 
-
 	public class NamedConfig : VesselConfig
 	{ 
 		[Persistent] public string Name = "Config"; 
 
-		public static NamedConfig FromVesselConfig(string name, VesselConfig other, IList<EngineWrapper> engines)
+		public static NamedConfig FromVesselConfig(string name, VesselConfig other)
 		{
 			var nc = new NamedConfig();
 			nc.CopyFrom(other);
 			nc.Name = name;
-			nc.EnginesProfiles.ConvertIDs<EngineID, ConstructEngineID>(engines);
 			return nc;
 		}
 	}

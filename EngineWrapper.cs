@@ -104,6 +104,26 @@ namespace ThrottleControlledAvionics
 		{ get { return rcs.rcsEnabled && rcs.thrusterTransforms.Count > 0 && rcs.thrusterTransforms.Count == rcs.thrustForces.Count; } }
 	}
 
+	public class EngineID
+	{
+		uint id;
+
+		public EngineID(EngineWrapper e)
+		{
+			if(!e.Valid) return;
+			var q   = new CenterOfThrustQuery();
+			e.engine.OnCenterOfThrustQuery(q);
+			var rT  = e.part.localRoot == null? e.part.transform : e.part.localRoot.transform;
+			var to  = rT.InverseTransformPoint(q.pos);
+			var t   = rT.InverseTransformDirection(q.dir);
+			var ids = string.Format("{0} {1:F1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1}",
+				e.part.partInfo.name, to.x, to.y, to.z, t.x, t.y, t.z);
+			id = (uint)ids.GetHashCode();
+		}
+
+		public static implicit operator uint(EngineID eid) { return eid.id; }
+	}
+
 	public class EngineWrapper : ThrusterWrapper
 	{
 		public static readonly PI_Controller ThrustPI = new PI_Controller();
@@ -112,6 +132,9 @@ namespace ThrottleControlledAvionics
 		public readonly ModuleEngines engine;
 		public readonly TCAEngineInfo info;
 		public string name { get; private set; }
+
+		public uint ID { get; private set; }
+		public uint flightID { get { return part.flightID; } }
 
 		public float   throttle;
 		public float   VSF;   //vertical speed factor
@@ -129,6 +152,7 @@ namespace ThrottleControlledAvionics
 			if(engine.engineID.Length > 0 && engine.engineID != "Engine") 
 				name += " (" + engine.engineID + ")";
 			this.engine = engine;
+			ID = new EngineID(this);
 		}
 
 		#region methods

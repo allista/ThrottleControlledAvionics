@@ -74,10 +74,19 @@ namespace ThrottleControlledAvionics
 			{
 				if(NamedConfigs.ContainsKey(VSL.vessel.vesselName))
 					Configs.Add(VSL.vessel.id, 
-						VesselConfig.FromNamedConfig(NamedConfigs[VSL.vessel.vesselName], VSL.Engines));
+						VesselConfig.FromVesselConfig(NamedConfigs[VSL.vessel.vesselName]));
 				else Configs.Add(VSL.vessel.id, new VesselConfig(VSL.vessel));
 			}
 			return Configs[VSL.vessel.id];
+		}
+
+		public static NamedConfig NewNamedConfig(string name)
+		{ 
+			if(NamedConfigs.ContainsKey(name)) return null;
+			var c = new NamedConfig();
+			c.Name = name;
+			NamedConfigs[name] = c;
+			return c;
 		}
 
 		public static NamedConfig GetConfig(string name)
@@ -86,11 +95,11 @@ namespace ThrottleControlledAvionics
 		public static NamedConfig GetConfig(int index)
 		{ return NamedConfigs.Count > index ? NamedConfigs.Values[index] : null; }
 
-		public static bool SaveNamedConfig(string name, VesselConfig config, IList<EngineWrapper> engines, bool overwrite = false)
+		public static bool SaveNamedConfig(string name, VesselConfig config, bool overwrite = false)
 		{ 
 			if(name == string.Empty || //do not allow empty name
 				NamedConfigs.ContainsKey(name) && !overwrite) return false;
-			NamedConfigs[name] = NamedConfig.FromVesselConfig(name, config, engines);
+			NamedConfigs[name] = NamedConfig.FromVesselConfig(name, config);
 			return true;
 		}
 		#endregion

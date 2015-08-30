@@ -101,6 +101,7 @@
     <Compile Include="Modules\VTOLAssist.cs" />
     <Compile Include="EngineConfig.cs" />
     <Compile Include="TCAScenario.cs" />
+    <Compile Include="EnginesProfileEditor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

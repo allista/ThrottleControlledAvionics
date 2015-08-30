@@ -14,15 +14,94 @@ using System.Reflection;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using KSP.IO;
 
 namespace ThrottleControlledAvionics
 {
+	public class TCAGuiBase<T> : MonoBehaviour where T : TCAGuiBase<T>
+	{
+		protected static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<T>();
+		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+
+		protected static int  width = 550, height = 100;
+		protected static Rect MainWindow = new Rect();
+
+		static protected bool showHUD = true;
+
+		static protected string TCATitle;
+
+		void onShowUI() { showHUD = true; }
+		void onHideUI() { showHUD = false; }
+
+		public virtual void Awake()
+		{
+			LoadConfig();
+			GameEvents.onHideUI.Add(onHideUI);
+			GameEvents.onShowUI.Add(onShowUI);
+			TCATitle = "Throttle Controlled Avionics - " + 
+				Assembly.GetCallingAssembly().GetName().Version;
+		}
+
+		public virtual void OnDestroy()
+		{
+			SaveConfig();
+			GameEvents.onHideUI.Remove(onHideUI);
+			GameEvents.onShowUI.Remove(onShowUI);
+		}
+
+		protected static void LoadConfig()
+		{
+			GUI_CFG.load();
+			MainWindow = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {MainWindow}), 
+				new Rect(100, 50, width, height));
+		}
+
+		protected static void SaveConfig(ConfigNode node = null)
+		{
+			GUI_CFG.SetValue(Utils.PropertyName(new {MainWindow}), MainWindow);
+			GUI_CFG.save();
+		}
+
+		#region Tooltips
+		//adapted from blizzy's Toolbar
+		protected static string tooltip = "";
+
+		protected static void GetToolTip()
+		{
+			if(Event.current.type == EventType.repaint)
+				tooltip = GUI.tooltip.Trim();
+		}
+
+		protected static void DrawToolTip(Rect window) 
+		{
+			if(tooltip.Length == 0) return;
+			var mousePos = Utils.GetMousePosition(window);
+			var size = Styles.white.CalcSize(new GUIContent(tooltip));
+			var rect = new Rect(mousePos.x, mousePos.y + 20, size.x, size.y);
+			Rect orig = rect;
+			rect = rect.clampToWindow(window);
+			//clamping moved the tooltip up -> reposition above mouse cursor
+			if(rect.y < orig.y) 
+			{
+				rect.y = mousePos.y - size.y - 5;
+				rect = rect.clampToScreen();
+			}
+			//clamping moved the tooltip left -> reposition lefto of the mouse cursor
+			if(rect.x < orig.x)
+			{
+				rect.x = mousePos.x - size.x - 5;
+				rect = rect.clampToScreen();
+			}
+			GUI.Label(rect, tooltip, Styles.white);
+		}
+		#endregion
+	}
+
 
 	public partial class ThrottleControlledAvionics
 	{
 		#region GUI Parameters
 		static bool showHelp;
-		static bool showHUD = true;
 		//named configs
 		static NamedConfig selected_config;
 		static string config_name = string.Empty;
@@ -30,8 +109,7 @@ namespace ThrottleControlledAvionics
 		//dimensions
 		public const int controlsWidth = 550, controlsHeight = 100;
 		public const int helpWidth = 550, helpHeight = 500;
-		static Rect ControlsPos = new Rect(50, 100, controlsWidth, controlsHeight);
-		static Rect HelpPos     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
+		static Rect HelpWindow     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
 		static Vector2 waypointsScroll, helpScroll;
 		//keybindings
 		public static KeyCode TCA_Key = KeyCode.Y;
@@ -44,9 +122,6 @@ namespace ThrottleControlledAvionics
 		const float  IconSize = 16;
 		static Texture2D WayPointMarker, PathNodeMarker;
 		#endregion
-
-		void onShowUI() { showHUD = true; }
-		void onHideUI() { showHUD = false; }
 
 		#region Configs Selector
 		static void updateConfigs()
@@ -62,7 +137,7 @@ namespace ThrottleControlledAvionics
 			if(TCAScenario.NamedConfigs.Count < 2) return;
 			namedConfigsListBox.styleListBox  = Styles.list_box;
 			namedConfigsListBox.styleListItem = Styles.list_item;
-			namedConfigsListBox.windowRect    = ControlsPos;
+			namedConfigsListBox.windowRect    = MainWindow;
 			namedConfigsListBox.DrawBlockingSelector(); 
 		}
 
@@ -93,7 +168,7 @@ namespace ThrottleControlledAvionics
 		static void TCA_Window(int windowID)
 		{
 			//help button
-			if(GUI.Button(new Rect(ControlsPos.width - 23f, 2f, 20f, 18f), 
+			if(GUI.Button(new Rect(MainWindow.width - 23f, 2f, 20f, 18f), 
 			              new GUIContent("?", "Help"))) showHelp = !showHelp;
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
@@ -124,14 +199,14 @@ namespace ThrottleControlledAvionics
 			ControllerProperties();
 			AutopilotControls();
 			WaypointList();
-			ManualEnginesControl();
+			EnginesControl();
 			#if DEBUG
 			EnginesInfo();
 			#endif
 			SelectConfig_end();
 			GUILayout.EndVertical();
 			GetToolTip();
-			DrawToolTip(ControlsPos);
+			DrawToolTip(MainWindow);
 			GUI.DragWindow();
 		}
 
@@ -185,18 +260,18 @@ namespace ThrottleControlledAvionics
 			if(TCAScenario.NamedConfigs.ContainsKey(config_name))
 			{
 				if(GUILayout.Button("Overwrite", Styles.red_button, GUILayout.Width(70)))
-					TCAScenario.SaveNamedConfig(config_name, CFG, VSL.Engines, true);
+					TCAScenario.SaveNamedConfig(config_name, CFG, true);
 			}
 			else if(GUILayout.Button("Add", Styles.green_button, GUILayout.Width(50)) && 
 			        config_name != string.Empty) 
 			{
-				TCAScenario.SaveNamedConfig(config_name, CFG, VSL.Engines);
+				TCAScenario.SaveNamedConfig(config_name, CFG);
 				updateConfigs();
 				namedConfigsListBox.SelectItem(TCAScenario.NamedConfigs.IndexOfKey(config_name));
 			}
 			SelectConfig();
 			if(GUILayout.Button("Load", Styles.yellow_button, GUILayout.Width(50)) && selected_config != null) 
-				CFG.CopyFromNamed(selected_config, VSL.Engines);
+				CFG.CopyFrom(selected_config);
 			if(GUILayout.Button("Delete", Styles.red_button, GUILayout.Width(50)) && selected_config != null)
 			{ 
 				TCAScenario.NamedConfigs.Remove(selected_config.Name);
@@ -414,7 +489,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 		}
 
-		static void ManualEnginesControl()
+		static void EnginesControl()
 		{
 			GUILayout.BeginVertical();
 			if(CFG.EnginesProfiles.Active.Single.Count > 0)
@@ -553,40 +628,6 @@ namespace ThrottleControlledAvionics
 		}
 		#endregion
 
-		#region Tooltips
-		//from blizzy's Toolbar
-		static string tooltip = "";
-
-		static void GetToolTip()
-		{
-			if(Event.current.type == EventType.repaint)
-				tooltip = GUI.tooltip.Trim();
-		}
-
-		static void DrawToolTip(Rect window) 
-		{
-			if(tooltip.Length == 0) return;
-			var mousePos = Utils.GetMousePosition(window);
-			var size = Styles.white.CalcSize(new GUIContent(tooltip));
-			var rect = new Rect(mousePos.x, mousePos.y + 20, size.x, size.y);
-			Rect orig = rect;
-			rect = rect.clampToWindow(window);
-			//clamping moved the tooltip up -> reposition above mouse cursor
-			if(rect.y < orig.y) 
-			{
-				rect.y = mousePos.y - size.y - 5;
-				rect = rect.clampToScreen();
-			}
-			//clamping moved the tooltip left -> reposition lefto of the mouse cursor
-			if(rect.x < orig.x)
-			{
-				rect.x = mousePos.x - size.x - 5;
-				rect = rect.clampToScreen();
-			}
-			GUI.Label(rect, tooltip, Styles.white);
-		}
-		#endregion
-
 		#if DEBUG
 		static Vector2 eInfoScroll;
 		static void EnginesInfo()
@@ -632,25 +673,24 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCA == null || !TCA.Controllable || !CFG.GUIVisible || !showHUD) return;
 			Styles.Init();
-			ControlsPos = 
+			MainWindow = 
 				GUILayout.Window(TCA.GetInstanceID(), 
-				                 ControlsPos, 
+				                 MainWindow, 
 				                 TCA_Window, 
-				                 "Throttle Controlled Avionics - " + 
-				                 Assembly.GetCallingAssembly().GetName().Version,
+								 TCATitle,
 				                 GUILayout.Width(controlsWidth),
 				                 GUILayout.Height(controlsHeight));
-			ControlsPos.clampToScreen();
+			MainWindow.clampToScreen();
 			if(showHelp) 
 			{
-				HelpPos = 
+				HelpWindow = 
 					GUILayout.Window(TCA.GetInstanceID()+1, 
-					                 HelpPos, 
+					                 HelpWindow, 
 					                 windowHelp, 
 					                 "Instructions",
 					                 GUILayout.Width(helpWidth),
 					                 GUILayout.Height(helpHeight));
-				HelpPos.clampToScreen();
+				HelpWindow.clampToScreen();
 			}
 		}
 	}

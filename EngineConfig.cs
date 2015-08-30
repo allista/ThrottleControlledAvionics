@@ -162,7 +162,6 @@ namespace ThrottleControlledAvionics
 		public bool Changed, Edit;
 
 		public EnginesProfile() {}
-		public EnginesProfile(string name, IList<EngineWrapper> engines) { Name = name; Init(engines); }
 		public EnginesProfile(EnginesProfile p)
 		{
 			Name = p.Name+" (Copy)";
@@ -172,21 +171,8 @@ namespace ThrottleControlledAvionics
 			foreach(var c in p.Single.DB) 
 				Single[c.Key] = new EngineConfig(c.Value);
 		}
-
-		public void ConvertIDs<From, To>(IList<EngineWrapper> engines)
-			where From : IEngineID, new() where To : IEngineID, new()
-		{
-			var from = new From();
-			var to = new To();
-			var single = new EngineConfigUintDB();
-			foreach(var e in engines)
-			{
-				if(e.Group > 0) continue;
-				EngineConfig c;
-				single[to.GetID(e)] = Single.TryGetValue(from.GetID (e), out c)? 
-					c : new EngineConfig (e);
-			}
-		}
+		public EnginesProfile(string name, IList<EngineWrapper> engines)
+		{ Name = name; Init(engines); }
 
 		public void Init(IList<EngineWrapper> engines)
 		{
@@ -199,8 +185,8 @@ namespace ThrottleControlledAvionics
 					if(!Groups.ContainsKey(e.Group))
 						Groups[e.Group] = new EngineConfig(e);
 				}
-				else if(!Single.ContainsKey(e.part.flightID))
-					Single[e.part.flightID] = new EngineConfig(e);
+				else if(!Single.ContainsKey(e.ID))
+					Single[e.ID] = new EngineConfig(e);
 			}
 		}
 
@@ -219,11 +205,11 @@ namespace ThrottleControlledAvionics
 						if(!groups.ContainsKey(e.Group))
 							groups[e.Group] = new EngineConfig(e);
 					}
-					else if(!single.ContainsKey(e.part.flightID))
-						single[e.part.flightID] = new EngineConfig(e);
+					else if(!single.ContainsKey(e.ID))
+						single[e.ID] = new EngineConfig(e);
 				}
 				else if(e.Group > 0) groups[e.Group] = c;
-				else { c.Update(e); single[e.part.flightID] = c; }
+				else { c.Update(e); single[e.ID] = c; }
 			}
 			Changed = Groups.Count != groups.Count || Single.Count != single.Count;
 			Groups = groups; Single = single;
@@ -243,9 +229,9 @@ namespace ThrottleControlledAvionics
 
 		public EngineConfig GetConfig(EngineWrapper e)
 		{
-			EngineConfig c;
+			EngineConfig c; 
 			if(e.Group > 0) { if(!Groups.TryGetValue(e.Group, out c)) return null; }
-			else if(!Single.TryGetValue(e.part.flightID, out c)) return null;
+			else if(!Single.TryGetValue(e.ID, out c)) return null;
 			return c;
 		}
 
@@ -339,26 +325,6 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public interface IEngineID { uint GetID(EngineWrapper e); }
-
-	public class EngineID : IEngineID
-	{ public uint GetID(EngineWrapper e) { return e.part.flightID; } }
-
-	public class ConstructEngineID : IEngineID
-	{
-		public uint GetID(EngineWrapper e)
-		{
-			var q   = new CenterOfThrustQuery();
-			e.engine.OnCenterOfThrustQuery(q);
-			var rT  = e.part.localRoot.transform;
-			var to  = rT.InverseTransformPoint(q.pos);
-			var t   = rT.InverseTransformDirection(q.dir);
-			var ids = string.Format("{0} {1:F2} {2:F2} {3:F2} {4:F2} {5:F2} {6:F2}",
-				e.part.partInfo.name, to.x, to.y, to.z, t.x, t.y, t.z);
-			return (uint)ids.GetHashCode();
-		}
-	}
-
 	public class EnginesProfileDB : ConfigNodeObject
 	{
 		new public const string NODE_NAME = "ENGPROFILES";
@@ -412,13 +378,6 @@ namespace ThrottleControlledAvionics
 
 		public void CopyActive()
 		{ if(Active != null) DB.Add(new EnginesProfile(Active)); }
-
-		public void ConvertIDs<From, To>(IList<EngineWrapper> engines)
-			where From : IEngineID, new() where To : IEngineID, new()
-		{
-			for(int i = 0; i < DB.Count; i++)
-				DB[i].ConvertIDs<From, To>(engines);
-		}
 
 		void Activate(EnginesProfile p)
 		{
