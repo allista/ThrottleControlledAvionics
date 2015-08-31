@@ -12,15 +12,14 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using KSP.IO;
 
 namespace ThrottleControlledAvionics
 {
 	[KSPAddon(KSPAddon.Startup.EditorAny, false)]
-	public class EnginesProfileEditor : TCAGuiBase<EnginesProfileEditor>
+	public class EnginesProfileEditor : AddonWindowBase<EnginesProfileEditor>
 	{
-		NamedConfig CFG;
-		List<EngineWrapper> Engines = new List<EngineWrapper>();
+		static public NamedConfig CFG { get; private set; }
+		static List<EngineWrapper> Engines = new List<EngineWrapper>();
 
 		public override void Awake()
 		{
@@ -33,13 +32,13 @@ namespace ThrottleControlledAvionics
 		{
 			GameEvents.onEditorShipModified.Remove(OnShipModified);
 			GameEvents.onEditorLoad.Remove(OnShipLoad);
-			base.OnDestroy ();
+			base.OnDestroy();
 		}
 
 		void OnShipLoad(ShipConstruct ship, CraftBrowser.LoadType load_type)
 		{
 			if(load_type == CraftBrowser.LoadType.Merge) return;
-			UpdateEngines(ship);
+			if(!UpdateEngines(ship)) return;
 			CFG = TCAScenario.GetConfig(ship.shipName);
 			if(CFG != null) 
 				CFG.EnginesProfiles.Active.Apply(Engines);
@@ -51,20 +50,29 @@ namespace ThrottleControlledAvionics
 			CFG.EnginesProfiles.Active.Update(Engines);
 		}
 
-		void UpdateEngines(ShipConstruct ship)
+		static bool UpdateEngines(ShipConstruct ship)
 		{
 			Engines.Clear();
+			if(!ModuleTCA.HasTCA) 
+			{ 
+				TCAToolbarManager.ShowButton(false);
+				CFG = null; 
+				return false; 
+			}
+			TCAToolbarManager.ShowButton();
 			foreach(Part p in ship.Parts)
 				foreach(var module in p.Modules)
 				{	
 					var engine = module as ModuleEngines;
 					if(engine != null) Engines.Add(new EngineWrapper(engine)); 
 				}
+			return Engines.Count > 0;
 		}
 
 		void OnShipModified(ShipConstruct ship)
 		{
 			UpdateEngines(ship);
+			if(!UpdateEngines(ship)) return;
 			CFG.EnginesProfiles.Active.Update(Engines);
 			if(ship.shipName != CFG.Name)
 			{
@@ -74,22 +82,20 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void ProfileManagerWindow(int windowID)
+		protected override void DrawMainWindow(int windowID)
 		{
 			CFG.EnginesProfiles.Draw(height);
-			GetToolTip();
-			DrawToolTip(MainWindow);
-			GUI.DragWindow();
+			base.DrawMainWindow(windowID);
 		}
 
 		public void OnGUI()
 		{
-			if(!showHUD) return;
+			if(Engines.Count == 0 || !showHUD) return;
 			Styles.Init();
 			MainWindow = 
 				GUILayout.Window(GetInstanceID(), 
 					MainWindow, 
-					ProfileManagerWindow, 
+					DrawMainWindow, 
 					TCATitle,
 					GUILayout.Width(width),
 					GUILayout.Height(height));

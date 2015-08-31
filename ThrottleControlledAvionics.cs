@@ -10,7 +10,7 @@ using UnityEngine;
 namespace ThrottleControlledAvionics
 {
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
-	public partial class ThrottleControlledAvionics : TCAGuiBase<ThrottleControlledAvionics>
+	public partial class ThrottleControlledAvionics : AddonWindowBase<ThrottleControlledAvionics>
 	{
 		static Vessel vessel;
 		static Part part;
@@ -20,9 +20,9 @@ namespace ThrottleControlledAvionics
 		static ActionDamper UpDamper = new ActionDamper(0.1);
 		static ActionDamper DownDamper = new ActionDamper(0.1);
 
-		protected static new void LoadConfig()
+		public override void LoadConfig()
 		{
-			TCAGuiBase<ThrottleControlledAvionics>.LoadConfig();
+			base.LoadConfig ();
 			HelpWindow = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpWindow}), HelpWindow);
 			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
 			UpDamper.Period = GLB.KeyRepeatTime;
@@ -30,14 +30,14 @@ namespace ThrottleControlledAvionics
 			updateConfigs();
 		}
 
-		protected static new void SaveConfig(ConfigNode node)
+		public override void SaveConfig(ConfigNode node = null)
 		{
 			GUI_CFG.SetValue(Utils.PropertyName(new {HelpWindow}), HelpWindow);
 			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);
-			TCAGuiBase<ThrottleControlledAvionics>.SaveConfig(node);
+			base.SaveConfig(node);
 		}
 
-		public override void Awake ()
+		public override void Awake()
 		{
 			base.Awake();
 			GameEvents.onGameStateSave.Add(SaveConfig);
@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 			TCA = part.Modules.OfType<ModuleTCA>().FirstOrDefault();
 			if(TCA == null || !TCA.Available) { TCA = null; return false; }
 			TCAToolbarManager.AttachTCA(TCA);
-			LoadConfig();
+			updateConfigs();
 			UpDamper.Reset();
 			DownDamper.Reset();
 			return true;

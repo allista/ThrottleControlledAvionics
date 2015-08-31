@@ -23,7 +23,7 @@ namespace ThrottleControlledAvionics
 		internal static Profiler prof = new Profiler();
 		#endif
 
-		const string TCA_PART = "ThrottleControlledAvionics";
+		public const string TCA_PART = "ThrottleControlledAvionics";
 
 		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 		public VesselWrapper VSL { get; private set; }
@@ -52,6 +52,7 @@ namespace ThrottleControlledAvionics
 		public float TorqueError { get { return eng == null? 0f : eng.TorqueError; } }
 		public bool  Available { get { return enabled && VSL != null; } }
 		public bool  Controllable { get { return Available && vessel.IsControllable; } }
+		public static bool HasTCA { get { return !GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCA_PART); } }
 		#endregion
 
 		#region Initialization
@@ -60,10 +61,7 @@ namespace ThrottleControlledAvionics
 		#endif
 
 		public override string GetInfo()
-		{
-			return (!GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCA_PART))?
-				"Software Installed" : "Not Available";
-		}
+		{ return HasTCA? "Software Installed" : "Not Available"; }
 
 		public override void OnAwake()
 		{

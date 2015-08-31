@@ -18,23 +18,25 @@ using KSP.IO;
 
 namespace ThrottleControlledAvionics
 {
-	public class TCAGuiBase<T> : MonoBehaviour where T : TCAGuiBase<T>
+	abstract public class AddonWindowBase<T> : MonoBehaviour where T : AddonWindowBase<T>
 	{
+		protected static T instance;
 		protected static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<T>();
 		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 
 		protected static int  width = 550, height = 100;
 		protected static Rect MainWindow = new Rect();
-
 		static protected bool showHUD = true;
 
 		static protected string TCATitle;
+
 
 		void onShowUI() { showHUD = true; }
 		void onHideUI() { showHUD = false; }
 
 		public virtual void Awake()
 		{
+			instance = (T)this;
 			LoadConfig();
 			GameEvents.onHideUI.Add(onHideUI);
 			GameEvents.onShowUI.Add(onShowUI);
@@ -47,18 +49,28 @@ namespace ThrottleControlledAvionics
 			SaveConfig();
 			GameEvents.onHideUI.Remove(onHideUI);
 			GameEvents.onShowUI.Remove(onShowUI);
+			instance = null;
 		}
 
-		protected static void LoadConfig()
+		//settings
+		protected static string mangleName(string name) { return typeof(T).Name+"-"+name; }
+
+		protected static void SetConfigValue(string key, object value)
+		{ GUI_CFG.SetValue(mangleName(key), value); }
+
+		protected static V GetConfigValue<V>(string key, V _default)
+		{ return GUI_CFG.GetValue<V>(mangleName(key), _default); }
+
+		virtual public void LoadConfig()
 		{
 			GUI_CFG.load();
-			MainWindow = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {MainWindow}), 
+			MainWindow = GetConfigValue<Rect>(Utils.PropertyName(new {MainWindow}), 
 				new Rect(100, 50, width, height));
 		}
 
-		protected static void SaveConfig(ConfigNode node = null)
+		virtual public void SaveConfig(ConfigNode node = null)
 		{
-			GUI_CFG.SetValue(Utils.PropertyName(new {MainWindow}), MainWindow);
+			SetConfigValue(Utils.PropertyName(new {MainWindow}), MainWindow);
 			GUI_CFG.save();
 		}
 
@@ -95,8 +107,18 @@ namespace ThrottleControlledAvionics
 			GUI.Label(rect, tooltip, Styles.white);
 		}
 		#endregion
-	}
 
+		/// <summary>
+		/// Draws the main window. Should be called last in child class overrides.
+		/// </summary>
+		/// <param name="windowID">Window ID</param>
+		protected virtual void DrawMainWindow(int windowID)
+		{
+			GetToolTip();
+			DrawToolTip(MainWindow);
+			GUI.DragWindow();
+		}
+	}
 
 	public partial class ThrottleControlledAvionics
 	{
@@ -165,7 +187,7 @@ namespace ThrottleControlledAvionics
 		}
 		#endregion
 
-		static void TCA_Window(int windowID)
+		protected override void DrawMainWindow(int windowID)
 		{
 			//help button
 			if(GUI.Button(new Rect(MainWindow.width - 23f, 2f, 20f, 18f), 
@@ -205,9 +227,7 @@ namespace ThrottleControlledAvionics
 			#endif
 			SelectConfig_end();
 			GUILayout.EndVertical();
-			GetToolTip();
-			DrawToolTip(MainWindow);
-			GUI.DragWindow();
+			base.DrawMainWindow(windowID);
 		}
 
 		static void StatusString()
@@ -590,9 +610,9 @@ namespace ThrottleControlledAvionics
 		{
 			//TODO: cache local center coordinates of the marker
 			var up = body.GetSurfaceNVector(lat, lon);
-			var height = Utils.TerrainAltitude(body, lat, lon);
-			if(height < body.Radius) height = body.Radius;
-			var center = body.position + height * up;
+			var h  = Utils.TerrainAltitude(body, lat, lon);
+			if(h < body.Radius) h = body.Radius;
+			var center = body.position + h * up;
 			if(IsOccluded(center, body)) return;
 
 			if(texture == null) texture = WayPointMarker;
@@ -676,7 +696,7 @@ namespace ThrottleControlledAvionics
 			MainWindow = 
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 MainWindow, 
-				                 TCA_Window, 
+								 DrawMainWindow, 
 								 TCATitle,
 				                 GUILayout.Width(controlsWidth),
 				                 GUILayout.Height(controlsHeight));

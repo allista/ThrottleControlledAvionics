@@ -26,13 +26,13 @@ namespace ThrottleControlledAvionics
 		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
 		const string ICON_NC  = "ThrottleControlledAvionics/Icons/icon_button_noCharge";
 		//buttons
-		const ApplicationLauncher.AppScenes SCENES = ApplicationLauncher.AppScenes.FLIGHT;
+		const ApplicationLauncher.AppScenes SCENES = ApplicationLauncher.AppScenes.FLIGHT|ApplicationLauncher.AppScenes.VAB|ApplicationLauncher.AppScenes.SPH;
 		static IButton TCAToolbarButton;
 		static ApplicationLauncherButton TCAButton;
 		static Texture textureOn;
 		static Texture textureOff;
 		static Texture textureNoCharge;
-		//TCA instance
+		//TCA isntance
 		static ModuleTCA TCA;
 
 		void Awake()
@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
 				TCAToolbarButton.TexturePath = ICON_OFF;
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
-				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT);
+				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT, GameScenes.EDITOR);
 				TCAToolbarButton.Visible     = false;
 				TCAToolbarButton.OnClick    += onToolbarToggle;
 			}
@@ -92,24 +92,46 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void onToolbarToggle(ClickEvent e) { if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible; }
-		void onAppLaunchToggleOn() { if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = true; }
-		void onAppLaunchToggleOff() { if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = false; }
+		void onToolbarToggle(ClickEvent e) 
+		{ 
+			if(TCA != null && TCA.Controllable) 
+				TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible; 
+			if(EnginesProfileEditor.CFG != null) 
+				EnginesProfileEditor.CFG.GUIVisible = !EnginesProfileEditor.CFG.GUIVisible; 
+		}
+
+		void onAppLaunchToggleOn() 
+		{ 
+			if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = true; 
+			if(EnginesProfileEditor.CFG != null) EnginesProfileEditor.CFG.GUIVisible = true;
+		}
+
+		void onAppLaunchToggleOff() 
+		{ 
+			if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = false; 
+			if(EnginesProfileEditor.CFG != null) EnginesProfileEditor.CFG.GUIVisible = false;
+		}
 
 		public static void AttachTCA(ModuleTCA tca)
 		{
 			TCA = tca;
-			if(TCA == null)
-			{
-				if(TCAButton != null) TCAButton.VisibleInScenes = ApplicationLauncher.AppScenes.NEVER;
-				if(TCAToolbarButton != null) TCAToolbarButton.Visible = false;
-			}
-			else
+			ShowButton(TCA != null);
+		}
+
+		public static void ShowButton(bool show = true)
+		{
+			if(show)
 			{
 				if(TCAButton != null) TCAButton.VisibleInScenes = SCENES;
 				if(TCAToolbarButton != null) TCAToolbarButton.Visible = true;
 			}
+			else
+			{
+				if(TCAButton != null) TCAButton.VisibleInScenes = ApplicationLauncher.AppScenes.NEVER;
+				if(TCAToolbarButton != null) TCAToolbarButton.Visible = false;
+			}
 		}
+
 
 		public static void UpdateToolbarButton()
 		{ 
