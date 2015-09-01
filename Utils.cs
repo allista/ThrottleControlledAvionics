@@ -105,9 +105,7 @@ namespace ThrottleControlledAvionics
 		public static bool PartIsPurchased(string name)
 		{
 			var info = PartLoader.getPartInfoByName(name);
-			if(info == null ||
-				HighLogic.CurrentGame == null ||
-				ResearchAndDevelopment.Instance == null) return false;
+			if(info == null || HighLogic.CurrentGame == null) return false;
 			if(HighLogic.CurrentGame.Mode != Game.Modes.CAREER) return true;
 			var tech = ResearchAndDevelopment.Instance.GetTechState(info.TechRequired);
 			return tech != null && tech.state == RDTech.State.Available && tech.partsPurchased.Contains(info);
@@ -191,6 +189,34 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			return null;
+		}
+		#endregion
+
+		#region ControlLock
+		//modified from Kerbal Alarm Clock mod
+		public static void LockEditor(string LockName, bool Lock=true)
+		{
+			if(Lock && InputLockManager.GetControlLock(LockName) != ControlTypes.EDITOR_LOCK)
+			{
+				#if DEBUG
+				Log("AddingLock: {0}", LockName);
+				#endif
+				InputLockManager.SetControlLock(ControlTypes.EDITOR_LOCK, LockName);
+				return;
+			}
+			if(!Lock && InputLockManager.GetControlLock(LockName) == ControlTypes.EDITOR_LOCK) 
+			{
+				#if DEBUG
+				Log("RemovingLock: {0}", LockName);
+				#endif
+				InputLockManager.RemoveControlLock(LockName);
+			}
+		}
+
+		public static void LockIfMouseOver(string LockName, Rect WindowRect, bool Lock=true)
+		{
+			Lock &= WindowRect.Contains(Event.current.mousePosition);
+			LockEditor(LockName, Lock);
 		}
 		#endregion
 	}
