@@ -96,20 +96,19 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(TCA != null && TCA.Controllable) 
 				TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible; 
-			if(EnginesProfileEditor.CFG != null) 
-				EnginesProfileEditor.CFG.GUIVisible = !EnginesProfileEditor.CFG.GUIVisible; 
+			EnginesProfileEditor.GUIVisible = !EnginesProfileEditor.GUIVisible; 
 		}
 
 		void onAppLaunchToggleOn() 
 		{ 
 			if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = true; 
-			if(EnginesProfileEditor.CFG != null) EnginesProfileEditor.CFG.GUIVisible = true;
+			EnginesProfileEditor.GUIVisible = true;
 		}
 
 		void onAppLaunchToggleOff() 
 		{ 
 			if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = false; 
-			if(EnginesProfileEditor.CFG != null) EnginesProfileEditor.CFG.GUIVisible = false;
+			EnginesProfileEditor.GUIVisible = false;
 		}
 
 		public static void AttachTCA(ModuleTCA tca)

@@ -18,27 +18,47 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.EditorAny, false)]
 	public class EnginesProfileEditor : AddonWindowBase<EnginesProfileEditor>
 	{
-		static public NamedConfig CFG { get; private set; }
-		static List<EngineWrapper> Engines = new List<EngineWrapper>();
+		const string LockName = "EnginesProfileEditor";
+		NamedConfig CFG;
+		List<EngineWrapper> Engines = new List<EngineWrapper>();
+
+		public static bool GUIVisible 
+		{ 
+			get { return instance != null && instance.CFG != null && instance.CFG.GUIVisible; } 
+			set { if(instance != null && instance.CFG != null) instance.CFG.GUIVisible = value; }
+		}
 
 		public override void Awake()
 		{
 			base.Awake();
+			height = 400;
 			GameEvents.onEditorShipModified.Add(OnShipModified);
 			GameEvents.onEditorLoad.Add(OnShipLoad);
+			GameEvents.onEditorRestart.Add(OnEditorRestart);
 		}
 
 		public override void OnDestroy ()
 		{
 			GameEvents.onEditorShipModified.Remove(OnShipModified);
 			GameEvents.onEditorLoad.Remove(OnShipLoad);
+			GameEvents.onEditorRestart.Remove(OnEditorRestart);
 			base.OnDestroy();
+		}
+
+		void OnEditorRestart()
+		{
+			Engines.Clear();
+			CFG = null;
 		}
 
 		void OnShipLoad(ShipConstruct ship, CraftBrowser.LoadType load_type)
 		{
 			if(load_type == CraftBrowser.LoadType.Merge) return;
-			if(!UpdateEngines(ship)) return;
+			if(UpdateEngines(ship)) GetCFG(ship);
+		}
+
+		void GetCFG(ShipConstruct ship)
+		{
 			CFG = TCAScenario.GetConfig(ship.shipName);
 			if(CFG != null) 
 				CFG.EnginesProfiles.Active.Apply(Engines);
@@ -47,35 +67,37 @@ namespace ThrottleControlledAvionics
 				CFG = TCAScenario.NewNamedConfig(ship.shipName);
 				CFG.EnginesProfiles.AddProfile(Engines);
 			}
+			Utils.Log("EPE.UpdateCFG.CFG: {0}", CFG);//debug
 			CFG.EnginesProfiles.Active.Update(Engines);
 		}
 
-		static bool UpdateEngines(ShipConstruct ship)
+		bool UpdateEngines(ShipConstruct ship)
 		{
 			Engines.Clear();
-			if(!ModuleTCA.HasTCA) 
+			if(ModuleTCA.HasTCA) 
 			{ 
-				TCAToolbarManager.ShowButton(false);
-				CFG = null; 
-				return false; 
+				TCAToolbarManager.ShowButton();
+				foreach(Part p in ship.Parts)
+					foreach(var module in p.Modules)
+					{	
+						var engine = module as ModuleEngines;
+						if(engine != null) Engines.Add(new EngineWrapper(engine)); 
+					}
+				if(Engines.Count > 0) return true;
 			}
-			TCAToolbarManager.ShowButton();
-			foreach(Part p in ship.Parts)
-				foreach(var module in p.Modules)
-				{	
-					var engine = module as ModuleEngines;
-					if(engine != null) Engines.Add(new EngineWrapper(engine)); 
-				}
-			return Engines.Count > 0;
+			TCAToolbarManager.ShowButton(false);
+			CFG = null;
+			return false;
 		}
 
 		void OnShipModified(ShipConstruct ship)
 		{
-			UpdateEngines(ship);
+			if(CFG == null) return;
 			if(!UpdateEngines(ship)) return;
 			CFG.EnginesProfiles.Active.Update(Engines);
 			if(ship.shipName != CFG.Name)
 			{
+				Utils.Log("EPE.OnShipModified.Rename {0} to {1}", CFG.Name, ship.shipName);//debug
 				TCAScenario.NamedConfigs.Remove(CFG.Name);
 				CFG.Name = ship.shipName;
 				TCAScenario.NamedConfigs.Add(CFG.Name, CFG);
@@ -90,8 +112,13 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(Engines.Count == 0 || !showHUD) return;
+			if(Engines.Count == 0 || !CFG.GUIVisible || !showHUD) 
+			{
+				Utils.LockIfMouseOver(LockName, MainWindow, false);
+				return;
+			}
 			Styles.Init();
+			Utils.LockIfMouseOver(LockName, MainWindow);
 			MainWindow = 
 				GUILayout.Window(GetInstanceID(), 
 					MainWindow, 
