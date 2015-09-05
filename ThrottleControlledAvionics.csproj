@@ -70,14 +70,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="ToolbarWrapper.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="TCAConfig.cs" />
-    <Compile Include="DropDownList.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="TCAEngineInfo.cs" />
     <Compile Include="EngineWrapper.cs" />
-    <Compile Include="TCAToolbarManager.cs" />
     <Compile Include="PID_Controllers.cs" />
     <Compile Include="VesselWrapper.cs" />
     <Compile Include="Modules\TCAModule.cs" />
@@ -86,11 +83,7 @@
     <Compile Include="Modules\HorizontalSpeedControl.cs" />
     <Compile Include="Modules\RCSOptimizer.cs" />
     <Compile Include="Modules\EngineOptimizer.cs" />
-    <Compile Include="UI_IntRange.cs" />
     <Compile Include="ModuleTCA.cs" />
-    <Compile Include="ThrottleControlledAvionics.cs" />
-    <Compile Include="Styles.cs" />
-    <Compile Include="TCAGui.cs" />
     <Compile Include="Modules\CruiseControl.cs" />
     <Compile Include="Modules\PointNavigator.cs" />
     <Compile Include="Modules\Radar.cs" />
@@ -101,11 +94,19 @@
     <Compile Include="Modules\VTOLAssist.cs" />
     <Compile Include="EngineConfig.cs" />
     <Compile Include="TCAScenario.cs" />
-    <Compile Include="EnginesProfileEditor.cs" />
-    <Compile Include="AddonWindowBase.cs" />
+    <Compile Include="GUI\AddonWindowBase.cs" />
+    <Compile Include="GUI\DropDownList.cs" />
+    <Compile Include="GUI\Styles.cs" />
+    <Compile Include="GUI\TCAGui.cs" />
+    <Compile Include="GUI\EnginesProfileEditor.cs" />
+    <Compile Include="GUI\UI_IntRange.cs" />
+    <Compile Include="GUI\ToolbarWrapper.cs" />
+    <Compile Include="GUI\TCAToolbarManager.cs" />
+    <Compile Include="TCA.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Modules\" />
+    <Folder Include="GUI\" />
   </ItemGroup>
 </Project>
