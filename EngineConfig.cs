@@ -18,6 +18,7 @@ namespace ThrottleControlledAvionics
 	public class EngineConfig : ConfigNodeObject
 	{
 		new public const string NODE_NAME = "ENGINECFG";
+		const float lim_eps = 1e-5f;
 
 		[Persistent] string Name;
 		[Persistent] bool On;
@@ -87,7 +88,7 @@ namespace ThrottleControlledAvionics
 			if(Role == TCARole.MANUAL)
 			{
 				var lim = Utils.FloatSlider("", Limit, 0f, 1f, "P1", tooltip: "Throttle");
-				if(!lim.Equals(Limit)) { Limit = lim; Changed = true; }
+				if(Mathf.Abs(lim-Limit) > lim_eps) { Limit = lim; Changed = true; }
 			}
 			GUILayout.EndHorizontal();
 			return Changed;
@@ -256,7 +257,7 @@ namespace ThrottleControlledAvionics
 		void OnPlanetControl()
 		{
 			if(GUILayout.Button(new GUIContent(OnPlanetStates[OnPlanet],
-				"Should only be active"), 
+				"Should be active"), 
 				Styles.normal_button, GUILayout.Width(80)))
 				OnPlanet = (OnPlanet+1)%3;
 		}
