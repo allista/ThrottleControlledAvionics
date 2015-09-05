@@ -60,6 +60,7 @@ namespace ThrottleControlledAvionics
 			pid.Reset();
 			ArrivedTimer.Period = PN.MinTime;
 			CFG.Nav.AddCallback(Navigation.GoToTarget, GoToTarget);
+			CFG.Nav.AddCallback(Navigation.FollowTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowPath, FollowPath);
 		}
 
@@ -126,7 +127,7 @@ namespace ThrottleControlledAvionics
 			}
 			vdir.Normalize();
 			//check if we have arrived to the target and stayed long enough
-			if(distance < target.Distance)
+			if(distance < target.Distance && !CFG.Nav[Navigation.FollowTarget])
 			{
 				CFG.HF.OnIfNot(HFlight.Move);
 				if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 0)

@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(NamedConfigs.ContainsKey(VSL.vessel.vesselName))
 					Configs.Add(VSL.vessel.id, 
-						VesselConfig.FromVesselConfig(NamedConfigs[VSL.vessel.vesselName]));
+						VesselConfig.FromVesselConfig(VSL.vessel, NamedConfigs[VSL.vessel.vesselName]));
 				else Configs.Add(VSL.vessel.id, new VesselConfig(VSL.vessel));
 			}
 			return Configs[VSL.vessel.id];

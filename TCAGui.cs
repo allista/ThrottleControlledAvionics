@@ -403,9 +403,18 @@ namespace ThrottleControlledAvionics
 					                    CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
 					                    : Styles.yellow_button,
 					                    GUILayout.Width(90)))
-						CFG.Nav[Navigation.GoToTarget] = VSL.HasTarget;
+						CFG.Nav.On(Navigation.GoToTarget);
+					if(GUILayout.Button("Follow Target", 
+						CFG.Nav[Navigation.FollowTarget]? Styles.green_button 
+						: Styles.yellow_button,
+						GUILayout.Width(90)))
+						CFG.Nav.On(Navigation.FollowTarget);
 				}
-				else GUILayout.Label("Go To Target", Styles.grey, GUILayout.Width(90));
+				else 
+				{
+					GUILayout.Label("Go To Target", Styles.grey, GUILayout.Width(90));
+					GUILayout.Label("Follow Target", Styles.grey, GUILayout.Width(90));
+				}
 				if(selecting_map_target)
 				{
 					if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.Width(120)))

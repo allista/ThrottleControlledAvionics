@@ -96,7 +96,7 @@ Notes:
 
 	public enum HFlight { None, Stop, Anchor, AnchorHere, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
-	public enum Navigation { None, GoToTarget, FollowPath }
+	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath }
 	public enum Autopilot { None, Land }
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
@@ -150,6 +150,7 @@ Notes:
 			Engines.setPI(TCAScenario.Globals.ENG.EnginesPI);
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
+		public VesselConfig(Guid vid) : this() { VesselID = vid; }
 
 		public override void Load(ConfigNode node)
 		{
@@ -183,9 +184,9 @@ Notes:
 			VesselID = vid;
 		}
 
-		public static VesselConfig FromVesselConfig(VesselConfig other)
+		public static VesselConfig FromVesselConfig(Vessel vsl, VesselConfig other)
 		{
-			var c = new VesselConfig();
+			var c = new VesselConfig(vsl);
 			c.CopyFrom(other);
 			return c;
 		}
