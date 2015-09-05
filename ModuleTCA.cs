@@ -114,7 +114,7 @@ namespace ThrottleControlledAvionics
 		void check_career_part()
 		{
 			if(!enabled) return;
-			enabled = isEnabled = !GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCA_PART);
+			enabled = isEnabled = HasTCA;
 		}
 
 		void create_modules()
