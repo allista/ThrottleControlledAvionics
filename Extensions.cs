@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -18,6 +19,13 @@ namespace ThrottleControlledAvionics
 		}
 		#endregion
 
+		public static void ForEach<T>(this IEnumerable<T> E, Action<T> action)
+		{
+			var en = E.GetEnumerator();
+			while(en.MoveNext()) action(en.Current);
+		}
+
+		#region Vector3
 		public static Vector3 CubeNorm(this Vector3 v)
 		{
 			if(v.IsZero()) return v;
@@ -35,6 +43,22 @@ namespace ThrottleControlledAvionics
 			var max = c.r > c.g? (c.r > c.b? c.r : c.b) : (c.g > c.b? c.g : c.b);
 			return max.Equals(0)? c : new Color(c.r / max, c.g / max, c.b / max);
 		}
+
+		public static Vector3 Inverse(this Vector3 v) { return new Vector3(1f/v.x, 1f/v.y, 1f/v.z); }
+
+		public static Vector3 ClampComponents(this Vector3 v, float min, float max) 
+		{ 
+			return new Vector3(Mathf.Clamp(v.x, min, max), 
+				Mathf.Clamp(v.y, min, max), 
+				Mathf.Clamp(v.z, min, max)); 
+		}
+
+		public static Vector3 Sign(this Vector3 v)
+		{ return new Vector3(Mathf.Sign(v.x), Mathf.Sign(v.y), Mathf.Sign(v.z)); }
+
+		public static Vector3 AbsComponents(this Vector3 v)
+		{ return new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z)); }
+		#endregion
 
 		#region From blizzy's Toolbar
 		public static Vector2 clampToScreen(this Vector2 pos) 
