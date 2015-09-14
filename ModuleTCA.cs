@@ -98,7 +98,9 @@ namespace ThrottleControlledAvionics
 		void onStageActive(int stage)
 		{ 
 			if(VSL == null) return;
-			CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines);
+			Utils.Log("Stage activated: {0}", stage);//debug
+			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines))
+				CFG.ActiveProfile.Update(VSL.Engines);
 		}
 
 		void check_priority()
