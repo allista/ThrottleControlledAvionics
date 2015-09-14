@@ -52,11 +52,11 @@ namespace ThrottleControlledAvionics
 
 		static void SelectConfig_start() 
 		{ 
-			if(TCAScenario.NamedConfigs.Count < 2) return;
 			namedConfigsListBox.styleListBox  = Styles.list_box;
 			namedConfigsListBox.styleListItem = Styles.list_item;
 			namedConfigsListBox.windowRect    = MainWindow;
-			namedConfigsListBox.DrawBlockingSelector(); 
+			if(TCAScenario.NamedConfigs.Count > 0)
+				namedConfigsListBox.DrawBlockingSelector(); 
 		}
 
 		static void SelectConfig()
@@ -77,7 +77,7 @@ namespace ThrottleControlledAvionics
 
 		static void SelectConfig_end()
 		{
-			if(TCAScenario.NamedConfigs.Count < 2) return;
+			if(TCAScenario.NamedConfigs.Count == 0) return;
 			namedConfigsListBox.DrawDropDown();
 			namedConfigsListBox.CloseOnOutsideClick();
 		}
@@ -295,21 +295,21 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginHorizontal();
 				if(VSL.HasTarget)
 				{
-					if(GUILayout.Button("Go To Target", 
+					if(GUILayout.Button(new GUIContent("Go To", "Fly to current target"), 
 					                    CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
 					                    : Styles.yellow_button,
-					                    GUILayout.Width(90)))
+					                    GUILayout.Width(50)))
 						CFG.Nav.On(Navigation.GoToTarget);
-					if(GUILayout.Button("Follow Target", 
+					if(GUILayout.Button(new GUIContent("Follow", "Follow current target"), 
 						CFG.Nav[Navigation.FollowTarget]? Styles.green_button 
 						: Styles.yellow_button,
-						GUILayout.Width(90)))
+						GUILayout.Width(50)))
 						CFG.Nav.On(Navigation.FollowTarget);
 				}
 				else 
 				{
-					GUILayout.Label("Go To Target", Styles.grey, GUILayout.Width(90));
-					GUILayout.Label("Follow Target", Styles.grey, GUILayout.Width(90));
+					GUILayout.Label(new GUIContent("Go To", "No target selected"),  Styles.grey, GUILayout.Width(50));
+					GUILayout.Label(new GUIContent("Follow", "No target selected"),  Styles.grey, GUILayout.Width(50));
 				}
 				if(selecting_map_target)
 				{
@@ -339,17 +339,17 @@ namespace ThrottleControlledAvionics
 				}
 				if(CFG.Waypoints.Count > 0)
 				{
-					if(GUILayout.Button("Follow Path", 
+					if(GUILayout.Button("Follow Route",
 					                    CFG.Nav[Navigation.FollowPath]? Styles.green_button 
 					                    : Styles.yellow_button,
 					                    GUILayout.Width(90)))
 						CFG.Nav.Toggle(Navigation.FollowPath);
 				}
-				else GUILayout.Label("Follow Path", Styles.grey, GUILayout.Width(90));
-				CFG.MaxNavSpeed = Utils.FloatSlider("Max.V m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 100);
+				else GUILayout.Label(new GUIContent("Follow Route", "Add some waypoints first"), Styles.grey, GUILayout.Width(90));
+				CFG.MaxNavSpeed = Utils.FloatSlider("m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 60, "Maximum horizontal speed");
 				GUILayout.EndHorizontal();
 			}
-			else GUILayout.Label("Autopilot Not Available", Styles.grey, GUILayout.ExpandWidth(true));
+			else GUILayout.Label("Autopilot Not Available In Orbit", Styles.grey, GUILayout.ExpandWidth(true));
 		}
 
 		static void WaypointList()
@@ -417,7 +417,7 @@ namespace ThrottleControlledAvionics
 		static void EnginesControl()
 		{
 			GUILayout.BeginVertical();
-			if(CFG.EnginesProfiles.Active.Single.Count > 0)
+			if(CFG.ActiveProfile.HasManual)
 			{
 				if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Limits" : "Show Manual Limits", 
 				                    Styles.yellow_button,
