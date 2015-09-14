@@ -131,6 +131,11 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		public static void SetDefaultButton()
+		{
+			if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = ICON_OFF;
+			if(TCAButton != null) TCAButton.SetTexture(textureOff);
+		}
 
 		public static void UpdateToolbarButton()
 		{ 
