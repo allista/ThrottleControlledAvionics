@@ -83,8 +83,7 @@ namespace ThrottleControlledAvionics
 		public static NamedConfig NewNamedConfig(string name)
 		{ 
 			if(NamedConfigs.ContainsKey(name)) return null;
-			var c = new NamedConfig();
-			c.Name = name;
+			var c = new NamedConfig(name);
 			NamedConfigs[name] = c;
 			return c;
 		}

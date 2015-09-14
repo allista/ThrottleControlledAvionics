@@ -140,6 +140,8 @@ Notes:
 		[Persistent] public EnginesProfileDB EnginesProfiles = new EnginesProfileDB();
 		[Persistent] public bool ShowEnginesProfiles;
 		[Persistent] public bool ShowManualLimits;
+		public EnginesProfile ActiveProfile { get { return EnginesProfiles.Active; } }
+		public EnginesProfile DefaultProfile { get { return EnginesProfiles.Default; } }
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
@@ -203,6 +205,9 @@ Notes:
 	public class NamedConfig : VesselConfig
 	{ 
 		[Persistent] public string Name = "Config"; 
+
+		public NamedConfig() {}
+		public NamedConfig(string name) : this() { Name = name; }
 
 		public static NamedConfig FromVesselConfig(string name, VesselConfig other)
 		{
