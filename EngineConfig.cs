@@ -63,8 +63,11 @@ namespace ThrottleControlledAvionics
 		{
 			if(e == null || e.info == null) return;
 			e.SetRole(Role);
-			if(On && !e.engine.EngineIgnited) e.engine.Activate();
-			else if(!On && e.engine.EngineIgnited) e.engine.Shutdown();
+			if(HighLogic.LoadedSceneIsFlight)
+			{
+				if(On && !e.engine.EngineIgnited) e.engine.Activate();
+				else if(!On && e.engine.EngineIgnited) e.engine.Shutdown();
+			}
 			if(Role == TCARole.MANUAL) e.forceThrustPercentage(Limit*100);
 			Changed = false;
 		}
@@ -87,7 +90,7 @@ namespace ThrottleControlledAvionics
 			if(with_role) RoleControl();
 			if(Role == TCARole.MANUAL)
 			{
-				var lim = Utils.FloatSlider("", Limit, 0f, 1f, "P1", tooltip: "Throttle");
+				var lim = Utils.FloatSlider("", Limit, 0f, 1f, "P1", 50, "Throttle");
 				if(Mathf.Abs(lim-Limit) > lim_eps) { Limit = lim; Changed = true; }
 			}
 			GUILayout.EndHorizontal();
@@ -155,6 +158,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public string Name;
 		[Persistent] public bool Active;
 		[Persistent] public bool Default;
+		[Persistent] public bool HasManual;
 		[Persistent] public int  OnPlanet = 2;
 		[Persistent] public int  Stage = -1;
 
@@ -171,6 +175,7 @@ namespace ThrottleControlledAvionics
 				Groups[c.Key] = new EngineConfig(c.Value);
 			foreach(var c in p.Single.DB) 
 				Single[c.Key] = new EngineConfig(c.Value);
+			HasManual = p.HasManual;
 		}
 		public EnginesProfile(string name, IList<EngineWrapper> engines)
 		{ Name = name; Init(engines); }
@@ -179,8 +184,10 @@ namespace ThrottleControlledAvionics
 		{
 			Single.Clear();
 			Groups.Clear();
+			HasManual = false;
 			foreach(var e in engines)
 			{
+				HasManual |= e.Role == TCARole.MANUAL;
 				if(e.Group > 0)
 				{
 					if(!Groups.ContainsKey(e.Group))
@@ -195,10 +202,12 @@ namespace ThrottleControlledAvionics
 		{
 			var groups = new EngineConfigIntDB();
 			var single = new EngineConfigUintDB();
+			HasManual  = false;
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++)
 			{
 				var e = engines[i];
 				var c = GetConfig(e);
+				HasManual |= e.Role == TCARole.MANUAL;
 				if(c == null)
 				{
 					if(e.Group > 0)
@@ -395,15 +404,19 @@ namespace ThrottleControlledAvionics
 			Default.Default = true;
 		}
 
-		public void ActivateOnStage(int stage, IList<EngineWrapper> engines)
+		public bool ActivateOnStage(int stage, IList<EngineWrapper> engines)
 		{
+			var activated = false;
 			foreach(var p in DB)
 			{
 				if(p.Stage < 0 || p.Stage != stage) continue;
+				Utils.Log("Applying profile: {0}", p.Name);//debug
 				Activate(p);
 				Active.Apply(engines);
+				activated = true;
 				break;
 			}
+			return activated;
 		}
 
 		public void OnPlanetChanged(bool on_planet)
