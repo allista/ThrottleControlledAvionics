@@ -44,7 +44,7 @@ namespace ThrottleControlledAvionics
 		int role_index;
 
 		[UI_IntRange(minValue = 0, maxValue = 10, stepIncrement = 1)]
-		[KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "TCA: Manual Group", guiFormat = "D")]
+		[KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "TCA: Engines Group", guiFormat = "D")]
 		int group;
 
 		public TCARole Role = TCARole.MAIN;
