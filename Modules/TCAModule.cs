@@ -70,7 +70,10 @@ namespace ThrottleControlledAvionics
 		{
 			return !Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
-				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
+				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f) || 
+				Mathf.Abs(s.X) > 0.1f ||
+				Mathf.Abs(s.Y) > 0.1f ||
+				Mathf.Abs(s.Z) > 0.1f;
 		}
 
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
