@@ -229,5 +229,29 @@ namespace ThrottleControlledAvionics
 		}
 		public void Reset() { count = 0; }
 	}
+
+	public class DebugModuleRCS : ModuleRCS
+	{
+		public override void OnStart(StartState state)
+		{
+			base.OnStart(state);
+			this.Log("ThrusterTransforms:\n{0}",
+			         thrusterTransforms.Aggregate("", (s, t) => s+t.name+": "+t.position+"\n"));
+		}
+
+		public new void FixedUpdate()
+		{
+			base.FixedUpdate();
+			this.Log("Part: enabled {2}, shielded {0}, controllable {1}", 
+			         part.ShieldedFromAirstream, part.isControllable, enabled);
+			if(thrustForces.Count > 0)
+			{
+				this.Log("ThrustForces:\n{0}",
+				         thrustForces.Aggregate("", (s, f) => s+f+", "));
+				this.Log("FX.Power:\n{0}",
+				         thrusterFX.Aggregate("", (s, f) => s+f.Power+", "+f.Active+"; "));
+			}
+		}
+	}
 }
 #endif
