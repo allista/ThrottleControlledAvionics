@@ -41,6 +41,15 @@ namespace ThrottleControlledAvionics
 			}
 			Debug.Log(string.Format("[TCA] "+msg, args)); 
 		}
+
+		public static void Log(this MonoBehaviour mb, string msg, params object[] args)
+		{ Utils.Log(string.Format("{0}: {1}", mb.name, msg), args); }
+
+		public static void Log(this PartModule pm, string msg, params object[] args)
+		{ 
+			var vn = pm.vessel == null? "_vessel" : (string.IsNullOrEmpty(pm.vessel.vesselName)? pm.vessel.id.ToString() : pm.vessel.vesselName);
+			Utils.Log(string.Format("{0}:{1}:{2}: {3}", vn, pm.part == null? "_part" : pm.part.Title(), pm.moduleName, msg), args); 
+		}
 		#endregion
 
 		#region Math
