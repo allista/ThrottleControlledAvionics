@@ -22,7 +22,6 @@ namespace ThrottleControlledAvionics
 		const string DefaultConstractName = "Untitled Space Craft";
 
 		NamedConfig CFG;
-		bool saved;
 		readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
 
 		public static bool GUIVisible 
@@ -42,7 +41,6 @@ namespace ThrottleControlledAvionics
 
 		public override void OnDestroy ()
 		{
-			if(EditorLogic.fetch.ship.shipName != DefaultConstractName) SaveConfig();
 			GameEvents.onEditorShipModified.Remove(OnShipModified);
 			GameEvents.onEditorLoad.Remove(OnShipLoad);
 			GameEvents.onEditorRestart.Remove(Reset);
@@ -53,31 +51,48 @@ namespace ThrottleControlledAvionics
 		{
 			TCAToolbarManager.ShowButton(false);
 			Engines.Clear();
-			saved = false;
 			CFG = null;
 		}
 
 		void OnShipLoad(ShipConstruct ship, CraftBrowser.LoadType load_type)
 		{
 			if(load_type == CraftBrowser.LoadType.Merge) return;
-			Utils.Log("EPE.OnShipLoad: {0}", ship.shipName);//debug
+			this.Log("OnShipLoad: {0}", ship.shipName);//debug
 			if(UpdateEngines(ship)) GetCFG(ship);
 		}
 
-		void GetCFG(ShipConstruct ship, bool local = false)
+		void GetCFG(ShipConstruct ship)
 		{
-			CFG = TCAScenario.GetConfig(ship.shipName);
+			var TCA_Modules = ModuleTCA.AllTCA(ship.Parts);
+			if(TCA_Modules.Count == 0) { Reset(); return; }
+			CFG = null;
+			foreach(var tca in TCA_Modules)
+			{
+				if(tca.CFG == null) continue;
+				this.Log("GetCFG: found saved CFG");//debug
+				CFG = NamedConfig.FromVesselConfig(ship.shipName, tca.CFG);
+				break;
+			}
 			if(CFG == null)
 			{
-				saved = !local;
-				CFG = local ? new NamedConfig(ship.shipName) : 
-					TCAScenario.NewNamedConfig(ship.shipName);
+				CFG = new NamedConfig(ship.shipName);
 				CFG.EnginesProfiles.AddProfile(Engines);
+				this.Log("GetCFG: using new CFG");
 			}
-			else { CFG.ActiveProfile.Apply(Engines); saved = true; }
+			else CFG.ActiveProfile.Apply(Engines);
 			CFG.ActiveProfile.Update(Engines);
-			Utils.Log("EPE.GetCFG.CFG: {0}, local: {1}", CFG, local);//debug
+			UpdateCFG(TCA_Modules);
+			this.Log("GetCFG.CFG: {0}", CFG);//debug
 		}
+
+		void UpdateCFG(IList<ModuleTCA> TCA_Modules)
+		{
+			if(CFG == null || TCA_Modules.Count == 0) return;
+			TCA_Modules.ForEach(m => m.CFG = null);
+			TCA_Modules[0].CFG = CFG;
+		}
+		void UpdateCFG(ShipConstruct ship)
+		{ UpdateCFG(ModuleTCA.AllTCA(ship.Parts)); }
 
 		bool UpdateEngines(ShipConstruct ship)
 		{
@@ -102,37 +117,14 @@ namespace ThrottleControlledAvionics
 		{
 			if(!UpdateEngines(ship)) return;
 			Utils.Log("EPE.OnShipModified: {0}", ship.shipName);//debug
-			if(CFG == null) GetCFG(ship, true);
+			if(CFG == null) GetCFG(ship);
+			else UpdateCFG(ship);
 			CFG.ActiveProfile.Update(Engines);
-		}
-
-		void SaveConfig()
-		{
-			if(saved || CFG == null) return;
-			TCAScenario.NamedConfigs.Remove(CFG.Name);
-			CFG.Name = EditorLogic.fetch.ship.shipName;
-			TCAScenario.NamedConfigs.Add(CFG.Name, CFG);
-			saved = true;
-		}
-
-		public void Update()
-		{
-			if(CFG == null) return;
-			if(EditorLogic.fetch.ship.shipName != CFG.Name)
-			{
-				Utils.Log("EPE.Udpate.Rename '{0}' to '{1}'", CFG.Name, EditorLogic.fetch.ship.shipName);//debug
-				SaveConfig();
-			}
 		}
 
 		protected override void DrawMainWindow(int windowID)
 		{
-			GUILayout.BeginVertical();
-			GUILayout.Label(new GUIContent(string.Format("{0} configuration: {1}", CFG.Name, saved? "saved" : "unsaved"),
-			                               "Configuration for 'Untitled Space Craft' is never saved"),
-			                saved? Styles.green : Styles.red, GUILayout.ExpandWidth(true));
 			CFG.EnginesProfiles.Draw(height);
-			GUILayout.EndVertical();
 			if(CFG.ActiveProfile.Changed)
 				CFG.ActiveProfile.Apply(Engines);
 			base.DrawMainWindow(windowID);

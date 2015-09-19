@@ -125,11 +125,11 @@ namespace ThrottleControlledAvionics
 		public bool NoActiveRCS { get; private set; }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 
-		public VesselWrapper(Vessel vsl) 
+		public VesselWrapper(Vessel vsl, VesselConfig cfg) 
 		{
-			vessel = vsl; 
-			if(CFG == null) 
-				CFG = TCAScenario.GetConfig(this);
+			vessel = vsl; CFG = cfg;
+//			if(CFG == null) 
+//				CFG = TCAScenario.GetConfig(this);
 		}
 
 		public void Init() 

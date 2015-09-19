@@ -68,16 +68,14 @@ namespace ThrottleControlledAvionics
 
 		#region Runtime Interface
 		public static VesselConfig GetConfig(VesselWrapper VSL)
+		{ return GetConfig(VSL.vessel); }
+
+		public static VesselConfig GetConfig(Vessel vessel)
 		{
 			if(!ConfigsLoaded) return null;
-			if(!Configs.ContainsKey(VSL.vessel.id)) 
-			{
-				if(NamedConfigs.ContainsKey(VSL.vessel.vesselName))
-					Configs.Add(VSL.vessel.id, 
-						VesselConfig.FromVesselConfig(VSL.vessel, NamedConfigs[VSL.vessel.vesselName]));
-				else Configs.Add(VSL.vessel.id, new VesselConfig(VSL.vessel));
-			}
-			return Configs[VSL.vessel.id];
+			if(!Configs.ContainsKey(vessel.id)) 
+				Configs.Add(vessel.id, new VesselConfig(vessel));
+			return Configs[vessel.id];
 		}
 
 		public static NamedConfig NewNamedConfig(string name)
@@ -101,6 +99,14 @@ namespace ThrottleControlledAvionics
 			NamedConfigs[name] = NamedConfig.FromVesselConfig(name, config);
 			return true;
 		}
+
+		public static void UpdateConfig(VesselConfig config)
+		{
+			VesselConfig old;
+			if(Configs.TryGetValue(config.VesselID, out old))
+				old.CopyFrom(config);
+			else Configs.Add(config.VesselID, config);
+		}
 		#endregion
 
 		#region Save/Load
@@ -108,7 +114,7 @@ namespace ThrottleControlledAvionics
 		{
 			var node = ConfigNode.Load(filepath);
 			if(node == null)
-				Utils.Log("TCAScenario: unable to read "+filepath);
+				Utils.Log("TCAScenario: Unable to read "+filepath);
 			return node;
 		}
 
@@ -165,7 +171,7 @@ namespace ThrottleControlledAvionics
 					if(current_vessels.Contains(c.VesselID))
 						c.Save(n.AddNode(VesselConfig.NODE_NAME));
 					else Utils.Log(
-						"TCAScenario.SaveConfigs: vessel {0} is not present in the game. " +
+						"TCAScenario: SaveConfigs: vessel {0} is not present in the game. " +
 						"Removing orphan configuration.", c.VesselID);
 				}
 			}
@@ -215,13 +221,13 @@ namespace ThrottleControlledAvionics
 				var cnode = loadNode(FilePath("TCA.conf"));
 				if(cnode != null) LoadLegacyConfigs(cnode);
 			}
-			Utils.Log("TCAScenario: ConfigsLoaded {0}\n{1}", ConfigsLoaded, node);//debug
+//			this.Log("ConfigsLoaded {0}\n{1}", ConfigsLoaded, node);//debug
 		}
 
 		public override void OnSave (ConfigNode node)
 		{
 			SaveConfigs(node);
-			Utils.Log("TCAScenario: configs saved\n{0}", node);//debug
+//			this.Log("configs saved\n{0}", node);//debug
 		}
 	}
 }
