@@ -45,7 +45,7 @@ namespace ThrottleControlledAvionics
 
 		[UI_IntRange(minValue = 0, maxValue = 10, stepIncrement = 1)]
 		[KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "TCA: Engines Group", guiFormat = "D")]
-		int group;
+		public int group;
 
 		public TCARole Role = TCARole.MAIN;
 		public int Group { get { return group; } }
@@ -62,7 +62,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			var grp = Fields["group"].uiControlEditor as UI_IntRange;
 			if(grp != null) grp.maxValue = TCAScenario.Globals.MaxManualGroups;
-			update_status(); 
+			update_status();
 		}
 
 		public void SetRole(TCARole R)
