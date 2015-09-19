@@ -82,7 +82,6 @@ namespace ThrottleControlledAvionics
 			if((enabled || HighLogic.LoadedSceneIsEditor) && CFG != null)
 				CFG.Save(node.AddNode(VesselConfig.NODE_NAME));
 			base.OnSave(node);
-			this.Log("OnSave: node:\n{0}", node);//debug
 		}
 
 		public override void OnLoad(ConfigNode node)
@@ -94,7 +93,6 @@ namespace ThrottleControlledAvionics
 				CFG = ConfigNodeObject.FromConfig<VesselConfig>(SavedCFG);
 				if(vessel != null) CFG.VesselID = vessel.id;
 			}
-			this.Log("OnLoad: CFG:\n{0}", CFG);//debug
 		}
 
 		public override void OnStart(StartState state)
@@ -110,7 +108,6 @@ namespace ThrottleControlledAvionics
 		void onVesselModify(Vessel vsl)
 		{ 
 			if(vsl != vessel) return;
-			this.Log("onVesselModify");//debug
 			reset();
 			check_priority();
 			init();
@@ -119,7 +116,6 @@ namespace ThrottleControlledAvionics
 		void onStageActive(int stage)
 		{ 
 			if(VSL == null) return;
-			this.Log("Stage activated: {0}", stage);//debug
 			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines))
 				CFG.ActiveProfile.Update(VSL.Engines);
 		}
@@ -132,7 +128,6 @@ namespace ThrottleControlledAvionics
 			var TCA = TCA_part.Modules.OfType<ModuleTCA>().FirstOrDefault();
 			if(TCA != this) goto disable;
 			enabled = isEnabled = true;
-			this.Log("Enabled");//debug
 			return;
 			disable: enabled = isEnabled = false;
 		}
@@ -188,7 +183,6 @@ namespace ThrottleControlledAvionics
 
 		void UpdateCFG()
 		{
-			this.Log("UpdateCFG: Current CFG:\n{0}", CFG);//debug
 			//get all ModuleTCA instances in the vessel
 			var TCA_Modules = AllTCA(vessel.Parts);
 			//try to get saved CFG from other modules, if needed
@@ -199,7 +193,6 @@ namespace ThrottleControlledAvionics
 					CFG = tca.CFG;
 					break;
 				}
-			this.Log("UpdateCFG: CFG after search:\n{0}", CFG);//debug
 			//if it is found in one of the modules, use it
 			//else, get it from common database or create a new one
 			if(vessel != null)
@@ -209,16 +202,12 @@ namespace ThrottleControlledAvionics
 					if(CFG.VesselID == Guid.Empty)
 						CFG.VesselID = vessel.id;
 					else if(CFG.VesselID != vessel.id)
-					{ 
 						CFG = VesselConfig.FromVesselConfig(vessel, CFG);
-						this.Log("UpdateCFG: copied CFG");//debug
-					}
 					TCAScenario.Configs[CFG.VesselID] = CFG;
 				}
 				else CFG = TCAScenario.GetConfig(vessel);
 			}
 			else CFG = new VesselConfig();
-			this.Log("UpdateCFG: CFG after initialization:\n{0}", CFG);//debug
 			//finally, update references in other modules
 			TCA_Modules.ForEach(m => m.CFG = CFG);
 		}
@@ -226,7 +215,6 @@ namespace ThrottleControlledAvionics
 		void init()
 		{
 			if(!enabled) return;
-			this.Log("Initializing...");//debug
 			UpdateCFG();
 			VSL = new VesselWrapper(vessel, CFG);
 			VSL.Init();
@@ -247,7 +235,6 @@ namespace ThrottleControlledAvionics
 			else if(CFG.HF[HFlight.CruiseControl]) UpdateNeededVeloctiy();
 			ThrottleControlledAvionics.AttachTCA(this);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
-			this.Log("Initialized.");//debug
 		}
 
 		void reset()

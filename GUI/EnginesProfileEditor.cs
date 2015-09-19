@@ -57,7 +57,6 @@ namespace ThrottleControlledAvionics
 		void OnShipLoad(ShipConstruct ship, CraftBrowser.LoadType load_type)
 		{
 			if(load_type == CraftBrowser.LoadType.Merge) return;
-			this.Log("OnShipLoad: {0}", ship.shipName);//debug
 			if(UpdateEngines(ship)) GetCFG(ship);
 		}
 
@@ -69,7 +68,6 @@ namespace ThrottleControlledAvionics
 			foreach(var tca in TCA_Modules)
 			{
 				if(tca.CFG == null) continue;
-				this.Log("GetCFG: found saved CFG");//debug
 				CFG = NamedConfig.FromVesselConfig(ship.shipName, tca.CFG);
 				break;
 			}
@@ -77,12 +75,10 @@ namespace ThrottleControlledAvionics
 			{
 				CFG = new NamedConfig(ship.shipName);
 				CFG.EnginesProfiles.AddProfile(Engines);
-				this.Log("GetCFG: using new CFG");
 			}
 			else CFG.ActiveProfile.Apply(Engines);
 			CFG.ActiveProfile.Update(Engines);
 			UpdateCFG(TCA_Modules);
-			this.Log("GetCFG.CFG: {0}", CFG);//debug
 		}
 
 		void UpdateCFG(IList<ModuleTCA> TCA_Modules)
@@ -116,7 +112,6 @@ namespace ThrottleControlledAvionics
 		void OnShipModified(ShipConstruct ship)
 		{
 			if(!UpdateEngines(ship)) return;
-			Utils.Log("EPE.OnShipModified: {0}", ship.shipName);//debug
 			if(CFG == null) GetCFG(ship);
 			else UpdateCFG(ship);
 			CFG.ActiveProfile.Update(Engines);

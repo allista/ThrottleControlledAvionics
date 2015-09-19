@@ -221,14 +221,9 @@ namespace ThrottleControlledAvionics
 				var cnode = loadNode(FilePath("TCA.conf"));
 				if(cnode != null) LoadLegacyConfigs(cnode);
 			}
-//			this.Log("ConfigsLoaded {0}\n{1}", ConfigsLoaded, node);//debug
 		}
 
-		public override void OnSave (ConfigNode node)
-		{
-			SaveConfigs(node);
-//			this.Log("configs saved\n{0}", node);//debug
-		}
+		public override void OnSave (ConfigNode node) { SaveConfigs(node); }
 	}
 }
 

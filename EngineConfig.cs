@@ -410,7 +410,6 @@ namespace ThrottleControlledAvionics
 			foreach(var p in DB)
 			{
 				if(p.Stage < 0 || p.Stage != stage) continue;
-				Utils.Log("Applying profile: {0}", p.Name);//debug
 				Activate(p);
 				Active.Apply(engines);
 				activated = true;
