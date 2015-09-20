@@ -9,6 +9,8 @@ namespace ThrottleControlledAvionics
 	{
 		new public const string NODE_NAME = "TCAGLOBALS";
 
+		public const string TCA_PART = "ThrottleControlledAvionics";
+
 		[Persistent] public bool IntegrateIntoCareer  = true;
 		[Persistent] public bool RoleSymmetryInFlight = true;
 		[Persistent] public bool UseStockAppLauncher  = false;
