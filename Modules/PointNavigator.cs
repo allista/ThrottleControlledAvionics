@@ -35,6 +35,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float GCNavStep          = 0.1f;
 			[Persistent] public float AngularAccelF      = 10f;
 			[Persistent] public float MaxAccelF          = 10f;
+			[Persistent] public float LookAheadTime      = 2f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 
 			public override void Init()
@@ -114,8 +115,16 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive || target == null) return;
 			target.Update(VSL.mainBody);
-			//calculate direct distance
-			var vdir = Vector3.ProjectOnPlane(target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
+			//calculate direct distance and relative velocity
+			var tpos = target.GetTransform().position;
+			var tvsl = target.GetVessel();
+			var dvel = Vector3d.zero;
+			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
+			{
+				tpos += (tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime/2)*PN.LookAheadTime;
+				dvel  = tvsl.srf_velocity-VSL.vessel.srf_velocity;
+			}
+			var vdir = Vector3.ProjectOnPlane(tpos-VSL.vessel.transform.position, VSL.Up);
 			var distance = vdir.magnitude;
 			//if it is greater that the threshold (in radians), use Great Circle navigation
 			if(distance/VSL.mainBody.Radius > PN.DirectNavThreshold)
@@ -127,9 +136,24 @@ namespace ThrottleControlledAvionics
 			}
 			vdir.Normalize();
 			//check if we have arrived to the target and stayed long enough
-			if(distance < target.Distance && !CFG.Nav[Navigation.FollowTarget])
+			if(distance < target.Distance)
 			{
 				CFG.HF.OnIfNot(HFlight.Move);
+				if(CFG.Nav[Navigation.FollowTarget])
+				{
+					//set needed velocity and starboard to zero if in range of a target
+					if(tvsl != null && tvsl.loaded)
+					{
+						CFG.NeededHorVelocity = tvsl.srf_velocity;
+						CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
+					}
+					else 
+					{
+						CFG.NeededHorVelocity = Vector3d.zero;
+						CFG.Starboard = Vector3d.zero;
+					}
+					return;
+				}
 				if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 0)
 				{
 					if(CFG.Waypoints.Peek() == target)
@@ -172,7 +196,7 @@ namespace ThrottleControlledAvionics
 			pid.Min = 0;
 			pid.Max = CFG.MaxNavSpeed;
 			pid.P   = PN.DistancePID.P*AccelCorrection;
-			pid.D   = PN.DistancePID.D*(2-AccelCorrection);
+			pid.D   = PN.DistancePID.D*(2-AccelCorrection)/Utils.ClampL(Vector3.Dot(vdir, dvel), 1);
 			pid.Update(distance*PN.DistanceF);
 			//increase the needed velocity slowly
 			var cur_vel   = Utils.ClampL((float)Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 1);

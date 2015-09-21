@@ -146,6 +146,7 @@ PN
 	GCNavStep          = 0.1
 	AngularAccelF      = 2
 	MaxAccelF          = 4
+	LookAheadTime      = 3
 	
 	DistancePID
 	{
