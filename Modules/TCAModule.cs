@@ -38,7 +38,7 @@ namespace ThrottleControlledAvionics
 		public void SetState(TCAState state) { VSL.State |= state; }
 		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
 
-		public virtual void Init() {}
+		public virtual void Init() { }
 		public virtual void Enable(bool enable = true) {}
 		public virtual void UpdateState() {}
 		public virtual void Reset() {}
@@ -70,10 +70,10 @@ namespace ThrottleControlledAvionics
 		{
 			return !Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
-				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f) || 
-				Mathf.Abs(s.X) > 0.1f ||
-				Mathf.Abs(s.Y) > 0.1f ||
-				Mathf.Abs(s.Z) > 0.1f;
+				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);// || 
+//				Mathf.Abs(s.X) > 0.1f ||
+//				Mathf.Abs(s.Y) > 0.1f ||
+//				Mathf.Abs(s.Z) > 0.1f;
 		}
 
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
