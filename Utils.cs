@@ -225,16 +225,17 @@ namespace ThrottleControlledAvionics
 
 	public class TimerBase
 	{
-		protected double next_time;
+		protected DateTime next_time;
 		public double Period;
 
-		public TimerBase(double period) { Period = period; next_time = -1; }
-		public void Reset() { next_time = -1; }
+		public TimerBase(double period) { Period = period; next_time = DateTime.MinValue; }
+		public void Reset() { next_time = DateTime.MinValue; }
 
 		public override string ToString()
 		{
+			var time = DateTime.Now;
 			return string.Format("time: {0} < next time {1}: {2}", 
-			                     Planetarium.GetUniversalTime(), next_time, Planetarium.GetUniversalTime() < next_time);
+			                     time, next_time, time < next_time);
 		}
 	}
 
@@ -244,9 +245,9 @@ namespace ThrottleControlledAvionics
 
 		public void Run(Action action)
 		{
-			var time = Planetarium.GetUniversalTime();
+			var time = DateTime.Now;
 			if(next_time > time) return;
-			next_time = time+Period;
+			next_time = time.AddSeconds(Period);
 			action();
 		}
 	}
@@ -259,12 +260,13 @@ namespace ThrottleControlledAvionics
 		{
 			get 
 			{
-				if(next_time < 0)
+				var time = DateTime.Now;
+				if(next_time == DateTime.MinValue)
 				{
-					next_time = Planetarium.GetUniversalTime()+Period; 
+					next_time = time.AddSeconds(Period); 
 					return false;
 				}
-				else return next_time < Planetarium.GetUniversalTime();
+				else return next_time < time;
 			}
 		}
 

@@ -269,7 +269,10 @@ namespace ThrottleControlledAvionics
 				if(GUILayout.Button(new GUIContent("Stop", "Kill horizontal velocity"), 
 				                    CFG.HF[HFlight.Stop]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
+				{
 					CFG.HF.Toggle(HFlight.Stop);
+					if(CFG.HF[HFlight.Stop]) { CFG.Nav.Off(); CFG.AP.Off(); }
+				}
 				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
 				                    CFG.HF[HFlight.AnchorHere] || CFG.HF[HFlight.Anchor]? 
 				                    Styles.green_button : Styles.yellow_button,
@@ -445,13 +448,14 @@ namespace ThrottleControlledAvionics
 
 		//adapted from MechJeb
 		bool clicked;
-		double clicked_time;
+		DateTime clicked_time;
 		void MapOverlay()
 		{
 			if(selecting_map_target)
 			{
 				//stop picking on leaving map view
 				selecting_map_target &= MapView.MapIsEnabled;
+				clicked &= selecting_map_target;
 				if(!selecting_map_target) return;
 				var coords = Utils.GetMouseCoordinates(vessel.mainBody);
 				if(coords != null)
@@ -465,7 +469,7 @@ namespace ThrottleControlledAvionics
 					{ 
 						if(Input.GetMouseButtonDown(0)) clicked = true;
 						else if(Input.GetMouseButtonDown(1))  
-						{ clicked_time = Planetarium.GetUniversalTime(); clicked = true; }
+						{ clicked_time = DateTime.Now; clicked = true; }
 					}
 					else 
 					{
@@ -477,7 +481,7 @@ namespace ThrottleControlledAvionics
 						}
 						if(Input.GetMouseButtonUp(1))
 						{ 
-							selecting_map_target &= Planetarium.GetUniversalTime() - clicked_time >= 0.5;
+							selecting_map_target &= (DateTime.Now - clicked_time).TotalSeconds >= 0.5;
 							clicked = false; 
 						}
 					}
