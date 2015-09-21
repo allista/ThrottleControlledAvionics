@@ -243,6 +243,7 @@ namespace ThrottleControlledAvionics
 			{
 				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
+				if(CFG.Anchor == null) { CFG.AP.Off(); return false; }
 				if(CFG.Anchor.DistanceTo(VSL.vessel) < CFG.Anchor.Distance)
 				{
 					CFG.Nav.Off();
