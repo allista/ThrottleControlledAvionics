@@ -148,8 +148,13 @@ namespace ThrottleControlledAvionics
 				var method = fi.FieldType.GetConstructor(new [] {vt});
 				if(method != null)
 				{
-					fi.SetValue(this, method.Invoke(fi.GetValue(this), new [] {VSL}));
-					modules.Add((TCAModule)fi.GetValue(this));
+					var m = (TCAModule)method.Invoke(fi.GetValue(this), new [] {VSL});
+					if(m != null)
+					{
+						fi.SetValue(this, m);
+						modules.Add(m);
+					}
+					else this.Log("Failed to create {0}. Constructor returned null.", fi.FieldType);
 				}
 				else this.Log("Failed to create {0}. No constructor found.", fi.FieldType);
 			}
