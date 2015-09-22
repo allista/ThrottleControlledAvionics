@@ -42,7 +42,7 @@ namespace ThrottleControlledAvionics
 		double   srfSpeed { get { return VSL.vessel.srfSpeed; } }
 		Vector3d acceleration { get { return VSL.vessel.acceleration; } }
 		Vector3  angularVelocity { get { return VSL.vessel.angularVelocity; } }
-		readonly PIDv_Controller pid = new PIDv_Controller();
+		readonly PIDv_Controller2 pid = new PIDv_Controller2();
 
 		public HorizontalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
 
@@ -90,9 +90,9 @@ namespace ThrottleControlledAvionics
 			if(!CFG.HF[HFlight.Level])
 			{
 				//if the vessel is not moving, nothing to do
-				if(VSL.LandedOrSplashed || srfSpeed < 0.01 || VSL.Thrust.IsZero()) return;
+				if(VSL.LandedOrSplashed || VSL.Thrust.IsZero()) return;
 				//calculate horizontal velocity
-				var nV  = CFG.NeededHorVelocity*CFG.NHVf;
+				var nV  = CFG.NeededHorVelocity*CFG.NHVf+CFG.CourseCorrection;
 				var hV  = VSL.HorizontalVelocity-nV;
 				var hVl = VSL.refT.InverseTransformDirection(hV);
 				var hVm = hV.magnitude;

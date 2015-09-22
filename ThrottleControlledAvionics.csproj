@@ -103,6 +103,7 @@
     <Compile Include="GUI\ToolbarWrapper.cs" />
     <Compile Include="GUI\TCAToolbarManager.cs" />
     <Compile Include="TCA.cs" />
+    <Compile Include="Modules\CollisionPreventionSystem.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

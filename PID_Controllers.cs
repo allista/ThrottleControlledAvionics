@@ -112,10 +112,10 @@ namespace ThrottleControlledAvionics
 	}
 
 	//separate implementation of the strange PID controller from MechJeb2
-	public class PIDv_Controller : PID_Controller<Vector3>
+	public class PIDv_Controller2 : PID_Controller<Vector3>
 	{
-		public PIDv_Controller() {}
-		public PIDv_Controller(float p, float i, float d, float min, float max)
+		public PIDv_Controller2() {}
+		public PIDv_Controller2(float p, float i, float d, float min, float max)
 		{ P = p; I = i; D = d; Min = min; Max = max; }
 
 		public void Update(Vector3 error, Vector3 omega)
@@ -132,6 +132,31 @@ namespace ThrottleControlledAvionics
 					float.IsNaN(act.y)? 0f : Mathf.Clamp(act.y, Min, Max),
 					float.IsNaN(act.z)? 0f : Mathf.Clamp(act.z, Min, Max)
 				);
+		}
+	}
+
+	public class PIDvd_Controller : PID_Controller<Vector3d>
+	{
+		public PIDvd_Controller() {}
+		public PIDvd_Controller(float p, float i, float d, float min, float max)
+		{ P = p; I = i; D = d; Min = min; Max = max; }
+
+		public void Update(Vector3d error)
+		{
+			if(last_error.Equals(0)) last_error = error;
+			var old_ierror = integral_error;
+			integral_error += error*TimeWarp.fixedDeltaTime;
+			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
+			action = new Vector3d
+				(
+					double.IsNaN(act.x)? 0 : Utils.Clamp(act.x, Min, Max),
+					double.IsNaN(act.y)? 0 : Utils.Clamp(act.y, Min, Max),
+					double.IsNaN(act.z)? 0 : Utils.Clamp(act.z, Min, Max)
+				);
+			if(!act.Equals(action)) integral_error = old_ierror;
+			//			Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; error {4}, action {5}", 
+			//			          this, P*error, I*integral_error, D*(error-last_error)/TimeWarp.fixedDeltaTime, error, action);//debug
+			last_error = error;
 		}
 	}
 

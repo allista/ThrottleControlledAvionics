@@ -206,4 +206,10 @@ TLA
 	MinAngularVelocity = 0.001 //(rad/s)^2 ~= 1.8deg/s
 	GearOffAngularVelocity = 0.01 //(rad/s)^2 ~= 5.73deg/s
 }
+
+CPS
+{
+	SafeDistance = 30
+	MaxAvoidanceSpeed = 10
+}
 //:mode=c#:

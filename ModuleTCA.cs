@@ -42,6 +42,7 @@ namespace ThrottleControlledAvionics
 		Radar rad;
 		AutoLander lnd;
 		VTOLAssist tla;
+		CollisionPreventionSystem cps;
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
@@ -335,6 +336,7 @@ namespace ThrottleControlledAvionics
 				anc.Update();
 				tla.Update();
 				pn.Update();
+				cps.Update();
 			}
 			//handle engines
 			VSL.TuneEngines();

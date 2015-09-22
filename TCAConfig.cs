@@ -18,17 +18,18 @@ namespace ThrottleControlledAvionics
 		[Persistent] public int MaxManualGroups       = 10; //maximum number of manual control groups
 		[Persistent] public float KeyRepeatTime       = 0.1f;
 
-		[Persistent] public EngineOptimizer.Config        ENG = new EngineOptimizer.Config();
-		[Persistent] public VerticalSpeedControl.Config   VSC = new VerticalSpeedControl.Config();
-		[Persistent] public AltitudeControl.Config        ALT = new AltitudeControl.Config();
-		[Persistent] public HorizontalSpeedControl.Config HSC = new HorizontalSpeedControl.Config();
-		[Persistent] public RCSOptimizer.Config           RCS = new RCSOptimizer.Config();
-		[Persistent] public CruiseControl.Config          CC  = new CruiseControl.Config();
-		[Persistent] public Anchor.Config                 ANC = new Anchor.Config();
-		[Persistent] public PointNavigator.Config         PN  = new PointNavigator.Config();
-		[Persistent] public Radar.Config                  RAD = new Radar.Config();
-		[Persistent] public AutoLander.Config             LND = new AutoLander.Config();
-		[Persistent] public VTOLAssist.Config             TLA = new VTOLAssist.Config();
+		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
+		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
+		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
+		[Persistent] public HorizontalSpeedControl.Config    HSC = new HorizontalSpeedControl.Config();
+		[Persistent] public RCSOptimizer.Config              RCS = new RCSOptimizer.Config();
+		[Persistent] public CruiseControl.Config             CC  = new CruiseControl.Config();
+		[Persistent] public Anchor.Config                    ANC = new Anchor.Config();
+		[Persistent] public PointNavigator.Config            PN  = new PointNavigator.Config();
+		[Persistent] public Radar.Config                     RAD = new Radar.Config();
+		[Persistent] public AutoLander.Config                LND = new AutoLander.Config();
+		[Persistent] public VTOLAssist.Config                TLA = new VTOLAssist.Config();
+		[Persistent] public CollisionPreventionSystem.Config CPS = new CollisionPreventionSystem.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -129,6 +130,7 @@ Notes:
 		//cruise control
 		[Persistent] public Vector3 Starboard;
 		public Vector3d NeededHorVelocity;
+		public Vector3d CourseCorrection;
 		public float NHVf = 1;
 		//waypoint navigation
 		[Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();
