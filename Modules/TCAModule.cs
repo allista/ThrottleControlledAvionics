@@ -37,6 +37,8 @@ namespace ThrottleControlledAvionics
 		public bool IsActive { get; protected set; }
 		public void SetState(TCAState state) { VSL.State |= state; }
 		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
+		public bool IsActiveVessel 
+		{ get { return VSL.vessel != null && VSL.vessel == FlightGlobals.ActiveVessel; } }
 
 		public virtual void Init() { }
 		public virtual void Enable(bool enable = true) {}
