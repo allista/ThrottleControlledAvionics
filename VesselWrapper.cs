@@ -75,7 +75,6 @@ namespace ThrottleControlledAvionics
 		public Vector3d   Up { get; private set; }  //up unit vector in world space
 		public Vector3    Fwd { get; private set; }  //fwd unit vector of the Control module in world space
 		public bool       NoseUp { get; private set; }  //if the forward is refT.forward or refT.up
-		public Vector3    CoM { get { return vessel.CoM + vessel.rb_velocity*TimeWarp.fixedDeltaTime; } } //current center of mass of unpacked vessel
 		public Vector3    wCoM { get; private set; } //center of mass in world space
 		public Vector3    MoI { get; private set; } = Vector3.one; //main diagonal of inertia tensor
 		public Matrix3x3f InertiaTensor { get; private set; }

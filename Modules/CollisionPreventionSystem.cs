@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float SafeDistance = 30f;
 			[Persistent] public float MaxAvoidanceSpeed = 10f;
 
-			[Persistent] public PID_Controller PID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
+			[Persistent] public PID_Controller PID = new PID_Controller(0.5f, 0f, 0.5f, 0, 10);
 		}
 		static Config CPS { get { return TCAScenario.Globals.CPS; } }
 
@@ -45,6 +45,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.Init();
 			pid.setPID(CPS.PID);
+			pid.Max = CPS.MaxAvoidanceSpeed;
 			pid.Reset();
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
@@ -57,7 +58,7 @@ namespace ThrottleControlledAvionics
 			var c = VSL.C+Dir*(VSL.R+0.1f);
 			GLUtils.GLTriangleMap(new Vector3[] { c-VSL.refT.right*0.1f, c+VSL.refT.right*0.1f, c+Dir*CPS.SafeDistance }, Color.green);
 			if(!CFG.CourseCorrection.IsZero())
-				GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.forward*0.1f, VSL.CoM+VSL.refT.forward*0.1f, VSL.CoM+CFG.CourseCorrection.normalized*10 }, Color.magenta);
+				GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.forward*0.1f, VSL.wCoM+VSL.refT.forward*0.1f, VSL.wCoM+CFG.CourseCorrection.normalized*10 }, Color.magenta);
 		}
 
 		public override void Reset()
@@ -130,7 +131,11 @@ namespace ThrottleControlledAvionics
 				avoidance_direction*obstacle_direction.magnitude :
 				-avoidance_direction*obstacle_direction.magnitude);
 			CFG.CourseCorrection = pid.Action;
-//			Log("CourseCorrection: {0}", CFG.CourseCorrection);//debug
+//			Log("CourseCorrection:\n{0}\n{1}", 
+//			    CFG.CourseCorrection, 
+//			    Vector3d.Dot(obstacle_direction, avoidance_direction) >= 0? 
+//			    avoidance_direction*obstacle_direction.magnitude :
+//			    -avoidance_direction*obstacle_direction.magnitude);//debug
 		}
 	}
 }

@@ -211,5 +211,12 @@ CPS
 {
 	SafeDistance = 30
 	MaxAvoidanceSpeed = 10
+	
+	PID
+	{
+		P = 0.5
+		I = 0.0
+		D = 0.5
+	}
 }
 //:mode=c#:

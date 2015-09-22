@@ -86,7 +86,7 @@ namespace ThrottleControlledAvionics
 		{
 			var d = Quaternion.AngleAxis(ViewAngle, VSL.refT.right)*Dir;
 			var c = VSL.C+d*(VSL.R+0.1f);
-			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, VSL.CoM+Dir*MaxDistance }, Color.green);
+			GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.right*0.1f, VSL.wCoM+VSL.refT.right*0.1f, VSL.wCoM+Dir*MaxDistance }, Color.green);
 			GLUtils.GLTriangleMap(new Vector3[] { c-VSL.refT.right*0.1f, c+VSL.refT.right*0.1f, c+d*MaxDistance }, DistanceAhead > 0? Color.magenta : Color.red);
 		}
 

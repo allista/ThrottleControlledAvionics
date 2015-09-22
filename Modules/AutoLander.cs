@@ -436,7 +436,7 @@ namespace ThrottleControlledAvionics
 			if(Nodes == null) return;
 			if(scanner == null && NextNode != null)
 			{
-				GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, NextNode.position }, 
+				GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.right*0.1f, VSL.wCoM+VSL.refT.right*0.1f, NextNode.position }, 
 				                      Color.Lerp(Color.blue, Color.red, NextNode.unevenness));
 				return;
 			}
@@ -445,7 +445,7 @@ namespace ThrottleControlledAvionics
 				{
 					var n = Nodes[i,j];
 					if(n == null) continue;
-					GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, n.position }, 
+					GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.right*0.1f, VSL.wCoM+VSL.refT.right*0.1f, n.position }, 
 					                      Color.Lerp(Color.blue, Color.red, n.unevenness));
 				}
 		}

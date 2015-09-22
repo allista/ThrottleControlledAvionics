@@ -89,7 +89,7 @@ namespace ThrottleControlledAvionics
 		public void AnchorPointer()
 		{
 			if(CFG.Anchor == null) return;
-			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, CFG.Anchor.GetTransform().position }, Color.cyan);
+			GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.right*0.1f, VSL.wCoM+VSL.refT.right*0.1f, CFG.Anchor.GetTransform().position }, Color.cyan);
 		}
 
 		public override void Reset()
