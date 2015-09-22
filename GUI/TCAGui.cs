@@ -274,7 +274,7 @@ namespace ThrottleControlledAvionics
 					if(CFG.HF[HFlight.Stop]) { CFG.Nav.Off(); CFG.AP.Off(); }
 				}
 				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
-				                    CFG.HF[HFlight.AnchorHere] || CFG.HF[HFlight.Anchor]? 
+									CFG.HF.Any(HFlight.AnchorHere, HFlight.Anchor)? 
 				                    Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(65)))
 					CFG.HF.Toggle(HFlight.AnchorHere);

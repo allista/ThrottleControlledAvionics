@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
-		public override void UpdateState() { IsActive = (CFG.HF[HFlight.Anchor] || CFG.HF[HFlight.AnchorHere]) && VSL.OnPlanet; }
+		public override void UpdateState() { IsActive = CFG.HF.Any(HFlight.Anchor, HFlight.AnchorHere) && VSL.OnPlanet; }
 
 		public override void Enable(bool enable = true)
 		{

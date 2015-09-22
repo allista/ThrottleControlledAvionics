@@ -86,7 +86,7 @@ namespace ThrottleControlledAvionics
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && 
-			     (CFG.HF[HFlight.NoseOnCourse] || CFG.HF[HFlight.CruiseControl]) && 
+				 CFG.HF.Any(HFlight.NoseOnCourse, HFlight.CruiseControl) && 
 			     VSL.OnPlanet && VSL.refT != null )) return;
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
