@@ -86,10 +86,31 @@ namespace ThrottleControlledAvionics
 			else finish();
 		}
 
-		void start_to(WayPoint wp)
+		void set_target(WayPoint wp)
 		{
 			target = wp;
-			FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
+			var t = wp == null? null : wp.GetTarget();
+			if(IsActiveVessel)
+				FlightGlobals.fetch.SetVesselTarget(t);
+			else 
+			{
+				VSL.vessel.targetObject = t;
+				if(VSL.vessel.orbitTargeter)
+				{
+					if(t != null)
+					{
+						if(t.GetOrbitDriver() != null &&
+							t.GetOrbitDriver() != VSL.vessel.orbitDriver)
+							VSL.vessel.orbitTargeter.SetTarget(t.GetOrbitDriver());
+					}
+					else VSL.vessel.orbitTargeter.SetTarget(null);
+				}
+			}
+		}
+
+		void start_to(WayPoint wp)
+		{
+			set_target(wp);
 			pid.Reset();
 			VSL.UpdateOnPlanetStats();
 			CFG.HF.On(HFlight.NoseOnCourse);
@@ -98,8 +119,7 @@ namespace ThrottleControlledAvionics
 
 		void finish()
 		{
-			target = null;
-			FlightGlobals.fetch.SetVesselTarget(null);
+			set_target(null);
 			CFG.HF.On(HFlight.Stop);
 		}
 
@@ -118,12 +138,8 @@ namespace ThrottleControlledAvionics
 			//calculate direct distance and relative velocity
 			var tpos = target.GetTransform().position;
 			var tvsl = target.GetVessel();
-			var dvel = Vector3d.zero;
 			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
-			{
 				tpos += (tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime/2)*PN.LookAheadTime;
-				dvel  = tvsl.srf_velocity-VSL.vessel.srf_velocity;
-			}
 			var vdir = Vector3.ProjectOnPlane(tpos-VSL.vessel.transform.position, VSL.Up);
 			var distance = vdir.magnitude;
 			//if it is greater that the threshold (in radians), use Great Circle navigation
@@ -196,7 +212,7 @@ namespace ThrottleControlledAvionics
 			pid.Min = 0;
 			pid.Max = CFG.MaxNavSpeed;
 			pid.P   = PN.DistancePID.P*AccelCorrection;
-			pid.D   = PN.DistancePID.D*(2-AccelCorrection)/Utils.ClampL(Vector3.Dot(vdir, dvel), 1);
+			pid.D   = PN.DistancePID.D*(2-AccelCorrection);
 			pid.Update(distance*PN.DistanceF);
 			//increase the needed velocity slowly
 			var cur_vel   = Utils.ClampL((float)Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 1);
