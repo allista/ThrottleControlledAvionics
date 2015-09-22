@@ -39,6 +39,9 @@ namespace ThrottleControlledAvionics
 		const string PN_ICON  = "ThrottleControlledAvionics/Icons/path-node";
 		const float  IconSize = 16;
 		static Texture2D WayPointMarker, PathNodeMarker;
+		//altitude edit
+		static string s_altitude;
+		static float altitude;
 		#endregion
 
 		#region Configs Selector
@@ -234,8 +237,18 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label("Altitude: " + 
 					                (VSL.Altitude.ToString("F2")+"m"), 
 					                GUILayout.Width(120));
-					GUILayout.Label("Set Point: " + (CFG.DesiredAltitude.ToString("F1") + "m"), 
-					                GUILayout.Width(125));
+					GUILayout.Label("Set Point (m):", GUILayout.Width(125));
+					if(!altitude.Equals(CFG.DesiredAltitude))
+					{
+						altitude = CFG.DesiredAltitude;
+						s_altitude = altitude.ToString("F1");
+					}
+					s_altitude = GUILayout.TextField(s_altitude, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
+					if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
+					{
+						if(float.TryParse(s_altitude, out altitude)) CFG.DesiredAltitude = altitude;
+						else altitude = CFG.DesiredAltitude;
+					}
 					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude -= 10;
 					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude += 10;
 					GUILayout.Label("Vertical Speed: " + 
