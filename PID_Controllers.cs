@@ -147,13 +147,13 @@ namespace ThrottleControlledAvionics
 			var old_ierror = integral_error;
 			integral_error += error*TimeWarp.fixedDeltaTime;
 			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
-			action = new Vector3d
-				(
-					double.IsNaN(act.x)? 0 : Utils.Clamp(act.x, Min, Max),
-					double.IsNaN(act.y)? 0 : Utils.Clamp(act.y, Min, Max),
-					double.IsNaN(act.z)? 0 : Utils.Clamp(act.z, Min, Max)
-				);
-			if(!act.Equals(action)) integral_error = old_ierror;
+			if(act.IsZero()) action = act;
+			else
+			{
+				var actm = act.magnitude;
+				action = act/actm*Utils.Clamp(actm, Min, Max);
+				if(!act.Equals(action)) integral_error = old_ierror;
+			}
 			//			Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; error {4}, action {5}", 
 			//			          this, P*error, I*integral_error, D*(error-last_error)/TimeWarp.fixedDeltaTime, error, action);//debug
 			last_error = error;
