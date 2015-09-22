@@ -55,6 +55,9 @@ namespace ThrottleControlledAvionics
 		#region Math
 		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
 
+		public static double Clamp(double x, double low, double high)  
+		{ return x < low ? low : (x > high? high : x); }
+
 		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
 		public static double ClampL(double x, double low)  { return x < low  ? low  : x;  }
 
@@ -387,6 +390,13 @@ namespace ThrottleControlledAvionics
 
 		public Multiplexer() 
 		{ if(!typeof(T).IsEnum) throw new ArgumentException("Multiplexer<T> T must be an enumerated type"); }
+
+		public bool Any(params T[] keys)
+		{
+			for(int i = 0, l = keys.Length; i < l; i++)
+				if(state.Equals(keys[i])) return true;
+			return false;
+		}
 
 		public bool this[T key] 
 		{ 
