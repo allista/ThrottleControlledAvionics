@@ -56,11 +56,12 @@ namespace ThrottleControlledAvionics
 		public Vector6 W_TorqueLimits { get; private set; } = new Vector6(); //torque limits of reaction wheels
 		public Vector6 R_TorqueLimits { get; private set; } = new Vector6(); //torque limits of rcs
 
-		public Bounds B { get; private set; }
-		public float  H { get; private set; }
-		public float  R { get; private set; }
-		public float  M { get; private set; }
-		public float  G { get { return (float)vessel.mainBody.GeeASL*Gee; } }
+		public Bounds  B { get; private set; } //bounds
+		public Vector3 C { get; private set; } //center
+		public float   H { get; private set; } //height
+		public float   R { get; private set; } //radius
+		public float   M { get; private set; } //mass
+		public float   G { get { return (float)vessel.mainBody.GeeASL*Gee; } }
 		public float  DTWR { get; private set; }
 		public float  MaxDTWR { get; private set; }
 		public float  MaxTWR { get; private set; }
@@ -519,8 +520,8 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			B = b;
-			H = Mathf.Abs(Vector3.Dot(vT.TransformDirection(B.extents), Up))
-				-Vector3.Dot(vT.TransformPoint(B.center)-wCoM, Up);
+			C = vT.TransformPoint(B.center);
+			H = Mathf.Abs(Vector3.Dot(vT.TransformDirection(B.extents), Up))-Vector3.Dot(C-wCoM, Up);
 			R = B.extents.magnitude;
 //			DebugUtils.logBounds("Vessel", B);
 //			Utils.Log("B.center-wCoM {0}\n (c-wCoM)*Up {1}, B.extents*Up {2}, H {3}", 
