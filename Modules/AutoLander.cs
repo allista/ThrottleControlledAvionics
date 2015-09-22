@@ -35,10 +35,17 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float StopTimer            = 2;
 			[Persistent] public float CutoffTimer          = 2;
 
+			public float MaxStartAltitude;
+
+			public override void Init ()
+			{
+				base.Init ();
+				MaxStartAltitude = MaxWideCheckAltitude/2;
+			}
 		}
 		static Config LND { get { return TCAScenario.Globals.LND; } }
 
-		static int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts"));
+		static int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts") | 1);
 		enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, Land }
 
 		Stage stage;
@@ -92,13 +99,14 @@ namespace ThrottleControlledAvionics
 		SurfaceNode get_surface_node()
 		{
 			RaycastHit raycastHit;
-			if(Physics.Raycast(VSL.wCoM, dir, out raycastHit, MaxDistance, RadarMask))
+			var c = VSL.C+dir*(VSL.R+0.1f);
+			if(Physics.Raycast(c, dir, out raycastHit, MaxDistance, RadarMask))
 			{
 				var ray = raycastHit.distance*dir;
 				if(VSL.mainBody.ocean && 
-				   (VSL.wCoM+ray-VSL.mainBody.position).magnitude < VSL.mainBody.Radius)
+				   (c+ray-VSL.mainBody.position).magnitude < VSL.mainBody.Radius)
 					return null;
-				return new SurfaceNode(VSL.wCoM, ray, up);
+				return new SurfaceNode(c, ray, up);
 			}
 			return null;
 		}
@@ -334,11 +342,11 @@ namespace ThrottleControlledAvionics
 				if(DesiredAltitude <= 0) 
 				{   //here we just need the altitude control to prevent smashing into something while stopping
 					VSL.UpdateAltitude();
-					DesiredAltitude = VSL.Altitude;
+					DesiredAltitude = VSL.Altitude > LND.MaxStartAltitude? LND.MaxStartAltitude : VSL.Altitude;
 					CFG.DesiredAltitude = DesiredAltitude;
 				}
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
-				if(stopped) 
+				if(stopped && VSL.Altitude < LND.MaxStartAltitude+10) 
 				{
 					DesiredAltitude = VSL.Altitude;
 					stage = Stage.PointCheck;	

@@ -14,6 +14,14 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	public abstract class RadarBase : TCAModule
+	{
+		protected Vector3  Dir;
+		protected static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts") | 1);
+
+		protected Vector3  Ori(Vector3 dir) { return VSL.C+dir*(VSL.R+0.1f); }
+	}
+
 	public class Radar : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -49,7 +57,7 @@ namespace ThrottleControlledAvionics
 		float    CollisionSpeed = -1;
 		readonly Hit BestHit     = new Hit();
 		readonly Hit DetectedHit = new Hit();
-		static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts"));
+		static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts") | 1);
 		int      Ray;
 
 		public Vector3d SurfaceVelocity { get { return VSL.vessel.srf_velocity; } }
@@ -58,10 +66,10 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL.refT == null) return -1;
 			RaycastHit raycastHit;
-			if(Physics.Raycast(VSL.wCoM, 
-			                   Quaternion.AngleAxis(angle, VSL.refT.right)*Dir,
+			var dir = Quaternion.AngleAxis(angle, VSL.refT.right)*Dir;
+			if(Physics.Raycast(VSL.C+dir*(VSL.R+0.1f), dir,
 			                   out raycastHit, dist, RadarMask))
-				return raycastHit.distance;
+				return raycastHit.distance+VSL.R+0.1f;
 			return -1;
 		}
 
@@ -69,7 +77,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.Init();
 			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
 		}
 
@@ -77,14 +85,15 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			var d = Quaternion.AngleAxis(ViewAngle, VSL.refT.right)*Dir;
+			var c = VSL.C+d*(VSL.R+0.1f);
 			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, VSL.CoM+Dir*MaxDistance }, Color.green);
-			GLUtils.GLTriangleMap(new Vector3[] { VSL.CoM-VSL.refT.right*0.1f, VSL.CoM+VSL.refT.right*0.1f, VSL.CoM+d*MaxDistance }, DistanceAhead > 0? Color.magenta : Color.red);
+			GLUtils.GLTriangleMap(new Vector3[] { c-VSL.refT.right*0.1f, c+VSL.refT.right*0.1f, c+d*MaxDistance }, DistanceAhead > 0? Color.magenta : Color.red);
 		}
 
 		public override void Reset()
 		{
 			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 
@@ -108,7 +117,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			if(VSL.HorizontalSpeed <= RAD.MinClosingSpeed && 
-			   (CFG.HF[HFlight.Stop] || CFG.HF[HFlight.Anchor] || CFG.HF[HFlight.AnchorHere] || CFG.DesiredAltitude < RAD.MinAltitude))
+				(CFG.HF.Any(HFlight.Stop, HFlight.Anchor, HFlight.AnchorHere) || CFG.DesiredAltitude < RAD.MinAltitude))
 			{ reset(); return; }
 			//closing speed and starting ray direction
 			Dir = Vector3.Cross(VSL.refT.right, VSL.Up).normalized;
