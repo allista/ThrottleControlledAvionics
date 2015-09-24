@@ -1220,10 +1220,10 @@ if __name__ == '__main__':
 # #                ['AltAhead']
 #                 , (13,))
 
-    analyzeCSV('PN-tuning-8.csv',
-               ('dist', 'V', 'minVSF', 'accel_cor', 'pid.P', 'pid.D', 'pid.Action', 'nV'),
-               ('dist', 'V', 'minVSF', 'accel_cor', 'pid.P', 'pid.D', 'pid.Action', 'nV'),
-                (13000,))
+    analyzeCSV('PN-S-Jet-Test.csv',
+               ('name', 'dist', 'dV', 'dV_dir', 'DeltaSpeed', 'minVSF', 'accel_cor', 'pid.P', 'pid.D', 'pid.Action', 'nV'),
+               ('dist', 'dV', 'dV_dir', 'DeltaSpeed', 'minVSF', 'accel_cor', 'pid.P', 'pid.D', 'pid.Action', 'nV'))
+#                 (6500,))
     
 #     analyzeCSV('VS-filtering-39.csv',
 #                ('BestAlt', 'DetAlt', 'AltAhead')
