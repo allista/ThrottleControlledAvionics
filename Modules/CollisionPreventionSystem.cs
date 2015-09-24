@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "CPS";
 
 			[Persistent] public float SafeDistance = 30f;
+			[Persistent] public float SafeTime     = 5f;
 			[Persistent] public float MaxAvoidanceSpeed = 10f;
 
 			[Persistent] public PID_Controller PID = new PID_Controller(0.5f, 0f, 0.5f, 0, 10);
@@ -72,11 +73,15 @@ namespace ThrottleControlledAvionics
 		{ 
 			d = Vector3d.zero;
 			Dir = (v.CurrentCoM-VSL.wCoM).normalized;
+			var mdist = CPS.SafeDistance;
+			var dv = v.srf_velocity-VSL.vessel.srf_velocity;
+			if(Vector3d.Dot(dv, VSL.vessel.srf_velocity) < 0)
+				mdist += (float)dv.magnitude*CPS.SafeTime;
 			RaycastHit raycastHit;
 			if(Physics.Raycast(VSL.C+Dir*(VSL.R+0.1f), Dir,
-				out raycastHit, CPS.SafeDistance, RadarMask))
+				out raycastHit, mdist, RadarMask))
 			{
-				d = Dir * -raycastHit.distance;
+				d = Dir * -raycastHit.distance/mdist;
 				return true;
 			}
 			return false;
@@ -121,7 +126,7 @@ namespace ThrottleControlledAvionics
 				var d = Distances[i];
 				if(d.IsZero()) continue;
 				obstacle_direction += d 
-					* Utils.ClampL(1/d.magnitude - 1/CPS.SafeDistance, 0) 
+					* Utils.ClampL(1/d.magnitude - 1, 0) 
 					* CPS.MaxAvoidanceSpeed/DistancesCount;
 			}
 //			if(obstacle_direction.sqrMagnitude < 0.25) return;
