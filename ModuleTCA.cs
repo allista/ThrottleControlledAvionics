@@ -344,7 +344,6 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.SortEngines();
 				//:preset manual limits for translation if needed
-				this.Log("ManualTranslationEnabled: {0}\nManualTransaltion: {1}", VSL.ManualTranslationEnabled, VSL.ManualTranslation);//debug
 				if(VSL.ManualTranslationEnabled)
 					eng.PresetLimitsForTranslation(VSL.ManualEngines, VSL.ManualTranslation);
 				//:balance-only engines
