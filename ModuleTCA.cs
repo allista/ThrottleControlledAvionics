@@ -343,6 +343,10 @@ namespace ThrottleControlledAvionics
 			if(VSL.NumActive > 0)
 			{
 				VSL.SortEngines();
+				//:preset manual limits for translation if needed
+				this.Log("ManualTranslationEnabled: {0}\nManualTransaltion: {1}", VSL.ManualTranslationEnabled, VSL.ManualTranslation);//debug
+				if(VSL.ManualTranslationEnabled)
+					eng.PresetLimitsForTranslation(VSL.ManualEngines, VSL.ManualTranslation);
 				//:balance-only engines
 				if(VSL.BalancedEngines.Count > 0)
 				{
@@ -351,7 +355,7 @@ namespace ThrottleControlledAvionics
 				}
 				VSL.UpdateTorque(VSL.ManualEngines, VSL.BalancedEngines);
 				//:optimize limits for steering
-				eng.PresetLimitsForTranslation();
+				eng.PresetLimitsForTranslation(VSL.ManeuverEngines, VSL.Translation);
 				eng.Steer();
 			}
 			rcs.Steer();

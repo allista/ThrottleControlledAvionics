@@ -122,6 +122,8 @@ namespace ThrottleControlledAvionics
 		{ get { return vessel.OnAutopilotUpdate; } set { vessel.OnAutopilotUpdate = value; } }
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
+		public Vector3 ManualTranslation;
+		public bool ManualTranslationEnabled;
 		public bool NoActiveRCS { get; private set; }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 
@@ -296,7 +298,8 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
-				if(e.Role != TCARole.MANUAL) e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
+				if(ManualTranslationEnabled || e.Role != TCARole.MANUAL) 
+					e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
 			}
 			if(NoActiveRCS) return;
 			for(int i = 0; i < NumActiveRCS; i++)
@@ -326,7 +329,7 @@ namespace ThrottleControlledAvionics
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
 			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
-			if(!Translation.IsZero())Translation = Translation/Translation.CubeNorm().magnitude;
+			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
 			if(!OnPlanet) UnblockSAS(false);
 			else if(!CFG.HF) UnblockSAS();
 		}

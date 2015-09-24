@@ -22,6 +22,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "HSC";
 
 			[Persistent] public float TranslationUpperThreshold = 5f;
+			[Persistent] public float ManualTranslationCutoff   = 50f;
 			[Persistent] public float TranslationLowerThreshold = 0.2f;
 			[Persistent] public float RotationLowerThreshold    = 0.01f;
 
@@ -67,6 +68,7 @@ namespace ThrottleControlledAvionics
 				CFG.Starboard = Vector3.zero;
 				CFG.NeededHorVelocity = Vector3d.zero;
 			}
+			else VSL.ManualTranslationEnabled = false;
 			BlockSAS(enable);
 		}
 
@@ -74,6 +76,7 @@ namespace ThrottleControlledAvionics
 		{
 			pid.Reset();
 			if(enable) VSL.UpdateOnPlanetStats();
+			else VSL.ManualTranslationEnabled = false;
 			BlockSAS(enable);
 		}
 
@@ -121,11 +124,21 @@ namespace ThrottleControlledAvionics
 	//				         );//debug
 				}
 				else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
-				if(nV.magnitude < HSC.TranslationUpperThreshold && hVm > HSC.TranslationLowerThreshold)
+				VSL.ManualTranslationEnabled = false;
+				if(hVm > HSC.TranslationLowerThreshold)
 				{
-					//also try to use translation control to slow down
-					var hVl_dir = Utils.ClampH((float)(hVm/HSC.TranslationUpperThreshold), 1)*hVl.CubeNorm();	
-					s.X = hVl_dir.x; s.Z = hVl_dir.y; s.Y = hVl_dir.z;
+					//also try to use translation control
+					var hVl_dir = hVl.CubeNorm();
+					if(nV.magnitude < HSC.TranslationUpperThreshold)
+					{
+						var trans = Utils.ClampH((float)(hVm/HSC.TranslationUpperThreshold), 1)*hVl_dir;
+						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
+					}
+					else 
+					{
+						VSL.ManualTranslation = Utils.ClampH((float)(hVm/HSC.ManualTranslationCutoff), 1)*hVl_dir;
+						VSL.ManualTranslationEnabled = true;
+					}
 				}
 			}
 			else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);

@@ -99,6 +99,7 @@ ALT
 HSC
 {
 	TranslationUpperThreshold = 5
+	ManualTranslationCutoff   = 50
 	TranslationLowerThreshold = 0.01
 	RotationLowerThreshold    = 0.01
 
@@ -210,11 +211,12 @@ TLA
 CPS
 {
 	SafeDistance = 30
+	SafeTime     = 5
 	MaxAvoidanceSpeed = 10
 	
 	PID
 	{
-		P = 0.5
+		P = 1.0
 		I = 0.0
 		D = 0.5
 	}
