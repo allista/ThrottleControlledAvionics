@@ -135,12 +135,9 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive || target == null) return;
 			target.Update(VSL.mainBody);
-			//calculate direct distance and relative velocity
-			var tpos = target.GetTransform().position;
+			//calculate direct distance
 			var tvsl = target.GetVessel();
-			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
-				tpos += (tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime/2)*PN.LookAheadTime;
-			var vdir = Vector3.ProjectOnPlane(tpos-VSL.vessel.transform.position, VSL.Up);
+			var vdir = Vector3.ProjectOnPlane(target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
 			var distance = vdir.magnitude;
 			//if it is greater that the threshold (in radians), use Great Circle navigation
 			if(distance/VSL.mainBody.Radius > PN.DirectNavThreshold)
@@ -239,9 +236,15 @@ namespace ThrottleControlledAvionics
 			}
 			//set needed velocity and starboard
 			CFG.NeededHorVelocity = pid.Action-cur_vel > DeltaSpeed? vdir*(cur_vel+DeltaSpeed) : vdir*pid.Action;
+			//correcto for Follow Target program
+			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
+			{
+				var tvel = Vector3d.Exclude(VSL.Up, tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime);
+				if(Vector3d.Dot(tvel, vdir) > 0) CFG.NeededHorVelocity += tvel;
+			}
 			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
-//			DebugUtils.CSV(distance, Vector3d.Dot(VSL.vessel.srf_velocity, vdir), 
-//			               VSL.MinVSFtwr, AccelCorrection, 
+//			DebugUtils.CSV(VSL.vessel.vesselName, distance, cur_vel, Vector3d.Dot(cur_vel, vdir), 
+//			               DeltaSpeed, VSL.MinVSFtwr, AccelCorrection, 
 //			               pid.P, pid.D, pid.Action, CFG.NeededHorVelocity.magnitude);//debug
 		}
 	}
