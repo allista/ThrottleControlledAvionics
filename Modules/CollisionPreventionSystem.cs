@@ -130,7 +130,7 @@ namespace ThrottleControlledAvionics
 					* CPS.MaxAvoidanceSpeed/DistancesCount;
 			}
 //			if(obstacle_direction.sqrMagnitude < 0.25) return;
-			obstacle_direction  = Vector3d.Exclude(VSL.Up, obstacle_direction);
+//			obstacle_direction  = Vector3d.Exclude(VSL.Up, obstacle_direction);
 			avoidance_direction = Vector3d.Cross(VSL.Up, CFG.NeededHorVelocity.normalized);
 			pid.Update(Vector3d.Dot(obstacle_direction, avoidance_direction) >= 0? 
 				avoidance_direction*obstacle_direction.magnitude :
