@@ -112,6 +112,8 @@ namespace ThrottleControlledAvionics
 				TCAScenario.LoadGlobals();
 				TCA.OnReloadGlobals();
 			}
+			if(GUILayout.Button("Reset", Styles.yellow_button, GUILayout.Width(60))) 
+				TCA.onVesselModify(TCA.vessel);
 			#endif
 			StatusString();
 			GUILayout.EndHorizontal();
@@ -122,7 +124,7 @@ namespace ThrottleControlledAvionics
 			WaypointList();
 			EnginesControl();
 			#if DEBUG
-			EnginesInfo();
+//			EnginesInfo();
 			#endif
 			SelectConfig_end();
 			GUILayout.EndVertical();
