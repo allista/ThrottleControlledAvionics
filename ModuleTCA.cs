@@ -104,7 +104,7 @@ namespace ThrottleControlledAvionics
 			init();
 		}
 
-		void onVesselModify(Vessel vsl)
+		public void onVesselModify(Vessel vsl)//debug
 		{ 
 			if(vsl != vessel) return;
 			reset();
@@ -234,8 +234,10 @@ namespace ThrottleControlledAvionics
 			CFG.HF.AddCallback(HFlight.CruiseControl, UpdateNeededVeloctiy);
 			vessel.OnAutopilotUpdate += block_throttle;
 			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
-			else if(CFG.Nav[Navigation.GoToTarget]) pn.GoToTarget(VSL.vessel.targetObject != null);
-			else if(CFG.Nav[Navigation.FollowPath]) pn.FollowPath(CFG.Waypoints.Count > 0);
+			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowTarget)) 
+				pn.GoToTarget(VSL.vessel.targetObject != null);
+			else if(CFG.Nav[Navigation.FollowPath]) 
+				pn.FollowPath(CFG.Waypoints.Count > 0);
 			else if(CFG.HF[HFlight.CruiseControl]) UpdateNeededVeloctiy();
 			ThrottleControlledAvionics.AttachTCA(this);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
