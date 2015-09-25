@@ -49,7 +49,6 @@ namespace ThrottleControlledAvionics
 		public PointNavigator(VesselWrapper vsl) { VSL = vsl; }
 
 		readonly PIDf_Controller pid = new PIDf_Controller();
-		WayPoint target;
 		float DeltaSpeed;
 		readonly Timer ArrivedTimer = new Timer();
 		readonly EWA AccelCorrection = new EWA();
@@ -63,6 +62,7 @@ namespace ThrottleControlledAvionics
 			CFG.Nav.AddCallback(Navigation.GoToTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowPath, FollowPath);
+			if(CFG.Target != null) set_target(CFG.Target);
 		}
 
 		public override void UpdateState() { IsActive = CFG.Nav && VSL.OnPlanet; }
@@ -88,24 +88,24 @@ namespace ThrottleControlledAvionics
 
 		void set_target(WayPoint wp)
 		{
-			target = wp;
+			CFG.Target = wp;
 			var t = wp == null? null : wp.GetTarget();
 			if(IsActiveVessel)
 				FlightGlobals.fetch.SetVesselTarget(t);
-			else 
-			{
-				VSL.vessel.targetObject = t;
-				if(VSL.vessel.orbitTargeter)
-				{
-					if(t != null)
-					{
-						if(t.GetOrbitDriver() != null &&
-							t.GetOrbitDriver() != VSL.vessel.orbitDriver)
-							VSL.vessel.orbitTargeter.SetTarget(t.GetOrbitDriver());
-					}
-					else VSL.vessel.orbitTargeter.SetTarget(null);
-				}
-			}
+			else VSL.vessel.targetObject = t;
+//			{
+//				if(VSL.vessel.orbitTargeter)
+//				{
+//					if(t != null)
+//					{
+//						if(t.GetOrbitDriver() != null &&
+//							t.GetOrbitDriver() != VSL.vessel.orbitDriver)
+//							VSL.vessel.orbitTargeter.SetTarget(t.GetOrbitDriver());
+//					}
+//					else VSL.vessel.orbitTargeter.SetTarget(null);
+//				}
+//				VSL.vessel.targetObject = t;
+//			}
 		}
 
 		void start_to(WayPoint wp)
@@ -125,31 +125,31 @@ namespace ThrottleControlledAvionics
 
 		bool on_arrival()
 		{
-			if(target == null) return false;
-			if(target.Pause) { PauseMenu.Display(); target.Pause = false; }
-			if(target.Land)	{ CFG.AP.OnIfNot(Autopilot.Land); return true; }
+			if(CFG.Target == null) return false;
+			if(CFG.Target.Pause) { PauseMenu.Display(); CFG.Target.Pause = false; }
+			if(CFG.Target.Land)	{ CFG.AP.OnIfNot(Autopilot.Land); return true; }
 			return false;
 		}
 
 		public void Update()
 		{
-			if(!IsActive || target == null) return;
-			target.Update(VSL.mainBody);
+			if(!IsActive || CFG.Target == null) return;
+			CFG.Target.Update(VSL.mainBody);
 			//calculate direct distance
-			var tvsl = target.GetVessel();
-			var vdir = Vector3.ProjectOnPlane(target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
+			var tvsl = CFG.Target.GetVessel();
+			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
 			var distance = vdir.magnitude;
 			//if it is greater that the threshold (in radians), use Great Circle navigation
 			if(distance/VSL.mainBody.Radius > PN.DirectNavThreshold)
 			{
-				var next = target.PointFrom(VSL.vessel, 0.1);
-				distance = (float)target.DistanceTo(VSL.vessel);
+				var next = CFG.Target.PointFrom(VSL.vessel, 0.1);
+				distance = (float)CFG.Target.DistanceTo(VSL.vessel);
 				vdir = Vector3.ProjectOnPlane(VSL.mainBody.GetWorldSurfacePosition(next.Lat, next.Lon, VSL.vessel.altitude)
 				                              -VSL.vessel.transform.position, VSL.Up);
 			}
 			vdir.Normalize();
 			//check if we have arrived to the target and stayed long enough
-			if(distance < target.Distance)
+			if(distance < CFG.Target.Distance)
 			{
 				CFG.HF.OnIfNot(HFlight.Move);
 				if(CFG.Nav[Navigation.FollowTarget])
@@ -169,7 +169,7 @@ namespace ThrottleControlledAvionics
 				}
 				if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 0)
 				{
-					if(CFG.Waypoints.Peek() == target)
+					if(CFG.Waypoints.Peek() == CFG.Target)
 					{
 						if(CFG.Waypoints.Count > 1)
 						{ 

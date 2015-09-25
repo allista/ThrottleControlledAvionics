@@ -134,9 +134,10 @@ Notes:
 		public float NHVf = 1;
 		//waypoint navigation
 		[Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();
-		[Persistent] public float   MaxNavSpeed = 100;
-		[Persistent] public bool    ShowWaypoints;
-		public Queue<WayPoint>      Waypoints = new Queue<WayPoint>();
+		[Persistent] public float    MaxNavSpeed = 100;
+		[Persistent] public bool     ShowWaypoints;
+		public Queue<WayPoint>       Waypoints = new Queue<WayPoint>();
+		[Persistent] public WayPoint Target;
 		//autopilot
 		[Persistent] public Multiplexer<Autopilot> AP = new Multiplexer<Autopilot>();
 		//engines
@@ -167,6 +168,8 @@ Notes:
 				Waypoints.Enqueue(ConfigNodeObject.FromConfig<WayPoint>(n));
 			if(Anchor != null && string.IsNullOrEmpty(Anchor.Name))
 				Anchor = null;
+			if(Target != null && string.IsNullOrEmpty(Target.Name))
+				Target = null;
 		}
 
 		public override void Save(ConfigNode node)
