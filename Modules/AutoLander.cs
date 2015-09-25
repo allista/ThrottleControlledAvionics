@@ -93,6 +93,7 @@ namespace ThrottleControlledAvionics
 			{
 				DesiredAltitude = VSL.Altitude;
 				CFG.VF.On(VFlight.AltitudeControl);
+				CFG.Nav.Off();
 			}
 		}
 
