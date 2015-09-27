@@ -176,19 +176,32 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i<modules.Count; i++) method.Invoke(modules[i], null);
 		}
 
-		public static List<ModuleTCA> AllTCA(List<Part> parts)
+		public static List<ModuleTCA> AllTCA(IShipconstruct ship)
 		{
 			//get all ModuleTCA instances in the vessel
 			var TCA_Modules = new List<ModuleTCA>();
-			(from p in parts select p.Modules.OfType<ModuleTCA>())
+			(from p in ship.Parts select p.Modules.OfType<ModuleTCA>())
 				.ForEach(TCA_Modules.AddRange);
 			return TCA_Modules;
+		}
+
+		public static ModuleTCA EnabledTCA(IShipconstruct ship)
+		{
+			ModuleTCA tca = null;
+			for(int i = 0, shipPartsCount = ship.Parts.Count; i < shipPartsCount; i++) 
+			{
+				tca = ship.Parts[i].Modules
+					.OfType<ModuleTCA>()
+					.FirstOrDefault(m => m.enabled);
+				if(tca != null) break;
+			}
+			return tca;
 		}
 
 		void UpdateCFG()
 		{
 			//get all ModuleTCA instances in the vessel
-			var TCA_Modules = AllTCA(vessel.Parts);
+			var TCA_Modules = AllTCA(vessel);
 			//try to get saved CFG from other modules, if needed
 			if(CFG == null)
 				foreach(var tca in TCA_Modules)

@@ -10,6 +10,8 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -48,10 +50,13 @@ namespace ThrottleControlledAvionics
 		static Config PN { get { return TCAScenario.Globals.PN; } }
 		public PointNavigator(VesselWrapper vsl) { VSL = vsl; }
 
-		readonly PIDf_Controller pid = new PIDf_Controller();
 		float DeltaSpeed;
+		readonly PIDf_Controller pid = new PIDf_Controller();
 		readonly Timer ArrivedTimer = new Timer();
 		readonly EWA AccelCorrection = new EWA();
+
+		SortedList<Guid, ModuleTCA> all_followers = new SortedList<Guid, ModuleTCA>();
+		Vector3 follower_offset = Vector3.zero;
 
 		public override void Init()
 		{
@@ -86,6 +91,48 @@ namespace ThrottleControlledAvionics
 			else finish();
 		}
 
+		IEnumerator updater;
+		IEnumerator offset_updater()
+		{
+			var tvsl = CFG.Target.GetVessel();
+			if(tvsl.srf_velocity.sqrMagnitude < 0.25)
+			{ follower_offset = Vector3.zero; yield break; }
+			//update followers
+			foreach(var v in FlightGlobals.Vessels)
+			{
+				if(v.packed || !v.loaded) 
+				{ all_followers.Remove(v.id); continue; }
+				var tca = ModuleTCA.EnabledTCA(v);
+				if(tca != null && 
+					tca.CFG.Nav[Navigation.FollowTarget] && 
+					tca.CFG.Target.GetTarget() != null && 
+					tca.CFG.Target.GetTarget() == CFG.Target.GetTarget()) 
+					all_followers[v.id] = tca;
+				else all_followers.Remove(v.id);
+				yield return null;
+			}
+			//compute follower offset from index
+			var follower_index = 0;
+			follower_offset = Vector3.zero;
+			if(all_followers.Count == 1) yield break;
+			try { follower_index = all_followers.IndexOfKey(VSL.vessel.id)+1; }
+			catch { yield break; }
+			var forward = tvsl == null? Vector3d.zero : -tvsl.srf_velocity.normalized;
+			var side = Vector3d.Cross(VSL.Up, forward).normalized;
+			if(follower_index % 2 == 0)
+				follower_offset += (forward+side)*PN.MinDistance*follower_index/2;
+			else 
+				follower_offset += (forward-side)*PN.MinDistance*(follower_index+1)/2;
+		}
+
+		bool update_follower_offset()
+		{
+			if(updater == null) updater = offset_updater();
+			if(updater.MoveNext()) return true;
+			updater = null;
+			return false;
+		}
+
 		void set_target(WayPoint wp)
 		{
 			CFG.Target = wp;
@@ -112,6 +159,7 @@ namespace ThrottleControlledAvionics
 		{
 			set_target(wp);
 			pid.Reset();
+			follower_offset = Vector3.zero;
 			VSL.UpdateOnPlanetStats();
 			CFG.HF.On(HFlight.NoseOnCourse);
 			VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
@@ -136,8 +184,9 @@ namespace ThrottleControlledAvionics
 			if(!IsActive || CFG.Target == null) return;
 			CFG.Target.Update(VSL.mainBody);
 			//calculate direct distance
+			if(CFG.Nav[Navigation.FollowTarget]) update_follower_offset();
 			var tvsl = CFG.Target.GetVessel();
-			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
+			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+follower_offset-VSL.vessel.transform.position, VSL.Up);
 			var distance = vdir.magnitude;
 			//if it is greater that the threshold (in radians), use Great Circle navigation
 			if(distance/VSL.mainBody.Radius > PN.DirectNavThreshold)

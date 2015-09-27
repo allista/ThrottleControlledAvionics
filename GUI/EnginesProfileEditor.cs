@@ -62,7 +62,7 @@ namespace ThrottleControlledAvionics
 
 		void GetCFG(ShipConstruct ship)
 		{
-			var TCA_Modules = ModuleTCA.AllTCA(ship.Parts);
+			var TCA_Modules = ModuleTCA.AllTCA(ship);
 			if(TCA_Modules.Count == 0) { Reset(); return; }
 			CFG = null;
 			foreach(var tca in TCA_Modules)
@@ -88,7 +88,7 @@ namespace ThrottleControlledAvionics
 			TCA_Modules[0].CFG = CFG;
 		}
 		void UpdateCFG(ShipConstruct ship)
-		{ UpdateCFG(ModuleTCA.AllTCA(ship.Parts)); }
+		{ UpdateCFG(ModuleTCA.AllTCA(ship)); }
 
 		bool UpdateEngines(ShipConstruct ship)
 		{
