@@ -11,6 +11,7 @@ tmp/
 *.bak
 *.swp
 *~.nib
+*.csv
 local.properties
 .classpath
 .settings/
@@ -226,6 +227,8 @@ pip-log.txt
 /Tests/Crafts/**
 /Tests/VSC/**
 /Debugging/**
+/Unity/**
+/Stash/**
 *.mdb
 
 /GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/TCA.conf
