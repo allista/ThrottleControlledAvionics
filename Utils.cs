@@ -144,17 +144,16 @@ namespace ThrottleControlledAvionics
 			var mouse_pos = Input.mousePosition;
 			return new Vector2(mouse_pos.x-window.x, Screen.height-mouse_pos.y-window.y).clampToScreen();
 		}
-		public static Coordinates GetMouseCoordinates(CelestialBody body)
+
+		static Coordinates SearchCoordinates(CelestialBody body, Ray mouseRay)
 		{
-			var mouseRay = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
-			mouseRay.origin = ScaledSpace.ScaledToLocalSpace(mouseRay.origin);
-			Vector3d relOrigin = mouseRay.origin - body.position;
 			Vector3d relSurfacePosition;
+			Vector3d relOrigin = mouseRay.origin - body.position;
 			double curRadius = body.pqsController.radiusMax;
 			double lastRadius = 0;
 			double error = 0;
-			double threshold = (body.pqsController.radiusMax - body.pqsController.radiusMin)/100;
 			int loops = 0;
+			float st = Time.time;
 			while(loops < 50)
 			{
 				if(PQS.LineSphereIntersection(relOrigin, mouseRay.direction, curRadius, out relSurfacePosition))
@@ -162,7 +161,7 @@ namespace ThrottleControlledAvionics
 					var surfacePoint = body.position + relSurfacePosition;
 					var alt = TerrainAltitude(body, body.GetLongitude(surfacePoint), body.GetLatitude(surfacePoint))+body.Radius;
 					error = Math.Abs(curRadius - alt);
-					if(error < threshold)
+					if(error < (body.pqsController.radiusMax - body.pqsController.radiusMin) / 100)
 						return new Coordinates(body.GetLatitude(surfacePoint), body.GetLongitude(surfacePoint));
 					else
 					{
@@ -173,14 +172,32 @@ namespace ThrottleControlledAvionics
 				}
 				else
 				{
-					if(loops > 0)
+					if(loops == 0) break;
+					else
 					{ // Went too low, needs to try higher
 						curRadius = (lastRadius * 9 + curRadius) / 10;
 						loops++;
-					} else break;
+					}
 				}
 			}
 			return null;
+		}
+
+		public static Coordinates GetMouseCoordinates(CelestialBody body)
+		{
+			var mouseRay = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
+			mouseRay.origin = ScaledSpace.ScaledToLocalSpace(mouseRay.origin);
+			return SearchCoordinates(body, mouseRay);
+		}
+
+		public static Coordinates GetMouseFlightCoordinates()
+		{
+			var body = FlightGlobals.currentMainBody;
+			var mouseRay = FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition);
+			RaycastHit raycast;
+			return Physics.Raycast(mouseRay, out raycast, (float)body.Radius * 4f, 1 << 15)? 
+				new Coordinates(body.GetLatitude(raycast.point), CenterAngle(body.GetLongitude(raycast.point))) : 
+				SearchCoordinates(body, mouseRay);
 		}
 		#endregion
 
