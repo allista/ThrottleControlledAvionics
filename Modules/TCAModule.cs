@@ -57,22 +57,10 @@ namespace ThrottleControlledAvionics
 		{
 			CFG.Target = wp;
 			var t = wp == null? null : wp.GetTarget();
-			if(IsActiveVessel)
-				FlightGlobals.fetch.SetVesselTarget(t);
-			else VSL.vessel.targetObject = t;
-			//			{
-			//				if(VSL.vessel.orbitTargeter)
-			//				{
-			//					if(t != null)
-			//					{
-			//						if(t.GetOrbitDriver() != null &&
-			//							t.GetOrbitDriver() != VSL.vessel.orbitDriver)
-			//							VSL.vessel.orbitTargeter.SetTarget(t.GetOrbitDriver());
-			//					}
-			//					else VSL.vessel.orbitTargeter.SetTarget(null);
-			//				}
-			//				VSL.vessel.targetObject = t;
-			//			}
+			if(IsActiveVessel && t != null)
+				ScreenMessages.PostScreenMessage("Target: "+t.GetName(),
+				                                 5, ScreenMessageStyle.UPPER_CENTER);
+			VSL.vessel.targetObject = t;
 		}
 
 		#if DEBUG
