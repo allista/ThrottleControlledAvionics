@@ -245,7 +245,30 @@ namespace ThrottleControlledAvionics
 			}
 			//don't slow down on intermediate waypoints too much
 			if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 1 && distance < PN.OnPathMinDistance)
-				distance = PN.OnPathMinDistance;
+			{
+				WayPoint next_wp = null;
+				if(CFG.Waypoints.Peek() == CFG.Target)
+				{
+					var iwp = CFG.Waypoints.GetEnumerator();
+					try 
+					{ 
+						iwp.MoveNext(); iwp.MoveNext();
+						next_wp = iwp.Current;
+					} 
+					catch {}
+				}
+				else next_wp = CFG.Waypoints.Peek();
+				if(next_wp != null)
+				{
+					next_wp.Update(VSL.mainBody);
+					var next_dist = Vector3.ProjectOnPlane(next_wp.GetTransform().position-CFG.Target.GetTransform().position, VSL.Up);
+					var angle2next = Vector3.Angle(vdir, next_dist);
+					var minD = PN.OnPathMinDistance*(1-angle2next/190);
+					if(minD > distance) distance = minD;
+//					Log("distance {0}; min_distance {1}; angle2next {2}", distance, PN.OnPathMinDistance, angle2next);//debug
+				}
+				else distance = PN.OnPathMinDistance;
+			}
 			//tune the pid and update needed velocity
 			AccelCorrection.Update(Mathf.Clamp(VSL.MaxThrust.magnitude*VSL.MinVSFtwr/VSL.M/PN.MaxAccelF, 0.01f, 1)*
 			                       Mathf.Clamp(VSL.MaxPitchRollAA_m/PN.AngularAccelF, 0.01f, 1), 0.01f);
