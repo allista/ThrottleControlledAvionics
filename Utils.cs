@@ -55,6 +55,9 @@ namespace ThrottleControlledAvionics
 		#region Math
 		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
 
+		public static float Clamp(float x, float low, float high)  
+		{ return x < low ? low : (x > high? high : x); }
+
 		public static double Clamp(double x, double low, double high)  
 		{ return x < low ? low : (x > high? high : x); }
 
