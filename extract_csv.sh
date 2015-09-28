@@ -1,12 +1,18 @@
 #!/bin/bash
 
 tag="tag:"
+log=Player.log
+
 while [[ $# > 0 ]]
 do
 	arg=$1
 	case $arg in
 	-t|--tag)
 		tag="$tag $2"
+		shift
+		;;
+	-l|--log)
+		log=$2
 		shift
 		;;
 	*)
@@ -21,4 +27,4 @@ done
 echo "looking for: '$tag'" 
 echo "out: $out"
 
-grep "$tag" Player.log | cut -f 3- -d ' ' > "$out"
+grep "$tag" "$log" | cut -f 3- -d ' ' > "$out"
