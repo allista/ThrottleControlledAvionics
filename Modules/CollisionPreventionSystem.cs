@@ -24,7 +24,8 @@ namespace ThrottleControlledAvionics
 
 			[Persistent] public float SafeDistance = 30f;
 			[Persistent] public float SafeTime     = 5f;
-			[Persistent] public float MaxAvoidanceSpeed = 10f;
+			[Persistent] public float MaxAvoidanceSpeed = 100f;
+			[Persistent] public float LatAvoidMinVelSqr = 0.25f;
 
 			[Persistent] public PID_Controller PID = new PID_Controller(0.5f, 0f, 0.5f, 0, 10);
 		}
@@ -33,13 +34,12 @@ namespace ThrottleControlledAvionics
 		public CollisionPreventionSystem(VesselWrapper vsl) { VSL = vsl; }
 
 		public override void UpdateState() 
-		{ IsActive = CFG.HF.Any(HFlight.CruiseControl, HFlight.NoseOnCourse, HFlight.Move) && VSL.OnPlanet && !CFG.NeededHorVelocity.IsZero(); }
+		{ IsActive = CFG.HF && VSL.OnPlanet && !CFG.NeededHorVelocity.IsZero(); }
 
 		static int RadarMask = (1 | 1 << LayerMask.NameToLayer("Parts"));
-		List<Vector3d> Distances = new List<Vector3d>();
+		List<Vector3d> Corrections = new List<Vector3d>();
 		IEnumerator scanner;
 		PIDvd_Controller pid = new PIDvd_Controller();
-		Vector3d obstacle_direction, avoidance_direction;
 		Vector3 Dir;
 
 		public override void Init()
@@ -56,10 +56,10 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
-			var c = VSL.C+Dir*(VSL.R+0.1f);
-			GLUtils.GLTriangleMap(new Vector3[] { c-VSL.refT.right*0.1f, c+VSL.refT.right*0.1f, c+Dir*CPS.SafeDistance }, Color.green);
+//			var c = VSL.C+Dir.normalized*(VSL.R+0.1f);
+//			GLUtils.GLTriangleMap(new Vector3[] { c-VSL.refT.right*0.1f, c+VSL.refT.right*0.1f, c+Dir }, Color.green);
 			if(!CFG.CourseCorrection.IsZero())
-				GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.forward*0.1f, VSL.wCoM+VSL.refT.forward*0.1f, VSL.wCoM+CFG.CourseCorrection.normalized*10 }, Color.magenta);
+				GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.forward*0.1f, VSL.wCoM+VSL.refT.forward*0.1f, VSL.wCoM+CFG.CourseCorrection }, Color.magenta);
 		}
 
 		public override void Reset()
@@ -69,40 +69,77 @@ namespace ThrottleControlledAvionics
 		}
 		#endif
 
-		bool DistanceTo(Vessel v, out Vector3d d)
-		{ 
-			d = Vector3d.zero;
-			Dir = (v.CurrentCoM-VSL.wCoM).normalized;
-			var mdist = CPS.SafeDistance;
-			var dv = v.srf_velocity-VSL.vessel.srf_velocity;
-			if(Vector3d.Dot(dv, VSL.vessel.srf_velocity) < 0)
-				mdist += (float)dv.magnitude*CPS.SafeTime;
-			RaycastHit raycastHit;
-			if(Physics.Raycast(VSL.C+Dir*(VSL.R+0.1f), Dir,
-				out raycastHit, mdist, RadarMask))
+		bool Corection(Vessel v, out Vector3d c)
+		{
+			c = Vector3d.zero;
+			//calculate distance
+			Dir = (v.CurrentCoM-VSL.wCoM);
+			var Dist = Dir.magnitude;
+			Dir.Normalize();
+			//first try to get TCA from other vessel and get vessel's R
+			var vR = 0f;
+			var tca = ModuleTCA.EnabledTCA(v);
+			if(tca != null) vR = tca.VSL.R;
+			else //do a raycast
 			{
-				d = Dir * -raycastHit.distance/mdist;
-				return true;
+				RaycastHit raycastHit;
+				if(Physics.Raycast(VSL.C+Dir*(VSL.R+0.1f), Dir,
+				               out raycastHit, Dist, RadarMask))
+					vR = Utils.ClampL(Dist-raycastHit.distance-VSL.R-0.1f, 0);
 			}
-			return false;
+			//filter vessels on non-collision courses
+			var dV  = VSL.vessel.srf_velocity-v.srf_velocity;
+			var dVn = dV.normalized;
+			var cosA = Vector3.Dot(Dir, dVn);
+			if(cosA <= 0) goto check_distance;
+			//calculate minimum separation
+			var alpha = Mathf.Acos(Mathf.Clamp(cosA, -1, 1));
+			var separation = Dist*Mathf.Sin(alpha);
+			var min_sep = (vR+VSL.R)*2;
+			if(separation > min_sep) goto check_distance;
+			var vDist = dVn*Dist*Mathf.Cos(alpha);
+			var vTime = vDist.magnitude/dV.magnitude;
+			if(vTime > CPS.SafeTime/Utils.ClampL(Vector3.Project(VSL.MaxPitchRollAA, vDist).magnitude, 0.01f)) 
+				goto check_distance;
+			c = (vDist-Dir*Dist).normalized * (min_sep-separation) 
+				/ vTime * (2 - Utils.Clamp((Dist-VSL.R-vR)/CPS.SafeDistance, 0, 1));
+//			Log("c: {0}; vTime {1}; sTime {2}", c, vTime, 
+//			    CPS.SafeTime/Utils.ClampL(Vector3.Project(VSL.MaxPitchRollAA, vDist).magnitude, 0.01f), 
+//			    Vector3.Project(VSL.MaxPitchRollAA, vDist).magnitude);//debug
+			//if distance is not safe, correct course anyway
+			check_distance:
+			if(Dist-VSL.R-vR >= CPS.SafeDistance) return !c.IsZero();
+			Vector3d dc;
+			var dir_avoid = Dir*Utils.ClampH(Dist-CPS.SafeDistance, -0.1f);
+			if(CFG.NeededHorVelocity.sqrMagnitude > CPS.LatAvoidMinVelSqr)
+			{
+				var lat_avoid = Vector3d.Cross(VSL.Up, CFG.NeededHorVelocity.normalized);
+				dc = Vector3d.Dot(dir_avoid, lat_avoid) >= 0? 
+					lat_avoid*dir_avoid.magnitude :
+					lat_avoid*-dir_avoid.magnitude;
+			}
+			else dc = dir_avoid;
+			dc /= CPS.SafeTime/2;
+			if(dc.sqrMagnitude > c.sqrMagnitude) c = dc;
+			return true;
 		}
 
 		IEnumerator vessel_scanner()
 		{
-			var distances = new List<Vector3d>();
+			var corrections = new List<Vector3d>();
 			var vi = FlightGlobals.Vessels.GetEnumerator();
 			while(true)
 			{
 				try { if(!vi.MoveNext()) break; }
 				catch { break; }
 				var v = vi.Current;
-				if(v == null || v.packed || !v.loaded) continue;
-				Vector3d d;
-				if(DistanceTo(v, out d))
-					distances.Add(d);
+				if(v == null || v.packed || !v.loaded || v == VSL.vessel) continue;
+				Vector3d c;
+				if(Corection(v, out c))
+					corrections.Add(c);
 				yield return null;
 			}
-			Distances = distances;
+			Corrections = corrections;
 		}
 
 		bool scan()
@@ -118,24 +155,17 @@ namespace ThrottleControlledAvionics
 			CFG.CourseCorrection = Vector3d.zero;
 			if(!IsActive) return;
 			scan();
-//			Log("Distances: {0}", Distances.Count);
-			if(Distances.Count == 0) { pid.Reset(); return; }
-			obstacle_direction = Vector3d.zero;
-			for(int i = 0, DistancesCount = Distances.Count; i < DistancesCount; i++)
-			{
-				var d = Distances[i];
-				if(d.IsZero()) continue;
-				obstacle_direction += d 
-					* Utils.ClampL(1/d.magnitude - 1, 0) 
-					* CPS.MaxAvoidanceSpeed/DistancesCount;
-			}
-//			if(obstacle_direction.sqrMagnitude < 0.25) return;
-//			obstacle_direction  = Vector3d.Exclude(VSL.Up, obstacle_direction);
-			avoidance_direction = Vector3d.Cross(VSL.Up, CFG.NeededHorVelocity.normalized);
-			pid.Update(Vector3d.Dot(obstacle_direction, avoidance_direction) >= 0? 
-				avoidance_direction*obstacle_direction.magnitude :
-				-avoidance_direction*obstacle_direction.magnitude);
-			CFG.CourseCorrection = pid.Action;
+			if(Corrections.Count == 0) { pid.Reset(); return; }
+			var correction = Vector3d.zero;
+			for(int i = 0, count = Corrections.Count; i < count; i++)
+				correction += Corrections[i];
+			pid.Update(correction);
+			//correct needed vertical speed
+			if(CFG.VF[VFlight.AltitudeControl])
+				CFG.VerticalCutoff += (float)Vector3d.Dot(pid.Action, VSL.Up);
+			//correct horizontal course
+			CFG.CourseCorrection = Vector3d.Exclude(VSL.Up, pid.Action);
+
 //			Log("CourseCorrection:\n{0}\n{1}", 
 //			    CFG.CourseCorrection, 
 //			    Vector3d.Dot(obstacle_direction, avoidance_direction) >= 0? 
