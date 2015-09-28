@@ -115,7 +115,7 @@ HSC
 	MinHvThreshold        = 10
 	MoIFactor             = 0.01
 	TWRf                  = 0.8
-	TorF                  = 0.3
+	TorF                  = 0.1
 	HVCurve               = 1.2
 }
 
@@ -145,7 +145,7 @@ PN
 	AltErrSensitivity  = 20
 	DirectNavThreshold = 1
 	GCNavStep          = 0.1
-	AngularAccelF      = 2
+	AngularAccelF      = 0.5
 	MaxAccelF          = 4
 	LookAheadTime      = 3
 	
@@ -167,7 +167,7 @@ LND
 	WideCheckLevel       = 7
 	NodeTargetRange      = 30
 	NodeAnchorRange      = 5
-	LandingAlt           = 10
+	LandingAlt           = 5
 	LandingFinalAlt      = 2
 	StopTimer            = 1
 	CutoffTimer          = 1
@@ -211,8 +211,10 @@ TLA
 CPS
 {
 	SafeDistance = 30
-	SafeTime     = 5
-	MaxAvoidanceSpeed = 10
+	SafeTime     = 10
+	MaxAvoidanceSpeed = 100
+	LatAvoidMinVelSqr = 0.25
+	LookAheadTime = 2
 	
 	PID
 	{
