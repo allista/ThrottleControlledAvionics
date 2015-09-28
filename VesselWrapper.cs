@@ -79,8 +79,9 @@ namespace ThrottleControlledAvionics
 		public Vector3    MoI { get; private set; } = Vector3.one; //main diagonal of inertia tensor
 		public Matrix3x3f InertiaTensor { get; private set; }
 		public Vector3    MaxAngularA { get; private set; } //current maximum angular acceleration
-		public float      MaxAngularA_m { get; private set; } //current maximum angular acceleration
-		public float      MaxPitchRollAA { get; private set; } //current minimal maximum angular acceleration
+		public Vector3    MaxPitchRollAA { get; private set; }
+		public float      MaxAngularA_m { get; private set; }
+		public float      MaxPitchRollAA_m { get; private set; }
 
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
@@ -474,14 +475,15 @@ namespace ThrottleControlledAvionics
 			MaxTWR  = MaxThrust.magnitude/M/G;
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/M/G, 0.1f);
 			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/M/G : 0f;
-			MaxPitchRollAA = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(Thrust)).magnitude;
+			MaxPitchRollAA = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(Thrust));
+			MaxPitchRollAA_m = MaxPitchRollAA.magnitude;
 			if(refT != null)
 			{
 				Fwd  = Vector3.Cross(refT.right, -MaxThrust).normalized;
 				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
 			}
 			MinVSFtwr = 1/Utils.ClampL(MaxTWR, 1);
-			var mVSFtor = (MaxPitchRollAA > 0)? Utils.ClampH(GLB.VSC.MinVSFf/MaxPitchRollAA, 0.9f*MinVSFtwr) : 0.1f*MinVSFtwr;
+			var mVSFtor = (MaxPitchRollAA_m > 0)? Utils.ClampH(GLB.VSC.MinVSFf/MaxPitchRollAA_m, 0.9f*MinVSFtwr) : 0.1f*MinVSFtwr;
 			MinVSF = Mathf.Lerp(0.1f*MinVSFtwr, mVSFtor, Mathf.Pow(Steering.sqrMagnitude, 0.25f));
 //			Utils.Log("MaxAA: {0}\nThrust: {1}\nMaxPRAA {2}", MaxAngularA, refT.InverseTransformDirection(Thrust), MaxPitchRollAA);//debug
 //			Utils.Log("MaxTWR {0}, G {1}, MaxPitchYawAA {2}, mVSFtwr {3}, mVSFtor {4}, MinVSF {5}", 
