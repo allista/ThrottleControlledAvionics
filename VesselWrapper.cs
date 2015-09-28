@@ -80,6 +80,7 @@ namespace ThrottleControlledAvionics
 		public Matrix3x3f InertiaTensor { get; private set; }
 		public Vector3    MaxAngularA { get; private set; } //current maximum angular acceleration
 		public Vector3    MaxPitchRollAA { get; private set; }
+		public Vector3    wMaxPitchRollAA { get; private set; }
 		public float      MaxAngularA_m { get; private set; }
 		public float      MaxPitchRollAA_m { get; private set; }
 
@@ -475,7 +476,8 @@ namespace ThrottleControlledAvionics
 			MaxTWR  = MaxThrust.magnitude/M/G;
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/M/G, 0.1f);
 			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/M/G : 0f;
-			MaxPitchRollAA = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(Thrust));
+			MaxPitchRollAA   = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(Thrust));
+			wMaxPitchRollAA  = refT.TransformDirection(MaxPitchRollAA);
 			MaxPitchRollAA_m = MaxPitchRollAA.magnitude;
 			if(refT != null)
 			{
