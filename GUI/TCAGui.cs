@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 		public static KeyCode TCA_Key = KeyCode.Y;
 		static bool selecting_key;
 		//map view
-		static bool selecting_map_target;
+		static bool selecting_target;
 		static readonly ActionDamper AddTargetDamper = new ActionDamper();
 		const string WPM_ICON = "ThrottleControlledAvionics/Icons/waypoint";
 		const string PN_ICON  = "ThrottleControlledAvionics/Icons/path-node";
@@ -329,13 +329,10 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label(new GUIContent("Go To", "No target selected"),  Styles.grey, GUILayout.Width(50));
 					GUILayout.Label(new GUIContent("Follow", "No target selected"),  Styles.grey, GUILayout.Width(50));
 				}
-				if(selecting_map_target)
+				if(selecting_target)
 				{
 					if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.Width(120)))
-					{
-						selecting_map_target = false;
-						MapView.ExitMapView();
-					}
+						selecting_target = false;
 				}
 				else if(VSL.HasTarget && 
 				        !(VSL.vessel.targetObject is WayPoint) && 
@@ -351,9 +348,8 @@ namespace ThrottleControlledAvionics
 				else if(GUILayout.Button(new GUIContent("Add Waypoint", "Select a new waypoint on the map"), 
 				                         Styles.yellow_button, GUILayout.Width(120)))
 				{
-					selecting_map_target = true;
+					selecting_target = true;
 					CFG.ShowWaypoints = true;
-					MapView.EnterMapView();
 				}
 				if(CFG.Waypoints.Count > 0)
 				{
@@ -466,12 +462,9 @@ namespace ThrottleControlledAvionics
 		DateTime clicked_time;
 		void MapOverlay()
 		{
-			if(selecting_map_target)
+			if(!MapView.MapIsEnabled) return;
+			if(selecting_target)
 			{
-				//stop picking on leaving map view
-				selecting_map_target &= MapView.MapIsEnabled;
-				clicked &= selecting_map_target;
-				if(!selecting_map_target) return;
 				var coords = Utils.GetMouseCoordinates(vessel.mainBody);
 				if(coords != null)
 				{
@@ -496,13 +489,13 @@ namespace ThrottleControlledAvionics
 						}
 						if(Input.GetMouseButtonUp(1))
 						{ 
-							selecting_map_target &= (DateTime.Now - clicked_time).TotalSeconds >= 0.5;
+							selecting_target &= (DateTime.Now - clicked_time).TotalSeconds >= 0.5;
 							clicked = false; 
 						}
 					}
 				}
 			}
-			if(MapView.MapIsEnabled && CFG.ShowWaypoints)
+			if(CFG.ShowWaypoints)
 			{
 				var i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
@@ -511,9 +504,61 @@ namespace ThrottleControlledAvionics
 				{
 					wp.UpdateCoordinates(vessel.mainBody);
 					var c = marker_color(i, num);
-					if(wp0 == null) DrawMapViewPath(vessel, wp, c);
-					else DrawMapViewPath(vessel.mainBody, wp0, wp, c);
+					if(wp0 == null) DrawPath(vessel, wp, c);
+					else DrawPath(vessel.mainBody, wp0, wp, c);
 					DrawMapViewGroundMarker(vessel.mainBody, wp.Lat, wp.Lon, c);
+					wp0 = wp; i++;
+				}
+			}
+		}
+
+		void FlightOverlay()
+		{
+			if(selecting_target)
+			{
+				//stop picking on leaving map view
+				var coords = Utils.GetMouseFlightCoordinates();
+				if(coords != null)
+				{
+					var t = new WayPoint(coords);
+					DrawFlightGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f));
+					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50), 
+					          string.Format("{0} {1}\n{2}", coords, Utils.DistanceToStr(t.DistanceTo(vessel)), 
+					                        ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon)));
+					if(!clicked)
+					{ 
+						if(Input.GetMouseButtonDown(0)) clicked = true;
+						else if(Input.GetMouseButtonDown(1))  
+						{ clicked_time = DateTime.Now; clicked = true; }
+					}
+					else 
+					{
+						if(Input.GetMouseButtonUp(0))
+						{ 
+							AddTargetDamper.Run(() => CFG.Waypoints.Enqueue(t));
+							CFG.ShowWaypoints = true;
+							clicked = false;
+						}
+						if(Input.GetMouseButtonUp(1))
+						{ 
+							selecting_target &= (DateTime.Now - clicked_time).TotalSeconds >= 0.5;
+							clicked = false; 
+						}
+					}
+				}
+			}
+			if(CFG.ShowWaypoints)
+			{
+				var i = 0;
+				var num = (float)(CFG.Waypoints.Count-1);
+				WayPoint wp0 = null;
+				foreach(var wp in CFG.Waypoints)
+				{
+					wp.UpdateCoordinates(vessel.mainBody);
+					var c = marker_color(i, num);
+					if(wp0 == null) DrawPath(vessel, wp, c);
+					else DrawPath(vessel.mainBody, wp0, wp, c);
+					DrawFlightGroundMarker(vessel.mainBody, wp.Lat, wp.Lon, c);
 					wp0 = wp; i++;
 				}
 			}
@@ -530,22 +575,46 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public static void DrawMapViewGroundMarker(CelestialBody body, double lat, double lon, Color c, float r = IconSize, Texture2D texture = null)
+		static bool GetPosition(CelestialBody body, double lat, double lon, out Vector3d center)
 		{
 			//TODO: cache local center coordinates of the marker
 			var up = body.GetSurfaceNVector(lat, lon);
 			var h  = Utils.TerrainAltitude(body, lat, lon);
 			if(h < body.Radius) h = body.Radius;
-			var center = body.position + h * up;
-			if(IsOccluded(center, body)) return;
+			center = body.position + h * up;
+			return !IsOccluded(center, body);
+		}
 
+		static void DrawMarker(Vector3 icon_center, Color c, float r, Texture2D texture)
+		{
 			if(texture == null) texture = WayPointMarker;
-			var icon_center = PlanetariumCamera.Camera.WorldToScreenPoint(ScaledSpace.LocalToScaledSpace(center));
 			var icon_rect = new Rect(icon_center.x - r * 0.5f, (float)Screen.height - icon_center.y - r * 0.5f, r, r);
 			Graphics.DrawTexture(icon_rect, texture, new Rect(0f, 0f, 1f, 1f), 0, 0, 0, 0, c, IconMaterial);
 		}
 
-		public static void DrawMapViewPath(CelestialBody body, WayPoint wp0, WayPoint wp1, Color c)
+		static void DrawMapViewGroundMarker(CelestialBody body, double lat, double lon, Color c, float r = IconSize, Texture2D texture = null)
+		{
+			Vector3d center;
+			//TODO: cache local center coordinates of the marker
+			var up = body.GetSurfaceNVector(lat, lon);
+			var h  = Utils.TerrainAltitude(body, lat, lon);
+			if(h < body.Radius) h = body.Radius;
+			center = body.position + h * up;
+			if(IsOccluded(center, body)) return;
+			DrawMarker(PlanetariumCamera.Camera.WorldToScreenPoint(ScaledSpace.LocalToScaledSpace(center)), c, r, texture);
+		}
+
+		static void DrawFlightGroundMarker(CelestialBody body, double lat, double lon, Color c, float r = IconSize, Texture2D texture = null)
+		{
+			Vector3d center;
+			center = body.GetWorldSurfacePosition(lat, lon, Utils.TerrainAltitude(body, lat, lon)+10);
+			if(IsOccluded(center, body) || 
+			   Vector3d.Dot(center-FlightCamera.fetch.mainCamera.transform.position, 
+			                FlightCamera.fetch.mainCamera.transform.forward) <= 0) return;
+			DrawMarker(FlightCamera.fetch.mainCamera.WorldToScreenPoint(center), c, r, texture);
+		}
+
+		static void DrawPath(CelestialBody body, WayPoint wp0, WayPoint wp1, Color c)
 		{
 			var D = wp1.AngleTo(wp0);
 			var N = (int)Mathf.Clamp((float)D*Mathf.Rad2Deg, 2, 5);
@@ -553,15 +622,18 @@ namespace ThrottleControlledAvionics
 			for(int i = 1; i<N; i++)
 			{
 				var p = wp0.PointBetween(wp1, dD*i);
-				DrawMapViewGroundMarker(body, p.Lat, p.Lon, c, IconSize/2, PathNodeMarker);
+				if(MapView.MapIsEnabled)
+					DrawMapViewGroundMarker(body, p.Lat, p.Lon, c, IconSize/2, PathNodeMarker);
+				else 
+					DrawFlightGroundMarker(body, p.Lat, p.Lon, c, IconSize/2, PathNodeMarker);
 			}
 		}
 
-		static void DrawMapViewPath(Vessel v, WayPoint wp1, Color c)
+		static void DrawPath(Vessel v, WayPoint wp1, Color c)
 		{
 			var wp0 = new WayPoint();
 			wp0.Lat = v.latitude; wp0.Lon = v.longitude;
-			DrawMapViewPath(v.mainBody, wp0, wp1, c);
+			DrawPath(v.mainBody, wp0, wp1, c);
 		}
 
 		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
