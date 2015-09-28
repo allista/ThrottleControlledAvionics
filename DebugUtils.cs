@@ -28,12 +28,12 @@ namespace ThrottleControlledAvionics
 			Utils.Log(row, args);
 		}
 
-		public static void logVectors(string tag, params Vector3[] vecs)
+		public static void logVectors(string tag, bool normalize = true, params Vector3[] vecs)
 		{
 			var s = tag+":\n";
 			foreach(var v in vecs)
 			{
-				var vn = v.normalized;
+				var vn = normalize? v.normalized : v;
 				s += string.Format("({0}, {1}, {2}),\n", vn.x, vn.y, vn.z);
 			}
 			Utils.Log(s);
