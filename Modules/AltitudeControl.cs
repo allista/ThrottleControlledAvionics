@@ -119,14 +119,14 @@ namespace ThrottleControlledAvionics
 			if(CFG.AltitudeAboveTerrain)
 			{
 				var dV = (VSL.AbsVerticalSpeed-VSL.RelVerticalSpeed)/Utils.ClampL(alt/ALT.RelAltitudeFactor, 1);
-				if(error < 0) dV += Utils.ClampL(error/CFG.DesiredAltitude/ALT.RelVelocityErrF*VSL.HorizontalSpeed, -10*ALT.MaxSpeed);
+				if(error < 0) dV += Utils.ClampL(error/Utils.ClampL(CFG.DesiredAltitude, 1)/ALT.RelVelocityErrF*VSL.HorizontalSpeed, -10*ALT.MaxSpeed);
 				else dV = Utils.ClampL(dV, 0);
 				CFG.VerticalCutoff += dV;
 				//Loosing Altitude alert
 				Falling.RunIf(() => SetState(TCAState.LoosingAltitude),
 				              () => VSL.RelVerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0 
 				              && VSL.Altitude < CFG.DesiredAltitude-VSL.RelVerticalSpeed*ALT.TimeAhead);
-//				DebugUtils.CSV(VSL.vessel.altitude, VSL.TerrainAltitude, VSL.Altitude, VSL.AltitudeAhead, error, 
+//				DebugUtils.CSV(VSL.vessel.vesselName, VSL.vessel.altitude, VSL.TerrainAltitude, VSL.Altitude, VSL.AltitudeAhead, error, 
 //				               CFG.VerticalCutoff, VSL.VSF, VSL.MinVSF, VSL.AbsVerticalSpeed, VSL.RelVerticalSpeed, dV, VSL.MaxDTWR, VSL.MaxTWR, VSL.HorizontalVelocity.magnitude);//debug
 			}
 		}
