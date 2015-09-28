@@ -167,10 +167,21 @@ namespace ThrottleControlledAvionics
 			if(!IsActive || CFG.Target == null) return;
 			CFG.Target.Update(VSL.mainBody);
 			//calculate direct distance
-//			if(CFG.Nav[Navigation.FollowTarget]) update_follower_offset();
+			if(CFG.Nav[Navigation.FollowTarget]) update_follower_offset();
 			var tvsl = CFG.Target.GetVessel();
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+follower_offset-VSL.vessel.transform.position, VSL.Up);
 			var distance = Utils.ClampL(vdir.magnitude-VSL.R, 0);
+			var tvel = Vector3d.zero;
+			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
+			{
+				tvel = Vector3d.Exclude(VSL.Up, tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime);
+				if(distance < CFG.Target.Distance*3) 
+				{
+					distance = Vector3d.Dot(vdir, tvel) > 0? 
+						Utils.ClampL((float)Vector3d.Project(vdir, tvel).magnitude-VSL.R, 0) : 0;
+					vdir = tvel;
+				}
+			}
 			//if it is greater that the threshold (in radians), use Great Circle navigation
 			if(distance/VSL.mainBody.Radius > PN.DirectNavThreshold)
 			{
@@ -189,7 +200,7 @@ namespace ThrottleControlledAvionics
 					//set needed velocity and starboard to zero if in range of a target
 					if(tvsl != null && tvsl.loaded)
 					{
-						CFG.NeededHorVelocity = tvsl.srf_velocity;
+						CFG.NeededHorVelocity = tvel;
 						CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
 					}
 					else 
@@ -270,10 +281,7 @@ namespace ThrottleControlledAvionics
 			CFG.NeededHorVelocity = pid.Action-cur_vel > DeltaSpeed? vdir*(cur_vel+DeltaSpeed) : vdir*pid.Action;
 			//correcto for Follow Target program
 			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
-			{
-				var tvel = Vector3d.Exclude(VSL.Up, tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime);
 				if(Vector3d.Dot(tvel, vdir) > 0) CFG.NeededHorVelocity += tvel;
-			}
 			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
 //			DebugUtils.CSV(VSL.vessel.vesselName, distance, cur_vel, Vector3d.Dot(cur_vel, vdir), 
 //			               DeltaSpeed, VSL.MinVSFtwr, AccelCorrection, 
