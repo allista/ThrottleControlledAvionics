@@ -68,7 +68,7 @@ namespace ThrottleControlledAvionics
 				CFG.Starboard = Vector3.zero;
 				CFG.NeededHorVelocity = Vector3d.zero;
 			}
-			else VSL.ManualTranslationEnabled = false;
+			else EnableManualTranslation(false); 
 			BlockSAS(enable);
 		}
 
@@ -76,8 +76,20 @@ namespace ThrottleControlledAvionics
 		{
 			pid.Reset();
 			if(enable) VSL.UpdateOnPlanetStats();
-			else VSL.ManualTranslationEnabled = false;
+			else EnableManualTranslation(false);
 			BlockSAS(enable);
+		}
+
+		void EnableManualTranslation(bool enable = true)
+		{
+			if(enable)
+			{ 
+				VSL.ManualTranslationEnabled = true;
+				return;
+			}
+			if(VSL.ManualTranslationEnabled)
+				CFG.ActiveProfile.Apply(VSL.ManualEngines);
+			VSL.ManualTranslationEnabled = false;
 		}
 
 		protected override void Update(FlightCtrlState s)
@@ -126,22 +138,23 @@ namespace ThrottleControlledAvionics
 	//				         );//debug
 				}
 				else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
-				VSL.ManualTranslationEnabled = false;
 				if(hVm > HSC.TranslationLowerThreshold)
 				{
 					//also try to use translation control
 					var hVl_dir = hVl.CubeNorm();
 					if(nV.magnitude < HSC.TranslationUpperThreshold)
 					{
+						EnableManualTranslation(false);
 						var trans = Utils.ClampH((float)(hVm/HSC.TranslationUpperThreshold), 1)*hVl_dir;
 						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
 					}
 					else 
 					{
 						VSL.ManualTranslation = Utils.ClampH((float)(hVm/HSC.ManualTranslationCutoff), 1)*hVl_dir;
-						VSL.ManualTranslationEnabled = true;
+						EnableManualTranslation();
 					}
 				}
+				else EnableManualTranslation(false);
 			}
 			else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
 			//calculate corresponding rotation
