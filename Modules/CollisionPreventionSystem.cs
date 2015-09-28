@@ -26,6 +26,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float SafeTime     = 5f;
 			[Persistent] public float MaxAvoidanceSpeed = 100f;
 			[Persistent] public float LatAvoidMinVelSqr = 0.25f;
+			[Persistent] public float LookAheadTime = 1f;
 
 			[Persistent] public PID_Controller PID = new PID_Controller(0.5f, 0f, 0.5f, 0, 10);
 		}
@@ -88,7 +89,7 @@ namespace ThrottleControlledAvionics
 					vR = Utils.ClampL(Dist-raycastHit.distance-VSL.R-0.1f, 0);
 			}
 			//filter vessels on non-collision courses
-			var dV  = VSL.vessel.srf_velocity-v.srf_velocity;
+			var dV  = VSL.vessel.srf_velocity-v.srf_velocity+(VSL.vessel.acceleration-v.acceleration)*CPS.LookAheadTime;
 			var dVn = dV.normalized;
 			var cosA = Vector3.Dot(Dir, dVn);
 			if(cosA <= 0) goto check_distance;
@@ -97,15 +98,16 @@ namespace ThrottleControlledAvionics
 			var separation = Dist*Mathf.Sin(alpha);
 			var min_sep = (vR+VSL.R)*2;
 			if(separation > min_sep) goto check_distance;
+			//evaluate time to collision
 			var vDist = dVn*Dist*Mathf.Cos(alpha);
 			var vTime = vDist.magnitude/dV.magnitude;
-			if(vTime > CPS.SafeTime/Utils.ClampL(Vector3.Project(VSL.MaxPitchRollAA, vDist).magnitude, 0.01f)) 
+			if(vTime > CPS.SafeTime/Utils.Clamp(Vector3.Project(VSL.wMaxPitchRollAA, vDist).magnitude, 0.01f, 1f)) 
 				goto check_distance;
+			//calculate course correction
 			c = (vDist-Dir*Dist).normalized * (min_sep-separation) 
-				/ vTime * (2 - Utils.Clamp((Dist-VSL.R-vR)/CPS.SafeDistance, 0, 1));
-//			Log("c: {0}; vTime {1}; sTime {2}", c, vTime, 
-//			    CPS.SafeTime/Utils.ClampL(Vector3.Project(VSL.MaxPitchRollAA, vDist).magnitude, 0.01f), 
-//			    Vector3.Project(VSL.MaxPitchRollAA, vDist).magnitude);//debug
+				/ vTime;// * (10 - 9*Utils.Clamp((Dist-VSL.R-vR)/CPS.SafeDistance, 0, 1));
+//			Log("c: {0}\nvTime {1}\ncollision {2}", c, vTime, Dist <= (vR+VSL.R));//debug
+			return true;
 			//if distance is not safe, correct course anyway
 			check_distance:
 			if(Dist-VSL.R-vR >= CPS.SafeDistance) return !c.IsZero();
@@ -153,7 +155,7 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{
 			CFG.CourseCorrection = Vector3d.zero;
-			if(!IsActive) return;
+			if(!IsActive || VSL.refT == null) return;
 			scan();
 			if(Corrections.Count == 0) { pid.Reset(); return; }
 			var correction = Vector3d.zero;
