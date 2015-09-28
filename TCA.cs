@@ -44,8 +44,7 @@ namespace ThrottleControlledAvionics
 			GameEvents.onVesselChange.Add(onVesselChange);
 			WayPointMarker = GameDatabase.Instance.GetTexture(WPM_ICON, false);
 			PathNodeMarker = GameDatabase.Instance.GetTexture(PN_ICON, false);
-			RenderingManager.AddToPostDrawQueue(1, MapOverlay);
-			RenderingManager.AddToPostDrawQueue(1, FlightOverlay);
+			RenderingManager.AddToPostDrawQueue(1, WaypointOverlay);
 			#if DEBUG
 			CheatOptions.InfiniteRCS  = true;
 			CheatOptions.InfiniteFuel = true;
@@ -58,8 +57,7 @@ namespace ThrottleControlledAvionics
 			TCAToolbarManager.AttachTCA(null);
 			GameEvents.onGameStateSave.Remove(SaveConfig);
 			GameEvents.onVesselChange.Remove(onVesselChange);
-			RenderingManager.RemoveFromPostDrawQueue(1, MapOverlay);
-			RenderingManager.RemoveFromPostDrawQueue(1, FlightOverlay);
+			RenderingManager.RemoveFromPostDrawQueue(1, WaypointOverlay);
 			#if DEBUG
 			ModuleTCA.prof.TreeReport();
 			#endif
