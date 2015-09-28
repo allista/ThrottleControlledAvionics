@@ -267,7 +267,7 @@ namespace ThrottleControlledAvionics
 				else if(!CFG.HF[HFlight.Anchor] && 
 				        (!CFG.Nav[Navigation.GoToTarget] || VSL.vessel.targetObject != CFG.Anchor))
 				{
-					FlightGlobals.fetch.SetVesselTarget(CFG.Anchor);
+					SetTarget(CFG.Anchor);
 					CFG.Nav.On(Navigation.GoToTarget);
 				}
 				StopTimer.Reset();

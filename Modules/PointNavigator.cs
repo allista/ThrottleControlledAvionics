@@ -67,7 +67,7 @@ namespace ThrottleControlledAvionics
 			CFG.Nav.AddCallback(Navigation.GoToTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowPath, FollowPath);
-			if(CFG.Target != null) set_target(CFG.Target);
+			if(CFG.Target != null) SetTarget(CFG.Target);
 		}
 
 		public override void UpdateState() { IsActive = CFG.Nav && VSL.OnPlanet; }
@@ -98,23 +98,28 @@ namespace ThrottleControlledAvionics
 			if(tvsl.srf_velocity.sqrMagnitude < 0.25)
 			{ follower_offset = Vector3.zero; yield break; }
 			//update followers
-			foreach(var v in FlightGlobals.Vessels)
+			var vi = FlightGlobals.Vessels.GetEnumerator();
+			while(true)
 			{
-				if(v.packed || !v.loaded) 
-				{ all_followers.Remove(v.id); continue; }
+				try { if(!vi.MoveNext()) break; }
+				catch { yield break; }
+				var v = vi.Current;
+				if(v == null) continue;
+				if(v.packed || !v.loaded)
+				{
+					all_followers.Remove(v.id);
+					continue;
+				}
 				var tca = ModuleTCA.EnabledTCA(v);
-				if(tca != null && 
-					tca.CFG.Nav[Navigation.FollowTarget] && 
-					tca.CFG.Target.GetTarget() != null && 
-					tca.CFG.Target.GetTarget() == CFG.Target.GetTarget()) 
+				if(tca != null && tca.CFG.Nav[Navigation.FollowTarget] && tca.CFG.Target.GetTarget() != null && tca.CFG.Target.GetTarget() == CFG.Target.GetTarget())
 					all_followers[v.id] = tca;
-				else all_followers.Remove(v.id);
+				else
+					all_followers.Remove(v.id);
 				yield return null;
 			}
 			//compute follower offset from index
 			var follower_index = 0;
 			follower_offset = Vector3.zero;
-			if(all_followers.Count == 1) yield break;
 			try { follower_index = all_followers.IndexOfKey(VSL.vessel.id)+1; }
 			catch { yield break; }
 			var forward = tvsl == null? Vector3d.zero : -tvsl.srf_velocity.normalized;
@@ -133,31 +138,9 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		void set_target(WayPoint wp)
-		{
-			CFG.Target = wp;
-			var t = wp == null? null : wp.GetTarget();
-			if(IsActiveVessel)
-				FlightGlobals.fetch.SetVesselTarget(t);
-			else VSL.vessel.targetObject = t;
-//			{
-//				if(VSL.vessel.orbitTargeter)
-//				{
-//					if(t != null)
-//					{
-//						if(t.GetOrbitDriver() != null &&
-//							t.GetOrbitDriver() != VSL.vessel.orbitDriver)
-//							VSL.vessel.orbitTargeter.SetTarget(t.GetOrbitDriver());
-//					}
-//					else VSL.vessel.orbitTargeter.SetTarget(null);
-//				}
-//				VSL.vessel.targetObject = t;
-//			}
-		}
-
 		void start_to(WayPoint wp)
 		{
-			set_target(wp);
+			SetTarget(wp);
 			pid.Reset();
 			follower_offset = Vector3.zero;
 			VSL.UpdateOnPlanetStats();
@@ -167,7 +150,7 @@ namespace ThrottleControlledAvionics
 
 		void finish()
 		{
-			set_target(null);
+			SetTarget(null);
 			CFG.HF.On(HFlight.Stop);
 		}
 
@@ -184,10 +167,10 @@ namespace ThrottleControlledAvionics
 			if(!IsActive || CFG.Target == null) return;
 			CFG.Target.Update(VSL.mainBody);
 			//calculate direct distance
-			if(CFG.Nav[Navigation.FollowTarget]) update_follower_offset();
+//			if(CFG.Nav[Navigation.FollowTarget]) update_follower_offset();
 			var tvsl = CFG.Target.GetVessel();
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+follower_offset-VSL.vessel.transform.position, VSL.Up);
-			var distance = vdir.magnitude;
+			var distance = Utils.ClampL(vdir.magnitude-VSL.R, 0);
 			//if it is greater that the threshold (in radians), use Great Circle navigation
 			if(distance/VSL.mainBody.Radius > PN.DirectNavThreshold)
 			{
@@ -200,7 +183,7 @@ namespace ThrottleControlledAvionics
 			//check if we have arrived to the target and stayed long enough
 			if(distance < CFG.Target.Distance)
 			{
-				CFG.HF.OnIfNot(HFlight.Move);
+				CFG.HF.OnIfNot(CFG.NeededHorVelocity.sqrMagnitude > 1? HFlight.NoseOnCourse : HFlight.Move);
 				if(CFG.Nav[Navigation.FollowTarget])
 				{
 					//set needed velocity and starboard to zero if in range of a target
@@ -254,7 +237,7 @@ namespace ThrottleControlledAvionics
 				distance = PN.OnPathMinDistance;
 			//tune the pid and update needed velocity
 			AccelCorrection.Update(Mathf.Clamp(VSL.MaxThrust.magnitude*VSL.MinVSFtwr/VSL.M/PN.MaxAccelF, 0.01f, 1)*
-			                       Mathf.Clamp(VSL.MaxPitchRollAA/PN.AngularAccelF, 0.01f, 1), 0.01f);
+			                       Mathf.Clamp(VSL.MaxPitchRollAA_m/PN.AngularAccelF, 0.01f, 1), 0.01f);
 			pid.Min = 0;
 			pid.Max = CFG.MaxNavSpeed;
 			pid.P   = PN.DistancePID.P*AccelCorrection;

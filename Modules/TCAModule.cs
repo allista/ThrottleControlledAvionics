@@ -45,12 +45,34 @@ namespace ThrottleControlledAvionics
 		public virtual void UpdateState() {}
 		public virtual void Reset() {}
 
-		public void BlockSAS(bool block = true) 
+		protected void BlockSAS(bool block = true) 
 		{ 
 			if(!block) return;
 			if(!CFG.SASIsControlled)
 				CFG.SASWasEnabled = VSL.ActionGroups[KSPActionGroup.SAS]; 
 			CFG.SASIsControlled = true;
+		}
+
+		protected void SetTarget(WayPoint wp)
+		{
+			CFG.Target = wp;
+			var t = wp == null? null : wp.GetTarget();
+			if(IsActiveVessel)
+				FlightGlobals.fetch.SetVesselTarget(t);
+			else VSL.vessel.targetObject = t;
+			//			{
+			//				if(VSL.vessel.orbitTargeter)
+			//				{
+			//					if(t != null)
+			//					{
+			//						if(t.GetOrbitDriver() != null &&
+			//							t.GetOrbitDriver() != VSL.vessel.orbitDriver)
+			//							VSL.vessel.orbitTargeter.SetTarget(t.GetOrbitDriver());
+			//					}
+			//					else VSL.vessel.orbitTargeter.SetTarget(null);
+			//				}
+			//				VSL.vessel.targetObject = t;
+			//			}
 		}
 
 		#if DEBUG
