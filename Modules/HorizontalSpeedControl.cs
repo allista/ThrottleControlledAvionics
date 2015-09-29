@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "HSC";
 
 			[Persistent] public float TranslationUpperThreshold = 5f;
-			[Persistent] public float ManualTranslationCutoff   = 50f;
+			[Persistent] public float ManualTranslationCutoff   = 20f;
 			[Persistent] public float TranslationLowerThreshold = 0.2f;
 			[Persistent] public float RotationLowerThreshold    = 0.01f;
 
@@ -36,7 +36,12 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
 			[Persistent] public float MoIFactor = 0.01f;
 			public float TfSpan;
-			public override void Init() { TfSpan = MaxTf-MinTf; }
+
+			public override void Init() 
+			{ 
+				base.Init();
+				TfSpan = MaxTf-MinTf; 
+			}
 		}
 		static Config HSC { get { return TCAScenario.Globals.HSC; } }
 
@@ -100,8 +105,9 @@ namespace ThrottleControlledAvionics
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
 			if(UserIntervening(s)) { pid.Reset(); return; }
-			Vector3 needed_thrust_dir;
 			var thrust = VSL.refT.InverseTransformDirection(VSL.Thrust);
+			var upl    = VSL.refT.InverseTransformDirection(VSL.Up);
+			var needed_thrust_dir = -upl;
 			if(!CFG.HF[HFlight.Level])
 			{
 				//if the vessel is not moving, nothing to do
@@ -115,7 +121,6 @@ namespace ThrottleControlledAvionics
 				if(hVm > HSC.RotationLowerThreshold)
 				{
 					//correction for low TWR and torque
-					var upl   = VSL.refT.InverseTransformDirection(VSL.Up);
 					var twrF  = Utils.ClampH(VSL.DTWR/HSC.TWRf, 1);
 					var torF  = Utils.ClampH(Vector3.ProjectOnPlane(VSL.MaxPitchRollAA, hVl).magnitude
 					                         *(float)Utils.ClampL(hVm, 1)
@@ -137,7 +142,6 @@ namespace ThrottleControlledAvionics
 	//				          VSL.MoI
 	//				         );//debug
 				}
-				else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
 				if(hVm > HSC.TranslationLowerThreshold)
 				{
 					//also try to use translation control
@@ -145,18 +149,20 @@ namespace ThrottleControlledAvionics
 					if(nV.magnitude < HSC.TranslationUpperThreshold)
 					{
 						EnableManualTranslation(false);
-						var trans = Utils.ClampH((float)(hVm/HSC.TranslationUpperThreshold), 1)*hVl_dir;
+						var trans = Utils.ClampH((float)hVm/HSC.TranslationUpperThreshold, 1)*hVl_dir;
 						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
 					}
 					else 
 					{
-						VSL.ManualTranslation = Utils.ClampH((float)(hVm/HSC.ManualTranslationCutoff), 1)*hVl_dir;
+						VSL.ManualTranslation = Utils.ClampH((float)hVm/HSC.ManualTranslationCutoff, 1)*hVl_dir;
+//						Log("fwd-up-angle: {0}; fwd-up-factor {1}", Vector3.Angle(VSL.Fwd, VSL.Up), 
+//						    (1-Utils.Clamp(Vector3.Dot(VSL.Fwd, VSL.Up)/
+//						                  HSC.ManualTranslationCutoffCos, 0, 1)));//debug
 						EnableManualTranslation();
 					}
 				}
 				else EnableManualTranslation(false);
 			}
-			else needed_thrust_dir = VSL.refT.InverseTransformDirection(-VSL.Up);
 			//calculate corresponding rotation
 			var attitude_error = Quaternion.FromToRotation(needed_thrust_dir, thrust);
 			var steering_error = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
