@@ -100,9 +100,16 @@ ALT
 HSC
 {
 	TranslationUpperThreshold = 5
-	ManualTranslationCutoff   = 50
+	ManualTranslationFactor   = 1
 	TranslationLowerThreshold = 0.01
 	RotationLowerThreshold    = 0.01
+	
+	ManualTranslationPID
+	{
+		P = 0.5	
+		I = 0.0
+		D = 0.5
+	}
 
 	P                     = 0.9
 	If                    = 20

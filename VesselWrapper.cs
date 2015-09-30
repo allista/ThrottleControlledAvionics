@@ -86,6 +86,7 @@ namespace ThrottleControlledAvionics
 
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
+		public Vector3  ManualThrust { get; private set; }
 		public Vector3  Torque { get; private set; } //current torque applied to the vessel by the engines
 		public Vector3  MaxTorque { get; private set; }
 		public float    AbsVerticalSpeed { get; private set; }
@@ -442,6 +443,7 @@ namespace ThrottleControlledAvionics
 			//calculate total downward thrust and slow engines' corrections
 			Thrust = Vector3.zero;
 			MaxThrust = Vector3.zero;
+			ManualThrust = Vector3.zero;
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
@@ -469,8 +471,8 @@ namespace ThrottleControlledAvionics
 					}
 				}
 				//do not include maneuver engines to break the feedback loop with HSC
-				if(e.Role != TCARole.MANEUVER) 
-					Thrust += e.wThrustDir*e.finalThrust;
+				if(e.Role != TCARole.MANEUVER) Thrust += e.wThrustDir*e.finalThrust;
+				if(e.Role == TCARole.MANUAL) ManualThrust += e.wThrustDir*e.finalThrust;
 			}
 			M = vessel.GetTotalMass();
 			MaxTWR  = MaxThrust.magnitude/M/G;
