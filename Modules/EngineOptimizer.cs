@@ -147,7 +147,6 @@ namespace ThrottleControlledAvionics
 		public void PresetLimitsForTranslation(IList<EngineWrapper> engines, Vector3 translation)
 		{
 			var num_engines = engines.Count;
-			if(translation.IsZero()) return;
 			for(int i = 0; i < num_engines; i++)
 			{
 				var e = engines[i];
