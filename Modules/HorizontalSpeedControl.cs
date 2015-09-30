@@ -22,7 +22,6 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "HSC";
 
 			[Persistent] public float TranslationUpperThreshold = 5f;
-			[Persistent] public float ManualTranslationFactor   = 1f;
 			[Persistent] public float TranslationLowerThreshold = 0.2f;
 			[Persistent] public float RotationLowerThreshold    = 0.01f;
 			[Persistent] public PID_Controller ManualTranslationPID = new PID_Controller(0.5f, 0, 0.5f, -1, 1);
@@ -96,14 +95,20 @@ namespace ThrottleControlledAvionics
 
 		void EnableManualTranslation(bool enable = true)
 		{
-			if(enable)
-			{ 
-				VSL.ManualTranslationEnabled = true;
-				return;
+			VSL.ManualTranslationEnabled = enable;
+			if(VSL.ManualTranslationEnabled) return;
+			var Changed = false;
+			for(int i = 0, count = VSL.ManualEngines.Count; i < count; i++)
+			{
+				var e = VSL.ManualEngines[i];
+				if(e.engine.thrustPercentage > 0)
+				{
+					Changed = true;
+					e.limit = e.best_limit = 0;
+					e.forceThrustPercentage(0);
+				}
 			}
-			if(VSL.ManualTranslationEnabled)
-				CFG.ActiveProfile.Apply(VSL.ManualEngines);
-			VSL.ManualTranslationEnabled = false;
+			if(Changed) CFG.ActiveProfile.Update(VSL.ActiveEngines);
 		}
 
 		protected override void Update(FlightCtrlState s)
@@ -165,16 +170,17 @@ namespace ThrottleControlledAvionics
 					{
 						var inclination  = Vector3.Dot(VSL.MaxThrust.normalized, VSL.Up);
 						var thrust_pitch = Vector3.Dot(VSL.ManualThrust.normalized, VSL.Up);
-						translation_pid.Update((1+inclination)*thrust_pitch*HSC.ManualTranslationFactor);
+						translation_pid.Update((1+inclination)*thrust_pitch);
 						manual_translation = Utils.Clamp(manual_translation+translation_pid.Action, 0, 1);
 						VSL.ManualTranslation = manual_translation*hVl_dir;
 //						Log("incl {0}; pitch {1}; error {2}; action {3}; translation {4}", 
-//						    inclination, thrust_pitch, (1+inclination)*thrust_pitch*HSC.ManualTranslationFactor, translation_pid.Action, manual_translation);//debug
+//						    inclination, thrust_pitch, (1+inclination)*thrust_pitch, translation_pid.Action, manual_translation);//debug
 						EnableManualTranslation();
 					}
 				}
 				else EnableManualTranslation(false);
 			}
+			else EnableManualTranslation(false);
 			//calculate corresponding rotation
 			var attitude_error = Quaternion.FromToRotation(needed_thrust_dir, thrust);
 			var steering_error = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
