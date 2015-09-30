@@ -82,13 +82,16 @@ namespace ThrottleControlledAvionics
 		public override void Enable(bool enable = true)
 		{
 			stage = Stage.None;
-			CFG.HF.On(HFlight.Stop);
 			scanner = null;
 			NextNode = null;
 			Nodes = null;
 			StopTimer.Reset();
 			CutoffTimer.Reset();
-			if(enable) DesiredAltitude = 0;
+			if(enable) 
+			{
+				CFG.HF.On(HFlight.Stop);
+				DesiredAltitude = 0;
+			}
 			else
 			{
 				DesiredAltitude = VSL.Altitude;
