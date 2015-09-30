@@ -21,8 +21,8 @@ namespace ThrottleControlledAvionics
 		const float lim_eps = 1e-5f;
 
 		[Persistent] string Name;
-		[Persistent] bool On;
-		[Persistent] float Limit;
+		[Persistent] public bool On;
+		[Persistent] public float Limit;
 		[Persistent] string role;
 		public TCARole Role;
 		public bool Changed;
@@ -70,6 +70,12 @@ namespace ThrottleControlledAvionics
 			}
 			if(Role == TCARole.MANUAL) e.forceThrustPercentage(Limit*100);
 			Changed = false;
+		}
+
+		public bool Differs(EngineWrapper e)
+		{
+			return On == e.isOperational && Role == e.Role &&
+				(Role != TCARole.MANUAL || Mathf.Abs(e.thrustLimit-Limit) > lim_eps);
 		}
 
 		void RoleControl()
@@ -203,6 +209,7 @@ namespace ThrottleControlledAvionics
 			var groups = new EngineConfigIntDB();
 			var single = new EngineConfigUintDB();
 			HasManual  = false;
+			Changed = false;
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++)
 			{
 				var e = engines[i];
@@ -218,10 +225,16 @@ namespace ThrottleControlledAvionics
 					else if(!single.ContainsKey(e.ID))
 						single[e.ID] = new EngineConfig(e);
 				}
-				else if(e.Group > 0) groups[e.Group] = c;
+				else if(e.Group > 0) 
+				{ 
+					Changed |= Changed || c.Differs(e);
+					c.Limit = e.thrustLimit;
+					c.On = e.isOperational;
+					groups[e.Group] = c; 
+				}
 				else { c.Update(e); single[e.ID] = c; }
 			}
-			Changed = Groups.Count != groups.Count || Single.Count != single.Count;
+			Changed |= Changed || Groups.Count != groups.Count || Single.Count != single.Count;
 			Groups = groups; Single = single;
 			if(Changed) Apply(engines);
 		}
