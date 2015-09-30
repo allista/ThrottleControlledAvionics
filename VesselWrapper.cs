@@ -127,6 +127,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 Translation { get; private set; }
 		public Vector3 ManualTranslation;
 		public bool ManualTranslationEnabled;
+		public bool Maneuvering;
 		public bool NoActiveRCS { get; private set; }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 
@@ -150,7 +151,7 @@ namespace ThrottleControlledAvionics
 			        vessel.situation != Vessel.Situations.ESCAPING); 
 		}
 
-		public Vector3 GetStarboard(Vector3d hV) { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
+		public Vector3 GetStarboard(Vector3d hV) { return hV.IsZero()? Vector3.zero : Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
 		public Vector3 CurrentStarboard { get { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(HorizontalVelocity, Up); } }
 
 		#region Engines
