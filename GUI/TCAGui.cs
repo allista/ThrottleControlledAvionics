@@ -415,7 +415,11 @@ namespace ThrottleControlledAvionics
 				}
 				GUI.contentColor = col;
 				if(GUILayout.Button("Clear", Styles.red_button, GUILayout.ExpandWidth(true)))
+				{
 					CFG.Waypoints.Clear();
+					CFG.Nav.Off();
+					CFG.HF.On(HFlight.Stop);
+				}
 				else if(del.Count > 0)
 				{
 					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
