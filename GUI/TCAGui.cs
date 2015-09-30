@@ -462,6 +462,7 @@ namespace ThrottleControlledAvionics
 		DateTime clicked_time;
 		void WaypointOverlay()
 		{
+			if(TCA == null || !TCA.Available || !showHUD) return;
 			if(selecting_target)
 			{
 				var coords = MapView.MapIsEnabled? 
