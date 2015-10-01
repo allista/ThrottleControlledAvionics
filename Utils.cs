@@ -304,11 +304,14 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void RunIf(Action action, Func<bool> predicate)
+		public void RunIf(Action action, bool predicate)
 		{
-			if(predicate())	{ if(Check) action(); }
+			if(predicate) { if(Check) { action(); Reset(); } }
 			else Reset();
 		}
+
+		public void RunIf(Action action, Func<bool> predicate)
+		{ RunIf(action, predicate()); }
 	}
 
 	public class TimeAverage
