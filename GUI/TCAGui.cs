@@ -369,6 +369,7 @@ namespace ThrottleControlledAvionics
 					                    GUILayout.Width(50)))
 						apply(tca => 
 					{
+						if(TCA.vessel.targetObject as Vessel == tca.vessel) return;
 						tca.vessel.targetObject = TCA.vessel.targetObject;
 						tca.CFG.Nav.On(Navigation.GoToTarget);
 					});
@@ -378,6 +379,7 @@ namespace ThrottleControlledAvionics
 						GUILayout.Width(50)))
 						apply(tca => 
 					{
+						if(TCA.vessel.targetObject as Vessel == tca.vessel) return;
 						tca.vessel.targetObject = TCA.vessel.targetObject;
 						tca.CFG.Nav.On(Navigation.FollowTarget);
 					});
@@ -418,11 +420,9 @@ namespace ThrottleControlledAvionics
 					{
 						apply(tca => 
 					{
-						if(tca != TCA)
-						{
-							tca.vessel.targetObject = TCA.vessel;
-							tca.CFG.Nav.On(Navigation.FollowTarget);
-						}
+						if(tca == TCA) return;
+						tca.vessel.targetObject = TCA.vessel;
+						tca.CFG.Nav.On(Navigation.FollowTarget);
 					});
 						CFG.Nav.Toggle(Navigation.FollowPath);
 					}
