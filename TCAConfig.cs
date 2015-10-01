@@ -141,6 +141,7 @@ Notes:
 		[Persistent] public WayPoint Target;
 		//autopilot
 		[Persistent] public Multiplexer<Autopilot> AP = new Multiplexer<Autopilot>();
+		[Persistent] public bool VTOLAssistON = true;
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
 		[Persistent] public EnginesProfileDB EnginesProfiles = new EnginesProfileDB();
