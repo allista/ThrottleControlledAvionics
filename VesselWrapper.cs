@@ -120,14 +120,19 @@ namespace ThrottleControlledAvionics
 		public bool isEVA { get { return vessel.isEVA; } }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
 		public ActionGroupList ActionGroups { get { return vessel.ActionGroups; } }
+
 		public FlightCtrlState ctrlState { get { return vessel.ctrlState; } }
 		public FlightInputCallback OnAutopilotUpdate 
 		{ get { return vessel.OnAutopilotUpdate; } set { vessel.OnAutopilotUpdate = value; } }
+
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
 		public Vector3 ManualTranslation;
 		public bool ManualTranslationEnabled;
+
 		public bool Maneuvering;
+		public List<FormationNode> Formation;
+
 		public bool NoActiveRCS { get; private set; }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 

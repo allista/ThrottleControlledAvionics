@@ -10,6 +10,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -64,7 +65,8 @@ namespace ThrottleControlledAvionics
 		readonly EWA AccelCorrection = new EWA();
 
 		SortedList<Guid, ModuleTCA> all_followers = new SortedList<Guid, ModuleTCA>();
-		Vector3 formation_offset = Vector3.zero;
+		FormationNode fnode;
+		Vector3 formation_offset { get { return fnode == null? Vector3.zero : fnode.Offset; } }
 		bool CanManeuver;
 
 		public override void Init()
@@ -108,15 +110,12 @@ namespace ThrottleControlledAvionics
 		{
 			var tvsl = CFG.Target.GetVessel();
 			if(tvsl == null || tvsl.srf_velocity.sqrMagnitude < PN.FormationSpeedSqr)
-			{ formation_offset = Vector3.zero; CanManeuver = false; yield break; }
+			{ fnode = null; VSL.Formation = null; CanManeuver = false; yield break; }
 			//update followers
-			var vi = FlightGlobals.Vessels.GetEnumerator();
 			var can_maneuver = true;
-			while(true)
+			for(int i = 0, num_vessels = FlightGlobals.Vessels.Count; i < num_vessels; i++)
 			{
-				try { if(!vi.MoveNext()) break; }
-				catch { yield break; }
-				var v = vi.Current;
+				var v = FlightGlobals.Vessels[i];
 				if(v == null) continue;
 				if(v.packed || !v.loaded)
 				{
@@ -125,31 +124,56 @@ namespace ThrottleControlledAvionics
 				}
 				var tca = ModuleTCA.EnabledTCA(v);
 				if(tca != null && 
-				   tca.CFG.Nav[Navigation.FollowTarget] && 
-				   tca.CFG.Target.GetTarget() != null && 
-				   tca.CFG.Target.GetTarget() == CFG.Target.GetTarget())
+				   (tca.vessel == VSL.vessel || 
+				    tca.CFG.Nav[Navigation.FollowTarget] && 
+				    tca.CFG.Target.GetTarget() != null && 
+				    tca.CFG.Target.GetTarget() == CFG.Target.GetTarget()))
 				{
 					all_followers[v.id] = tca;
 					if(v.id != VSL.vessel.id)
 						can_maneuver &= !tca.VSL.Maneuvering || 
 							(VSL.Maneuvering && VSL.vessel.id.CompareTo(v.id) > 0);
 				}
-				else
-					all_followers.Remove(v.id);
-				yield return null;
+				else all_followers.Remove(v.id);
 			}
-			//compute follower offset from index
-			var follower_index = 0;
-			formation_offset = Vector3.zero;
-			try { follower_index = all_followers.IndexOfKey(VSL.vessel.id)+1; }
-			catch { CanManeuver = false; yield break; }
-			var forward = tvsl == null? Vector3d.zero : -tvsl.srf_velocity.normalized;
-			var side = Vector3d.Cross(VSL.Up, forward).normalized;
-			if(follower_index % 2 == 0)
-				formation_offset += (forward+side)*PN.MinDistance*follower_index/2;
-			else 
-				formation_offset += (forward-side)*PN.MinDistance*(follower_index+1)/2;
 			CanManeuver = can_maneuver;
+			var follower_index = all_followers.IndexOfKey(VSL.vessel.id);
+			if(follower_index == 0)
+			{
+				var forward = tvsl == null? Vector3d.zero : -tvsl.srf_velocity.normalized;
+				var side = Vector3d.Cross(VSL.Up, forward).normalized;
+				var num_offsets = all_followers.Count+(all_followers.Count%2);
+				if(VSL.Formation == null || VSL.Formation.Count != num_offsets)
+				{
+					VSL.Formation = new List<FormationNode>(num_offsets);
+					for(int i = 0; i < num_offsets; i++) 
+						VSL.Formation.Add(new FormationNode(tvsl, i, forward, side, PN.MinDistance));
+					all_followers.ForEach(p => p.Value.VSL.Formation = VSL.Formation);
+				}
+				else for(int i = 0; i < num_offsets; i++) 
+					VSL.Formation[i].Update(forward, side, PN.MinDistance);
+			}
+//			Log("CanManeuver: {0}\nnode {1}\nFormation: {2}", 
+//			    CanManeuver, fnode, VSL.Formation);//debug
+			if(VSL.Formation == null || fnode != null) yield break;
+			//compute follower offset
+			var min_d   = -1f;
+			var min_off = 0;
+			for(int i = 0; i < VSL.Formation.Count; i++)
+			{
+				var node = VSL.Formation[i];
+				if(node.Follower != null) continue;
+				var d = node.Distance(VSL.vessel);
+				if(min_d < 0 || min_d > d)
+				{
+					min_d = d;
+					min_off = i;
+				}
+			}
+			VSL.Formation[min_off].Follower = VSL.vessel;
+			fnode = VSL.Formation[min_off];
+//			Log("CanManeuver: {0}, node {1}\nFormation:\n{2}", 
+//			    CanManeuver, fnode, VSL.Formation.Aggregate("", (s, f) => s+f+"\n"));//debug
 		}
 
 		bool update_formation_offset()
@@ -164,7 +188,7 @@ namespace ThrottleControlledAvionics
 		{
 			SetTarget(wp);
 			pid.Reset();
-			formation_offset = Vector3.zero;
+			fnode = null;
 			VSL.UpdateOnPlanetStats();
 			CFG.HF.On(HFlight.NoseOnCourse);
 			VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
@@ -175,6 +199,8 @@ namespace ThrottleControlledAvionics
 			SetTarget(null);
 			CFG.HF.On(HFlight.Stop);
 			VSL.Maneuvering = false;
+			VSL.Formation = null;
+			fnode = null;
 		}
 
 		bool on_arrival()
@@ -201,7 +227,7 @@ namespace ThrottleControlledAvionics
 			{
 				tvel = Vector3d.Exclude(VSL.Up, tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime);
 				var dir2vel_cos = Vector3.Dot(vdir.normalized, tvel.normalized);
-				VSL.Maneuvering = CanManeuver && Mathf.Abs(dir2vel_cos) < 1-PN.BearingCutoffCos && distance > CFG.Target.Distance/2;
+				VSL.Maneuvering = CanManeuver && distance > CFG.Target.Distance;
 				if(!CanManeuver || dir2vel_cos <= PN.BearingCutoffCos || Vector3.ProjectOnPlane(vdir, tvel).magnitude < CFG.Target.Distance*3) 
 				{
 					if(CanManeuver) fcor = vdir.normalized*Utils.ClampH(distance/CFG.Target.Distance, 1)*tvel.magnitude*PN.FormationFactor;
@@ -359,6 +385,36 @@ namespace ThrottleControlledAvionics
 			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
+	}
+
+	public class FormationNode
+	{
+		public readonly Vessel Target;
+		public readonly int Index;
+		public Vector3 Offset { get; private set; }
+		public Vessel Follower;
+
+		public FormationNode(Vessel target, int i, Vector3 forward, Vector3 side, float dist)
+		{
+			Index = i+1;
+			Target = target;
+			Update(forward, side, dist);
+		}
+
+		public void Update(Vector3 forward, Vector3 side, float dist)
+		{
+			if(Index % 2 == 0) Offset = (forward+side)*dist*Index/2;
+			else Offset = (forward-side)*dist*(Index+1)/2;
+		}
+
+		public float Distance(Vessel vsl)
+		{ return (vsl.transform.position - Target.transform.position - Offset).magnitude; }
+
+		public override string ToString()
+		{
+			return string.Format("[{0}]: Target {1}, Follower {2}, Offset {3}", 
+			                     Index, Target.vesselName, Follower == null? "empty" : Follower.vesselName, Offset);
+		}
 	}
 }
 
