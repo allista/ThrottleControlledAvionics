@@ -40,7 +40,7 @@ namespace ThrottleControlledAvionics
 		const float  IconSize = 16;
 		static Texture2D WayPointMarker, PathNodeMarker;
 		//altitude edit
-		static string s_altitude;
+		static string s_altitude = "";
 		static float altitude;
 		#endregion
 
