@@ -86,7 +86,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.LandedOrSplashed) return;
 			//loosing altitude alert
 			if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
-				        		      () => VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV);
+				        		      VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV);
 //			DebugUtils.CSV(VSL.vessel.vesselName, VSL.Altitude, 
 //			               VSL.VerticalSpeed, CFG.VerticalCutoff, setpoint, setpoint_correction, 
 //			               VSL.VerticalAccel, upAF, K, VSL.VSF);//debug
