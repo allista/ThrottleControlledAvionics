@@ -266,15 +266,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		void StageControl()
-		{
-			if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(15)))
-			{ if(Stage >= 0) Stage--; }
-			GUILayout.Label(new GUIContent(Stage < 0? "Off" : Stage.ToString(), 
-				"Automatically activate at stage"), 
-				GUILayout.Width(20));
-			if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(15)))
-				Stage++;
-		}
+		{ Stage = Utils.IntSelector(Stage, 0, tooltip: "Automatically activate at stage"); }
 
 		void OnPlanetControl()
 		{

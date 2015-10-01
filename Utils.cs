@@ -93,6 +93,17 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(new GUIContent(label, tooltip), label_width > 0? GUILayout.Width(label_width) : GUILayout.ExpandWidth(false));
 			return GUILayout.HorizontalSlider(value, min, max, GUILayout.ExpandWidth(true));
 		}
+
+		public static int IntSelector(int value, int min, int max=int.MaxValue, string format="D", string tooltip = "")
+		{
+			if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(15)))
+			{ if(value >= min) value--; }
+			GUILayout.Label(new GUIContent(value < 0? "Off" : value.ToString(format), tooltip), 
+			                GUILayout.Width(20));
+			if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(15)))
+			{ if(value <= max) value++; }
+			return value;
+		}
 		#endregion
 
 		//from http://stackoverflow.com/questions/716399/c-sharp-how-do-you-get-a-variables-name-as-it-was-physically-typed-in-its-dec
