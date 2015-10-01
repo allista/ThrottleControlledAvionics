@@ -95,6 +95,8 @@ namespace ThrottleControlledAvionics
 		public float    VerticalSpeedDisp { get; private set; }
 		public float    VerticalAccel { get; private set; }
 		public float    Altitude { get; private set; }
+		public float    AbsAltitude { get; private set; }
+		public float    RelAltitude { get; private set; }
 		public float    AltitudeAhead;
 		public float    TerrainAltitude { get; private set; }
 		public Vector3d HorizontalVelocity { get; private set; }
@@ -322,12 +324,10 @@ namespace ThrottleControlledAvionics
 		#region Updates
 		public void UpdateAltitude()
 		{ 
-			if(CFG.AltitudeAboveTerrain)
-			{
-				TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
-				Altitude = (float)(vessel.altitude) - TerrainAltitude;
-			}
-			else Altitude = (float)vessel.altitude;
+			AbsAltitude = (float)vessel.altitude;
+			TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
+			RelAltitude = (float)(vessel.altitude) - TerrainAltitude;
+			Altitude = CFG.AltitudeAboveTerrain? RelAltitude : AbsAltitude;
 		}
 
 		public void UpdateState()

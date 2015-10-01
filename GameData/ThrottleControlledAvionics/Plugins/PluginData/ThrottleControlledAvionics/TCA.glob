@@ -216,6 +216,10 @@ TLA
 	MinDTWR     = 0.5
 	MinAngularVelocity = 0.001 //(rad/s)^2 ~= 1.8deg/s
 	GearOffAngularVelocity = 0.01 //(rad/s)^2 ~= 5.73deg/s
+	
+	GearOnMaxHSpeed = 1
+	GearOnAltitude  = 5
+	GearOnTime      = 5
 }
 
 CPS
