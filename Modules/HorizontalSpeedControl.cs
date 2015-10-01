@@ -141,7 +141,7 @@ namespace ThrottleControlledAvionics
 				{
 					//correction for low TWR and torque
 					var twrF  = Utils.ClampH(VSL.DTWR/HSC.TWRf, 1);
-					var torF  = Utils.ClampH(Vector3.ProjectOnPlane(VSL.MaxPitchRollAA, hVl).magnitude
+					var torF  = Utils.ClampH(Mathf.Abs(Vector3.Dot(Vector3.Cross(hV, VSL.MaxThrust).normalized, VSL.wMaxAngularA))
 					                         *(float)Utils.ClampL(hVm, 1)
 					                         *HSC.TorF, 1);
 					var upF   = Vector3.Dot(thrust, hVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);

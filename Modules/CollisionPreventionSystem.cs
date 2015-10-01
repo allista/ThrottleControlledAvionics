@@ -101,7 +101,7 @@ namespace ThrottleControlledAvionics
 			//evaluate time to collision
 			var vDist = dVn*Dist*Mathf.Cos(alpha);
 			var vTime = vDist.magnitude/dV.magnitude;
-			if(vTime > CPS.SafeTime/Utils.Clamp(Vector3.Project(VSL.wMaxPitchRollAA, vDist).magnitude, 0.01f, 1f)) 
+			if(vTime > CPS.SafeTime/Utils.Clamp(Mathf.Abs(Vector3.Dot(VSL.wMaxAngularA, vDist.normalized)), 0.01f, 1f)) 
 				goto check_distance;
 			//calculate course correction
 			c = (vDist-Dir*Dist).normalized * (min_sep-separation) 
