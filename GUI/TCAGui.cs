@@ -55,7 +55,7 @@ namespace ThrottleControlledAvionics
 				var v = FlightGlobals.Vessels[i];
 				if(v == null || v == VSL.vessel || v.packed || !v.loaded) continue;
 				var tca = ModuleTCA.EnabledTCA(v);
-				if(tca == null || !tca.Available || 
+				if(tca == null || !tca.Controllable || 
 				   tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
 				action(tca);
 			}
