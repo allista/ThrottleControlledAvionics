@@ -148,6 +148,8 @@ Notes:
 		[Persistent] public bool ShowManualLimits;
 		public EnginesProfile ActiveProfile { get { return EnginesProfiles.Active; } }
 		public EnginesProfile DefaultProfile { get { return EnginesProfiles.Default; } }
+		//squad
+		[Persistent] public int Squad;
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }

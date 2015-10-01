@@ -42,6 +42,45 @@ namespace ThrottleControlledAvionics
 		//altitude edit
 		static string s_altitude = "";
 		static float altitude;
+		//squad mode
+		static bool squad_mode;
+		#endregion
+
+		#region Sqad Mode
+		static void apply_to_others(Action<ModuleTCA> action)
+		{
+			if(TCA.CFG.Squad == 0 || !squad_mode) return;
+			for(int i = 0, num_vessels = FlightGlobals.Vessels.Count; i < num_vessels; i++)
+			{
+				var v = FlightGlobals.Vessels[i];
+				if(v == null || v == VSL.vessel || v.packed || !v.loaded) continue;
+				var tca = ModuleTCA.EnabledTCA(v);
+				if(tca == null || !tca.Available || 
+				   tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
+				action(tca);
+			}
+			ScreenMessages.PostScreenMessage("Squad Action Executed", 5, ScreenMessageStyle.UPPER_CENTER);
+		}
+
+		static void apply(Action<ModuleTCA> action)
+		{
+			if(TCA == null || action == null) return;
+			action(TCA);
+			apply_to_others(action);
+		}
+
+		static void apply_cfg(Action<VesselConfig> action)
+		{
+			if(TCA == null || action == null) return;
+			action(TCA.CFG);
+			apply_to_others(tca => action(tca.CFG));
+		}
+
+		static void sync_cfg(Action<VesselConfig> action)
+		{
+			if(TCA == null || action == null) return;
+			apply_to_others(tca => action(tca.CFG));
+		}
 		#endregion
 
 		#region Configs Selector
@@ -97,7 +136,7 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button(CFG.Enabled? "Disable" : "Enable", 
 			                    CFG.Enabled? Styles.red_button : Styles.green_button,
 			                    GUILayout.Width(70)))
-				TCA.ToggleTCA();
+				apply(tca => tca.ToggleTCA());
 			//change key binding
 			if(GUILayout.Button(selecting_key? new GUIContent("?") : 
 			                    new GUIContent(TCA_Key.ToString(), "Select TCA Hotkey"), 
@@ -106,6 +145,10 @@ namespace ThrottleControlledAvionics
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			//autotune switch
 			CFG.AutoTune = GUILayout.Toggle(CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(true));
+			squad_mode = GUILayout.Toggle(squad_mode, 
+			                              new GUIContent("Squadron Mode", "Control autopilot on all squadron vessels"), 
+			                              GUILayout.ExpandWidth(true));
+			if(squad_mode) CFG.Squad = Utils.IntSelector(CFG.Squad, 1, tooltip: "Squad ID");
 			#if DEBUG
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) 
 			{
@@ -113,7 +156,7 @@ namespace ThrottleControlledAvionics
 				TCA.OnReloadGlobals();
 			}
 			if(GUILayout.Button("Reset", Styles.yellow_button, GUILayout.Width(60))) 
-				TCA.onVesselModify(TCA.vessel);
+				apply(tca => tca.onVesselModify(tca.vessel));
 			#endif
 			StatusString();
 			GUILayout.EndHorizontal();
@@ -248,11 +291,12 @@ namespace ThrottleControlledAvionics
 					s_altitude = GUILayout.TextField(s_altitude, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
 					if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
 					{
-						if(float.TryParse(s_altitude, out altitude)) CFG.DesiredAltitude = altitude;
+						if(float.TryParse(s_altitude, out altitude))
+							apply_cfg(cfg => cfg.DesiredAltitude = altitude);
 						else altitude = CFG.DesiredAltitude;
 					}
-					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude -= 10;
-					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) CFG.DesiredAltitude += 10;
+					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) apply_cfg(cfg => cfg.DesiredAltitude -= 10);
+					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) apply_cfg(cfg => cfg.DesiredAltitude += 10);
 					GUILayout.Label("Vertical Speed: " + 
 					                (TCA.IsStateSet(TCAState.VerticalSpeedControl)? VSL.VerticalSpeedDisp.ToString("F2")+"m/s" : "N/A"), 
 					                GUILayout.Width(180));
@@ -266,9 +310,12 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label("Set Point: " + (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
 					                                 CFG.VerticalCutoff.ToString("F1") + "m/s" : "OFF"), 
 					                GUILayout.ExpandWidth(false));
-					CFG.VerticalCutoff = GUILayout.HorizontalSlider(CFG.VerticalCutoff, 
-					                                                -GLB.VSC.MaxSpeed, 
-					                                                GLB.VSC.MaxSpeed);
+					var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, 
+		                                                -GLB.VSC.MaxSpeed, 
+		                                                GLB.VSC.MaxSpeed);
+					if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5)
+						apply_cfg(cfg => cfg.VerticalCutoff = VSP);
+					
 				}
 				GUILayout.EndHorizontal();
 				//autopilot toggles
@@ -284,30 +331,33 @@ namespace ThrottleControlledAvionics
 				if(GUILayout.Button(new GUIContent("Stop", "Kill horizontal velocity"), 
 				                    CFG.HF[HFlight.Stop]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
+					apply_cfg(cfg =>
 				{
-					CFG.HF.Toggle(HFlight.Stop);
-					if(CFG.HF[HFlight.Stop]) { CFG.Nav.Off(); CFG.AP.Off(); }
-				}
+					cfg.HF.Toggle(HFlight.Stop);
+					if(cfg.HF[HFlight.Stop]) { cfg.Nav.Off(); cfg.AP.Off(); }
+				});
 				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
 									CFG.HF.Any(HFlight.AnchorHere, HFlight.Anchor)? 
 				                    Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(65)))
-					CFG.HF.Toggle(HFlight.AnchorHere);
+					apply_cfg(cfg => cfg.HF.Toggle(HFlight.AnchorHere));
 				if(GUILayout.Button(new GUIContent("Land", "Try to land on a nearest flat surface"), 
 				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
-					CFG.AP.Toggle(Autopilot.Land);
+					apply_cfg(cfg => cfg.AP.Toggle(Autopilot.Land));
 				if(GUILayout.Button(new GUIContent("Cruise", "Maintain course and speed"), 
 				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(65)))
-					CFG.HF.Toggle(HFlight.CruiseControl);
+					apply_cfg(cfg => cfg.HF.Toggle(HFlight.CruiseControl));
 				if(GUILayout.Button(new GUIContent("Hover", "Maintain altitude"), 
 				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(60)))
-					CFG.VF.Toggle(VFlight.AltitudeControl);
-				TCA.AltitudeAboveTerrain(GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
-				                                          "Follow Terrain", 
-				                                          GUILayout.ExpandWidth(false)));
+					apply_cfg(cfg => cfg.VF.Toggle(VFlight.AltitudeControl));
+				var follow_terrain = GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
+				                                      "Follow Terrain", 
+				                                      GUILayout.ExpandWidth(false));
+				if(follow_terrain != CFG.AltitudeAboveTerrain)
+					apply(tca => tca.AltitudeAboveTerrain(follow_terrain));
 				GUILayout.EndHorizontal();
 				//navigator toggles
 				GUILayout.BeginHorizontal();
@@ -317,12 +367,20 @@ namespace ThrottleControlledAvionics
 					                    CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
 					                    : Styles.yellow_button,
 					                    GUILayout.Width(50)))
-						CFG.Nav.On(Navigation.GoToTarget);
+						apply(tca => 
+					{
+						tca.vessel.targetObject = TCA.vessel.targetObject;
+						tca.CFG.Nav.On(Navigation.GoToTarget);
+					});
 					if(GUILayout.Button(new GUIContent("Follow", "Follow current target"), 
 						CFG.Nav[Navigation.FollowTarget]? Styles.green_button 
 						: Styles.yellow_button,
 						GUILayout.Width(50)))
-						CFG.Nav.On(Navigation.FollowTarget);
+						apply(tca => 
+					{
+						tca.vessel.targetObject = TCA.vessel.targetObject;
+						tca.CFG.Nav.On(Navigation.FollowTarget);
+					});
 				}
 				else 
 				{
@@ -357,10 +415,22 @@ namespace ThrottleControlledAvionics
 					                    CFG.Nav[Navigation.FollowPath]? Styles.green_button 
 					                    : Styles.yellow_button,
 					                    GUILayout.Width(90)))
+					{
+						apply(tca => 
+					{
+						if(tca != TCA)
+						{
+							tca.vessel.targetObject = TCA.vessel;
+							tca.CFG.Nav.On(Navigation.FollowTarget);
+						}
+					});
 						CFG.Nav.Toggle(Navigation.FollowPath);
+					}
 				}
 				else GUILayout.Label(new GUIContent("Follow Route", "Add some waypoints first"), Styles.grey, GUILayout.Width(90));
-				CFG.MaxNavSpeed = Utils.FloatSlider("m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 60, "Maximum horizontal speed");
+				var max_nav_speed = Utils.FloatSlider("m/s", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "F0", 60, "Maximum horizontal speed");
+				if(Mathf.Abs(max_nav_speed-CFG.MaxNavSpeed) > 1e-5)
+					apply_cfg(cfg => cfg.MaxNavSpeed = max_nav_speed);
 				GUILayout.EndHorizontal();
 			}
 			else GUILayout.Label("Autopilot Not Available In Orbit", Styles.grey, GUILayout.ExpandWidth(true));
