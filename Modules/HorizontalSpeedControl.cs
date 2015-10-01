@@ -65,7 +65,12 @@ namespace ThrottleControlledAvionics
 			CFG.HF.AddCallback(HFlight.Move, Move);
 		}
 
-		public override void UpdateState() { IsActive = CFG.HF && VSL.OnPlanet; }
+		public override void UpdateState() 
+		{ 
+			IsActive = CFG.HF && VSL.OnPlanet; 
+			if(!IsActive && VSL.ManualTranslationEnabled)
+				EnableManualTranslation(false);
+		}
 
 		public override void Enable(bool enable = true)
 		{
