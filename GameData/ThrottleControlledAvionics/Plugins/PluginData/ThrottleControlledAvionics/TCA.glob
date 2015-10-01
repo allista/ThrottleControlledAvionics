@@ -156,7 +156,7 @@ PN
 	MaxAccelF          = 4
 	LookAheadTime      = 3
 	BearingCutoff      = 80
-	FormationSpeedCutoff = 5
+	FormationSpeedCutoff = 10
 	FormationFactor    = 0.2
 	
 	DistancePID
