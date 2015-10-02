@@ -175,6 +175,7 @@ namespace ThrottleControlledAvionics
 					{
 						var inclination  = Vector3.Dot(VSL.MaxThrust.normalized, VSL.Up);
 						var thrust_pitch = Vector3.Dot(VSL.ManualThrust.normalized, VSL.Up);
+						if(thrust_pitch.Equals(0) && inclination > -1) thrust_pitch = 1e-5f;
 						translation_pid.Update((1+inclination)*thrust_pitch);
 						manual_translation = Utils.Clamp(manual_translation+translation_pid.Action, 0, 1);
 						VSL.ManualTranslation = manual_translation*hVl_dir;
