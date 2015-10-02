@@ -41,7 +41,7 @@ namespace ThrottleControlledAvionics
 		const float  IconSize = 16;
 		static Texture2D WayPointMarker, PathNodeMarker;
 		//altitude edit
-		static string s_altitude = "";
+		static string s_altitude = null;
 		static float altitude;
 		//squad mode
 		static bool squad_mode;
@@ -318,7 +318,7 @@ namespace ThrottleControlledAvionics
 					                              VSL.Altitude, VSL.VerticalSpeedDisp), 
 					                GUILayout.Width(180));
 					GUILayout.Label("Set Point (m):", GUILayout.Width(90));
-					if(string.IsNullOrEmpty(s_altitude) || !altitude.Equals(CFG.DesiredAltitude))
+					if(s_altitude == null || !altitude.Equals(CFG.DesiredAltitude))
 					{
 						altitude = CFG.DesiredAltitude;
 						s_altitude = altitude.ToString("F1");
@@ -330,8 +330,10 @@ namespace ThrottleControlledAvionics
 							apply_cfg(cfg => cfg.DesiredAltitude = altitude);
 						else altitude = CFG.DesiredAltitude;
 					}
-					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) apply_cfg(cfg => cfg.DesiredAltitude -= 10);
-					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) apply_cfg(cfg => cfg.DesiredAltitude += 10);
+					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) 
+					{ CFG.DesiredAltitude -= 10; apply_cfg(cfg => cfg.DesiredAltitude = CFG.DesiredAltitude); }
+					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) 
+					{ CFG.DesiredAltitude += 10; apply_cfg(cfg => cfg.DesiredAltitude = CFG.DesiredAltitude); }
 				}
 				else
 				{
