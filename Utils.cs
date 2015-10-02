@@ -418,7 +418,7 @@ namespace ThrottleControlledAvionics
 	public class Multiplexer<T> : ConfigNodeObject where T : struct
 	{
 		[Persistent] public string State;
-		public T state;
+		public T state { get; protected set; }
 
 		readonly Dictionary<T, Action<bool>> callbacks = new Dictionary<T, Action<bool>>();
 
