@@ -55,9 +55,7 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Initialization
-		#if DEBUG
 		public void OnReloadGlobals() { VSL.Init(); invoke_in_modules("Init"); }
-		#endif
 
 		public override string GetInfo()
 		{ return HasTCA? "Software Installed" : "Not Available"; }
@@ -104,7 +102,10 @@ namespace ThrottleControlledAvionics
 			init();
 		}
 
-		public void onVesselModify(Vessel vsl)//debug
+		#if DEBUG
+		public 
+		#endif
+		void onVesselModify(Vessel vsl)
 		{ 
 			if(vsl != vessel) return;
 			reset();

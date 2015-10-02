@@ -167,11 +167,6 @@ namespace ThrottleControlledAvionics
 			if(squad_mode) CFG.Squad = Utils.IntSelector(CFG.Squad, 1, tooltip: "Squad ID");
 			GUILayout.FlexibleSpace();
 			#if DEBUG
-			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.Width(120))) 
-			{
-				TCAScenario.LoadGlobals();
-				TCA.OnReloadGlobals();
-			}
 			if(GUILayout.Button("Reset", Styles.yellow_button, GUILayout.Width(60))) 
 				apply(tca => tca.onVesselModify(tca.vessel));
 			#endif
@@ -237,6 +232,11 @@ namespace ThrottleControlledAvionics
 		{
 			if(!advOptions) return;
 			GUILayout.BeginVertical(Styles.white);
+			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.ExpandWidth(true))) 
+			{
+				TCAScenario.LoadGlobals();
+				TCA.OnReloadGlobals();
+			}
 			CFG.VTOLAssistON = GUILayout.Toggle(CFG.VTOLAssistON, "Assist with vertical takeoff and landing", GUILayout.ExpandWidth(true));
 			GUILayout.BeginHorizontal();
 			CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity of throttle controls", CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
@@ -316,7 +316,7 @@ namespace ThrottleControlledAvionics
 				{
 					GUILayout.Label(string.Format("Altitude: {0:F2}m {1:+0.0;-0.0;+0.0}m/s", 
 					                              VSL.Altitude, VSL.VerticalSpeedDisp), 
-					                GUILayout.Width(160));
+					                GUILayout.Width(180));
 					GUILayout.Label("Set Point (m):", GUILayout.Width(90));
 					if(string.IsNullOrEmpty(s_altitude) || !altitude.Equals(CFG.DesiredAltitude))
 					{
@@ -358,31 +358,43 @@ namespace ThrottleControlledAvionics
 				if(GUILayout.Button(new GUIContent("Stop", "Kill horizontal velocity"), 
 				                    CFG.HF[HFlight.Stop]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
-					apply_cfg(cfg =>
 				{
-					cfg.HF.Toggle(HFlight.Stop);
-					if(cfg.HF[HFlight.Stop]) { cfg.Nav.Off(); cfg.AP.Off(); }
-				});
+					var state = !CFG.HF[HFlight.Stop];
+						apply_cfg(cfg =>
+					{
+						cfg.HF[HFlight.Stop] = state;
+						if(state) { cfg.Nav.Off(); cfg.AP.Off(); }
+					});
+				}
 				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
 									CFG.HF.Any(HFlight.AnchorHere, HFlight.Anchor)? 
 				                    Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(65)))
-					apply_cfg(cfg => cfg.HF.Toggle(HFlight.AnchorHere));
+				{
+					var state = !CFG.HF[HFlight.Anchor];
+					apply_cfg(cfg => cfg.HF[HFlight.AnchorHere] = state);
+				}
 				if(GUILayout.Button(new GUIContent("Land", "Try to land on a nearest flat surface"), 
 				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
-					apply_cfg(cfg => cfg.AP.Toggle(Autopilot.Land));
+				{
+					var state = !CFG.AP[Autopilot.Land];
+					apply_cfg(cfg => cfg.AP[Autopilot.Land] = state);
+				}
 				if(GUILayout.Button(new GUIContent("Cruise", "Maintain course and speed"), 
 				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(65)))
 				{
-					follow_me();
 					CFG.HF.Toggle(HFlight.CruiseControl);
+					if(CFG.HF[HFlight.CruiseControl]) follow_me();
 				}
 				if(GUILayout.Button(new GUIContent("Hover", "Maintain altitude"), 
 				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(60)))
-					apply_cfg(cfg => cfg.VF.Toggle(VFlight.AltitudeControl));
+				{
+					var state = !CFG.VF[VFlight.AltitudeControl];
+					apply_cfg(cfg => cfg.VF[VFlight.AltitudeControl] = state);
+				}
 				var follow_terrain = GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
 				                                      "Follow Terrain", 
 				                                      GUILayout.ExpandWidth(false));
@@ -398,8 +410,10 @@ namespace ThrottleControlledAvionics
 					                    : Styles.yellow_button,
 					                    GUILayout.Width(50)))
 					{
-						follow_me();
+						
 						CFG.Nav.On(Navigation.GoToTarget);
+						if(CFG.Nav[Navigation.GoToTarget])
+							follow_me();
 					}
 					if(GUILayout.Button(new GUIContent("Follow", "Follow current target"), 
 						CFG.Nav[Navigation.FollowTarget]? Styles.green_button 
@@ -416,6 +430,12 @@ namespace ThrottleControlledAvionics
 				{
 					GUILayout.Label(new GUIContent("Go To", "No target selected"),  Styles.grey, GUILayout.Width(50));
 					GUILayout.Label(new GUIContent("Follow", "No target selected"),  Styles.grey, GUILayout.Width(50));
+				}
+				if(squad_mode)
+				{
+					if(GUILayout.Button(new GUIContent("Follow Me", "Make the squadron follow"), 
+					                    Styles.yellow_button, GUILayout.Width(75)))
+						follow_me();
 				}
 				if(selecting_target)
 				{
@@ -446,8 +466,9 @@ namespace ThrottleControlledAvionics
 					                    : Styles.yellow_button,
 					                    GUILayout.Width(90)))
 					{
-						follow_me();
 						CFG.Nav.Toggle(Navigation.FollowPath);
+						if(CFG.Nav[Navigation.FollowPath])
+							follow_me();
 					}
 				}
 				else GUILayout.Label(new GUIContent("Follow Route", "Add some waypoints first"), Styles.grey, GUILayout.Width(90));
@@ -489,7 +510,7 @@ namespace ThrottleControlledAvionics
 							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed)));
 					}
 					if(GUILayout.Button(label,GUILayout.ExpandWidth(true)))
-						FlightGlobals.fetch.SetVesselTarget(wp);
+						FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
 					if(GUILayout.Button(new GUIContent("Land", "Land on arrival"), 
@@ -508,16 +529,14 @@ namespace ThrottleControlledAvionics
 				}
 				GUI.contentColor = col;
 				if(GUILayout.Button("Clear", Styles.red_button, GUILayout.ExpandWidth(true)))
-				{
 					CFG.Waypoints.Clear();
-					CFG.Nav.Off();
-					CFG.HF.On(HFlight.Stop);
-				}
 				else if(del.Count > 0)
 				{
 					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
 					CFG.Waypoints = new Queue<WayPoint>(edited);
 				}
+				if(CFG.Waypoints.Count == 0)
+				{ CFG.Nav.Off(); CFG.HF.On(HFlight.Stop); }
 				GUILayout.EndVertical();
 				GUILayout.EndScrollView();
 				GUILayout.EndVertical();
