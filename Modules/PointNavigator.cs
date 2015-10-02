@@ -67,7 +67,7 @@ namespace ThrottleControlledAvionics
 		SortedList<Guid, ModuleTCA> all_followers = new SortedList<Guid, ModuleTCA>();
 		FormationNode fnode;
 		Vector3 formation_offset { get { return fnode == null? Vector3.zero : fnode.Offset; } }
-		bool CanManeuver;
+		bool CanManeuver = true;
 
 		public override void Init()
 		{
@@ -110,7 +110,7 @@ namespace ThrottleControlledAvionics
 		{
 			var tvsl = CFG.Target.GetVessel();
 			if(tvsl == null || tvsl.srf_velocity.sqrMagnitude < PN.FormationSpeedSqr)
-			{ fnode = null; VSL.Formation = null; CanManeuver = false; yield break; }
+			{ reset_formation(); CanManeuver = false; yield break; }
 			//update followers
 			var can_maneuver = true;
 			for(int i = 0, num_vessels = FlightGlobals.Vessels.Count; i < num_vessels; i++)
@@ -184,11 +184,18 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
+		void reset_formation()
+		{
+			VSL.Maneuvering = false;
+			VSL.Formation = null;
+			fnode = null;			
+		}
+
 		void start_to(WayPoint wp)
 		{
+			reset_formation();
 			SetTarget(wp);
 			pid.Reset();
-			fnode = null;
 			VSL.UpdateOnPlanetStats();
 			CFG.HF.On(HFlight.NoseOnCourse);
 			VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
@@ -198,9 +205,7 @@ namespace ThrottleControlledAvionics
 		{
 			SetTarget(null);
 			CFG.HF.On(HFlight.Stop);
-			VSL.Maneuvering = false;
-			VSL.Formation = null;
-			fnode = null;
+			reset_formation();
 		}
 
 		bool on_arrival()
@@ -216,7 +221,7 @@ namespace ThrottleControlledAvionics
 			if(!IsActive || CFG.Target == null) return;
 			CFG.Target.Update(VSL.mainBody);
 			//calculate direct distance
-			if(CFG.Nav[Navigation.FollowTarget]) update_formation_offset();
+//			if(CFG.Nav[Navigation.FollowTarget]) update_formation_offset();
 			var tvsl = CFG.Target.GetVessel();
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.vessel.transform.position, VSL.Up);
 			var distance = Utils.ClampL(vdir.magnitude-VSL.R, 0);
