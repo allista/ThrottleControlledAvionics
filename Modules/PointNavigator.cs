@@ -221,7 +221,7 @@ namespace ThrottleControlledAvionics
 			if(!IsActive || CFG.Target == null) return;
 			CFG.Target.Update(VSL.mainBody);
 			//calculate direct distance
-//			if(CFG.Nav[Navigation.FollowTarget]) update_formation_offset();
+			if(CFG.Nav[Navigation.FollowTarget]) update_formation_offset();
 			var tvsl = CFG.Target.GetVessel();
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.vessel.transform.position, VSL.Up);
 			var distance = Utils.ClampL(vdir.magnitude-VSL.R, 0);
