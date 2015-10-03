@@ -22,9 +22,11 @@ do
 	esac
 	shift
 done
-[[ -n "$out" ]] || out='output.csv'
 
-echo "looking for: '$tag'" 
-echo "out: $out"
+[[ -n "$out" ]] || out='output.csv'
+[[ -d $(dirname "$out") ]] || { echo "No such directory: $(dirname "$out")"; exit 1; }
+
+echo "looking for '$tag' in $log" 
+echo "output: $out"
 
 grep "$tag" "$log" | cut -f 3- -d ' ' > "$out"
