@@ -96,9 +96,9 @@ namespace ThrottleControlledAvionics
 				alt = VSL.AltitudeAhead;
 			}
 			var error = CFG.DesiredAltitude-alt; 
-			//if following terrain, filter noise depending on the altitude
+			//if following terrain, filter noise depending on the speed and twr
 			if(CFG.AltitudeAboveTerrain && error < 0)
-				error = error/Utils.ClampL(VSL.HorizontalSpeed, 1);
+				error /= Utils.ClampL(VSL.HorizontalSpeed, 1);
 			//update pids
 			if(VSL.SlowEngines)
 			{
@@ -111,15 +111,18 @@ namespace ThrottleControlledAvionics
 			else 
 			{
 				if(CFG.AltitudeAboveTerrain)
-					rocket_pid.D = ALT.RocketPID.D/Utils.ClampL(VSL.HorizontalSpeed, 1);
+					rocket_pid.D = ALT.RocketPID.D/Utils.ClampL(VSL.HorizontalSpeed*VSL.MaxDTWR, 1);
 				rocket_pid.Update(error);
 				CFG.VerticalCutoff = rocket_pid.Action;
 			}
 			//correct for relative vertical speed and relative altitude
 			if(CFG.AltitudeAboveTerrain)
 			{
-				var dV = (VSL.AbsVerticalSpeed-VSL.RelVerticalSpeed)/Utils.ClampL(alt/ALT.RelAltitudeFactor, 1);
-				if(error < 0) dV += Utils.ClampL(error/Utils.ClampL(CFG.DesiredAltitude, 1)/ALT.RelVelocityErrF*VSL.HorizontalSpeed, -10*ALT.MaxSpeed);
+				var dV = (VSL.AbsVerticalSpeed-VSL.RelVerticalSpeed) /
+					Utils.ClampL(alt/ALT.RelAltitudeFactor, 1);
+				if(error < 0) dV += Utils.ClampL(error / 
+				                                 Utils.ClampL(CFG.DesiredAltitude, 1) / 
+				                                 ALT.RelVelocityErrF*VSL.HorizontalSpeed, -10*ALT.MaxSpeed);
 				else dV = Utils.ClampL(dV, 0);
 				CFG.VerticalCutoff += dV;
 				//Loosing Altitude alert
