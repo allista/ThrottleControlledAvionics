@@ -26,7 +26,7 @@ namespace ThrottleControlledAvionics
 		static string config_name = string.Empty;
 		static readonly DropDownList namedConfigsListBox = new DropDownList();
 		//dimensions
-		public const int controlsWidth = 600, controlsHeight = 100, lineHeight = 30;
+		public const int controlsWidth = 600, controlsHeight = 100, lineHeight = 35;
 		public const int helpWidth = 550, helpHeight = 500;
 		static Rect HelpWindow     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
 		static Vector2 waypointsScroll, helpScroll;

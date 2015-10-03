@@ -104,7 +104,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(15)))
 			{ if(value >= min) value--; }
-			GUILayout.Label(new GUIContent(value < 0? "Off" : value.ToString(format), tooltip), 
+			GUILayout.Label(new GUIContent(value < min? "Off" : value.ToString(format), tooltip), 
 			                GUILayout.Width(20));
 			if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(15)))
 			{ if(value <= max) value++; }
