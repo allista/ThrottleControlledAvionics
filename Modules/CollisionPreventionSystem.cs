@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(!CFG.CourseCorrection.IsZero())
-				GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.forward*0.1f, VSL.wCoM+VSL.refT.forward*0.1f, VSL.wCoM+pid.Action }, Color.magenta);
+				GLUtils.GLLine(VSL.wCoM, VSL.wCoM+pid.Action, Color.magenta);
 		}
 
 		public override void Reset()

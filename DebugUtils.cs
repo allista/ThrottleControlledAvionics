@@ -65,38 +65,48 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)
+		static void GLBeginWorld()
 		{
+			var camera = MapView.MapIsEnabled? PlanetariumCamera.Camera : FlightCamera.fetch.mainCamera;
 			GL.PushMatrix();
 			material.SetPass(0);
-			GL.LoadOrtho();
+			GL.LoadProjectionMatrix(camera.projectionMatrix);
+			GL.modelview = camera.worldToCameraMatrix;
+		}
+
+		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)
+		{
+			GLBeginWorld();
 			GL.Begin(GL.TRIANGLES);
 			GL.Color(c);
-			GLVertexMap(worldVertices[0]);
-			GLVertexMap(worldVertices[1]);
-			GLVertexMap(worldVertices[2]);
+			GL.Vertex(worldVertices[0]);
+			GL.Vertex(worldVertices[1]);
+			GL.Vertex(worldVertices[2]);
 			GL.End();
 			GL.PopMatrix();
 		}
 
 		public static void GLTriangleMap(Vector3[] worldVertices, Color c)
 		{
-			GL.PushMatrix();
-			material.SetPass(0);
-			GL.LoadOrtho();
+			GLBeginWorld();
 			GL.Begin(GL.TRIANGLES);
 			GL.Color(c);
-			GLVertexMap(worldVertices[0]);
-			GLVertexMap(worldVertices[1]);
-			GLVertexMap(worldVertices[2]);
+			GL.Vertex(worldVertices[0]);
+			GL.Vertex(worldVertices[1]);
+			GL.Vertex(worldVertices[2]);
 			GL.End();
 			GL.PopMatrix();
 		}
 
-		public static void GLVertexMap(Vector3 worldPosition)
+		public static void GLLine(Vector3 ori, Vector3 end, Color c)
 		{
-			Vector3 screenPoint = PlanetariumCamera.Camera.WorldToScreenPoint(ScaledSpace.LocalToScaledSpace(worldPosition));
-			GL.Vertex3(screenPoint.x / Camera.main.pixelWidth, screenPoint.y / Camera.main.pixelHeight, 0);
+			GLBeginWorld();
+			GL.Begin(GL.LINES);
+			GL.Color(c);
+			GL.Vertex(ori);
+			GL.Vertex(end);
+			GL.End();
+			GL.PopMatrix();
 		}
 	}
 
