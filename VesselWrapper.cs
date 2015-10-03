@@ -55,6 +55,7 @@ namespace ThrottleControlledAvionics
 		public Vector6 E_TorqueLimits { get; private set; } = new Vector6(); //torque limits of engines
 		public Vector6 W_TorqueLimits { get; private set; } = new Vector6(); //torque limits of reaction wheels
 		public Vector6 R_TorqueLimits { get; private set; } = new Vector6(); //torque limits of rcs
+//		public Vector6 ManualThrustLimits { get; private set; } = new Vector6();
 
 		public Bounds  B { get; private set; } //bounds
 		public Vector3 C { get; private set; } //center
