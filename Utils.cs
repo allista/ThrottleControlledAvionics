@@ -61,11 +61,17 @@ namespace ThrottleControlledAvionics
 		public static double Clamp(double x, double low, double high)  
 		{ return x < low ? low : (x > high? high : x); }
 
+		public static int Clamp(int x, int low, int high)  
+		{ return x < low ? low : (x > high? high : x); }
+
 		public static float ClampL(float x, float low)  { return x < low  ? low  : x;  }
 		public static double ClampL(double x, double low)  { return x < low  ? low  : x;  }
 
 		public static float ClampH(float x, float high) { return x > high ? high : x;  }
 		public static double ClampH(double x, double high) { return x > high ? high : x;  }
+
+		public static int ClampL(int x, int low)  { return x < low  ? low  : x; }
+		public static int ClampH(int x, int high) { return x > high ? high : x; }
 
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
 		public static double CenterAngle(double a) { return a > 180? a-360 : a; }
