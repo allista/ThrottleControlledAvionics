@@ -158,6 +158,7 @@ PN
 	BearingCutoff      = 80
 	FormationSpeedCutoff = 10
 	FormationFactor    = 0.2
+	FormationBreakTime = 10
 	
 	DistancePID
 	{

@@ -42,6 +42,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float BearingCutoff      = 60f;
 			[Persistent] public float FormationSpeedCutoff = 5f;
 			[Persistent] public float FormationFactor    = 0.2f;
+			[Persistent] public float FormationBreakTime = 10f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 
 			public float BearingCutoffCos;
@@ -68,6 +69,7 @@ namespace ThrottleControlledAvionics
 		FormationNode fnode;
 		Vector3 formation_offset { get { return fnode == null? Vector3.zero : fnode.Offset; } }
 		bool CanManeuver = true;
+		Timer FormationBreakTimer = new Timer();
 
 		public override void Init()
 		{
@@ -75,6 +77,7 @@ namespace ThrottleControlledAvionics
 			pid.setPID(PN.DistancePID);
 			pid.Reset();
 			ArrivedTimer.Period = PN.MinTime;
+			FormationBreakTimer.Period = PN.FormationBreakTime;
 			CFG.Nav.AddCallback(Navigation.GoToTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowPath, FollowPath);
@@ -231,11 +234,19 @@ namespace ThrottleControlledAvionics
 			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
 			{
 				tvel = Vector3d.Exclude(VSL.Up, tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime);
+				var tvel_m = tvel.magnitude;
 				var dir2vel_cos = Vector3.Dot(vdir.normalized, tvel.normalized);
+				var keep_formation = true;
+				if(tvel_m < PN.FormationSpeedCutoff) 
+					keep_formation = !FormationBreakTimer.Check;
+				else FormationBreakTimer.Reset();
 				VSL.Maneuvering = CanManeuver && distance > CFG.Target.Distance;
-				if(!CanManeuver || dir2vel_cos <= PN.BearingCutoffCos || Vector3.ProjectOnPlane(vdir, tvel).magnitude < CFG.Target.Distance*3) 
+				if(keep_formation &&
+				   (!CanManeuver || 
+				    dir2vel_cos <= PN.BearingCutoffCos || 
+				    Vector3.ProjectOnPlane(vdir, tvel).magnitude < CFG.Target.Distance*3))
 				{
-					if(CanManeuver) fcor = vdir.normalized*Utils.ClampH(distance/CFG.Target.Distance, 1)*tvel.magnitude*PN.FormationFactor;
+					if(CanManeuver) fcor = vdir.normalized*Utils.ClampH(distance/CFG.Target.Distance, 1)*tvel_m*PN.FormationFactor;
 					distance = dir2vel_cos > 0? Utils.ClampL(Vector3.Project(vdir, tvel).magnitude-VSL.R, 0) : 0;
 					vdir = tvel;
 				}
@@ -256,7 +267,7 @@ namespace ThrottleControlledAvionics
 				if(CFG.Nav[Navigation.FollowTarget])
 				{
 					//set needed velocity and starboard to match that of the target
-					CFG.NeededHorVelocity = tvel+fcor*(VSL.Maneuvering? 1 : 0.2f);
+					CFG.NeededHorVelocity = tvel+fcor*(VSL.Maneuvering? 1 : PN.FormationFactor);
 					CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
 					vel_is_set = true;
 				}
@@ -337,7 +348,7 @@ namespace ThrottleControlledAvionics
 				var eta = distance/VSL.HorizontalSpeed;
 				var max_speed = VSL.MaxThrust.magnitude*VSL.MinVSFtwr/VSL.M*0.707f*eta;
 				pid.Max = max_speed < CFG.MaxNavSpeed? max_speed : CFG.MaxNavSpeed;
-				Log("eta: {0}, max speed: {1}", eta, max_speed);
+//				Log("eta: {0}, max speed: {1}", eta, max_speed);
 			}
 			pid.Min = 0;
 			pid.P   = PN.DistancePID.P*AccelCorrection;
