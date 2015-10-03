@@ -26,7 +26,7 @@ namespace ThrottleControlledAvionics
 		static string config_name = string.Empty;
 		static readonly DropDownList namedConfigsListBox = new DropDownList();
 		//dimensions
-		public const int controlsWidth = 600, controlsHeight = 100;
+		public const int controlsWidth = 600, controlsHeight = 100, lineHeight = 30;
 		public const int helpWidth = 550, helpHeight = 500;
 		static Rect HelpWindow     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
 		static Vector2 waypointsScroll, helpScroll;
@@ -493,7 +493,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.ShowWaypoints)
 			{
 				GUILayout.BeginVertical(Styles.white);
-				waypointsScroll = GUILayout.BeginScrollView(waypointsScroll, GUILayout.Height(controlsHeight));
+				waypointsScroll = GUILayout.BeginScrollView(waypointsScroll, GUILayout.Height(Utils.ClampH(lineHeight*(CFG.Waypoints.Count+1), controlsHeight)));
 				GUILayout.BeginVertical();
 				int i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
@@ -537,7 +537,7 @@ namespace ThrottleControlledAvionics
 					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
 					CFG.Waypoints = new Queue<WayPoint>(edited);
 				}
-				if(CFG.Waypoints.Count == 0)
+				if(CFG.Waypoints.Count == 0 && CFG.Nav)
 				{ CFG.Nav.Off(); CFG.HF.On(HFlight.Stop); }
 				GUILayout.EndVertical();
 				GUILayout.EndScrollView();
@@ -549,13 +549,13 @@ namespace ThrottleControlledAvionics
 		static void EnginesControl()
 		{
 			GUILayout.BeginVertical();
-			if(CFG.ActiveProfile.HasManual)
+			if(CFG.ActiveProfile.NumManual > 0)
 			{
 				if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Limits" : "Show Manual Limits", 
 				                    Styles.yellow_button,
 				                    GUILayout.ExpandWidth(true)))
 					CFG.ShowManualLimits = !CFG.ShowManualLimits;
-				if(CFG.ShowManualLimits) CFG.EnginesProfiles.DrawManual(controlsHeight);
+				if(CFG.ShowManualLimits) CFG.EnginesProfiles.DrawManual(Utils.ClampH(lineHeight*CFG.ActiveProfile.NumManual, controlsHeight));
 			}
 			if(GUILayout.Button(CFG.ShowEnginesProfiles? "Hide Engines Profiles" : "Show Engines Profiles", 
 			                    Styles.yellow_button,

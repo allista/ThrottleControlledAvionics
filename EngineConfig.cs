@@ -25,10 +25,11 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float Limit;
 		[Persistent] string role;
 		public TCARole Role;
-		public bool Changed;
+		public bool Changed, Edit;
 
 		public EngineConfig() {}
-		public EngineConfig(EngineWrapper e) { Update(e); }
+		public EngineConfig(EngineWrapper e) 
+		{ Name = e.Group > 0? ("Group "+e.Group) : e.name; Update(e); }
 
 		public EngineConfig(EngineConfig c)
 		{
@@ -40,7 +41,6 @@ namespace ThrottleControlledAvionics
 
 		public void Update(EngineWrapper e)
 		{
-			Name  = e.name;
 			On    = e.isOperational;
 			Limit = e.thrustLimit;
 			Role  = e.Role;
@@ -87,10 +87,21 @@ namespace ThrottleControlledAvionics
 			{ Role = TCAEngineInfo.NextRole(Role); Changed = true; }
 		}
 
-		public bool Draw(string name = null, bool with_role = true)
+		void NameControl(string comment)
+		{
+			if(Edit)
+			{
+				Name = GUILayout.TextField(Name, GUILayout.Width(150));
+				if(GUILayout.Button("Done", Styles.green_button, GUILayout.Width(50))) Edit = false;
+			}
+			else Edit |= GUILayout.Button(Name+(comment ?? ""), 
+			                              Styles.normal_button, GUILayout.Width(200));
+		}
+
+		public bool Draw(string comment = null, bool with_role = true)
 		{
 			GUILayout.BeginHorizontal();
-			GUILayout.Label(string.IsNullOrEmpty(name)? Name : name, GUILayout.Width(180));
+			NameControl(comment);
 			if(GUILayout.Button(On? "On" : "Off", On? Styles.green_button : Styles.red_button, GUILayout.Width(30)))
 			{ On = !On; Changed = true; }
 			if(with_role) RoleControl();
@@ -164,7 +175,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public string Name;
 		[Persistent] public bool Active;
 		[Persistent] public bool Default;
-		[Persistent] public bool HasManual;
+		[Persistent] public int  NumManual;
 		[Persistent] public int  OnPlanet = 2;
 		[Persistent] public int  Stage = -1;
 
@@ -181,7 +192,7 @@ namespace ThrottleControlledAvionics
 				Groups[c.Key] = new EngineConfig(c.Value);
 			foreach(var c in p.Single.DB) 
 				Single[c.Key] = new EngineConfig(c.Value);
-			HasManual = p.HasManual;
+			NumManual = p.NumManual;
 		}
 		public EnginesProfile(string name, IList<EngineWrapper> engines)
 		{ Name = name; Init(engines); }
@@ -190,17 +201,22 @@ namespace ThrottleControlledAvionics
 		{
 			Single.Clear();
 			Groups.Clear();
-			HasManual = false;
+			NumManual = 0;
 			foreach(var e in engines)
 			{
-				HasManual |= e.Role == TCARole.MANUAL;
 				if(e.Group > 0)
 				{
 					if(!Groups.ContainsKey(e.Group))
+					{
+						if(e.Role == TCARole.MANUAL) NumManual++;
 						Groups[e.Group] = new EngineConfig(e);
+					}
 				}
 				else if(!Single.ContainsKey(e.ID))
+				{
 					Single[e.ID] = new EngineConfig(e);
+					if(e.Role == TCARole.MANUAL) NumManual++;
+				}
 			}
 		}
 
@@ -208,31 +224,41 @@ namespace ThrottleControlledAvionics
 		{
 			var groups = new EngineConfigIntDB();
 			var single = new EngineConfigUintDB();
-			HasManual  = false;
+			NumManual = 0;
 			Changed = false;
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++)
 			{
 				var e = engines[i];
 				var c = GetConfig(e);
-				HasManual |= e.Role == TCARole.MANUAL;
 				if(c == null)
 				{
 					if(e.Group > 0)
 					{
 						if(!groups.ContainsKey(e.Group))
+						{
+							if(e.Role == TCARole.MANUAL) NumManual++;
 							groups[e.Group] = new EngineConfig(e);
+						}
 					}
 					else if(!single.ContainsKey(e.ID))
+					{
+						if(e.Role == TCARole.MANUAL) NumManual++;
 						single[e.ID] = new EngineConfig(e);
+					}
 				}
 				else if(e.Group > 0) 
 				{ 
+					if(e.Role == TCARole.MANUAL && !groups.ContainsKey(e.Group)) NumManual++;
 					Changed |= Changed || c.Differs(e);
 					c.Limit = e.thrustLimit;
 					c.On = e.isOperational;
 					groups[e.Group] = c; 
 				}
-				else { c.Update(e); single[e.ID] = c; }
+				else 
+				{ 
+					if(e.Role == TCARole.MANUAL) NumManual++;
+					c.Update(e); single[e.ID] = c; 
+				}
 			}
 			Changed |= Changed || Groups.Count != groups.Count || Single.Count != single.Count;
 			Groups = groups; Single = single;
@@ -313,7 +339,7 @@ namespace ThrottleControlledAvionics
 			if(Edit)
 			{
 				foreach(var k in Groups.Keys)
-					Changed |= Groups[k].Draw(string.Format("Group {0}", k));
+					Changed |= Groups[k].Draw(string.Format(" (G{0})", k));
 				foreach(var k in Single.Keys)
 					Changed |= Single[k].Draw();
 			}
@@ -328,7 +354,7 @@ namespace ThrottleControlledAvionics
 			{
 				var c = Groups[k];
 				if(c.Role != TCARole.MANUAL) continue;
-				Changed |= c.Draw(string.Format("Group {0}", k), false);
+				Changed |= c.Draw(string.Format(" (G{0})", k), false);
 			}
 			foreach(var k in Single.Keys)
 			{
