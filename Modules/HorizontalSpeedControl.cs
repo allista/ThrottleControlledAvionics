@@ -133,18 +133,18 @@ namespace ThrottleControlledAvionics
 				var rV  = hV; //velocity that is needed to be handled by attitude control of the total thrust
 				var fV  = hV; //forward-backward velocity with respect to the manual thrust vector
 				var with_manual_thrust = VSL.ManualEngines.Count > 0;
-				if(with_manual_thrust && !VSL.ManualThrust.IsZero())
+				if(with_manual_thrust && VSL.ManualThrust.sqrMagnitude > HSC.TranslationLowerThreshold)
 				{
 					thrust -= VSL.refT.InverseTransformDirection(VSL.ManualThrust);
 					rV = Vector3.ProjectOnPlane(hV, VSL.ManualThrust);
 					fV = hV-rV;
 				}
-				var rVl = VSL.refT.InverseTransformDirection(rV);
 				var rVm = rV.magnitude;
 				var hVm = hV.magnitude;
 				//calculate needed thrust direction
 				if(rVm > HSC.RotationLowerThreshold)
 				{
+					var rVl   = VSL.refT.InverseTransformDirection(rV);
 					//correction for low TWR and torque
 					var twrF  = Utils.ClampH(VSL.DTWR/HSC.TWRf, 1);
 					var torF  = Utils.ClampH(Mathf.Abs(Vector3.Dot(Vector3.Cross(hV, VSL.MaxThrust).normalized, VSL.wMaxAngularA))
@@ -170,21 +170,26 @@ namespace ThrottleControlledAvionics
 				if(hVm > HSC.TranslationLowerThreshold)
 				{
 					//also try to use translation control
+					var nVm = nV.magnitude;
 					var hVl_dir = VSL.refT.InverseTransformDirection(hV).CubeNorm();
-					if(nV.magnitude < HSC.TranslationUpperThreshold)
+					if(nVm < HSC.TranslationUpperThreshold)
 					{
-						EnableManualTranslation(false);
 						var trans = Utils.ClampH((float)hVm/HSC.TranslationUpperThreshold, 1)*hVl_dir;
 						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
 					}
-					else if(with_manual_thrust)
+					if(with_manual_thrust && 
+					   (nVm >= HSC.TranslationUpperThreshold ||
+					    Vector3d.Dot(VSL.HorizontalVelocity, nV) < 0))
 					{
+						translation_pid.I = (VSL.HorizontalSpeed > 20 && VSL.vessel.mainBody.atmosphere)? 
+							HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
 						translation_pid.Update((float)fV.magnitude);
 						VSL.ManualTranslation = translation_pid.Action*hVl_dir;
-						Log("fV {0}\nhV {1}\nmanual translation{2}\nerror {3}; throttle {4:P1}", 
-						    hV, fV, VSL.ManualTranslation, Vector3.Dot(fV, VSL.ManualThrust.normalized), translation_pid.Action);//debug
+//						Log("\nnV {0}\nfV {1}\nhV {2}\nmanual translation{3}\nerror {4}; throttle {5:P4}", 
+//						    nV, hV, fV, VSL.ManualTranslation, fV.magnitude, translation_pid.Action);//debug
 						EnableManualTranslation();
 					}
+					else EnableManualTranslation(false);
 				}
 				else EnableManualTranslation(false);
 			}

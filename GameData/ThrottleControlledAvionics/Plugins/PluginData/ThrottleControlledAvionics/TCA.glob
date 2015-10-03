@@ -106,7 +106,7 @@ HSC
 	ManualTranslationPID
 	{
 		P = 0.05
-		I = 0.0
+		I = 0.000001
 		D = 0.02
 	}
 
@@ -193,6 +193,7 @@ RAD
 	MinClosingSpeed    = 4
 	MinAltitude        = 10
 	NHVf               = 0.5
+	RayOffset          = 0.1
 }
 
 ANC
