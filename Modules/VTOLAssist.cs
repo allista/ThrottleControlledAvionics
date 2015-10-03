@@ -89,12 +89,11 @@ namespace ThrottleControlledAvionics
 			if(tookoff)
 			{
 				CFG.HF.OnIfNot(HFlight.Stop);
-				if(GearTimer.Check) 
+				GearTimer.RunIf(() =>
 				{ 
 					VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
-					GearTimer.Reset();
 					tookoff = false;
-				}
+				}, VSL.RelAltitude > TLA.GearOnAltitude+VSL.H);
 				SetState(TCAState.VTOLAssist);
 				return;
 			}
