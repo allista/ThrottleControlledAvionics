@@ -36,6 +36,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinClosingSpeed    = 4;
 			[Persistent] public float MinAltitude        = 10;
 			[Persistent] public float NHVf               = 0.5f;
+			[Persistent] public float RayOffset          = 0.1f;
 			public float DeltaAngle;
 
 			public override void Init()
@@ -57,7 +58,8 @@ namespace ThrottleControlledAvionics
 		float    CollisionSpeed = -1;
 		readonly Hit BestHit     = new Hit();
 		readonly Hit DetectedHit = new Hit();
-		static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts") | 1);
+		static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts") | 1); //15 - statics and ground; 1 - default
+		float    RayOffset;
 		int      Ray;
 
 		public Vector3d SurfaceVelocity { get { return VSL.vessel.srf_velocity; } }
@@ -67,9 +69,22 @@ namespace ThrottleControlledAvionics
 			if(VSL.refT == null) return -1;
 			RaycastHit raycastHit;
 			var dir = Quaternion.AngleAxis(angle, VSL.refT.right)*Dir;
-			if(Physics.Raycast(VSL.C+dir*(VSL.R+0.1f), dir,
+			var offset = RayOffset + VSL.R*(1+RAD.RayOffset);
+			if(Physics.Raycast(VSL.C+dir*offset, dir,
 			                   out raycastHit, dist, RadarMask))
-				return raycastHit.distance+VSL.R+0.1f;
+			{
+				if(raycastHit.collider.attachedRigidbody != null)
+				{
+					var p = raycastHit.collider.attachedRigidbody.GetComponent<Part>();
+					if(p != null && p.vessel == VSL.vessel)
+					{
+						RayOffset = raycastHit.distance;
+						Log("Changing ray offset to: {0}", RayOffset);
+						return -1;
+					}
+				}
+				return raycastHit.distance+offset;
+			}
 			return -1;
 		}
 
@@ -84,10 +99,11 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
+			if(VSL == null || VSL.vessel == null) return;
 			var d = Quaternion.AngleAxis(ViewAngle, VSL.refT.right)*Dir;
-			var c = VSL.C+d*(VSL.R+0.1f);
-			GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.right*0.1f, VSL.wCoM+VSL.refT.right*0.1f, VSL.wCoM+Dir*MaxDistance }, Color.green);
-			GLUtils.GLTriangleMap(new Vector3[] { c-VSL.refT.right*0.1f, c+VSL.refT.right*0.1f, c+d*MaxDistance }, DistanceAhead > 0? Color.magenta : Color.red);
+			var c = VSL.C+d*(RayOffset + VSL.R*(1+RAD.RayOffset));
+			GLUtils.GLLine(VSL.wCoM, VSL.wCoM+Dir*MaxDistance, Color.green);
+			GLUtils.GLLine(c, c+d*MaxDistance, DistanceAhead > 0? Color.magenta : Color.red);
 		}
 
 		public override void Reset()
@@ -137,18 +153,20 @@ namespace ThrottleControlledAvionics
 			ViewAngle     = RAD.DeltaAngle*Ray;
 			MaxDistance   = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
 			DistanceAhead = ray_distance(ViewAngle, MaxDistance);
-//			Utils.Log("Alt {0}, AltAhead {1}, MaxDist {2}, Dist {3}, Angle {4}, Ray {5}", VSL.Altitude, VSL.AltitudeAhead, MaxDistance, DistanceAhead, ViewAngle, Ray);//debug
+//			Log("Alt {0}, AltAhead {1}, MaxDist {2}, Dist {3}, Angle {4}, Ray {5}", 
+//			    VSL.Altitude, VSL.AltitudeAhead, MaxDistance, DistanceAhead, ViewAngle, Ray);//debug
 			Ray++;
 			if(DistanceAhead < 0) return;
 			//check the hit
 			BestHit.Update(DistanceAhead, ViewAngle);
+//			Log("\nBest: {0}\nDetected: {1}", BestHit, DetectedHit);//debug
+//			DebugUtils.CSV(BestHit.Altitude, DetectedHit.Altitude, VSL.AltitudeAhead);
 			if(BestHit.Altitude.Equals(0) || BestHit < DetectedHit || Ray > RAD.NumRays)
 			{   //reset the ray if something is found
 				DetectedHit.Copy(BestHit);
 				BestHit.Reset();
 				Ray = 0;
 			}
-//			DebugUtils.CSV(BestHit.Altitude, DetectedHit.Altitude, VSL.AltitudeAhead);
 			if(DetectedHit.Altitude < 0) return;
 			//check for possible collision
 			if(VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
@@ -158,7 +176,7 @@ namespace ThrottleControlledAvionics
 			} 
 			else { CollisionSpeed = -1; CFG.NHVf = 1; }
 //			Utils.Log("ALtAhead {0}, dH {1}, Obstacle {2}, NHVf {3}, DetectedSpeed {4}", 
-//			          VSL.AltitudeAhead, dH, 
+//			          VSL.AltitudeAhead, VSL.Altitude-VSL.AltitudeAhead, 
 //			          IsStateSet(TCAState.ObstacleAhead)||IsStateSet(TCAState.GroundCollision), 
 //			          CFG.NHVf, CollisionSpeed);//debug
 		}
@@ -173,8 +191,8 @@ namespace ThrottleControlledAvionics
 			public Hit(float dist, float angle)
 			{
 				Distance = dist;
-				Altitude = dist*Mathf.Sin(angle*Mathf.Deg2Rad);
-				Valid = dist > 0;
+				Valid    = dist > 0;
+				if(Valid) Altitude = dist*Mathf.Sin(angle*Mathf.Deg2Rad);
 			}
 
 			public void Copy(Hit h)
@@ -202,6 +220,9 @@ namespace ThrottleControlledAvionics
 
 			public static bool operator <(Hit h1, Hit h2) { return !h2.Valid || h1.Valid && h1.Altitude < h2.Altitude; }
 			public static bool operator >(Hit h1, Hit h2) { return !h1.Valid || h2.Valid && h1.Altitude > h2.Altitude; }
+
+			public override string ToString()
+			{ return string.Format("[Hit: Distance={0}, Altitude={1}, Valid={2}]", Distance, Altitude, Valid); }
 		}
 	}
 }
