@@ -332,8 +332,14 @@ namespace ThrottleControlledAvionics
 			//tune the pid and update needed velocity
 			AccelCorrection.Update(Mathf.Clamp(VSL.MaxThrust.magnitude*VSL.MinVSFtwr/VSL.M/PN.MaxAccelF, 0.01f, 1)*
 			                       Mathf.Clamp(VSL.MaxPitchRollAA_m/PN.AngularAccelF, 0.01f, 1), 0.01f);
+			if(VSL.HorizontalSpeed > 0)
+			{
+				var eta = distance/VSL.HorizontalSpeed;
+				var max_speed = VSL.MaxThrust.magnitude*VSL.MinVSFtwr/VSL.M*0.707f*eta;
+				pid.Max = max_speed < CFG.MaxNavSpeed? max_speed : CFG.MaxNavSpeed;
+				Log("eta: {0}, max speed: {1}", eta, max_speed);
+			}
 			pid.Min = 0;
-			pid.Max = CFG.MaxNavSpeed;
 			pid.P   = PN.DistancePID.P*AccelCorrection;
 			pid.D   = PN.DistancePID.D*(2-AccelCorrection);
 			pid.Update(distance*PN.DistanceF);
@@ -378,10 +384,10 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
-			GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.right*0.1f, VSL.wCoM+VSL.refT.right*0.1f,  VSL.wCoM+CFG.NeededHorVelocity}, Color.red);
+			GLUtils.GLLine(VSL.wCoM,  VSL.wCoM+CFG.NeededHorVelocity, Color.red);
 			if(CFG.Target != null && CFG.Nav[Navigation.FollowTarget])
-				GLUtils.GLTriangleMap(new Vector3[] { VSL.wCoM-VSL.refT.right*0.1f, VSL.wCoM+VSL.refT.right*0.1f,  CFG.Target.GetTransform().position+formation_offset}, 
-				                      VSL.Maneuvering? Color.yellow : Color.cyan);
+				GLUtils.GLLine(VSL.wCoM, CFG.Target.GetTransform().position+formation_offset,
+				               VSL.Maneuvering? Color.yellow : Color.cyan);
 		}
 
 		public override void Reset()
