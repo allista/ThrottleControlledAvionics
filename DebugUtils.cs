@@ -65,18 +65,22 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		static void GLBeginWorld()
+		static Camera GLBeginWorld(out float far)
 		{
 			var camera = MapView.MapIsEnabled? PlanetariumCamera.Camera : FlightCamera.fetch.mainCamera;
+			far = camera.farClipPlane;
+			camera.farClipPlane = far*100;
 			GL.PushMatrix();
 			material.SetPass(0);
 			GL.LoadProjectionMatrix(camera.projectionMatrix);
 			GL.modelview = camera.worldToCameraMatrix;
+			return camera;
 		}
 
 		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)
 		{
-			GLBeginWorld();
+			float far;
+			var camera = GLBeginWorld(out far);
 			GL.Begin(GL.TRIANGLES);
 			GL.Color(c);
 			GL.Vertex(worldVertices[0]);
@@ -84,11 +88,13 @@ namespace ThrottleControlledAvionics
 			GL.Vertex(worldVertices[2]);
 			GL.End();
 			GL.PopMatrix();
+			camera.farClipPlane = far;
 		}
 
 		public static void GLTriangleMap(Vector3[] worldVertices, Color c)
 		{
-			GLBeginWorld();
+			float far;
+			var camera = GLBeginWorld(out far);
 			GL.Begin(GL.TRIANGLES);
 			GL.Color(c);
 			GL.Vertex(worldVertices[0]);
@@ -96,17 +102,20 @@ namespace ThrottleControlledAvionics
 			GL.Vertex(worldVertices[2]);
 			GL.End();
 			GL.PopMatrix();
+			camera.farClipPlane = far;
 		}
 
 		public static void GLLine(Vector3 ori, Vector3 end, Color c)
 		{
-			GLBeginWorld();
+			float far;
+			var camera = GLBeginWorld(out far);
 			GL.Begin(GL.LINES);
 			GL.Color(c);
 			GL.Vertex(ori);
 			GL.Vertex(end);
 			GL.End();
 			GL.PopMatrix();
+			camera.farClipPlane = far;
 		}
 	}
 
