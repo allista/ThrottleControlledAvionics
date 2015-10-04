@@ -111,7 +111,7 @@ namespace ThrottleControlledAvionics
 			else 
 			{
 				if(CFG.AltitudeAboveTerrain)
-					rocket_pid.D = ALT.RocketPID.D/Utils.ClampL(VSL.HorizontalSpeed*VSL.MaxDTWR, 1);
+					rocket_pid.D = ALT.RocketPID.D/Utils.ClampL(VSL.HorizontalSpeed, 1)*Utils.ClampL(VSL.MaxDTWR/ALT.TWRd, 1);
 				rocket_pid.Update(error);
 				CFG.VerticalCutoff = rocket_pid.Action;
 			}
