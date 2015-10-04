@@ -53,8 +53,6 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Math
-		public static float Asymptote01(float x, float k=1) { return 1-1/(x/k+1); }
-
 		public static float Clamp(float x, float low, float high)  
 		{ return x < low ? low : (x > high? high : x); }
 
@@ -421,6 +419,18 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	public class Switch
+	{
+		bool state, prev_state;
+
+		public void Set(bool s)
+		{ prev_state = state; state = s; }
+
+		public bool WasSet { get { return state != prev_state; } }
+		public bool On { get { return state; } }
+		public void Checked() { prev_state = state; }
+	}
+
 	public class Multiplexer<T> : ConfigNodeObject where T : struct
 	{
 		[Persistent] public string State;
@@ -453,10 +463,10 @@ namespace ThrottleControlledAvionics
 		public void On(T key) 
 		{ 
 			if(!key.Equals(state)) Off();
-			state = key;
 			Action<bool> callback;
-			if(callbacks.TryGetValue(state, out callback))
+			if(callbacks.TryGetValue(key, out callback))
 			{ if(callback != null) callback(true); }
+			state = key;
 		}
 		public void Off() 
 		{ 
