@@ -88,15 +88,14 @@ namespace ThrottleControlledAvionics
 			return -1;
 		}
 
+		#if DEBUG
 		public override void Init()
 		{
 			base.Init();
-			#if DEBUG
 //			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-			#endif
 		}
 
-		#if DEBUG
+
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null) return;
