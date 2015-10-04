@@ -551,7 +551,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginVertical();
 			if(CFG.ActiveProfile.NumManual > 0)
 			{
-				if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Limits" : "Show Manual Limits", 
+				if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Engines" : "Show Manual Engines", 
 				                    Styles.yellow_button,
 				                    GUILayout.ExpandWidth(true)))
 					CFG.ShowManualLimits = !CFG.ShowManualLimits;
