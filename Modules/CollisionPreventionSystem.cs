@@ -152,7 +152,6 @@ namespace ThrottleControlledAvionics
 
 		public void Update()
 		{
-			CFG.CourseCorrection = Vector3d.zero;
 			if(!IsActive || VSL.refT == null) return;
 			scan();
 			if(Corrections.Count == 0) { pid.Reset(); return; }
@@ -164,7 +163,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.VF[VFlight.AltitudeControl])
 				CFG.VerticalCutoff += (float)Vector3d.Dot(pid.Action, VSL.Up);
 			//correct horizontal course
-			CFG.CourseCorrection = Vector3d.Exclude(VSL.Up, pid.Action);
+			CFG.CourseCorrection += Vector3d.Exclude(VSL.Up, pid.Action);
 
 //			Log("CourseCorrection:\n{0}\n{1}", 
 //			    CFG.CourseCorrection, 

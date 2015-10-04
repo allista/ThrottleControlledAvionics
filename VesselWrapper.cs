@@ -131,7 +131,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
 		public Vector3 ManualTranslation;
-		public bool ManualTranslationEnabled;
+		public Switch ManualTranslationSwitch = new Switch();
 
 		public bool Maneuvering;
 		public List<FormationNode> Formation;
@@ -310,9 +310,14 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
-				if(ManualTranslationEnabled || e.Role != TCARole.MANUAL) 
+				if(e.Role != TCARole.MANUAL)
 					e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
+				else if(ManualTranslationSwitch.On)
+					e.thrustLimit = Mathf.Clamp01(e.limit);
+				else if(ManualTranslationSwitch.WasSet)
+					e.engine.thrustPercentage = 0;
 			}
+			ManualTranslationSwitch.Checked();
 			if(NoActiveRCS) return;
 			for(int i = 0; i < NumActiveRCS; i++)
 			{
@@ -342,6 +347,7 @@ namespace ThrottleControlledAvionics
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
 			if(!OnPlanet) UnblockSAS(false);
 			else if(!CFG.HF) UnblockSAS();
+			CFG.CourseCorrection = Vector3d.zero;
 		}
 
 		public void UpdateCommons()

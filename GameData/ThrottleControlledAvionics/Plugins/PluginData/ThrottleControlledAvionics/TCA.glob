@@ -24,6 +24,7 @@ ENG
 	ThrustOptimizationPrecision = 0.001
 	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 0.1
+	MinTranslationLimit = 0.001
 	
 	MaxP = 1
 	MaxI = 1
@@ -99,15 +100,18 @@ ALT
 
 HSC
 {
-	TranslationUpperThreshold = 5
-	TranslationLowerThreshold = 0.01
-	RotationLowerThreshold    = 0.01
-	
+	TranslationUpperThreshold  = 5
+	TranslationLowerThreshold  = 0.01
+	RotationLowerThreshold     = 0.01
+	TranslationMaxAngle        = 80
+	ManualTranslationIMinSpeed = 20
+	ManualTranslationCutoff    = 0.001
+		
 	ManualTranslationPID
 	{
 		P = 0.05
 		I = 0.000001
-		D = 0.02
+		D = 0.001
 	}
 
 	P                     = 0.9
@@ -201,9 +205,12 @@ ANC
 {
 	DistanceF          = 0.2
 	MaxSpeed           = 10
+	AngularAccelF      = 0.5
+	MaxAccelF          = 4
+	
 	DistancePID
 	{
-		P = 1.0
+		P = 1.5
 		I = 0.0
 		D = 2.0
 	}

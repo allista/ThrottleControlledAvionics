@@ -21,10 +21,14 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "HSC";
 
-			[Persistent] public float TranslationUpperThreshold = 5f;
-			[Persistent] public float TranslationLowerThreshold = 0.2f;
-			[Persistent] public float RotationLowerThreshold    = 0.01f;
+			[Persistent] public float TranslationUpperThreshold  = 5f;
+			[Persistent] public float TranslationLowerThreshold  = 0.2f;
+			[Persistent] public float RotationLowerThreshold     = 0.01f;
+			[Persistent] public float TranslationMaxAngle        = 45f;
+			[Persistent] public float ManualTranslationIMinSpeed = 20f;
+			[Persistent] public float ManualTranslationCutoff    = 0.001f;
 			[Persistent] public PID_Controller ManualTranslationPID = new PID_Controller(0.5f, 0, 0.5f, 0, 1);
+			public float TranslationMaxCos;
 
 			[Persistent] public float P = 0.9f, If = 20f;
 			[Persistent] public float MinD  = 0.02f, MaxD  = 0.07f;
@@ -40,7 +44,8 @@ namespace ThrottleControlledAvionics
 			public override void Init() 
 			{ 
 				base.Init();
-				TfSpan = MaxTf-MinTf; 
+				TfSpan = MaxTf-MinTf;
+				TranslationMaxCos = Mathf.Cos(TranslationMaxAngle*Mathf.Deg2Rad);
 			}
 		}
 		static Config HSC { get { return TCAScenario.Globals.HSC; } }
@@ -66,7 +71,7 @@ namespace ThrottleControlledAvionics
 		public override void UpdateState() 
 		{ 
 			IsActive = CFG.HF && VSL.OnPlanet; 
-			if(!IsActive && VSL.ManualTranslationEnabled)
+			if(!IsActive && VSL.ManualTranslationSwitch.On)
 				EnableManualTranslation(false);
 		}
 
@@ -96,17 +101,17 @@ namespace ThrottleControlledAvionics
 
 		void EnableManualTranslation(bool enable = true)
 		{
-			VSL.ManualTranslationEnabled = enable;
-			if(VSL.ManualTranslationEnabled) return;
+			VSL.ManualTranslationSwitch.Set(enable);
+			if(VSL.ManualTranslationSwitch.On) return;
 			var Changed = false;
 			for(int i = 0, count = VSL.ManualEngines.Count; i < count; i++)
 			{
 				var e = VSL.ManualEngines[i];
-				if(e.engine.thrustPercentage > 0)
+				if(!e.engine.thrustPercentage.Equals(0))
 				{
 					Changed = true;
 					e.limit = e.best_limit = 0;
-					e.forceThrustPercentage(0);
+					e.engine.thrustPercentage = 0;
 				}
 			}
 			if(Changed) CFG.ActiveProfile.Update(VSL.ActiveEngines);
@@ -172,7 +177,8 @@ namespace ThrottleControlledAvionics
 					//also try to use translation control
 					var nVm = nV.magnitude;
 					var hVl_dir = VSL.refT.InverseTransformDirection(hV).CubeNorm();
-					if(nVm < HSC.TranslationUpperThreshold)
+					if(nVm < HSC.TranslationUpperThreshold || 
+					   Math.Abs(Vector3d.Dot(VSL.HorizontalVelocity, nV)) < HSC.TranslationMaxCos)
 					{
 						var trans = Utils.ClampH((float)hVm/HSC.TranslationUpperThreshold, 1)*hVl_dir;
 						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
@@ -181,13 +187,14 @@ namespace ThrottleControlledAvionics
 					   (nVm >= HSC.TranslationUpperThreshold ||
 					    Vector3d.Dot(VSL.HorizontalVelocity, nV) < 0))
 					{
-						translation_pid.I = (VSL.HorizontalSpeed > 20 && VSL.vessel.mainBody.atmosphere)? 
+						translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslationIMinSpeed && 
+						                     VSL.vessel.mainBody.atmosphere)? 
 							HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
 						translation_pid.Update((float)fV.magnitude);
 						VSL.ManualTranslation = translation_pid.Action*hVl_dir;
 //						Log("\nnV {0}\nfV {1}\nhV {2}\nmanual translation{3}\nerror {4}; throttle {5:P4}", 
 //						    nV, hV, fV, VSL.ManualTranslation, fV.magnitude, translation_pid.Action);//debug
-						EnableManualTranslation();
+						EnableManualTranslation(translation_pid.Action > HSC.ManualTranslationCutoff);
 					}
 					else EnableManualTranslation(false);
 				}
