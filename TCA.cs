@@ -120,6 +120,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(CFG.VF[VFlight.AltitudeControl])
 				{
+					var old_altitude = CFG.DesiredAltitude;
 					if(GameSettings.THROTTLE_UP.GetKey())
 						CFG.DesiredAltitude = Mathf.Lerp(CFG.DesiredAltitude, 
 						                                 CFG.DesiredAltitude+10, 
@@ -132,9 +133,12 @@ namespace ThrottleControlledAvionics
 						UpDamper.Run(() => CFG.DesiredAltitude = CFG.DesiredAltitude+10);
 					else if(GameSettings.THROTTLE_CUTOFF.GetKey())
 						DownDamper.Run(() => CFG.DesiredAltitude = CFG.DesiredAltitude-10);
+					if(!old_altitude.Equals(CFG.DesiredAltitude))
+						apply_cfg(cfg => cfg.DesiredAltitude = CFG.DesiredAltitude);
 				}
 				else
 				{
+					var old_cutoff = CFG.VerticalCutoff;
 					if(GameSettings.THROTTLE_UP.GetKey())
 						CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
 						                                GLB.VSC.MaxSpeed, 
@@ -147,6 +151,8 @@ namespace ThrottleControlledAvionics
 						CFG.VerticalCutoff = GLB.VSC.MaxSpeed;
 					else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
 						CFG.VerticalCutoff = -GLB.VSC.MaxSpeed;
+					if(!old_cutoff.Equals(CFG.VerticalCutoff))
+						apply_cfg(cfg => cfg.VerticalCutoff = CFG.VerticalCutoff);
 				}
 			}
 		}
