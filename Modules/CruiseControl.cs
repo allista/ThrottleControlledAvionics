@@ -95,14 +95,14 @@ namespace ThrottleControlledAvionics
 			var lHv  = VSL.refT.InverseTransformDirection(CFG.NeededHorVelocity);
 			var attitude_error = Quaternion.FromToRotation(hDir, lHv);
 			var angle = Utils.CenterAngle(VSL.NoseUp? attitude_error.eulerAngles.y : attitude_error.eulerAngles.z)/180;
-			var AAf = 1/(VSL.NoseUp? VSL.MaxAngularA.y : VSL.MaxAngularA.z);
+			var AAf = Utils.ClampL(1/(Vector3.Scale(VSL.Up, VSL.wMaxAngularA).magnitude), 0.01f);
 			var eff = Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(VSL.Fwd, VSL.Up)));
 			pid.P = CC.DirectionPID.P*AAf;
-			pid.D = CC.DirectionPID.D*AAf;
+			pid.D = CC.DirectionPID.D*AAf*AAf;
 			pid.Update(angle);
 			if(VSL.NoseUp) s.roll = s.rollTrim = -pid.Action*eff;
 			else s.yaw = s.yawTrim = -pid.Action*eff;
-//			DebugUtils.logVectors("NoseOnCourse", Vector3.right, Vector3.up, 
+//			DebugUtils.logVectors("NoseOnCourse", false, Vector3.right, Vector3.up, 
 //			                      VSL.refT.InverseTransformDirection(VSL.Fwd), VSL.refT.InverseTransformDirection(VSL.Up), 
 //			                      hDir, lHv);
 //			DebugUtils.CSV(angle*180, pid.Action, AAf, VSL.NoseUp);//debug
