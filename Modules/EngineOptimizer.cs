@@ -27,6 +27,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float OptimizationAngleCutoff  = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
 			[Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
 			[Persistent] public float TorqueRatioFactor        = 0.1f;  //torque-ratio curve
+			[Persistent] public float MinTranslationLimit      = 1e-5f;
 		}
 
 		public float TorqueError { get; protected set; }
@@ -151,7 +152,7 @@ namespace ThrottleControlledAvionics
 			{
 				var e = engines[i];
 				e.limit_tmp = Vector3.Dot(e.thrustDirection, translation);
-				e.limit = e.limit_tmp > 0? e.limit_tmp : 0;
+				e.limit = e.limit_tmp > ENG.MinTranslationLimit? e.limit_tmp : 0;
 			}
 		}
 
