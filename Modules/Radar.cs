@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 					if(p != null && p.vessel == VSL.vessel)
 					{
 						RayOffset = raycastHit.distance;
-						Log("Changing ray offset to: {0}", RayOffset);
+//						Log("Changing ray offset to: {0}", RayOffset);
 						return -1;
 					}
 				}
