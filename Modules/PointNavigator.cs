@@ -118,15 +118,11 @@ namespace ThrottleControlledAvionics
 			{ reset_formation(); CanManeuver = false; only_count = true; }
 			//update followers
 			var can_maneuver = true;
+			all_followers.Clear();
 			for(int i = 0, num_vessels = FlightGlobals.Vessels.Count; i < num_vessels; i++)
 			{
 				var v = FlightGlobals.Vessels[i];
-				if(v == null) continue;
-				if(v.packed || !v.loaded)
-				{
-					all_followers.Remove(v.id);
-					continue;
-				}
+				if(v == null || v.packed || !v.loaded) continue;
 				var tca = ModuleTCA.EnabledTCA(v);
 				if(tca != null && 
 				   (tca.vessel == VSL.vessel || 
@@ -134,12 +130,11 @@ namespace ThrottleControlledAvionics
 				    tca.CFG.Target.GetTarget() != null && 
 				    tca.CFG.Target.GetTarget() == CFG.Target.GetTarget()))
 				{
-					all_followers[v.id] = tca;
+					all_followers.Add(v.id, tca);
 					if(v.id != VSL.vessel.id)
 						can_maneuver &= !tca.VSL.Maneuvering || 
 							(VSL.Maneuvering && VSL.vessel.id.CompareTo(v.id) > 0);
 				}
-				else all_followers.Remove(v.id);
 			}
 			if(only_count) yield break;
 			CanManeuver = can_maneuver;
