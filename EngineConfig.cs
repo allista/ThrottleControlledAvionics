@@ -108,7 +108,8 @@ namespace ThrottleControlledAvionics
 			if(Role == TCARole.MANUAL)
 			{
 				var lim = Utils.FloatSlider("", Limit, 0f, 1f, "P1", 50, "Throttle");
-				if(Mathf.Abs(lim-Limit) > lim_eps) { Limit = lim; Changed = true; }
+				if(lim <= lim_eps) { Limit = 0; Changed = true; }
+				else if(Mathf.Abs(lim-Limit) > lim_eps) { Limit = lim; Changed = true; }
 			}
 			GUILayout.EndHorizontal();
 			return Changed;
@@ -291,6 +292,12 @@ namespace ThrottleControlledAvionics
 			return OnPlanet == 1 || OnPlanet == 2;
 		}
 
+		public bool ShouldBeActive(bool on_planet)
+		{
+			if(Default) return false;
+			return on_planet ? OnPlanet == 0 : OnPlanet == 1;
+		}
+
 		void StageControl()
 		{ Stage = Utils.IntSelector(Stage, 0, tooltip: "Automatically activate at stage"); }
 
@@ -311,7 +318,7 @@ namespace ThrottleControlledAvionics
 				Changed |= Active;
 			}
 			if(Edit) Name = GUILayout.TextField(Name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
-			else GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
+			else GUILayout.Label(Name, Active? Styles.green : Styles.white, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
 		}
 
 		public bool Draw()
@@ -423,6 +430,7 @@ namespace ThrottleControlledAvionics
 		void Activate(EnginesProfile p)
 		{
 			Active.Active  = false;
+			Active.Changed = false;
 			Active = p;
 			Active.Changed = true;
 			Active.Active  = true;
@@ -456,7 +464,7 @@ namespace ThrottleControlledAvionics
 			foreach(var p in DB)
 			{
 				if(p == Active || p == Default || 
-					!p.Usable(on_planet)) continue;
+				   !p.ShouldBeActive(on_planet)) continue;
 				Activate(p);
 				found = true;
 				break;
