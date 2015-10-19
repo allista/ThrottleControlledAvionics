@@ -143,7 +143,7 @@ namespace ThrottleControlledAvionics
 
 		public void Update(Vector3d error)
 		{
-			if(last_error.Equals(0)) last_error = error;
+			if(last_error.IsZero()) last_error = error;
 			var old_ierror = integral_error;
 			integral_error += error*TimeWarp.fixedDeltaTime;
 			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
@@ -166,7 +166,11 @@ namespace ThrottleControlledAvionics
 		public PIDf_Controller(float p, float i, float d, float min, float max)
 		{ P = p; I = i; D = d; Min = min; Max = max; }
 
-		public void Update(float error)
+		public void Update(float error
+		                   #if DEBUG
+		                   , bool debug = false
+		                   #endif
+		                  )
 		{
 			if(last_error.Equals(0)) last_error = error;
 			var old_ierror = integral_error;
@@ -174,8 +178,11 @@ namespace ThrottleControlledAvionics
 			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
 			action = Mathf.Clamp(act, Min, Max);
 			if(!act.Equals(action)) integral_error = old_ierror;
-//			Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; error {4}, action {5}", 
-//			          this, P*error, I*integral_error, D*(error-last_error)/TimeWarp.fixedDeltaTime, error, action);//debug
+			#if DEBUG
+			if(debug)
+				Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; error {4}, action {5}", 
+				          this, P*error, I*integral_error, D*(error-last_error)/TimeWarp.fixedDeltaTime, error, action);
+			#endif
 			last_error = error;
 		}
 	}
