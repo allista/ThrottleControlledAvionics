@@ -7,7 +7,6 @@
  */
 
 using System;
-using System.Reflection;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -360,62 +359,6 @@ namespace ThrottleControlledAvionics
 		public string ToString(string F) { return value.ToString(F); }
 	}
 
-	public class ConfigNodeObject : IConfigNode
-	{
-		public const string NODE_NAME = "NODE";
-
-		static readonly string iface_name = typeof(IConfigNode).Name;
-		static readonly Type cnode_type = typeof(ConfigNode);
-
-		virtual public void Load(ConfigNode node)
-		{ 
-			ConfigNode.LoadObjectFromConfig(this, node);
-			foreach(var fi in GetType().GetFields())
-			{
-				if(fi.FieldType.GetInterface(iface_name) == null) continue;
-				var n = node.GetNode(fi.Name);
-				if(n == null) continue;
-				var method = fi.FieldType.GetMethod("Load", new [] {cnode_type});
-				if(method == null) continue;
-				var f = fi.GetValue(this);
-				if(f == null) continue;
-				method.Invoke(f, new [] {n});
-			}
-		}
-
-		virtual public void Save(ConfigNode node)
-		{ 
-			ConfigNode.CreateConfigFromObject(this, node); 
-			foreach(var fi in GetType().GetFields())
-			{
-				if(fi.FieldType.GetInterface(iface_name) == null) continue;
-				var method = fi.FieldType.GetMethod("Save", new [] {cnode_type});
-				if(method == null) continue;
-				var f = fi.GetValue(this);
-				var n = node.GetNode(fi.Name);
-				if(n == null) n = node.AddNode(fi.Name);
-				else n.ClearData();
-				if(f == null) continue;
-				method.Invoke(f, new [] {n});
-			}
-		}
-
-		public static CNO FromConfig<CNO>(ConfigNode node)
-			where CNO : ConfigNodeObject, new()
-		{
-			var cno = new CNO();
-			cno.Load(node);
-			return cno;
-		}
-
-		public override string ToString()
-		{
-			var n = new ConfigNode(GetType().Name);
-			Save(n);
-			return n.ToString();
-		}
-	}
-
 	public class Switch
 	{
 		bool state, prev_state;
@@ -428,84 +371,6 @@ namespace ThrottleControlledAvionics
 		public void Checked() { prev_state = state; }
 
 		public static implicit operator bool(Switch s) { return s.state; }
-	}
-
-	public class Multiplexer<T> : ConfigNodeObject where T : struct
-	{
-		[Persistent] public string State;
-		public T state { get; protected set; }
-		public bool Paused;
-
-		readonly Dictionary<T, Action<bool>> callbacks = new Dictionary<T, Action<bool>>();
-
-		public Multiplexer() 
-		{ if(!typeof(T).IsEnum) throw new ArgumentException("Multiplexer<T> T must be an enumerated type"); }
-
-		public bool Any(params T[] keys)
-		{
-			for(int i = 0, l = keys.Length; i < l; i++)
-				if(state.Equals(keys[i])) return true;
-			return false;
-		}
-
-		public bool this[T key] 
-		{ 
-			get { return key.Equals(state); } 
-			set 
-			{ 
-				if(Paused) return;
-				if(value) On(key);
-				else if(key.Equals(state)) Off();
-          	}
-		}
-		public void On(T key) 
-		{ 
-			if(Paused) return;
-			Utils.Log("{0}: On: {1}", GetType().Name, key);//debug
-			if(!key.Equals(state)) Off();
-			state = key;
-			Action<bool> callback;
-			if(callbacks.TryGetValue(key, out callback))
-			{ if(callback != null) callback(true); }
-		}
-		public void Off() 
-		{ 
-			if(Paused || state.Equals(default(T))) return;
-			Utils.Log("{0}: Off: {1}", GetType().Name, state);//debug
-			var old_state = state; //prevents recursion
-			state = default(T);
-			Action<bool> callback;
-			if(callbacks.TryGetValue(old_state, out callback))
-			{ if(callback != null) callback(false); }
-		}
-
-		public void Toggle(T key) { this[key] = !this[key]; }
-		public void OnIfNot(T key) { if(!this[key]) On(key); }
-		public void OffIfOn(T key) { if(this[key]) Off(); }
-
-		public static implicit operator bool(Multiplexer<T> m) { return !m[default(T)]; }
-
-		public void ClearCallbacks() { callbacks.Clear(); Paused = false; }
-
-		public void AddCallback(T key, Action<bool> callback)
-		{
-			if(callbacks.ContainsKey(key))
-				callbacks[key] += callback;
-			else callbacks[key] = callback;
-		}
-
-		public override void Load(ConfigNode node)
-		{
-			base.Load(node);
-			try { state = (T)Enum.Parse(typeof(T), State); }
-			catch { state = default(T); }
-		}
-
-		public override void Save(ConfigNode node)
-		{
-			State = Enum.GetName(typeof(T), state);
-			base.Save(node);
-		}
 	}
 
 	//convergent with Anatid's Vector6, but not taken from it

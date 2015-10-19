@@ -70,12 +70,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="Utils.cs" />
     <Compile Include="TCAConfig.cs" />
-    <Compile Include="Extensions.cs" />
     <Compile Include="TCAEngineInfo.cs" />
     <Compile Include="EngineWrapper.cs" />
-    <Compile Include="PID_Controllers.cs" />
     <Compile Include="VesselWrapper.cs" />
     <Compile Include="Modules\TCAModule.cs" />
     <Compile Include="Modules\VerticalSpeedControl.cs" />
@@ -87,7 +84,6 @@
     <Compile Include="Modules\CruiseControl.cs" />
     <Compile Include="Modules\PointNavigator.cs" />
     <Compile Include="Modules\Radar.cs" />
-    <Compile Include="DebugUtils.cs" />
     <Compile Include="WayPoints.cs" />
     <Compile Include="Modules\AutoLander.cs" />
     <Compile Include="Modules\Anchor.cs" />
@@ -105,10 +101,21 @@
     <Compile Include="TCA.cs" />
     <Compile Include="Modules\CollisionPreventionSystem.cs" />
     <Compile Include="Modules\FlightStabilizer.cs" />
+    <Compile Include="Macros\TCAMacro.cs" />
+    <Compile Include="Utils\Utils.cs" />
+    <Compile Include="Utils\PID_Controllers.cs" />
+    <Compile Include="Utils\DebugUtils.cs" />
+    <Compile Include="Utils\Extensions.cs" />
+    <Compile Include="Utils\ConfigNodeObjects.cs" />
+    <Compile Include="Utils\Multiplexer.cs" />
+    <Compile Include="Macros\Conditions.cs" />
+    <Compile Include="Macros\MacroNodes.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Modules\" />
     <Folder Include="GUI\" />
+    <Folder Include="Macros\" />
+    <Folder Include="Utils\" />
   </ItemGroup>
 </Project>
