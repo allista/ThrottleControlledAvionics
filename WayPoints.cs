@@ -112,28 +112,35 @@ namespace ThrottleControlledAvionics
 			{
 			case ProtoTargetInfo.Type.Vessel:
 				var v = target as Vessel;
+				if(v == null) break;
 				Lat   = v.latitude;
 				Lon   = v.longitude;
-				break;
+				return;
 			case ProtoTargetInfo.Type.PartModule:
 				var m = target as PartModule;
+				if(m == null || m.vessel == null) break;
 				Lat   = m.vessel.latitude;
 				Lon   = m.vessel.longitude;
-				break;
+				return;
 			case ProtoTargetInfo.Type.Part:
 				var p = target as Part;
+				if(p == null || p.vessel == null) break;
 				Lat   = p.vessel.latitude;
 				Lon   = p.vessel.longitude;
-				break;
+				return;
 			case ProtoTargetInfo.Type.Generic:
-				var g = target as MonoBehaviour;
-				Lat = body.GetLatitude(g.transform.position);
-				Lat = body.GetLongitude(g.transform.position);
-				break;
+				var t = target.GetTransform();
+				if(t == null) break;
+				Lat = body.GetLatitude(t.position);
+				Lat = body.GetLongitude(t.position);
+				return;
 //			case ProtoTargetInfo.Type.CelestialBody:
 			default:
-				return;
+				break;
 			}
+			TargetInfo.targetType = ProtoTargetInfo.Type.Null;
+			Name += " last location";
+			target = null;
 		}
 
 		public string GetName() { return Name; }
