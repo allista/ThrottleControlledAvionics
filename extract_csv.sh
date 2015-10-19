@@ -1,5 +1,14 @@
 #!/bin/bash
 
+help()
+{
+	echo "usage: extract_csv.sh [-h] [-t|-l] output.csv"
+	echo "-h, --help: print this help message"
+	echo "-t, --tag:  additional tag to filter csv rows"
+	echo "-l, --log:  logfile location; default is ./Player.log"
+	exit 0
+}
+
 tag="tag:"
 log=Player.log
 
@@ -7,6 +16,9 @@ while [[ $# > 0 ]]
 do
 	arg=$1
 	case $arg in
+	-h|--help)
+		help
+		;;
 	-t|--tag)
 		tag="$tag $2"
 		shift
