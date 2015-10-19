@@ -1071,7 +1071,7 @@ def simGC():
 
 
 def loadCSV(filename, columns=None, header=None):
-    os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Tests'))
+    os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Debugging'))
     df = pa.read_csv(filename, header=header, names=columns)
     return df
 
@@ -1142,6 +1142,8 @@ def addL(df):
       
 def analyzeCSV(filename, header, cols=None, region = None):
     df = loadCSV(filename, header)
+    if 'AltitudeAhead' in df:
+        df.AltitudeAhead[df.AltitudeAhead < 0] = 0
     if 'Alt' in df:
         df = df[df.Alt > 3].reset_index()
     addL(df)
@@ -1220,9 +1222,9 @@ if __name__ == '__main__':
 # #                ['AltAhead']
 #                 , (13,))
 
-    analyzeCSV('PN-S-Jet-Test.csv',
-               ('name', 'dist', 'dV', 'dV_dir', 'DeltaSpeed', 'minVSF', 'accel_cor', 'pid.P', 'pid.D', 'pid.Action', 'nV'),
-               ('dist', 'dV', 'dV_dir', 'DeltaSpeed', 'minVSF', 'accel_cor', 'pid.P', 'pid.D', 'pid.Action', 'nV'))
+    analyzeCSV('Rocket-Mun-Radar-test1.csv',
+               ('name', 'DesiredAltitude', 'alt', 'RelAltitude', 'AltitudeAhead', 'VSF', 'accel', 'ttAp', 'TimeAhead'),
+               ('RelAltitude', 'alt', 'AltitudeAhead', 'VSF', 'ttAp', 'TimeAhead'))
 #                 (6500,))
     
 #     analyzeCSV('VS-filtering-39.csv',
