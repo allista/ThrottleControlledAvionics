@@ -14,9 +14,9 @@ namespace ThrottleControlledAvionics
 	{
 		static Vessel vessel;
 		static Part part;
-		static ModuleTCA TCA;
-		static VesselWrapper VSL { get { return TCA.VSL; } }
-		static VesselConfig CFG { get { return TCA.CFG; } }
+		public static ModuleTCA TCA { get; private set; }
+		public static VesselWrapper VSL { get { return TCA.VSL; } }
+		public static VesselConfig CFG { get { return TCA.CFG; } }
 		static ActionDamper UpDamper = new ActionDamper(0.1);
 		static ActionDamper DownDamper = new ActionDamper(0.1);
 
