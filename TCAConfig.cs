@@ -18,6 +18,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public int MaxManualGroups       = 10; //maximum number of manual control groups
 		[Persistent] public float KeyRepeatTime       = 0.1f;
 		[Persistent] public float WaypointHeight      = 3f;
+		[Persistent] public float UnpackDistance      = 5000f;
 
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();

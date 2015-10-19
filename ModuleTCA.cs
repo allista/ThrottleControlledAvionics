@@ -253,6 +253,9 @@ namespace ThrottleControlledAvionics
 			else if(CFG.Nav[Navigation.FollowPath]) 
 				pn.FollowPath(CFG.Waypoints.Count > 0);
 			ThrottleControlledAvionics.AttachTCA(this);
+			var sit = vessel.vesselRanges.GetSituationRanges(vessel.situation);
+			sit.pack = GLB.UnpackDistance*1.5f;
+			sit.unpack = GLB.UnpackDistance;
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
 		}
 
