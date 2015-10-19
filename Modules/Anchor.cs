@@ -39,23 +39,23 @@ namespace ThrottleControlledAvionics
 			pid.Min = 0;
 			pid.Max = ANC.MaxSpeed;
 			pid.Reset();
-			CFG.HF.AddCallback(HFlight.Anchor, Enable);
-			CFG.HF.AddCallback(HFlight.AnchorHere, AnchorHere);
+			CFG.Nav.AddCallback(Navigation.Anchor, Enable);
+			CFG.Nav.AddCallback(Navigation.AnchorHere, AnchorHere);
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, AnchorPointer);
 			#endif
 		}
 
-		public override void UpdateState() { IsActive = CFG.HF.Any(HFlight.Anchor, HFlight.AnchorHere) && VSL.OnPlanet; }
+		public override void UpdateState() 
+		{ IsActive = CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) && VSL.OnPlanet; }
 
 		public override void Enable(bool enable = true)
 		{
 			if(enable && CFG.Anchor == null) return;
 			pid.Reset();
-			CFG.Nav.Off();
 			BlockSAS(enable);
 			if(enable) VSL.UpdateOnPlanetStats();
-			else CFG.Anchor = null;
+			else { CFG.Anchor = null; CFG.HF.On(HFlight.Stop); }
 		}
 
 		public void AnchorHere(bool enable = true)
@@ -68,6 +68,7 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{
 			if(!IsActive || CFG.Anchor == null) return;
+			CFG.HF.OnIfNot(HFlight.Move);
 			CFG.Anchor.Update(VSL.mainBody);
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
@@ -80,9 +81,9 @@ namespace ThrottleControlledAvionics
 			pid.D   = ANC.DistancePID.D*(2-AccelCorrection);
 			pid.Update(distance*ANC.DistanceF);
 			//set needed velocity and starboard
-			CFG.NeededHorVelocity = vdir*pid.Action;
-			CFG.Starboard = VSL.GetStarboard(CFG.NeededHorVelocity);
-//			Log("dist {0}, pid {1}, nHV {2}", distance, pid, CFG.NeededHorVelocity);//debug
+			VSL.NeededHorVelocity = vdir*pid.Action;
+			CFG.Starboard = VSL.GetStarboard(VSL.NeededHorVelocity);
+//			Log("dist {0}, pid {1}, nHV {2}", distance, pid, VSL.NeededHorVelocity);//debug
 		}
 
 		#if DEBUG

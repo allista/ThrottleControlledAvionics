@@ -31,6 +31,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public AutoLander.Config                LND = new AutoLander.Config();
 		[Persistent] public VTOLAssist.Config                TLA = new VTOLAssist.Config();
 		[Persistent] public CollisionPreventionSystem.Config CPS = new CollisionPreventionSystem.Config();
+		[Persistent] public FlightStabilizer.Config          STB = new FlightStabilizer.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -98,9 +99,9 @@ Notes:
 		public override void Save(ConfigNode node) {}
 	}
 
-	public enum HFlight { None, Stop, Anchor, AnchorHere, Move, Level, NoseOnCourse, CruiseControl }
+	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
-	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath }
+	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
 	public enum Autopilot { None, Land }
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
@@ -130,9 +131,6 @@ Notes:
 		[Persistent] public WayPoint Anchor;
 		//cruise control
 		[Persistent] public Vector3 Starboard;
-		public Vector3d NeededHorVelocity;
-		public Vector3d CourseCorrection;
-		public float NHVf = 1;
 		//waypoint navigation
 		[Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();
 		[Persistent] public float    MaxNavSpeed = 100;
@@ -142,6 +140,7 @@ Notes:
 		//autopilot
 		[Persistent] public Multiplexer<Autopilot> AP = new Multiplexer<Autopilot>();
 		[Persistent] public bool VTOLAssistON = true;
+		[Persistent] public bool StabilizeFlight = true;
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
 		[Persistent] public EnginesProfileDB EnginesProfiles = new EnginesProfileDB();

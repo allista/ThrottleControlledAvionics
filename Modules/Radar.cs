@@ -14,14 +14,6 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public abstract class RadarBase : TCAModule
-	{
-		protected Vector3  Dir;
-		protected static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts") | 1);
-
-		protected Vector3  Ori(Vector3 dir) { return VSL.C+dir*(VSL.R+0.1f); }
-	}
-
 	public class Radar : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -36,7 +28,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinClosingSpeed    = 4;
 			[Persistent] public float MinAltitude        = 10;
 			[Persistent] public float NHVf               = 0.5f;
-			[Persistent] public float RayOffset          = 0.1f;
+			[Persistent] public float ManeuverTimer      = 3f;
 			public float DeltaAngle;
 
 			public override void Init()
@@ -48,61 +40,43 @@ namespace ThrottleControlledAvionics
 		}
 		static Config RAD { get { return TCAScenario.Globals.RAD; } }
 
-		public Radar(VesselWrapper vsl) { VSL = vsl; }
-
-		Vector3  Dir;
-		float    ViewAngle;
-		float    MaxDistance;
-		float    DistanceAhead;
-		float    ClosingSpeed;
-		float    CollisionSpeed = -1;
-		readonly Hit BestHit     = new Hit();
-		readonly Hit DetectedHit = new Hit();
-		static   int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts") | 1); //15 - statics and ground; 1 - default
-		float    RayOffset;
-		int      Ray;
-
-		public Vector3d SurfaceVelocity { get { return VSL.vessel.srf_velocity; } }
-
-		float ray_distance(float angle, float dist)
-		{
-			if(VSL.refT == null) return -1;
-			RaycastHit raycastHit;
-			var dir = Quaternion.AngleAxis(angle, VSL.refT.right)*Dir;
-			var offset = RayOffset + VSL.R*(1+RAD.RayOffset);
-			if(Physics.Raycast(VSL.C+dir*offset, dir,
-			                   out raycastHit, dist, RadarMask))
-			{
-				if(raycastHit.collider.attachedRigidbody != null)
-				{
-					var p = raycastHit.collider.attachedRigidbody.GetComponent<Part>();
-					if(p != null && p.vessel == VSL.vessel)
-					{
-						RayOffset = raycastHit.distance;
-//						Log("Changing ray offset to: {0}", RayOffset);
-						return -1;
-					}
-				}
-				return raycastHit.distance+offset;
-			}
-			return -1;
+		public Radar(VesselWrapper vsl) 
+		{ 
+			VSL = vsl;
+			CurHit = new Sweep(vsl);
+			DetectedHit = new Sweep(vsl);
 		}
 
-		#if DEBUG
+		Vector3  Dir;
+		Vector3d SurfaceVelocity;
+		float    ViewAngle;
+		float    MaxDistance;
+		float    ClosingSpeed;
+		float    CollisionSpeed = -1;
+		readonly Sweep CurHit;
+		readonly Sweep DetectedHit;
+		bool     side_collision;
+		Vector3d side_maneuver;
+		static   int RadarMask = (1 << 15);// | 1 << LayerMask.NameToLayer("Parts") | 1); //15 - statics and ground; 1 - default
+		readonly Timer ManeuverTimer = new Timer();
+		int      RayI;
+
+
 		public override void Init()
 		{
 			base.Init();
+			ManeuverTimer.Period = RAD.ManeuverTimer;
+			#if DEBUG
 //			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+			#endif
 		}
 
-
+		#if DEBUG
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null) return;
-			var d = Quaternion.AngleAxis(ViewAngle, VSL.refT.right)*Dir;
-			var c = VSL.C+d*(RayOffset + VSL.R*(1+RAD.RayOffset));
-			GLUtils.GLLine(VSL.wCoM, VSL.wCoM+Dir*MaxDistance, Color.green);
-			GLUtils.GLLine(c, c+d*MaxDistance, DistanceAhead > 0? Color.magenta : Color.red);
+			GLUtils.GLVec(VSL.wCoM, Dir*MaxDistance, Color.green);
+			CurHit.Draw();
 		}
 
 		public override void Reset()
@@ -120,108 +94,245 @@ namespace ThrottleControlledAvionics
 
 		void reset()
 		{
-			BestHit.Reset();
+			rewind();
+			CurHit.Reset();
 			DetectedHit.Reset();
 			CollisionSpeed = -1;
-			VSL.AltitudeAhead = -1;
-			CFG.NHVf = 1;
-			Ray = 0;
+			VSL.TimeAhead = -1;
+			VSL.AltitudeAhead = float.MaxValue;
+			VSL.NHVf = 1;
+		}
+
+		void rewind()
+		{
+			RayI = 0;
+			CurHit.Reset();
+			ManeuverTimer.RunIf(() => side_maneuver.Zero(), !side_collision);
+			side_collision = false;
 		}
 
 		public void Update()
 		{
 			if(!IsActive) return;
-			if(VSL.HorizontalSpeed <= RAD.MinClosingSpeed && 
-				(CFG.HF.Any(HFlight.Stop, HFlight.Anchor, HFlight.AnchorHere) || CFG.DesiredAltitude < RAD.MinAltitude))
+			if(VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
+			   (VSL.NeededHorVelocity.IsZero() ||
+			    CFG.DesiredAltitude < RAD.MinAltitude))
 			{ reset(); return; }
 			//closing speed and starting ray direction
-			Dir = Vector3.Cross(VSL.refT.right, VSL.Up).normalized;
-			if(VSL.RelVerticalSpeed < 0 && VSL.AbsVerticalSpeed < 0 && Vector3.Dot(SurfaceVelocity, Dir) >= 0)
-				Dir = Vector3.Lerp(Dir, 
-				                   Vector3.ProjectOnPlane(SurfaceVelocity, VSL.refT.right).normalized,
-				                   RAD.LookAheadTime/(VSL.Altitude/-VSL.RelVerticalSpeed)/VSL.MaxTWR);
+			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
 			ClosingSpeed = Vector3.Dot(SurfaceVelocity, Dir);
-			if(ClosingSpeed < RAD.MinClosingSpeed) ClosingSpeed = RAD.MinClosingSpeed;
-			//update state if previously detected something
-			if(CollisionSpeed > 0) SetState(VSL.AbsVerticalSpeed < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
-			if(DetectedHit.Altitude >= 0)
-				VSL.AltitudeAhead = VSL.AltitudeAhead < 0? DetectedHit.Altitude 
-					: Utils.EWA(VSL.AltitudeAhead, DetectedHit.Altitude, RAD.AltitudeFilter);
-			//cast the ray
-			if(Ray > RAD.NumRays) reset();
-			ViewAngle     = RAD.DeltaAngle*Ray;
-			MaxDistance   = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
-			DistanceAhead = ray_distance(ViewAngle, MaxDistance);
-//			Log("Alt {0}, AltAhead {1}, MaxDist {2}, Dist {3}, Angle {4}, Ray {5}", 
-//			    VSL.Altitude, VSL.AltitudeAhead, MaxDistance, DistanceAhead, ViewAngle, Ray);//debug
-			Ray++;
-			if(DistanceAhead < 0) return;
-			//check the hit
-			BestHit.Update(DistanceAhead, ViewAngle);
-//			Log("\nBest: {0}\nDetected: {1}", BestHit, DetectedHit);//debug
-//			DebugUtils.CSV(BestHit.Altitude, DetectedHit.Altitude, VSL.AltitudeAhead);
-			if(BestHit.Altitude.Equals(0) || BestHit < DetectedHit || Ray > RAD.NumRays)
-			{   //reset the ray if something is found
-				DetectedHit.Copy(BestHit);
-				BestHit.Reset();
-				Ray = 0;
+			Dir = Vector3.zero;
+			if(VSL.HorizontalSpeed >= RAD.MinClosingSpeed)
+			{
+				Dir = VSL.HorizontalVelocity.normalized;
+				if(VSL.IsStateSet(TCAState.LoosingAltitude))
+					Dir = Vector3.Lerp(Dir, SurfaceVelocity.normalized,
+					                   RAD.LookAheadTime/(VSL.Altitude/-VSL.RelVerticalSpeed)/VSL.MaxDTWR);
 			}
-			if(DetectedHit.Altitude < 0) return;
+			else Dir = Vector3.ProjectOnPlane(VSL.Fwd, VSL.Up).normalized;
+			//update state if previously detected something
+			if(DetectedHit.Valid)
+			{
+				VSL.AltitudeAhead = VSL.AltitudeAhead.Equals(float.MaxValue)? DetectedHit.Altitude 
+					: Utils.EWA(VSL.AltitudeAhead, DetectedHit.Altitude, RAD.AltitudeFilter);
+				VSL.TimeAhead = CollisionSpeed > 0? DetectedHit.Distance/CollisionSpeed : -1;
+			}
+			else VSL.TimeAhead = -1;
+			if(!side_maneuver.IsZero()) VSL.CourseCorrections.Add(side_maneuver);
+			//cast the ray
+			if(RayI > RAD.NumRays) reset();
+			ViewAngle     = -RAD.MaxViewAngle/2+RAD.DeltaAngle*RayI;
+			MaxDistance   = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
+			CurHit.Cast(Dir, ViewAngle, MaxDistance);
+			RayI++;
+			if(!CurHit.Valid) return;
+			//check the hit
+			if(CurHit.Maneuver == Sweep.ManeuverType.Horizontal)
+			{
+				//queue avoiding maneuver with CPS
+				side_collision = true;
+				var ray = CurHit.SideCollisionRay;
+				var collision_point = Vector3.ProjectOnPlane(ray.CollisionPoint-VSL.wCoM, VSL.Up);
+				var dist = collision_point.magnitude;
+				Vector3d maneuver;
+				if(CollisionPreventionSystem.AvoidStatic(VSL, collision_point/dist, dist, 
+				                                         Vector3d.Exclude(VSL.Up, SurfaceVelocity), out maneuver))
+				{
+					if(Vector3d.Dot(side_maneuver, maneuver) > 0 ||
+					   side_maneuver.sqrMagnitude < maneuver.sqrMagnitude)
+						side_maneuver = maneuver;
+				}
+				return;
+			}
+			//if obstacle is stright ahead
+			if(CurHit < DetectedHit || RayI > RAD.NumRays)
+			{   //rewind the ray if something is found
+				DetectedHit.Copy(CurHit);
+				rewind();
+			}
+			if(!DetectedHit.Valid) return;
 			//check for possible collision
 			if(VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
 			{
 				if(CollisionSpeed < 0) CollisionSpeed = ClosingSpeed;
-				CFG.NHVf = Utils.ClampH(DetectedHit.Distance/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1);
+				VSL.NHVf = Utils.ClampH(DetectedHit.Distance/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1);
 			} 
-			else { CollisionSpeed = -1; CFG.NHVf = 1; }
-//			Utils.Log("ALtAhead {0}, dH {1}, Obstacle {2}, NHVf {3}, DetectedSpeed {4}", 
+			else { CollisionSpeed = -1; VSL.NHVf = 1; }
+//			Log("ALtAhead {0}, dH {1}, Obstacle {2}, NHVf {3}, DetectedSpeed {4}", 
 //			          VSL.AltitudeAhead, VSL.Altitude-VSL.AltitudeAhead, 
-//			          IsStateSet(TCAState.ObstacleAhead)||IsStateSet(TCAState.GroundCollision), 
-//			          CFG.NHVf, CollisionSpeed);//debug
+//			    VSL.AltitudeAhead < VSL.H, 
+//			          VSL.NHVf, CollisionSpeed);//debug
 		}
 
-		class Hit
+		public struct Ray
 		{
-			public float Distance = -1;
-			public float Altitude = -1;
+			RaycastHit hit;
+			float max_distance;
+			public Vector3 Ori { get; private set; }
+			public Vector3 Dir { get; private set; }
+			public float Distance { get { return Valid? hit.distance : float.MaxValue; } }
+			public Vector3 CollisionPoint { get { return Valid? hit.point : Vector3.zero; } }
 			public bool  Valid { get; private set; }
 
-			public Hit() {}
-			public Hit(float dist, float angle)
+			public void Reset() { Valid = false; hit = default(RaycastHit); }
+
+			/// <summary>
+			/// Cast a ray from ori in the dir with max dist. and optional radius (using SphereCast)
+			/// </summary>
+			/// <param name="ori">Ori in worldspace</param>
+			/// <param name="dir">Dir in worldspace; must be normalized</param>
+			/// <param name="dist">Maximum distance</param>
+			/// <param name="radius">Radius of the ray</param>
+			public bool Cast(Vector3 ori, Vector3 dir, float dist, float radius)
 			{
-				Distance = dist;
-				Valid    = dist > 0;
-				if(Valid) Altitude = dist*Mathf.Sin(angle*Mathf.Deg2Rad);
+				Ori = ori; Dir = dir; max_distance = dist;
+				Valid = Physics.SphereCast(Ori, radius, Dir, out hit, dist, RadarMask);
+				return Valid;
 			}
 
-			public void Copy(Hit h)
+			/// <summary>
+			/// Calculates altitude of the hit point relative the specified base direction
+			/// </summary>
+			/// <param name="base_dir">Base direction; must be normalized</param>
+			/// <param name="angle">Initial angle between the casting dir and base_dir; 
+			/// used to define the sign of the returned altitude</param>
+			public float Altitude(Vector3 base_dir, float angle)
 			{
-				Distance = h.Distance;
-				Altitude = h.Altitude;
-				Valid = h.Valid;
+				return Valid? 
+					Mathf.Sign(angle)*
+					hit.distance*Mathf.Sin(
+						Mathf.Acos(Mathf.Clamp(Vector3.Dot(base_dir, (hit.point-Ori).normalized), -1, 1))) : 
+					float.MaxValue;
 			}
 
-			public bool Update(Hit h)
-			{ 
-				if(h < this) { Copy(h); return true; }
+			#if DEBUG
+			public void Draw()
+			{
+				GLUtils.GLLine(Ori, Valid? hit.point : Ori+Dir*max_distance, 
+				                   Valid? Color.magenta : Color.red);
+			}
+			#endif
+		}
+
+		public class Sweep
+		{
+			public enum ManeuverType { None, Horizontal, Vertical }
+
+			VesselWrapper VSL;
+			Ray L, C, R;
+
+			public float Distance { get; private set; }
+			public float Altitude { get; private set; }
+			public bool  Valid { get; private set; }
+
+			public Sweep(VesselWrapper vsl)	{ VSL = vsl; }
+
+			public void Copy(Sweep s)
+			{
+				VSL = s.VSL;
+				L = s.L; C = s.C; R = s.R;
+				Distance = s.Distance;
+				Altitude = s.Altitude;
+				Valid = s.Valid;
+			}
+
+			public bool Update(Sweep s)
+			{
+				if(s < this) { Copy(s); return true; }
 				return false;
 			}
-			public bool Update(float dist, float angle) 
-			{ return Update(new Hit(dist, angle)); }
 
-
-			public void Reset()
-			{
-				Distance = -1;
-				Altitude = -1;
-				Valid = false;
+			public void Reset() 
+			{ 
+				Valid = false; 
+				Altitude = float.MaxValue; 
+				L.Reset(); C.Reset(); R.Reset(); 
 			}
 
-			public static bool operator <(Hit h1, Hit h2) { return !h2.Valid || h1.Valid && h1.Altitude < h2.Altitude; }
-			public static bool operator >(Hit h1, Hit h2) { return !h1.Valid || h2.Valid && h1.Altitude > h2.Altitude; }
+			public ManeuverType Maneuver
+			{
+				get
+				{
+					if(L.Valid && !R.Valid || R.Valid && !L.Valid) 
+						return ManeuverType.Horizontal;
+					if(C.Valid || R.Valid && L.Valid)
+						return ManeuverType.Vertical;
+					return ManeuverType.None;
+				}
+			}
+
+			/// <summary>
+			/// Gets the side collision ray. 
+			/// Only valid if the Maneuver equals ManeuverType.Horizontal.
+			/// </summary>
+			/// <value>The side collision ray.</value>
+			public Ray SideCollisionRay
+			{
+				get
+				{
+					if(L.Valid && !R.Valid) return L;
+					if(!L.Valid && R.Valid) return R;
+					return default(Ray);
+				}
+			}
+
+			public void Cast(Vector3 dir, float angle, float dist)
+			{
+				Reset();
+				if(VSL.refT == null) return;
+				//cast the rays
+				var side = Vector3.Cross(VSL.Up, dir)*VSL.R;
+				var cast_dir = Quaternion.AngleAxis(angle, side)*dir;
+				Valid |= L.Cast(VSL.wCoM-side, cast_dir, dist, VSL.R/4);
+				Valid |= C.Cast(VSL.wCoM,      cast_dir, dist, VSL.R);
+				Valid |= R.Cast(VSL.wCoM+side, cast_dir, dist, VSL.R/4);
+				if(Valid)
+				{
+					Distance = Mathf.Min(L.Distance, C.Distance, R.Distance);
+					Altitude = Mathf.Min(L.Altitude(dir, angle), C.Altitude(dir, angle), R.Altitude(dir, angle));
+				}
+			}
+
+			public static Sweep Cast(VesselWrapper vsl, Vector3 dir, float angle, float dist)
+			{
+				var s = new Sweep(vsl);
+				s.Cast(dir, angle, dist);
+				return s;
+			}
+
+			public static bool operator <(Sweep s1, Sweep s2) { return !s2.Valid || s1.Valid && s1.Altitude < s2.Altitude; }
+			public static bool operator >(Sweep s1, Sweep s2) { return !s1.Valid || s2.Valid && s1.Altitude > s2.Altitude; }
 
 			public override string ToString()
-			{ return string.Format("[Hit: Distance={0}, Altitude={1}, Valid={2}]", Distance, Altitude, Valid); }
+			{ return string.Format("[Hit: Valid={0}, Maneuver {1}, Distance={2}, Altitude={3}]", Valid, Maneuver, Distance, Altitude); }
+
+			#if DEBUG
+			public void Draw() 
+			{ 
+				if(!Valid) return;
+				L.Draw(); C.Draw(); R.Draw(); 
+			}
+			#endif
 		}
 	}
 }

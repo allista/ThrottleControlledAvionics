@@ -54,16 +54,25 @@ namespace ThrottleControlledAvionics
 			for(int i = 0, num_vessels = FlightGlobals.Vessels.Count; i < num_vessels; i++)
 			{
 				var v = FlightGlobals.Vessels[i];
-				if(v == null || v == VSL.vessel || v.packed || !v.loaded) continue;
+				if(v == null || v == VSL.vessel || !v.loaded) continue;
 				var tca = ModuleTCA.EnabledTCA(v);
 				if(tca == null || !tca.Controllable || 
 				   tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
+				//try to reach packed vessels
+				if(v.packed) 
+				{
+					var dist = (v.transform.position-vessel.transform.position).magnitude;
+					var sit = v.vesselRanges.GetSituationRanges(v.situation);
+					sit.pack = dist*1.5f;
+					sit.unpack = dist*1.2f;
+					v.GoOffRails();
+				}
 				action(tca);
 			}
 			ScreenMessages.PostScreenMessage("Squad Action Executed", 5, ScreenMessageStyle.UPPER_CENTER);
 		}
 
-		static void apply(Action<ModuleTCA> action)
+		public static void Apply(Action<ModuleTCA> action)
 		{
 			if(TCA == null || action == null) return;
 			action(TCA);
@@ -85,7 +94,7 @@ namespace ThrottleControlledAvionics
 
 		static void follow_me()
 		{
-			apply(tca => 
+			Apply(tca => 
 			{
 				if(tca == TCA) return;
 				tca.vessel.targetObject = TCA.vessel;
@@ -152,15 +161,8 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button(CFG.Enabled? "Disable" : "Enable", 
 			                    CFG.Enabled? Styles.red_button : Styles.green_button,
 			                    GUILayout.Width(70)))
-				apply(tca => tca.ToggleTCA());
-			//change key binding
-			if(GUILayout.Button(selecting_key? new GUIContent("?", "Choose new TCA hotkey") : 
-			                    new GUIContent(TCA_Key.ToString(), "Select TCA Hotkey"), 
-			                    selecting_key? Styles.yellow_button : Styles.green_button, 
-			                    GUILayout.Width(40)))
-			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
-			//autotune switch
-			CFG.AutoTune = GUILayout.Toggle(CFG.AutoTune, "Autotune Parameters", GUILayout.ExpandWidth(false));
+				Apply(tca => tca.ToggleTCA());
+			//squad mode switch
 			squad_mode = GUILayout.Toggle(squad_mode, 
 			                              new GUIContent("Squadron Mode", "Control autopilot on all squadron vessels"), 
 			                              GUILayout.ExpandWidth(false));
@@ -168,13 +170,12 @@ namespace ThrottleControlledAvionics
 			GUILayout.FlexibleSpace();
 			#if DEBUG
 			if(GUILayout.Button("Reset", Styles.yellow_button, GUILayout.Width(60))) 
-				apply(tca => tca.onVesselModify(tca.vessel));
+				Apply(tca => tca.onVesselModify(tca.vessel));
 			#endif
 			StatusString();
 			GUILayout.EndHorizontal();
 			SelectConfig_start();
 			AdvancedOptions();
-			ControllerProperties();
 			AutopilotControls();
 			WaypointList();
 			EnginesControl();
@@ -193,7 +194,7 @@ namespace ThrottleControlledAvionics
 			if(TCA.IsStateSet(TCAState.Enabled))
 			{
 				if(TCA.IsStateSet(TCAState.ObstacleAhead))
-				{ state = "Obstacle Ahead"; style = Styles.red; }
+				{ state = "Obstacle On Course"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.GroundCollision))
 				{ state = "Ground Collision"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
@@ -204,6 +205,8 @@ namespace ThrottleControlledAvionics
 				{ state = "Ascending"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.VTOLAssist))
 				{ state = "VTOL Assist On"; style = Styles.yellow; }
+				else if(TCA.IsStateSet(TCAState.StabilizeFlight))
+				{ state = "Stabilizing Flight"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Landing))
 				{ state = "Landing..."; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.CheckingSite))
@@ -232,15 +235,28 @@ namespace ThrottleControlledAvionics
 		{
 			if(!advOptions) return;
 			GUILayout.BeginVertical(Styles.white);
+			GUILayout.Label(TCATitle, Styles.label);
 			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.ExpandWidth(true))) 
 			{
 				TCAScenario.LoadGlobals();
 				TCA.OnReloadGlobals();
 			}
+			//change key binding
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Press to change TCA hotkey:", GUILayout.ExpandWidth(false));
+			if(GUILayout.Button(selecting_key? new GUIContent("?", "Choose new TCA hotkey") : 
+			                    new GUIContent(TCA_Key.ToString(), "Select TCA Hotkey"), 
+			                    selecting_key? Styles.yellow_button : Styles.green_button, 
+			                    GUILayout.Width(40)))
+			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
+			GUILayout.EndHorizontal();
 			CFG.VTOLAssistON = GUILayout.Toggle(CFG.VTOLAssistON, "Assist with vertical takeoff and landing", GUILayout.ExpandWidth(true));
+			CFG.StabilizeFlight = GUILayout.Toggle(CFG.StabilizeFlight, "Try to stabilize flight if spinning uncontrollably", GUILayout.ExpandWidth(true));
 			GUILayout.BeginHorizontal();
 			CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity of throttle controls", CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
 			GUILayout.EndHorizontal();
+			CFG.AutoTune = GUILayout.Toggle(CFG.AutoTune, "Autotune engines' controller parameters", GUILayout.ExpandWidth(false));
+			ControllerProperties();
 			ConfigsGUI();
 			GUILayout.EndVertical();
 		}
@@ -369,19 +385,20 @@ namespace ThrottleControlledAvionics
 					});
 				}
 				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
-									CFG.HF.Any(HFlight.AnchorHere, HFlight.Anchor)? 
+				                    CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor)? 
 				                    Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(65)))
 				{
-					var state = !CFG.HF[HFlight.Anchor];
-					apply_cfg(cfg => cfg.HF[HFlight.AnchorHere] = state);
+					var state = !CFG.Nav[Navigation.Anchor];
+					apply_cfg(cfg => cfg.Nav[Navigation.AnchorHere] = state);
 				}
 				if(GUILayout.Button(new GUIContent("Land", "Try to land on a nearest flat surface"), 
 				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
 				{
 					var state = !CFG.AP[Autopilot.Land];
-					apply_cfg(cfg => cfg.AP[Autopilot.Land] = state);
+					if(state) { follow_me(); CFG.AP.On(Autopilot.Land); }
+					else apply_cfg(cfg => cfg.AP[Autopilot.Land] = false);
 				}
 				if(GUILayout.Button(new GUIContent("Cruise", "Maintain course and speed"), 
 				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
@@ -401,7 +418,7 @@ namespace ThrottleControlledAvionics
 				                                      "Follow Terrain", 
 				                                      GUILayout.ExpandWidth(false));
 				if(follow_terrain != CFG.AltitudeAboveTerrain)
-					apply(tca => tca.AltitudeAboveTerrain(follow_terrain));
+					Apply(tca => tca.AltitudeAboveTerrain(follow_terrain));
 				GUILayout.EndHorizontal();
 				//navigator toggles
 				GUILayout.BeginHorizontal();
@@ -421,7 +438,7 @@ namespace ThrottleControlledAvionics
 						CFG.Nav[Navigation.FollowTarget]? Styles.green_button 
 						: Styles.yellow_button,
 						GUILayout.Width(50)))
-						apply(tca => 
+						Apply(tca => 
 					{
 						if(TCA.vessel.targetObject as Vessel == tca.vessel) return;
 						tca.vessel.targetObject = TCA.vessel.targetObject;
@@ -751,7 +768,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 MainWindow, 
 								 DrawMainWindow, 
-								 TCATitle,
+				                 VSL.vessel.vesselName,
 				                 GUILayout.Width(controlsWidth),
 				                 GUILayout.Height(controlsHeight));
 			MainWindow.clampToScreen();

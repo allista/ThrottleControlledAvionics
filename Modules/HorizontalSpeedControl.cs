@@ -10,7 +10,6 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
-using System.Linq;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -66,6 +65,9 @@ namespace ThrottleControlledAvionics
 			CFG.HF.AddCallback(HFlight.Stop, Enable);
 			CFG.HF.AddCallback(HFlight.Level, Enable);
 			CFG.HF.AddCallback(HFlight.Move, Move);
+			#if DEBUG
+			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+			#endif
 		}
 
 		public override void UpdateState() 
@@ -84,7 +86,7 @@ namespace ThrottleControlledAvionics
 				CFG.Nav.Off();
 				VSL.UpdateOnPlanetStats();
 				CFG.Starboard = Vector3.zero;
-				CFG.NeededHorVelocity = Vector3d.zero;
+				VSL.NeededHorVelocity = Vector3d.zero;
 			}
 			else EnableManualTranslation(false); 
 			BlockSAS(enable);
@@ -133,19 +135,25 @@ namespace ThrottleControlledAvionics
 				//if the vessel is not moving, nothing to do
 				if(VSL.LandedOrSplashed || VSL.Thrust.IsZero()) return;
 				//calculate horizontal velocity
-				var nV  = CFG.NeededHorVelocity*CFG.NHVf+CFG.CourseCorrection;
+				VSL.CourseCorrection = Vector3d.zero;
+				for(int i = 0, count = VSL.CourseCorrections.Count; i < count; i++)
+					VSL.CourseCorrection += VSL.CourseCorrections[i];
+				var nV  = VSL.NeededHorVelocity*VSL.NHVf+VSL.CourseCorrection;
 				var hV  = VSL.HorizontalVelocity-nV;
 				var rV  = hV; //velocity that is needed to be handled by attitude control of the total thrust
 				var fV  = hV; //forward-backward velocity with respect to the manual thrust vector
+				var hVm = hV.magnitude;
 				var with_manual_thrust = VSL.ManualEngines.Count > 0;
-				if(with_manual_thrust && VSL.ManualThrust.sqrMagnitude > HSC.TranslationLowerThreshold)
+				if(with_manual_thrust && 
+				   VSL.ManualThrust.sqrMagnitude > HSC.TranslationLowerThreshold &&
+				   hVm > HSC.TranslationLowerThreshold && 
+				   Vector3.Dot(VSL.ManualThrust.normalized, hV.normalized) > 0)
 				{
 					thrust -= VSL.refT.InverseTransformDirection(VSL.ManualThrust);
 					rV = Vector3.ProjectOnPlane(hV, VSL.ManualThrust);
 					fV = hV-rV;
 				}
 				var rVm = rV.magnitude;
-				var hVm = hV.magnitude;
 				//calculate needed thrust direction
 				if(rVm > HSC.RotationLowerThreshold)
 				{
@@ -158,34 +166,35 @@ namespace ThrottleControlledAvionics
 					var upF   = Vector3.Dot(thrust, rVl) < 0? 1 : Utils.ClampL(twrF*torF, 1e-9f);
 					var MaxHv = Math.Max(acceleration.magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
 					needed_thrust_dir = rVl.normalized - upl*Utils.ClampL((float)Math.Pow(MaxHv/rVm, HSC.HVCurve), 1)/upF;
-	//				Utils.Log("needed thrust direction: {0}\n" +
-	//				          "TWR factor: {1}\n" +
-	//				          "torque factor: {2}\n" +
-	//				          "up factor: {3}\n" +
-	//				          "torque limits {4}\n" +
-	//				          "MoI {5}\n", 
-	//				          needed_thrust_dir,
-	//				          twrF,
-	//				          torF,
-	//				          upF, 
-	//				          VSL.MaxTorque, 
-	//				          VSL.MoI
-	//				         );//debug
 				}
 				if(hVm > HSC.TranslationLowerThreshold)
 				{
-					//also try to use translation control
+					//also try to use translation
 					var nVm = nV.magnitude;
 					var hVl_dir = VSL.refT.InverseTransformDirection(hV).CubeNorm();
+					var cVl_lat = VSL.refT.InverseTransformDirection(Vector3.ProjectOnPlane(VSL.CourseCorrection, nV));
+					var cVl_lat_m = cVl_lat.magnitude;
+					var nVn = nVm > 0? nV/nVm : Vector3d.zero;
+					var HVn = VSL.HorizontalVelocity.normalized;
+					//normal translation controls (maneuver engines and RCS)
 					if(nVm < HSC.TranslationUpperThreshold || 
-					   Math.Abs(Vector3d.Dot(VSL.HorizontalVelocity, nV)) < HSC.TranslationMaxCos)
+					   Mathf.Abs((float)Vector3d.Dot(HVn, nVn)) < HSC.TranslationMaxCos)
 					{
 						var trans = Utils.ClampH((float)hVm/HSC.TranslationUpperThreshold, 1)*hVl_dir;
 						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
 					}
+					else if(cVl_lat_m > HSC.TranslationLowerThreshold)
+					{
+						var trans = -Utils.ClampH((float)cVl_lat_m/HSC.TranslationUpperThreshold, 1)*cVl_lat.CubeNorm();
+						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
+					}
+					//manual engine control
 					if(with_manual_thrust && 
 					   (nVm >= HSC.TranslationUpperThreshold ||
-					    Vector3d.Dot(VSL.HorizontalVelocity, nV) < 0))
+					    VSL.CourseCorrection.magnitude >= HSC.TranslationUpperThreshold ||
+					    hVm >= HSC.TranslationUpperThreshold &&
+					    (nVm < HSC.TranslationLowerThreshold || 
+					     Vector3d.Dot(HVn, nVn) < -HSC.TranslationMaxCos)))
 					{
 						translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslationIMinSpeed && 
 						                     VSL.vessel.mainBody.atmosphere)? 
@@ -221,35 +230,24 @@ namespace ThrottleControlledAvionics
 			//update PID controller and set steering
 			pid.Update(steering_error, angularVelocity);
 			SetRot(pid.Action, s);
-//			Utils.Log(//debug
-//			          "hV: {0}\n" +
-//			          "Thrust: {1}\n" +
-//			          "Needed Thrust Dir: {2}\n" +
-//			          "H-T Angle: {3}\n" +
-//			          "Steering error: {4}\n" +
-//			          "Down comp: {5}\n" +
-//			          "omega: {6}\n" +
-//			          "Tf: {7}\n" +
-//			          "PID: {8}\n" +
-//			          "angularA: {9}\n" +
-//			          "inertia: {10}\n" +
-//			          "angularM: {11}\n" +
-//			          "inertiaF: {12}\n" +
-//			          "pitch, roll, yaw: {13}," +
-//			          "X, Y, Z {14}",
-//			          VSL.refT.InverseTransformDirection(hV),
-//			          thrust, needed_thrust_dir,
-//                      Vector3.Angle(VSL.refT.InverseTransformDirection(hV), needed_thrust_dir),
-//			          steering_error,
-//			          Utils.ClampL(10/(float)hVm, 1),
-//			          angularVelocity, Tf,
-//			          pid,
-//                      VSL.MaxAngularA, inertia, angularM,
-//			          Mathf.Lerp(HSC.InertiaFactor, 1, 
-//                      VSL.MoI.magnitude*HSC.MoIFactor),
-//			          pid.Action, new Vector3(s.X, s.Y, s.Z)
-//			);
 		}
+
+		#if DEBUG
+		public void RadarBeam()
+		{
+			if(VSL == null || VSL.vessel == null) return;
+			if(!VSL.NeededHorVelocity.IsZero())
+				GLUtils.GLVec(VSL.wCoM,  VSL.NeededHorVelocity, Color.red);
+			if(!VSL.CourseCorrection.IsZero())
+				GLUtils.GLVec(VSL.wCoM, VSL.CourseCorrection, Color.blue);
+		}
+
+		public override void Reset()
+		{
+			base.Reset();
+			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+		}
+		#endif
 	}
 }
 

@@ -30,8 +30,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public int   WideCheckLevel       = 5;
 			[Persistent] public float NodeTargetRange      = 15;
 			[Persistent] public float NodeAnchorF          = 0.5f;
-			[Persistent] public float LandingAlt           = 10;
-			[Persistent] public float LandingFinalAlt      = 2;
+			[Persistent] public float GearOnAtH            = 5;
+			[Persistent] public float StopAtAlt            = 2;
 			[Persistent] public float StopTimer            = 2;
 			[Persistent] public float CutoffTimer          = 2;
 
@@ -52,11 +52,13 @@ namespace ThrottleControlledAvionics
 		IEnumerator scanner;
 		SurfaceNode[,] Nodes;
 		readonly List<SurfaceNode> FlatNodes = new List<SurfaceNode>();
+		HashSet<SurfaceNode> TriedNodes;
 		SurfaceNode NextNode, FlattestNode;
 		int side, bside, center;
 		Vector3 right, fwd, up, down, dir, sdir;
 		float MaxDistance, delta;
 		float DesiredAltitude;
+		bool landing_started;
 		readonly Timer StopTimer = new Timer();
 		readonly Timer CutoffTimer = new Timer();
 
@@ -87,10 +89,13 @@ namespace ThrottleControlledAvionics
 			Nodes = null;
 			StopTimer.Reset();
 			CutoffTimer.Reset();
-			if(enable) 
+			landing_started = false;
+			if(VSL.LandedOrSplashed) CFG.AP.Off();
+			else if(enable) 
 			{
 				CFG.HF.On(HFlight.Stop);
 				DesiredAltitude = 0;
+				TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.R));
 			}
 			else
 			{
@@ -100,17 +105,16 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		SurfaceNode get_surface_node()
+		SurfaceNode get_surface_node(float radius)
 		{
 			RaycastHit raycastHit;
 			var c = VSL.C+dir*(VSL.R+0.1f);
-			if(Physics.Raycast(c, dir, out raycastHit, MaxDistance, RadarMask))
+			if(Physics.SphereCast(c, radius, dir, out raycastHit, MaxDistance, RadarMask))
 			{
-				var ray = raycastHit.distance*dir;
 				if(VSL.mainBody.ocean && 
-				   (c+ray-VSL.mainBody.position).magnitude < VSL.mainBody.Radius)
+				   (raycastHit.point-VSL.mainBody.position).magnitude < VSL.mainBody.Radius)
 					return null;
-				return new SurfaceNode(c, ray, up);
+				return new SurfaceNode(c, raycastHit.point, up);
 			}
 			return null;
 		}
@@ -145,7 +149,7 @@ namespace ThrottleControlledAvionics
 				for(int j = 0; j < bside; j++)
 				{
 					dir = (sdir+right*(i-center)*delta+fwd*(j-center)*delta).normalized;
-					Nodes[i,j] = get_surface_node();
+					Nodes[i,j] = get_surface_node(delta/2);
 					yield return null;
 				}
 			//compute unevenness
@@ -170,13 +174,15 @@ namespace ThrottleControlledAvionics
 					for(int j = 1; j <= side; j++)
 					{
 						var n = Nodes[i,j];
-						if(n != null && n.flat)
+						if(n != null && n.flat && !TriedNodes.Contains(n))
 							FlatNodes.Add(n);
 					}
 				yield return null;
 				FlatNodes.Sort((n1, n2) => n1.distance.CompareTo(n2.distance));
 			}
-//			print_nodes();//debug
+			#if DEBUG
+			print_nodes();
+			#endif
 		}
 
 		SurfaceNode flattest_node 
@@ -190,6 +196,7 @@ namespace ThrottleControlledAvionics
 					{
 						var n = Nodes[i,j];
 						if(n == null) continue;
+						if(TriedNodes.Contains(n)) continue;
 						if(flattest == null) flattest = n;
 						else if(flattest.unevenness > n.unevenness)
 							flattest = n;
@@ -256,18 +263,17 @@ namespace ThrottleControlledAvionics
 				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(CFG.Anchor == null) { CFG.AP.Off(); return false; }
-				if(CFG.Anchor.DistanceTo(VSL.vessel) < CFG.Anchor.Distance)
+				if(CFG.Anchor.DistanceTo(VSL.vessel)-VSL.R < CFG.Anchor.Distance)
 				{
-					CFG.Nav.Off();
 					if(NextNode.flat)
 					{
-						CFG.HF.OnIfNot(HFlight.Anchor);
-						if(CFG.Anchor.DistanceTo(VSL.vessel) < VSL.R*LND.NodeAnchorF)
+						CFG.Nav.OnIfNot(Navigation.Anchor);
+						if(CFG.Anchor.DistanceTo(VSL.vessel) < delta)
 							return StopTimer.Check;
 					}
 					else return true;
 				}
-				else if(!CFG.HF[HFlight.Anchor] && 
+				else if(!CFG.Nav[Navigation.Anchor] && 
 				        (!CFG.Nav[Navigation.GoToTarget] || VSL.vessel.targetObject != CFG.Anchor))
 				{
 					SetTarget(CFG.Anchor);
@@ -317,8 +323,8 @@ namespace ThrottleControlledAvionics
 			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(c.position),
 			                          VSL.mainBody.GetLongitude(c.position));
 			CFG.Anchor.Distance = LND.NodeTargetRange;
-			CFG.HF.On(HFlight.Anchor);
-			DesiredAltitude = LND.LandingAlt+VSL.H;
+			CFG.Nav.On(Navigation.Anchor);
+			DesiredAltitude = LND.GearOnAtH+VSL.H;
 			stage = Stage.Land;
 		}
 
@@ -338,7 +344,7 @@ namespace ThrottleControlledAvionics
 
 		public void Update()
 		{
-			if(!IsActive) return;
+			if(!IsActive || CFG.AP.Paused) return;
 			switch(stage)
 			{
 			case Stage.None:
@@ -360,8 +366,10 @@ namespace ThrottleControlledAvionics
 				SetState(TCAState.CheckingSite);
 				if(!fully_stopped) break;
 				if(scan(1, null, VSL.R*2)) break;
-				if(Nodes == null || center_node == null || 
-				   !center_node.flat) wide_check();
+				if(Nodes == null || center_node == null) 
+				{ wide_check(); break; }
+				TriedNodes.Add(center_node);
+				if(!center_node.flat) wide_check();
 				else land();
 				break;
 			case Stage.FlatCheck:
@@ -397,13 +405,18 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Land:
 				SetState(TCAState.Landing);
+				if(!landing_started)
+				{
+					landing_started = true;
+					SquadAction(vsl => vsl.CFG.AP.OnIfNot(Autopilot.Land));
+				}
 				if(DesiredAltitude > 0)
 				{
-					CFG.HF.OnIfNot(HFlight.Anchor);
-					DesiredAltitude = LND.LandingAlt+VSL.H;
-					if(VSL.Altitude < LND.LandingAlt+VSL.H*2) gear_on();
+					CFG.Nav.OnIfNot(Navigation.Anchor);
+					DesiredAltitude = VSL.H*LND.GearOnAtH;
 					if(VSL.Altitude > DesiredAltitude &&
 					   !altitude_changed) break;
+					CFG.VerticalCutoff = -0.5f;
 					DesiredAltitude = -10;
 				}
 				gear_on();
@@ -417,11 +430,11 @@ namespace ThrottleControlledAvionics
 				}
 				else
 				{
-					if(VSL.Altitude > LND.LandingFinalAlt+VSL.H) 
-						CFG.HF.OnIfNot(HFlight.Anchor);
+					if(VSL.Altitude > LND.StopAtAlt+VSL.H)
+						CFG.Nav.OnIfNot(Navigation.Anchor);
 					else CFG.HF.OnIfNot(HFlight.Stop);
 					set_VSpeed(VSL.SlowEngines? -0.5f :
-					           Mathf.Lerp(-0.5f, -1, VSL.Altitude/(LND.LandingAlt+VSL.H)));
+					           Mathf.Lerp(-0.5f, -1, VSL.Altitude/(VSL.H*LND.GearOnAtH)));
 				}
 				CutoffTimer.Reset();
 				break;
@@ -478,6 +491,19 @@ namespace ThrottleControlledAvionics
 
 		class SurfaceNode
 		{
+			internal class Comparer : IEqualityComparer<SurfaceNode>
+			{
+				readonly float threshold;
+
+				public Comparer(float threshold) { this.threshold = threshold; }
+
+				public bool Equals(SurfaceNode n1, SurfaceNode n2)
+				{ return (n1.position-n2.position).magnitude < threshold; }
+
+				public int GetHashCode(SurfaceNode n) 
+				{ return (int)(n.position.x/threshold) ^ (int)(n.position.y/threshold) ^ (int)(n.position.z/threshold); }
+			}
+
 			Vector3 up;
 			public Vector3 position;
 			public float unevenness;
@@ -485,11 +511,11 @@ namespace ThrottleControlledAvionics
 			public bool flat;
 			public readonly  HashSet<SurfaceNode> neighbours = new HashSet<SurfaceNode>();
 
-			public SurfaceNode(Vector3 ori, Vector3 ray, Vector3 up) 
+			public SurfaceNode(Vector3 ori, Vector3 pos, Vector3 up) 
 			{ 
-				distance = Vector3.ProjectOnPlane(ray, up).magnitude; 
-				position = ori+ray; 
-				this.up = up; 
+				distance = Vector3.ProjectOnPlane(pos-ori, up).magnitude; 
+				position = pos;
+				this.up  = up; 
 			}
 
 			public float DistanceTo(SurfaceNode n)

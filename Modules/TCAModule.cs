@@ -35,12 +35,13 @@ namespace ThrottleControlledAvionics
 		public VesselConfig CFG { get { return VSL.CFG; } }
 		public TCAState State { get { return VSL.State; } }
 		public bool IsActive { get; protected set; }
+		public bool Working { get; protected set; }
 		public void SetState(TCAState state) { VSL.State |= state; }
 		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
 		public bool IsActiveVessel 
 		{ get { return VSL.vessel != null && VSL.vessel == FlightGlobals.ActiveVessel; } }
 
-		public virtual void Init() { }
+		public virtual void Init() {}
 		public virtual void Enable(bool enable = true) {}
 		public virtual void UpdateState() {}
 		public virtual void Reset() {}
@@ -63,11 +64,37 @@ namespace ThrottleControlledAvionics
 			VSL.vessel.targetObject = t;
 		}
 
+		protected bool UserIntervening(FlightCtrlState s)
+		{
+			return !Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
+				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
+				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);// || 
+			//				Mathf.Abs(s.X) > 0.1f ||
+			//				Mathf.Abs(s.Y) > 0.1f ||
+			//				Mathf.Abs(s.Z) > 0.1f;
+		}
+
+		#region SquadMode
+		public void SquadAction(Action<VesselWrapper> action)
+		{
+			if(ThrottleControlledAvionics.VSL != this.VSL) return;
+			ThrottleControlledAvionics.Apply(tca => action(tca.VSL));
+		}
+		#endregion
+
 		#if DEBUG
 		protected void Log(string msg, params object[] args)
 		{ 
 			var s = string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg);
 			Utils.Log(s, args);
+		}
+
+		protected void CSV(params object[] args)
+		{
+			var tag = string.Format("{0}.{1}", VSL.vessel.vesselName, GetType().Name);
+			var args1 = new object[args.Length+1];
+			args1[0]= tag; args.CopyTo(args1, 1);
+			DebugUtils.CSV(args1);
 		}
 		#endif
 	}
@@ -77,16 +104,6 @@ namespace ThrottleControlledAvionics
 		public override void Init() { VSL.OnAutopilotUpdate -= Update; VSL.OnAutopilotUpdate += Update; }
 		protected abstract void Update(FlightCtrlState s);
 		public override void Reset() { VSL.OnAutopilotUpdate -= Update; }
-
-		protected bool UserIntervening(FlightCtrlState s)
-		{
-			return !Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
-				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
-				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);// || 
-//				Mathf.Abs(s.X) > 0.1f ||
-//				Mathf.Abs(s.Y) > 0.1f ||
-//				Mathf.Abs(s.Z) > 0.1f;
-		}
 
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
 		{

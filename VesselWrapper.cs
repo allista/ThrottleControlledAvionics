@@ -99,9 +99,17 @@ namespace ThrottleControlledAvionics
 		public float    AbsAltitude { get; private set; }
 		public float    RelAltitude { get; private set; }
 		public float    AltitudeAhead;
+		public float    TimeAhead;
 		public float    TerrainAltitude { get; private set; }
 		public Vector3d HorizontalVelocity { get; private set; }
 		public float    HorizontalSpeed { get; private set; }
+		public Vector3d PredictedSrfVelocity(float time) { return vessel.srf_velocity+vessel.acceleration*time; }
+		public Vector3d PredictedHorVelocity(float time) { return Vector3d.Exclude(Up, vessel.srf_velocity+vessel.acceleration*time); }
+
+		public Vector3d NeededHorVelocity;
+		public List<Vector3d> CourseCorrections = new List<Vector3d>();
+		public Vector3d CourseCorrection;
+		public float NHVf = 1;
 
 		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
 		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, Up); } }
@@ -148,7 +156,7 @@ namespace ThrottleControlledAvionics
 
 		public void Init() 
 		{
-			AltitudeAhead = -1;
+			AltitudeAhead = float.MaxValue;
 			OnPlanet = _OnPlanet();
 		}
 
@@ -310,10 +318,10 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
-				if(e.Role != TCARole.MANUAL)
+				if(!Equals(e.Role, TCARole.MANUAL))
 					e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
 				else if(ManualTranslationSwitch.On)
-					e.thrustLimit = Mathf.Clamp01(e.limit);
+					e.forceThrustPercentage(e.limit*100);
 				else if(ManualTranslationSwitch.WasSet)
 					e.engine.thrustPercentage = 0;
 			}
@@ -339,7 +347,11 @@ namespace ThrottleControlledAvionics
 		public void UpdateState()
 		{
 			var on_planet = _OnPlanet();
-			if(on_planet != OnPlanet) CFG.EnginesProfiles.OnPlanetChanged(on_planet);
+			if(on_planet != OnPlanet) 
+			{
+				CFG.EnginesProfiles.OnPlanetChanged(on_planet);
+				if(!on_planet) { CFG.HF.Off(); CFG.Nav.Off(); CFG.AP.Off(); CFG.VF.Off(); }
+			}
 			OnPlanet = on_planet;
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
@@ -347,7 +359,7 @@ namespace ThrottleControlledAvionics
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
 			if(!OnPlanet) UnblockSAS(false);
 			else if(!CFG.HF) UnblockSAS();
-			CFG.CourseCorrection = Vector3d.zero;
+			CourseCorrections.Clear();
 		}
 
 		public void UpdateCommons()
@@ -641,6 +653,7 @@ namespace ThrottleControlledAvionics
 		CheckingSite           = 1 << 12,
 		Landing                = 1 << 13,
 		VTOLAssist             = 1 << 14,
+		StabilizeFlight        = 1 << 15,
 		//composite
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,

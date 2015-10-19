@@ -42,6 +42,7 @@ namespace ThrottleControlledAvionics
 		Radar rad;
 		AutoLander lnd;
 		VTOLAssist tla;
+		FlightStabilizer stb;
 		CollisionPreventionSystem cps;
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
@@ -245,14 +246,12 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateBounds();
 			create_modules();
 			modules.ForEach(m => m.Init());
-			CFG.HF.AddCallback(HFlight.CruiseControl, UpdateNeededVeloctiy);
 			vessel.OnAutopilotUpdate += block_throttle;
 			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
 			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowTarget)) 
 				pn.GoToTarget(VSL.vessel.targetObject != null);
 			else if(CFG.Nav[Navigation.FollowPath]) 
 				pn.FollowPath(CFG.Waypoints.Count > 0);
-			else if(CFG.HF[HFlight.CruiseControl]) UpdateNeededVeloctiy();
 			ThrottleControlledAvionics.AttachTCA(this);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
 		}
@@ -262,35 +261,11 @@ namespace ThrottleControlledAvionics
 			if(VSL != null)
 			{
 				VSL.OnAutopilotUpdate -= block_throttle;
-				UpdateNeededVeloctiy(false);
 				modules.ForEach(m => m.Reset());
 				CFG.ClearCallbacks();
 			}
 			delete_modules();
 			VSL = null; 
-		}
-
-		IEnumerator<YieldInstruction> NeededVelocityUpdater;
-		IEnumerator<YieldInstruction> update_needed_velocity()
-		{
-			while(VSL != null && CFG.HF[HFlight.CruiseControl] && VSL.OnPlanet)
-			{
-				cc.UpdateNeededVelocity();
-				yield return new WaitForSeconds(GLB.CC.Delay);
-			}
-		}
-		void UpdateNeededVeloctiy(bool enable = true)
-		{
-			if(enable && NeededVelocityUpdater == null)
-			{
-				NeededVelocityUpdater = update_needed_velocity();
-				StartCoroutine(NeededVelocityUpdater);
-			}
-			else if(!enable && NeededVelocityUpdater != null)
-			{
-				StopCoroutine(NeededVelocityUpdater);
-				NeededVelocityUpdater = null;
-			}
 		}
 		#endregion
 
@@ -345,14 +320,15 @@ namespace ThrottleControlledAvionics
 				for(int i = 0; i < modules.Count; i++) modules[i].UpdateState();
 				VSL.UpdateOnPlanetStats();
 				//these follow specific order
-				lnd.Update();
-				rad.Update();
-				alt.Update();
-				vsc.Update();
+				rad.Update();//sets AltitudeAhead
+				lnd.Update();//sets VerticalCutoff, sets DesiredAltitude
+				alt.Update();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
+				cps.Update();//updates VerticalCutoff
+				vsc.Update();//uses VerticalCutoff
 				anc.Update();
 				tla.Update();
+				stb.Update();
 				pn.Update();
-				cps.Update();
 			}
 			//handle engines
 			VSL.TuneEngines();
