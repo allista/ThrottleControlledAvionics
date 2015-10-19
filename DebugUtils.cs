@@ -117,6 +117,9 @@ namespace ThrottleControlledAvionics
 			GL.PopMatrix();
 			camera.farClipPlane = far;
 		}
+
+		public static void GLVec(Vector3 ori, Vector3 vec, Color c)
+		{ GLLine(ori, ori+vec, c); }
 	}
 
 	class NamedStopwatch
