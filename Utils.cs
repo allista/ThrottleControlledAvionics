@@ -304,7 +304,7 @@ namespace ThrottleControlledAvionics
 					next_time = time.AddSeconds(Period); 
 					return false;
 				}
-				else return next_time < time;
+				return next_time < time;
 			}
 		}
 
@@ -313,9 +313,6 @@ namespace ThrottleControlledAvionics
 			if(predicate) { if(Check) { action(); Reset(); } }
 			else Reset();
 		}
-
-		public void RunIf(Action action, Func<bool> predicate)
-		{ RunIf(action, predicate()); }
 	}
 
 	public class TimeAverage
@@ -429,12 +426,15 @@ namespace ThrottleControlledAvionics
 		public bool WasSet { get { return state != prev_state; } }
 		public bool On { get { return state; } }
 		public void Checked() { prev_state = state; }
+
+		public static implicit operator bool(Switch s) { return s.state; }
 	}
 
 	public class Multiplexer<T> : ConfigNodeObject where T : struct
 	{
 		[Persistent] public string State;
 		public T state { get; protected set; }
+		public bool Paused;
 
 		readonly Dictionary<T, Action<bool>> callbacks = new Dictionary<T, Action<bool>>();
 
@@ -453,24 +453,25 @@ namespace ThrottleControlledAvionics
 			get { return key.Equals(state); } 
 			set 
 			{ 
+				if(Paused) return;
 				if(value) On(key);
 				else if(key.Equals(state)) Off();
           	}
 		}
-		public void Toggle(T key) { this[key] = !this[key]; }
-		public void OnIfNot(T key) { if(!this[key]) On(key); }
-		public void OffIfOn(T key) { if(this[key]) Off(); }
 		public void On(T key) 
 		{ 
+			if(Paused) return;
+			Utils.Log("{0}: On: {1}", GetType().Name, key);//debug
 			if(!key.Equals(state)) Off();
+			state = key;
 			Action<bool> callback;
 			if(callbacks.TryGetValue(key, out callback))
 			{ if(callback != null) callback(true); }
-			state = key;
 		}
 		public void Off() 
 		{ 
-			if(state.Equals(default(T))) return;
+			if(Paused || state.Equals(default(T))) return;
+			Utils.Log("{0}: Off: {1}", GetType().Name, state);//debug
 			var old_state = state; //prevents recursion
 			state = default(T);
 			Action<bool> callback;
@@ -478,9 +479,13 @@ namespace ThrottleControlledAvionics
 			{ if(callback != null) callback(false); }
 		}
 
+		public void Toggle(T key) { this[key] = !this[key]; }
+		public void OnIfNot(T key) { if(!this[key]) On(key); }
+		public void OffIfOn(T key) { if(this[key]) Off(); }
+
 		public static implicit operator bool(Multiplexer<T> m) { return !m[default(T)]; }
 
-		public void ClearCallbacks() { callbacks.Clear(); }
+		public void ClearCallbacks() { callbacks.Clear(); Paused = false; }
 
 		public void AddCallback(T key, Action<bool> callback)
 		{
