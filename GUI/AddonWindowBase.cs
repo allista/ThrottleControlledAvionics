@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 		protected static PluginConfiguration GUI_CFG = PluginConfiguration.CreateForType<T>();
 		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 
+		protected static Rect drag_handle = new Rect(0,0, 10000, 20);
 		protected static int  width = 550, height = 100;
 		protected static Rect MainWindow = new Rect();
 		static protected bool showHUD = true;
@@ -113,7 +114,7 @@ namespace ThrottleControlledAvionics
 		{
 			GetToolTip();
 			DrawToolTip(MainWindow);
-			GUI.DragWindow();
+			GUI.DragWindow(drag_handle);
 		}
 	}
 }
