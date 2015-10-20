@@ -118,10 +118,23 @@ namespace ThrottleControlledAvionics
 				return;
 			}
 			//update pid parameters and vertical speed setpoint
-			var min_speed = error < 0? Utils.Clamp(ALT.MaxSpeedLow*(error+ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, 
-			                                       -ALT.MaxSpeedHigh, -ALT.MaxSpeedLow) : -ALT.MaxSpeedLow;
-			var max_speed = error > 0? Utils.Clamp(ALT.MaxSpeedLow*(error-ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, 
-			                                       ALT.MaxSpeedLow, ALT.MaxSpeedHigh) : ALT.MaxSpeedLow;
+			var min_speed = -ALT.MaxSpeedLow;
+			var max_speed =  ALT.MaxSpeedLow;
+			if(error < 0)
+			{
+				min_speed = Utils.Clamp(ALT.MaxSpeedLow*(error+ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, -ALT.MaxSpeedHigh, -ALT.MaxSpeedLow);
+				if(VSL.AbsVerticalSpeed < 0)
+				{
+					
+					var free_fall  = (VSL.AbsVerticalSpeed+Mathf.Sqrt(VSL.AbsVerticalSpeed*VSL.AbsVerticalSpeed-2*VSL.G*error))/VSL.G;
+					var brake_time = -VSL.AbsVerticalSpeed/(VSL.MaxDTWR-1)/VSL.G;
+					if(brake_time < 0 || brake_time >= free_fall) min_speed = 0;
+					else if(brake_time > free_fall/100) 
+						min_speed = Utils.Clamp(-ALT.MaxSpeedHigh*(1-brake_time/free_fall), min_speed, -ALT.MaxSpeedLow);
+//					Log("free_fall {0}, brake_time {1}, min_speed {2}, error {3}", free_fall, brake_time, min_speed, error);//debug
+				}
+			}
+			else if(error > 0) max_speed = Utils.Clamp(ALT.MaxSpeedLow*(error-ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, ALT.MaxSpeedLow, ALT.MaxSpeedHigh);
 			if(VSL.SlowEngines)
 			{
 				jets_pid.Min = min_speed;
