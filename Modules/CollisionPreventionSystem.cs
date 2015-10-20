@@ -45,7 +45,7 @@ namespace ThrottleControlledAvionics
 		public CollisionPreventionSystem(VesselWrapper vsl) { VSL = vsl; }
 
 		public override void UpdateState() 
-		{ IsActive = CFG.HF && VSL.OnPlanet; }// && !VSL.NeededHorVelocity.IsZero(); }
+		{ IsActive = CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed; }
 
 		static int RadarMask = (1 | 1 << LayerMask.NameToLayer("Parts"));
 		HashSet<Guid> Dangerous = new HashSet<Guid>();
