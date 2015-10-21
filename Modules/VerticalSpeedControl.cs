@@ -68,8 +68,8 @@ namespace ThrottleControlledAvionics
 			{
 				accelV = (VSL.VerticalAccel-old_accel)/TimeWarp.fixedDeltaTime;
 				old_accel = VSL.VerticalAccel;
-				var missed = VSL.VerticalSpeed > CFG.VerticalCutoff && VSL.VerticalSpeed < setpoint_correction && VSL.VerticalAccel > 0 ||
-					VSL.VerticalSpeed < CFG.VerticalCutoff && VSL.VerticalSpeed > setpoint_correction && VSL.VerticalAccel < 0;
+				var missed = VSL.VerticalSpeed > CFG.VerticalCutoff && VSL.VerticalSpeed < CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel > 0 ||
+					VSL.VerticalSpeed < CFG.VerticalCutoff && VSL.VerticalSpeed > CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel < 0;
 				if(missed || Mathf.Abs(VSL.VerticalAccel) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
 					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.VerticalSpeed+setpoint_correction, 0));
 //				Utils.Log("VSP {0}, V {1}, accel {2}, accelV {3}, correction: {4}, missed {5}", 
@@ -87,7 +87,7 @@ namespace ThrottleControlledAvionics
 			//loosing altitude alert
 			if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
 				        		      VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV);
-//			DebugUtils.CSV(VSL.vessel.vesselName, VSL.Altitude, 
+//			CSV(VSL.Altitude, VSL.TerrainAltitude, VSL.RelVerticalSpeed,
 //			               VSL.VerticalSpeed, CFG.VerticalCutoff, setpoint, setpoint_correction, 
 //			               VSL.VerticalAccel, upAF, K, VSL.VSF);//debug
 		}
