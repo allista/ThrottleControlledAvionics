@@ -422,7 +422,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 				//navigator toggles
 				GUILayout.BeginHorizontal();
-				if(VSL.HasTarget)
+				if(VSL.HasTarget && !CFG.Nav.Paused)
 				{
 					if(GUILayout.Button(new GUIContent("Go To", "Fly to current target"), 
 					                    CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
@@ -452,8 +452,11 @@ namespace ThrottleControlledAvionics
 				}
 				if(squad_mode)
 				{
-					if(GUILayout.Button(new GUIContent("Follow Me", "Make the squadron follow"), 
-					                    Styles.yellow_button, GUILayout.Width(75)))
+					if(CFG.Nav.Paused)
+						GUILayout.Label(new GUIContent("Follow Me", "Make the squadron follow"),  
+						                Styles.grey, GUILayout.Width(75));
+					else if(GUILayout.Button(new GUIContent("Follow Me", "Make the squadron follow"), 
+					                         Styles.yellow_button, GUILayout.Width(75)))
 						follow_me();
 				}
 				if(selecting_target)
@@ -478,7 +481,7 @@ namespace ThrottleControlledAvionics
 					selecting_target = true;
 					CFG.ShowWaypoints = true;
 				}
-				if(CFG.Waypoints.Count > 0)
+				if(CFG.Waypoints.Count > 0 && !CFG.Nav.Paused)
 				{
 					if(GUILayout.Button("Follow Route",
 					                    CFG.Nav[Navigation.FollowPath]? Styles.green_button 
