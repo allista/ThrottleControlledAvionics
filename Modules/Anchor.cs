@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float DistanceF     = 50;
 			[Persistent] public float AngularAccelF = 2f;
 			[Persistent] public float MaxAccelF     = 4f;
+			[Persistent] public float LookAheadTime = 2f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
 		static Config ANC { get { return TCAScenario.Globals.ANC; } }
@@ -71,7 +72,10 @@ namespace ThrottleControlledAvionics
 			CFG.HF.OnIfNot(HFlight.Move);
 			CFG.Anchor.Update(VSL.mainBody);
 			//calculate direct distance
-			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
+			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position - 
+			                                  (VSL.vessel.transform.position+
+			                                   VSL.PredictedSrfVelocity(ANC.LookAheadTime)*ANC.LookAheadTime), 
+			                                  VSL.Up);
 			var distance = vdir.magnitude;
 			vdir.Normalize();
 			//tune the pid and update needed velocity
