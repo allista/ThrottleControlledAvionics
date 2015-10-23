@@ -24,7 +24,6 @@ ENG
 	ThrustOptimizationPrecision = 0.001
 	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 0.1
-	MinTranslationLimit = 0.001
 	
 	MaxP = 1
 	MaxI = 1
@@ -103,15 +102,16 @@ HSC
 	TranslationUpperThreshold  = 5
 	TranslationLowerThreshold  = 0.01
 	RotationLowerThreshold     = 0.01
+	RotationUpperThreshold     = 30
 	TranslationMaxAngle        = 80
+	RotationMaxAngle           = 15
 	ManualTranslationIMinSpeed = 20
-	ManualTranslationCutoff    = 0.001
 		
 	ManualTranslationPID
 	{
 		P = 0.05
 		I = 0.000001
-		D = 0.001
+		D = 0.0
 	}
 
 	P                     = 0.9
@@ -134,6 +134,8 @@ CC
 {
 	UpdateDelay = 1
 	MaxAAf = 2
+	MinAAf = 0.0001
+	
 	DirectionPID
 	{
 		P = 4.0
@@ -157,14 +159,13 @@ PN
 	AltErrSensitivity  = 20
 	DirectNavThreshold = 1
 	GCNavStep          = 0.1
-	AngularAccelF      = 0.5
-	MaxAccelF          = 4
 	LookAheadTime      = 3
 	BearingCutoff      = 80
 	FormationSpeedCutoff = 10
 	FormationFactor    = 0.2
 	FormationBreakTime = 10
 	TakeoffAltitude    = 100
+	BrakeOffset        = 1.5
 	
 	DistancePID
 	{
@@ -177,6 +178,7 @@ PN
 LND
 {
 	MaxUnevenness        = 0.3
+	UnevennessThreshold  = 0.6
 	MaxHorizontalTime    = 2
 	MinVerticalSpeed     = 0.7
 	WideCheckAltitude    = 100
@@ -205,10 +207,11 @@ RAD
 
 ANC
 {
-	DistanceF          = 0.2
-	MaxSpeed           = 10
-	AngularAccelF      = 0.5
-	MaxAccelF          = 4
+	DistanceF     = 0.2
+	MaxSpeed      = 10
+	AngularAccelF = 0.5
+	MaxAccelF     = 4
+	LookAheadTime = 2
 	
 	DistancePID
 	{

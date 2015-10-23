@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "CC";
 
 			[Persistent] public float UpdateDelay = 1;
+			[Persistent] public float MinAAf = 0.001f;
 			[Persistent] public float MaxAAf = 2;
 			[Persistent] public PID_Controller DirectionPID = new PID_Controller(0.5f, 0f, 0.5f, -1, 1);
 		}
@@ -89,9 +90,9 @@ namespace ThrottleControlledAvionics
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && 
-				 CFG.HF.Any(HFlight.NoseOnCourse, HFlight.CruiseControl) && 
+			     CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl) && 
 			     VSL.OnPlanet && VSL.refT != null && 
-			     !VSL.NeededHorVelocity.IsZero())) return;
+			     !VSL.ForwardDirection.IsZero())) return;
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
 			if(UserIntervening(s)) { pid.Reset(); return; }
@@ -99,11 +100,11 @@ namespace ThrottleControlledAvionics
 			if(CFG.HF[HFlight.CruiseControl])
 				UpdateTimer.Run(UpdateNeededVelocity);
 			//turn ship's nose in the direction of needed velocity
-			var hDir = VSL.refT.InverseTransformDirection(Vector3.ProjectOnPlane(VSL.Fwd, VSL.Up).normalized);
-			var hVl  = VSL.refT.InverseTransformDirection(VSL.NeededHorVelocity);
-			var attitude_error = Quaternion.FromToRotation(hDir, hVl);
+			var cDir = Vector3.ProjectOnPlane(VSL.FwdL, VSL.UpL).normalized;
+			var nDir = VSL.refT.InverseTransformDirection(VSL.ForwardDirection);
+			var attitude_error = Quaternion.FromToRotation(cDir, nDir);
 			var angle = Utils.CenterAngle(VSL.NoseUp? attitude_error.eulerAngles.y : attitude_error.eulerAngles.z)/180;
-			var AAf = Utils.Clamp(1/(Vector3.Scale(VSL.Up, VSL.wMaxAngularA).magnitude), 0.01f, CC.MaxAAf);
+			var AAf = Utils.Clamp(1/(Vector3.Scale(VSL.NoseUp? Vector3.up : Vector3.forward, VSL.MaxAngularA).magnitude), CC.MinAAf, CC.MaxAAf);
 			var eff = Mathf.Abs(Vector3.Dot(VSL.MaxThrust.normalized, VSL.Up));
 			pid.P = CC.DirectionPID.P*AAf;
 			pid.D = CC.DirectionPID.D*AAf*AAf;
