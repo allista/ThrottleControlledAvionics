@@ -17,24 +17,62 @@ namespace ThrottleControlledAvionics
 	public class TrueCondition : Condition
 	{ protected override bool Evaluate(VesselWrapper VSL) { return true; } }
 
-	public abstract class AltitudeCondition : Condition
-	{ [Persistent] public float Altitude; }
+	public abstract class FloatCondition : Condition
+	{ 
+		[Persistent] public float Value;
+		protected string Title;
+		protected string Suffix;
 
-	public class AltLower : AltitudeCondition
-	{
+		protected readonly FloatField ValueField = new FloatField();
+		protected virtual void OnValueChanged() {}
+
 		protected override void DrawThis()
-		{ Utils.FloatSlider("Altitude is lower than", Altitude, float.MinValue, float.MaxValue, "0 m"); }
-
-		protected override bool Evaluate(VesselWrapper VSL)
-		{ return VSL.Altitude < Altitude; }
+		{
+			GUILayout.BeginHorizontal();
+			if(Edit) 
+			{ 
+				GUILayout.Label(Title, Styles.label);
+				if(ValueField.Draw(Value)) 
+				{ 
+					Value = ValueField.Value; 
+					OnValueChanged(); 
+					Edit = false; 
+				} 
+			}
+			else if(GUILayout.Button(string.Format("{0} {1:F1}{2}", Title, Value, Suffix), 
+			                         Styles.normal_button)) 
+				Edit = true;
+			GUILayout.EndHorizontal();
+		}
 	}
 
-	public class AltHigher : AltitudeCondition
+	public class AltLower : FloatCondition
 	{
-		protected override void DrawThis()
-		{ Utils.FloatSlider("Altitude is higher than", Altitude, float.MinValue, float.MaxValue, "0 m"); }
+		public AltLower() { Title = "Alt <"; Suffix = "m"; }
 
 		protected override bool Evaluate(VesselWrapper VSL)
-		{ return VSL.Altitude > Altitude; }
+		{ return VSL.Altitude < Value; }
+	}
+
+	public class AltHigher : FloatCondition
+	{
+		public AltHigher() { Title = "Alt >"; Suffix = "m"; }
+		
+		protected override bool Evaluate(VesselWrapper VSL)
+		{ return VSL.Altitude > Value; }
+	}
+
+	public class TimerCondition : FloatCondition
+	{
+		protected readonly Timer T = new Timer();
+
+		public TimerCondition()
+		{ Title = "Wait for"; Suffix = "s"; }
+
+		protected override void OnValueChanged()
+		{ T.Period = Value; T.Reset(); }
+
+		protected override bool Evaluate(VesselWrapper VSL)
+		{ return T.Check; }
 	}
 }
