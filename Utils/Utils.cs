@@ -244,6 +244,28 @@ namespace ThrottleControlledAvionics
 		#endregion
 	}
 
+	public class FloatField
+	{
+		string svalue;
+		public float Value;
+
+		public bool Draw(float cvalue)
+		{
+			if(string.IsNullOrEmpty(svalue) || !Value.Equals(cvalue))
+			{
+				Value = cvalue;
+				svalue = Value.ToString("F1");
+			}
+			svalue = GUILayout.TextField(svalue, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
+			if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
+			{
+				if(float.TryParse(svalue, out Value)) return true;
+				Value = cvalue;
+			}
+			return false;
+		}
+	}
+
 	//adapted from MechJeb
 	public class Coordinates
 	{
