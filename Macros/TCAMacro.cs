@@ -10,16 +10,19 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
 	public class Condition : TypedConfigNodeObject
 	{
+		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+
 		[Persistent] public bool or;
 		[Persistent] public Condition Next;
 		[Persistent] readonly PersistentBaseList<Condition> Alternatives = new PersistentBaseList<Condition>();
-
-		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		public bool Edit;
 
 		public bool True(VesselWrapper VSL)
 		{ 
@@ -34,8 +37,23 @@ namespace ThrottleControlledAvionics
 			return value;
 		}
 
-		public virtual void Draw() {}
 		protected virtual bool Evaluate(VesselWrapper VSL) { return false; }
+		protected virtual void DrawThis() {}
+
+		public void Draw()
+		{
+			GUILayout.BeginHorizontal();
+			if(Alternatives.Count > 0) GUILayout.Label("(");
+			DrawThis();
+			if(Alternatives.Count > 0) 
+			{
+				for(int i = 0, count = Alternatives.Count; i < count; i++) 
+					Alternatives[i].Draw();
+				GUILayout.Label(")");
+			}
+			if(Next != null) GUILayout.Label(or? "OR" : "AND");
+			GUILayout.EndHorizontal();
+		}
 
 		public void AddAlternative(Condition alt) { Alternatives.Add(alt); }
 		public bool RemoveAlternative(Condition alt) { return Alternatives.Remove(alt); }
@@ -46,42 +64,132 @@ namespace ThrottleControlledAvionics
 
 	public class MacroNode : TypedConfigNodeObject
 	{
+		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+
 		[Persistent] public string Name;
 		[Persistent] public Condition Condition = new TrueCondition();
 		[Persistent] public bool Active;
+		[Persistent] public bool Paused;
 		[Persistent] public MacroNode Parent;
 		[Persistent] public PersistentBaseList<MacroNode> Children = new PersistentBaseList<MacroNode>();
 		public bool HasChildren { get { return Children.Count > 0; } }
+		public bool Edit;
 
-		public VesselWrapper VSL;
-		protected VesselConfig CFG { get { return VSL.CFG; } }
-		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
-
-		public virtual bool Action() { return false; }
-		public virtual void Draw() {}
-
-		public bool Execute()
+		protected virtual bool Action(VesselWrapper VSL) { return false; }
+		protected virtual string Title
 		{
-			if(Active) return Action();
+			get
+			{
+				var title = Name;
+				if(Paused) title += " (paused)";
+				return title;
+			}
+		}
+		protected virtual void DrawThis() 
+		{ 
+			if(GUILayout.Button(Title, Edit? Styles.yellow_button : 
+				(Active? Styles.green_button : Styles.normal_button), GUILayout.ExpandWidth(true)))
+				Edit = !Edit;
+		}
+
+		public void Draw()
+		{
+			GUILayout.BeginVertical();
+			GUILayout.BeginHorizontal();
+			Condition.Draw(); DrawThis();
+			GUILayout.EndHorizontal();
+			var del = new List<int>();
+			for(int i = 0, count = Children.Count; i < count; i++)
+			{ 
+				var child = Children[i];
+				GUILayout.BeginHorizontal();
+				GUILayout.Space(20);
+				child.Draw();
+				if(GUILayout.Button("^", Styles.normal_button, GUILayout.Width(20)))
+					MoveUp(i);
+				if(child.Children.Count < 2 &&
+					GUILayout.Button("X", Styles.red_button, GUILayout.Width(20)))
+					del.Add(i);
+				GUILayout.EndHorizontal();
+			}
+			for(int i = 0, count = del.Count; i < count; i++) RemoveAt(del[i]);
+			GUILayout.EndVertical();
+		}
+
+		public bool Execute(VesselWrapper VSL)
+		{
+			if(Paused) return true;
+			if(Active) return Action(VSL);
 			if(Condition.True(VSL))
 			{
 				Active = true;
-				return Action();
+				return Action(VSL);
 			}
 			return true;
 		}
 
-		public MacroNode Next
+		public MacroNode Next(VesselWrapper VSL)
 		{
-			get
+			for(int i = 0, count = Children.Count; i < count; i++)
 			{
-				for(int i = 0, count = Children.Count; i < count; i++)
-				{
-					var child = Children.List[i];
-					if(child.Condition.True(VSL)) return child;
-				}
-				return null;
+				var child = Children[i];
+				if(child.Condition.True(VSL)) return child;
 			}
+			return null;
+		}
+
+		public void CopyFrom(MacroNode mn)
+		{
+			var node = new ConfigNode();
+			mn.Save(node);
+			Load(node);
+		}
+
+		public MacroNode GetCopy()
+		{
+			var mn = new MacroNode();
+			mn.CopyFrom(this);
+			return mn;
+		}
+
+		public void Add(MacroNode child)
+		{
+			child.Parent = this;
+			Children.Add(child);
+		}
+
+		public bool Remove(MacroNode child)
+		{ return RemoveAt(Children.IndexOf(child)); }
+
+		protected bool RemoveAt(int i)
+		{
+			if(i < 0 || i >= Children.Count) return false;
+			var child = Children[i];
+			if(child.Children.Count > 1) return false;
+			if(child.HasChildren)
+				Children[i] = child.Children[0];
+			else Children.Remove(child);
+			return true;
+		}
+
+		public bool MoveUp(int i)
+		{
+			if(i <= 0 || i >= Children.Count) return false;
+			var child  = Children[i];
+			var child1 = Children[i-1];
+			Children[i-1] = child;
+			Children[i] = child1;
+			return true;
+		}
+
+		public bool MoveDown(int i)
+		{
+			if(i < 0 || i >= Children.Count-1) return false;
+			var child  = Children[i];
+			var child1 = Children[i+1];
+			Children[i+1] = child;
+			Children[i] = child1;
+			return true;
 		}
 	}
 
@@ -89,19 +197,51 @@ namespace ThrottleControlledAvionics
 	{
 		[Persistent] public MacroNode Root;
 
-		public override bool Action()
+		protected override bool Action(VesselWrapper VSL)
 		{
 			if(Root == null) return false;
-			if(Root.Execute()) return true;
+			if(Root.Execute(VSL)) return true;
 			if(Root.HasChildren) 
 			{
-				var next = Root.Next;
+				var next = Root.Next(VSL);
 				if(next == null) return true;
 				Root = next;
-				return Root.Execute();
+				return Root.Execute(VSL);
 			}
 			Root = null;
 			return false;
+		}
+
+		protected override string Title 
+		{
+			get 
+			{
+				var title = Name;
+				if(Root != null) title += " ["+Root.Name+"]";
+				if(Paused) title += " (paused)";
+				return title;
+			}
+		}
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginVertical();
+			if(Edit) 
+			{
+				GUILayout.BeginHorizontal();
+				Name = GUILayout.TextField(Name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
+				if(GUILayout.Button("Done", Styles.green_button, GUILayout.Width(40))) Edit = false;
+				GUILayout.EndHorizontal();
+			}
+			else base.DrawThis();
+			if(Edit && Root != null) 
+			{
+				GUILayout.BeginHorizontal();
+				GUILayout.Space(20);
+				Root.Draw();
+				GUILayout.EndHorizontal();
+			}
+			GUILayout.EndVertical();
 		}
 	}
 }

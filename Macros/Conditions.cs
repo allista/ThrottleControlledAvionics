@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
 
 	public class AltLower : AltitudeCondition
 	{
-		public override void Draw()
+		protected override void DrawThis()
 		{ Utils.FloatSlider("Altitude is lower than", Altitude, float.MinValue, float.MaxValue, "0 m"); }
 
 		protected override bool Evaluate(VesselWrapper VSL)
@@ -31,7 +31,7 @@ namespace ThrottleControlledAvionics
 
 	public class AltHigher : AltitudeCondition
 	{
-		public override void Draw()
+		protected override void DrawThis()
 		{ Utils.FloatSlider("Altitude is higher than", Altitude, float.MinValue, float.MaxValue, "0 m"); }
 
 		protected override bool Evaluate(VesselWrapper VSL)
