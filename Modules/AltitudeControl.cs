@@ -170,7 +170,8 @@ namespace ThrottleControlledAvionics
 				              VSL.RelVerticalSpeed < 0 && 
 				              VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0 && 
 				              VSL.Altitude < CFG.DesiredAltitude-VSL.RelVerticalSpeed*ALT.TimeAhead);
-//				Log("error {0}, dV: {1}, VSP: {2}", error, dV, CFG.VerticalCutoff);//debug
+//				Log("error {0}, dV: {1}, VSP: {2}, min speed {3}, max speed {4}", 
+//				    error, dV, CFG.VerticalCutoff, min_speed, max_speed);//debug
 //				CSV(alt, VSL.vessel.altitude, VSL.TerrainAltitude, VSL.Altitude, VSL.AltitudeAhead, error, 
 //				    CFG.VerticalCutoff, VSL.VSF, VSL.MinVSF, VSL.AbsVerticalSpeed, VSL.RelVerticalSpeed, 
 //				    dV, min_speed, max_speed);//debug
