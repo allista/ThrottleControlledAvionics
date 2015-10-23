@@ -100,7 +100,6 @@ namespace ThrottleControlledAvionics
 			CollisionSpeed = -1;
 			VSL.TimeAhead = -1;
 			VSL.AltitudeAhead = float.MaxValue;
-			VSL.NHVf = 1;
 		}
 
 		void rewind()
@@ -149,6 +148,8 @@ namespace ThrottleControlledAvionics
 			//check the hit
 			if(CurHit.Maneuver == Sweep.ManeuverType.Horizontal)
 			{
+				//check if it is indeed a collision
+				if(CurHit.Altitude > VSL.H*RAD.MinAltitudeFactor) return;
 				//queue avoiding maneuver with CPS
 				side_collision = true;
 				var ray = CurHit.SideCollisionRay;
@@ -175,9 +176,10 @@ namespace ThrottleControlledAvionics
 			if(VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
 			{
 				if(CollisionSpeed < 0) CollisionSpeed = ClosingSpeed;
-				VSL.NHVf = Utils.ClampH(DetectedHit.Distance/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1);
+				VSL.CourseCorrections.Add(VSL.NeededHorVelocity*
+				                          (Utils.ClampH(DetectedHit.Distance/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1)-1));
 			} 
-			else { CollisionSpeed = -1; VSL.NHVf = 1; }
+			else { CollisionSpeed = -1; }
 //			Log("ALtAhead {0}, dH {1}, Obstacle {2}, NHVf {3}, DetectedSpeed {4}", 
 //			          VSL.AltitudeAhead, VSL.Altitude-VSL.AltitudeAhead, 
 //			    VSL.AltitudeAhead < VSL.H, 
@@ -301,11 +303,11 @@ namespace ThrottleControlledAvionics
 				Reset();
 				if(VSL.refT == null) return;
 				//cast the rays
-				var side = Vector3.Cross(VSL.Up, dir)*VSL.R;
+				var side = Vector3.Cross(VSL.Up, dir)*VSL.R*1.5f;
 				var cast_dir = Quaternion.AngleAxis(angle, side)*dir;
-				Valid |= L.Cast(VSL.wCoM-side, cast_dir, dist, VSL.R/4);
+				Valid |= L.Cast(VSL.wCoM-side, cast_dir, dist, VSL.R);
 				Valid |= C.Cast(VSL.wCoM,      cast_dir, dist, VSL.R);
-				Valid |= R.Cast(VSL.wCoM+side, cast_dir, dist, VSL.R/4);
+				Valid |= R.Cast(VSL.wCoM+side, cast_dir, dist, VSL.R);
 				if(Valid)
 				{
 					Distance = Mathf.Min(L.Distance, C.Distance, R.Distance);
