@@ -430,6 +430,16 @@ namespace ThrottleControlledAvionics
 		public static implicit operator bool(Switch s) { return s.state; }
 	}
 
+	public class SingleAction
+	{
+		bool done;
+
+		public void Run(Action action) 
+		{ if(!done) { action(); done = true; } }
+
+		public void Reset() { done = false; }
+	}
+
 	public class Multiplexer<T> : ConfigNodeObject where T : struct
 	{
 		[Persistent] public string State;
@@ -461,7 +471,6 @@ namespace ThrottleControlledAvionics
 		public void On(T key) 
 		{ 
 			if(Paused) return;
-			Utils.Log("{0}: On: {1}", GetType().Name, key);//debug
 			if(!key.Equals(state)) Off();
 			state = key;
 			Action<bool> callback;
@@ -471,7 +480,6 @@ namespace ThrottleControlledAvionics
 		public void Off() 
 		{ 
 			if(Paused || state.Equals(default(T))) return;
-			Utils.Log("{0}: Off: {1}", GetType().Name, state);//debug
 			var old_state = state; //prevents recursion
 			state = default(T);
 			Action<bool> callback;
@@ -558,6 +566,46 @@ namespace ThrottleControlledAvionics
 				return mvec;
 			}
 		}
+
+		public Vector3 MaxInPlane(Vector3 normal)
+		{
+			var maxm = 0f;
+			var max  = Vector3.zero;
+			var cvec = Vector3.zero;
+			for(int i = 0; i < 3; i++)
+			{
+				cvec.Zero();
+				cvec[i] = positive[i];
+				cvec = Vector3.ProjectOnPlane(cvec, normal);
+				var cvecm = cvec.sqrMagnitude;
+				if(cvecm > maxm) { max = cvec; maxm = cvecm; }
+				cvec[i] = negative[i];
+				cvec = Vector3.ProjectOnPlane(cvec, normal);
+				cvecm = cvec.sqrMagnitude;
+				if(cvecm > maxm) { max = cvec; maxm = cvecm; }
+			}
+			return max;
+		}
+
+		public Vector3 Project(Vector3 normal)
+		{
+			var proj = Vector3.zero;
+			var cvec = Vector3.zero;
+			for(int i = 0; i < 3; i++)
+			{
+				cvec.Zero();
+				cvec[i] = positive[i];
+				var projm = Vector3.Dot(cvec, normal);
+				if(projm > 0) proj += normal*projm;
+				cvec[i] = negative[i];
+				projm = Vector3.Dot(cvec, normal);
+				if(projm > 0) proj += normal*projm;
+			}
+			return proj;
+		}
+
+		public override string ToString()
+		{ return string.Format("Vector6:\nMax {0}\n+ {1}\n- {2}", Max, positive, negative); }
 	}
 
 	//from MechJeb2
