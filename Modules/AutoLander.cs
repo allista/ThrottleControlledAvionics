@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "LND";
 
 			[Persistent] public float MaxUnevenness        = 0.1f;
+			[Persistent] public float UnevennessThreshold  = 0.3f;
 			[Persistent] public float MaxHorizontalTime    = 5f;
 			[Persistent] public float MinVerticalSpeed     = 0.1f;
 			[Persistent] public float WideCheckAltitude    = 200f;
@@ -70,6 +71,7 @@ namespace ThrottleControlledAvionics
 			StopTimer.Period = LND.StopTimer;
 			CutoffTimer.Period = LND.CutoffTimer;
 			CFG.AP.AddCallback(Autopilot.Land, Enable);
+			TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.R));
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -304,7 +306,10 @@ namespace ThrottleControlledAvionics
 		void try_move_to_flattest()
 		{
 			NextNode = FlattestNode;
-			if(NextNode != null && distance_to_node(NextNode) > LND.NodeTargetRange*2) move_next();
+			if(NextNode != null && 
+			   distance_to_node(NextNode) > LND.NodeTargetRange*2 && 
+			   NextNode.unevenness > LND.UnevennessThreshold) 
+				move_next();
 			else wide_check(LND.WideCheckAltitude);
 		}
 
