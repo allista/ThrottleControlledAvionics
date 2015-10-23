@@ -51,7 +51,8 @@ namespace ThrottleControlledAvionics
 					Alternatives[i].Draw();
 				GUILayout.Label(")");
 			}
-			if(Next != null) GUILayout.Label(or? "OR" : "AND");
+			if(Next != null) 
+			{ if(GUILayout.Button(or? "OR" : "AND", Styles.normal_button)) or = !or; }
 			GUILayout.EndHorizontal();
 		}
 
@@ -75,6 +76,12 @@ namespace ThrottleControlledAvionics
 		public bool HasChildren { get { return Children.Count > 0; } }
 		public bool Edit;
 
+		/// <summary>
+		/// Perform the Action on a specified VSL.
+		/// Returns true if it is not finished and should be called on next update. 
+		/// False if it is finished.
+		/// </summary>
+		/// <param name="VSL">VesselWrapper</param>
 		protected virtual bool Action(VesselWrapper VSL) { return false; }
 		protected virtual string Title
 		{
@@ -95,8 +102,9 @@ namespace ThrottleControlledAvionics
 		public void Draw()
 		{
 			GUILayout.BeginVertical();
+			Condition.Draw();
 			GUILayout.BeginHorizontal();
-			Condition.Draw(); DrawThis();
+			GUILayout.Space(20); DrawThis();
 			GUILayout.EndHorizontal();
 			var del = new List<int>();
 			for(int i = 0, count = Children.Count; i < count; i++)
