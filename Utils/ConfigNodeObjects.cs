@@ -112,6 +112,7 @@ namespace ThrottleControlledAvionics
 		}
 		public void Add(T it) { List.Add(it); }
 		public bool Remove(T it) { return List.Remove(it); }
+		public int IndexOf(T it) { return List.IndexOf(it); }
 
 		public override void Save(ConfigNode node)
 		{
