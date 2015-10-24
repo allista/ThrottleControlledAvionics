@@ -526,7 +526,7 @@ namespace ThrottleControlledAvionics
 				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
 			}
 			MinVSFtwr = 1/Utils.ClampL(MaxTWR, 1);
-			var mVSFtor = (MaxPitchRollAA_m > 0)? Utils.ClampH(GLB.VSC.MinVSFf/MaxPitchRollAA_m, 0.9f*MinVSFtwr) : 0.1f*MinVSFtwr;
+			var mVSFtor = (MaxPitchRollAA_m > 0)? Utils.ClampH(GLB.VSC.MinVSFf/MaxPitchRollAA_m, GLB.VSC.MaxVSFtwr*MinVSFtwr) : 0.1f*MinVSFtwr;
 			MinVSF = Mathf.Lerp(0.1f*MinVSFtwr, mVSFtor, Mathf.Pow(Steering.sqrMagnitude, 0.25f));
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;

@@ -69,6 +69,7 @@ VSC
 	FallingTime       = 1    //min. time falling to trigger Loosing Altitude alert
 	MaxDeltaV         = 1
 	AccelThreshold    = 0.1
+	MaxVSFtwr         = 0.9
 }
 
 ALT

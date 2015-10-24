@@ -31,6 +31,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxDeltaV         = 0.5f;
 			[Persistent] public float FallingTime       = 0.5f;
 			[Persistent] public float AccelThreshold    = 0.1f;
+			[Persistent] public float MaxVSFtwr         = 0.9f;
 		}
 		static Config VSC { get { return TCAScenario.Globals.VSC; } }
 
