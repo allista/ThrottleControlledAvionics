@@ -226,7 +226,12 @@ namespace ThrottleControlledAvionics
 				}
 				else EnableManualTranslation(false);
 			}
-			else EnableManualTranslation(false);
+			else 
+			{
+				EnableManualTranslation(false);
+				if(thrust.IsZero()) 
+					thrust = VSL.refT.InverseTransformDirection(VSL.MaxThrust);
+			}
 			//calculate corresponding rotation
 			var attitude_error = Quaternion.FromToRotation(needed_thrust_dir, thrust);
 			var steering_error = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
