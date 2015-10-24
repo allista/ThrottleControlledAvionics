@@ -293,7 +293,10 @@ namespace ThrottleControlledAvionics
 		public void AltitudeAboveTerrain(bool state) { alt.SetAltitudeAboveTerrain(state); }
 		#endregion
 		void block_throttle(FlightCtrlState s)
-		{ if(CFG.Enabled && CFG.BlockThrottle && VSL.OnPlanet) s.mainThrottle = 1f; }
+		{ 
+			if(CFG.Enabled && CFG.BlockThrottle && VSL.OnPlanet) 
+				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff < 0? 0f : 1f;
+		}
 
 		public override void OnUpdate()
 		{
