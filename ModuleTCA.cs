@@ -315,8 +315,8 @@ namespace ThrottleControlledAvionics
 			State = TCAState.Enabled;
 			if(!VSL.ElectricChargeAvailible) return;
 			SetState(TCAState.HaveEC);
-			if(!VSL.CheckEngines()) return;
-			SetState(TCAState.HaveActiveEngines);
+			if(VSL.CheckEngines()) 
+				SetState(TCAState.HaveActiveEngines);
 			//update state
 			VSL.UpdateCommons();
 			if(VSL.NumActive > 0)
