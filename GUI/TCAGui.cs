@@ -387,7 +387,7 @@ namespace ThrottleControlledAvionics
 				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
 				                    CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor)? 
 				                    Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(65)))
+				                    GUILayout.Width(60)))
 				{
 					var state = !CFG.Nav[Navigation.Anchor];
 					apply_cfg(cfg => cfg.Nav[Navigation.AnchorHere] = state);
@@ -395,7 +395,7 @@ namespace ThrottleControlledAvionics
 				if(GUILayout.Button(new GUIContent("Level", "Point thrust vertically"), 
 				                    CFG.HF[HFlight.Level]? 
 				                    Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(65)))
+				                    GUILayout.Width(50)))
 				{
 					var state = !CFG.HF[HFlight.Level];
 					apply_cfg(cfg => cfg.HF[HFlight.Level] = state);
@@ -410,7 +410,7 @@ namespace ThrottleControlledAvionics
 				}
 				if(GUILayout.Button(new GUIContent("Cruise", "Maintain course and speed"), 
 				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(65)))
+				                    GUILayout.Width(60)))
 				{
 					CFG.HF.Toggle(HFlight.CruiseControl);
 					if(CFG.HF[HFlight.CruiseControl]) follow_me();
