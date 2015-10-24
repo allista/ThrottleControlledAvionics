@@ -62,7 +62,7 @@ namespace ThrottleControlledAvionics
 		public float   H { get; private set; } //height
 		public float   R { get; private set; } //radius
 		public float   M { get; private set; } //mass
-		public float   G { get { return (float)vessel.mainBody.GeeASL*Gee; } }
+		public float   G { get; private set; } //gee force
 		public float  DTWR { get; private set; }
 		public float  MaxDTWR { get; private set; }
 		public float  MaxTWR { get; private set; }
@@ -373,6 +373,8 @@ namespace ThrottleControlledAvionics
 			refT = vessel.ReferenceTransform;
 			Up   = (wCoM - vessel.mainBody.position).normalized; //duplicates vessel.upAxis, except it uses CoM instead of CurrentCoM
 			UpL  = refT.InverseTransformDirection(Up);
+			M    = vessel.GetTotalMass();
+			G    = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
 			//init engine wrappers
 			for(int i = 0; i < NumActive; i++) 
 			{
@@ -511,7 +513,6 @@ namespace ThrottleControlledAvionics
 					ManualThrust += e.wThrustDir*e.finalThrust;
 				}
 			}
-			M = vessel.GetTotalMass();
 			MaxTWR  = MaxThrust.magnitude/M/G;
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/M/G, 0.1f);
 			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/M/G : 0f;
