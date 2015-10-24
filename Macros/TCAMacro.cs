@@ -15,6 +15,21 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	public static class Components
+	{
+		public static SortedList<string, ComponentDB<Condition>.Factory> Conditions
+		{ get { return ComponentDB<Condition>.Components; } }
+
+		public static SortedList<string, ComponentDB<MacroNode>.Factory> Actions
+		{ get { return ComponentDB<MacroNode>.Components; } }
+
+		public static bool ConditionSelector(out Condition condition)
+		{ return ComponentDB<Condition>.Selector(out condition); }
+
+		public static bool ActionSelector(out MacroNode action)
+		{ return ComponentDB<MacroNode>.Selector(out action); }
+	}
+
 	public class Condition : TypedConfigNodeObject
 	{
 		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
@@ -22,7 +37,9 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool or;
 		[Persistent] public Condition Next;
 		[Persistent] readonly PersistentBaseList<Condition> Alternatives = new PersistentBaseList<Condition>();
+
 		public bool Edit;
+		public bool SelectAlternative, SelectNext;
 
 		public bool True(VesselWrapper VSL)
 		{ 
@@ -42,18 +59,26 @@ namespace ThrottleControlledAvionics
 
 		public void Draw()
 		{
-			GUILayout.BeginHorizontal();
 			if(Alternatives.Count > 0) GUILayout.Label("(");
 			DrawThis();
+			if(GUILayout.Button("|", Styles.normal_button, GUILayout.Width(20))) 
+				SelectAlternative = !SelectAlternative;
 			if(Alternatives.Count > 0) 
 			{
 				for(int i = 0, count = Alternatives.Count; i < count; i++) 
-					Alternatives[i].Draw();
+				{ Alternatives[i].Draw(); if(i < count-1) GUILayout.Label("|"); }
 				GUILayout.Label(")");
 			}
 			if(Next != null) 
-			{ if(GUILayout.Button(or? "OR" : "AND", Styles.normal_button)) or = !or; }
-			GUILayout.EndHorizontal();
+			{ 
+				if(GUILayout.Button(or? "OR" : "AND", Styles.normal_button, GUILayout.Width(20))) or = !or;
+				Next.Draw();
+			}
+			else 
+			{ 
+				if(GUILayout.Button("+", Styles.normal_button, GUILayout.Width(20))) 
+					SelectNext = !SelectNext;
+			}
 		}
 
 		public void AddAlternative(Condition alt) { Alternatives.Add(alt); }
@@ -74,7 +99,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public MacroNode Parent;
 		[Persistent] public PersistentBaseList<MacroNode> Children = new PersistentBaseList<MacroNode>();
 		public bool HasChildren { get { return Children.Count > 0; } }
-		public bool Edit;
+
+		public bool Edit, SelectNext, SelectCondition;
 
 		/// <summary>
 		/// Perform the Action on a specified VSL.
@@ -102,25 +128,41 @@ namespace ThrottleControlledAvionics
 		public void Draw()
 		{
 			GUILayout.BeginVertical();
+			GUILayout.BeginHorizontal();
 			Condition.Draw();
+			if(Edit && GUILayout.Button("Replace", Styles.red_button, GUILayout.Width(70)))
+				SelectCondition = !SelectCondition;
+			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Space(20); DrawThis();
 			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			GUILayout.Space(40);
+			GUILayout.BeginVertical();
 			var del = new List<int>();
 			for(int i = 0, count = Children.Count; i < count; i++)
 			{ 
 				var child = Children[i];
 				GUILayout.BeginHorizontal();
-				GUILayout.Space(20);
 				child.Draw();
-				if(GUILayout.Button("^", Styles.normal_button, GUILayout.Width(20)))
-					MoveUp(i);
-				if(child.Children.Count < 2 &&
-					GUILayout.Button("X", Styles.red_button, GUILayout.Width(20)))
-					del.Add(i);
+				if(Edit)
+				{
+					if(GUILayout.Button("^", Styles.normal_button, GUILayout.Width(20)))
+						MoveUp(i);
+					if(child.Children.Count < 2 &&
+						GUILayout.Button("X", Styles.red_button, GUILayout.Width(20)))
+						del.Add(i);
+				}
 				GUILayout.EndHorizontal();
 			}
-			for(int i = 0, count = del.Count; i < count; i++) RemoveAt(del[i]);
+			if(Edit)
+			{
+				for(int i = 0, count = del.Count; i < count; i++) RemoveAt(del[i]);
+				if(GUILayout.Button("Add Next", Styles.normal_button, GUILayout.ExpandWidth(true)))
+					SelectNext = !SelectNext;
+			}
+			GUILayout.EndVertical();
+			GUILayout.EndHorizontal();
 			GUILayout.EndVertical();
 		}
 
@@ -251,6 +293,25 @@ namespace ThrottleControlledAvionics
 			}
 			GUILayout.EndVertical();
 		}
+	}
+
+	public class TCAMacroEditor
+	{
+		public int Height = 400;
+		public TCAMacro Macro;
+		Vector2 scroll;
+
+		public void Draw()
+		{
+			if(Macro == null) return;
+			GUILayout.BeginVertical(Styles.white);
+			scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(Height));
+			Macro.Draw();
+			GUILayout.EndScrollView();
+			GUILayout.EndVertical();
+		}
+
+
 	}
 }
 
