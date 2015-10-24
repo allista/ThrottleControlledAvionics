@@ -295,7 +295,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class TCAMacroEditor
+	public class TCAMacroViewer
 	{
 		public int Height = 400;
 		public TCAMacro Macro;
@@ -310,8 +310,12 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndScrollView();
 			GUILayout.EndVertical();
 		}
+	}
 
-
+	[KSPAddon(KSPAddon.Startup.EveryScene, false)]
+	public class TCAMacroEditor : AddonWindowBase<TCAMacroEditor>
+	{
+		readonly TCAMacroViewer Viewer = new TCAMacroViewer();
 	}
 }
 
