@@ -197,7 +197,7 @@ namespace ThrottleControlledAvionics
 					if(rcs != null) { RCS.Add(new RCSWrapper(rcs)); continue; }
 				}
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines);
-			else CFG.ActiveProfile.Update(Engines);
+			else if(CFG.Enabled) CFG.ActiveProfile.Update(Engines);
 		}
 
 		public bool CheckEngines()
@@ -217,6 +217,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < num_engines; i++)
 			{ var e = Engines[i]; if(e.engine.flameout) e.forceThrustPercentage(1); }
 			//sync with active profile
+			if(CFG.ActiveProfile.Activated) CFG.ActiveProfile.OnActivated(this);
 			if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(Engines);
 			else CFG.ActiveProfile.Update(Engines);
 			//get active engines
