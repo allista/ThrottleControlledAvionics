@@ -68,12 +68,56 @@ namespace ThrottleControlledAvionics
 
 	public class StopNode : MacroNode
 	{
-		protected override void DrawThis()
-		{ GUILayout.Label("Stop", Styles.red); }
+		public StopNode() { Name = "Stop"; }
 
 		protected override bool Action(VesselWrapper VSL)
 		{
 			VSL.CFG.HF.On(HFlight.Stop);
+			return false;
+		}
+	}
+
+	public class LevelNode : MacroNode
+	{
+		public LevelNode() { Name = "Level"; }
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			VSL.CFG.HF.On(HFlight.Level);
+			return false;
+		}
+	}
+
+	public class HoverNode : MacroNode
+	{
+		public HoverNode() { Name = "Hover"; }
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			VSL.CFG.VF.On(VFlight.AltitudeControl);
+			return false;
+		}
+	}
+
+	public class AnchorNode : MacroNode
+	{
+		public AnchorNode() { Name = "Anchor"; }
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			VSL.CFG.Nav.On(Navigation.AnchorHere);
+			return false;
+		}
+	}
+
+	public class GoToNode : MacroNode
+	{
+		public GoToNode() { Name = "Go To"; }
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(!VSL.HasTarget) return true;
+			VSL.CFG.Nav.On(Navigation.GoToTarget);
 			return false;
 		}
 	}
