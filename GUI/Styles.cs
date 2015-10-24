@@ -19,6 +19,7 @@ namespace ThrottleControlledAvionics
 		public static GUISkin skin;
 
 		public static GUIStyle normal_button;
+		public static GUIStyle grey_button;
 		public static GUIStyle red_button;
 		public static GUIStyle dark_red_button;
 		public static GUIStyle green_button;
@@ -73,6 +74,7 @@ namespace ThrottleControlledAvionics
 			normal_button = GUI.skin.button.OtherColor(Color.white, Color.yellow);
 			normal_button.padding = new RectOffset (4, 4, 4, 4);
 
+			grey_button        = normal_button.OtherColor(Color.grey, Color.white);
 			red_button         = normal_button.OtherColor(Color.red, Color.white);
 			dark_red_button    = red_button.OtherColor(new Color(0.6f, 0, 0, 1));
 			green_button       = red_button.OtherColor(Color.green);

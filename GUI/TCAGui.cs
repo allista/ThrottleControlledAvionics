@@ -158,8 +158,8 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
 			//tca toggle
-			if(GUILayout.Button(CFG.Enabled? "Disable" : "Enable", 
-			                    CFG.Enabled? Styles.red_button : Styles.green_button,
+			if(GUILayout.Button("Enabled", 
+			                    CFG.Enabled? Styles.green_button : Styles.grey_button,
 			                    GUILayout.Width(70)))
 				Apply(tca => tca.ToggleTCA());
 			//squad mode switch
@@ -391,6 +391,14 @@ namespace ThrottleControlledAvionics
 				{
 					var state = !CFG.Nav[Navigation.Anchor];
 					apply_cfg(cfg => cfg.Nav[Navigation.AnchorHere] = state);
+				}
+				if(GUILayout.Button(new GUIContent("Level", "Point thrust vertically"), 
+				                    CFG.HF[HFlight.Level]? 
+				                    Styles.green_button : Styles.yellow_button,
+				                    GUILayout.Width(65)))
+				{
+					var state = !CFG.HF[HFlight.Level];
+					apply_cfg(cfg => cfg.HF[HFlight.Level] = state);
 				}
 				if(GUILayout.Button(new GUIContent("Land", "Try to land on a nearest flat surface"), 
 				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
