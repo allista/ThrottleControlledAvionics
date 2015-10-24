@@ -79,8 +79,8 @@ namespace ThrottleControlledAvionics
 			                      /Mathf.Pow(Utils.ClampL(VSL.VerticalAccel/VSC.K1+1, VSC.L1), 2f)
 			                      +upAF);
 			VSL.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.MinVSF);
-//			Log("VSP {0}, setpoint {1}, setpoint correction {2}, err {3}, K {4}, VSF {5}",
-//			    CFG.VerticalCutoff, setpoint, setpoint_correction, err, K, VSL.VSF);//debug
+			Log("VSP {0}, setpoint {1}, setpoint correction {2}, err {3}, K {4}, VSF {5}, DTWR {6}, MinVSF {7}, G {8}",
+			    CFG.VerticalCutoff, setpoint, setpoint_correction, err, K, VSL.VSF, VSL.DTWR, VSL.MinVSF, VSL.G);//debug
 			if(VSL.LandedOrSplashed) return;
 			//loosing altitude alert
 			if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
