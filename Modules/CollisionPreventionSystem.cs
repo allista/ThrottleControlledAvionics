@@ -227,18 +227,18 @@ namespace ThrottleControlledAvionics
 				else 
 				{
 					ManeuverTimer.Reset();
-//					Log("Correction*correction {0}:\n{1}\n{2}",
-//					    Vector3.Dot(Correction, correction), Correction, correction);//debug
 					Correction = correction;
 				}
 			}
 			if(Correction.IsZero()) return;
 			pid.Update(Correction);
-//			Log("Correction*action {0}:\n{1}\n{2}",
-//			    Vector3.Dot(Correction, pid.Action), Correction, pid.Action);//debug
 			//correct needed vertical speed
 			if(CFG.VF[VFlight.AltitudeControl])
+			{
 				CFG.VerticalCutoff += (float)Vector3d.Dot(pid.Action, VSL.Up);
+				Log("Correction {0}\ncorrectins {1}, dVSP {2}", 
+				    Correction, Corrections.Count, Vector3d.Dot(pid.Action, VSL.Up));//debug
+			}
 			//correct horizontal course
 			VSL.CourseCorrections.Add(Vector3d.Exclude(VSL.Up, pid.Action));
 		}
