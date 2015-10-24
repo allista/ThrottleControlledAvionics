@@ -236,8 +236,8 @@ namespace ThrottleControlledAvionics
 			if(CFG.VF[VFlight.AltitudeControl])
 			{
 				CFG.VerticalCutoff += (float)Vector3d.Dot(pid.Action, VSL.Up);
-				Log("Correction {0}\ncorrectins {1}, dVSP {2}", 
-				    Correction, Corrections.Count, Vector3d.Dot(pid.Action, VSL.Up));//debug
+//				Log("Correction {0}\ncorrectins {1}, dVSP {2}", 
+//				    Correction, Corrections.Count, Vector3d.Dot(pid.Action, VSL.Up));//debug
 			}
 			//correct horizontal course
 			VSL.CourseCorrections.Add(Vector3d.Exclude(VSL.Up, pid.Action));
