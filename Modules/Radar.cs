@@ -152,7 +152,6 @@ namespace ThrottleControlledAvionics
 			ViewAngle     = -RAD.MaxViewAngle/2+RAD.DeltaAngle*RayI;
 			MaxDistance   = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
 			CurHit.Cast(Dir, ViewAngle, MaxDistance);
-//			Log("CurHit {0}", CurHit);//debug
 			RayI++;
 			//check the hit
 			if(CurHit.Valid)
@@ -178,32 +177,22 @@ namespace ThrottleControlledAvionics
 				else //if obstacle is stright ahead
 				{
 					if(CurHit < BestHit) BestHit.Copy(CurHit);
-	//				Log("BestHit {0}", BestHit);//debug
 					if(BestHit.Valid && (BestHit < DetectedHit || RayI > RAD.NumRays))
 					{   //rewind the ray if something is found
 						DetectedHit.Copy(BestHit);
-	//					Log("Detected Updated {0}", DetectedHit);//debug
 						rewind();
 					}
 				}
 			}
 			//if on side collision course, correct it
-//			Log("Side Maneuver: {0}", side_maneuver);
 			if(!side_maneuver.IsZero()) VSL.CourseCorrections.Add(side_maneuver);
 			//update collision info if detected something
 			VSL.TimeAhead = -1;
 			DistanceAhead = -1;
 			RelObstaclePosition = Vector3.zero;
 			if(DetectedHit.Valid)
-			{
-//				Log("Detected {0}", DetectedHit);//debug
-				//update altitude ahead and time ahead
 				VSL.AltitudeAhead = VSL.AltitudeAhead.Equals(float.MaxValue)? DetectedHit.Altitude 
 					: Utils.EWA(VSL.AltitudeAhead, DetectedHit.Altitude, RAD.AltitudeFilter);
-//				Log("ALtAhead {0}, Obstacle {1}, DetectedSpeed {2}, DistanceAhead {3}", 
-//				    VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2), CollisionSpeed > 0, 
-//				    CollisionSpeed, DistanceAhead);//debug
-			}
 			//check for possible stright collision
 			if(VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
 			{ 
@@ -222,7 +211,6 @@ namespace ThrottleControlledAvionics
 						-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.MaxPitchRollAA_m;
 				else dV = -VSL.NeededHorVelocity;
 				VSL.CourseCorrections.Add(dV);
-//				Log("Correction: {0}", dV);//debug
 			}
 			else CollisionSpeed = -1;
 		}
