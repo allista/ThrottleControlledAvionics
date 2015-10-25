@@ -134,7 +134,10 @@ namespace ThrottleControlledAvionics
 				SelectCondition = !SelectCondition;
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
-			GUILayout.Space(20); DrawThis();
+			GUILayout.Space(20); 
+			DrawThis();
+			if(Active && GUILayout.Button("||", Paused? Styles.green_button : Styles.yellow_button, GUILayout.Width(20)))
+				Paused = !Paused;
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Space(40);
@@ -197,7 +200,9 @@ namespace ThrottleControlledAvionics
 
 		public MacroNode GetCopy()
 		{
-			var mn = new MacroNode();
+			var constInfo = GetType().GetConstructor(null);
+			if(constInfo == null) return null;
+			var mn = (MacroNode)constInfo.Invoke(null);
 			mn.CopyFrom(this);
 			return mn;
 		}
@@ -295,6 +300,39 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	public class TCAMacroLibrary : TypedConfigNodeObject
+	{
+		[Persistent] public PersistentBaseList<TCAMacro> DB = new PersistentBaseList<TCAMacro>();
+
+		public void SaveMacro(TCAMacro macro, bool overwrite = false)
+		{
+			var old_macro = DB.List.FindIndex(m => m.Name == macro.Name);
+			if(old_macro < 0) 
+			{ DB.Add(macro); DB.List.Sort((a,b) => a.Name.CompareTo(b.Name)); }
+			else if(overwrite) DB[old_macro] = macro;
+		}
+
+		public bool Remove(TCAMacro macro) { return DB.List.Remove(macro); }
+		public TCAMacro Get(string name) { return DB.List.Find(m => m.Name == name); }
+
+		Vector2 scroll;
+		public bool Selector(out TCAMacro macro)
+		{
+			var ret = false;
+			macro = null;
+			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(110));
+			GUILayout.BeginVertical();
+			foreach(var m in DB.List)
+			{
+				if(GUILayout.Button(m.Name, Styles.normal_button, GUILayout.ExpandWidth(true)))
+				{ macro = (TCAMacro)m.GetCopy(); ret = true; }
+			}
+			GUILayout.EndVertical();
+			GUILayout.EndScrollView();
+			return ret;
+		}
+	}
+
 	public class TCAMacroViewer
 	{
 		public int Height = 400;
@@ -315,7 +353,46 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.EveryScene, false)]
 	public class TCAMacroEditor : AddonWindowBase<TCAMacroEditor>
 	{
+		const string LockName = "TCAMacroEditor";
+
 		readonly TCAMacroViewer Viewer = new TCAMacroViewer();
+		VesselConfig CFG;
+
+		public void Show(VesselConfig cfg)
+		{ 
+			CFG = cfg;
+			if(CFG == null) { Viewer.Macro = null; return; }
+			Viewer.Macro = CFG.SelectedMacro;
+		}
+
+		protected override void DrawMainWindow(int windowID)
+		{
+			base.DrawMainWindow(windowID);
+		}
+
+		void DrawSelectors(int windowID)
+		{
+//			DrawWindow();
+		}
+
+		public void OnGUI()
+		{
+			if(CFG == null || !CFG.GUIVisible || !showHUD) 
+			{
+				Utils.LockIfMouseOver(LockName, MainWindow, false);
+				return;
+			}
+			Styles.Init();
+			Utils.LockIfMouseOver(LockName, MainWindow);
+			MainWindow = 
+				GUILayout.Window(GetInstanceID(), 
+				                 MainWindow, 
+				                 DrawMainWindow, 
+				                 TCATitle,
+				                 GUILayout.Width(width),
+				                 GUILayout.Height(height));
+			MainWindow.clampToScreen();
+		}
 	}
 }
 
