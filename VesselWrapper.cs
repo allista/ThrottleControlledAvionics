@@ -46,6 +46,7 @@ namespace ThrottleControlledAvionics
 		public List<ModuleReactionWheel> RWheels = new List<ModuleReactionWheel>();
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
+		public bool CanUpdateEngines = true;
 
 		public int  NumActive { get; private set; }
 		public int  NumActiveRCS { get; private set; }
@@ -154,6 +155,7 @@ namespace ThrottleControlledAvionics
 
 		public void Init() 
 		{
+			CanUpdateEngines = true;
 			AltitudeAhead = float.MaxValue;
 			OnPlanet = _OnPlanet();
 		}
@@ -197,7 +199,7 @@ namespace ThrottleControlledAvionics
 					if(rcs != null) { RCS.Add(new RCSWrapper(rcs)); continue; }
 				}
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines);
-			else if(CFG.Enabled) CFG.ActiveProfile.Update(Engines);
+			else if(CFG.Enabled && CanUpdateEngines) CFG.ActiveProfile.Update(Engines);
 		}
 
 		public bool CheckEngines()
@@ -219,7 +221,7 @@ namespace ThrottleControlledAvionics
 			//sync with active profile
 			if(CFG.ActiveProfile.Activated) CFG.ActiveProfile.OnActivated(this);
 			if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(Engines);
-			else CFG.ActiveProfile.Update(Engines);
+			else if(CanUpdateEngines) CFG.ActiveProfile.Update(Engines);
 			//get active engines
 			ActiveEngines.Clear(); ActiveEngines.Capacity = Engines.Count;
 			for(int i = 0; i < num_engines; i++)
@@ -275,6 +277,7 @@ namespace ThrottleControlledAvionics
 				//calculate min imbalance
 				var min_imbalance = Vector3.zero;
 				for(int i = 0; i < NumActive; i++) min_imbalance += ActiveEngines[i].Torque(0);
+				min_imbalance = E_TorqueLimits.Clamp(min_imbalance);
 				//correct VerticalSpeedFactor if needed
 				if(!min_imbalance.IsZero())
 				{
