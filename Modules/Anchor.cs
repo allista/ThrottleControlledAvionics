@@ -62,7 +62,9 @@ namespace ThrottleControlledAvionics
 		public void AnchorHere(bool enable = true)
 		{
 			CFG.Anchor = enable? 
-				new WayPoint(VSL.vessel.latitude, VSL.vessel.longitude) : null;
+				new WayPoint(VSL.mainBody.GetLatitude(VSL.wCoM), 
+				             VSL.mainBody.GetLongitude(VSL.wCoM)) 
+				: null;
 			Enable(enable);
 		}
 
@@ -73,7 +75,7 @@ namespace ThrottleControlledAvionics
 			CFG.Anchor.Update(VSL.mainBody);
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position - 
-			                                  (VSL.vessel.transform.position+
+			                                  (VSL.wCoM+
 			                                   VSL.PredictedSrfVelocity(ANC.LookAheadTime)*ANC.LookAheadTime), 
 			                                  VSL.Up);
 			var distance = vdir.magnitude;
