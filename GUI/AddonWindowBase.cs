@@ -111,9 +111,12 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		/// <param name="windowID">Window ID</param>
 		protected virtual void DrawMainWindow(int windowID)
+		{ DrawWindow(windowID, MainWindow); }
+
+		protected virtual void DrawWindow(int windowID, Rect window_rect)
 		{
 			GetToolTip();
-			DrawToolTip(MainWindow);
+			DrawToolTip(window_rect);
 			GUI.DragWindow(drag_handle);
 		}
 	}
