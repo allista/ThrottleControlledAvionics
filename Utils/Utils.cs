@@ -432,10 +432,14 @@ namespace ThrottleControlledAvionics
 			component = null;
 			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(110));
 			GUILayout.BeginVertical();
-			foreach(var c in Components.Keys)
+			for(int i = 0, count = Components.Keys.Count; i < count; i++)
 			{
+				var c = Components.Keys[i];
 				if(GUILayout.Button(c, Styles.normal_button, GUILayout.ExpandWidth(true)))
-				{ component = Components[c](); ret = true; }
+				{
+					component = Components[c]();
+					ret = true;
+				}
 			}
 			GUILayout.EndVertical();
 			GUILayout.EndScrollView();
