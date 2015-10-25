@@ -455,8 +455,10 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
-					GUILayout.Label(new GUIContent("Go To", "No target selected"),  Styles.grey, GUILayout.Width(50));
-					GUILayout.Label(new GUIContent("Follow", "No target selected"),  Styles.grey, GUILayout.Width(50));
+					GUILayout.Label(new GUIContent("Go To", CFG.Nav.Paused? "Paused" : "No target selected"),  
+					                Styles.grey, GUILayout.Width(50));
+					GUILayout.Label(new GUIContent("Follow", CFG.Nav.Paused? "Paused" : "No target selected"),  
+					                Styles.grey, GUILayout.Width(50));
 				}
 				if(squad_mode)
 				{
@@ -501,7 +503,8 @@ namespace ThrottleControlledAvionics
 							follow_me();
 					}
 				}
-				else GUILayout.Label(new GUIContent("Follow Route", "Add some waypoints first"), Styles.grey, GUILayout.Width(90));
+				else GUILayout.Label(new GUIContent("Follow Route", CFG.Nav.Paused? "Paused" : "Add some waypoints first"), 
+				                     Styles.grey, GUILayout.Width(90));
 				var max_nav_speed = Utils.FloatSlider("", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "0 m/s", 60, "Maximum horizontal speed on autopilot");
 				if(Mathf.Abs(max_nav_speed-CFG.MaxNavSpeed) > 1e-5)
 					apply_cfg(cfg => cfg.MaxNavSpeed = max_nav_speed);
