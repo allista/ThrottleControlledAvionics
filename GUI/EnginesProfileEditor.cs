@@ -119,10 +119,24 @@ namespace ThrottleControlledAvionics
 
 		protected override void DrawMainWindow(int windowID)
 		{
+			GUILayout.BeginVertical();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("On Launch:", GUILayout.ExpandWidth(false));
+			if(Utils.ButtonSwitch("Enable TCA", CFG.Enabled, "", GUILayout.ExpandWidth(false)))
+				CFG.Enabled = !CFG.Enabled;
+			if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Enable Altitude Control", GUILayout.ExpandWidth(false)))
+				CFG.VF.Toggle(VFlight.AltitudeControl);
+			if(Utils.ButtonSwitch("Follow Terrain", CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false)))
+				CFG.AltitudeAboveTerrain = !CFG.AltitudeAboveTerrain;
+			if(Utils.ButtonSwitch("Use Throttle", CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false)))
+				CFG.BlockThrottle = !CFG.BlockThrottle;
+			GUILayout.EndHorizontal();
 			CFG.EnginesProfiles.Draw(height);
 			if(CFG.ActiveProfile.Changed)
 				CFG.ActiveProfile.Apply(Engines);
+			GUILayout.EndVertical();
 			base.DrawMainWindow(windowID);
+
 		}
 
 		public void OnGUI()
