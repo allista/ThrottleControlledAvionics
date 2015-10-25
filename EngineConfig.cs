@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
 		new public const string NODE_NAME = "ENGINECFG";
 		const float lim_eps = 1e-5f;
 
-		[Persistent] string Name;
+		[Persistent] public string Name;
 		[Persistent] public bool On;
 		[Persistent] public float Limit;
 		[Persistent] string role;
