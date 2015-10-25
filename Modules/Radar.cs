@@ -196,24 +196,13 @@ namespace ThrottleControlledAvionics
 			RelObstaclePosition = Vector3.zero;
 			if(DetectedHit.Valid)
 			{
-				if(!VSL.Destination.IsZero())
-				{
-					var ObstacleFromDestination = DetectedHit.CenterCollisionRay.CollisionPoint-VSL.Destination;
-					if(Vector3d.Dot(ObstacleFromDestination, VSL.Destination) > 0 &&
-					   Vector3d.Dot(SurfaceVelocity, VSL.Destination) > 0 &&
-					   ObstacleFromDestination.magnitude-VSL.R*2 > 0)
-						VSL.AltitudeAhead = VSL.Altitude;
-				}
-				else
-				{
-	//				Log("Detected {0}", DetectedHit);//debug
-					//update altitude ahead and time ahead
-					VSL.AltitudeAhead = VSL.AltitudeAhead.Equals(float.MaxValue)? DetectedHit.Altitude 
-						: Utils.EWA(VSL.AltitudeAhead, DetectedHit.Altitude, RAD.AltitudeFilter);
-	//				Log("ALtAhead {0}, Obstacle {1}, DetectedSpeed {2}, DistanceAhead {3}", 
-	//				    VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2), CollisionSpeed > 0, 
-	//				    CollisionSpeed, DistanceAhead);//debug
-				}
+//				Log("Detected {0}", DetectedHit);//debug
+				//update altitude ahead and time ahead
+				VSL.AltitudeAhead = VSL.AltitudeAhead.Equals(float.MaxValue)? DetectedHit.Altitude 
+					: Utils.EWA(VSL.AltitudeAhead, DetectedHit.Altitude, RAD.AltitudeFilter);
+//				Log("ALtAhead {0}, Obstacle {1}, DetectedSpeed {2}, DistanceAhead {3}", 
+//				    VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2), CollisionSpeed > 0, 
+//				    CollisionSpeed, DistanceAhead);//debug
 			}
 			//check for possible stright collision
 			if(VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
