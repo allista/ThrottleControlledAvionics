@@ -55,8 +55,7 @@ namespace ThrottleControlledAvionics
 			jets_pid.setPID(ALT.JetsPID);
 			Falling.Period = ALT.FallingTime;
 			CFG.VF.AddCallback(VFlight.AltitudeControl, Enable);
-			if(VSL.LandedOrSplashed && CFG.DesiredAltitude > 0)
-				CFG.DesiredAltitude = -10;
+			if(VSL.LandedOrSplashed) CFG.DesiredAltitude = -10;
 		}
 
 		public override void UpdateState()
@@ -112,7 +111,7 @@ namespace ThrottleControlledAvionics
 			//calculate altitude error
 			var error = (CFG.DesiredAltitude-alt);
 			//turn off the engines if landed
-			if(VSL.LandedOrSplashed && error < 0)
+			if(VSL.LandedOrSplashed && error < 0 && VSL.RelAltitude <= VSL.R)
 			{
 				CFG.VerticalCutoff = -GLB.VSC.MaxSpeed;
 				return;
