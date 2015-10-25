@@ -113,6 +113,7 @@ namespace ThrottleControlledAvionics
 		public Vector3d ForwardDirection;
 		public List<Vector3d> CourseCorrections = new List<Vector3d>();
 		public Vector3d CourseCorrection;
+		public Vector3d Destination;
 
 		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
 		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, Up); } }

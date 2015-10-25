@@ -81,7 +81,7 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
-			if(VSL == null || VSL.vessel == null) return;
+			if(VSL == null || VSL.vessel == null || !IsActive) return;
 			GLUtils.GLVec(VSL.wCoM, Dir*MaxDistance, Color.green);
 			CurHit.Draw();
 		}
@@ -96,7 +96,9 @@ namespace ThrottleControlledAvionics
 		public override void UpdateState() 
 		{ 
 			IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed && 
-				CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain; 
+				CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain;
+			if(IsActive) return;
+			reset();
 		}
 
 		void reset()
@@ -104,10 +106,10 @@ namespace ThrottleControlledAvionics
 			rewind();
 			DetectedHit.Reset();
 			CollisionSpeed = -1;
-			VSL.TimeAhead = -1;
+			VSL.TimeAhead  = -1;
+			DistanceAhead  = -1;
 			VSL.AltitudeAhead = float.MaxValue;
 			RelObstaclePosition = Vector3.zero;
-			DistanceAhead = -1;
 		}
 
 		void rewind()
@@ -126,27 +128,7 @@ namespace ThrottleControlledAvionics
 			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
 			   (zero_needed || CFG.DesiredAltitude < RAD.MinAltitude))
 			{ reset(); return; }
-			//update state if previously detected something
 //			Log("============================== Ray {0} ==============================", RayI);//debug
-			DistanceAhead = -1;
-			RelObstaclePosition = Vector3.zero;
-			if(DetectedHit.Valid)
-			{
-//				Log("Detected {0}", DetectedHit);//debug
-				//update altitude ahead and time ahead
-				VSL.AltitudeAhead = VSL.AltitudeAhead.Equals(float.MaxValue)? DetectedHit.Altitude 
-					: Utils.EWA(VSL.AltitudeAhead, DetectedHit.Altitude, RAD.AltitudeFilter);
-				VSL.TimeAhead = CollisionSpeed > 0? DetectedHit.Distance/CollisionSpeed : -1;
-				if(CollisionSpeed > 0)
-				{
-					RelObstaclePosition = Vector3.ProjectOnPlane(DetectedHit.CenterCollisionRay.CollisionPoint-VSL.wCoM, VSL.Up);
-					DistanceAhead = Utils.ClampL(RelObstaclePosition.magnitude-VSL.R, 0.1f);
-				}
-//				Log("ALtAhead {0}, Obstacle {1}, DetectedSpeed {2}, DistanceAhead {3}", 
-//				    VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2), CollisionSpeed > 0, 
-//				    CollisionSpeed, DistanceAhead);//debug
-			}
-			else VSL.TimeAhead = -1;
 			//closing speed and starting ray direction
 			Dir = Vector3.zero;
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
@@ -165,28 +147,6 @@ namespace ThrottleControlledAvionics
 					Vector3d.Exclude(VSL.Up, VSL.Fwd).normalized : 
 					VSL.NeededHorVelocity.normalized;
 			ClosingSpeed = Utils.ClampL(Vector3.Dot(SurfaceVelocity, Dir), RAD.MinClosingSpeed);
-			//check for possible collision
-			if(VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
-			{ if(CollisionSpeed < 0) CollisionSpeed = ClosingSpeed; }
-			else CollisionSpeed = -1;
-			//if on collision course, correct it
-//			Log("Side Maneuver: {0}", side_maneuver);
-			if(!side_maneuver.IsZero()) VSL.CourseCorrections.Add(side_maneuver);
-			if(CollisionSpeed > 0) 
-			{
-				var dV = Vector3d.zero;
-				if(DistanceAhead > RAD.MinDistanceAhead)
-					dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
-						-Math.Sqrt(1-Utils.ClampH(DistanceAhead/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1));
-				else if(DistanceAhead > RAD.MinDistanceAhead/2)
-					dV = -VSL.NeededHorVelocity;
-				else if(Vector3d.Dot(SurfaceVelocity, RelObstaclePosition) > 0)
-					dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
-						-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.MaxPitchRollAA_m;
-				else dV = -VSL.NeededHorVelocity;
-				VSL.CourseCorrections.Add(dV);
-//				Log("Correction: {0}", dV);//debug
-			}
 			//cast the ray
 			if(RayI > RAD.NumRays) reset();
 			ViewAngle     = -RAD.MaxViewAngle/2+RAD.DeltaAngle*RayI;
@@ -194,9 +154,9 @@ namespace ThrottleControlledAvionics
 			CurHit.Cast(Dir, ViewAngle, MaxDistance);
 //			Log("CurHit {0}", CurHit);//debug
 			RayI++;
+			//check the hit
 			if(CurHit.Valid)
 			{
-				//check the hit
 				if(CurHit.Maneuver == Sweep.ManeuverType.Horizontal)
 				{
 					//check if it is indeed a collision
@@ -214,18 +174,68 @@ namespace ThrottleControlledAvionics
 						   side_maneuver.sqrMagnitude < maneuver.sqrMagnitude)
 							side_maneuver = maneuver;
 					}
-					return;
 				}
-				//if obstacle is stright ahead
-				if(CurHit < BestHit) BestHit.Copy(CurHit);
-//				Log("BestHit {0}", BestHit);//debug
-				if(BestHit.Valid && (BestHit < DetectedHit || RayI > RAD.NumRays))
-				{   //rewind the ray if something is found
-					DetectedHit.Copy(BestHit);
-//					Log("Detected Updated {0}", DetectedHit);//debug
-					rewind();
+				else //if obstacle is stright ahead
+				{
+					if(CurHit < BestHit) BestHit.Copy(CurHit);
+	//				Log("BestHit {0}", BestHit);//debug
+					if(BestHit.Valid && (BestHit < DetectedHit || RayI > RAD.NumRays))
+					{   //rewind the ray if something is found
+						DetectedHit.Copy(BestHit);
+	//					Log("Detected Updated {0}", DetectedHit);//debug
+						rewind();
+					}
 				}
 			}
+			//if on side collision course, correct it
+//			Log("Side Maneuver: {0}", side_maneuver);
+			if(!side_maneuver.IsZero()) VSL.CourseCorrections.Add(side_maneuver);
+			//update collision info if detected something
+			VSL.TimeAhead = -1;
+			DistanceAhead = -1;
+			RelObstaclePosition = Vector3.zero;
+			if(DetectedHit.Valid)
+			{
+				if(!VSL.Destination.IsZero())
+				{
+					var ObstacleFromDestination = DetectedHit.CenterCollisionRay.CollisionPoint-VSL.Destination;
+					if(Vector3d.Dot(ObstacleFromDestination, VSL.Destination) > 0 &&
+					   Vector3d.Dot(SurfaceVelocity, VSL.Destination) > 0 &&
+					   ObstacleFromDestination.magnitude-VSL.R*2 > 0)
+						VSL.AltitudeAhead = VSL.Altitude;
+				}
+				else
+				{
+	//				Log("Detected {0}", DetectedHit);//debug
+					//update altitude ahead and time ahead
+					VSL.AltitudeAhead = VSL.AltitudeAhead.Equals(float.MaxValue)? DetectedHit.Altitude 
+						: Utils.EWA(VSL.AltitudeAhead, DetectedHit.Altitude, RAD.AltitudeFilter);
+	//				Log("ALtAhead {0}, Obstacle {1}, DetectedSpeed {2}, DistanceAhead {3}", 
+	//				    VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2), CollisionSpeed > 0, 
+	//				    CollisionSpeed, DistanceAhead);//debug
+				}
+			}
+			//check for possible stright collision
+			if(VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
+			{ 
+				if(CollisionSpeed < 0) CollisionSpeed = ClosingSpeed;
+				VSL.TimeAhead = DetectedHit.Distance/CollisionSpeed;
+				RelObstaclePosition = Vector3.ProjectOnPlane(DetectedHit.CenterCollisionRay.CollisionPoint-VSL.wCoM, VSL.Up);
+				DistanceAhead = Utils.ClampL(RelObstaclePosition.magnitude-VSL.R, 0.1f);
+				var dV = Vector3d.zero;
+				if(DistanceAhead > RAD.MinDistanceAhead)
+					dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
+						-Math.Sqrt(1-Utils.ClampH(DistanceAhead/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1));
+				else if(DistanceAhead > RAD.MinDistanceAhead/2)
+					dV = -VSL.NeededHorVelocity;
+				else if(Vector3d.Dot(SurfaceVelocity, RelObstaclePosition) > 0)
+					dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
+						-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.MaxPitchRollAA_m;
+				else dV = -VSL.NeededHorVelocity;
+				VSL.CourseCorrections.Add(dV);
+//				Log("Correction: {0}", dV);//debug
+			}
+			else CollisionSpeed = -1;
 		}
 
 		public struct Ray
