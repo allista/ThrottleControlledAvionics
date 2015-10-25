@@ -118,7 +118,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(VSL == null) return;
 			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines))
-				CFG.ActiveProfile.Update(VSL.Engines);
+				CFG.ActiveProfile.Update(VSL.Engines, true);
 		}
 
 		void check_priority()
