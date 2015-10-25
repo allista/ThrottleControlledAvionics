@@ -43,6 +43,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float FormationBreakTime = 10f;
 			[Persistent] public float TakeoffAltitude    = 100f;
 			[Persistent] public float BrakeOffset        = 1.5f;
+			[Persistent] public float PitchRollAAf       = 100f;
 
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 
@@ -237,7 +238,7 @@ namespace ThrottleControlledAvionics
 			var tvsl = CFG.Target.GetVessel();
 			var tvel = Vector3.zero;
 			var vel_is_set = false;
-			var end_distance = CFG.Target.Distance;
+			var end_distance = CFG.Target.Land?  CFG.Target.Distance/4 : CFG.Target.Distance;
 			var dvel = VSL.HorizontalVelocity;
 			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
 			{
@@ -364,7 +365,7 @@ namespace ThrottleControlledAvionics
 					next_wp.Update(VSL.mainBody);
 					var next_dist = Vector3.ProjectOnPlane(next_wp.GetTransform().position-CFG.Target.GetTransform().position, VSL.Up);
 					var angle2next = Vector3.Angle(vdir, next_dist);
-					var minD = PN.OnPathMinDistance*(1-angle2next/190);
+					var minD = Utils.ClampL(PN.OnPathMinDistance*(1-angle2next/180/VSL.MaxPitchRollAA_m*PN.PitchRollAAf), CFG.Target.Distance);
 					if(minD > distance) distance = minD;
 				}
 				else distance = PN.OnPathMinDistance;
