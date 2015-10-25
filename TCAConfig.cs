@@ -150,6 +150,10 @@ Notes:
 		public EnginesProfile DefaultProfile { get { return EnginesProfiles.Default; } }
 		//squad
 		[Persistent] public int Squad;
+		//macros
+		[Persistent] public TCAMacroLibrary Macros = new TCAMacroLibrary();
+		[Persistent] public TCAMacro SelectedMacro;
+		[Persistent] public TCAMacro ActiveMacro;
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
@@ -173,6 +177,10 @@ Notes:
 				Anchor = null;
 			if(Target != null && string.IsNullOrEmpty(Target.Name))
 				Target = null;
+			if(SelectedMacro != null && string.IsNullOrEmpty(SelectedMacro.Name))
+				SelectedMacro = null;
+			if(ActiveMacro != null && string.IsNullOrEmpty(ActiveMacro.Name))
+				ActiveMacro = null;
 		}
 
 		public override void Save(ConfigNode node)

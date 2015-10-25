@@ -42,6 +42,7 @@ namespace ThrottleControlledAvionics
 
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
+		public static TCAMacroLibrary Macros = new TCAMacroLibrary();
 		public static bool ConfigsLoaded { get; private set; }
 
 		#region From KSPPluginFramework
