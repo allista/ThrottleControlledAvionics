@@ -118,7 +118,15 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(VSL == null) return;
 			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines))
-				CFG.ActiveProfile.Update(VSL.Engines, true);
+				StartCoroutine(onStageUpdate());
+		}
+
+		IEnumerator<YieldInstruction> onStageUpdate()
+		{
+			VSL.CanUpdateEngines = false;
+			yield return new WaitForSeconds(0.5f);
+			CFG.ActiveProfile.Update(VSL.Engines, true);
+			VSL.CanUpdateEngines = true;
 		}
 
 		void check_priority()
@@ -295,7 +303,7 @@ namespace ThrottleControlledAvionics
 		void block_throttle(FlightCtrlState s)
 		{ 
 			if(CFG.Enabled && CFG.BlockThrottle && VSL.OnPlanet) 
-				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff < 0? 0f : 1f;
+				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
 		}
 
 		public override void OnUpdate()
