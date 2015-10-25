@@ -257,7 +257,7 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
-			if(VSL == null || VSL.vessel == null) return;
+			if(VSL == null || VSL.vessel == null || !CFG.HF) return;
 			if(!VSL.NeededHorVelocity.IsZero())
 				GLUtils.GLVec(VSL.wCoM,  VSL.NeededHorVelocity, Color.red);
 			if(!VSL.HorizontalVelocity.IsZero())
