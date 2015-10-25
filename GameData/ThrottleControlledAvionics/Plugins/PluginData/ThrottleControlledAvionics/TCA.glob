@@ -167,6 +167,7 @@ PN
 	FormationBreakTime = 10
 	TakeoffAltitude    = 100
 	BrakeOffset        = 1.5
+	PitchRollAAf       = 100
 	
 	DistancePID
 	{
@@ -195,15 +196,18 @@ LND
 
 RAD
 {
-	MaxViewAngle       = 60
-	LookAheadTime      = 20
-	AltitudeFilter     = 0.1
-	NumRays            = 20
-	MinAltitudeFactor  = 2
-	MinClosingSpeed    = 4
-	MinAltitude        = 10
-	NHVf               = 0.5
-	ManeuverTimer      = 1
+	MaxViewAngle      = 60
+	LookAheadTime     = 20
+	AltitudeFilter    = 0.1
+	NumRays           = 20
+	MinAltitudeFactor = 2
+	MinClosingSpeed   = 4
+	MaxClosingSpeed   = 10
+	MinDistanceAhead  = 60
+	PitchRollAAf      = 100
+	MinAltitude       = 10
+	NHVf              = 0.5
+	ManeuverTimer     = 1
 }
 
 ANC
