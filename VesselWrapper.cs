@@ -220,8 +220,11 @@ namespace ThrottleControlledAvionics
 			{ var e = Engines[i]; if(e.engine.flameout) e.forceThrustPercentage(1); }
 			//sync with active profile
 			if(CFG.ActiveProfile.Activated) CFG.ActiveProfile.OnActivated(this);
-			if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(Engines);
-			else if(CanUpdateEngines) CFG.ActiveProfile.Update(Engines);
+			if(CanUpdateEngines)
+			{
+				if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(Engines);
+				else CFG.ActiveProfile.Update(Engines);
+			}
 			//get active engines
 			ActiveEngines.Clear(); ActiveEngines.Capacity = Engines.Count;
 			for(int i = 0; i < num_engines; i++)
