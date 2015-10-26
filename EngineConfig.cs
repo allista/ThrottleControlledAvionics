@@ -115,6 +115,9 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 			return Changed;
 		}
+
+		public override string ToString()
+		{ return string.Format("[{0}]: Role {1}, Limit {2}, On: {3}", Name, Role, Limit, On); }
 	}
 
 	public abstract class EngineConfigDB<K> : ConfigNodeObject
@@ -256,14 +259,17 @@ namespace ThrottleControlledAvionics
 					if(e.Role == TCARole.MANUAL && !groups.ContainsKey(e.Group)) NumManual++;
 					Changed |= c.Differs(e);
 					c.Limit = e.thrustLimit;
+//					if(with_On) Utils.Log("Updating {0} group: On was {1}, now {2}", c.Name, c.On, e.isOperational);//debug
 					if(with_On) c.On = e.isOperational;
-					groups[e.Group] = c; 
+					groups[e.Group] = c;
 				}
 				else 
 				{ 
 					if(e.Role == TCARole.MANUAL) NumManual++;
-					c.Update(e, with_On); single[e.ID] = c;
+//					if(with_On) Utils.Log("Updating {0}: On was {1}, now {2}", c.Name, c.On, e.isOperational);//debug
+					c.Update(e, with_On);
 					Changed |= c.Changed;
+					single[e.ID] = c;
 				}
 			}
 			Changed |= Groups.Count != groups.Count || Single.Count != single.Count;
