@@ -116,7 +116,7 @@ namespace ThrottleControlledAvionics
 
 		void onStageActive(int stage)
 		{ 
-			if(VSL == null) return;
+			if(VSL == null || !CFG.Enabled) return;
 			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines))
 				StartCoroutine(onStageUpdate());
 		}
