@@ -412,7 +412,7 @@ namespace ThrottleControlledAvionics
 					components = new SortedList<string, Factory>();
 					foreach(var t in Assembly.GetCallingAssembly().GetTypes())
 					{
-						if(t == typeof(T) || t.IsSubclassOf(typeof(T)))
+						if(!t.IsAbstract && t.IsSubclassOf(typeof(T)))
 						{
 							var constInfo = creator.MakeGenericMethod(t);
 							if(constInfo == null) continue;
