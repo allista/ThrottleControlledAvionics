@@ -45,7 +45,11 @@ namespace ThrottleControlledAvionics
 		public CollisionPreventionSystem(VesselWrapper vsl) { VSL = vsl; }
 
 		public override void UpdateState() 
-		{ IsActive = CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed; }
+		{ 
+			IsActive = CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed; 
+			if(IsActive) return;
+			Correction = Vector3d.zero;
+		}
 
 		static int RadarMask = (1 | 1 << LayerMask.NameToLayer("Parts"));
 		HashSet<Guid> Dangerous = new HashSet<Guid>();
@@ -70,7 +74,7 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
-			if(VSL == null || VSL.vessel == null || pid.Action.IsZero()) return;
+			if(!IsActive || VSL == null || VSL.vessel == null || pid.Action.IsZero()) return;
 			GLUtils.GLVec(VSL.wCoM, pid.Action, Color.magenta);
 		}
 
