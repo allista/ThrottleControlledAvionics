@@ -44,6 +44,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float TakeoffAltitude    = 100f;
 			[Persistent] public float BrakeOffset        = 1.5f;
 			[Persistent] public float PitchRollAAf       = 100f;
+			[Persistent] public float FollowerMaxAwaySpped = 15f;
 
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 
@@ -265,6 +266,14 @@ namespace ThrottleControlledAvionics
 					{
 						if(distance < CFG.Target.Distance)
 							VSL.CourseCorrections.Add(tvel*Utils.Clamp(-distance/CFG.Target.Distance*PN.FormationFactor, -PN.FormationFactor, 0));
+						else if(Vector3.Dot(vdir, dvel) < 0 && 
+						        dvel.magnitude > PN.FollowerMaxAwaySpped)
+						{
+							keep_formation = true;
+							VSL.NeededHorVelocity = vdir;
+							CFG.Starboard = VSL.GetStarboard(VSL.NeededHorVelocity);
+							return;
+						}
 						else VSL.CourseCorrections.Add(tvel*(PN.FormationFactor-1));
 						distance = 0;
 					}

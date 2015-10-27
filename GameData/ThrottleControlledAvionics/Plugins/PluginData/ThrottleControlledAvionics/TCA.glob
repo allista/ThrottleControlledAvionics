@@ -168,6 +168,7 @@ PN
 	TakeoffAltitude    = 100
 	BrakeOffset        = 1.5
 	PitchRollAAf       = 100
+	FollowerMaxAwaySpped = 15
 	
 	DistancePID
 	{
