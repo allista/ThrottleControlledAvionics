@@ -110,6 +110,7 @@
     <Compile Include="Utils\Multiplexer.cs" />
     <Compile Include="Macros\Conditions.cs" />
     <Compile Include="Macros\MacroNodes.cs" />
+    <Compile Include="GUI\TCAMacroEditor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

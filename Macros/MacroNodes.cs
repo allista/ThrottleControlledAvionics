@@ -14,6 +14,81 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	public abstract class LoopMacro : ProxyMacro
+	{
+		protected abstract void DrawLoopCondition();
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginVertical();
+			GUILayout.BeginHorizontal();
+			base.DrawThis();
+			DrawLoopCondition();
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			if(Macro != null)
+			{
+				if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) Macro = null;
+				else Macro.Draw();
+			}
+			else 
+			{
+				GUILayout.Space(20);
+				if(Edit && GUILayout.Button("Select Action", Styles.normal_button, GUILayout.ExpandWidth(true)))
+				{ if(SelectNode != null) SelectNode(m => Macro = m); }
+			}
+			GUILayout.EndHorizontal();
+			GUILayout.EndVertical();
+		}
+	}
+
+	public class WhileLoopMacro : LoopMacro
+	{
+		[Persistent] public Condition LoopCondition;
+
+		public WhileLoopMacro() { Name = "Do While:"; }
+
+		protected override bool Action (VesselWrapper VSL)
+		{
+			if(Macro == null) return false;
+			if(LoopCondition.True(VSL))
+			{
+				if(!Macro.Execute(VSL))
+					Macro.Rewind();
+				return true;
+			}
+			return false;
+		}
+
+		protected override void DrawLoopCondition ()
+		{ if(LoopCondition != null) LoopCondition.Draw(); }
+	}
+
+	public class ForLoopMacro : LoopMacro
+	{
+		[Persistent] public int Count = 10;
+
+		public ForLoopMacro() { Name = "Repeat:"; }
+
+		protected override bool Action (VesselWrapper VSL)
+		{
+			if(Macro == null) return false;
+			if(Count > 0)
+			{
+				if(!Macro.Execute(VSL))
+				{
+					Macro.Rewind();
+					Count--;
+				}
+				return true;
+			}
+			return false;
+		}
+
+		protected override void DrawLoopCondition()
+		{ Count = Utils.IntSelector(Count, 0); }
+	}
+
 	public abstract class SetFloat : MacroNode
 	{
 		[Persistent] public float Value;

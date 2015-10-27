@@ -15,7 +15,18 @@ using UnityEngine;
 namespace ThrottleControlledAvionics
 {
 	public class TrueCondition : Condition
-	{ protected override bool Evaluate(VesselWrapper VSL) { return true; } }
+	{ 
+		protected override void DrawThis()
+		{ GUILayout.Label("TRUE", Styles.label, GUILayout.Width(50)); }
+		protected override bool Evaluate(VesselWrapper VSL) { return true; } 
+	}
+
+	public class FalseCondition : Condition
+	{ 
+		protected override void DrawThis()
+		{ GUILayout.Label("FALSE", Styles.label, GUILayout.Width(50)); }
+		protected override bool Evaluate(VesselWrapper VSL) { return false; } 
+	}
 
 	public abstract class FloatCondition : Condition
 	{ 
@@ -38,10 +49,35 @@ namespace ThrottleControlledAvionics
 					OnValueChanged(); 
 					Edit = false; 
 				} 
+			} 
+			else Edit |= GUILayout.Button (string.Format ("{0} {1:F1}{2}", Title, Value, Suffix), Styles.normal_button);
+			GUILayout.EndHorizontal();
+		}
+	}
+
+	public abstract class IntCondition : Condition
+	{ 
+		[Persistent] public int Value;
+		protected string Title;
+		protected int Min = 0, Max = int.MaxValue;
+
+		protected virtual void OnValueChanged() {}
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginHorizontal();
+			if(Edit)
+			{ 
+				GUILayout.Label(Title, Styles.label);
+				var new_value = Utils.IntSelector(Value, Min, Max);
+				if(new_value != Value) 
+				{ 
+					Value = new_value;
+					OnValueChanged(); 
+					Edit = false;
+				} 
 			}
-			else if(GUILayout.Button(string.Format("{0} {1:F1}{2}", Title, Value, Suffix), 
-			                         Styles.normal_button)) 
-				Edit = true;
+			else Edit |= GUILayout.Button(string.Format ("{0} {1:D}", Title, Value), Styles.normal_button);
 			GUILayout.EndHorizontal();
 		}
 	}
