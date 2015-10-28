@@ -111,6 +111,11 @@
     <Compile Include="Macros\Conditions.cs" />
     <Compile Include="Macros\MacroNodes.cs" />
     <Compile Include="GUI\TCAMacroEditor.cs" />
+    <Compile Include="Macros\Condition.cs" />
+    <Compile Include="Macros\MacroNode.cs" />
+    <Compile Include="Macros\BlockMacroNode.cs" />
+    <Compile Include="Utils\ComponentDB.cs" />
+    <Compile Include="Macros\ConditionMacroNode.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

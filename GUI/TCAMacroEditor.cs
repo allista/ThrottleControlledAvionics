@@ -10,6 +10,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -60,8 +61,6 @@ namespace ThrottleControlledAvionics
 			Macro.SetSelector(SelectAction);
 			Macro.SetConditionSelector(SelectCondition);
 			Macro.Edit = true;
-			Macro.Expandable = false;
-			Macro.Conditionable = false;
 		}
 
 		static public void Exit()
@@ -70,6 +69,18 @@ namespace ThrottleControlledAvionics
 			Macro = null;  
 			SelectAction(null); 
 			SelectCondition(null); 
+		}
+
+		void select_action(MacroNode action)
+		{
+			if(action != null) action_selected(action);
+			SelectAction(null);
+		}
+
+		void load_macro(TCAMacro macro)
+		{
+			if(macro != null) Edit(macro);
+			LoadMacro = false;
 		}
 
 		protected override void DrawMainWindow(int windowID)
@@ -87,21 +98,19 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button("Exit", Styles.red_button, GUILayout.ExpandWidth(false)))
 				Exit();
 			GUILayout.EndHorizontal();
-			scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(height));
+			scroll = GUILayout.BeginScrollView(scroll, GUILayout.ExpandHeight(false));
 			Macro.Draw();
 			GUILayout.EndScrollView();
 			if(SelectingAction) 
 			{
 				GUILayout.Label("Select Action", Styles.green, GUILayout.ExpandWidth(true));
 				MacroNode action = null;
-				if(Components.ActionSelector(out action) ||
-					CFG.Macros.Selector(out action) ||
-					TCAScenario.Macros.Selector(out action))
-				{
-					if(action != null) 
-						action_selected(action);
-					SelectAction(null);
-				}
+				GUILayout.Label("Builtin", Styles.yellow, GUILayout.ExpandWidth(true));
+				if(Components.ActionSelector(out action)) select_action(action);
+				GUILayout.Label("Current Vessel", Styles.yellow, GUILayout.ExpandWidth(true));
+				if(CFG.Macros.Selector(out action)) select_action(action);
+				GUILayout.Label("Global Database", Styles.yellow, GUILayout.ExpandWidth(true));
+				if(TCAScenario.Macros.Selector(out action)) select_action(action);
 				if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.ExpandWidth(true))) SelectAction(null);
 			}
 			if(SelectingCondition) 
@@ -110,8 +119,7 @@ namespace ThrottleControlledAvionics
 				Condition cnd = null;
 				if(Components.ConditionSelector(out cnd))
 				{
-					if(cnd != null)
-						condition_selected(cnd);
+					if(cnd != null)	condition_selected(cnd);
 					SelectCondition(null);
 				}
 				if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.ExpandWidth(true))) SelectCondition(null);
@@ -120,12 +128,10 @@ namespace ThrottleControlledAvionics
 			{
 				GUILayout.Label("Load Macro form Library", Styles.green, GUILayout.ExpandWidth(true));
 				TCAMacro macro = null;
-				if(CFG.Macros.Selector(out macro) ||
-				   TCAScenario.Macros.Selector(out macro))
-				{
-					if(macro != null) Edit(macro);
-					LoadMacro = false;
-				}
+				GUILayout.Label("Current Vessel", Styles.yellow, GUILayout.ExpandWidth(true));
+				if(CFG.Macros.Selector(out macro)) load_macro(macro);
+				GUILayout.Label("Global Database", Styles.yellow, GUILayout.ExpandWidth(true));
+				if(TCAScenario.Macros.Selector(out macro)) load_macro(macro);
 				LoadMacro &= !GUILayout.Button("Cancel", Styles.red_button, GUILayout.ExpandWidth(true));
 			}
 			GUILayout.EndVertical();
@@ -150,6 +156,21 @@ namespace ThrottleControlledAvionics
 					GUILayout.Height(height));
 			MainWindow.clampToScreen();
 		}
+	}
+
+	public static class Components
+	{
+		public static SortedList<string, ComponentDB<Condition>.Factory> Conditions
+		{ get { return ComponentDB<Condition>.Components; } }
+
+		public static SortedList<string, ComponentDB<MacroNode>.Factory> Actions
+		{ get { return ComponentDB<MacroNode>.Components; } }
+
+		public static bool ConditionSelector(out Condition condition)
+		{ return ComponentDB<Condition>.Selector(out condition); }
+
+		public static bool ActionSelector(out MacroNode action)
+		{ return ComponentDB<MacroNode>.Selector(out action); }
 	}
 }
 

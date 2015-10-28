@@ -14,17 +14,18 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class TrueCondition : Condition
-	{ 
-		public TrueCondition() { negatable = false; }
+//	public class TrueCondition : Condition
+//	{ 
+//		public TrueCondition() { negatable = false; }
+//
+//		protected override void DrawThis()
+//		{ GUILayout.Label("TRUE", Styles.label, GUILayout.Width(50)); }
+//
+//		protected override bool Evaluate(VesselWrapper VSL) { return true; } 
+//	}
 
-		protected override void DrawThis()
-		{ GUILayout.Label("TRUE", Styles.label, GUILayout.Width(50)); }
-
-		protected override bool Evaluate(VesselWrapper VSL) { return true; } 
-	}
-
-	public abstract class FloatCondition : Condition
+	[HiddenComponent]
+	public class FloatCondition : Condition
 	{ 
 		[Persistent] public float Value;
 		protected string Title;
@@ -51,7 +52,8 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public abstract class IntCondition : Condition
+	[HiddenComponent]
+	public class IntCondition : Condition
 	{ 
 		[Persistent] public int Value;
 		protected string Title;

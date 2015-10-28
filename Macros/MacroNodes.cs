@@ -14,82 +14,216 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public abstract class LoopMacro : ProxyMacroNode
+	[HiddenComponent]
+	public class SingleBlockMacroNode : MacroNode
 	{
-		protected abstract void DrawLoopCondition();
+		[Persistent] public BlockMacroNode Block = new BlockMacroNode();
+
+		public SingleBlockMacroNode() { Block.Parent = this; }
+
+		public override bool Edit
+		{	
+			get { return base.Edit;	}
+			set { base.Edit = value; Block.Edit = value; }
+		}
+
+		public override void Rewind()
+		{
+			base.Rewind();
+			Block.Rewind();
+		}
+
+		public override void SetSelector(Selector selector)
+		{
+			base.SetSelector(selector);
+			Block.SetSelector(selector);
+		}
+
+		public override void SetConditionSelector(Condition.Selector selector)
+		{
+			base.SetConditionSelector(selector);
+			Block.SetConditionSelector(selector);
+		}
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginVertical();
+			base.DrawThis();
+			Block.Draw();
+			GUILayout.EndVertical();
+		}
+	}
+
+	[HiddenComponent]
+	public class SingleBlockConditionMacroNode : ConditionMacroNode
+	{
+		[Persistent] public BlockMacroNode Block = new BlockMacroNode();
+
+		public SingleBlockConditionMacroNode() { Block.Parent = this; }
+
+		public override bool Edit
+		{	
+			get { return base.Edit;	}
+			set { base.Edit = value; Block.Edit = value; }
+		}
+
+		public override void Rewind()
+		{
+			base.Rewind();
+			Block.Rewind();
+		}
+
+		public override void SetSelector(Selector selector)
+		{
+			base.SetSelector(selector);
+			Block.SetSelector(selector);
+		}
+
+		public override void SetConditionSelector(Condition.Selector selector)
+		{
+			base.SetConditionSelector(selector);
+			Block.SetConditionSelector(selector);
+		}
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginVertical();
+			base.DrawThis();
+			Block.Draw();
+			GUILayout.EndVertical();
+		}
+
+		public override bool AddChild(MacroNode child)
+		{ Block.AddChild(child); return true; }
+
+		public override bool AddSibling(MacroNode sibling)
+		{ return Parent != null && Parent.AddSibling(sibling); }
+	}
+
+	public class TriggeredBlockMacroNode : SingleBlockConditionMacroNode
+	{
+		public TriggeredBlockMacroNode() { Keyword = "WHEN"; }
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(Block.Done) return false;
+			if(Block.Active || ConditionsMet(VSL)) Block.Execute(VSL);
+			return !Block.Done;
+		}
+	}
+
+	public class IfElseMacroNode : ConditionMacroNode
+	{
+		[Persistent] public BlockMacroNode IfBlock = new BlockMacroNode();
+		[Persistent] public BlockMacroNode ElseBlock = new BlockMacroNode();
+		[Persistent] public int Control = -1;
+
+		public IfElseMacroNode() 
+		{ IfBlock.Parent = this; ElseBlock.Parent = this; }
+
+		public override bool Edit
+		{	
+			get { return base.Edit;	}
+			set { base.Edit = value; IfBlock.Edit = value; ElseBlock.Edit = value; }
+		}
+
+		public override void Rewind()
+		{
+			base.Rewind();
+			Control = -1;
+			IfBlock.Rewind();
+			ElseBlock.Rewind();
+		}
+
+		public override void SetSelector(Selector selector)
+		{
+			base.SetSelector(selector);
+			IfBlock.SetSelector(selector);
+			ElseBlock.SetSelector(selector);
+		}
+
+		public override void SetConditionSelector(Condition.Selector selector)
+		{
+			base.SetConditionSelector(selector);
+			IfBlock.SetConditionSelector(selector);
+			ElseBlock.SetConditionSelector(selector);
+		}
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(Control > 1) return false;
+			if(Control < 0)	Control = ConditionsMet(VSL) ? 0 : 1;
+			var ret = Control == 0? IfBlock.Execute(VSL) : ElseBlock.Execute(VSL);
+			if(!ret) Control = 2;
+			return ret;
+		}
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginVertical();
+			base.DrawThis();
+			IfBlock.Draw();
+			if(Edit || ElseBlock.HasSubnodes)
+			{
+				GUILayout.Label("ELSE", Styles.label, GUILayout.ExpandWidth(false));
+				ElseBlock.Draw();
+			}
+			GUILayout.EndVertical();
+		}
+	}
+
+	public class WhileMacroNode : SingleBlockConditionMacroNode
+	{
+		public WhileMacroNode() { Keyword = "WHILE"; }
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(Block.Active) { Block.Execute(VSL); return true; }
+			if(ConditionsMet(VSL)) 
+			{ 
+				if(Block.Done) Block.Rewind(); 
+				Block.Execute(VSL);
+				return true; 
+			}
+			return false;
+		}
+	}
+
+	public class RepeatMacroNode : SingleBlockMacroNode
+	{
+		[Persistent] public int Count = 10;
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(Count <= 0) return false;
+			if(!Block.Execute(VSL)) 
+			{ Block.Rewind(); Count--; }
+			return true; 
+		}
 
 		protected override void DrawThis()
 		{
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
-			base.DrawThis();
-			DrawLoopCondition();
+			GUILayout.Label("REPEAT", Styles.label, GUILayout.ExpandWidth(false));
+			Count = Utils.IntSelector(Count, 1);
+			GUILayout.FlexibleSpace();
+			if(GUILayout.Button("Edit Block", Edit? Styles.yellow_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
+				Edit = !Edit;
 			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			if(Macro != null)
-			{
-				if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) Macro = null;
-				else Macro.Draw();
-			}
-			else 
-			{
-				GUILayout.Space(20);
-				if(Edit && GUILayout.Button("Select Action", Styles.normal_button, GUILayout.ExpandWidth(true)))
-				{ if(SelectNode != null) SelectNode(m => Macro = m); }
-			}
-			GUILayout.EndHorizontal();
+			Block.Draw();
 			GUILayout.EndVertical();
 		}
+
+		public override bool AddChild(MacroNode child)
+		{ Block.AddChild(child); return true; }
+
+		public override bool AddSibling(MacroNode sibling)
+		{ return Parent != null && Parent.AddSibling(sibling); }
 	}
 
-	public class WhileLoopMacroNode : LoopMacro
-	{
-		[Persistent] public Condition LoopCondition;
-
-		public WhileLoopMacroNode() { Name = "Do While:"; }
-
-		protected override bool Action (VesselWrapper VSL)
-		{
-			if(Macro == null) return false;
-			if(LoopCondition.True(VSL))
-			{
-				if(!Macro.Execute(VSL))
-					Macro.Rewind();
-				return true;
-			}
-			return false;
-		}
-
-		protected override void DrawLoopCondition ()
-		{ if(LoopCondition != null) LoopCondition.Draw(); }
-	}
-
-	public class ForLoopMacroNode : LoopMacro
-	{
-		[Persistent] public int Count = 10;
-
-		public ForLoopMacroNode() { Name = "Repeat:"; }
-
-		protected override bool Action (VesselWrapper VSL)
-		{
-			if(Macro == null) return false;
-			if(Count > 0)
-			{
-				if(!Macro.Execute(VSL))
-				{
-					Macro.Rewind();
-					Count--;
-				}
-				return true;
-			}
-			return false;
-		}
-
-		protected override void DrawLoopCondition()
-		{ Count = Utils.IntSelector(Count, 0); }
-	}
-
-	public abstract class SetFloat : MacroNode
+	[HiddenComponent]
+	public class SetFloatMacroNode : MacroNode
 	{
 		[Persistent] public float Value;
 		protected string Suffix;
@@ -117,7 +251,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class SetVerticalSpeed : SetFloat
+	public class SetVerticalSpeed : SetFloatMacroNode
 	{
 		public SetVerticalSpeed()
 		{ Name = "Set vertical speed to:"; Suffix = "m/s"; }
@@ -129,7 +263,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class SetAltitude : SetFloat
+	public class SetAltitude : SetFloatMacroNode
 	{
 		public SetAltitude()
 		{ Name = "Set altitude to:"; Suffix = "m"; }
@@ -197,7 +331,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class WaitMacroNode : SetFloat
+	public class WaitMacroNode : SetFloatMacroNode
 	{
 		protected readonly Timer T = new Timer();
 
