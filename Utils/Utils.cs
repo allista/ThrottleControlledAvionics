@@ -416,7 +416,7 @@ namespace ThrottleControlledAvionics
 						{
 							var constInfo = creator.MakeGenericMethod(t);
 							if(constInfo == null) continue;
-							components.Add(Utils.ParseCamelCase(t.Name), 
+							components.Add(Utils.ParseCamelCase(t.Name.Replace(typeof(T).Name, "")), 
 							               (Factory)Delegate.CreateDelegate(typeof(Factory), constInfo));
 						}
 					}
