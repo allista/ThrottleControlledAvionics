@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 	{
 		public override void Save(ConfigNode node)
 		{
-			node.AddValue("type", GetType().Name);
+			node.AddValue("type", GetType().FullName);
 			base.Save(node);
 		}
 
@@ -88,20 +88,31 @@ namespace ThrottleControlledAvionics
 			base.Load(node);
 			foreach(var fi in GetType().GetFields())
 			{
-				if(fi.FieldType == typeof(TypedConfigNodeObject) || 
-				   fi.FieldType.IsSubclassOf(typeof(TypedConfigNodeObject)))
+				if(not_persistant(fi)) continue;
+				if(fi.FieldType.IsSubclassOf(typeof(TypedConfigNodeObject)))
 				{
 					var n = node.GetNode(fi.Name);
-					if(n == null) continue;
-					var ctype = Assembly.GetCallingAssembly().GetType(node.GetValue("type"));
-					if(ctype == null) continue;
-					var cconst = ctype.GetConstructor(Type.EmptyTypes);
-					if(cconst == null) continue;
-					var obj = cconst.Invoke(null) as TypedConfigNodeObject;
-					if(obj != null) obj.Load(node);
-					fi.SetValue(this, obj);
+					fi.SetValue(this, n == null? null : FromConfig(n));
 				}
 			}
+		}
+
+		public static TypedConfigNodeObject FromConfig(ConfigNode node)
+		{
+			TypedConfigNodeObject obj = null;
+			var type = node.GetValue("type");
+			if(type == null) return obj;
+			var ctype = Assembly.GetCallingAssembly().GetType(type);
+			if(ctype != null)
+			{
+				try 
+				{ 
+					obj = Activator.CreateInstance(ctype) as TypedConfigNodeObject;
+					obj.Load(node);
+				}
+				catch { Utils.Log("Unable to create {0}", ctype); }
+			}
+			return obj;
 		}
 	}
 
@@ -131,7 +142,7 @@ namespace ThrottleControlledAvionics
 			base.Load(node);
 			foreach(var n in node.GetNodes())
 			{
-				var it = ConfigNodeObject.FromConfig<T>(n);
+				var it = TypedConfigNodeObject.FromConfig(n) as T;
 				if(it != null) List.Add(it);
 			}
 		}
