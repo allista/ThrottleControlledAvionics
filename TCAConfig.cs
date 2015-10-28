@@ -153,7 +153,7 @@ Notes:
 		//macros
 		[Persistent] public TCAMacroLibrary Macros = new TCAMacroLibrary();
 		[Persistent] public TCAMacro SelectedMacro;
-		[Persistent] public TCAMacro ActiveMacro;
+		[Persistent] public bool MacroIsActive;
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
@@ -179,8 +179,6 @@ Notes:
 				Target = null;
 			if(SelectedMacro != null && string.IsNullOrEmpty(SelectedMacro.Name))
 				SelectedMacro = null;
-			if(ActiveMacro != null && string.IsNullOrEmpty(ActiveMacro.Name))
-				ActiveMacro = null;
 		}
 
 		public override void Save(ConfigNode node)
