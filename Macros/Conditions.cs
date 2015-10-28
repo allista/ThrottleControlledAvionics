@@ -16,16 +16,12 @@ namespace ThrottleControlledAvionics
 {
 	public class TrueCondition : Condition
 	{ 
+		public TrueCondition() { negatable = false; }
+
 		protected override void DrawThis()
 		{ GUILayout.Label("TRUE", Styles.label, GUILayout.Width(50)); }
-		protected override bool Evaluate(VesselWrapper VSL) { return true; } 
-	}
 
-	public class FalseCondition : Condition
-	{ 
-		protected override void DrawThis()
-		{ GUILayout.Label("FALSE", Styles.label, GUILayout.Width(50)); }
-		protected override bool Evaluate(VesselWrapper VSL) { return false; } 
+		protected override bool Evaluate(VesselWrapper VSL) { return true; } 
 	}
 
 	public abstract class FloatCondition : Condition
@@ -42,7 +38,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit) 
 			{ 
-				GUILayout.Label(Title, Styles.label);
+				GUILayout.Label(Title, Styles.white, GUILayout.ExpandWidth(false));
 				if(ValueField.Draw(Value)) 
 				{ 
 					Value = ValueField.Value; 
@@ -84,7 +80,7 @@ namespace ThrottleControlledAvionics
 
 	public class AltLower : FloatCondition
 	{
-		public AltLower() { Title = "Alt <"; Suffix = "m"; }
+		public AltLower() { Title = "Altitude <"; Suffix = "m"; }
 
 		protected override bool Evaluate(VesselWrapper VSL)
 		{ return VSL.Altitude < Value; }
@@ -92,23 +88,9 @@ namespace ThrottleControlledAvionics
 
 	public class AltHigher : FloatCondition
 	{
-		public AltHigher() { Title = "Alt >"; Suffix = "m"; }
+		public AltHigher() { Title = "Altitude >"; Suffix = "m"; }
 		
 		protected override bool Evaluate(VesselWrapper VSL)
 		{ return VSL.Altitude > Value; }
-	}
-
-	public class TimerCondition : FloatCondition
-	{
-		protected readonly Timer T = new Timer();
-
-		public TimerCondition()
-		{ Title = "Wait for"; Suffix = "s"; }
-
-		protected override void OnValueChanged()
-		{ T.Period = Value; T.Reset(); }
-
-		protected override bool Evaluate(VesselWrapper VSL)
-		{ return T.Check; }
 	}
 }

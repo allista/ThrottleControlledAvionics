@@ -36,21 +36,30 @@ namespace ThrottleControlledAvionics
 
 		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 
+		public Condition Prev;
+		public bool negatable = true;
 		[Persistent] public bool or;
 		[Persistent] public bool not;
-		[Persistent] public Condition Prev;
 		[Persistent] public Condition Next;
-		[Persistent] readonly PersistentBaseList<Condition> Alternatives = new PersistentBaseList<Condition>();
-		public bool HasAlternatives { get { return Alternatives.Count > 0; } }
 
 		public bool Edit;
 		public Select SelectCondition;
 
+		Vector2 scroll;
+
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			if(Next != null)
+			{
+				if(Next.GetType() == typeof(Condition)) Next = null;
+				else Next.Prev = this;
+			}
+		}
+
 		public void SetSelector(Select selector)
 		{
 			SelectCondition = selector;
-			for(int i = 0, count = Alternatives.Count; i < count; i++) 
-				Alternatives[i].SetSelector(selector);
 			if(Next != null) Next.SetSelector(selector);
 		}
 
@@ -58,12 +67,10 @@ namespace ThrottleControlledAvionics
 		{ 
 			var value = Evaluate(VSL);
 			if(not) value = !value;
-			for(int i = 0, count = Alternatives.Count; i < count; i++) 
-				value |= Alternatives[i].True(VSL);
-			if(Next != null)
-				return or? 
-					value || Next.True (VSL) : 
-					value && Next.True (VSL);
+			if(Next != null) 
+				value = Next.or? 
+					value || Next.True(VSL) : 
+					value && Next.True(VSL);
 			return value;
 		}
 
@@ -72,44 +79,24 @@ namespace ThrottleControlledAvionics
 
 		public void Draw()
 		{
-			if(Prev == null) GUILayout.Label("IF:", Styles.label, GUILayout.Width(20));
-			GUILayout.BeginHorizontal(Styles.white);
-			GUILayout.Label("(", Styles.label, GUILayout.Width(20));
-			if(GUILayout.Button(not? "NOT" : "", Styles.normal_button, GUILayout.Width(25))) not = !not;
+			scroll = GUILayout.BeginScrollView(scroll, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(false));
+			GUILayout.BeginVertical();
+			GUILayout.BeginHorizontal();
+			if(Prev != null && GUILayout.Button(or? "OR" : "AND", Styles.white, GUILayout.Width(40))) or = !or;
+			if(negatable && GUILayout.Button(not? "NOT" : "", Styles.red, GUILayout.Width(40))) not = !not;
 			DrawThis();
-			if(Alternatives.Count > 0) 
+			if(Prev != null && GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) Delete();
+			if(Next != null) Next.Draw();
+			else
 			{
-				var del = new List<int>();
-				for(int i = 0, count = Alternatives.Count; i < count; i++) 
-				{ 
-					Alternatives[i].Draw();
-					if(GUILayout.Button("x", Styles.red_button, GUILayout.Width(20)))
-						del.Add(i);
-					if(i < count-1) GUILayout.Label("OR"); 
-				}
-				for (int i = 0, count = del.Count; i < count; i++) 
-					Alternatives.List.RemoveAt(del[i]);
-			}
-			if(GUILayout.Button(new GUIContent(")", "Add a condition inside the braces"), 
-				Styles.normal_button, GUILayout.Width(20)))
-			{ if(SelectCondition != null) SelectCondition(AddAlternative); }
-			if(Prev != null && GUILayout.Button("X", Styles.red_button, GUILayout.Width(20)))
-				Delete();
-			GUILayout.EndHorizontal();
-			if(Next != null) 
-			{ 
-				if(GUILayout.Button(or? "OR" : "AND", Styles.normal_button, GUILayout.Width(20))) or = !or;
-				Next.Draw();
-			}
-			else 
-			{ 
 				if(GUILayout.Button("+", Styles.green_button, GUILayout.Width(20))) 
-				{ if(SelectCondition != null) SelectCondition(And); }
+				{ if(SelectCondition != null) SelectCondition(Add); }
 			}
+			GUILayout.EndHorizontal();
+			GUILayout.EndVertical();
+			GUILayout.EndScrollView();
 		}
 
-		public void AddAlternative(Condition alt) { Alternatives.Add(alt); }
-		public bool RemoveAlternative(Condition alt) { return Alternatives.Remove(alt); }
 		public bool Delete()
 		{
 			if(Prev == null) return false;
@@ -118,8 +105,12 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		public void Or(Condition next) { or = true; Next = next; Next.Prev = this; }
-		public void And(Condition next) { or = false; Next = next; Next.Prev = this; }
+		public void Add(Condition next) 
+		{ 
+			Next = next; 
+			Next.Prev = this; 
+			Next.SetSelector(SelectCondition); 
+		}
 	}
 
 	public class MacroNode : TypedConfigNodeObject
@@ -128,17 +119,30 @@ namespace ThrottleControlledAvionics
 
 		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 
+		public MacroNode Parent;
 		[Persistent] public string Name;
-		[Persistent] public Condition Condition = new TrueCondition();
 		[Persistent] public bool Active;
 		[Persistent] public bool Paused;
 		[Persistent] public bool Done;
-		[Persistent] public MacroNode Parent;
+
 		[Persistent] public PersistentBaseList<MacroNode> Children = new PersistentBaseList<MacroNode>();
 		public bool HasChildren { get { return Children.Count > 0; } }
 
+		[Persistent] readonly PersistentBaseList<Condition> Conditions = new PersistentBaseList<Condition>();
+		public bool HasConditions { get { return Conditions.Count > 0; } }
+
 		public bool Edit;
-		public Select SelectNode;
+		public bool Expandable = true;
+		public bool Conditionable = true;
+		protected Select SelectNode;
+		protected Condition.Select SelectCondition;
+
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			for(int i = 0, count = Children.Count; i < count; i++) 
+				Children[i].Parent= this;
+		}
 
 		public virtual void SetSelector(Select selector)
 		{
@@ -149,9 +153,24 @@ namespace ThrottleControlledAvionics
 
 		public virtual void SetConditionSelector(Condition.Select selector)
 		{
-			Condition.SetSelector(selector);
+			SelectCondition = selector;
+			for(int i = 0, count = Conditions.Count; i < count; i++) 
+				Conditions[i].SetSelector(selector);
 			for(int i = 0, count = Children.Count; i < count; i++) 
 				Children[i].SetConditionSelector(selector);
+		}
+
+		public MacroNode FindActive()
+		{
+			if(Active) return this;
+			if(!HasChildren) return null;
+			MacroNode active = null;
+			for(int i = 0, count = Children.Count; i < count; i++)
+			{ 
+				active = Children[i].FindActive();
+				if(active != null) break;
+			}
+			return active;
 		}
 
 		/// <summary>
@@ -180,16 +199,38 @@ namespace ThrottleControlledAvionics
 		public void Draw()
 		{
 			GUILayout.BeginVertical();
+			var del = new List<int>();
+			if(Conditions.Count > 0) 
+			{
+				for(int i = 0, count = Conditions.Count; i < count; i++) 
+				{ 
+					var c = Conditions[i];
+					GUILayout.BeginHorizontal();
+					if(i > 0) { if(GUILayout.Button(c.or? "OR" : "AND", Styles.white, GUILayout.Width(40))) c.or = !c.or; }
+					else GUILayout.Label("IF", Styles.white, GUILayout.Width(40));
+					c.Draw();
+					if(Edit && GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) del.Add(i);
+					GUILayout.EndHorizontal();
+				}
+				for(int i = 0, count = del.Count; i < count; i++) 
+					Conditions.List.RemoveAt(del[i]);
+			}
+			if(Edit && Conditionable && GUILayout.Button("Add Condition", Styles.yellow_button, GUILayout.ExpandWidth(true)))
+			{ 
+				if(SelectCondition != null) 
+					SelectCondition(cnd => 
+				{
+					cnd.SetSelector(SelectCondition);
+					Conditions.Add(cnd);
+				}); 
+			}
 			GUILayout.BeginHorizontal();
-			Condition.Draw();
-			if(Edit && Condition.Next == null && !Condition.HasAlternatives &&
-				GUILayout.Button("Replace", Styles.red_button, GUILayout.Width(70)))
-			{ if(SelectNode != null) Condition.SelectCondition((cnd) => Condition = cnd); }
-			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			if(Children.Count < 2 && Parent != null)
-			{ if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) Parent.Remove(this); }
-			else GUILayout.Space(20); 
+			if(Parent != null)
+			{
+				if(Edit && Children.Count < 2)
+				{ if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) Parent.Remove(this); }
+				else GUILayout.Space(20); 
+			}
 			DrawThis();
 			if(Active && GUILayout.Button("||", Paused? Styles.green_button : Styles.yellow_button, GUILayout.Width(20)))
 				Paused = !Paused;
@@ -197,7 +238,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			GUILayout.Space(40);
 			GUILayout.BeginVertical();
-			var del = new List<int>();
+			del.Clear();
 			for(int i = 0, count = Children.Count; i < count; i++)
 			{ 
 				var child = Children[i];
@@ -207,15 +248,19 @@ namespace ThrottleControlledAvionics
 				{
 					if(GUILayout.Button("^", Styles.normal_button, GUILayout.Width(20)))
 						MoveUp(i);
-					if(child.Children.Count < 2 &&
+					if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(20)))
+						MoveLeft(i);
+					if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(20)))
+						MoveRight(i);
+					if(Edit && child.Children.Count < 2 &&
 						GUILayout.Button("X", Styles.red_button, GUILayout.Width(20)))
 						del.Add(i);
 				}
 				GUILayout.EndHorizontal();
 			}
-			if(Edit)
+			for(int i = 0, count = del.Count; i < count; i++) RemoveAt(del[i]);
+			if(Edit && Expandable)
 			{
-				for(int i = 0, count = del.Count; i < count; i++) RemoveAt(del[i]);
 				if(GUILayout.Button("Add Next", Styles.normal_button, GUILayout.ExpandWidth(true)))
 				{ if(SelectNode != null) SelectNode(Add); }
 			}
@@ -228,7 +273,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(Done) return false;
 			if(Paused) return true;
-			Active |= Condition.True(VSL);
+			Active |= ConditionsMet(VSL);
 			Done = Active && !Action(VSL);
 			Active &= !Done;
 			return !Done;
@@ -241,12 +286,20 @@ namespace ThrottleControlledAvionics
 				Children[i].Rewind ();
 		}
 
+		public bool ConditionsMet(VesselWrapper VSL)
+		{
+			var ret = Conditions.Count == 0;
+			for(int i = 0, count = Conditions.Count; i < count; i++) 
+				ret |= Conditions[i].True(VSL);
+			return ret;
+		}
+
 		public MacroNode Next(VesselWrapper VSL)
 		{
 			for(int i = 0, count = Children.Count; i < count; i++)
 			{
 				var child = Children[i];
-				if(child.Condition.True(VSL)) return child;
+				if(child.ConditionsMet(VSL)) return child;
 			}
 			return null;
 		}
@@ -260,7 +313,7 @@ namespace ThrottleControlledAvionics
 
 		public MacroNode GetCopy()
 		{
-			var constInfo = GetType().GetConstructor(null);
+			var constInfo = GetType().GetConstructor(Type.EmptyTypes);
 			if(constInfo == null) return null;
 			var mn = (MacroNode)constInfo.Invoke(null);
 			mn.CopyFrom(this);
@@ -271,6 +324,8 @@ namespace ThrottleControlledAvionics
 		{
 			child.Parent = this;
 			Children.Add(child);
+			child.SetSelector(SelectNode);
+			child.SetConditionSelector(SelectCondition);
 		}
 
 		public bool Remove(MacroNode child)
@@ -297,6 +352,23 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
+		public bool MoveLeft(int i)
+		{
+			if(i < 0 || i >= Children.Count) return false;
+			if(Parent == null) return false;
+			Parent.Children.Add(Children[i]);
+			Children.List.RemoveAt(i);
+			return true;
+		}
+
+		public bool MoveRight(int i)
+		{
+			if(i <= 0 || i >= Children.Count) return false;
+			Children[i-1].Add(Children[i]);
+			Children.List.RemoveAt(i);
+			return true;
+		}
+
 		public bool MoveDown(int i)
 		{
 			if(i < 0 || i >= Children.Count-1) return false;
@@ -308,32 +380,39 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public abstract class ProxyMacro : MacroNode
+	public abstract class ProxyMacroNode : MacroNode
 	{
 		[Persistent] public MacroNode Macro;
 
 		public override void SetSelector(Select selector)
 		{
-			Macro.SetSelector(selector);
+			if(Macro != null) Macro.SetSelector(selector);
 			base.SetSelector(selector);
 		}
 
 		public override void SetConditionSelector(Condition.Select selector)
 		{
-			Macro.SetConditionSelector(selector);
+			if(Macro != null) Macro.SetConditionSelector(selector);
 			base.SetConditionSelector(selector);
 		}
 
 		public override void Rewind ()
 		{
-			Macro.Rewind();
+			if(Macro != null) Macro.Rewind();
 			base.Rewind ();
 		}
 	}
 
-	public class TCAMacro : ProxyMacro
+	public class TCAMacro : ProxyMacroNode
 	{
-		[Persistent] public MacroNode Current;
+		public MacroNode Current;
+
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			Current = Macro == null? 
+				null : Macro.FindActive();
+		}
 
 		public override void Rewind ()
 		{
@@ -374,7 +453,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void DrawThis()
 		{
-			GUILayout.BeginVertical();
+			GUILayout.BeginVertical(Styles.white);
 			if(Edit) 
 			{
 				GUILayout.BeginHorizontal();
@@ -388,14 +467,22 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginHorizontal();
 				if(Macro != null)
 				{
-					if(GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) Macro = null;
-					else Macro.Draw();
+					var del = GUILayout.Button("X", Styles.red_button, GUILayout.Width(20));
+					Macro.Draw();
+					if(del) Macro = null;
 				}
 				else 
 				{
-					GUILayout.Space(20);
 					if(Edit && GUILayout.Button("Select First Action", Styles.normal_button, GUILayout.ExpandWidth(true)))
-					{ if(SelectNode != null) SelectNode((n) => Macro = n); }
+					{ 
+						if(SelectNode != null) 
+							SelectNode(n => 
+						{ 
+							Macro = n;
+							Macro.SetSelector(SelectNode); 
+							Macro.SetConditionSelector(SelectCondition);
+						}); 
+					}
 				}
 				GUILayout.EndHorizontal();
 			}
@@ -426,7 +513,7 @@ namespace ThrottleControlledAvionics
 		{
 			var ret = false;
 			macro = null;
-			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(110));
+			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandHeight(false));
 			GUILayout.BeginVertical();
 			foreach(var m in DB.List)
 			{

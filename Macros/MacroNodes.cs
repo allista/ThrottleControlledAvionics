@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public abstract class LoopMacro : ProxyMacro
+	public abstract class LoopMacro : ProxyMacroNode
 	{
 		protected abstract void DrawLoopCondition();
 
@@ -42,11 +42,11 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class WhileLoopMacro : LoopMacro
+	public class WhileLoopMacroNode : LoopMacro
 	{
 		[Persistent] public Condition LoopCondition;
 
-		public WhileLoopMacro() { Name = "Do While:"; }
+		public WhileLoopMacroNode() { Name = "Do While:"; }
 
 		protected override bool Action (VesselWrapper VSL)
 		{
@@ -64,11 +64,11 @@ namespace ThrottleControlledAvionics
 		{ if(LoopCondition != null) LoopCondition.Draw(); }
 	}
 
-	public class ForLoopMacro : LoopMacro
+	public class ForLoopMacroNode : LoopMacro
 	{
 		[Persistent] public int Count = 10;
 
-		public ForLoopMacro() { Name = "Repeat:"; }
+		public ForLoopMacroNode() { Name = "Repeat:"; }
 
 		protected override bool Action (VesselWrapper VSL)
 		{
@@ -102,7 +102,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit) 
 			{ 
-				GUILayout.Label(Title, Styles.label);
+				GUILayout.Label(Title, Styles.white, GUILayout.ExpandWidth(false));
 				if(ValueField.Draw(Value)) 
 				{ 
 					Value = ValueField.Value; 
@@ -120,7 +120,7 @@ namespace ThrottleControlledAvionics
 	public class SetVerticalSpeed : SetFloat
 	{
 		public SetVerticalSpeed()
-		{ Name = "Set vertical speed to:"; }
+		{ Name = "Set vertical speed to:"; Suffix = "m/s"; }
 
 		protected override bool Action(VesselWrapper VSL)
 		{
@@ -132,7 +132,7 @@ namespace ThrottleControlledAvionics
 	public class SetAltitude : SetFloat
 	{
 		public SetAltitude()
-		{ Name = "Set altitude to:"; }
+		{ Name = "Set altitude to:"; Suffix = "m"; }
 
 		protected override bool Action(VesselWrapper VSL)
 		{
@@ -141,9 +141,9 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class StopNode : MacroNode
+	public class StopMacroNode : MacroNode
 	{
-		public StopNode() { Name = "Stop"; }
+		public StopMacroNode() { Name = "Stop"; }
 
 		protected override bool Action(VesselWrapper VSL)
 		{
@@ -152,9 +152,9 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class LevelNode : MacroNode
+	public class LevelMacroNode : MacroNode
 	{
-		public LevelNode() { Name = "Level"; }
+		public LevelMacroNode() { Name = "Level"; }
 
 		protected override bool Action(VesselWrapper VSL)
 		{
@@ -163,9 +163,9 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class HoverNode : MacroNode
+	public class HoverMacroNode : MacroNode
 	{
-		public HoverNode() { Name = "Hover"; }
+		public HoverMacroNode() { Name = "Hover"; }
 
 		protected override bool Action(VesselWrapper VSL)
 		{
@@ -174,9 +174,9 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class AnchorNode : MacroNode
+	public class AnchorMacroNode : MacroNode
 	{
-		public AnchorNode() { Name = "Anchor"; }
+		public AnchorMacroNode() { Name = "Anchor"; }
 
 		protected override bool Action(VesselWrapper VSL)
 		{
@@ -185,9 +185,9 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class GoToNode : MacroNode
+	public class GoToMacroNode : MacroNode
 	{
-		public GoToNode() { Name = "Go To"; }
+		public GoToMacroNode() { Name = "Go To"; }
 
 		protected override bool Action(VesselWrapper VSL)
 		{
@@ -195,6 +195,20 @@ namespace ThrottleControlledAvionics
 			VSL.CFG.Nav.On(Navigation.GoToTarget);
 			return false;
 		}
+	}
+
+	public class WaitMacroNode : SetFloat
+	{
+		protected readonly Timer T = new Timer();
+
+		public WaitMacroNode()
+		{ Name = "Wait for"; Suffix = "s"; Value = (float)T.Period; }
+
+		protected override void OnValueChanged()
+		{ T.Period = Value; T.Reset(); }
+
+		protected override bool Action(VesselWrapper VSL)
+		{ return !T.Check; }
 	}
 }
 
