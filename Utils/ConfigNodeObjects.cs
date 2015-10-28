@@ -21,11 +21,15 @@ namespace ThrottleControlledAvionics
 
 		static readonly string cnode_name = typeof(IConfigNode).Name;
 
+		protected bool not_persistant(FieldInfo fi)
+		{ return fi.GetCustomAttributes(typeof(Persistent), true).Length == 0; }
+
 		virtual public void Load(ConfigNode node)
 		{ 
 			ConfigNode.LoadObjectFromConfig(this, node);
 			foreach(var fi in GetType().GetFields())
 			{
+				if(not_persistant(fi)) continue;
 				if(fi.FieldType.GetInterface(cnode_name) == null) continue;
 				var n = node.GetNode(fi.Name);
 				if(n == null) continue;
@@ -42,6 +46,7 @@ namespace ThrottleControlledAvionics
 			ConfigNode.CreateConfigFromObject(this, node); 
 			foreach(var fi in GetType().GetFields())
 			{
+				if(not_persistant(fi)) continue;
 				if(fi.FieldType.GetInterface(cnode_name) == null) continue;
 				var method = fi.FieldType.GetMethod("Save", new [] {typeof(ConfigNode)});
 				if(method == null) continue;
@@ -90,7 +95,7 @@ namespace ThrottleControlledAvionics
 					if(n == null) continue;
 					var ctype = Assembly.GetCallingAssembly().GetType(node.GetValue("type"));
 					if(ctype == null) continue;
-					var cconst = ctype.GetConstructor(null);
+					var cconst = ctype.GetConstructor(Type.EmptyTypes);
 					if(cconst == null) continue;
 					var obj = cconst.Invoke(null) as TypedConfigNodeObject;
 					if(obj != null) obj.Load(node);
