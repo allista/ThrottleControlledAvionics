@@ -208,13 +208,17 @@ namespace ThrottleControlledAvionics
 			bool update = false;
 			var num_engines = Engines.Count;
 			for(int i = 0; i < num_engines; i++)
-			{ update |= !Engines[i].Valid; if(update) break; }
+			{ update |= !Engines[i].Valid(this); if(update) break; }
 			if(!update)
 			{
 				for(int i = 0; i < RCS.Count; i++)
-				{ update |= !RCS[i].Valid; if(update) break; }
+				{ update |= !RCS[i].Valid(this); if(update) break; }
 			}
-			if(update) UpdateEngines();
+			if(update) 
+			{ 
+				UpdateEngines(); 
+				num_engines = Engines.Count; 
+			}
 			//unflameout engines
 			for(int i = 0; i < num_engines; i++)
 			{ var e = Engines[i]; if(e.engine.flameout) e.forceThrustPercentage(1); }
@@ -459,6 +463,7 @@ namespace ThrottleControlledAvionics
 					Torque += e.Torque(e.throttle * e.limit);
 				}
 			}
+			Torque = E_TorqueLimits.Clamp(Torque);
 		}
 
 		public void UpdateOnPlanetStats()
@@ -582,15 +587,18 @@ namespace ThrottleControlledAvionics
 			if(set_flag) CFG.SASIsControlled = false;
 		}
 
+		public Vector3 AngularAcceleration(Vector3 torque)
+		{
+			return new Vector3
+				(!MoI.x.Equals(0)? torque.x/MoI.x : float.MaxValue,
+				 !MoI.y.Equals(0)? torque.y/MoI.y : float.MaxValue,
+				 !MoI.z.Equals(0)? torque.z/MoI.z : float.MaxValue);
+		}
+
 		void update_MaxAngularA()
 		{
 			MaxTorque = E_TorqueLimits.Max+R_TorqueLimits.Max+W_TorqueLimits.Max;
-			var new_angularA = new Vector3
-				(
-					!MoI.x.Equals(0)? MaxTorque.x/MoI.x : float.MaxValue,
-					!MoI.y.Equals(0)? MaxTorque.y/MoI.y : float.MaxValue,
-					!MoI.z.Equals(0)? MaxTorque.z/MoI.z : float.MaxValue
-				);
+			var new_angularA = AngularAcceleration(MaxTorque);
 			MaxAngularA = new_angularA; //Utils.EWA(MaxAngularA, new_angularA);
 			wMaxAngularA = refT.TransformDirection(MaxAngularA);
 			MaxAngularA_m = MaxAngularA.magnitude;

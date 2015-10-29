@@ -11,7 +11,7 @@ RCS
 	MaxIterations = 50
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 10
-	OptimizationTorqueCutoff = 1
+	OptimizationTorqueCutoff = 0.002 rad/s2
 	TorqueRatioFactor = 0.1
 }
 
@@ -20,7 +20,7 @@ ENG
 	MaxIterations = 50
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 45
-	OptimizationTorqueCutoff = 1
+	OptimizationTorqueCutoff = 0.002 rad/s2
 	ThrustOptimizationPrecision = 0.001
 	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 0.1

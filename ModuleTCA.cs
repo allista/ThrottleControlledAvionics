@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Initialization
-		public void OnReloadGlobals() { VSL.Init(); invoke_in_modules("Init"); }
+		public void OnReloadGlobals() { invoke_in_modules("Init"); }
 
 		public override string GetInfo()
 		{ return HasTCA? "Software Installed" : "Not Available"; }
@@ -108,10 +108,17 @@ namespace ThrottleControlledAvionics
 		#endif
 		void onVesselModify(Vessel vsl)
 		{ 
-			if(vsl != vessel) return;
-			reset();
+			if(vsl == null || vsl != vessel) return;
 			check_priority();
-			init();
+			if(!enabled) reset();
+			else if(VSL == null || VSL.vessel == null ||
+			        vsl.id != VSL.vessel.id)
+			{
+				this.Log("Reinitializing");//debug
+				reset();
+				init();
+			}
+			this.Log("Vessel was modified");//debug
 		}
 
 		void onStageActive(int stage)
@@ -123,10 +130,14 @@ namespace ThrottleControlledAvionics
 
 		IEnumerator<YieldInstruction> onStageUpdate()
 		{
+			this.Log("Pausing profile updates");//debug
 			VSL.CanUpdateEngines = false;
 			yield return new WaitForSeconds(0.5f);
+			this.Log("Force-updating profile");//debug
+			VSL.UpdateEngines();
 			CFG.ActiveProfile.Update(VSL.Engines, true);
 			VSL.CanUpdateEngines = true;
+			this.Log("Unpausing profile updates");//debug
 		}
 
 		void check_priority()
@@ -208,7 +219,7 @@ namespace ThrottleControlledAvionics
 			return tca;
 		}
 
-		void UpdateCFG()
+		void updateCFG()
 		{
 			//get all ModuleTCA instances in the vessel
 			var TCA_Modules = AllTCA(vessel);
@@ -242,7 +253,7 @@ namespace ThrottleControlledAvionics
 		void init()
 		{
 			if(!enabled) return;
-			UpdateCFG();
+			updateCFG();
 			VSL = new VesselWrapper(vessel, CFG);
 			VSL.Init();
 			VSL.UpdateState();
@@ -274,7 +285,7 @@ namespace ThrottleControlledAvionics
 				CFG.ClearCallbacks();
 			}
 			delete_modules();
-			VSL = null; 
+			VSL = null;
 		}
 		#endregion
 
@@ -309,7 +320,7 @@ namespace ThrottleControlledAvionics
 		public override void OnUpdate()
 		{
 			//update vessel config if needed
-			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) UpdateCFG();
+			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) updateCFG();
 			//update heavy to compute parameters
 			if(IsStateSet(TCAState.HaveActiveEngines)) VSL.UpdateMoI();
 			if(rad.IsActive || lnd.IsActive) VSL.UpdateBounds();

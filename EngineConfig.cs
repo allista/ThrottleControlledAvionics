@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 
 		public EngineConfig() {}
 		public EngineConfig(EngineWrapper e) 
-		{ Name = e.Group > 0? ("Group "+e.Group) : e.name; Update(e); }
+		{ Name = e.Group > 0? ("Group "+e.Group) : e.name; Update(e, true); }
 
 		public EngineConfig(EngineConfig c)
 		{
@@ -43,8 +43,8 @@ namespace ThrottleControlledAvionics
 		{
 			Limit = e.thrustLimit;
 			Role  = e.Role;
-			if(with_On) On = e.isOperational;
-			else Changed |= On != e.isOperational;
+			if(with_On) On = e.engine.EngineIgnited;
+			else Changed |= On != e.engine.EngineIgnited;
 		}
 
 		public override void Load (ConfigNode node)
@@ -75,7 +75,7 @@ namespace ThrottleControlledAvionics
 
 		public bool Differs(EngineWrapper e)
 		{
-			return On != e.isOperational || Role != e.Role ||
+			return On != e.engine.EngineIgnited || Role != e.Role ||
 				(Role == TCARole.MANUAL && Mathf.Abs(e.thrustLimit-Limit) > lim_eps);
 		}
 
@@ -230,6 +230,7 @@ namespace ThrottleControlledAvionics
 
 		public void Update(IList<EngineWrapper> engines, bool with_On = false)
 		{
+//			Utils.Log("Updating {0}", Name);//debug
 			var groups = new EngineConfigIntDB();
 			var single = new EngineConfigUintDB();
 			NumManual = 0;
@@ -252,6 +253,7 @@ namespace ThrottleControlledAvionics
 					{
 						if(e.Role == TCARole.MANUAL) NumManual++;
 						single[e.ID] = new EngineConfig(e);
+						Utils.Log("New engine found: {0}, {1}, cfg {2}", e.ID, e.part.flightID, single[e.ID]);//debug
 					}
 				}
 				else if(e.Group > 0) 
@@ -259,16 +261,18 @@ namespace ThrottleControlledAvionics
 					if(e.Role == TCARole.MANUAL && !groups.ContainsKey(e.Group)) NumManual++;
 					Changed |= c.Differs(e);
 					c.Limit = e.thrustLimit;
-//					if(with_On) Utils.Log("Updating {0} group: On was {1}, now {2}", c.Name, c.On, e.isOperational);//debug
-					if(with_On) c.On = e.isOperational;
+//					Utils.Log("Updating {0} with {1}, {2}", c, e.ID, e.part.flightID);//debug
+					if(with_On) c.On = e.engine.EngineIgnited;
+//					Utils.Log("Updated {0}", c);//debug
 					groups[e.Group] = c;
 				}
 				else 
 				{ 
 					if(e.Role == TCARole.MANUAL) NumManual++;
-//					if(with_On) Utils.Log("Updating {0}: On was {1}, now {2}", c.Name, c.On, e.isOperational);//debug
+					Changed |= c.Differs(e);
+//					Utils.Log("Updating {0} with {1}, {2}", c, e.ID, e.part.flightID);//debug
 					c.Update(e, with_On);
-					Changed |= c.Changed;
+//					Utils.Log("Updated {0}", c);//debug
 					single[e.ID] = c;
 				}
 			}
@@ -286,11 +290,14 @@ namespace ThrottleControlledAvionics
 
 		public void Apply(IList<EngineWrapper> engines)
 		{
+			Utils.Log("Applying {0}", Name);//debug
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++) 
 			{
 				var e = engines[i];
 				var c = GetConfig(e);
+				Utils.Log("Applying {0} to {1}, {2}: engine ignited {3}", c, e.ID, e.part.flightID, e.engine.EngineIgnited);//debug
 				if(c != null) c.Apply(e);
+				Utils.Log("Applyed {0}: engine ignited {1}", c, e.engine.EngineIgnited);//debug
 			}
 			Changed = false;
 		}

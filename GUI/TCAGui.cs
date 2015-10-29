@@ -739,14 +739,15 @@ namespace ThrottleControlledAvionics
 		{
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
-			GUILayout.Label(string.Format("Torque Error: {0:F1}kNm", TCA.TorqueError), GUILayout.ExpandWidth(false));
+			GUILayout.Label(string.Format("Steering: {0}", VSL.Steering), GUILayout.ExpandWidth(false));
+			GUILayout.Label(string.Format("Angular Accel Error: {0:F3}rad/s2", TCA.TorqueError), GUILayout.ExpandWidth(false));
 			GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", VSL.VSF), GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			eInfoScroll = GUILayout.BeginScrollView(eInfoScroll, GUILayout.Height(controlsHeight*4));
 			GUILayout.BeginVertical();
 			foreach(var e in VSL.ActiveEngines)
 			{
-				if(!e.Valid) continue;
+				if(!e.Valid(VSL)) continue;
 				GUILayout.BeginHorizontal();
 				GUILayout.Label(e.name + "\n" +
 				                string.Format(
