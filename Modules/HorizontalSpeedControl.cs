@@ -119,7 +119,7 @@ namespace ThrottleControlledAvionics
 					e.engine.thrustPercentage = 0;
 				}
 			}
-			if(Changed) CFG.ActiveProfile.Update(VSL.ActiveEngines);
+			if(Changed && VSL.CanUpdateEngines) CFG.ActiveProfile.Update(VSL.ActiveEngines);
 		}
 
 		protected override void Update(FlightCtrlState s)
