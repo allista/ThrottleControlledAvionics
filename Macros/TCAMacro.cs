@@ -52,6 +52,7 @@ namespace ThrottleControlledAvionics
 			else if(overwrite) DB[old_macro] = (TCAMacro)macro.GetCopy();
 		}
 
+		public void Clear() { DB.List.Clear(); }
 		public bool Remove(TCAMacro macro) { return DB.List.Remove(macro); }
 		public TCAMacro Get(string name) { return DB.List.Find(m => m.Name == name); }
 
