@@ -114,11 +114,9 @@ namespace ThrottleControlledAvionics
 			else if(VSL == null || VSL.vessel == null ||
 			        vsl.id != VSL.vessel.id)
 			{
-				this.Log("Reinitializing");//debug
 				reset();
 				init();
 			}
-			this.Log("Vessel was modified");//debug
 		}
 
 		void onStageActive(int stage)
@@ -130,14 +128,11 @@ namespace ThrottleControlledAvionics
 
 		IEnumerator<YieldInstruction> onStageUpdate()
 		{
-			this.Log("Pausing profile updates");//debug
 			VSL.CanUpdateEngines = false;
 			yield return new WaitForSeconds(0.5f);
-			this.Log("Force-updating profile");//debug
 			VSL.UpdateEngines();
 			CFG.ActiveProfile.Update(VSL.Engines, true);
 			VSL.CanUpdateEngines = true;
-			this.Log("Unpausing profile updates");//debug
 		}
 
 		void check_priority()

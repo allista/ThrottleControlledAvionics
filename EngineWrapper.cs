@@ -119,7 +119,7 @@ namespace ThrottleControlledAvionics
 			var ids = string.Format("{0} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1}",
 			                        e.part.partInfo.name, e.engine.engineID, to.x, to.y, to.z, td.x, td.y, td.z);
 			id = (uint)ids.GetHashCode();
-			Utils.Log("{0}: {1}", ids, id);//debug
+//			Utils.Log("{0}: {1}", ids, id);//debug
 		}
 
 		public static implicit operator uint(EngineID eid) { return eid.id; }

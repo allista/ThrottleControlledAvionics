@@ -253,7 +253,7 @@ namespace ThrottleControlledAvionics
 					{
 						if(e.Role == TCARole.MANUAL) NumManual++;
 						single[e.ID] = new EngineConfig(e);
-						Utils.Log("New engine found: {0}, {1}, cfg {2}", e.ID, e.part.flightID, single[e.ID]);//debug
+//						Utils.Log("New engine found: {0}, {1}, cfg {2}", e.ID, e.part.flightID, single[e.ID]);//debug
 					}
 				}
 				else if(e.Group > 0) 
@@ -290,14 +290,14 @@ namespace ThrottleControlledAvionics
 
 		public void Apply(IList<EngineWrapper> engines)
 		{
-			Utils.Log("Applying {0}", Name);//debug
+//			Utils.Log("Applying {0}", Name);//debug
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++) 
 			{
 				var e = engines[i];
 				var c = GetConfig(e);
-				Utils.Log("Applying {0} to {1}, {2}: engine ignited {3}", c, e.ID, e.part.flightID, e.engine.EngineIgnited);//debug
+//				Utils.Log("Applying {0} to {1}, {2}: engine ignited {3}", c, e.ID, e.part.flightID, e.engine.EngineIgnited);//debug
 				if(c != null) c.Apply(e);
-				Utils.Log("Applyed {0}: engine ignited {1}", c, e.engine.EngineIgnited);//debug
+//				Utils.Log("Applyed {0}: engine ignited {1}", c, e.engine.EngineIgnited);//debug
 			}
 			Changed = false;
 		}
