@@ -33,6 +33,7 @@ namespace ThrottleControlledAvionics
 		public override void Awake()
 		{
 			base.Awake();
+			width = 600;
 			height = 400;
 			GameEvents.onEditorShipModified.Add(OnShipModified);
 			GameEvents.onEditorLoad.Add(OnShipLoad);
@@ -130,6 +131,10 @@ namespace ThrottleControlledAvionics
 				CFG.AltitudeAboveTerrain = !CFG.AltitudeAboveTerrain;
 			if(Utils.ButtonSwitch("Use Throttle", CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false)))
 				CFG.BlockThrottle = !CFG.BlockThrottle;
+			if(Utils.ButtonSwitch("VTOL Assist", CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false)))
+				CFG.VTOLAssistON = !CFG.VTOLAssistON;
+			if(Utils.ButtonSwitch("Flight Stabilizer", CFG.StabilizeFlight, "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false)))
+				CFG.StabilizeFlight = !CFG.StabilizeFlight;
 			GUILayout.EndHorizontal();
 			CFG.EnginesProfiles.Draw(height);
 			if(CFG.ActiveProfile.Changed)
