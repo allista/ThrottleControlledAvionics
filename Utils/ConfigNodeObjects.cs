@@ -102,16 +102,12 @@ namespace ThrottleControlledAvionics
 			TypedConfigNodeObject obj = null;
 			var type = node.GetValue("type");
 			if(type == null) return obj;
-			var ctype = Assembly.GetCallingAssembly().GetType(type);
-			if(ctype != null)
-			{
-				try 
-				{ 
-					obj = Activator.CreateInstance(ctype) as TypedConfigNodeObject;
-					obj.Load(node);
-				}
-				catch { Utils.Log("Unable to create {0}", ctype); }
+			try 
+			{ 
+				obj = Assembly.GetCallingAssembly().CreateInstance(type) as TypedConfigNodeObject;
+				obj.Load(node);
 			}
+			catch(Exception ex) { Utils.Log("Unable to create {0}: {1}", type, ex.Message); }
 			return obj;
 		}
 	}
