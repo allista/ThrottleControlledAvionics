@@ -110,7 +110,7 @@ namespace ThrottleControlledAvionics
 					TorqueError = error;
 				}
 				//check convergence conditions
-				if(error < ENG.OptimizationPrecision || 
+				if(error < ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision || 
 				   last_error > 0 && Mathf.Abs(error-last_error) < ENG.OptimizationPrecision*last_error)
 					break;
 				last_error = error;
