@@ -47,6 +47,7 @@ namespace ThrottleControlledAvionics
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
 		public bool CanUpdateEngines = true;
+		public bool ForceUpdateEngines;
 
 		public int  NumActive { get; private set; }
 		public int  NumActiveRCS { get; private set; }
@@ -205,19 +206,22 @@ namespace ThrottleControlledAvionics
 		public bool CheckEngines()
 		{
 			//update engines' list if needed
-			bool update = false;
 			var num_engines = Engines.Count;
-			for(int i = 0; i < num_engines; i++)
-			{ update |= !Engines[i].Valid(this); if(update) break; }
-			if(!update)
+			if(!ForceUpdateEngines)
 			{
-				for(int i = 0; i < RCS.Count; i++)
-				{ update |= !RCS[i].Valid(this); if(update) break; }
+				for(int i = 0; i < num_engines; i++)
+				{ ForceUpdateEngines |= !Engines[i].Valid(this); if(ForceUpdateEngines) break; }
+				if(!ForceUpdateEngines)
+				{
+					for(int i = 0; i < RCS.Count; i++)
+					{ ForceUpdateEngines |= !RCS[i].Valid(this); if(ForceUpdateEngines) break; }
+				}
 			}
-			if(update) 
+			if(ForceUpdateEngines) 
 			{ 
 				UpdateEngines(); 
-				num_engines = Engines.Count; 
+				num_engines = Engines.Count;
+				ForceUpdateEngines = false;
 			}
 			//unflameout engines
 			for(int i = 0; i < num_engines; i++)

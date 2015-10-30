@@ -113,10 +113,8 @@ namespace ThrottleControlledAvionics
 			if(!enabled) reset();
 			else if(VSL == null || VSL.vessel == null ||
 			        vsl.id != VSL.vessel.id)
-			{
-				reset();
-				init();
-			}
+			{ reset(); init(); }
+			else VSL.ForceUpdateEngines = true;
 		}
 
 		void onStageActive(int stage)
