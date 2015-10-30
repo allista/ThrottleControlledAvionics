@@ -18,6 +18,7 @@ namespace ThrottleControlledAvionics
 	{
 		public delegate void Selector(Action<MacroNode> callback);
 		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		protected VesselConfig CFG;
 
 		public MacroNode Parent;
 		[Persistent] public string Name;
@@ -29,6 +30,9 @@ namespace ThrottleControlledAvionics
 
 		public Selector SelectNode;
 		public Condition.Selector SelectCondition;
+
+		public MacroNode()
+		{ Name = Utils.ParseCamelCase(GetType().Name.Replace(typeof(MacroNode).Name, "")); }
 
 		public virtual string Title
 		{
@@ -118,6 +122,9 @@ namespace ThrottleControlledAvionics
 
 		public virtual void SetConditionSelector(Condition.Selector selector) 
 		{ SelectCondition = selector; }
+
+		public virtual void SetCFG(VesselConfig cfg) 
+		{ CFG = cfg; }
 	}
 }
 

@@ -44,6 +44,13 @@ namespace ThrottleControlledAvionics
 				Subnodes[i].SetConditionSelector(selector);
 		}
 
+		public override void SetCFG(VesselConfig cfg)
+		{ 
+			base.SetCFG(cfg);
+			for(int i = 0, count = Subnodes.Count; i < count; i++)
+				Subnodes[i].SetCFG(cfg);
+		}
+
 		public override void Rewind()
 		{
 			base.Rewind();
