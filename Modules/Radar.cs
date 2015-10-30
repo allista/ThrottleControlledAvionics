@@ -129,7 +129,7 @@ namespace ThrottleControlledAvionics
 					Dir = Vector3.Lerp(Dir, SurfaceVelocity.normalized,
 					                   RAD.LookAheadTime/(VSL.Altitude/-VSL.RelVerticalSpeed)/VSL.MaxDTWR);
 			}
-			else Dir = Vector3.ProjectOnPlane(VSL.Fwd, VSL.Up).normalized;
+			else Dir = VSL.HFwd;
 			//update state if previously detected something
 			if(DetectedHit.Valid)
 			{

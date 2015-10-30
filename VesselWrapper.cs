@@ -75,6 +75,7 @@ namespace ThrottleControlledAvionics
 
 		public Vector3d   Up { get; private set; }  //up unit vector in world space
 		public Vector3    Fwd { get; private set; }  //fwd unit vector of the Control module in world space
+		public Vector3    HFwd { get; private set; }  //fwd unit vector of the Control module in world space
 		public bool       NoseUp { get; private set; }  //if the forward is refT.forward or refT.up
 		public Vector3    wCoM { get; private set; } //center of mass in world space
 		public Vector3    MoI { get; private set; } = Vector3.one; //main diagonal of inertia tensor
@@ -509,6 +510,7 @@ namespace ThrottleControlledAvionics
 			{
 				Fwd  = Vector3.Cross(refT.right, -MaxThrust).normalized;
 				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
+				HFwd = Vector3.ProjectOnPlane(Fwd, Up).normalized;
 			}
 			MinVSFtwr = 1/Utils.ClampL(MaxTWR, 1);
 			var mVSFtor = (MaxPitchRollAA_m > 0)? Utils.ClampH(GLB.VSC.MinVSFf/MaxPitchRollAA_m, 0.9f*MinVSFtwr) : 0.1f*MinVSFtwr;
