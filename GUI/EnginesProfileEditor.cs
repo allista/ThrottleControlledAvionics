@@ -44,21 +44,14 @@ namespace ThrottleControlledAvionics
 			GameEvents.onEditorShipModified.Remove(OnShipModified);
 			GameEvents.onEditorLoad.Remove(OnShipLoad);
 			GameEvents.onEditorRestart.Remove(Reset);
+			TCAMacroEditor.Exit();
 			base.OnDestroy();
 		}
 
-		void Reset()
-		{
-			TCAToolbarManager.ShowButton(false);
-			Engines.Clear();
-			CFG = null;
-		}
+		void Reset() { reset = true; }
 
 		void OnShipLoad(ShipConstruct ship, CraftBrowser.LoadType load_type)
-		{
-			if(load_type == CraftBrowser.LoadType.Merge) return;
-			if(UpdateEngines(ship)) GetCFG(ship);
-		}
+		{ init_engines = load_type == CraftBrowser.LoadType.Normal; }
 
 		void GetCFG(ShipConstruct ship)
 		{
@@ -109,12 +102,33 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		void OnShipModified(ShipConstruct ship)
+		void OnShipModified(ShipConstruct ship) { update_engines = true; }
+
+		bool update_engines, init_engines, reset;
+		void Update()
 		{
-			if(!UpdateEngines(ship)) return;
-			if(CFG == null) GetCFG(ship);
-			else UpdateCFG(ship);
-			CFG.ActiveProfile.Update(Engines);
+			if(EditorLogic.fetch == null) return;
+			if(reset)
+			{
+				TCAToolbarManager.ShowButton(false);
+				Engines.Clear();
+				CFG = null;
+				reset = false;
+			}
+			if(init_engines)
+			{
+				if(UpdateEngines(EditorLogic.fetch.ship)) 
+					GetCFG(EditorLogic.fetch.ship);
+				init_engines = false;
+			}
+			if(update_engines)
+			{
+				if(!UpdateEngines(EditorLogic.fetch.ship)) return;
+				if(CFG == null) GetCFG(EditorLogic.fetch.ship);
+				else UpdateCFG(EditorLogic.fetch.ship);
+				CFG.ActiveProfile.Update(Engines);
+				update_engines = false;
+			}
 		}
 
 		protected override void DrawMainWindow(int windowID)
