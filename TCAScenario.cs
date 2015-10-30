@@ -29,6 +29,7 @@ namespace ThrottleControlledAvionics
 		public const string GLOBALSNAME = "TCA.glob";
 		public const string VSL_NODE    = "VESSELS";
 		public const string NAMED_NODE  = "NAMED";
+		public const string MACROS_NODE = "MACROS";
 
 		static TCAGlobals globals;
 		public static TCAGlobals Globals 
@@ -132,6 +133,7 @@ namespace ThrottleControlledAvionics
 			if(ConfigsLoaded) return;
 			Configs.Clear();
 			NamedConfigs.Clear();
+			Macros.Clear();
 			foreach(var n in node.GetNodes())
 			{
 				if(n.name == VSL_NODE)
@@ -152,6 +154,7 @@ namespace ThrottleControlledAvionics
 						NamedConfigs[config.Name] = config;
 					}
 				}
+				else if(n.name == MACROS_NODE) Macros.Load(n);
 			}
 			ConfigsLoaded = true;
 		}
@@ -182,6 +185,8 @@ namespace ThrottleControlledAvionics
 				foreach(var c in NamedConfigs.Keys)
 					NamedConfigs[c].Save(n.AddNode(NamedConfig.NODE_NAME));
 			}
+			if(Macros.DB.Count > 0)
+				Macros.Save(node.AddNode(MACROS_NODE));
 		}
 
 		[Obsolete("Only needed for legacy config conversion")]
