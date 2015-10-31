@@ -182,7 +182,7 @@ namespace ThrottleControlledAvionics
 		public void UpdateEngines()
 		{
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
-			Engines.Clear();
+			Engines.Clear(); RCS.Clear(); RWheels.Clear();
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
 				{	
@@ -425,14 +425,14 @@ namespace ThrottleControlledAvionics
 		public void UpdateETorqueLimits()
 		{
 			E_TorqueLimits = new Vector6();
-			for(int i = 0; i < SteeringEngines.Count; i++)
+			for(int i = 0, count = SteeringEngines.Count; i < count; i++)
 				E_TorqueLimits.Add(SteeringEngines[i].currentTorque);
 		}
 
 		public void UpdateWTorqueLimits()
 		{
 			W_TorqueLimits = new Vector6();
-			for(int i = 0; i < RWheels.Count; i++)
+			for(int i = 0, count = RWheels.Count; i < count; i++)
 			{
 				var w = RWheels[i];
 				if(!w.operational) continue;
@@ -443,11 +443,11 @@ namespace ThrottleControlledAvionics
 		public void UpdateRTorqueLimits()
 		{
 			R_TorqueLimits = new Vector6();
-			for(int i = 0; i < RCS.Count; i++)
+			for(int i = 0, count = RCS.Count; i < count; i++)
 			{
 				var r = RCS[i];
 				if(!r.rcs.isEnabled) continue;
-				for(int j = 0; j < r.rcs.thrusterTransforms.Count; j++)
+				for(int j = 0, tcount = r.rcs.thrusterTransforms.Count; j < tcount; j++)
 				{
 					var t = r.rcs.thrusterTransforms[j];
 					if(t == null) continue;
