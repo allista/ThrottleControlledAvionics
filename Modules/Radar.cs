@@ -20,7 +20,8 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "RAD";
 
-			[Persistent] public float MaxViewAngle      = 15;
+			[Persistent] public float UpViewAngle       = 15;
+			[Persistent] public float DownViewAngle     = 15;
 			[Persistent] public float LookAheadTime     = 20;
 			[Persistent] public float AltitudeFilter    = 0.1f;
 			[Persistent] public int   NumRays           = 30;
@@ -37,11 +38,21 @@ namespace ThrottleControlledAvionics
 			public override void Init()
 			{
 				base.Init();
-				MaxViewAngle = Utils.ClampH(MaxViewAngle, 80);
-				DeltaAngle = MaxViewAngle/NumRays;
+				UpViewAngle = Utils.ClampH(UpViewAngle, 80);
+				DownViewAngle = Utils.ClampH(DownViewAngle, 80);
+				DeltaAngle = (UpViewAngle+DownViewAngle)/NumRays;
 			}
 		}
 		static Config RAD { get { return TCAScenario.Globals.RAD; } }
+
+		[Flags]
+		public enum Mode 
+		{ 
+			Off = 0, 
+			Vertical = 1 << 0, 
+			Horizontal = 1 << 1, 
+			Both = Vertical|Horizontal 
+		}
 
 		public Radar(VesselWrapper vsl) 
 		{ 
@@ -51,6 +62,7 @@ namespace ThrottleControlledAvionics
 			DetectedHit = new Sweep(vsl);
 		}
 
+		Mode     mode;
 		Vector3  Dir;
 		Vector3d SurfaceVelocity;
 		float    ViewAngle;
@@ -95,8 +107,16 @@ namespace ThrottleControlledAvionics
 
 		public override void UpdateState() 
 		{ 
-			IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed && 
-				CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain;
+			IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed;
+			if(IsActive)
+			{
+				mode = Mode.Off;
+				if(CFG.HF) 
+					mode |= Mode.Horizontal;
+				if(CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain)
+					mode |= Mode.Vertical;
+				if(mode == Mode.Off) IsActive = false;
+			}
 			if(IsActive) return;
 			reset();
 		}
@@ -149,14 +169,15 @@ namespace ThrottleControlledAvionics
 			ClosingSpeed = Utils.ClampL(Vector3.Dot(SurfaceVelocity, Dir), RAD.MinClosingSpeed);
 			//cast the ray
 			if(RayI > RAD.NumRays) reset();
-			ViewAngle     = -RAD.MaxViewAngle/2+RAD.DeltaAngle*RayI;
+			ViewAngle     = -RAD.UpViewAngle+RAD.DeltaAngle*RayI;
 			MaxDistance   = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
 			CurHit.Cast(Dir, ViewAngle, MaxDistance);
 			RayI++;
 			//check the hit
 			if(CurHit.Valid)
 			{
-				if(CurHit.Maneuver == Sweep.ManeuverType.Horizontal)
+				if(CurHit.Maneuver == Sweep.ManeuverType.Horizontal &&
+				   (mode & Mode.Horizontal) == Mode.Horizontal)
 				{
 					//check if it is indeed a collision
 					if(CurHit.Altitude > VSL.H*RAD.MinAltitudeFactor) return;
@@ -186,6 +207,7 @@ namespace ThrottleControlledAvionics
 			}
 			//if on side collision course, correct it
 			if(!side_maneuver.IsZero()) VSL.CourseCorrections.Add(side_maneuver);
+			if((mode & Mode.Vertical) != Mode.Vertical) return;
 			//update collision info if detected something
 			VSL.TimeAhead = -1;
 			DistanceAhead = -1;

@@ -197,7 +197,8 @@ LND
 
 RAD
 {
-	MaxViewAngle      = 60
+	UpViewAngle       = 60
+	DownViewAngle     = 20
 	LookAheadTime     = 20
 	AltitudeFilter    = 0.1
 	NumRays           = 20
