@@ -103,9 +103,6 @@ namespace ThrottleControlledAvionics
 			init();
 		}
 
-		#if DEBUG
-		public 
-		#endif
 		void onVesselModify(Vessel vsl)
 		{ 
 			if(vsl == null || vsl != vessel) return;
@@ -114,7 +111,11 @@ namespace ThrottleControlledAvionics
 			else if(VSL == null || VSL.vessel == null ||
 			        vsl.id != VSL.vessel.id)
 			{ reset(); init(); }
-			else VSL.ForceUpdateEngines = true;
+			else 
+			{
+				VSL.ForceUpdateEngines = true;
+				StartCoroutine(onVesselModifiedUpdate());
+			}
 		}
 
 		void onStageActive(int stage)
@@ -131,6 +132,12 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateEngines();
 			CFG.ActiveProfile.Update(VSL.Engines, true);
 			VSL.CanUpdateEngines = true;
+		}
+
+		IEnumerator<YieldInstruction> onVesselModifiedUpdate()
+		{
+			yield break; //for some future initializations//
+//			yield return new WaitForSeconds(0.5f);
 		}
 
 		void check_priority()
@@ -267,6 +274,7 @@ namespace ThrottleControlledAvionics
 			ThrottleControlledAvionics.AttachTCA(this);
 			VSL.SetUnpackDistance(GLB.UnpackDistance);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
+			StartCoroutine(onVesselModifiedUpdate());
 		}
 
 		void reset()
