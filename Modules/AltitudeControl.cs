@@ -133,7 +133,8 @@ namespace ThrottleControlledAvionics
 //					Log("free_fall {0}, brake_time {1}, min_speed {2}, error {3}", free_fall, brake_time, min_speed, error);//debug
 				}
 			}
-			else if(error > 0) max_speed = Utils.Clamp(ALT.MaxSpeedLow*(error-ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, ALT.MaxSpeedLow, ALT.MaxSpeedHigh);
+			else if(error > 0) max_speed = alt <= VSL.H? ALT.MaxSpeedHigh :
+				Utils.Clamp(ALT.MaxSpeedLow*(error-ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, ALT.MaxSpeedLow, ALT.MaxSpeedHigh);
 			if(VSL.SlowEngines)
 			{
 				jets_pid.Min = min_speed;
