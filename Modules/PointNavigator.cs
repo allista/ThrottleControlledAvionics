@@ -120,7 +120,8 @@ namespace ThrottleControlledAvionics
 				CFG.DesiredAltitude = PN.TakeoffAltitude+VSL.H;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 			}				
-			else VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+			else if(CFG.VTOLAssistON) 
+				VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 			reset_formation();
 			SetTarget(wp);
 			pid.Reset();
@@ -267,7 +268,8 @@ namespace ThrottleControlledAvionics
 						if(distance < CFG.Target.Distance)
 							VSL.CourseCorrections.Add(tvel*Utils.Clamp(-distance/CFG.Target.Distance*PN.FormationFactor, -PN.FormationFactor, 0));
 						else if(Vector3.Dot(vdir, dvel) < 0 && 
-						        dvel.magnitude > PN.FollowerMaxAwaySpped)
+						        (dvel.magnitude > PN.FollowerMaxAwaySpped ||
+						         distance > CFG.Target.Distance*5))
 						{
 							keep_formation = true;
 							VSL.NeededHorVelocity = vdir;
