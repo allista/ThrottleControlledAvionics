@@ -168,10 +168,6 @@ namespace ThrottleControlledAvionics
 			                              GUILayout.ExpandWidth(false));
 			if(squad_mode) CFG.Squad = Utils.IntSelector(CFG.Squad, 1, tooltip: "Squad ID");
 			GUILayout.FlexibleSpace();
-			#if DEBUG
-			if(GUILayout.Button("Reset", Styles.yellow_button, GUILayout.Width(60))) 
-				Apply(tca => tca.onVesselModify(tca.vessel));
-			#endif
 			StatusString();
 			GUILayout.EndHorizontal();
 			SelectConfig_start();
@@ -330,16 +326,20 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginHorizontal();
 				if(CFG.VF[VFlight.AltitudeControl])
 				{
+					var above_ground = VSL.AltitudeAboveGround;
 					GUILayout.Label(string.Format("Altitude: {0:F2}m {1:+0.0;-0.0;+0.0}m/s", 
 					                              VSL.Altitude, VSL.VerticalSpeedDisp), 
 					                GUILayout.Width(180));
-					GUILayout.Label("Set Point (m):", GUILayout.Width(90));
+					GUILayout.Label(new GUIContent("Set Point (m):", above_ground? 
+					                               "Setpoint is above the ground" : "Warning! Setpoint is below the ground"), 
+					                GUILayout.Width(90));
 					if(s_altitude == null || !altitude.Equals(CFG.DesiredAltitude))
 					{
 						altitude = CFG.DesiredAltitude;
 						s_altitude = altitude.ToString("F1");
 					}
-					s_altitude = GUILayout.TextField(s_altitude, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
+					var style = above_ground? Styles.green : Styles.red;
+					s_altitude = GUILayout.TextField(s_altitude, style, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
 					if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
 					{
 						if(float.TryParse(s_altitude, out altitude))
