@@ -238,7 +238,7 @@ TLA
 	GearOffAngularVelocity = 0.01 //(rad/s)^2 ~= 5.73deg/s
 	
 	GearOnMaxHSpeed = 5
-	GearOnAltitude  = 5
+	GearOnAtH       = 5
 	GearOnTime      = 5
 }
 

@@ -28,7 +28,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float GearOffAngularVelocity = 0.01f; //(rad/s)^2 ~= 1.8deg/s
 			//landing
 			[Persistent] public float GearOnMaxHSpeed = 1f;
-			[Persistent] public float GearOnAltitude  = 5f;
+			[Persistent] public float GearOnAtH       = 5f;
 			[Persistent] public float GearOnTime      = 5f;
 		}
 		static Config TLA { get { return TCAScenario.Globals.TLA; } }
@@ -101,7 +101,7 @@ namespace ThrottleControlledAvionics
 					VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
 					VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 					tookoff = false;
-				}, VSL.RelAltitude > TLA.GearOnAltitude+VSL.H);
+				}, VSL.RelAltitude > TLA.GearOnAtH+VSL.H);
 			}
 			//moving on the ground
 			else if(VSL.LandedOrSplashed)
@@ -132,7 +132,7 @@ namespace ThrottleControlledAvionics
 					},
 					                VSL.RelVerticalSpeed < 0 &&
 					                VSL.HorizontalSpeed < TLA.GearOnMaxHSpeed &&
-					                VSL.RelAltitude+VSL.RelVerticalSpeed*(TLA.GearOnTime+TLA.GearTimer) < TLA.GearOnAltitude+VSL.H);
+					                VSL.RelAltitude+VSL.RelVerticalSpeed*(TLA.GearOnTime+TLA.GearTimer) < TLA.GearOnAtH*VSL.H);
 				}
 				
 			}
