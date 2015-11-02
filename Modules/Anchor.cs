@@ -48,7 +48,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override void UpdateState() 
-		{ IsActive = CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) && VSL.OnPlanet; }
+		{ IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed && CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere); }
 
 		public override void Enable(bool enable = true)
 		{
@@ -71,7 +71,9 @@ namespace ThrottleControlledAvionics
 		public void Update()
 		{
 			if(!IsActive || CFG.Anchor == null) return;
-			CFG.HF.OnIfNot(HFlight.Move);
+			if(VSL.HorizontalSpeed > ANC.MaxSpeed)
+				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
+			else CFG.HF.OnIfNot(HFlight.Move);
 			CFG.Anchor.Update(VSL.mainBody);
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position - 
