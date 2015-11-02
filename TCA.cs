@@ -103,7 +103,7 @@ namespace ThrottleControlledAvionics
 						{
 							var ec = new string(e.character, 1).ToUpper();
 							try { e.keyCode = (KeyCode)Enum.Parse(typeof(KeyCode), ec); }
-							catch {}
+							catch(Exception ex) { Utils.Log("TCA GUI: exception caught while trying to set hotkey:\n{0}", ex); }
 						}
 						if(e.keyCode == KeyCode.None) 
 							ScreenMessages
@@ -120,39 +120,36 @@ namespace ThrottleControlledAvionics
 			{
 				if(CFG.VF[VFlight.AltitudeControl])
 				{
-					var old_altitude = CFG.DesiredAltitude;
 					if(GameSettings.THROTTLE_UP.GetKey())
-						CFG.DesiredAltitude = Mathf.Lerp(CFG.DesiredAltitude, 
-						                                 CFG.DesiredAltitude+10, 
-						                                 CFG.VSControlSensitivity);
+						altitude = Mathf.Lerp(CFG.DesiredAltitude, 
+						                      CFG.DesiredAltitude+10, 
+						                      CFG.VSControlSensitivity);
 					else if(GameSettings.THROTTLE_DOWN.GetKey())
-						CFG.DesiredAltitude = Mathf.Lerp(CFG.DesiredAltitude,
-						                                 CFG.DesiredAltitude-10, 
-						                                 CFG.VSControlSensitivity);
+						altitude = Mathf.Lerp(CFG.DesiredAltitude,
+						                      CFG.DesiredAltitude-10, 
+						                      CFG.VSControlSensitivity);
 					else if(GameSettings.THROTTLE_FULL.GetKey())
-						UpDamper.Run(() => CFG.DesiredAltitude = CFG.DesiredAltitude+10);
+						UpDamper.Run(() => altitude = altitude+10);
 					else if(GameSettings.THROTTLE_CUTOFF.GetKey())
-						DownDamper.Run(() => CFG.DesiredAltitude = CFG.DesiredAltitude-10);
-					if(!old_altitude.Equals(CFG.DesiredAltitude))
-						apply_cfg(cfg => cfg.DesiredAltitude = CFG.DesiredAltitude);
+						DownDamper.Run(() => altitude = altitude-10);
+					if(!altitude.Equals(CFG.DesiredAltitude)) set_altitude();
 				}
 				else
 				{
-					var old_cutoff = CFG.VerticalCutoff;
+					var cutoff = CFG.VerticalCutoff;
 					if(GameSettings.THROTTLE_UP.GetKey())
-						CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-						                                GLB.VSC.MaxSpeed, 
-						                                CFG.VSControlSensitivity);
+						cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
+						                    GLB.VSC.MaxSpeed, 
+						                    CFG.VSControlSensitivity);
 					else if(GameSettings.THROTTLE_DOWN.GetKey())
-						CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-						                                -GLB.VSC.MaxSpeed, 
-						                                CFG.VSControlSensitivity);
+						cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
+						                    -GLB.VSC.MaxSpeed, 
+						                    CFG.VSControlSensitivity);
 					else if(GameSettings.THROTTLE_FULL.GetKeyDown())
-						CFG.VerticalCutoff = GLB.VSC.MaxSpeed;
+						cutoff = GLB.VSC.MaxSpeed;
 					else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
-						CFG.VerticalCutoff = -GLB.VSC.MaxSpeed;
-					if(!old_cutoff.Equals(CFG.VerticalCutoff))
-						apply_cfg(cfg => cfg.VerticalCutoff = CFG.VerticalCutoff);
+						cutoff = -GLB.VSC.MaxSpeed;
+					if(!cutoff.Equals(CFG.VerticalCutoff)) set_vspeed(cutoff);
 				}
 			}
 		}

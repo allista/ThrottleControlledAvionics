@@ -101,6 +101,25 @@ namespace ThrottleControlledAvionics
 				tca.CFG.Nav.On(Navigation.FollowTarget);
 			});
 		}
+
+		static void set_altitude()
+		{
+			apply_cfg(cfg =>
+			{
+				cfg.DesiredAltitude = altitude;
+				s_altitude = altitude.ToString("F1");
+				cfg.BlockThrottle |= CFG.VSCIsActive;
+			});
+		}
+
+		static void set_vspeed(float vspeed)
+		{
+			apply_cfg(cfg =>
+			{
+				cfg.VerticalCutoff = vspeed;
+				cfg.BlockThrottle |= CFG.VSCIsActive;
+			});
+		}
 		#endregion
 
 		#region Configs Selector
@@ -342,14 +361,13 @@ namespace ThrottleControlledAvionics
 					s_altitude = GUILayout.TextField(s_altitude, style, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
 					if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
 					{
-						if(float.TryParse(s_altitude, out altitude))
-							apply_cfg(cfg => cfg.DesiredAltitude = altitude);
+						if(float.TryParse(s_altitude, out altitude)) set_altitude();
 						else altitude = CFG.DesiredAltitude;
 					}
 					if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) 
-					{ CFG.DesiredAltitude -= 10; apply_cfg(cfg => cfg.DesiredAltitude = CFG.DesiredAltitude); }
+					{ altitude -= 10; set_altitude(); }
 					if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) 
-					{ CFG.DesiredAltitude += 10; apply_cfg(cfg => cfg.DesiredAltitude = CFG.DesiredAltitude); }
+					{ altitude += 10; set_altitude(); }
 				}
 				else
 				{
@@ -360,9 +378,7 @@ namespace ThrottleControlledAvionics
 					var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, 
 		                                                -GLB.VSC.MaxSpeed, 
 		                                                GLB.VSC.MaxSpeed);
-					if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5)
-						apply_cfg(cfg => cfg.VerticalCutoff = VSP);
-					
+					if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5) set_vspeed(VSP);
 				}
 				TCA.BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
 				                                   new GUIContent("Use throttle",
@@ -423,7 +439,8 @@ namespace ThrottleControlledAvionics
 					apply_cfg(cfg => cfg.VF[VFlight.AltitudeControl] = state);
 				}
 				var follow_terrain = GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
-				                                      "Follow Terrain", 
+				                                      new GUIContent("Follow Terrain", 
+				                                                     "Keep altitude above the ground and avoid collisions"),
 				                                      GUILayout.ExpandWidth(false));
 				if(follow_terrain != CFG.AltitudeAboveTerrain)
 					Apply(tca => tca.AltitudeAboveTerrain(follow_terrain));
