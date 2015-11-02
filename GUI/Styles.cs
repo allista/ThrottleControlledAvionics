@@ -35,6 +35,7 @@ namespace ThrottleControlledAvionics
 		public static GUIStyle green;
 		public static GUIStyle blue;
 		public static GUIStyle label;
+		public static GUIStyle tooltip;
 		public static GUIStyle slider;
 		public static GUIStyle slider_text;
 
@@ -70,6 +71,10 @@ namespace ThrottleControlledAvionics
 			if (initialized) return;
 			initialized = true;
 
+			var b_texture = new Texture2D(1, 1);
+			b_texture.SetPixel(0, 0, new Color(0.05f, 0.05f, 0.05f, 1f));
+			b_texture.Apply();
+
 			//buttons
 			normal_button = GUI.skin.button.OtherColor(Color.white, Color.yellow);
 			normal_button.padding = new RectOffset (4, 4, 4, 4);
@@ -94,6 +99,11 @@ namespace ThrottleControlledAvionics
 			green  = white.OtherColor(Color.green);
 			blue   = white.OtherColor(new Color(0.6f, 0.6f, 1f, 1f));
 
+			//tooltip
+			tooltip  = white.OtherColor(Color.white);
+			tooltip.alignment = TextAnchor.MiddleCenter;
+			tooltip.normal.background = tooltip.onNormal.background = tooltip.hover.background = tooltip.onHover.background = b_texture;
+
 			//lable
 			label  = GUI.skin.label.OtherColor(Color.white);
 			label.alignment = TextAnchor.MiddleCenter;
@@ -108,10 +118,7 @@ namespace ThrottleControlledAvionics
 
 			//list box
 			list_item = new GUIStyle(GUI.skin.box);
-			var texInit = new Texture2D(1, 1);
-			texInit.SetPixel(0, 0, new Color(0.05f, 0.05f, 0.05f, 1f));
-			texInit.Apply();
-			list_item.normal.background = list_item.onNormal.background = list_item.hover.background = list_item.onHover.background = texInit;
+			list_item.normal.background = list_item.onNormal.background = list_item.hover.background = list_item.onHover.background = b_texture;
 			list_item.normal.textColor = list_item.focused.textColor = Color.white;
 			list_item.hover.textColor = list_item.active.textColor = Color.yellow;
 			list_item.onNormal.textColor = list_item.onFocused.textColor = list_item.onHover.textColor = list_item.onActive.textColor = Color.yellow;
