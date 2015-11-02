@@ -626,6 +626,8 @@ namespace ThrottleControlledAvionics
 			set { e[i, j] = value; }
 		}
 
+		public void Add(int i, int j, float v) { e[i, j] += v; }
+
 		public Matrix3x3f transpose()
 		{
 			var ret = new Matrix3x3f();

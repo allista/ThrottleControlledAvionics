@@ -109,6 +109,14 @@ namespace ThrottleControlledAvionics
 		public float    HorizontalSpeed { get; private set; }
 		public Vector3d PredictedSrfVelocity(float time) { return vessel.srf_velocity+vessel.acceleration*time; }
 		public Vector3d PredictedHorVelocity(float time) { return Vector3d.Exclude(Up, vessel.srf_velocity+vessel.acceleration*time); }
+		public bool     AltitudeAboveGround 
+		{ 
+			get 
+			{ 
+				return CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= 0 ||
+				!CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= TerrainAltitude; 
+			} 
+		}
 
 		public Vector3d NeededHorVelocity;
 		public Vector3d ForwardDirection;
@@ -186,16 +194,17 @@ namespace ThrottleControlledAvionics
 			foreach(Part p in vessel.Parts)
 				foreach(var module in p.Modules)
 				{	
+					//engines
 					var engine = module as ModuleEngines;
 					if(engine != null)
 					{ 
 						Engines.Add(new EngineWrapper(engine)); 
 						continue; 
 					}
-
+					//reaction wheels
 					var rwheel = module as ModuleReactionWheel;
 					if(rwheel != null) { RWheels.Add(rwheel); continue; }
-
+					//rcs
 					var rcs = module as ModuleRCS;
 					if(rcs != null) { RCS.Add(new RCSWrapper(rcs)); continue; }
 				}
@@ -561,9 +570,11 @@ namespace ThrottleControlledAvionics
 			{
 				Part p = parts[i];
 				if(p == null) continue;
-				foreach(var m in p.FindModelComponents<MeshFilter>())
+				var meshes = p.FindModelComponents<MeshFilter>();
+				for(int mi = 0, meshesLength = meshes.Length; mi < meshesLength; mi++)
 				{
 					//skip meshes without renderer
+					var m = meshes[mi];
 					if(m.renderer == null || !m.renderer.enabled) continue;
 					var bounds = Utils.BoundCorners(m.sharedMesh.bounds);
 					for(int j = 0; j < 8; j++)
@@ -603,7 +614,7 @@ namespace ThrottleControlledAvionics
 		{
 			MaxTorque = E_TorqueLimits.Max+R_TorqueLimits.Max+W_TorqueLimits.Max;
 			var new_angularA = AngularAcceleration(MaxTorque);
-			MaxAngularA = new_angularA; //Utils.EWA(MaxAngularA, new_angularA);
+			MaxAngularA = new_angularA;
 			wMaxAngularA = refT.TransformDirection(MaxAngularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
 		}
@@ -619,28 +630,29 @@ namespace ThrottleControlledAvionics
 			InertiaTensor = new Matrix3x3f();
 			Transform vesselTransform = vessel.GetTransform();
 			Quaternion inverseVesselRotation = Quaternion.Inverse(vesselTransform.rotation);
-			foreach(Part p in vessel.parts)
+			for(int pi = 0, vesselpartsCount = vessel.parts.Count; pi < vesselpartsCount; pi++)
 			{
+				Part p = vessel.parts[pi];
 				var rb = p.Rigidbody;
-				if (rb == null) continue;
+				if(rb == null) continue;
 				//Compute the contributions to the vessel inertia tensor due to the part inertia tensor
 				Vector3 principalMoments = rb.inertiaTensor;
 				Quaternion principalAxesRot = inverseVesselRotation * p.transform.rotation * rb.inertiaTensorRotation;
 				Quaternion invPrincipalAxesRot = Quaternion.Inverse(principalAxesRot);
-				for (int j = 0; j < 3; j++)
+				for(int j = 0; j < 3; j++)
 				{
 					Vector3 partInertiaTensorTimesjHat = principalAxesRot * Vector3.Scale(principalMoments, invPrincipalAxesRot * unitVectors[j]);
-					for (int i = 0; i < 3; i++)
-						InertiaTensor[i, j] += Vector3.Dot(unitVectors[i], partInertiaTensorTimesjHat);
+					for(int i = 0; i < 3; i++)
+						InertiaTensor.Add(i, j, Vector3.Dot(unitVectors[i], partInertiaTensorTimesjHat));
 				}
 				//Compute the contributions to the vessel inertia tensor due to the part mass and position
 				float partMass = p.TotalMass();
 				Vector3 partPosition = vesselTransform.InverseTransformDirection(rb.worldCenterOfMass - wCoM);
 				for(int i = 0; i < 3; i++)
 				{
-					InertiaTensor[i, i] += partMass * partPosition.sqrMagnitude;
-					for (int j = 0; j < 3; j++)
-						InertiaTensor[i, j] += -partMass * partPosition[i] * partPosition[j];
+					InertiaTensor.Add(i, i, partMass * partPosition.sqrMagnitude);
+					for(int j = 0; j < 3; j++)
+						InertiaTensor.Add(i, j, -partMass * partPosition[i] * partPosition[j]);
 				}
 			}
 			MoI = new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]);
