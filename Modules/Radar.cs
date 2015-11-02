@@ -171,6 +171,7 @@ namespace ThrottleControlledAvionics
 			if(RayI > RAD.NumRays) reset();
 			ViewAngle     = -RAD.UpViewAngle+RAD.DeltaAngle*RayI;
 			MaxDistance   = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
+			if(ViewAngle < 0) MaxDistance = MaxDistance/Mathf.Cos(ViewAngle*Mathf.Deg2Rad)*(1+Utils.ClampL(-ViewAngle/RAD.UpViewAngle, 0));
 			CurHit.Cast(Dir, ViewAngle, MaxDistance);
 			RayI++;
 			//check the hit

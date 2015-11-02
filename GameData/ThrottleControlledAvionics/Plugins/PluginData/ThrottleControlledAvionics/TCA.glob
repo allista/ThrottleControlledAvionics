@@ -199,7 +199,7 @@ RAD
 {
 	UpViewAngle       = 60
 	DownViewAngle     = 20
-	LookAheadTime     = 20
+	LookAheadTime     = 40
 	AltitudeFilter    = 0.1
 	NumRays           = 20
 	MinAltitudeFactor = 2
