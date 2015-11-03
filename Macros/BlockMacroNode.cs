@@ -86,6 +86,7 @@ namespace ThrottleControlledAvionics
 		{
 			child.Parent = this;
 			Subnodes.Add(child);
+			child.SetCFG(CFG);
 			child.SetSelector(SelectNode);
 			child.SetConditionSelector(SelectCondition);
 			return true;
