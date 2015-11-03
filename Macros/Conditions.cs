@@ -45,4 +45,22 @@ namespace ThrottleControlledAvionics
 		protected override float VesselValue(VesselWrapper VSL)
 		{ return VSL.VerticalSpeed; }
 	}
+
+	public class OnPlanetCondition : Condition
+	{
+		protected override bool Evaluate(VesselWrapper VSL)
+		{ return VSL.OnPlanet; }
+	}
+
+	public class InAtmosphereCondition : Condition
+	{
+		protected override bool Evaluate(VesselWrapper VSL)
+		{ return VSL.OnPlanet && VSL.mainBody.atmosphere; }
+	}
+
+	public class LandedOrSplashedCondition : Condition
+	{
+		protected override bool Evaluate(VesselWrapper VSL)
+		{ return VSL.LandedOrSplashed; }
+	}
 }

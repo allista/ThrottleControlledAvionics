@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 
 		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 
+		protected string Name;
 		public Condition Prev;
 		[Persistent] public bool negatable = true;
 		[Persistent] public bool or;
@@ -31,6 +32,9 @@ namespace ThrottleControlledAvionics
 		public Selector SelectCondition;
 
 		Vector2 scroll;
+
+		public Condition() 
+		{ Name = Utils.ParseCamelCase(GetType().Name.Replace(typeof(Condition).Name, "")); }
 
 		public override void Load(ConfigNode node)
 		{
@@ -61,7 +65,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected virtual bool Evaluate(VesselWrapper VSL) { return false; }
-		protected virtual void DrawThis() {}
+		protected virtual void DrawThis() { GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(true)); }
 
 		public void Draw()
 		{
@@ -112,16 +116,12 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float Error = 0.1f;
 		[Persistent] public float Period;
 
-		protected string Title;
 		protected string Suffix;
 
 		protected readonly FloatField ValueField = new FloatField();
 		protected readonly FloatField ErrorField = new FloatField();
 		protected readonly FloatField TimerField = new FloatField();
 		protected readonly Timer WaitTimer = new Timer();
-
-		public FloatCondition()
-		{ Title = Utils.ParseCamelCase(GetType().Name.Replace(typeof(Condition).Name, "")); }
 
 		protected virtual float VesselValue(VesselWrapper VSL) { return 0; }
 
@@ -130,13 +130,15 @@ namespace ThrottleControlledAvionics
 			base.Load(node);
 			negatable = Period.Equals(0);
 			not &= negatable;
+			WaitTimer.Period = Period;
+			WaitTimer.Reset();
 		}
 
 		protected override void DrawThis()
 		{
 			if(Edit) 
 			{ 
-				GUILayout.Label(Title, Styles.white, GUILayout.ExpandWidth(false));
+				GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(OperatorNames[Operator], Styles.yellow, GUILayout.ExpandWidth(false)))
 					Operator = (CompareOperator)(((int)Operator+1)%3);
 				ValueField.Draw(Value, false);
@@ -163,7 +165,7 @@ namespace ThrottleControlledAvionics
 			} 
 			else 
 			{
-				var condition_string = string.Format("{0} {1} {2:F1}", Title, OperatorNames[Operator], Value);
+				var condition_string = string.Format("{0} {1} {2:F1}", Name, OperatorNames[Operator], Value);
 				condition_string += Operator == CompareOperator.EQ? 
 					string.Format("+/-{0:F2}{1}", Error, Suffix) : Suffix;
 				if(Period > 0) condition_string += string.Format(" for {0:F1}s", Period);
@@ -188,7 +190,7 @@ namespace ThrottleControlledAvionics
 			}
 			if(ret) { if(WaitTimer.Check) { WaitTimer.Reset(); return true; } }
 			else WaitTimer.Reset();
-			return ret;
+			return false;
 		}
 	}
 
