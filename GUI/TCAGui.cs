@@ -177,6 +177,7 @@ namespace ThrottleControlledAvionics
 			SelectConfig_start();
 			AdvancedOptions();
 			AutopilotControls();
+			MacroControls();
 			WaypointList();
 			EnginesControl();
 			#if DEBUG
@@ -383,6 +384,11 @@ namespace ThrottleControlledAvionics
 						cfg.HF[HFlight.Stop] = state;
 						if(state) { cfg.Nav.Off(); cfg.AP.Off(); }
 					});
+					if(CFG.SelectedMacro != null && CFG.MacroIsActive)
+					{
+						CFG.MacroIsActive = false;
+						CFG.SelectedMacro.Rewind();
+					}
 				}
 				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
 				                    CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor)? 
@@ -497,6 +503,54 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 			}
 			else GUILayout.Label("Autopilot Not Available In Orbit", Styles.grey, GUILayout.ExpandWidth(true));
+		}
+
+		static bool selecting_macro;
+		static void MacroControls()
+		{
+			GUILayout.BeginHorizontal();
+			if(CFG.SelectedMacro != null && CFG.MacroIsActive)
+			{
+				GUILayout.Label(CFG.SelectedMacro.Name, Styles.yellow, GUILayout.ExpandWidth(true));
+				if(GUILayout.Button("Pause", Styles.green_button, GUILayout.Width(90))) 
+					CFG.MacroIsActive = false; //TODO: convert to ButtonSwitch
+				if(GUILayout.Button("Stop", Styles.red_button, GUILayout.ExpandWidth(false))) 
+				{
+					CFG.MacroIsActive = false;
+					CFG.SelectedMacro.Rewind();
+				}
+				GUILayout.Label("Edit", Styles.grey, GUILayout.Width(60));
+			}
+			else if(CFG.SelectedMacro != null)
+			{
+				if(GUILayout.Button(CFG.SelectedMacro.Name, Styles.normal_button, GUILayout.ExpandWidth(true))) 
+					selecting_macro = !selecting_macro;
+				CFG.MacroIsActive |= GUILayout.Button("Execute", Styles.red_button, GUILayout.Width(90)); //TODO: convert to ButtonSwitch
+				GUILayout.Label("Stop", Styles.grey, GUILayout.ExpandWidth(false));
+				if(GUILayout.Button("Edit", Styles.yellow_button, GUILayout.Width(60)))
+					TCAMacroEditor.Edit(CFG);
+			}
+			else
+			{
+				if(GUILayout.Button("Select Macro", Styles.normal_button, GUILayout.ExpandWidth(true))) 
+					selecting_macro = !selecting_macro;
+				if(GUILayout.Button("New Macro", Styles.green_button, GUILayout.ExpandWidth(false)))
+					TCAMacroEditor.Edit(CFG);
+			}
+			GUILayout.EndHorizontal();
+			if(selecting_macro)
+			{
+				TCAMacro macro = null;
+				if(TCAMacroEditor.DrawMacroSelector(CFG, out macro)) 
+				{
+					if(macro != null) 
+					{
+						CFG.SelectedMacro = (TCAMacro)macro.GetCopy();
+						CFG.MacroIsActive = false;
+					}
+					selecting_macro = false;
+				}
+			}
 		}
 
 		static void WaypointList()
