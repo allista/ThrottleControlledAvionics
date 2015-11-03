@@ -32,6 +32,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public VTOLAssist.Config                TLA = new VTOLAssist.Config();
 		[Persistent] public CollisionPreventionSystem.Config CPS = new CollisionPreventionSystem.Config();
 		[Persistent] public FlightStabilizer.Config          STB = new FlightStabilizer.Config();
+//		[Persistent] public MacroProcessor.Config            MAC = new MacroProcessor.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -177,7 +178,7 @@ Notes:
 				Anchor = null;
 			if(Target != null && string.IsNullOrEmpty(Target.Name))
 				Target = null;
-			if(SelectedMacro != null && string.IsNullOrEmpty(SelectedMacro.Name))
+			if(SelectedMacro != null && !SelectedMacro.Block.HasSubnodes)
 				SelectedMacro = null;
 		}
 
