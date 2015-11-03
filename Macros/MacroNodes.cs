@@ -9,6 +9,8 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -17,8 +19,17 @@ namespace ThrottleControlledAvionics
 	{
 		public SetVerticalSpeedMacroNode()
 		{ Name = "Set vertical speed to:"; Suffix = "m/s"; }
+
+		protected override void OnValueChanged ()
+		{ Value = Utils.Clamp(Value, -GLB.VSC.MaxSpeed, GLB.VSC.MaxSpeed); }
+
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.CFG.VerticalCutoff = Value; return false; }
+		{ 
+			VSL.CFG.BlockThrottle = true;
+			VSL.CFG.VF.OffIfOn(VFlight.AltitudeControl);
+			VSL.CFG.VerticalCutoff = Value; 
+			return false;
+		}
 	}
 
 	public class SetAltitudeMacroNode : SetFloatMacroNode
@@ -26,7 +37,12 @@ namespace ThrottleControlledAvionics
 		public SetAltitudeMacroNode()
 		{ Name = "Set altitude to:"; Suffix = "m"; }
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.CFG.DesiredAltitude = Value; return false; }
+		{ 
+			VSL.CFG.BlockThrottle = true;
+			VSL.CFG.VF.OnIfNot(VFlight.AltitudeControl);
+			VSL.CFG.DesiredAltitude = Value; 
+			return false; 
+		}
 	}
 
 	public class StopMacroNode : MacroNode
@@ -63,16 +79,6 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public class FollowPathMacroNode : MacroNode
-	{
-		protected override bool Action(VesselWrapper VSL)
-		{
-			if(VSL.CFG.Waypoints.Count == 0) return true;
-			VSL.CFG.Nav.OnIfNot(Navigation.FollowPath);
-			return VSL.CFG.Nav[Navigation.FollowPath];
-		}
-	}
-
 	public class FollowTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -80,6 +86,41 @@ namespace ThrottleControlledAvionics
 			if(!VSL.HasTarget) return true;
 			VSL.CFG.Nav.On(Navigation.FollowTarget);
 			return false;
+		}
+	}
+
+	public class FollowPathMacroNode : MacroNode
+	{
+		protected Queue<WayPoint> Waypoints = new Queue<WayPoint>();
+		protected bool waypoints_loaded;
+
+		protected override void DrawThis ()
+		{
+			var title = Name;
+			if(Waypoints.Count > 0) title += " (waypoints stored)";
+			GUILayout.BeginHorizontal();
+			if(Edit)
+			{ 
+				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				if(CFG != null && GUILayout.Button("Copy waypoints from Vessel", 
+					Styles.yellow_button, GUILayout.ExpandWidth(false)))
+					Waypoints = new Queue<WayPoint>(CFG.Waypoints);
+			}
+			else Edit |= GUILayout.Button(title, Styles.normal_button) && CFG != null;
+			GUILayout.EndHorizontal();
+		}
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(!waypoints_loaded)
+			{
+				if(Waypoints.Count > 0)
+					VSL.CFG.Waypoints = new Queue<WayPoint>(Waypoints);
+				waypoints_loaded = true;
+			}
+			if(VSL.CFG.Waypoints.Count == 0) return true;
+			VSL.CFG.Nav.OnIfNot(Navigation.FollowPath);
+			return VSL.CFG.Nav[Navigation.FollowPath];
 		}
 	}
 
