@@ -44,6 +44,7 @@ namespace ThrottleControlledAvionics
 		VTOLAssist tla;
 		FlightStabilizer stb;
 		CollisionPreventionSystem cps;
+		MacroProcessor mpr;
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
@@ -151,7 +152,7 @@ namespace ThrottleControlledAvionics
 				var method = fi.FieldType.GetConstructor(new [] {vt});
 				if(method != null)
 				{
-					var m = (TCAModule)method.Invoke(fi.GetValue(this), new [] {VSL});
+					var m = (TCAModule)method.Invoke(null, new [] {VSL});
 					if(m != null)
 					{
 						fi.SetValue(this, m);
@@ -320,6 +321,7 @@ namespace ThrottleControlledAvionics
 				for(int i = 0; i < modules.Count; i++) modules[i].UpdateState();
 				VSL.UpdateOnPlanetStats();
 				//these follow specific order
+				mpr.Update();
 				rad.Update();//sets AltitudeAhead
 				lnd.Update();//sets VerticalCutoff, sets DesiredAltitude
 				alt.Update();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff

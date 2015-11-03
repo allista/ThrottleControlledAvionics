@@ -118,6 +118,7 @@
     <Compile Include="Macros\ConditionMacroNode.cs" />
     <Compile Include="Macros\BaseMacroNodes.cs" />
     <Compile Include="Macros\LoopsAndBranches.cs" />
+    <Compile Include="Modules\MacroProcessor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
