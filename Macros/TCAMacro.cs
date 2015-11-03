@@ -18,11 +18,21 @@ namespace ThrottleControlledAvionics
 	[HiddenComponent]
 	public class TCAMacro : SingleBlockMacroNode
 	{
+		protected MacroNode ActiveChild;
+
 		protected override bool Action(VesselWrapper VSL)
 		{ return Block.Execute(VSL); }
 
+		public override void OnChildActivate(MacroNode child)
+		{
+			ActiveChild = child;
+			base.OnChildActivate(this);
+		}
+
 		protected override void DrawThis()
 		{
+			var title = Name;
+			if(ActiveChild != null) title += " ["+ActiveChild.Name+"]";
 			GUILayout.BeginVertical(Styles.white);
 			if(Edit) 
 			{
@@ -32,7 +42,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 				Block.Draw();
 			}
-			else Edit |= GUILayout.Button(Title, Active? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true));
+			else Edit |= GUILayout.Button(title, Active? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true));
 			GUILayout.EndVertical();
 		}
 	}

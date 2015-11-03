@@ -34,16 +34,6 @@ namespace ThrottleControlledAvionics
 		public MacroNode()
 		{ Name = Utils.ParseCamelCase(GetType().Name.Replace(typeof(MacroNode).Name, "")); }
 
-		public virtual string Title
-		{
-			get
-			{
-				var title = Name;
-				if(Paused) title += " (paused)";
-				return title;
-			}
-		}
-
 		public virtual void OnChildRemove(MacroNode child) 
 		{ child.Parent = null; }
 
@@ -52,6 +42,9 @@ namespace ThrottleControlledAvionics
 
 		public virtual bool AddSibling(MacroNode sibling) 
 		{ return false; }
+
+		public virtual void OnChildActivate(MacroNode child)
+		{ if(Parent != null) Parent.OnChildActivate(child); }
 
 		protected virtual void DrawDeleteButton()
 		{
@@ -63,7 +56,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected virtual void DrawThis() 
-		{ GUILayout.Label(Title, Active? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true)); }
+		{ GUILayout.Label(Name, Active? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true)); }
 
 		protected virtual void CleanUp() {}
 
@@ -93,7 +86,12 @@ namespace ThrottleControlledAvionics
 		{
 			if(Done) return false;
 			if(Paused) return true;
-			Active = true;
+			if(!Active)
+			{
+				Active = true;
+				if(Parent != null) 
+					Parent.OnChildActivate(this);
+			}
 			Done = !Action(VSL);
 			Active &= !Done;
 			return !Done;
@@ -114,6 +112,7 @@ namespace ThrottleControlledAvionics
 			if(constInfo == null) return null;
 			var mn = (MacroNode)constInfo.Invoke(null);
 			mn.CopyFrom(this);
+			mn.Rewind();
 			return mn;
 		}
 

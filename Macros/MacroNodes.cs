@@ -102,6 +102,12 @@ namespace ThrottleControlledAvionics
 		public WaitMacroNode()
 		{ Name = "Wait for"; Suffix = "s"; Value = (float)T.Period; }
 
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			T.Period = Value; T.Reset();
+		}
+
 		protected override void OnValueChanged()
 		{ T.Period = Value; T.Reset(); }
 
@@ -111,13 +117,36 @@ namespace ThrottleControlledAvionics
 
 	public class ActivateProfileMacroNode : MacroNode
 	{
-		[Persistent] public string Profile;
+		[Persistent] public string Profile = "";
+		Vector2 scroll;
 
-		//TODO
-//		protected override bool Action(VesselWrapper VSL)
-//		{
-//			
-//		}
+		protected override void DrawThis()
+		{
+			GUILayout.BeginHorizontal();
+			if(Edit)
+			{ 
+				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				if(CFG != null)
+				{
+					scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandWidth(true), GUILayout.Height(70));
+					GUILayout.BeginVertical();
+					for(int i = 0, CFGEnginesProfilesDBCount = CFG.EnginesProfiles.DB.Count; i < CFGEnginesProfilesDBCount; i++)
+					{
+						var p = CFG.EnginesProfiles.DB[i];
+						if(GUILayout.Button(p.Name, p.Name == Profile ? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true)))
+							Profile = p.Name;
+					}
+					GUILayout.EndVertical();
+					GUILayout.EndScrollView();
+				}
+				else Profile = GUILayout.TextField(Profile, GUILayout.ExpandWidth(true));
+			}
+			else Edit |= GUILayout.Button(Name+": "+Profile, Styles.normal_button);
+			GUILayout.EndHorizontal();
+		}
+
+		protected override bool Action(VesselWrapper VSL)
+		{ VSL.CFG.EnginesProfiles.Activate(Profile); return false; }
 	}
 
 	public class HoverMacroNode : OnOffMacroNode

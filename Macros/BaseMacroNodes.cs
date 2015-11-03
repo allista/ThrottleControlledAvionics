@@ -132,14 +132,11 @@ namespace ThrottleControlledAvionics
 
 		protected override void DrawThis()
 		{
-			if(GUILayout.Button(Title, Edit? Styles.yellow_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
-				Edit = !Edit;
-			if(Edit) 
-			{
-				if(GUILayout.Button(On? "On" : "Off", On? Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-					On = !On;
-			}
-			else GUILayout.Label(On? "On" : "Off", On? Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false));
+			GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
+			if(GUILayout.Button(On? "On" : "Off", 
+			                    On? Styles.green_button : Styles.yellow_button, 
+			                    GUILayout.ExpandWidth(false)))
+				On = !On;
 		}
 	}
 
@@ -157,7 +154,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				GUILayout.Label(Title, Styles.white, GUILayout.ExpandWidth(false));
+				GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
 				if(ValueField.Draw(Value))
 				{ 
 					Value = ValueField.Value; 
@@ -165,7 +162,7 @@ namespace ThrottleControlledAvionics
 					Edit = false; 
 				}
 			}
-			else Edit |= GUILayout.Button(string.Format("{0} {1:F1}{2}", Title, Value, Suffix), Styles.normal_button);
+			else Edit |= GUILayout.Button(string.Format("{0} {1:F1}{2}", Name, Value, Suffix), Styles.normal_button);
 			GUILayout.EndHorizontal();
 		}
 	}
