@@ -134,7 +134,9 @@ namespace ThrottleControlledAvionics
 		protected override void DrawMainWindow(int windowID)
 		{
 			GUILayout.BeginVertical();
-			if(GUILayout.Button("Edit Macros", Styles.normal_button, GUILayout.ExpandWidth(true)))
+			if(TCAMacroEditor.Editing)
+				GUILayout.Label("Edit Macros", Styles.grey, GUILayout.ExpandWidth(true));
+			else if(GUILayout.Button("Edit Macros", Styles.normal_button, GUILayout.ExpandWidth(true)))
 				TCAMacroEditor.Edit(CFG);
 			CFG.EnginesProfiles.Draw(height);
 			if(CFG.ActiveProfile.Changed)
