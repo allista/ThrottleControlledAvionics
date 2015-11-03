@@ -476,6 +476,17 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		public bool Activate(string name)
+		{
+			foreach(var p in DB)
+			{
+				if(p.Name != name) continue;
+				Activate(p);
+				return true;
+			}
+			return false;
+		}
+
 		public void Draw(int height)
 		{
 			if(DB.Count == 0) return;
