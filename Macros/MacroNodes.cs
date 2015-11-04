@@ -190,12 +190,6 @@ namespace ThrottleControlledAvionics
 		{ VSL.CFG.EnginesProfiles.Activate(Profile); return false; }
 	}
 
-	public class HoverMacroNode : OnOffMacroNode
-	{
-		protected override bool Action(VesselWrapper VSL)
-		{ VSL.CFG.VF[VFlight.AltitudeControl] = On; return false; }
-	}
-
 	public class FollowTerrainMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
