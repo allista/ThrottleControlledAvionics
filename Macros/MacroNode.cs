@@ -23,7 +23,6 @@ namespace ThrottleControlledAvionics
 		public MacroNode Parent;
 		[Persistent] public string Name;
 		[Persistent] public bool Active;
-		[Persistent] public bool Paused;
 		[Persistent] public bool Done;
 
 		public virtual bool Edit { get; set; }
@@ -65,11 +64,6 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			DrawDeleteButton();
 			DrawThis();
-			if(Active && 
-			   GUILayout.Button("||", Paused? 
-			                    Styles.green_button : Styles.yellow_button, 
-			                    GUILayout.Width(20)))
-				Paused = !Paused;
 			GUILayout.EndHorizontal();
 			CleanUp();
 		}
@@ -85,7 +79,6 @@ namespace ThrottleControlledAvionics
 		public bool Execute(VesselWrapper VSL)
 		{
 			if(Done) return false;
-			if(Paused) return true;
 			if(!Active)
 			{
 				Active = true;
@@ -97,7 +90,7 @@ namespace ThrottleControlledAvionics
 			return !Done;
 		}
 
-		public virtual void Rewind() { Active = Done = Paused = false; }
+		public virtual void Rewind() { Active = Done = false; }
 
 		public void CopyFrom(MacroNode mn)
 		{
