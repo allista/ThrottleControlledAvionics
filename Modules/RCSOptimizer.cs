@@ -57,7 +57,7 @@ namespace ThrottleControlledAvionics
 				{ var e = engines[j]; cur_imbalance += e.Torque(e.limit); }
 				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);
 				target = needed_torque-cur_imbalance;
-				error  = target.magnitude;
+				error  = VSL.AngularAcceleration(target).magnitude;
 				//remember the best state
 				if(angle <= 0f && error < TorqueError || angle < TorqueAngle || TorqueAngle < 0) 
 				{ 
@@ -67,7 +67,7 @@ namespace ThrottleControlledAvionics
 					TorqueError = error;
 				}
 				//check convergence conditions
-				if(error < RCS.OptimizationPrecision || 
+				if(error < RCS.OptimizationTorqueCutoff*RCS.OptimizationPrecision || 
 				   last_error > 0 && Mathf.Abs(error-last_error) < RCS.OptimizationPrecision*last_error)
 					break;
 				last_error = error;

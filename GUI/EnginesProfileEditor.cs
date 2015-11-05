@@ -33,6 +33,7 @@ namespace ThrottleControlledAvionics
 		public override void Awake()
 		{
 			base.Awake();
+			width = 600;
 			height = 400;
 			GameEvents.onEditorShipModified.Add(OnShipModified);
 			GameEvents.onEditorLoad.Add(OnShipLoad);
@@ -138,11 +139,27 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label("Edit Macros", Styles.grey, GUILayout.ExpandWidth(true));
 			else if(GUILayout.Button("Edit Macros", Styles.normal_button, GUILayout.ExpandWidth(true)))
 				TCAMacroEditor.Edit(CFG);
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("On Launch:", GUILayout.ExpandWidth(false));
+			if(Utils.ButtonSwitch("Enable TCA", CFG.Enabled, "", GUILayout.ExpandWidth(false)))
+				CFG.Enabled = !CFG.Enabled;
+			if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Enable Altitude Control", GUILayout.ExpandWidth(false)))
+				CFG.VF.Toggle(VFlight.AltitudeControl);
+			if(Utils.ButtonSwitch("Follow Terrain", CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false)))
+				CFG.AltitudeAboveTerrain = !CFG.AltitudeAboveTerrain;
+			if(Utils.ButtonSwitch("Use Throttle", CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false)))
+				CFG.BlockThrottle = !CFG.BlockThrottle;
+			if(Utils.ButtonSwitch("VTOL Assist", CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false)))
+				CFG.VTOLAssistON = !CFG.VTOLAssistON;
+			if(Utils.ButtonSwitch("Flight Stabilizer", CFG.StabilizeFlight, "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false)))
+				CFG.StabilizeFlight = !CFG.StabilizeFlight;
+			GUILayout.EndHorizontal();
 			CFG.EnginesProfiles.Draw(height);
 			if(CFG.ActiveProfile.Changed)
 				CFG.ActiveProfile.Apply(Engines);
 			GUILayout.EndVertical();
 			base.DrawMainWindow(windowID);
+
 		}
 
 		public void OnGUI()

@@ -30,7 +30,7 @@ using System.Reflection;
 using UnityEngine;
 
 
-// TODO: Change to your plugin's namespace here.
+// _TODO: Change to your plugin's namespace here.
 namespace ThrottleControlledAvionics {
 
 

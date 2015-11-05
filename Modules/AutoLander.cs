@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "LND";
 
 			[Persistent] public float MaxUnevenness        = 0.1f;
+			[Persistent] public float UnevennessThreshold  = 0.3f;
 			[Persistent] public float MaxHorizontalTime    = 5f;
 			[Persistent] public float MinVerticalSpeed     = 0.1f;
 			[Persistent] public float WideCheckAltitude    = 200f;
@@ -55,7 +56,7 @@ namespace ThrottleControlledAvionics
 		HashSet<SurfaceNode> TriedNodes;
 		SurfaceNode NextNode, FlattestNode;
 		int side, bside, center;
-		Vector3 right, fwd, up, down, dir, sdir;
+		Vector3 right, fwd, up, down, dir, sdir, anchor;
 		float MaxDistance, delta;
 		float DesiredAltitude;
 		bool landing_started;
@@ -70,6 +71,7 @@ namespace ThrottleControlledAvionics
 			StopTimer.Period = LND.StopTimer;
 			CutoffTimer.Period = LND.CutoffTimer;
 			CFG.AP.AddCallback(Autopilot.Land, Enable);
+			TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.R));
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -128,26 +130,21 @@ namespace ThrottleControlledAvionics
 			center = (bside-1)/2;
 			up     = VSL.Up;
 			down   = -VSL.Altitude*up;
-			right  = VSL.refT.right;
+			right  = Vector3d.Cross(VSL.Up, VSL.Fwd).normalized;
 			fwd    = Vector3.Cross(right, up);
 			Nodes  = new SurfaceNode[bside,bside];
 			delta  = d > 0? d : DesiredAltitude/bside*lvl;
-			if(start == null)
-			{
-				sdir = down;
-				MaxDistance = VSL.Altitude * 10;
-			}
-			else 
-			{
-				sdir = start.position-VSL.wCoM;
-				MaxDistance = sdir.magnitude * 10;
-			}
+			anchor = Vector3.zero;
+			if(start == null) anchor = VSL.wCoM+down;
+			else anchor = start.position;
 //			Utils.Log("Scanning Surface: {0}x{0} -> {1}x{1}", bside, side);//debug
 			yield return null;
 			//cast the rays
 			for(int i = 0; i < bside; i++)
 				for(int j = 0; j < bside; j++)
 				{
+					sdir = anchor-VSL.wCoM;
+					MaxDistance = sdir.magnitude * 10;
 					dir = (sdir+right*(i-center)*delta+fwd*(j-center)*delta).normalized;
 					Nodes[i,j] = get_surface_node(delta/2);
 					yield return null;
@@ -181,7 +178,7 @@ namespace ThrottleControlledAvionics
 				FlatNodes.Sort((n1, n2) => n1.distance.CompareTo(n2.distance));
 			}
 			#if DEBUG
-			print_nodes();
+//			print_nodes();
 			#endif
 		}
 
@@ -304,7 +301,10 @@ namespace ThrottleControlledAvionics
 		void try_move_to_flattest()
 		{
 			NextNode = FlattestNode;
-			if(NextNode != null && distance_to_node(NextNode) > LND.NodeTargetRange*2) move_next();
+			if(NextNode != null && 
+			   distance_to_node(NextNode) > LND.NodeTargetRange*2 && 
+			   NextNode.unevenness > LND.UnevennessThreshold) 
+				move_next();
 			else wide_check(LND.WideCheckAltitude);
 		}
 
@@ -450,6 +450,7 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
+			if(!CFG.AP[Autopilot.Land]) return;
 			if(Nodes == null) return;
 			if(scanner == null && NextNode != null)
 			{

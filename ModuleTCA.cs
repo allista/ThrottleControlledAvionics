@@ -57,7 +57,7 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Initialization
-		public void OnReloadGlobals() { VSL.Init(); invoke_in_modules("Init"); }
+		public void OnReloadGlobals() { invoke_in_modules("Init"); }
 
 		public override string GetInfo()
 		{ return HasTCA? "Software Installed" : "Not Available"; }
@@ -104,22 +104,41 @@ namespace ThrottleControlledAvionics
 			init();
 		}
 
-		#if DEBUG
-		public 
-		#endif
 		void onVesselModify(Vessel vsl)
 		{ 
-			if(vsl != vessel) return;
-			reset();
+			if(vsl == null || vsl != vessel) return;
 			check_priority();
-			init();
+			if(!enabled) reset();
+			else if(VSL == null || VSL.vessel == null ||
+			        vsl.id != VSL.vessel.id)
+			{ reset(); init(); }
+			else 
+			{
+				VSL.ForceUpdateEngines = true;
+				StartCoroutine(onVesselModifiedUpdate());
+			}
 		}
 
 		void onStageActive(int stage)
 		{ 
-			if(VSL == null) return;
+			if(VSL == null || !CFG.Enabled) return;
 			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines))
-				CFG.ActiveProfile.Update(VSL.Engines);
+				StartCoroutine(onStageUpdate());
+		}
+
+		IEnumerator<YieldInstruction> onStageUpdate()
+		{
+			VSL.CanUpdateEngines = false;
+			yield return new WaitForSeconds(0.5f);
+			VSL.UpdateEngines();
+			CFG.ActiveProfile.Update(VSL.Engines, true);
+			VSL.CanUpdateEngines = true;
+		}
+
+		IEnumerator<YieldInstruction> onVesselModifiedUpdate()
+		{
+			yield break; //for some future initializations//
+//			yield return new WaitForSeconds(0.5f);
 		}
 
 		void check_priority()
@@ -201,7 +220,7 @@ namespace ThrottleControlledAvionics
 			return tca;
 		}
 
-		void UpdateCFG()
+		void updateCFG()
 		{
 			//get all ModuleTCA instances in the vessel
 			var TCA_Modules = AllTCA(vessel);
@@ -235,7 +254,7 @@ namespace ThrottleControlledAvionics
 		void init()
 		{
 			if(!enabled) return;
-			UpdateCFG();
+			updateCFG();
 			VSL = new VesselWrapper(vessel, CFG);
 			VSL.Init();
 			VSL.UpdateState();
@@ -254,7 +273,9 @@ namespace ThrottleControlledAvionics
 			else if(CFG.Nav[Navigation.FollowPath]) 
 				pn.FollowPath(CFG.Waypoints.Count > 0);
 			ThrottleControlledAvionics.AttachTCA(this);
+			VSL.SetUnpackDistance(GLB.UnpackDistance);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
+			StartCoroutine(onVesselModifiedUpdate());
 		}
 
 		void reset()
@@ -266,7 +287,7 @@ namespace ThrottleControlledAvionics
 				CFG.ClearCallbacks();
 			}
 			delete_modules();
-			VSL = null; 
+			VSL = null;
 		}
 		#endregion
 
@@ -293,12 +314,15 @@ namespace ThrottleControlledAvionics
 		public void AltitudeAboveTerrain(bool state) { alt.SetAltitudeAboveTerrain(state); }
 		#endregion
 		void block_throttle(FlightCtrlState s)
-		{ if(CFG.Enabled && CFG.BlockThrottle && VSL.OnPlanet) s.mainThrottle = 1f; }
+		{ 
+			if(CFG.Enabled && CFG.BlockThrottle && VSL.OnPlanet) 
+				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
+		}
 
 		public override void OnUpdate()
 		{
 			//update vessel config if needed
-			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) UpdateCFG();
+			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) updateCFG();
 			//update heavy to compute parameters
 			if(IsStateSet(TCAState.HaveActiveEngines)) VSL.UpdateMoI();
 			if(rad.IsActive || lnd.IsActive) VSL.UpdateBounds();
@@ -312,8 +336,8 @@ namespace ThrottleControlledAvionics
 			State = TCAState.Enabled;
 			if(!VSL.ElectricChargeAvailible) return;
 			SetState(TCAState.HaveEC);
-			if(!VSL.CheckEngines()) return;
-			SetState(TCAState.HaveActiveEngines);
+			if(VSL.CheckEngines()) 
+				SetState(TCAState.HaveActiveEngines);
 			//update state
 			VSL.UpdateCommons();
 			if(VSL.NumActive > 0)

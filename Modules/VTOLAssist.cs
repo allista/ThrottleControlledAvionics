@@ -28,7 +28,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float GearOffAngularVelocity = 0.01f; //(rad/s)^2 ~= 1.8deg/s
 			//landing
 			[Persistent] public float GearOnMaxHSpeed = 1f;
-			[Persistent] public float GearOnAltitude  = 5f;
+			[Persistent] public float GearOnAtH       = 5f;
 			[Persistent] public float GearOnTime      = 5f;
 		}
 		static Config TLA { get { return TCAScenario.Globals.TLA; } }
@@ -37,6 +37,7 @@ namespace ThrottleControlledAvionics
 		bool last_state, landed, tookoff;
 		readonly Timer GearTimer   = new Timer();
 		readonly Timer LandedTimer = new Timer();
+		readonly SingleAction StopAction = new SingleAction();
 
 		void working(bool state = true)
 		{
@@ -77,8 +78,9 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			//update state
 			if(last_state && !VSL.LandedOrSplashed) 
-			{ tookoff = true; landed = false; GearTimer.Reset(); }
-			else if(VSL.LandedOrSplashed && !last_state) { landed = true; tookoff = false; }
+			{ tookoff = true; landed = false; GearTimer.Reset(); StopAction.Reset(); }
+			else if(VSL.LandedOrSplashed && !last_state) 
+			{ landed = true; tookoff = false; }
 			last_state = VSL.LandedOrSplashed;
 			//just landed
 			if(landed)
@@ -93,13 +95,13 @@ namespace ThrottleControlledAvionics
 			else if(tookoff)
 			{
 				working();
-				CFG.HF.OnIfNot(HFlight.Stop);
+				StopAction.Run(() => CFG.HF.OnIfNot(HFlight.Stop));
 				GearTimer.RunIf(() =>
 				{ 
 					VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
 					VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 					tookoff = false;
-				}, VSL.RelAltitude > TLA.GearOnAltitude+VSL.H);
+				}, VSL.RelAltitude > TLA.GearOnAtH+VSL.H);
 			}
 			//moving on the ground
 			else if(VSL.LandedOrSplashed)
@@ -113,6 +115,7 @@ namespace ThrottleControlledAvionics
 					if(avSqr > TLA.GearOffAngularVelocity && VSL.DTWR > TLA.MinDTWR)
 						VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 				}
+				else working(false);
 			}
 			//if flying, check if trying to land and deploy the gear
 			else 
@@ -120,11 +123,17 @@ namespace ThrottleControlledAvionics
 				working(false);
 				//if the gear is on, nothing to do; and autopilot takes precedence
 				if(!VSL.ActionGroups[KSPActionGroup.Gear] && !CFG.AP[Autopilot.Land])
+				{
 					//check boundary conditions
-					GearTimer.RunIf(() => VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, true),
+					GearTimer.RunIf(() => 
+					{
+						VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
+						VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
+					},
 					                VSL.RelVerticalSpeed < 0 &&
 					                VSL.HorizontalSpeed < TLA.GearOnMaxHSpeed &&
-					                VSL.RelAltitude+VSL.RelVerticalSpeed*(TLA.GearOnTime+TLA.GearTimer) < TLA.GearOnAltitude+VSL.H);
+					                VSL.RelAltitude+VSL.RelVerticalSpeed*(TLA.GearOnTime+TLA.GearTimer) < TLA.GearOnAtH*VSL.H);
+				}
 				
 			}
 		}

@@ -86,7 +86,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(tooltip.Length == 0) return;
 			var mousePos = Utils.GetMousePosition(window);
-			var size = Styles.white.CalcSize(new GUIContent(tooltip));
+			var size = Styles.tooltip.CalcSize(new GUIContent(tooltip));
 			var rect = new Rect(mousePos.x, mousePos.y + 20, size.x, size.y);
 			Rect orig = rect;
 			rect = rect.clampToWindow(window);
@@ -102,7 +102,7 @@ namespace ThrottleControlledAvionics
 				rect.x = mousePos.x - size.x - 5;
 				rect = rect.clampToScreen();
 			}
-			GUI.Label(rect, tooltip, Styles.white);
+			GUI.Label(rect, tooltip, Styles.tooltip);
 		}
 		#endregion
 

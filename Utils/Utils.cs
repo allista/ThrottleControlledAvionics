@@ -107,6 +107,13 @@ namespace ThrottleControlledAvionics
 			{ if(value <= max) value++; }
 			return value;
 		}
+
+		public static bool ButtonSwitch(string name, bool current_value, string tooltip = "", params GUILayoutOption[] options)
+		{
+			return string.IsNullOrEmpty(tooltip)? 
+				GUILayout.Button(name, current_value ? Styles.green_button : Styles.yellow_button, options) : 
+				GUILayout.Button(new GUIContent(name, tooltip), current_value ? Styles.green_button : Styles.yellow_button, options);
+		}
 		#endregion
 
 		//from http://stackoverflow.com/questions/716399/c-sharp-how-do-you-get-a-variables-name-as-it-was-physically-typed-in-its-dec
@@ -400,6 +407,16 @@ namespace ThrottleControlledAvionics
 		public static implicit operator bool(Switch s) { return s.state; }
 	}
 
+	public class SingleAction
+	{
+		bool done;
+
+		public void Run(Action action) 
+		{ if(!done) { action(); done = true; } }
+
+		public void Reset() { done = false; }
+	}
+
 	//convergent with Anatid's Vector6, but not taken from it
 	public class Vector6 
 	{
@@ -450,6 +467,46 @@ namespace ThrottleControlledAvionics
 				return mvec;
 			}
 		}
+
+		public Vector3 MaxInPlane(Vector3 normal)
+		{
+			var maxm = 0f;
+			var max  = Vector3.zero;
+			var cvec = Vector3.zero;
+			for(int i = 0; i < 3; i++)
+			{
+				cvec.Zero();
+				cvec[i] = positive[i];
+				cvec = Vector3.ProjectOnPlane(cvec, normal);
+				var cvecm = cvec.sqrMagnitude;
+				if(cvecm > maxm) { max = cvec; maxm = cvecm; }
+				cvec[i] = negative[i];
+				cvec = Vector3.ProjectOnPlane(cvec, normal);
+				cvecm = cvec.sqrMagnitude;
+				if(cvecm > maxm) { max = cvec; maxm = cvecm; }
+			}
+			return max;
+		}
+
+		public Vector3 Project(Vector3 normal)
+		{
+			var proj = Vector3.zero;
+			var cvec = Vector3.zero;
+			for(int i = 0; i < 3; i++)
+			{
+				cvec.Zero();
+				cvec[i] = positive[i];
+				var projm = Vector3.Dot(cvec, normal);
+				if(projm > 0) proj += normal*projm;
+				cvec[i] = negative[i];
+				projm = Vector3.Dot(cvec, normal);
+				if(projm > 0) proj += normal*projm;
+			}
+			return proj;
+		}
+
+		public override string ToString()
+		{ return string.Format("Vector6:\nMax {0}\n+ {1}\n- {2}", Max, positive, negative); }
 	}
 
 	//from MechJeb2
@@ -462,6 +519,8 @@ namespace ThrottleControlledAvionics
 			get { return e[i, j]; }
 			set { e[i, j] = value; }
 		}
+
+		public void Add(int i, int j, float v) { e[i, j] += v; }
 
 		public Matrix3x3f transpose()
 		{

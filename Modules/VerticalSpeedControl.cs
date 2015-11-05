@@ -31,6 +31,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxDeltaV         = 0.5f;
 			[Persistent] public float FallingTime       = 0.5f;
 			[Persistent] public float AccelThreshold    = 0.1f;
+			[Persistent] public float MaxVSFtwr         = 0.9f;
 		}
 		static Config VSC { get { return TCAScenario.Globals.VSC; } }
 
@@ -68,12 +69,10 @@ namespace ThrottleControlledAvionics
 			{
 				accelV = (VSL.VerticalAccel-old_accel)/TimeWarp.fixedDeltaTime;
 				old_accel = VSL.VerticalAccel;
-				var missed = VSL.VerticalSpeed > CFG.VerticalCutoff && VSL.VerticalSpeed < setpoint_correction && VSL.VerticalAccel > 0 ||
-					VSL.VerticalSpeed < CFG.VerticalCutoff && VSL.VerticalSpeed > setpoint_correction && VSL.VerticalAccel < 0;
+				var missed = VSL.VerticalSpeed > CFG.VerticalCutoff && VSL.VerticalSpeed < CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel > 0 ||
+					VSL.VerticalSpeed < CFG.VerticalCutoff && VSL.VerticalSpeed > CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel < 0;
 				if(missed || Mathf.Abs(VSL.VerticalAccel) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
 					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.VerticalSpeed+setpoint_correction, 0));
-//				Utils.Log("VSP {0}, V {1}, accel {2}, accelV {3}, correction: {4}, missed {5}", 
-//				          CFG.VerticalCutoff, VSL.VerticalSpeed, VSL.VerticalAccel, accelV, setpoint_correction, missed);//debug
 			}
 			var err = setpoint-VSL.VerticalSpeed+setpoint_correction;
 			var K = Mathf.Clamp01(err
@@ -81,13 +80,13 @@ namespace ThrottleControlledAvionics
 			                      /Mathf.Pow(Utils.ClampL(VSL.VerticalAccel/VSC.K1+1, VSC.L1), 2f)
 			                      +upAF);
 			VSL.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.MinVSF);
-//			Utils.Log("VSC.VSF {0}, K {1}, VSP {2}, setpoint {3}, tdif {4}, cdif {5}, mDTWR {6}", 
-//			          VSL.VSF, K, CFG.VerticalCutoff, setpoint, setpoint-CFG.VerticalCutoff, VSC.TWRf/VSL.MaxDTWR, VSL.MaxDTWR);//debug
+//			Log("VSP {0}, setpoint {1}, setpoint correction {2}, err {3}, K {4}, VSF {5}, DTWR {6}, MinVSF {7}, G {8}",
+//			    CFG.VerticalCutoff, setpoint, setpoint_correction, err, K, VSL.VSF, VSL.DTWR, VSL.MinVSF, VSL.G);//debug
 			if(VSL.LandedOrSplashed) return;
 			//loosing altitude alert
 			if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
 				        		      VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV);
-//			DebugUtils.CSV(VSL.vessel.vesselName, VSL.Altitude, 
+//			CSV(VSL.Altitude, VSL.TerrainAltitude, VSL.RelVerticalSpeed,
 //			               VSL.VerticalSpeed, CFG.VerticalCutoff, setpoint, setpoint_correction, 
 //			               VSL.VerticalAccel, upAF, K, VSL.VSF);//debug
 		}

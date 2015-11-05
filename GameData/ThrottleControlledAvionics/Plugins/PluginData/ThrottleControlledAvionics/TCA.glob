@@ -11,7 +11,7 @@ RCS
 	MaxIterations = 50
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 10
-	OptimizationTorqueCutoff = 1
+	OptimizationTorqueCutoff = 0.002 //rad/s2
 	TorqueRatioFactor = 0.1
 }
 
@@ -20,11 +20,10 @@ ENG
 	MaxIterations = 50
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 45
-	OptimizationTorqueCutoff = 1
+	OptimizationTorqueCutoff = 0.002 //rad/s2
 	ThrustOptimizationPrecision = 0.001
 	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 0.1
-	MinTranslationLimit = 0.001
 	
 	MaxP = 1
 	MaxI = 1
@@ -70,6 +69,7 @@ VSC
 	FallingTime       = 1    //min. time falling to trigger Loosing Altitude alert
 	MaxDeltaV         = 1
 	AccelThreshold    = 0.1
+	MaxVSFtwr         = 0.9
 }
 
 ALT
@@ -103,15 +103,16 @@ HSC
 	TranslationUpperThreshold  = 5
 	TranslationLowerThreshold  = 0.01
 	RotationLowerThreshold     = 0.01
+	RotationUpperThreshold     = 30
 	TranslationMaxAngle        = 80
+	RotationMaxAngle           = 15
 	ManualTranslationIMinSpeed = 20
-	ManualTranslationCutoff    = 0.001
 		
 	ManualTranslationPID
 	{
 		P = 0.05
 		I = 0.000001
-		D = 0.001
+		D = 0.0
 	}
 
 	P                     = 0.9
@@ -132,8 +133,10 @@ HSC
 
 CC
 {
-	UpdateDelay = 1
+	UpdateDelay = 5
 	MaxAAf = 2
+	MinAAf = 0.0001
+	
 	DirectionPID
 	{
 		P = 4.0
@@ -157,14 +160,15 @@ PN
 	AltErrSensitivity  = 20
 	DirectNavThreshold = 1
 	GCNavStep          = 0.1
-	AngularAccelF      = 0.5
-	MaxAccelF          = 4
 	LookAheadTime      = 3
 	BearingCutoff      = 80
 	FormationSpeedCutoff = 10
 	FormationFactor    = 0.2
 	FormationBreakTime = 10
 	TakeoffAltitude    = 100
+	BrakeOffset        = 1.5
+	PitchRollAAf       = 100
+	FollowerMaxAwaySpped = 15
 	
 	DistancePID
 	{
@@ -177,6 +181,7 @@ PN
 LND
 {
 	MaxUnevenness        = 0.3
+	UnevennessThreshold  = 0.6
 	MaxHorizontalTime    = 2
 	MinVerticalSpeed     = 0.7
 	WideCheckAltitude    = 100
@@ -192,23 +197,29 @@ LND
 
 RAD
 {
-	MaxViewAngle       = 60
-	LookAheadTime      = 20
-	AltitudeFilter     = 0.1
-	NumRays            = 20
-	MinAltitudeFactor  = 2
-	MinClosingSpeed    = 4
-	MinAltitude        = 10
-	NHVf               = 0.5
-	ManeuverTimer      = 1
+	UpViewAngle       = 60
+	DownViewAngle     = 20
+	MinAngleDelta     = 0.1
+	UpViewSlope       = 1
+	LookAheadTime     = 40
+	NumRays           = 20
+	MinAltitudeFactor = 2
+	MinClosingSpeed   = 4
+	MaxClosingSpeed   = 4
+	MinDistanceAhead  = 60
+	PitchRollAAf      = 100
+	MinAltitude       = 10
+	NHVf              = 0.5
+	ManeuverTimer     = 1
 }
 
 ANC
 {
-	DistanceF          = 0.2
-	MaxSpeed           = 10
-	AngularAccelF      = 0.5
-	MaxAccelF          = 4
+	DistanceF     = 0.2
+	MaxSpeed      = 10
+	AngularAccelF = 0.5
+	MaxAccelF     = 4
+	LookAheadTime = 2
 	
 	DistancePID
 	{
@@ -229,7 +240,7 @@ TLA
 	GearOffAngularVelocity = 0.01 //(rad/s)^2 ~= 5.73deg/s
 	
 	GearOnMaxHSpeed = 5
-	GearOnAltitude  = 5
+	GearOnAtH       = 5
 	GearOnTime      = 5
 }
 

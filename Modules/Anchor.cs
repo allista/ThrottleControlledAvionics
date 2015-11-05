@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float DistanceF     = 50;
 			[Persistent] public float AngularAccelF = 2f;
 			[Persistent] public float MaxAccelF     = 4f;
+			[Persistent] public float LookAheadTime = 2f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
 		static Config ANC { get { return TCAScenario.Globals.ANC; } }
@@ -47,7 +48,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override void UpdateState() 
-		{ IsActive = CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) && VSL.OnPlanet; }
+		{ IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed && CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere); }
 
 		public override void Enable(bool enable = true)
 		{
@@ -61,17 +62,24 @@ namespace ThrottleControlledAvionics
 		public void AnchorHere(bool enable = true)
 		{
 			CFG.Anchor = enable? 
-				new WayPoint(VSL.vessel.latitude, VSL.vessel.longitude) : null;
+				new WayPoint(VSL.mainBody.GetLatitude(VSL.wCoM), 
+				             VSL.mainBody.GetLongitude(VSL.wCoM)) 
+				: null;
 			Enable(enable);
 		}
 
 		public void Update()
 		{
 			if(!IsActive || CFG.Anchor == null) return;
-			CFG.HF.OnIfNot(HFlight.Move);
+			if(VSL.HorizontalSpeed > ANC.MaxSpeed)
+				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
+			else CFG.HF.OnIfNot(HFlight.Move);
 			CFG.Anchor.Update(VSL.mainBody);
 			//calculate direct distance
-			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position-VSL.vessel.transform.position, VSL.Up);
+			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position - 
+			                                  (VSL.wCoM+
+			                                   VSL.PredictedSrfVelocity(ANC.LookAheadTime)*ANC.LookAheadTime), 
+			                                  VSL.Up);
 			var distance = vdir.magnitude;
 			vdir.Normalize();
 			//tune the pid and update needed velocity
@@ -81,8 +89,7 @@ namespace ThrottleControlledAvionics
 			pid.D   = ANC.DistancePID.D*(2-AccelCorrection);
 			pid.Update(distance*ANC.DistanceF);
 			//set needed velocity and starboard
-			VSL.NeededHorVelocity = vdir*pid.Action;
-			CFG.Starboard = VSL.GetStarboard(VSL.NeededHorVelocity);
+			VSL.SetNeededHorVelocity(vdir*pid.Action);
 //			Log("dist {0}, pid {1}, nHV {2}", distance, pid, VSL.NeededHorVelocity);//debug
 		}
 

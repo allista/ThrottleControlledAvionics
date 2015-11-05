@@ -24,7 +24,9 @@ namespace ThrottleControlledAvionics
 		public abstract Vessel vessel { get; }
 		public abstract Part part { get; }
 
-		public bool Valid { get { return part != null && vessel != null; } }
+		public bool Valid(VesselWrapper VSL) 
+		{ return part != null && vessel != null && vessel.id == VSL.vessel.id; }
+
 		public abstract bool isOperational { get; }
 
 		public abstract float finalThrust { get; }
@@ -65,7 +67,7 @@ namespace ThrottleControlledAvionics
 			var total_sthrust = 0f;
 			avg_thrust_dir = Vector3.zero;
 			avg_thrust_pos = Vector3.zero;
-			for(int i = 0; i < rcs.thrusterTransforms.Count; i++)
+			for(int i = 0, count = rcs.thrusterTransforms.Count; i < count; i++)
 			{
 				var sthrust = rcs.thrustForces[i];
 				var T = rcs.thrusterTransforms[i];
@@ -114,9 +116,10 @@ namespace ThrottleControlledAvionics
 			var rT  = e.part.localRoot == null? e.part.transform : e.part.localRoot.transform;
 			var to  = rT.InverseTransformPoint(e.part.partTransform.position);
 			var td  = rT.InverseTransformDirection(e.part.partTransform.forward);
-			var ids = string.Format("{0} {1:F1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1}",
-				e.part.partInfo.name, to.x, to.y, to.z, td.x, td.y, td.z);
+			var ids = string.Format("{0} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1}",
+			                        e.part.partInfo.name, e.engine.engineID, to.x, to.y, to.z, td.x, td.y, td.z);
 			id = (uint)ids.GetHashCode();
+//			Utils.Log("{0}: {1}", ids, id);//debug
 		}
 
 		public static implicit operator uint(EngineID eid) { return eid.id; }

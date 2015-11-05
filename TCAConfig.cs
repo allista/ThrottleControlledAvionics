@@ -18,6 +18,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public int MaxManualGroups       = 10; //maximum number of manual control groups
 		[Persistent] public float KeyRepeatTime       = 0.1f;
 		[Persistent] public float WaypointHeight      = 3f;
+		[Persistent] public float UnpackDistance      = 5000f;
 
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
@@ -131,7 +132,8 @@ Notes:
 		[Persistent] public bool    SASWasEnabled;
 		[Persistent] public WayPoint Anchor;
 		//cruise control
-		[Persistent] public Vector3 Starboard;
+		[Persistent] public Vector3  SavedUp;
+		[Persistent] public Vector3  NeededHorVelocity;
 		//waypoint navigation
 		[Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();
 		[Persistent] public float    MaxNavSpeed = 100;
@@ -148,7 +150,6 @@ Notes:
 		[Persistent] public bool ShowEnginesProfiles;
 		[Persistent] public bool ShowManualLimits;
 		public EnginesProfile ActiveProfile { get { return EnginesProfiles.Active; } }
-		public EnginesProfile DefaultProfile { get { return EnginesProfiles.Default; } }
 		//squad
 		[Persistent] public int Squad;
 		//macros

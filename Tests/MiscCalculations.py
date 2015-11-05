@@ -14,20 +14,20 @@ import os
 def clampL(x, L): return x if x > L else L
 def clampH(x, H): return x if x < H else H
 
-def clamp(x, L, H): 
+def clamp(x, L, H):
     if x > H: return H
     elif x < L: return L
     return x
 #end def
 
-def clamp01(x): 
+def clamp01(x):
     if x > 1: return 1.0
     elif x < 0: return 0.0
     return x
 #end def
 
 def asymp01(x, k=1):
-    return 1.0-1.0/(x/k+1.0); 
+    return 1.0-1.0/(x/k+1.0);
 
 vclamp01 = np.vectorize(clamp01)
 
@@ -36,65 +36,65 @@ class vec(object):
         self.v = np.array([float(x), float(y), float(z)])
 
     @property
-    def norm(self): 
+    def norm(self):
         return vec.from_array(np.array(self.v)/np.linalg.norm(self.v))
-    
+
     def __str__(self):
         return '[%+.4f, %+.4f, %+.4f] |%.4f|' % tuple(list(self.v)+[abs(self),])
-    
+
     def __repr__(self): return str(self)
-    
+
     def __getitem__(self, index): return self.v[index]
     def __setitem__(self, index, value): self.v[index] = value
-    
+
     def __abs__(self):
         return np.linalg.norm(self.v)
-    
+
     def __add__(self, other):
         return vec.from_array(self.v+other.v)
-    
+
     def __iadd__(self, other):
         self[0] += other[0]
         self[1] += other[1]
         self[2] += other[2]
         return self
-    
+
     def __sub__(self, other):
         return vec.from_array(self.v-other.v)
-    
+
     def __neg__(self):
         return self * -1
-    
+
     def __rmul__(self, other): return self * other
-    
+
     def __mul__(self, other):
         if isinstance(other, vec):
             return np.dot(self.v, other.v)
         elif isinstance(other, (int, float)):
             return vec.from_array(self.v * float(other))
         raise TypeError('vec: unsupported multiplier type %s' % type(other))
-    
+
     def __div__(self, other):
         return self * (1.0/other)
-    
+
     def cross(self, other):
         return vec.from_array(np.cross(self.v, other.v))
 
     def project(self, onto):
         m2 = onto*onto
         return onto * (self*onto/m2)
-    
+
     def angle(self, other):
         return np.rad2deg(np.arccos(self*other/(abs(self)*abs(other))))
-    
+
     def cube_norm(self):
         return self/max(abs(x) for x in self)
-    
+
     @classmethod
     def from_array(cls, a):
         assert len(a) == 3, 'Array should be 1D with 3 elements'
         return vec(a[0], a[1], a[2])
-    
+
     @classmethod
     def sum(cls, vecs): return sum(vecs, vec())
 #end class
@@ -103,25 +103,25 @@ class vec6(object):
     def __init__(self):
         self.positive = vec()
         self.negative = vec()
-        
+
     def add(self, v):
         for i, d in enumerate(v):
             if d >= 0: self.positive[i] += d
             else: self.negative[i] += d
-            
+
     def sum(self, vecs):
         for v in vecs: self.add(v)
-        
+
     def clamp(self, v):
         c = vec()
         for i, d in enumerate(v):
             if d >= 0: c[i] = min(d, self.positive[i])
             else: c[i] = max(d, self.negative[i])
         return c
-          
+
     def __str__(self):
         return 'positive: %s\nnegative: %s' % (self.positive, self.negative)
-    
+
     def __repr__(self): return str(self)
 #end class
 
@@ -133,7 +133,7 @@ class engine(object):
         self.dir = direction
         self.torque = spec_torque
         self.min_thrust = float(min_thrust)
-        self.max_thrust = float(max_thrust) 
+        self.max_thrust = float(max_thrust)
         self.limit  = 1.0
         self.limit_tmp = 1.0
         self.best_limit = 1.0
@@ -141,12 +141,12 @@ class engine(object):
         self.current_torque = vec()
         self.maneuver = maneuver
         self.manual = manual
-        
+
     def nominal_current_torque(self, K):
             return (self.torque *
                     (lerp(self.min_thrust, self.max_thrust, K) if not self.manual
                      else self.max_thrust))
-            
+
     def vsf(self, K): return (1 if self.maneuver else K)
 #end class
 
@@ -157,13 +157,13 @@ class PID(object):
         self.kd = float(kd)
         self.min = float(min_a)
         self.max = float(max_a)
-        
+
         self.value  = 0
         self.ierror = 0
         self.perror = 0
         self.action = 0
     #end def
-        
+
     def update(self, err):
         if self.perror == 0: self.perror = err
         old_ierror = self.ierror
@@ -174,15 +174,15 @@ class PID(object):
         if clamped != act: self.ierror = old_ierror
         self.perror = err
         self.action = clamped
-        
+
         return self.action
     #end def
-    
+
     def sim(self, PV, SV, T):
         V = [0.0]
         for sv in SV[1:]:
             act = self.update(sv-V[-1])
-            if np.isinf(act) or np.isnan(act): 
+            if np.isinf(act) or np.isnan(act):
                 act = sys.float_info.max
             V.append(V[-1]+act)
         #plot
@@ -193,7 +193,7 @@ class PID(object):
         plt.plot(T, V)
         plt.subplot(3,1,3)
         plt.plot(T, V-SV)
-        
+
     def __str__(self, *args, **kwargs):
         return ('p % 8.5f, i % 8.5f, d % 8.5f, min % 8.5f, max % 8.5f; action = % 8.5f'
                 % (self.kp, self.ki, self.kd, self.min, self.max, self.action))
@@ -211,13 +211,13 @@ class PID2(PID):
 
 class VSF_sim(object):
     t1 = 5.0
-    
+
     def __init__(self,  ter=None, AS=0, DS=0):
         self.Ter = list(ter) if ter is not None else None
         self.N   = 0 if self.Ter is None else len(self.Ter)
         self.AS  = AS
         self.DS  = DS
-        
+
         self.maxV = 0.0
         self.VSP  = 0.0
         self.upA  = 0.0
@@ -227,7 +227,7 @@ class VSF_sim(object):
         self.dX   = 0.0
         self.E    = 0.0
         self.upAF = 0.0
-        
+
         self.T   = []
         self.X   = []
         self.rX  = []
@@ -236,13 +236,13 @@ class VSF_sim(object):
         self.K   = []
         self.F   = []
         self.VSp = []
-        
+
         self.M = 4.0
         self.MinVSF = 0.1
-        
+
         self.vK1_pid = PID(0.3, 0.1, 0.3, 0.0, 1.0)
     #end def
-        
+
     def vK1(self):
 #         upAF = 0.0
 #         if self.upA < 0 and self.AS > 0: upAF = (1.0/self.AS)*2
@@ -252,24 +252,24 @@ class VSF_sim(object):
 #         self.E = self.VSP-self.upV
         return self.vK1_pid.update(self.E)
 
-        
+
     def vK2(self):
-#         print('Thrust %.2f, W %.2f, H %.2f, upV %.2f, E %.2f, upA %.2f, upAF %.3f, dVSP %.2f, K0 %.3f, K1 %.3f' 
-#               % (self.cthrust, self.M*9.81, self.upX, self.upV, self.maxV-self.upV, self.upA, upAF, (2.0+upAF)/self.twr, 
+#         print('Thrust %.2f, W %.2f, H %.2f, upV %.2f, E %.2f, upA %.2f, upAF %.3f, dVSP %.2f, K0 %.3f, K1 %.3f'
+#               % (self.cthrust, self.M*9.81, self.upX, self.upV, self.maxV-self.upV, self.upA, upAF, (2.0+upAF)/self.twr,
 #                  clamp01(self.E/2.0/(clampL(self.upA/self.K1+1.0, self.L1)**2)),
 #                  clamp01(self.E/2.0/(clampL(self.upA/self.K1+1.0, self.L1)**2)+upAF)))
         #return clampL(clamp01(self.E/2.0/(clampL(self.upA/self.K1+1.0, self.L1)**2)+upAF), 0.05)
 #         if self.upV <= self.maxV:
         K = clamp01(self.E*0.5+self.upAF)
-#         else: 
+#         else:
 #             K = clamp01(self.E*self.upA*0.5+self.upAF)
         return clampL(K, self.MinVSF)
-    
+
     _vK = vK2
-        
+
     @property
     def vK(self):
-        self.E = self.VSP-self.upV 
+        self.E = self.VSP-self.upV
         return self._vK()
 
     def init(self, thrust):
@@ -288,7 +288,7 @@ class VSF_sim(object):
         self.K  = [self.vK]
         self.F  = [0.0]
     #end def
-    
+
     def update_upAF(self):
         self.upAF = 0.0
         if self.upA < 0 and self.AS > 0: self.upAF = (1.0/self.AS)*2
@@ -296,10 +296,10 @@ class VSF_sim(object):
         self.upAF = -self.upA*0.2*self.upAF
         self.VSP = self.maxV+(2.0+self.upAF)/self.twr
     #end def
-    
+
     def phys_loop(self, on_frame=lambda: None):
         i = 1
-        while self.dX >= 0 and (self.T[-1] < self.t1 or i < self.N): 
+        while self.dX >= 0 and (self.T[-1] < self.t1 or i < self.N):
             self.T.append(self.T[-1]+dt)
             self.update_upAF()
             on_frame()
@@ -314,7 +314,7 @@ class VSF_sim(object):
             self.upV += self.upA*dt
             self.upX += self.upV*dt
             self.dX   = self.upX - (self.Ter[i] if self.N > 0 else 0)
-            self.dV   = EWA(self.dV, (self.dX-self.rX[-1])/dt, 0.1) 
+            self.dV   = EWA(self.dV, (self.dX-self.rX[-1])/dt, 0.1)
             #logging
             self.F.append(self.cthrust * dt)
             self.A.append(self.upA)
@@ -324,7 +324,7 @@ class VSF_sim(object):
             self.rX.append(self.dX)
             i += 1
     #end def
-    
+
     def run(self, upV, maxV=1.0, thrust=20.0, vK = None):
         if vK is not None: self._vK = vK
         self.cthrust = self.M*9.81
@@ -335,7 +335,7 @@ class VSF_sim(object):
         self.init(thrust)
         self.phys_loop()
     #end def
-    
+
     def run_impulse(self, dthrust = 10, impulse=0.1, maxV=1.0, thrust=20.0):
         self._vK = self.vK2
         self.cthrust = self.M*9.81
@@ -344,14 +344,14 @@ class VSF_sim(object):
         self.upV  = maxV
         self.upX  = 100.0
         self.init(thrust)
-        def on_frame(): 
+        def on_frame():
             if 3 < self.T[-1] < 3+impulse:
                 self.add_thrust = dthrust
             else: self.add_thrust = 0
             self.twr = (self.thrust+self.add_thrust)/9.81/self.M
         self.phys_loop(on_frame)
     #end def
-            
+
     def run_alt(self, alt, salt = 0.0, thrust=20.0, pid = PID(0.5, 0.0, 0.5, -9.9, 9.9)):
         self.pid = pid
         self._vK = self.vK2
@@ -361,7 +361,7 @@ class VSF_sim(object):
         self.upV  = 0.0
         self.upX  = salt if self.Ter is None else self.Ter[0]+10
         self.Vsp  = [self.maxV]
-        self.dVsp = [0] 
+        self.dVsp = [0]
         self.init(thrust)
         d = pid.kd
         def on_frame():
@@ -375,13 +375,13 @@ class VSF_sim(object):
             self.pid.kd = d/clampL(self.dX, 1)
             if alt_err < 0: alt_err = alt_err/clampL(self.dX, 1)
             self.maxV = self.pid.update(alt_err)
-            print self.pid, alt_err, clamp(0.01*abs(alt_err)/clampL(self.upV, 1), 0.0, d), d 
+            print self.pid, alt_err, clamp(0.01*abs(alt_err)/clampL(self.upV, 1), 0.0, d), d
             if self.N > 0:
                 dV = (self.upV-self.dV)/clampL(self.dX, 1)
-                if alt_err < 0: 
+                if alt_err < 0:
 #                     print '% f %+f = %f' % (dV/clampL(self.dX/50, 1), clampL(alt_err*self.dX/5000*self.twr, self.pid.min*10), dV/clampL(self.dX/50, 1) + clampL(alt_err*self.dX/5000*self.twr, self.pid.min*10))
                     dV = dV + clampL(alt_err*self.dX/500*self.twr, self.pid.min*10)
-                else: 
+                else:
                     dV = clampL(dV, 0)
 #                 print dV
                 self.dVsp.append(dV)
@@ -389,17 +389,17 @@ class VSF_sim(object):
             self.Vsp.append(self.maxV)
         self.phys_loop(on_frame)
     #end def
-        
+
 #         print(("Start velocity: %f\n"
 #                "K1 %f; L1 %f; K2 %f L2 %f\n"
-#                "Fuel consumed: %f\n") 
+#                "Fuel consumed: %f\n")
 #               % (upV, self.K1, self.L1, self.K2, self.L2, sum(self.F)))
     #end def
-    
+
     def describe(self):
         from scipy import stats
         cols = ('X', 'rX', 'V', 'rV', 'Vsp', 'dVsp', 'K')
-        for n in cols: 
+        for n in cols:
             c = getattr(self, n)
             d = stats.describe(c)
             print '%s:' % n
@@ -417,47 +417,47 @@ class VSF_sim(object):
                 print '[% 8.3f : % 8.3f]: %s' %(e0, e, "#"*int(h[0][i]*80))
             print ''
         print '\n'
-    
+
     def _plot(self, r, c, n, Y, ylab):
         plt.subplot(r, c, n)
         plt.plot(self.T, Y, label=("V: twr=%.1f" % self.twr))
         plt.ylabel(ylab)
-        
+
     def legend(self):
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    
+
     def plot_a(self, r, c, n):
         self._plot(r, c, n, self.A, ylab="vertical acceleration (m/s2)")
-    
+
     def plot_vs(self, r, c, n):
         self._plot(r, c, n, self.V, ylab="vertical speed (m/s)")
-        
+
     def plot_ter(self, r, c, n):
         if self.N == 0: return
         self._plot(r, c, n, self.Ter[:len(self.T)], ylab="terrain (m)")
-        
+
     def plot_alt(self, r, c, n):
         self._plot(r, c, n, self.X, ylab="altitude (m)")
-        
+
     def plot_ralt(self, r, c, n):
         self._plot(r, c, n, self.rX, ylab="relative altitude (m)")
-        
+
     def plot_vsp(self, r, c, n):
         self._plot(r, c, n, self.Vsp, ylab="VSP (m/s)")
-        
+
     def plot_dvsp(self, r, c, n):
         if len(self.dVsp) != len(self.T): return
         self._plot(r, c, n, self.dVsp, ylab="dVSP (m/s)")
-        
+
     def plot_k(self, r, c, n):
         self._plot(r, c, n, self.K, ylab="K")
 #end class
 
 def sim_PID():
     np.random.seed(42)
-    
-    def rSV(val, delta): 
-        return max(0, min(100, 
+
+    def rSV(val, delta):
+        return max(0, min(100,
                           val + (delta * np.random.random()-delta/2.0)))
 
     t1  = 10.0
@@ -472,29 +472,29 @@ def sim_PID():
             continue
         sSV = rSV(sSV, 50)
         SV.append(sSV)
-    
+
     pid1 = PID(0.8, 0.2, 0.001, -10, 10)
     pid2 = PID2(0.8, 0.2, 0.001, -10, 10)
-    
+
     pid1.sim(PV, SV, T)
     pid2.sim(PV, SV, T)
     plt.show()
-    
+
 
 def sim_PIDf():
     MoI = vec(3.517439, 5.191057, 3.517369)
     def A(_t):  return vec(_t/MoI[0], _t/MoI[1], _t/MoI[2])
     def Tf(_t): return vec(MoI[0]/_t, MoI[1]/_t, MoI[2]/_t)
-    ph = 0.4; pl = 0.05; dp = ph-pl 
-    
+    ph = 0.4; pl = 0.05; dp = ph-pl
+
     def hill(x, x0=1.0, k=1.0):
         p1 = x**2
         p2 = -(x*2-x0*3)
         p3 = (x*2+x0*3)
         return p1*p2*p3
-    
+
     T = np.arange(0, 2, 0.01)
-    P = []; I = []; 
+    P = []; I = [];
     As = []; S = []; S1 = []; S2 = [];
     for t in T:
         As.append(abs(A(t)))
@@ -502,7 +502,7 @@ def sim_PIDf():
 #         P.append(pl+dp*(1.0-f))
 #         I.append(P[-1]*(1.0-f)/1.5)
         S.append(hill(t, 1, 1))
-        
+
 #     plt.plot(T, P)
 #     plt.plot(T, I)
 #     plt.show()
@@ -512,9 +512,9 @@ def sim_PIDf():
 
 # def tI_PCA():
 #     from matplotlib.mlab import PCA
-#     ships = 
+#     ships =
 #     [
-#      
+#
 #      ]
 
 # Quadro_Manual = [
@@ -524,7 +524,7 @@ def sim_PIDf():
 #                     engine(vec(-1.8, 0.0, -1.8), min_thrust=0.0, max_thrust=40.0),# maneuver=True),
 #                     engine(vec(-1.8, 0.0, 1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
 #                  ]
-#     
+#
 # VTOL_Test = [
 #                 engine(vec(-3.4, -2.0, 0.0), min_thrust=0.0, max_thrust=250.0),
 #                 engine(vec(-3.4, 2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
@@ -535,7 +535,7 @@ def sim_PIDf():
 #                 engine(vec(-3.1, -2.0, 3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
 #                 engine(vec(-2.4, 2.0, -2.9), min_thrust=0.0, max_thrust=20.0, maneuver=True),
 #              ]
-# 
+#
 # Hover_Test = [
 #                 engine(vec(-6.2, 6.4, 0.6),   max_thrust=450),
 #                 engine(vec(-6.2, -6.4, -0.6), max_thrust=450),
@@ -561,7 +561,7 @@ VTOL_Test_Bad_Demand = [
                         vec(10.0, 0.0, 0.0),
                         vec(0.0, 10.0, 0.0),
                         vec(0.0, 0.0, 10.0),
-                            
+
                         vec(-1797.147, 112.3649, 80.1167), #Torque Error: 165.3752
                         vec(1327.126, -59.91731, 149.1847), #Torque Error: 229.8387
                         vec(107.5895, -529.4326, -131.0672), #Torque Error: 59.95838
@@ -577,18 +577,18 @@ Hover_Test_Bad_Demand = [
                          vec(-0.7012861, 0.2607862, -294.2217), #Torque Error: 339.2753kNm, 95.00191deg
                          vec(0.2597602, -0.2778279, 295.8444), #Torque Error: 341.1038kNm, 94.96284deg
                          ]
-    
+
 def sim_Attitude():
     def S(T, K, L=0): return vec.sum(Tk(T, K, L))
     def Sm(T, K, L=0): return abs(S(T,K))
     def Tk(T, K, L=0): return [t*clampL(k, L) for t, k in zip(T,K)]
-    
+
     def opt(target, engines, vK, eps):
         tm = abs(target)
         comp = vec()
         man  = vec()
         for e in engines:
-            if not e.manual: 
+            if not e.manual:
                 e.limit_tmp = -e.current_torque*target/tm/abs(e.current_torque)*e.torque_ratio
                 if e.limit_tmp > 0:
                     comp += e.nominal_current_torque(e.vsf(vK)*e.limit)
@@ -609,7 +609,7 @@ def sim_Attitude():
             else:
                 e.limit = clamp01(e.limit * (1.0 - e.limit_tmp*limits_norm))
         return True
-    
+
     def optR(engines, D=vec(), vK=1.0, eps=0.1, maxI=500, output=True):
         torque_clamp = vec6()
         torque_imbalance = vec()
@@ -636,14 +636,14 @@ def sim_Attitude():
             print 'Torque clamp:\n', torque_clamp
             print 'demand:        ', D
             print 'clamped demand:', _d
-            print ('initial     %s, error %s, dir error %s' % 
+            print ('initial     %s, error %s, dir error %s' %
                    (torque_imbalance, abs(torque_imbalance-_d), torque_imbalance.angle(_d)))
         s = []; s1 = []; i = 0;
         best_error = -1; best_angle = -1; best_index = -1;
         for i in xrange(maxI):
             s.append(abs(torque_imbalance-_d))
             s1.append(torque_imbalance.angle(_d) if abs(_d) > 0 else 0)
-            if(s1[-1] <= 0 and s[-1] < best_error or 
+            if(s1[-1] <= 0 and s[-1] < best_error or
                s[-1]+s1[-1] < best_error+best_angle or best_angle < 0):
                 for e in engines: e.best_limit = e.limit
                 best_error = s[-1]
@@ -652,11 +652,11 @@ def sim_Attitude():
 #             if len(s1) > 1 and s1[-1] < 55 and s1[-1]-s1[-2] > eps: break
 #             if s1[-1] > 0:
 #                 if s1[-1] < eps or len(s1) > 1 and abs(s1[-1]-s1[-2]) < eps*eps: break
-#             elif 
+#             elif
             if s[-1] < eps or len(s) > 1 and abs(s[-1]-s[-2]) < eps/10.0: break
             if len(filter(lambda e: e.manual, engines)) == 0:
                 mlim = max(e.limit for e in engines)
-                if mlim > 0: 
+                if mlim > 0:
                     for e in engines: e.limit = clamp01(e.limit/mlim)
             if not opt(_d-torque_imbalance, engines, vK, eps): break
             torque_imbalance = vec.sum(e.nominal_current_torque(e.vsf(vK) * e.limit) for e in engines)
@@ -681,25 +681,25 @@ def sim_Attitude():
             plt.ylabel('torque direction error (deg)')
             ##########
         return s[best_index], s1[best_index]
-    
+
     def test_craft(craft, demands, vK=1, eps=0.1, maxI=50):
         total_error = 0
-        for d in demands: 
+        for d in demands:
             total_error += sum(optR(craft, d, vK, eps, maxI))
         print 'total error:', total_error
         print '='*80+'\n\n'
         plt.show()
-        
+
 #     test_craft(VTOL_Test, VTOL_Test_Bad_Demand, vK=0.1, eps=0.01, maxI=50)
 #     test_craft(Hover_Test, Hover_Test_Bad_Demand+VTOL_Test_Bad_Demand, vK=0.3, eps=0.1, maxI=50)
-    
+
     test_craft(Shuttle_Test, VTOL_Test_Bad_Demand, vK=0.8, eps=0.01, maxI=50)
-    
+
 #     N = range(500)
 #     np.random.seed(42)
 #     random_tests = [vec(200*np.random.random()-100.0,
 #                         200*np.random.random()-100.0,
-#                         200*np.random.random()-100.0) 
+#                         200*np.random.random()-100.0)
 #                     for _n in N]
 #     E = []; A = []; X = []; Y = []; Z = [];
 #     for d in random_tests:
@@ -707,7 +707,7 @@ def sim_Attitude():
 #         dm = abs(d)
 #         E.append(e/dm*100); A.append(a);
 #         X.append(d[0]/dm*100); Y.append(d[1]/dm*100); Z.append(d[2]/dm*100)
-#          
+#
 #     plt.subplot(4,1,1)
 #     plt.plot(A, E, 'o')
 #     plt.xlabel('angle')
@@ -737,8 +737,8 @@ def linalg_Attitude():
             a[1,i] = t[1]
             a[2,i] = t[2]
         return a
-    
-    for d in VTOL_Test_Bad_Demand: 
+
+    for d in VTOL_Test_Bad_Demand:
         a = engines2a(Uneven_Test)
         x, r, R, s = np.linalg.lstsq(a, d.v)
         print "demand: %s\nlimits: %s\nresids: %s" % (d, x, np.matrix(a).dot(x)-d.v)
@@ -777,13 +777,13 @@ def sim_VS_Stability():
     sim1.legend()
     plt.show()
 #end def
-    
+
 def sim_Altitude():
 #     vs = loadCSV('VS-filtering-26.csv', ('AbsAlt', 'TerAlt', 'Alt', 'AltAhead', 'Err', 'VSP', 'aV', 'rV', 'dV'))
 # #     ter = vs.TerAlt[-10:10:-1]
 #     vs = vs[vs.Alt > 3]
 #     ter = vs.TerAlt[17000:22000]
-    
+
     sim1 = VSF_sim(AS=0.12, DS=0.5)
     sim1.t1 = 60.0
     thrust = [100] #np.arange(100, 300, 50)
@@ -817,11 +817,11 @@ def sim_Rotation():
         plt.plot(X, Y, label=("V: AA=%.1f" % aa))
         plt.xlabel("time (s)")
         plt.ylabel(ylab)
-    
+
     MaxAngularA = np.arange(0.5, 30, 5);
     start_error = 0.8*np.pi
     end_time = 10.0
-    
+
     def test(c, n, pid):
         p = pid.kp; d = pid.kd
         for aa in MaxAngularA:
@@ -841,19 +841,19 @@ def sim_Rotation():
             plot(c, n, np.fromiter(A, float)/np.pi*180.0, 'Angle')
             plot(c, c+n, V, 'Angular velocity')
             plot(c, c*2+n, S, 'Steering')
-        
+
     test(2, 1, PID(6.0, 0, 10.0, -1, 1))
     test(2, 2, PID(4.0, 0, 6.0, -1, 1))
     legend()
     plt.show()
-    
+
 def drawVectors():
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.lines as mlines
-    
-    
+
+
     x = (1,0,0); y = (0,1,0); z = (0,0,1)
-    
+
     NoseUp = [
                 (0.426938, 0.6627575, 0.6152045), #right
                 (-0.9027369, 0.3521126, 0.2471495), #up
@@ -861,7 +861,7 @@ def drawVectors():
                 (-0.825050456225237, 0.00142223040578914, 0.565057273153087), #Up
                 vec(-40.7348866753984, 82.6265182495117, -60.7879408364129).norm.v, #vel
              ]
-    
+
     NoseHor = [
                 (0.9065102, 0.2023994, 0.3705047), #right
                 (-0.4193277, 0.3297398, 0.8458344), #up
@@ -870,31 +870,31 @@ def drawVectors():
 #                 vec(8.85797889364285, 42.9853324890137, 16.2476060788045).norm.v, #vel
 #                 vec(14.74958, -277.06, 115.2648).norm.v, #[r*-T]
              ]
-    
+
     LookAhead = [
                     (-0.853199320849177, 0.0880317238524617, 0.514102455253879), #Up
                     (0.4738491, -0.3380022, 0.8131552), #r
                     (0.7306709, -0.3828829, -0.5652617), #lookahead
                  ]
-    
+
     GreatCircle = [
                    (-0.853199320849177, 0.0880317238524617, 0.514102455253879), #Up
                    (0.553682, -0.2360972, 0.7985577), #VDir0
                    (-0.4253684, -0.6641812, -0.6147562) #VDir0
                    ]
-    
+
     GreatCircle = [
                    (0, 1, 0), #Up
                    (np.sin(-103.6567/180*np.pi), 0, np.cos(-103.6567/180*np.pi)) #VDir0
                    ]
-    
+
     Radar = [
 (0.4143046, -0.6872179, 0.5967271), #Dir
 (0.615147, -0.6593181, 0.4323122), #d
 (-0.821889802172869, -0.00085793802058045, 0.569645869840723), #Up
 (0.3722304, 0.7262448, 0.5779386), #right
              ]
-    
+
     MunNoseHor = [
 (1, 0, 0),
 (0, 1, 0),
@@ -903,9 +903,9 @@ def drawVectors():
 (-0.0001221597, 0.9947699, -0.1021409),
 (0.3317407, 0.9377342, -0.1029695),
                     ]
-    
+
     def xzy(v): return v[0], v[2], v[1]
-    
+
     def draw_vectors(*vecs):
         if not vecs: return;
         X, Y, Z, U, V, W = zip(*(xzy(v)+xzy(v) for v in vecs))
@@ -924,10 +924,10 @@ def drawVectors():
             legends.append(mlines.Line2D([], [], color=colors[i*3], label=str(i+1)))
         plt.legend(handles=legends)
         plt.show()
-    
+
 #     draw_vectors(*NoseUp)
     draw_vectors(*MunNoseHor)
-    
+
 def color_grad(num, repeat=1):
     colors = [(0,1,0)]*repeat
     n = float(num)
@@ -935,7 +935,7 @@ def color_grad(num, repeat=1):
         c = (i/n, 1-i/n, 1-i/n)
         colors += (c,)*repeat
     return colors
-    
+
 def Gauss(old, cur, ratio = 0.7, poles = 2):
     for _i in xrange(poles):
         cur = (1-ratio)*old+ratio*cur
@@ -975,56 +975,56 @@ def simFilters():
 #     ax1.plot(L, g2, label='Gauss2')
     legend()
     plt.show()
-    
+
 def simGC():
     import math as m
-    
+
     class angle(object):
         def __init__(self, d=0, m=0, s=0):
             self.deg = d+m/60.0+s/3600.0
             self.rad = self.deg/180.0*np.pi
-        
+
         def _update(self):
             self.deg = self.rad/m.pi*180.0
-        
+
         @classmethod
         def from_rad(cls, rad):
             a = angle()
             a.rad = rad
             a._update()
             return a
-        
+
         def __float__(self): return self.rad
-        def __str__(self, *args, **kwargs): 
+        def __str__(self, *args, **kwargs):
             return '%fd' % self.deg
-        
+
         def __add__(self, a):
             a1 = self.from_rad(self.rad + a.rad)
             return a1
-            
+
         def __sub__(self, a):
             a1 = self.from_rad(self.rad - a.rad)
             return a1
-        
+
         def __mul__(self, r):
             a1 = self.from_rad(self.rad*r)
             return a1
-            
+
     class point(object):
         def __init__(self, lat, lon):
             self.lat = lat
             self.lon = lon
-            
+
         def __str__(self, *args, **kwargs):
             return 'lat: %s, lon: %s' % (self.lat, self.lon)
-    
+
     def bearing(p1, p2):
         cos_lat2 = m.cos(p2.lat)
         dlon = p2.lon-p1.lon
         y = m.sin(dlon)*cos_lat2;
         x = m.cos(p1.lat)*m.sin(p2.lat) - m.sin(p1.lat)*cos_lat2*m.cos(dlon);
         return m.atan2(y, x)
-    
+
     def point_between(p1, p2, dist):
         b = bearing(p1, p2);
         sin_dist = m.sin(dist);
@@ -1033,15 +1033,15 @@ def simGC():
         cos_lat1 = m.cos(p1.lat);
         lat2 = m.asin(sin_lat1*cos_dist + cos_lat1*sin_dist*m.cos(b));
         dlon2 = m.atan2(m.sin(b)*sin_dist*cos_lat1, cos_dist-sin_lat1*m.sin(lat2));
-        return point(angle.from_rad(lat2), 
+        return point(angle.from_rad(lat2),
                      angle.from_rad(p1.lon.rad+dlon2));
-    
+
     p1 = point(angle(1,12,13), angle(284,30,41))
     p2 = point(angle(5,22,20), angle(254,58,00))
-    
+
     r = 600000.0
     v = 100.0
-    
+
     t = 0; dt = 0.01
     pt = p1; pa = p1
     while t < 2000:
@@ -1050,41 +1050,41 @@ def simGC():
         ba = angle.from_rad(bearing(pa, p2))
         pa = point(pa.lat+angle.from_rad(da*m.cos(ba)), pa.lon+angle.from_rad(da*m.sin(ba)))
         t += dt
-    
+
     print p1
     print pt
     print pa
     print (pa.lat-pt.lat).rad*r,(pa.lon-pt.lon).rad*r
     print p2
-    
+
 #     P = [p1]
 #     for d in np.arange(0.01, 0.6, 0.01):
 #         P.append(point_between(p1, p2, d))
 #         print P[-1]
 #     P.append(p2)
-#     
+#
 #     lat = [p.lat.deg for p in P]
 #     lon = [p.lon.deg for p in P]
-#     
+#
 #     plt.plot(lon, lat, '*')
 #     plt.show()
 
 
 def loadCSV(filename, columns=None, header=None):
-    os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics', 'Debugging'))
+    os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics'))
     df = pa.read_csv(filename, header=header, names=columns)
     return df
 
-def drawDF(df, columns=None, colors=None, axes=None):
-    from collections import Counter 
+def drawDF(df, columns, colors=None, axes=None):
+    from collections import Counter
     l = df.shape[0]
     L = df.L if 'L' in df else np.arange(0, l, 1)
-    cols = df.keys() if columns is None else columns
-    num_axes = Counter(axes)
-    nrows = max(num_axes.values())
-    ncols = len(num_axes.keys())
-    if colors is None: colors = color_grad(len(cols))
-    for i, k in enumerate(cols):
+    if axes is not None:
+        num_axes = Counter(axes)
+        nrows = max(num_axes.values())
+        ncols = len(num_axes.keys())
+    if colors is None: colors = color_grad(len(columns))
+    for i, k in enumerate(columns):
         if axes is None:
             plt.plot(L, df[k], label=k, color=colors[i])
         else:
@@ -1105,12 +1105,12 @@ def boxplot(df, columns=None):
     cnames = df.keys() if columns is None else columns
     plt.boxplot([df[k] for k in cnames], labels=cnames)
     plt_show_maxed()
-    
+
 def describe(df, columns=None):
     from scipy import stats
     cnames = df.keys() if columns is None else columns
     for k in cnames:
-        c = df[k] 
+        c = df[k]
         d = stats.describe(c)
         print '%s:' % k
         print '   len:    ', len(c)
@@ -1128,22 +1128,25 @@ def describe(df, columns=None):
             print '[% 8.3f : % 8.3f]: %s' %(e0, e, "#"*int(h[0][i]*80))
         print ''
     print '\n'
-      
-      
+
+
 def addL(df):
     '''add horizontal coordinate column'''
     L = [0]
     if 'hV' in df:
         for hv in df.hV[:-1]:
-            L.append(L[-1]+hv*dt) 
-    else: 
+            L.append(L[-1]+hv*dt)
+    else:
         L = np.arange(0, df.shape[0], 1)
     df['L'] = pa.Series(L, index=df.index)
-      
-def analyzeCSV(filename, header, cols=None, region = None):
+
+def analyzeCSV(filename, header, cols=None, axes=(), region = None):
     df = loadCSV(filename, header)
+    if 'name' in df:
+        del df['name']
+        df.reset_index()
     if 'AltitudeAhead' in df:
-        df.AltitudeAhead[df.AltitudeAhead < 0] = 0
+        df.AltitudeAhead[df.AltitudeAhead > 10000] = 0
     if 'Alt' in df:
         df = df[df.Alt > 3].reset_index()
     addL(df)
@@ -1156,9 +1159,12 @@ def analyzeCSV(filename, header, cols=None, region = None):
         df = df[(df.L > region[0]) & (df.L <= region[1])]
 #     describe(df)
 #     print df.iloc[500]
-    drawDF(df, cols, axes=[1]*(len(df.keys()) if cols is None else len(cols)))
-  
-  
+    if cols is None: 
+        cols = list(df.keys())
+        if 'L' in cols: cols.remove('L')
+    drawDF(df, cols, axes=[1]*len(cols) if axes is () else axes)
+
+
 def sim_PointNav():
     P = 2; D = 0.1; AAk = 0.5
     pid = PID(P, 0, D, 0, 10)
@@ -1176,8 +1182,8 @@ def sim_PointNav():
             pid.kp = P*a/clampL(v[-1], 0.01)
             act.append(pid.update(d[-1]*distanceF))
             aa = a*AAk
-            
-            if v[-1] < pid.action: 
+
+            if v[-1] < pid.action:
                 if A[-1] < a: A.append(A[-1]+a*AAk*dt)
                 else: A.append(a)
             elif v[-1] > pid.action:
@@ -1222,11 +1228,24 @@ if __name__ == '__main__':
 # #                ['AltAhead']
 #                 , (13,))
 
-    analyzeCSV('Rocket-Mun-Radar-test1.csv',
-               ('name', 'DesiredAltitude', 'alt', 'RelAltitude', 'AltitudeAhead', 'VSF', 'accel', 'ttAp', 'TimeAhead'),
-               ('RelAltitude', 'alt', 'AltitudeAhead', 'VSF', 'ttAp', 'TimeAhead'))
-#                 (6500,))
+    analyzeCSV('Debugging/pn-follow-target1.csv',
+               ('name',
+                'distance', 'cur_vel', 
+               'DeltaSpeed', 'eta', 'brake_time', 'Max', 'Action'),
+               ('distance', 'cur_vel', 'brake_time', 'Action'),
+               (),
+                (1500,))
+
+#     analyzeCSV('Debugging/vertical-overshooting-bug.csv',
+#                ('name',
+#                 'Altitude', 'TerrainAltitude', 'RelVerticalSpeed', 'VerticalSpeed',
+#                 'VerticalCutoff', 'setpoint', 'setpoint_correction', 'VerticalAccel',
+#                 'upAF', 'K', 'VSP'),
+#                ('TerrainAltitude', 'RelVerticalSpeed', 'VerticalSpeed',
+#                 'VerticalCutoff', 'setpoint', 'setpoint_correction', 'VerticalAccel',
+#                 'K', 'VSP'))
     
+
 #     analyzeCSV('VS-filtering-39.csv',
 #                ('BestAlt', 'DetAlt', 'AltAhead')
 #                )

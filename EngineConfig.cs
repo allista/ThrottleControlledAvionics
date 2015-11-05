@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
 		new public const string NODE_NAME = "ENGINECFG";
 		const float lim_eps = 1e-5f;
 
-		[Persistent] string Name;
+		[Persistent] public string Name;
 		[Persistent] public bool On;
 		[Persistent] public float Limit;
 		[Persistent] string role;
@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 
 		public EngineConfig() {}
 		public EngineConfig(EngineWrapper e) 
-		{ Name = e.Group > 0? ("Group "+e.Group) : e.name; Update(e); }
+		{ Name = e.Group > 0? ("Group "+e.Group) : e.name; Update(e, true); }
 
 		public EngineConfig(EngineConfig c)
 		{
@@ -39,11 +39,12 @@ namespace ThrottleControlledAvionics
 			Role  = c.Role;
 		}
 
-		public void Update(EngineWrapper e)
+		public void Update(EngineWrapper e, bool with_On = false)
 		{
-			On    = e.isOperational;
 			Limit = e.thrustLimit;
 			Role  = e.Role;
+			if(with_On) On = e.engine.EngineIgnited;
+			else Changed |= On != e.engine.EngineIgnited;
 		}
 
 		public override void Load (ConfigNode node)
@@ -74,8 +75,8 @@ namespace ThrottleControlledAvionics
 
 		public bool Differs(EngineWrapper e)
 		{
-			return On == e.isOperational && Role == e.Role &&
-				(Role != TCARole.MANUAL || Mathf.Abs(e.thrustLimit-Limit) > lim_eps);
+			return On != e.engine.EngineIgnited || Role != e.Role ||
+				(Role == TCARole.MANUAL && Mathf.Abs(e.thrustLimit-Limit) > lim_eps);
 		}
 
 		void RoleControl()
@@ -114,6 +115,9 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 			return Changed;
 		}
+
+		public override string ToString()
+		{ return string.Format("[{0}]: Role {1}, Limit {2}, On: {3}", Name, Role, Limit, On); }
 	}
 
 	public abstract class EngineConfigDB<K> : ConfigNodeObject
@@ -175,10 +179,12 @@ namespace ThrottleControlledAvionics
 
 		[Persistent] public string Name;
 		[Persistent] public bool Active;
+		[Persistent] public bool Activated;
 		[Persistent] public bool Default;
 		[Persistent] public int  NumManual;
 		[Persistent] public int  OnPlanet = 2;
 		[Persistent] public int  Stage = -1;
+		[Persistent] public bool Level;
 
 		[Persistent] public EngineConfigIntDB  Groups = new EngineConfigIntDB();
 		[Persistent] public EngineConfigUintDB Single = new EngineConfigUintDB();
@@ -194,6 +200,7 @@ namespace ThrottleControlledAvionics
 			foreach(var c in p.Single.DB) 
 				Single[c.Key] = new EngineConfig(c.Value);
 			NumManual = p.NumManual;
+			Level = p.Level;
 		}
 		public EnginesProfile(string name, IList<EngineWrapper> engines)
 		{ Name = name; Init(engines); }
@@ -221,8 +228,9 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void Update(IList<EngineWrapper> engines)
+		public void Update(IList<EngineWrapper> engines, bool with_On = false)
 		{
+//			Utils.Log("Updating {0}", Name);//debug
 			var groups = new EngineConfigIntDB();
 			var single = new EngineConfigUintDB();
 			NumManual = 0;
@@ -245,34 +253,51 @@ namespace ThrottleControlledAvionics
 					{
 						if(e.Role == TCARole.MANUAL) NumManual++;
 						single[e.ID] = new EngineConfig(e);
+//						Utils.Log("New engine found: {0}, {1}, cfg {2}", e.ID, e.part.flightID, single[e.ID]);//debug
 					}
 				}
 				else if(e.Group > 0) 
 				{ 
 					if(e.Role == TCARole.MANUAL && !groups.ContainsKey(e.Group)) NumManual++;
-					Changed |= Changed || c.Differs(e);
+					Changed |= c.Differs(e);
 					c.Limit = e.thrustLimit;
-					c.On = e.isOperational;
-					groups[e.Group] = c; 
+//					Utils.Log("Updating {0} with {1}, {2}", c, e.ID, e.part.flightID);//debug
+					if(with_On) c.On = e.engine.EngineIgnited;
+//					Utils.Log("Updated {0}", c);//debug
+					groups[e.Group] = c;
 				}
 				else 
 				{ 
 					if(e.Role == TCARole.MANUAL) NumManual++;
-					c.Update(e); single[e.ID] = c; 
+					Changed |= c.Differs(e);
+//					Utils.Log("Updating {0} with {1}, {2}", c, e.ID, e.part.flightID);//debug
+					c.Update(e, with_On);
+//					Utils.Log("Updated {0}", c);//debug
+					single[e.ID] = c;
 				}
 			}
-			Changed |= Changed || Groups.Count != groups.Count || Single.Count != single.Count;
+			Changed |= Groups.Count != groups.Count || Single.Count != single.Count;
 			Groups = groups; Single = single;
 			if(Changed) Apply(engines);
 		}
 
+		public void OnActivated(VesselWrapper VSL)
+		{
+			if(Level && VSL.OnPlanet) 
+				VSL.CFG.HF.OnIfNot(HFlight.Level);
+			Activated = false;
+		}
+
 		public void Apply(IList<EngineWrapper> engines)
 		{
+//			Utils.Log("Applying {0}", Name);//debug
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++) 
 			{
 				var e = engines[i];
 				var c = GetConfig(e);
+//				Utils.Log("Applying {0} to {1}, {2}: engine ignited {3}", c, e.ID, e.part.flightID, e.engine.EngineIgnited);//debug
 				if(c != null) c.Apply(e);
+//				Utils.Log("Applyed {0}: engine ignited {1}", c, e.engine.EngineIgnited);//debug
 			}
 			Changed = false;
 		}
@@ -321,6 +346,13 @@ namespace ThrottleControlledAvionics
 			else GUILayout.Label(Name, Active? Styles.green : Styles.white, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
 		}
 
+		void LevelControl()
+		{
+			if(GUILayout.Button(new GUIContent("Level", "Level the craft when this profile is activated"),
+			                    Level? Styles.green_button : Styles.normal_button, GUILayout.Width(50)))
+				Level = !Level;
+		}
+
 		public bool Draw()
 		{
 			GUILayout.BeginVertical();
@@ -332,8 +364,9 @@ namespace ThrottleControlledAvionics
 				OnPlanetControl();
 				StageControl();
 			}
+			LevelControl();
 			//default switch
-			if(Default) GUILayout.Toggle(Default, "Default", GUILayout.Width(60));
+			if(Default) GUILayout.Label("Default", Styles.green, GUILayout.Width(60));
 			else { Default = GUILayout.Toggle(Default, "Default", GUILayout.Width(60)); }
 			//edit button
 			if(GUILayout.Button(Edit? "Done" : "Edit", 
@@ -432,6 +465,7 @@ namespace ThrottleControlledAvionics
 			Active.Active  = false;
 			Active.Changed = false;
 			Active = p;
+			Active.Activated = true;
 			Active.Changed = true;
 			Active.Active  = true;
 		}
