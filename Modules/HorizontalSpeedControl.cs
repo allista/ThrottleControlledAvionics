@@ -88,8 +88,7 @@ namespace ThrottleControlledAvionics
 			{
 				CFG.Nav.Off();
 				VSL.UpdateOnPlanetStats();
-				CFG.Starboard = Vector3.zero;
-				VSL.NeededHorVelocity = Vector3d.zero;
+				VSL.SetNeededHorVelocity(Vector3d.zero);
 			}
 			else EnableManualTranslation(false); 
 			BlockSAS(enable);

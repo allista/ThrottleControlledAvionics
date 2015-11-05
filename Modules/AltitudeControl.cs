@@ -66,7 +66,6 @@ namespace ThrottleControlledAvionics
 			if(enable == CFG.AltitudeAboveTerrain) return;
 			CFG.AltitudeAboveTerrain = enable;
 			VSL.UpdateAltitude();
-			VSL.AltitudeAhead = float.MaxValue;
 			Falling.Reset();
 			if(CFG.AltitudeAboveTerrain)
 				CFG.DesiredAltitude -= VSL.TerrainAltitude;
@@ -89,24 +88,37 @@ namespace ThrottleControlledAvionics
 			SetState(TCAState.AltitudeControl);
 			//calculate current altitude or apoapsis, if the vessel is moving upwards
 			var alt = VSL.AbsAltitude;
-			if(VSL.vessel.orbit != null && VSL.AbsVerticalSpeed > 0 && !VSL.LandedOrSplashed)
+			var ttAp = VSL.AbsVerticalSpeed/VSL.G;
+			if(VSL.AbsVerticalSpeed > 0 && !VSL.LandedOrSplashed)
 			{
-				var ttAp = VSL.AbsVerticalSpeed/VSL.G;
 				if(VSL.TimeAhead > 0 && VSL.TimeAhead < ttAp) ttAp = VSL.TimeAhead;
 				alt = VSL.AbsAltitude+ttAp*(VSL.AbsVerticalSpeed - ttAp*VSL.G/2);
-//				CSV(CFG.DesiredAltitude, alt-VSL.TerrainAltitude, VSL.RelAltitude, VSL.RelAltitude-VSL.AltitudeAhead,
+//				CSV(CFG.DesiredAltitude, alt-VSL.TerrainAltitude, VSL.RelAltitude, VSL.AltitudeAhead-VSL.AbsAltitude,
 //				    VSL.VSF, -VSL.G, ttAp, VSL.TimeAhead);//debug
 			}
 			//correct for terrain altitude and radar data if following terrain
 			if(CFG.AltitudeAboveTerrain) 
 			{
-				alt -= VSL.TerrainAltitude;
-				if(VSL.AltitudeAhead < VSL.Altitude)
+				if(VSL.AltitudeAhead > VSL.TerrainAltitude)
 				{
-					alt -= VSL.Altitude-VSL.AltitudeAhead;
-					if(alt <= VSL.H) SetState(VSL.AbsVerticalSpeed < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
-					if(VSL.AbsVerticalSpeed > 1) SetState(TCAState.Ascending);
+					alt -= VSL.AltitudeAhead;
+					if(alt <= VSL.H) 
+					{
+						SetState(VSL.AbsVerticalSpeed < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
+						if(VSL.TimeAhead > 0) 
+						{
+							CFG.VerticalCutoff = Mathf.Sqrt(2f*Utils.ClampL((VSL.AltitudeAhead+CFG.DesiredAltitude-VSL.AbsAltitude)*VSL.G, 0));
+							ttAp = CFG.VerticalCutoff/VSL.G;
+							if(ttAp > VSL.TimeAhead) 
+								CFG.VerticalCutoff = (VSL.AltitudeAhead+CFG.DesiredAltitude-VSL.AbsAltitude)/VSL.TimeAhead+VSL.TimeAhead*VSL.G/2;
+							Log("VSP {0}, ttAp {1}, TimeAhead {2}, ApA {3}, Obst {4}", CFG.VerticalCutoff, ttAp, VSL.TimeAhead, 
+							    VSL.AbsAltitude+ttAp*(CFG.VerticalCutoff - ttAp*VSL.G/2), VSL.AltitudeAhead);//debug
+							return;
+						}
+					}
+					else if(VSL.AbsVerticalSpeed > 1) SetState(TCAState.Ascending);
 				}
+				else alt -= VSL.TerrainAltitude;
 			}
 			//calculate altitude error
 			var error = (CFG.DesiredAltitude-alt);

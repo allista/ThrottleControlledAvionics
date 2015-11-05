@@ -133,7 +133,7 @@ HSC
 
 CC
 {
-	UpdateDelay = 1
+	UpdateDelay = 5
 	MaxAAf = 2
 	MinAAf = 0.0001
 	
@@ -199,8 +199,9 @@ RAD
 {
 	UpViewAngle       = 60
 	DownViewAngle     = 20
+	MinAngleDelta     = 0.1
+	UpViewSlope       = 1
 	LookAheadTime     = 40
-	AltitudeFilter    = 0.1
 	NumRays           = 20
 	MinAltitudeFactor = 2
 	MinClosingSpeed   = 4

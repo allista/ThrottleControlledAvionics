@@ -64,7 +64,8 @@ namespace ThrottleControlledAvionics
 		public float   H { get; private set; } //height
 		public float   R { get; private set; } //radius
 		public float   M { get; private set; } //mass
-		public float   G { get; private set; } //gee force
+		public float   StG { get; private set; } //gee at position
+		public float   G { get; private set; } //gee - centrifugal acceleration
 		public float  DTWR { get; private set; }
 		public float  MaxDTWR { get; private set; }
 		public float  MaxTWR { get; private set; }
@@ -165,7 +166,7 @@ namespace ThrottleControlledAvionics
 		public void Init() 
 		{
 			CanUpdateEngines = true;
-			AltitudeAhead = float.MaxValue;
+			AltitudeAhead = float.MinValue;
 			OnPlanet = _OnPlanet();
 		}
 
@@ -178,6 +179,12 @@ namespace ThrottleControlledAvionics
 
 		public Vector3 GetStarboard(Vector3d hV) { return hV.IsZero()? Vector3.zero : Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
 		public Vector3 CurrentStarboard { get { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(HorizontalVelocity, Up); } }
+		public void SetNeededHorVelocity(Vector3d hV)
+		{
+			CFG.SavedUp = Up;
+			CFG.NeededHorVelocity = hV;
+			NeededHorVelocity = hV;
+		}
 
 		public void SetUnpackDistance(float distance)
 		{
@@ -398,7 +405,8 @@ namespace ThrottleControlledAvionics
 			Up   = (wCoM - vessel.mainBody.position).normalized; //duplicates vessel.upAxis, except it uses CoM instead of CurrentCoM
 			UpL  = refT.InverseTransformDirection(Up);
 			M    = vessel.GetTotalMass();
-			G    = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
+			StG  = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
+			G    = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
 			//init engine wrappers
 			for(int i = 0; i < NumActive; i++) 
 			{

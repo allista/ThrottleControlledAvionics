@@ -272,8 +272,7 @@ namespace ThrottleControlledAvionics
 						         distance > CFG.Target.Distance*5))
 						{
 							keep_formation = true;
-							VSL.NeededHorVelocity = vdir;
-							CFG.Starboard = VSL.GetStarboard(VSL.NeededHorVelocity);
+							VSL.SetNeededHorVelocity(vdir);
 							return;
 						}
 						else VSL.CourseCorrections.Add(tvel*(PN.FormationFactor-1));
@@ -304,11 +303,10 @@ namespace ThrottleControlledAvionics
 					{
 						//set needed velocity and starboard to match that of the target
 						keep_formation = true;
-						VSL.NeededHorVelocity = tvel;
+						VSL.SetNeededHorVelocity(tvel);
 						VSL.CourseCorrections.Add((tvel-VSL.HorizontalVelocity)*0.9f);
-						CFG.Starboard = VSL.GetStarboard(VSL.NeededHorVelocity);
 					}
-					else VSL.NeededHorVelocity = CFG.Starboard = Vector3d.zero;
+					else VSL.SetNeededHorVelocity(Vector3d.zero);
 					vel_is_set = true;
 				}
 				else if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 0)
@@ -348,8 +346,7 @@ namespace ThrottleControlledAvionics
 			if(Vector3.Dot(vdir, VSL.Fwd) < PN.BearingCutoffCos &&
 			   Vector3d.Dot(VSL.HorizontalVelocity.normalized, vdir) < PN.BearingCutoffCos)
 			{
-				VSL.NeededHorVelocity = vdir;
-				CFG.Starboard = VSL.GetStarboard(VSL.NeededHorVelocity);
+				VSL.SetNeededHorVelocity(vdir);
 				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 				VSL.Maneuvering = false;
 				vel_is_set = true;
@@ -432,8 +429,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.Nav[Navigation.FollowTarget] && 
 			   Vector3d.Dot(tvel, vdir) > 0)
 				VSL.NeededHorVelocity += tvel;
-			//set the starboard
-			CFG.Starboard = VSL.GetStarboard(VSL.NeededHorVelocity);
+			VSL.SetNeededHorVelocity(VSL.NeededHorVelocity);
 //			CSV(dist2bound, Vector3d.Dot(dvel, vdir), DeltaSpeed, eta, brake_time, 
 //			    pid.Max, pid.Action);//debug
 		}

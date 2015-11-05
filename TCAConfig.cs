@@ -131,7 +131,8 @@ Notes:
 		[Persistent] public bool    SASWasEnabled;
 		[Persistent] public WayPoint Anchor;
 		//cruise control
-		[Persistent] public Vector3 Starboard;
+		[Persistent] public Vector3  SavedUp;
+		[Persistent] public Vector3  NeededHorVelocity;
 		//waypoint navigation
 		[Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();
 		[Persistent] public float    MaxNavSpeed = 100;

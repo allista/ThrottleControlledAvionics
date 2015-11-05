@@ -53,12 +53,6 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void set_needed_velocity(bool set = true)
-		{ 
-			CFG.Starboard = set? VSL.CurrentStarboard : Vector3.zero;
-			VSL.NeededHorVelocity = set? VSL.HorizontalVelocity : Vector3d.zero;
-		}
-
 		public override void Enable(bool enable = true)
 		{
 			pid.Reset();
@@ -69,7 +63,7 @@ namespace ThrottleControlledAvionics
 				VSL.UpdateOnPlanetStats();
 			}
 			BlockSAS(enable);
-			set_needed_velocity(enable);
+			VSL.SetNeededHorVelocity(enable? VSL.HorizontalVelocity : Vector3d.zero);
 		}
 
 		public void NoseOnCourse(bool enable = true)
@@ -81,9 +75,9 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateNeededVelocity()
 		{
-			VSL.NeededHorVelocity = CFG.Starboard.IsZero()? 
-				Vector3.zero : 
-				Quaternion.FromToRotation(Vector3.up, VSL.Up) * Vector3.Cross(Vector3.up, CFG.Starboard);
+			VSL.SetNeededHorVelocity(CFG.NeededHorVelocity.IsZero()? 
+			                         Vector3.zero : 
+			                         Quaternion.FromToRotation(CFG.SavedUp, VSL.Up)*CFG.NeededHorVelocity);
 		}
 
 		protected override void Update(FlightCtrlState s)
@@ -95,7 +89,8 @@ namespace ThrottleControlledAvionics
 			     !VSL.ForwardDirection.IsZero())) return;
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
-			if(UserIntervening(s)) { pid.Reset(); return; }
+			if(UserIntervening(s)) 
+			{ pid.Reset(); VSL.SetNeededHorVelocity(VSL.HorizontalVelocity); return; }
 			//update needed velocity
 			if(CFG.HF[HFlight.CruiseControl])
 				UpdateTimer.Run(UpdateNeededVelocity);
