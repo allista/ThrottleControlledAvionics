@@ -153,6 +153,8 @@ namespace ThrottleControlledAvionics
 			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
 			   (zero_needed || CFG.DesiredAltitude < RAD.MinAltitude))
 			{ reset(); return; }
+//			Log("CollisionSpeed {0} && HSpeed {1} < MinSpeed {2} && (zero_needed {3} || DesiredAltitude {4} < MinAltitude {5})",
+//			    CollisionSpeed, VSL.HorizontalSpeed, RAD.MinClosingSpeed, zero_needed, CFG.DesiredAltitude, RAD.MinAltitude);//debug
 			//closing speed and starting ray direction
 			Dir = Vector3.zero;
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
