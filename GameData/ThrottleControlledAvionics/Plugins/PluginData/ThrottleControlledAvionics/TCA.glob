@@ -205,7 +205,6 @@ RAD
 	NumRays           = 20
 	MinAltitudeFactor = 2
 	MinClosingSpeed   = 4
-	MaxClosingSpeed   = 4
 	MinDistanceAhead  = 60
 	PitchRollAAf      = 100
 	MinAltitude       = 10
