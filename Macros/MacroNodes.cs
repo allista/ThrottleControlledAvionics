@@ -130,8 +130,7 @@ namespace ThrottleControlledAvionics
 		protected override bool Action(VesselWrapper VSL)
 		{
 			VSL.CFG.HF.On(HFlight.CruiseControl);
-			VSL.NeededHorVelocity = VSL.HFwd*Value;
-			VSL.CFG.Starboard = VSL.GetStarboard(VSL.NeededHorVelocity);
+			VSL.SetNeededHorVelocity(VSL.HFwd*Value);
 			return false;
 		}
 	}
