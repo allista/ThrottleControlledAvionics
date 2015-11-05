@@ -348,7 +348,7 @@ namespace ThrottleControlledAvionics
 					var above_ground = VSL.AltitudeAboveGround;
 					GUILayout.Label(string.Format("Altitude: {0:F2}m {1:+0.0;-0.0;+0.0}m/s", 
 					                              VSL.Altitude, VSL.VerticalSpeedDisp), 
-					                GUILayout.Width(180));
+					                GUILayout.Width(190));
 					GUILayout.Label(new GUIContent("Set Point (m):", above_ground? 
 					                               "Setpoint is above the ground" : "Warning! Setpoint is below the ground"), 
 					                GUILayout.Width(90));
@@ -358,7 +358,7 @@ namespace ThrottleControlledAvionics
 						s_altitude = altitude.ToString("F1");
 					}
 					var style = above_ground? Styles.green : Styles.red;
-					s_altitude = GUILayout.TextField(s_altitude, style, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
+					s_altitude = GUILayout.TextField(s_altitude, style, GUILayout.ExpandWidth(true), GUILayout.MinWidth(60));
 					if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
 					{
 						if(float.TryParse(s_altitude, out altitude)) set_altitude();
@@ -371,7 +371,7 @@ namespace ThrottleControlledAvionics
 				}
 				else
 				{
-					GUILayout.Label(string.Format("Vertical Speed: {0:0.00m/s}", VSL.VerticalSpeedDisp), GUILayout.Width(180));
+					GUILayout.Label(string.Format("Vertical Speed: {0:0.00m/s}", VSL.VerticalSpeedDisp), GUILayout.Width(190));
 					GUILayout.Label("Set Point: " + (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
 					                                 CFG.VerticalCutoff.ToString("0.0m/s") : "OFF"), 
 					                GUILayout.ExpandWidth(false));
@@ -387,6 +387,21 @@ namespace ThrottleControlledAvionics
 				                                                  "Set vertical speed with throttle controls"), 
 				                                   GUILayout.ExpandWidth(false)));
 				GUILayout.EndHorizontal();
+				#if DEBUG
+				GUILayout.BeginHorizontal();
+				GUILayout.Label(string.Format("vV: {0:0.0}m/s", VSL.AbsVerticalSpeed), GUILayout.Width(100));
+				GUILayout.Label(string.Format("A: {0:0.0}m/s2", VSL.VerticalAccel), GUILayout.Width(80));
+				GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.vessel.orbit.ApA), GUILayout.Width(120));
+				GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed), GUILayout.Width(100));
+				GUILayout.EndHorizontal();
+				GUILayout.BeginHorizontal();
+				GUILayout.Label(string.Format("VSP: {0:0.0m/s}", CFG.VerticalCutoff), GUILayout.Width(100));
+				GUILayout.Label(string.Format("TWR: {0:0.0}", VSL.DTWR), GUILayout.Width(80));
+				if(VSL.AltitudeAhead.Equals(float.MinValue)) GUILayout.Label("Obst: N/A", GUILayout.Width(120));
+				else GUILayout.Label(string.Format("Obst: {0:0.0}m", VSL.AltitudeAhead), GUILayout.Width(120));
+				GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.StG*(VSL.wCoM-VSL.mainBody.position).magnitude)), GUILayout.Width(100));
+				GUILayout.EndHorizontal();
+				#endif
 				//autopilot toggles
 				GUILayout.BeginHorizontal();
 				if(GUILayout.Button(new GUIContent("Stop", "Kill horizontal velocity"), 
