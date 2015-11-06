@@ -33,11 +33,9 @@ namespace ThrottleControlledAvionics
 		#region Modules
 		EngineOptimizer eng;
 		VerticalSpeedControl vsc;
-		HorizontalSpeedControl hsc;
 		Anchor anc;
 		AltitudeControl alt;
 		RCSOptimizer rcs;
-		CruiseControl cc;
 		PointNavigator pn;
 		Radar rad;
 		AutoLander lnd;
@@ -45,6 +43,11 @@ namespace ThrottleControlledAvionics
 		FlightStabilizer stb;
 		CollisionPreventionSystem cps;
 		MacroProcessor mpr;
+
+		HorizontalSpeedControl hsc;
+		CruiseControl cc;
+		AttitudeControl atc;
+
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
