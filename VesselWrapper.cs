@@ -406,7 +406,7 @@ namespace ThrottleControlledAvionics
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
 			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
-			if(!CFG.HF) UnblockSAS();
+			if(!CFG.HF && !CFG.AT) UnblockSAS();
 			CourseCorrections.Clear();
 		}
 
@@ -420,6 +420,8 @@ namespace ThrottleControlledAvionics
 			StG  = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
 			G    = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
 			//init engine wrappers
+			Thrust = Vector3.zero;
+			MaxThrust = Vector3.zero;
 			for(int i = 0; i < NumActive; i++) 
 			{
 				var e = ActiveEngines[i];
@@ -429,6 +431,9 @@ namespace ThrottleControlledAvionics
 				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(e.wThrustLever, e.wThrustDir));
 				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(e.wThrustLever.normalized, e.wThrustDir))), 
 				                          GLB.ENG.TorqueRatioFactor);
+				//do not include maneuver engines to break the feedback loop with HSC
+				if(e.Role != TCARole.MANEUVER) Thrust += e.wThrustDir*e.finalThrust;
+				if(!OnPlanet && e.isVSC) MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
 			}
 			//init RCS wrappers if needed
 			if(!NoActiveRCS)
@@ -519,7 +524,6 @@ namespace ThrottleControlledAvionics
 			HorizontalVelocity = Vector3d.Exclude(Up, vessel.srf_velocity);
 			HorizontalSpeed = (float)HorizontalVelocity.magnitude;
 			//calculate total downward thrust and slow engines' corrections
-			Thrust = Vector3.zero;
 			MaxThrust = Vector3.zero;
 			ManualThrust = Vector3.zero;
 			ManualThrustLimits = new Vector6();
@@ -549,9 +553,6 @@ namespace ThrottleControlledAvionics
 						MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
 					}
 				}
-				//do not include maneuver engines to break the feedback loop with HSC
-				if(e.Role != TCARole.MANEUVER) 
-					Thrust += e.wThrustDir*e.finalThrust;
 				if(e.Role == TCARole.MANUAL) 
 				{
 					ManualThrustLimits.Add(e.thrustDirection*e.nominalCurrentThrust(1));
