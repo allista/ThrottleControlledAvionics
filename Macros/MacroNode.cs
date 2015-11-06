@@ -84,8 +84,10 @@ namespace ThrottleControlledAvionics
 				Active = true;
 				if(Parent != null) 
 					Parent.OnChildActivate(this);
+				VSL.vessel.Log("{0} activated", Name);//debug
 			}
 			Done = !Action(VSL);
+			if(Done) VSL.vessel.Log("{0} done", Name);//debug
 			Active &= !Done;
 			return !Done;
 		}
@@ -117,6 +119,11 @@ namespace ThrottleControlledAvionics
 
 		public virtual void SetCFG(VesselConfig cfg) 
 		{ CFG = cfg; }
+
+		#if DEBUG
+		protected void Log(VesselWrapper VSL, string msg, params object[] args)
+		{ VSL.vessel.Log(msg, args); }
+		#endif
 	}
 }
 
