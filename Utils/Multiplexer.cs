@@ -82,6 +82,12 @@ namespace ThrottleControlledAvionics
 			else callbacks[key] = callback;
 		}
 
+		public void AddSingleCallback(Action<bool> callback)
+		{
+			foreach(T key in Enum.GetValues(typeof(T)))
+				AddCallback(key, callback);
+		}
+
 		public override void Load(ConfigNode node)
 		{
 			base.Load(node);
