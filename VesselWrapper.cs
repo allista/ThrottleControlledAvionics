@@ -243,6 +243,9 @@ namespace ThrottleControlledAvionics
 			//unflameout engines
 			for(int i = 0; i < num_engines; i++)
 			{ var e = Engines[i]; if(e.engine.flameout) e.forceThrustPercentage(1); }
+			//reset RCS thrust
+			for(int i = 0, RCSCount = RCS.Count; i < RCSCount; i++)
+			{ var r = RCS[i]; r.rcs.thrusterPower = r.nominalThrusterPower; }
 			//sync with active profile
 			if(CFG.ActiveProfile.Activated) CFG.ActiveProfile.OnActivated(this);
 			if(CanUpdateEngines)
@@ -253,10 +256,7 @@ namespace ThrottleControlledAvionics
 			//get active engines
 			ActiveEngines.Clear(); ActiveEngines.Capacity = Engines.Count;
 			for(int i = 0; i < num_engines; i++)
-			{ 
-				var e = Engines[i]; 
-				if(e.isOperational) ActiveEngines.Add(e); 
-			}
+			{ var e = Engines[i]; if(e.isOperational) ActiveEngines.Add(e); }
 			ActiveRCS = vessel.ActionGroups[KSPActionGroup.RCS]? 
 				RCS.Where(t => t.isOperational).ToList() : new List<RCSWrapper>();
 			NumActive = ActiveEngines.Count;
@@ -387,15 +387,20 @@ namespace ThrottleControlledAvionics
 			if(on_planet != OnPlanet) 
 			{
 				CFG.EnginesProfiles.OnPlanetChanged(on_planet);
-				if(!on_planet) { CFG.HF.Off(); CFG.Nav.Off(); CFG.AP.Off(); CFG.VF.Off(); }
+				if(!on_planet) 
+				{ 
+					if(CFG.BlockThrottle) ctrlState.mainThrottle = 0f;
+					CFG.BlockThrottle = false;
+					CFG.DisableVSC();
+					CFG.AP.Off(); CFG.Nav.Off(); CFG.HF.Off();
+				}
 			}
 			OnPlanet = on_planet;
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
 			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
-			if(!OnPlanet) UnblockSAS(false);
-			else if(!CFG.HF) UnblockSAS();
+			if(!CFG.HF) UnblockSAS();
 			CourseCorrections.Clear();
 		}
 
