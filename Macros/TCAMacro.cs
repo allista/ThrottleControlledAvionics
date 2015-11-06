@@ -29,10 +29,24 @@ namespace ThrottleControlledAvionics
 			base.OnChildActivate(this);
 		}
 
+		public override void Rewind()
+		{
+			base.Rewind();
+			ActiveChild = null;
+		}
+
+		public string Title 
+		{ 
+			get 
+			{ 
+				var title = Name;
+				if(ActiveChild != null) title += " ["+ActiveChild.Name+"]";
+				return title;
+			}
+		}
+
 		protected override void DrawThis()
 		{
-			var title = Name;
-			if(ActiveChild != null) title += " ["+ActiveChild.Name+"]";
 			GUILayout.BeginVertical(Styles.white);
 			if(Edit) 
 			{
@@ -42,7 +56,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 				Block.Draw();
 			}
-			else Edit |= GUILayout.Button(title, Active? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true));
+			else Edit |= GUILayout.Button(Title, Active? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true));
 			GUILayout.EndVertical();
 		}
 	}
