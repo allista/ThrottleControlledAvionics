@@ -100,8 +100,8 @@ ALT
 
 ATC
 {
-	P                     = 1
-	If                    = 10
+	P                     = 5
+	If                    = 9
 	MinD                  = 0.001
 	MaxD                  = 0.5
 	MinTf                 = 0.1

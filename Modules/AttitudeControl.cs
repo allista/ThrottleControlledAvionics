@@ -57,6 +57,7 @@ namespace ThrottleControlledAvionics
 		public override void Enable(bool enable = true)
 		{
 			pid.Reset();
+			AngleError = 0;
 			bearing_locked = false;
 			rotating = true;
 			if(enable)
