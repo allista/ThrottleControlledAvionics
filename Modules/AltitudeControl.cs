@@ -116,7 +116,7 @@ namespace ThrottleControlledAvionics
 							return;
 						}
 					}
-					else if(VSL.AbsVerticalSpeed > 1) SetState(TCAState.Ascending);
+					else if(VSL.AbsVerticalSpeed > 1 && VSL.DTWR > 1) SetState(TCAState.Ascending);
 				}
 				else alt -= VSL.TerrainAltitude;
 			}
