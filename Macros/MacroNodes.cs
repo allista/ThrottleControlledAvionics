@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
 	public class SetVerticalSpeedMacroNode : SetFloatMacroNode
 	{
 		public SetVerticalSpeedMacroNode()
-		{ Name = "Set vertical speed to:"; Suffix = "m/s"; }
+		{ Name = "Set vertical speed to"; Suffix = "m/s"; }
 
 		protected override void OnValueChanged ()
 		{ Value = Utils.Clamp(Value, -GLB.VSC.MaxSpeed, GLB.VSC.MaxSpeed); }
@@ -35,12 +35,12 @@ namespace ThrottleControlledAvionics
 	public class SetAltitudeMacroNode : SetFloatMacroNode
 	{
 		public SetAltitudeMacroNode()
-		{ Name = "Set altitude to:"; Suffix = "m"; }
+		{ Name = "Set altitude to"; Suffix = "m"; }
 		protected override bool Action(VesselWrapper VSL)
 		{ 
 			VSL.CFG.BlockThrottle = true;
 			VSL.CFG.VF.OnIfNot(VFlight.AltitudeControl);
-			VSL.CFG.DesiredAltitude = Value; 
+			VSL.CFG.DesiredAltitude = Value;
 			return false; 
 		}
 	}
@@ -66,14 +66,22 @@ namespace ThrottleControlledAvionics
 	public class LandMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.CFG.AP.On(Autopilot.Land); return false; }
+		{ 
+			VSL.CFG.AP.OnIfNot(Autopilot.Land); 
+			return VSL.CFG.AP[Autopilot.Land];
+		}
 	}
 
-	public class GoToMacroNode : MacroNode
+	public class GoToTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{
-			if(!VSL.HasTarget) return true;
+			if(!VSL.HasTarget)
+			{
+				ScreenMessages.PostScreenMessage(Name+": No Target", 
+				                                 5, ScreenMessageStyle.UPPER_CENTER);
+				return false;
+			}
 			VSL.CFG.Nav.OnIfNot(Navigation.GoToTarget);
 			return VSL.CFG.Nav[Navigation.GoToTarget];
 		}
@@ -83,7 +91,12 @@ namespace ThrottleControlledAvionics
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{
-			if(!VSL.HasTarget) return true;
+			if(!VSL.HasTarget) 
+			{
+				ScreenMessages.PostScreenMessage(Name+": No Target", 
+				                                 5, ScreenMessageStyle.UPPER_CENTER);
+				return false;
+			}
 			VSL.CFG.Nav.On(Navigation.FollowTarget);
 			return false;
 		}
@@ -93,6 +106,9 @@ namespace ThrottleControlledAvionics
 	{
 		protected Queue<WayPoint> Waypoints = new Queue<WayPoint>();
 		protected bool waypoints_loaded;
+
+		public override void Rewind()
+		{ base.Rewind(); waypoints_loaded = false; }
 
 		protected override void DrawThis ()
 		{
@@ -118,19 +134,79 @@ namespace ThrottleControlledAvionics
 					VSL.CFG.Waypoints = new Queue<WayPoint>(Waypoints);
 				waypoints_loaded = true;
 			}
-			if(VSL.CFG.Waypoints.Count == 0) return true;
+			if(VSL.CFG.Waypoints.Count == 0) 
+			{
+				ScreenMessages.PostScreenMessage(Name+": No Waypoints", 
+				                                 5, ScreenMessageStyle.UPPER_CENTER);
+				return true;
+			}
 			VSL.CFG.Nav.OnIfNot(Navigation.FollowPath);
 			return VSL.CFG.Nav[Navigation.FollowPath];
 		}
 	}
 
-	public class FlyForwardMacroNode : SetFloatMacroNode
+	public class FlyMacroNode : SetFloatMacroNode
 	{
-		public FlyForwardMacroNode() { Name = "Fly forward at:"; Suffix = "m/s"; }
+		public enum Mode { Forward, Backward, Right, Left, Bearing }
+
+		[Persistent] public Mode mode;
+		[Persistent] public float Bearing;
+		readonly FloatField BearingField = new FloatField();
+
+		public FlyMacroNode() { Name += ":"; Suffix = "m/s"; }
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginHorizontal();
+			if(Edit)
+			{ 
+				GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false));
+				if(GUILayout.Button(mode.ToString(), Styles.normal_button, GUILayout.ExpandWidth(false)))
+					mode = (Mode)(((int)mode+1)%5);
+				if(mode == Mode.Bearing) BearingField.Draw(Bearing, "deg", false);
+				ValueField.Draw(Value, Suffix, false);
+				if(GUILayout.Button("Done", Styles.green_button, GUILayout.ExpandWidth(false)))
+				{ 
+					if(BearingField.UpdateValue(Bearing)) Bearing = BearingField.Value;
+					if(ValueField.UpdateValue(Value)) Value = ValueField.Value;
+					OnValueChanged();
+					Edit = false; 
+				}
+			}
+			else 
+			{
+				var title = Name+" "+mode+" ";
+				if(mode == Mode.Bearing) title += Bearing+"deg, ";
+				title += Value.ToString("F1")+Suffix;
+				Edit |= GUILayout.Button(title, Styles.normal_button);
+			}
+			GUILayout.EndHorizontal();
+		}
+
 		protected override bool Action(VesselWrapper VSL)
 		{
+			var nv = Vector3d.zero;
+			switch(mode)
+			{
+			case Mode.Forward:
+				nv = VSL.HFwd;
+				break;
+			case Mode.Backward:
+				nv = -VSL.HFwd;
+				break;
+			case Mode.Right:
+				nv = Vector3.ProjectOnPlane(VSL.refT.right, VSL.Up).normalized;
+				break;
+			case Mode.Left:
+				nv = -Vector3.ProjectOnPlane(VSL.refT.right, VSL.Up).normalized;
+				break;
+			case Mode.Bearing:
+				nv = Quaternion.AngleAxis(Bearing, VSL.Up) * 
+					Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-VSL.wCoM, VSL.Up).normalized;
+				break;
+			}
 			VSL.CFG.HF.On(HFlight.CruiseControl);
-			VSL.SetNeededHorVelocity(VSL.HFwd*Value);
+			VSL.SetNeededHorVelocity(nv*Value);
 			return false;
 		}
 	}
@@ -143,13 +219,13 @@ namespace ThrottleControlledAvionics
 		{ Name = "Wait for"; Suffix = "s"; Value = (float)T.Period; }
 
 		public override void Load(ConfigNode node)
-		{
-			base.Load(node);
-			T.Period = Value; T.Reset();
-		}
+		{ base.Load(node); T.Period = Value; T.Reset(); }
 
 		protected override void OnValueChanged()
 		{ T.Period = Value; T.Reset(); }
+
+		public override void Rewind()
+		{ base.Rewind(); T.Reset(); }
 
 		protected override bool Action(VesselWrapper VSL)
 		{ return !T.Check; }
