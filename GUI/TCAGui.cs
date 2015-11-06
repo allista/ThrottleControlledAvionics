@@ -116,6 +116,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 			SelectConfig_start();
 			AdvancedOptions();
+			AttitudeControls();
 			AutopilotControls();
 			MacroControls();
 			WaypointList();
@@ -200,6 +201,39 @@ namespace ThrottleControlledAvionics
 			ControllerProperties();
 			ConfigsGUI();
 			GUILayout.EndVertical();
+		}
+
+		static void AttitudeControls()
+		{
+			GUILayout.BeginHorizontal();
+			if(GUILayout.Button("Kill Rotation", CFG.AT[Attitude.KillRot]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.KillRot);
+			if(GUILayout.Button("Maneuver Node", CFG.AT[Attitude.ManeuverNode]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.ManeuverNode);
+			if(GUILayout.Button("PG", CFG.AT[Attitude.Prograde]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.Prograde);
+			if(GUILayout.Button("RG", CFG.AT[Attitude.Retrograde]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.Retrograde);
+			if(GUILayout.Button("R+", CFG.AT[Attitude.Zenith]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.Zenith);
+			if(GUILayout.Button("R-", CFG.AT[Attitude.Nadir]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.Nadir);
+			if(GUILayout.Button("N+", CFG.AT[Attitude.Normal]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.Normal);
+			if(GUILayout.Button("N-", CFG.AT[Attitude.AntiNormal]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.AntiNormal);
+			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? 
+			                    Styles.green_button : Styles.grey_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.OffIfOn(Attitude.Custom);
+			GUILayout.EndHorizontal();
 		}
 
 		static void ConfigsGUI()
