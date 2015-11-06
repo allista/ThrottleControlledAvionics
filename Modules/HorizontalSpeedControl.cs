@@ -86,6 +86,7 @@ namespace ThrottleControlledAvionics
 			translation_pid.Reset();
 			if(enable) 
 			{
+				CFG.AT.Off();
 				CFG.Nav.Off();
 				VSL.UpdateOnPlanetStats();
 				VSL.SetNeededHorVelocity(Vector3d.zero);

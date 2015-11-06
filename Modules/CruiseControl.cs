@@ -59,6 +59,7 @@ namespace ThrottleControlledAvionics
 			UpdateTimer.Reset();
 			if(enable) 
 			{
+				CFG.AT.Off();
 				CFG.Nav.Off();
 				VSL.UpdateOnPlanetStats();
 			}
