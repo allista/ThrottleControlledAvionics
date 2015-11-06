@@ -30,7 +30,7 @@ namespace ThrottleControlledAvionics
 		static Action<MacroNode> action_selected;
 
 		public TCAMacroEditor()
-		{ width = 800; height = 600; }
+		{ width = 900; height = 600; }
 
 		static void SelectCondition(Action<Condition> callback)
 		{
@@ -127,12 +127,13 @@ namespace ThrottleControlledAvionics
 			LoadMacro |= GUILayout.Button("Load", Styles.green_button, GUILayout.ExpandWidth(false));
 			if(GUILayout.Button("New", Styles.yellow_button, GUILayout.ExpandWidth(false))) EditMacro(null);
 			GUILayout.Space(20);
-			if(editing && GUILayout.Button("Apply", Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(editing && GUILayout.Button(CFG.SelectedMacro.Name == Macro.Name? "Apply" : "Use", 
+			                               Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.SelectedMacro = (TCAMacro)Macro.GetCopy();
 			if(GUILayout.Button("Save to Vessel DB", Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.Macros.SaveMacro(Macro, true);
 			if(GUILayout.Button("Save to Global DB", Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				TCAScenario.Macros.SaveMacro(Macro, true);
+				TCAScenario.SaveMacro(Macro);
 			GUILayout.FlexibleSpace();
 			exit |= GUILayout.Button("Exit", Styles.red_button, GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
