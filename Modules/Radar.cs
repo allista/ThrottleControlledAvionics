@@ -64,6 +64,8 @@ namespace ThrottleControlledAvionics
 			DetectedHit = new Sweep(vsl);
 		}
 
+		static   int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery"));
+		//normal radar
 		Mode     mode;
 		Vector3  Dir;
 		Vector3d SurfaceVelocity;
@@ -78,18 +80,23 @@ namespace ThrottleControlledAvionics
 		readonly Sweep BestHit;
 		readonly Sweep DetectedHit;
 		bool     last_hit_valid;
+		//side maneuver
 		bool     side_collision;
 		Vector3d side_maneuver;
-		static   int RadarMask = (1 << 15);// | 1 << LayerMask.NameToLayer("Parts") | 1); //15 - statics and ground; 1 - default
 		readonly Timer ManeuverTimer = new Timer();
-
+		//terrain altitude predictor
+		float    LookAheadTime = 1;
+		float    LookAheadTimeDelta = 1;
+		float    BestHeight = float.MinValue;
+		float    HeightAhead = float.MinValue;
+		Vector3d Probe;
 
 		public override void Init()
 		{
 			base.Init();
 			ManeuverTimer.Period = RAD.ManeuverTimer;
 			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
 		}
 
@@ -97,14 +104,14 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null || !IsActive) return;
-			GLUtils.GLVec(VSL.wCoM, Dir*MaxDistance, Color.green);
+			GLUtils.GLLine(VSL.wCoM, Probe, Color.green);
 			CurHit.Draw();
 		}
 
 		public override void Reset()
 		{
 			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 
@@ -146,6 +153,41 @@ namespace ThrottleControlledAvionics
 			side_collision = false;
 		}
 
+		void ProbeHeightAhead()
+		{
+			var pqs = VSL.mainBody.pqsController;
+			if(pqs == null) return;
+			Probe = VSL.wCoM+VSL.HorizontalVelocity*LookAheadTime;
+			//CelestialBody.GetRelSurfacePosition is broken
+			var height = pqs.GetSurfaceHeight(QuaternionD.AngleAxis(VSL.mainBody.directRotAngle, Vector3d.up) * (Probe-pqs.transformPosition))-pqs.radius;
+			if(VSL.mainBody.ocean && height < 0) height = 0;
+//			Log("MainBody {0}: LoodAheadTime {1}, height {2}, BestHeight {3}, HeightAhead {4}, TimeDelta {5}\nprobe {6}",
+//			    VSL.mainBody.bodyName, LookAheadTime, height, BestHeight, HeightAhead, LookAheadTimeDelta, Probe-VSL.wCoM);//debug
+			if(height > BestHeight) BestHeight = (float)height;
+			if(BestHeight > HeightAhead) HeightAhead = BestHeight;
+			if(VSL.AbsAltitude-height <= VSL.H)
+			{
+				LookAheadTime -= LookAheadTimeDelta;
+				LookAheadTimeDelta /= 2;
+			}
+			LookAheadTime += LookAheadTimeDelta;
+			if(LookAheadTime > RAD.LookAheadTime) 
+			{
+				HeightAhead = BestHeight;
+				LookAheadTime = 1;
+				LookAheadTimeDelta = 1;
+				BestHeight = float.MinValue;
+			}
+			else if(LookAheadTimeDelta < 0.1)
+			{
+				if(!BestHit.Equals(float.MinValue))
+					HeightAhead = BestHeight;
+				LookAheadTime = 1;
+				LookAheadTimeDelta = 1;
+				BestHeight = float.MinValue;
+			}
+		}
+
 		public void Update()
 		{
 			if(!IsActive) return;
@@ -153,8 +195,6 @@ namespace ThrottleControlledAvionics
 			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
 			   (zero_needed || CFG.DesiredAltitude < RAD.MinAltitude))
 			{ reset(); return; }
-//			Log("CollisionSpeed {0} && HSpeed {1} < MinSpeed {2} && (zero_needed {3} || DesiredAltitude {4} < MinAltitude {5})",
-//			    CollisionSpeed, VSL.HorizontalSpeed, RAD.MinClosingSpeed, zero_needed, CFG.DesiredAltitude, RAD.MinAltitude);//debug
 			//closing speed and starting ray direction
 			Dir = Vector3.zero;
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
@@ -227,11 +267,14 @@ namespace ThrottleControlledAvionics
 			//handle direct collisions if we're able to
 			if((mode & Mode.Vertical) == Mode.Vertical)
 			{
+				//probe for surface height
+				ProbeHeightAhead();
 				//update collision info if detected something
 				VSL.TimeAhead = -1;
 				DistanceAhead = -1;
 				RelObstaclePosition = Vector3.zero;
 				if(DetectedHit.Valid) VSL.AltitudeAhead = DetectedHit.Altitude;
+				if(HeightAhead > VSL.AltitudeAhead) VSL.AltitudeAhead = HeightAhead;
 				//check for possible stright collision
 				if(VSL.AbsAltitude-VSL.AltitudeAhead-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2) < 0) //deadzone of twice the detection height
 				{ 
