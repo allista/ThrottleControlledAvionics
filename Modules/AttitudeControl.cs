@@ -82,13 +82,14 @@ namespace ThrottleControlledAvionics
 				attitude_error = VSL.CustomRotation;
 				break;
 			case Attitude.KillRot:
-				if(!bearing_locked)
+				if(bearing_locked)
+					attitude_error = Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(locked_bearing), lthrust);
+				if(!bearing_locked || VSL.vessel.angularVelocity.sqrMagnitude > ATC.KillRotThreshold)
 				{
 					locked_bearing = thrust;
 					bearing_locked = true;
-					Log("Resetting locked bearing: {0}", locked_bearing);//debug
+					Log("Setting locked bearing: {0}", locked_bearing);//debug
 				}
-				attitude_error = Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(locked_bearing), lthrust);
 				break;
 			case Attitude.Prograde:
 				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
