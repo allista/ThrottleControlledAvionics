@@ -43,8 +43,9 @@ namespace ThrottleControlledAvionics
 		//altitude edit
 		static string s_altitude = null;
 		static float altitude;
-		//squad mode
-		static bool squad_mode;
+		#if DEBUG
+		public static string DebugMessage;
+		#endif
 		#endregion
 
 		#region Configs Selector
@@ -122,6 +123,8 @@ namespace ThrottleControlledAvionics
 			WaypointList();
 			EnginesControl();
 			#if DEBUG
+			if(!string.IsNullOrEmpty(DebugMessage))
+				GUILayout.Label(DebugMessage, Styles.white, GUILayout.ExpandWidth(true));
 //			EnginesInfo();
 			#endif
 			SelectConfig_end();
@@ -212,22 +215,22 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button("Maneuver Node", CFG.AT[Attitude.ManeuverNode]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.ManeuverNode);
-			if(GUILayout.Button("PG", CFG.AT[Attitude.Prograde]? 
+			if(GUILayout.Button(new GUIContent("PG", "Prograde"), CFG.AT[Attitude.Prograde]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.Prograde);
-			if(GUILayout.Button("RG", CFG.AT[Attitude.Retrograde]? 
+			if(GUILayout.Button(new GUIContent("RG", "Retrograde"), CFG.AT[Attitude.Retrograde]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.Retrograde);
-			if(GUILayout.Button("R+", CFG.AT[Attitude.Zenith]? 
+			if(GUILayout.Button(new GUIContent("R+", "Radial"), CFG.AT[Attitude.Zenith]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.Zenith);
-			if(GUILayout.Button("R-", CFG.AT[Attitude.Nadir]? 
+			if(GUILayout.Button(new GUIContent("R-", "AntiRadial"), CFG.AT[Attitude.Nadir]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.Nadir);
-			if(GUILayout.Button("N+", CFG.AT[Attitude.Normal]? 
+			if(GUILayout.Button(new GUIContent("N+", "Normal"), CFG.AT[Attitude.Normal]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.Normal);
-			if(GUILayout.Button("N-", CFG.AT[Attitude.AntiNormal]? 
+			if(GUILayout.Button(new GUIContent("N-", "AntiNormal"), CFG.AT[Attitude.AntiNormal]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.AntiNormal);
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? 

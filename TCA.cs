@@ -86,6 +86,8 @@ namespace ThrottleControlledAvionics
 		}
 
 		#region Sqad Mode
+		static bool squad_mode;
+
 		static void apply_to_others(Action<ModuleTCA> action)
 		{
 			if(TCA.CFG.Squad == 0 || !squad_mode) return;
