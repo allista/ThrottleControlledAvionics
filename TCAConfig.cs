@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
+		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config    HSC = new HorizontalSpeedControl.Config();
 		[Persistent] public RCSOptimizer.Config              RCS = new RCSOptimizer.Config();
 		[Persistent] public CruiseControl.Config             CC  = new CruiseControl.Config();
@@ -101,6 +102,7 @@ Notes:
 		public override void Save(ConfigNode node) {}
 	}
 
+	public enum Attitude { None, Custom, KillRot, Prograde, Retrograde, Zenith, Nadir, Normal, AntiNormal, ManeuverNode }
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
@@ -113,6 +115,8 @@ Notes:
 		[Persistent] public Guid    VesselID;
 		[Persistent] public bool    Enabled;
 		[Persistent] public bool    GUIVisible;
+		//attitude control
+		[Persistent] public Multiplexer<Attitude> AT = new Multiplexer<Attitude>();
 		//vertical speed and altitude
 		[Persistent] public Multiplexer<VFlight> VF = new Multiplexer<VFlight>();
 		[Persistent] public bool    AltitudeAboveTerrain;

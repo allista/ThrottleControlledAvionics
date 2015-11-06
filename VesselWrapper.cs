@@ -46,6 +46,7 @@ namespace ThrottleControlledAvionics
 		public List<ModuleReactionWheel> RWheels = new List<ModuleReactionWheel>();
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
+		public bool NoActiveRCS { get; private set; }
 		public bool CanUpdateEngines = true;
 		public bool ForceUpdateEngines;
 
@@ -145,21 +146,26 @@ namespace ThrottleControlledAvionics
 		public bool isEVA { get { return vessel.isEVA; } }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
 		public ActionGroupList ActionGroups { get { return vessel.ActionGroups; } }
-
+		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
+		//controls
 		public FlightCtrlState ctrlState { get { return vessel.ctrlState; } }
 		public FlightInputCallback OnAutopilotUpdate 
 		{ get { return vessel.OnAutopilotUpdate; } set { vessel.OnAutopilotUpdate = value; } }
-
+		//steering and translation
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
 		public Vector3 ManualTranslation;
 		public Switch ManualTranslationSwitch = new Switch();
-
+		//attitude
+		public Quaternion CustomRotation { get; private set; }
+		public void AddCustomRotation(Vector3 from, Vector3 to)
+		{ CustomRotation = Quaternion.FromToRotation(from, to) * CustomRotation; }
+		public void AddCustomRotationW(Vector3 from, Vector3 to)
+		{ AddCustomRotation(refT.InverseTransformDirection(from), refT.InverseTransformDirection(to)); }
+		public void ResetCustomRotation() { CustomRotation = Quaternion.identity; }
+		//maneuvering
 		public bool Maneuvering;
 		public List<FormationNode> Formation;
-
-		public bool NoActiveRCS { get; private set; }
-		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 
 		public VesselWrapper(Vessel vsl, VesselConfig cfg) 
 		{ vessel = vsl; CFG = cfg; }
