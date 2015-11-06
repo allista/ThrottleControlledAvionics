@@ -102,6 +102,13 @@ namespace ThrottleControlledAvionics
 			});
 		}
 
+		static void update_altitude()
+		{
+			if(s_altitude == null || !altitude.Equals(CFG.DesiredAltitude))
+				s_altitude = CFG.DesiredAltitude.ToString("F1");
+			altitude = CFG.DesiredAltitude;
+		}
+
 		static void set_altitude()
 		{
 			apply_cfg(cfg =>
@@ -346,19 +353,15 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginHorizontal();
 				if(CFG.VF[VFlight.AltitudeControl])
 				{
+					update_altitude();
 					var above_ground = VSL.AltitudeAboveGround;
+					var style = above_ground? Styles.green : Styles.red;
 					GUILayout.Label(string.Format("Altitude: {0:F2}m {1:+0.0;-0.0;+0.0}m/s", 
 					                              VSL.Altitude, VSL.VerticalSpeedDisp), 
 					                GUILayout.Width(190));
 					GUILayout.Label(new GUIContent("Set Point (m):", above_ground? 
 					                               "Setpoint is above the ground" : "Warning! Setpoint is below the ground"), 
 					                GUILayout.Width(90));
-					if(s_altitude == null || !altitude.Equals(CFG.DesiredAltitude))
-					{
-						altitude = CFG.DesiredAltitude;
-						s_altitude = altitude.ToString("F1");
-					}
-					var style = above_ground? Styles.green : Styles.red;
 					s_altitude = GUILayout.TextField(s_altitude, style, GUILayout.ExpandWidth(true), GUILayout.MinWidth(60));
 					if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
 					{
@@ -557,26 +560,31 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(CFG.SelectedMacro != null && CFG.MacroIsActive)
 			{
-				GUILayout.Label(CFG.SelectedMacro.Name, Styles.yellow, GUILayout.ExpandWidth(true));
-				if(GUILayout.Button("Pause", Styles.green_button, GUILayout.Width(90))) 
-					CFG.MacroIsActive = false; //TODO: convert to ButtonSwitch
+				GUILayout.Label(new GUIContent(CFG.SelectedMacro.Title, "The macro is executing..."), 
+				                Styles.yellow, GUILayout.ExpandWidth(true));
+				if(GUILayout.Button("Pause", Styles.green_button, GUILayout.Width(70))) 
+					CFG.MacroIsActive = false;
 				if(GUILayout.Button("Stop", Styles.red_button, GUILayout.ExpandWidth(false))) 
 				{
 					CFG.MacroIsActive = false;
 					CFG.SelectedMacro.Rewind();
 				}
-				GUILayout.Label("Edit", Styles.grey, GUILayout.Width(60));
+				GUILayout.Label("Edit", Styles.grey, GUILayout.ExpandWidth(false));
 			}
 			else if(CFG.SelectedMacro != null)
 			{
-				if(GUILayout.Button(CFG.SelectedMacro.Name, Styles.normal_button, GUILayout.ExpandWidth(true))) 
+				if(GUILayout.Button(new GUIContent(CFG.SelectedMacro.Title, "Select a macro from databases"), 
+				                    Styles.normal_button, GUILayout.ExpandWidth(true))) 
 					selecting_macro = !selecting_macro;
-				CFG.MacroIsActive |= GUILayout.Button("Execute", Styles.red_button, GUILayout.Width(90)); //TODO: convert to ButtonSwitch
-				GUILayout.Label("Stop", Styles.grey, GUILayout.ExpandWidth(false));
-				if(GUILayout.Button("Edit", Styles.yellow_button, GUILayout.Width(60)))
+				CFG.MacroIsActive |= GUILayout.Button(CFG.SelectedMacro.Active? "Resume" : "Execute", 
+				                                      Styles.yellow_button, GUILayout.Width(70));
+				if(GUILayout.Button("Stop", CFG.SelectedMacro.Active? 
+				                    Styles.red_button : Styles.grey, GUILayout.ExpandWidth(false))) 
+					CFG.SelectedMacro.Rewind();
+				if(GUILayout.Button("Edit", Styles.yellow_button, GUILayout.ExpandWidth(false)))
 					TCAMacroEditor.Edit(CFG);
 			}
-			else
+			else 
 			{
 				if(GUILayout.Button("Select Macro", Styles.normal_button, GUILayout.ExpandWidth(true))) 
 					selecting_macro = !selecting_macro;

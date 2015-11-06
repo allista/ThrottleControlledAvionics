@@ -120,6 +120,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(CFG.VF[VFlight.AltitudeControl])
 				{
+					update_altitude();
 					if(GameSettings.THROTTLE_UP.GetKey())
 						altitude = Mathf.Lerp(CFG.DesiredAltitude, 
 						                      CFG.DesiredAltitude+10, 
