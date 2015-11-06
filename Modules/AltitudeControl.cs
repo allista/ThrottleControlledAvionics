@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override void UpdateState()
-		{ IsActive = CFG.VF[VFlight.AltitudeControl] && VSL.OnPlanet; }
+		{ IsActive = VSL.OnPlanet && CFG.VF[VFlight.AltitudeControl]; }
 
 		public void SetAltitudeAboveTerrain(bool enable = true)
 		{
@@ -111,8 +111,8 @@ namespace ThrottleControlledAvionics
 							ttAp = CFG.VerticalCutoff/VSL.G;
 							if(ttAp > VSL.TimeAhead) 
 								CFG.VerticalCutoff = (VSL.AltitudeAhead+CFG.DesiredAltitude-VSL.AbsAltitude)/VSL.TimeAhead+VSL.TimeAhead*VSL.G/2;
-							Log("VSP {0}, ttAp {1}, TimeAhead {2}, ApA {3}, Obst {4}", CFG.VerticalCutoff, ttAp, VSL.TimeAhead, 
-							    VSL.AbsAltitude+ttAp*(CFG.VerticalCutoff - ttAp*VSL.G/2), VSL.AltitudeAhead);//debug
+//							Log("VSP {0}, ttAp {1}, TimeAhead {2}, ApA {3}, Obst {4}", CFG.VerticalCutoff, ttAp, VSL.TimeAhead, 
+//							    VSL.AbsAltitude+ttAp*(CFG.VerticalCutoff - ttAp*VSL.G/2), VSL.AltitudeAhead);//debug
 							return;
 						}
 					}

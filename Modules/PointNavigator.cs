@@ -117,8 +117,8 @@ namespace ThrottleControlledAvionics
 			if(VSL.LandedOrSplashed) 
 			{
 				CFG.AltitudeAboveTerrain = true;
-				CFG.DesiredAltitude = PN.TakeoffAltitude+VSL.H;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
+				CFG.DesiredAltitude = PN.TakeoffAltitude+VSL.H;
 			}				
 			else if(CFG.VTOLAssistON) 
 				VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
