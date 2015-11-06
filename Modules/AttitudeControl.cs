@@ -116,11 +116,11 @@ namespace ThrottleControlledAvionics
 				attitude_error = Quaternion.FromToRotation(VSL.UpL, lthrust);
 				break;
 			case Attitude.ManeuverNode:
-				if(VSL.vessel.patchedConicSolver == null || 
-				   VSL.vessel.patchedConicSolver.maneuverNodes.Count == 0)
+				var solver = VSL.vessel.patchedConicSolver;
+				if(solver == null || solver.maneuverNodes.Count == 0)
 				{ CFG.AT.On(Attitude.KillRot); break; }
-				attitude_error = Quaternion.FromToRotation(VSL.vessel.patchedConicSolver.maneuverNodes[0]
-				                                           .nodeRotation*VSL.refT.up, lthrust);
+				attitude_error = 
+					Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(-solver.maneuverNodes[0].GetBurnVector(VSL.vessel.orbit)), lthrust);
 				break;
 			}
 			VSL.ResetCustomRotation();
