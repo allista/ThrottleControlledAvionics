@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 		}
 		static Config LND { get { return TCAScenario.Globals.LND; } }
 
-		static int RadarMask = (1 << 15 | 1 << LayerMask.NameToLayer("Parts") | 1);
+		static int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery") | 1 << LayerMask.NameToLayer("Parts") | 1);
 		enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, Land }
 
 		Stage stage;
@@ -78,10 +78,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override void UpdateState() 
-		{ 
-			IsActive = CFG.AP[Autopilot.Land] && VSL.OnPlanet;
-			if(!IsActive) return;
-		}
+		{ IsActive = VSL.OnPlanet && CFG.AP[Autopilot.Land]; }
 
 		public override void Enable(bool enable = true)
 		{
@@ -101,9 +98,9 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				DesiredAltitude = VSL.Altitude;
-				CFG.VF.On(VFlight.AltitudeControl);
 				CFG.Nav.Off();
+				CFG.VF.On(VFlight.AltitudeControl);
+				DesiredAltitude = VSL.Altitude;
 			}
 		}
 
@@ -349,13 +346,13 @@ namespace ThrottleControlledAvionics
 			{
 			case Stage.None:
 				CFG.AltitudeAboveTerrain = true;
+				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(DesiredAltitude <= 0) 
 				{   //here we just need the altitude control to prevent smashing into something while stopping
 					VSL.UpdateAltitude();
 					DesiredAltitude = VSL.Altitude > LND.MaxStartAltitude? LND.MaxStartAltitude : VSL.Altitude;
 					CFG.DesiredAltitude = DesiredAltitude;
 				}
-				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(stopped && VSL.Altitude < LND.MaxStartAltitude+10) 
 				{
 					DesiredAltitude = VSL.Altitude;
