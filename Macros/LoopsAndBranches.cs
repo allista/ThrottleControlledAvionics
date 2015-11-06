@@ -41,6 +41,7 @@ namespace ThrottleControlledAvionics
 			base.Load(node);
 			if(IfBlock == null) IfBlock = new BlockMacroNode();
 			if(ElseBlock == null) ElseBlock = new BlockMacroNode();
+			IfBlock.Parent = this; ElseBlock.Parent = this;
 		}
 
 		public override bool Edit

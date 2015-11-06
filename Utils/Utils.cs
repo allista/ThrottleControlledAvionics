@@ -44,6 +44,9 @@ namespace ThrottleControlledAvionics
 		public static void Log(this MonoBehaviour mb, string msg, params object[] args)
 		{ Utils.Log(string.Format("{0}: {1}", mb.name, msg), args); }
 
+		public static void Log(this Vessel v, string msg, params object[] args)
+		{ Utils.Log(string.Format("{0}: {1}", v.vesselName, msg), args); }
+
 		public static void Log(this PartModule pm, string msg, params object[] args)
 		{ 
 			var vn = pm.vessel == null? "_vessel" : (string.IsNullOrEmpty(pm.vessel.vesselName)? pm.vessel.id.ToString() : pm.vessel.vesselName);
@@ -154,8 +157,7 @@ namespace ThrottleControlledAvionics
 		#region From MechJeb
 		public static double TerrainAltitude(CelestialBody body, double Lat, double Lon)
 		{
-			if (body.pqsController == null) return 0;
-			//			var pqsRadialVector = QuaternionD.AngleAxis(longitude, Vector3d.down) * QuaternionD.AngleAxis(latitude, Vector3d.forward) * Vector3d.right;
+			if(body.pqsController == null) return 0;
 			var alt = body.pqsController.GetSurfaceHeight(body.GetRelSurfaceNVector(Lat, Lon)) - body.pqsController.radius;
 			return body.ocean && alt < 0? 0 : alt;
 		}
@@ -179,11 +181,14 @@ namespace ThrottleControlledAvionics
 			{
 				if(PQS.LineSphereIntersection(relOrigin, mouseRay.direction, curRadius, out relSurfacePosition))
 				{
-					var surfacePoint = body.position + relSurfacePosition;
-					var alt = TerrainAltitude(body, body.GetLongitude(surfacePoint), body.GetLatitude(surfacePoint))+body.Radius;
+					var alt = body.pqsController.GetSurfaceHeight(relSurfacePosition);
+					if(body.ocean && alt < body.Radius) alt = body.Radius;
 					error = Math.Abs(curRadius - alt);
 					if(error < (body.pqsController.radiusMax - body.pqsController.radiusMin) / 100)
+					{
+						var surfacePoint = body.position + relSurfacePosition;
 						return new Coordinates(body.GetLatitude(surfacePoint), body.GetLongitude(surfacePoint));
+					}
 					else
 					{
 						lastRadius = curRadius;
@@ -263,7 +268,7 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		public bool Draw(float cvalue, bool show_set_button = true)
+		public bool Draw(float cvalue, string suffix = "", bool show_set_button = true)
 		{
 			if(string.IsNullOrEmpty(svalue) || !Value.Equals(cvalue))
 			{
@@ -271,6 +276,7 @@ namespace ThrottleControlledAvionics
 				svalue = Value.ToString("F1");
 			}
 			svalue = GUILayout.TextField(svalue, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
+			if(!string.IsNullOrEmpty(suffix)) GUILayout.Label(suffix, Styles.label, GUILayout.ExpandWidth(false));
 			return 
 				show_set_button && 
 				GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50)) && 

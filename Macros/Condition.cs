@@ -141,14 +141,14 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(OperatorNames[Operator], Styles.yellow, GUILayout.ExpandWidth(false)))
 					Operator = (CompareOperator)(((int)Operator+1)%3);
-				ValueField.Draw(Value, false);
+				ValueField.Draw(Value, Suffix, false);
 				if(Operator == CompareOperator.EQ)
 				{
 					GUILayout.Label("Error", Styles.white, GUILayout.ExpandWidth(false));
-					ErrorField.Draw(Error, false);
+					ErrorField.Draw(Error, Suffix, false);
 				}
 				GUILayout.Label("Wait for:", Styles.white, GUILayout.ExpandWidth(false));
-				TimerField.Draw(Period, false);
+				TimerField.Draw(Period, "s", false);
 				if(GUILayout.Button("Done", Styles.green_button, GUILayout.ExpandWidth(false)))
 				{
 					if(ValueField.UpdateValue(Value)) Value = ValueField.Value;

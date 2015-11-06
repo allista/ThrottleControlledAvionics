@@ -9,8 +9,6 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -26,6 +24,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.Load(node);
 			if(Block == null) Block = new BlockMacroNode();
+			Block.Parent = this;
 		}
 
 		public override bool Edit
@@ -78,6 +77,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.Load(node);
 			if(Block == null) Block = new BlockMacroNode();
+			Block.Parent = this;
 		}
 
 		public override bool Edit
@@ -155,7 +155,7 @@ namespace ThrottleControlledAvionics
 			if(Edit)
 			{ 
 				GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
-				if(ValueField.Draw(Value))
+				if(ValueField.Draw(Value, Suffix))
 				{ 
 					Value = ValueField.Value; 
 					OnValueChanged();
