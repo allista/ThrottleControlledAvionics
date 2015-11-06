@@ -28,7 +28,7 @@ namespace ThrottleControlledAvionics
 		public bool Any(params T[] keys)
 		{
 			for(int i = 0, l = keys.Length; i < l; i++)
-				if(state.Equals(keys[i])) return true;
+			{ if(state.Equals(keys[i])) return true; }
 			return false;
 		}
 
@@ -62,8 +62,14 @@ namespace ThrottleControlledAvionics
 		}
 
 		public void Toggle(T key) { this[key] = !this[key]; }
-		public void OnIfNot(T key) { if(!this[key]) On(key); }
-		public void OffIfOn(T key) { if(this[key]) Off(); }
+		public void OnIfNot(T key) { if(!state.Equals(key)) On(key); }
+		public void OffIfOn(T key) { if(state.Equals(key)) Off(); }
+		public void OffIfOn(params T[] keys) 
+		{ 
+			if(state.Equals(default(T))) return;
+			for(int i = 0, keysLength = keys.Length; i < keysLength; i++)
+			{ if(state.Equals(keys[i])) { Off(); return; } }
+		}
 
 		public static implicit operator bool(Multiplexer<T> m) { return !m[default(T)]; }
 
