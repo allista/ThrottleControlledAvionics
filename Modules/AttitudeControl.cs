@@ -40,7 +40,7 @@ namespace ThrottleControlledAvionics
 		readonly PIDv_Controller2 pid = new PIDv_Controller2();
 		Vector3 locked_bearing;
 		Quaternion attitude_error;
-		bool bearing_locked;
+		bool bearing_locked, rotating, was_rotating;
 
 		public AttitudeControl(VesselWrapper vsl) { VSL = vsl; }
 
@@ -57,6 +57,7 @@ namespace ThrottleControlledAvionics
 		{
 			pid.Reset();
 			bearing_locked = false;
+			rotating = true;
 			if(enable)
 			{
 				VSL.UpdateOnPlanetStats();
@@ -84,11 +85,10 @@ namespace ThrottleControlledAvionics
 			case Attitude.KillRot:
 				if(bearing_locked)
 					attitude_error = Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(locked_bearing), lthrust);
-				if(!bearing_locked || VSL.vessel.angularVelocity.sqrMagnitude > ATC.KillRotThreshold)
+				if(!bearing_locked || was_rotating && !rotating)
 				{
 					locked_bearing = thrust;
 					bearing_locked = true;
-					Log("Setting locked bearing: {0}", locked_bearing);//debug
 				}
 				break;
 			case Attitude.Prograde:
@@ -123,7 +123,6 @@ namespace ThrottleControlledAvionics
 				                                           .nodeRotation*VSL.refT.up, lthrust);
 				break;
 			}
-			Log("Attitude error: {0}", attitude_error.eulerAngles);//debug
 			VSL.ResetCustomRotation();
 		}
 
@@ -134,8 +133,12 @@ namespace ThrottleControlledAvionics
 			//disable SAS
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
-			if(UserIntervening(s)) { pid.Reset(); bearing_locked = false; return; }
+			if(UserIntervening(s)) 
+			{ pid.Reset(); bearing_locked = false; rotating = true; return; }
 			//calculate needed rotation
+			was_rotating = rotating;
+			if(VSL.vessel.angularVelocity.sqrMagnitude > ATC.KillRotThreshold * 10) rotating = true;
+			else rotating &= VSL.vessel.angularVelocity.sqrMagnitude >= ATC.KillRotThreshold;
 			CalculatedRotation();
 			//calculate corresponding rotation
 			var steering_error = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
@@ -151,10 +154,11 @@ namespace ThrottleControlledAvionics
 			steering_error += inertia / Mathf.Lerp(ATC.InertiaFactor, 1, 
 			                                       VSL.MoI.magnitude*ATC.MoIFactor);
 			Vector3.Scale(steering_error, VSL.MaxAngularA.normalized);
-			pid.D = Mathf.Lerp(ATC.MinD, ATC.MaxD, angularM.magnitude*ATC.AngularMomentumFactor);
+			pid.D = Mathf.Lerp(ATC.MinD, ATC.MaxD, angularM.magnitude/Utils.ClampL(steering_error.sqrMagnitude, 1e-45f)*ATC.AngularMomentumFactor);
 			pid.I = pid.P / (ATC.If * Tf/ATC.MinTf);
 			//update PID controller and set steering
 			pid.Update(steering_error, angularVelocity);
+			ThrottleControlledAvionics.DebugMessage = string.Format("pid: {0}\nerror {1}", pid, steering_error);//debug
 			SetRot(pid.Action, s);
 		}
 	}
