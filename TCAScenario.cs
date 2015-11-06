@@ -27,9 +27,9 @@ namespace ThrottleControlledAvionics
 	public class TCAScenario : ScenarioModule
 	{
 		public const string GLOBALSNAME = "TCA.glob";
+		public const string MACROSNAME  = "TCA.macro";
 		public const string VSL_NODE    = "VESSELS";
 		public const string NAMED_NODE  = "NAMED";
-		public const string MACROS_NODE = "MACROS";
 
 		static TCAGlobals globals;
 		public static TCAGlobals Globals 
@@ -41,15 +41,39 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		static TCAMacroLibrary macros;
+		public static TCAMacroLibrary Macros
+		{
+			get
+			{
+				if(macros == null)
+				{
+					macros = new TCAMacroLibrary();
+					var node = loadNode(PluginFolder(MACROSNAME));
+					if(node != null) macros.Load(node);
+				}
+				return macros;
+			}
+		}
+
+		public static void SaveMacro(TCAMacro macro)
+		{
+			Macros.SaveMacro(macro, true);
+			var node = new ConfigNode();
+			Macros.Save(node);
+			node.Save(PluginFolder(MACROSNAME));
+		}
+
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
-		public static TCAMacroLibrary Macros = new TCAMacroLibrary();
 		public static bool ConfigsLoaded { get; private set; }
 
 		#region From KSPPluginFramework
+		static public string PluginFolder(string filename)
+		{ return Path.Combine(_AssemblyFolder, "../"+filename).Replace("\\","/"); }
 		//Combine the Location of the assembly and the provided string.
 		//This means we can use relative or absolute paths.
-		static public string FilePath(string filename)
+		static public string PluginData(string filename)
 		{ return Path.Combine(_AssemblyFolder, "PluginData/"+_AssemblyName+"/"+filename).Replace("\\","/"); }
 		/// <summary>
 		/// Name of the Assembly that is running this MonoBehaviour
@@ -123,7 +147,7 @@ namespace ThrottleControlledAvionics
 		public static void LoadGlobals()
 		{
 			globals = new TCAGlobals();
-			var gnode = loadNode(FilePath(GLOBALSNAME));
+			var gnode = loadNode(PluginData(GLOBALSNAME));
 			if(gnode != null) Globals.Load(gnode);
 			Globals.Init();
 		}
@@ -133,7 +157,6 @@ namespace ThrottleControlledAvionics
 			if(ConfigsLoaded) return;
 			Configs.Clear();
 			NamedConfigs.Clear();
-			Macros.Clear();
 			foreach(var n in node.GetNodes())
 			{
 				if(n.name == VSL_NODE)
@@ -154,7 +177,6 @@ namespace ThrottleControlledAvionics
 						NamedConfigs[config.Name] = config;
 					}
 				}
-				else if(n.name == MACROS_NODE) Macros.Load(n);
 			}
 			ConfigsLoaded = true;
 		}
@@ -185,8 +207,6 @@ namespace ThrottleControlledAvionics
 				foreach(var c in NamedConfigs.Keys)
 					NamedConfigs[c].Save(n.AddNode(NamedConfig.NODE_NAME));
 			}
-			if(Macros.DB.Count > 0)
-				Macros.Save(node.AddNode(MACROS_NODE));
 		}
 
 		[Obsolete("Only needed for legacy config conversion")]
@@ -224,7 +244,7 @@ namespace ThrottleControlledAvionics
 			//deprecated
 			if(Configs.Count == 0 && NamedConfigs.Count == 0)
 			{
-				var cnode = loadNode(FilePath("TCA.conf"));
+				var cnode = loadNode(PluginData("TCA.conf"));
 				if(cnode != null) LoadLegacyConfigs(cnode);
 			}
 		}
