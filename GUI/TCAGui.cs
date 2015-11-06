@@ -209,6 +209,8 @@ namespace ThrottleControlledAvionics
 		static void AttitudeControls()
 		{
 			GUILayout.BeginHorizontal();
+			GUILayout.Label(new GUIContent("T-SAS", "Control thrust attitude"), 
+			                Styles.label, GUILayout.ExpandWidth(false));
 			if(GUILayout.Button("Kill Rotation", CFG.AT[Attitude.KillRot]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.KillRot);
@@ -236,6 +238,7 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? 
 			                    Styles.green_button : Styles.grey_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
+			GUILayout.Label(string.Format("Err: {0:F1}deg", TCA.AttitudeError), Styles.white, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 

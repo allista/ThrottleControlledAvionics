@@ -41,6 +41,7 @@ namespace ThrottleControlledAvionics
 		Vector3 locked_bearing;
 		Quaternion attitude_error;
 		bool bearing_locked, rotating, was_rotating;
+		public float AngleError { get; private set; }
 
 		public AttitudeControl(VesselWrapper vsl) { VSL = vsl; }
 
@@ -143,7 +144,8 @@ namespace ThrottleControlledAvionics
 			//calculate corresponding rotation
 			var steering_error = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
 			                                 Utils.CenterAngle(attitude_error.eulerAngles.y),
-			                                 Utils.CenterAngle(attitude_error.eulerAngles.z))/180*Mathf.PI;
+			                                 Utils.CenterAngle(attitude_error.eulerAngles.z))*Mathf.Deg2Rad;
+			AngleError = steering_error.magnitude*Mathf.Rad2Deg;
 			//tune PID parameters and steering_error
 			var angularM = Vector3.Scale(angularVelocity, VSL.MoI);
 			var inertia  = Vector3.Scale(angularM.Sign(),

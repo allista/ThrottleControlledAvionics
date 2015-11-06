@@ -45,15 +45,19 @@ namespace ThrottleControlledAvionics
 		MacroProcessor mpr;
 
 		HorizontalSpeedControl hsc;
-		CruiseControl cc;
 		AttitudeControl atc;
+		CruiseControl cc;
+
 
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
 
 		#region Public Info
+		#if DEBUG
 		public float TorqueError { get { return eng == null? 0f : eng.TorqueError; } }
+		#endif
+		public float AttitudeError { get { return atc == null? 0f : atc.AngleError; } }
 		public bool  Available { get { return enabled && VSL != null; } }
 		public bool  Controllable { get { return Available && vessel.IsControllable; } }
 		public static bool HasTCA { get { return !GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCAGlobals.TCA_PART); } }
