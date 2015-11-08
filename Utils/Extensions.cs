@@ -49,8 +49,8 @@ namespace ThrottleControlledAvionics
 		public static Vector3 ClampComponents(this Vector3 v, float min, float max) 
 		{ 
 			return new Vector3(Mathf.Clamp(v.x, min, max), 
-				Mathf.Clamp(v.y, min, max), 
-				Mathf.Clamp(v.z, min, max)); 
+			                   Mathf.Clamp(v.y, min, max), 
+			                   Mathf.Clamp(v.z, min, max)); 
 		}
 
 		public static Vector3 Sign(this Vector3 v)
@@ -58,6 +58,20 @@ namespace ThrottleControlledAvionics
 
 		public static Vector3 AbsComponents(this Vector3 v)
 		{ return new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z)); }
+
+		public static Vector3 MaxComponent(this Vector3 v)
+		{
+			var maxi = 0;
+			var max  = 0f;
+			for(int i = 0; i < 3; i++)
+			{
+				if(Mathf.Abs(v[i]) > Mathf.Abs(max))
+				{ max = v[i]; maxi = i; }
+			}
+			var ret = Vector3.zero;
+			ret[maxi] = max;
+			return ret;
+		}
 		#endregion
 
 		#region From blizzy's Toolbar
