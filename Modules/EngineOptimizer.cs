@@ -210,7 +210,7 @@ namespace ThrottleControlledAvionics
 				"Steering: {0}\n" +
 				"Needed Torque: {1}\n" +
 				"Torque Imbalance: {2}\n" +
-				"Torque Error: {3}kNm, {4}deg\n" +
+				"Torque Error: {3}kNm, {4}°\n" +
 				"Torque Clamp:\n   +{5}\n   -{6}\n" +
 				"Limits: [{7}]", 
 				Steering,

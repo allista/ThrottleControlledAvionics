@@ -163,7 +163,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(mode.ToString(), Styles.normal_button, GUILayout.ExpandWidth(false)))
 					mode = (Mode)(((int)mode+1)%5);
-				if(mode == Mode.Bearing) BearingField.Draw(Bearing, "deg", false);
+				if(mode == Mode.Bearing) BearingField.Draw(Bearing, "°", false);
 				ValueField.Draw(Value, Suffix, false);
 				if(GUILayout.Button("Done", Styles.green_button, GUILayout.ExpandWidth(false)))
 				{ 
@@ -176,7 +176,7 @@ namespace ThrottleControlledAvionics
 			else 
 			{
 				var title = Name+" "+mode+" ";
-				if(mode == Mode.Bearing) title += Bearing+"deg, ";
+				if(mode == Mode.Bearing) title += Bearing+"°, ";
 				title += Value.ToString("F1")+Suffix;
 				Edit |= GUILayout.Button(title, Styles.normal_button);
 			}
