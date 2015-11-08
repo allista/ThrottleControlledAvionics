@@ -223,12 +223,12 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button(new GUIContent("RG", "Retrograde"), CFG.AT[Attitude.Retrograde]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.Retrograde);
-			if(GUILayout.Button(new GUIContent("R+", "Radial"), CFG.AT[Attitude.Zenith]? 
+			if(GUILayout.Button(new GUIContent("R+", "Radial"), CFG.AT[Attitude.Radial]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.Zenith);
-			if(GUILayout.Button(new GUIContent("R-", "AntiRadial"), CFG.AT[Attitude.Nadir]? 
+				CFG.AT.Toggle(Attitude.Radial);
+			if(GUILayout.Button(new GUIContent("R-", "AntiRadial"), CFG.AT[Attitude.AntiRadial]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.Nadir);
+				CFG.AT.Toggle(Attitude.AntiRadial);
 			if(GUILayout.Button(new GUIContent("N+", "Normal"), CFG.AT[Attitude.Normal]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.Normal);
@@ -238,7 +238,7 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? 
 			                    Styles.green_button : Styles.grey_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
-			GUILayout.Label(string.Format("Err: {0:F1}deg", TCA.AttitudeError), Styles.white, GUILayout.ExpandWidth(true));
+			GUILayout.Label(string.Format("Err: {0:F1}°", TCA.AttitudeError), Styles.white, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 
