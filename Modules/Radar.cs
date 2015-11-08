@@ -193,7 +193,7 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			var zero_needed = VSL.NeededHorVelocity.IsZero();
 			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
-			   (zero_needed || CFG.DesiredAltitude < RAD.MinAltitude))
+			   (zero_needed || CFG.DesiredAltitude < RAD.MinAltitude || IsStateSet(TCAState.Landing)))
 			{ reset(); return; }
 			//closing speed and starting ray direction
 			Dir = Vector3.zero;
