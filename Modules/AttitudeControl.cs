@@ -26,6 +26,14 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
 			[Persistent] public float MoIFactor = 0.01f;
 			[Persistent] public float AngleThreshold = 25f;
+			[Persistent] public float OmegaThreshold = 0.3f; //deg/s
+			public float Omega2Threshold;
+
+			public override void Init()
+			{
+				base.Init();
+				Omega2Threshold = Mathf.Pow(OmegaThreshold*Mathf.Deg2Rad, 2);
+			}
 		}
 		static Config ATC { get { return TCAScenario.Globals.ATC; } }
 
@@ -71,11 +79,13 @@ namespace ThrottleControlledAvionics
 		void reset()
 		{
 			pid.Reset();
+			refT = null;
 			AngleError = 0;
 			omega2 = 0;
 			p_omega2 = 0;
 			pp_omega2 = 0;
 			attitude_locked = false;
+//			Log("Reset");
 		}
 
 		void CalculateSteering()
@@ -90,14 +100,18 @@ namespace ThrottleControlledAvionics
 				attitude_error = VSL.CustomRotation;
 				break;
 			case Attitude.KillRot:
-				if(!attitude_locked || p_omega2 <= pp_omega2 && p_omega2 < omega2 || refT != VSL.refT)
+				if(refT != VSL.refT || 
+				   !attitude_locked && p_omega2 <= pp_omega2 && p_omega2 < omega2)
 				{
 					refT = VSL.refT;
 					locked_attitude = refT.rotation;
-					attitude_locked = true;
+					attitude_locked = omega2 < ATC.Omega2Threshold;
+//					Log("pp {0}, p {1}, o2 {2}, attitude_locked {3}",
+//					    pp_omega2, p_omega2, omega2, attitude_locked);//debug
 				}
-				if(attitude_locked)
-					attitude_error = refT.rotation.Inverse()*locked_attitude;
+				if(refT != null)
+					attitude_error = Quaternion.Inverse(refT.rotation.Inverse()*locked_attitude);
+//				if(attitude_locked) Log("attitude_error: {0}", attitude_error.eulerAngles);//debug
 				break;
 			case Attitude.Prograde:
 				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
