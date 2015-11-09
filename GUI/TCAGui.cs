@@ -209,12 +209,15 @@ namespace ThrottleControlledAvionics
 		static void AttitudeControls()
 		{
 			GUILayout.BeginHorizontal();
-			GUILayout.Label(new GUIContent("T-SAS", "Control thrust attitude"), 
+			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
 			                Styles.label, GUILayout.ExpandWidth(false));
-			if(GUILayout.Button("Kill Rotation", CFG.AT[Attitude.KillRot]? 
+			if(GUILayout.Button(new GUIContent("Stop", "Stop rotation"), CFG.AT[Attitude.KillRotation]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.KillRot);
-			if(GUILayout.Button("Maneuver Node", CFG.AT[Attitude.ManeuverNode]? 
+				CFG.AT.Toggle(Attitude.KillRotation);
+			if(GUILayout.Button(new GUIContent("Hold", "Hold current attitude"), CFG.AT[Attitude.HoldAttitude]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.Toggle(Attitude.HoldAttitude);
+			if(GUILayout.Button(new GUIContent("Maneuver", "Maneuver node"), CFG.AT[Attitude.ManeuverNode]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.ManeuverNode);
 			if(GUILayout.Button(new GUIContent("PG", "Prograde"), CFG.AT[Attitude.Prograde]? 

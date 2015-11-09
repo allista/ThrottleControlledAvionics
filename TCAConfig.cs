@@ -103,7 +103,7 @@ Notes:
 		public override void Save(ConfigNode node) {}
 	}
 
-	public enum Attitude { None, KillRot, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, ManeuverNode, Custom }
+	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, ManeuverNode, Custom }
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }

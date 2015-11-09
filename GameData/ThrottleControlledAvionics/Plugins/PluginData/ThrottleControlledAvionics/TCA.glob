@@ -110,7 +110,6 @@ ATC
 	MoIFactor             = 0.01
 	AngularMomentumFactor = 0.001
 	AngleThreshold        = 10
-	OmegaThreshold        = 1
 }
 
 HSC
