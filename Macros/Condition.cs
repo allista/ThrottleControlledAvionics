@@ -65,7 +65,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected virtual bool Evaluate(VesselWrapper VSL) { return false; }
-		protected virtual void DrawThis() { GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(true)); }
+		protected virtual void DrawThis() { GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false)); }
 
 		public void Draw()
 		{
