@@ -23,7 +23,6 @@ namespace ThrottleControlledAvionics
 		static TCAMacro Macro;
 		static VesselConfig CFG;
 		static Vector2 scroll;
-		static bool editing;
 
 		static bool SelectingCondition, SelectingAction, LoadMacro;
 		static Action<Condition> condition_selected;
@@ -52,7 +51,6 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(cfg == null) return;
 			CFG = cfg;
-			editing = CFG.SelectedMacro != null;
 			EditMacro(CFG.SelectedMacro);
 		}
 
@@ -93,7 +91,6 @@ namespace ThrottleControlledAvionics
 				SelectAction(null); 
 				SelectCondition(null);
 				exit = false;
-				editing = false;
 			}
 		}
 
@@ -127,8 +124,8 @@ namespace ThrottleControlledAvionics
 			LoadMacro |= GUILayout.Button("Load", Styles.green_button, GUILayout.ExpandWidth(false));
 			if(GUILayout.Button("New", Styles.yellow_button, GUILayout.ExpandWidth(false))) EditMacro(null);
 			GUILayout.Space(20);
-			if(editing && GUILayout.Button(CFG.SelectedMacro.Name == Macro.Name? "Apply" : "Use", 
-			                               Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(GUILayout.Button(CFG.SelectedMacro != null && CFG.SelectedMacro.Name == Macro.Name? "Apply" : "Use", 
+			                    Styles.green_button, GUILayout.ExpandWidth(false)))
 				CFG.SelectedMacro = (TCAMacro)Macro.GetCopy();
 			if(GUILayout.Button("Save to Vessel DB", Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.Macros.SaveMacro(Macro, true);
