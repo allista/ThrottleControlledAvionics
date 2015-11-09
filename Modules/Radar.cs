@@ -191,11 +191,12 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			var zero_needed = VSL.NeededHorVelocity.IsZero();
 			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
-			   (zero_needed || CFG.DesiredAltitude < RAD.MinAltitude || IsStateSet(TCAState.Landing)))
+			   (CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
+			    CFG.DesiredAltitude < RAD.MinAltitude || IsStateSet(TCAState.Landing)))
 			{ reset(); return; }
 			//closing speed and starting ray direction
+			var zero_needed = VSL.NeededHorVelocity.IsZero();
 			Dir = Vector3.zero;
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
 			if((DistanceAhead < 0 || DistanceAhead > RAD.MinDistanceAhead ||
