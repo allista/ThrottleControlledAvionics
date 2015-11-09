@@ -165,8 +165,8 @@ namespace ThrottleControlledAvionics
 					var rVl   = VSL.refT.InverseTransformDirection(rV);
 					//correction for low TWR
 					var upF   = Vector3.Dot(thrust, rVl) < 0? 1 : Utils.Clamp(VSL.MaxTWR*0.70710678f/HSC.TWRf, 1e-9, 1); //MaxTWR at 45deg
-					var MaxHv = Math.Max(acceleration.magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-					needed_thrust_dir = rVl.normalized - VSL.UpL*Utils.ClampL((float)Math.Pow(MaxHv/rVm, HSC.HVCurve), 1)/upF;
+					var MaxHv = Math.Max(Vector3d.Project(acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
+					needed_thrust_dir = rVl.normalized - VSL.UpL*Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), 1)/upF;
 				}
 				if(hVm > HSC.TranslationLowerThreshold)
 				{
