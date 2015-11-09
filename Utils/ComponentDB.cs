@@ -69,7 +69,7 @@ namespace ThrottleControlledAvionics
 		{
 			var ret = false;
 			component = null;
-			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(110));
+			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(TCAScenario.Globals.ActionListHeight));
 			GUILayout.BeginVertical();
 			for(int i = 0, count = Components.Keys.Count; i < count; i++)
 			{

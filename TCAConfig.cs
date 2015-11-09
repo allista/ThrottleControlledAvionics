@@ -19,6 +19,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float KeyRepeatTime       = 0.1f;
 		[Persistent] public float WaypointHeight      = 3f;
 		[Persistent] public float UnpackDistance      = 5000f;
+		[Persistent] public float ActionListHeight    = 110f;
 
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
@@ -102,7 +103,7 @@ Notes:
 		public override void Save(ConfigNode node) {}
 	}
 
-	public enum Attitude { None, Custom, KillRot, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, ManeuverNode }
+	public enum Attitude { None, KillRot, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, ManeuverNode, Custom }
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }

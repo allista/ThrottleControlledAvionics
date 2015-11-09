@@ -52,7 +52,7 @@ namespace ThrottleControlledAvionics
 			{
 				GUILayout.BeginHorizontal();
 				Name = GUILayout.TextField(Name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
-				Edit &= !GUILayout.Button("Done", Styles.green_button, GUILayout.Width (40));
+				if(Parent != null) Edit &= !GUILayout.Button("Done", Styles.green_button, GUILayout.Width (40));
 				GUILayout.EndHorizontal();
 				Block.Draw();
 			}
@@ -86,7 +86,7 @@ namespace ThrottleControlledAvionics
 			var ret = false;
 			macro = null;
 			var del = new List<TCAMacro>();
-			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandHeight(false));
+			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(TCAScenario.Globals.ActionListHeight));
 			GUILayout.BeginVertical();
 			for(int i = 0, count = DB.List.Count; i < count; i++)
 			{
