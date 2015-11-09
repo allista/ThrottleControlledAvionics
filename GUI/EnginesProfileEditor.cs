@@ -120,6 +120,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(UpdateEngines(EditorLogic.fetch.ship)) 
 					GetCFG(EditorLogic.fetch.ship);
+				else TCAToolbarManager.ShowButton(false);
 				init_engines = false;
 			}
 			if(update_engines)
@@ -127,7 +128,7 @@ namespace ThrottleControlledAvionics
 				if(!UpdateEngines(EditorLogic.fetch.ship)) return;
 				if(CFG == null) GetCFG(EditorLogic.fetch.ship);
 				else UpdateCFG(EditorLogic.fetch.ship);
-				CFG.ActiveProfile.Update(Engines);
+				if(CFG != null) CFG.ActiveProfile.Update(Engines);
 				update_engines = false;
 			}
 		}
@@ -164,7 +165,7 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(Engines.Count == 0 || !CFG.GUIVisible || !showHUD) 
+			if(Engines.Count == 0 || CFG == null || !CFG.GUIVisible || !showHUD) 
 			{
 				Utils.LockIfMouseOver(LockName, MainWindow, false);
 				return;
