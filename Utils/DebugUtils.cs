@@ -266,7 +266,7 @@ namespace ThrottleControlledAvionics
 			base.FixedUpdate();
 			this.Log("Part: enabled {2}, shielded {0}, controllable {1}", 
 			         part.ShieldedFromAirstream, part.isControllable, enabled);
-			if(thrustForces.Count > 0)
+			if(thrustForces.Length > 0)
 			{
 				this.Log("ThrustForces:\n{0}",
 				         thrustForces.Aggregate("", (s, f) => s+f+", "));

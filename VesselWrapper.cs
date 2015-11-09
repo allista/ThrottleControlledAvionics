@@ -251,9 +251,6 @@ namespace ThrottleControlledAvionics
 			//unflameout engines
 			for(int i = 0; i < num_engines; i++)
 			{ var e = Engines[i]; if(e.engine.flameout) e.forceThrustPercentage(1); }
-			//reset RCS thrust
-			for(int i = 0, RCSCount = RCS.Count; i < RCSCount; i++)
-			{ var r = RCS[i]; r.rcs.thrusterPower = r.nominalThrusterPower; }
 			//sync with active profile
 			if(CFG.ActiveProfile.Activated) CFG.ActiveProfile.OnActivated(this);
 			if(CanUpdateEngines)
@@ -493,7 +490,7 @@ namespace ThrottleControlledAvionics
 				{
 					var t = r.rcs.thrusterTransforms[j];
 					if(t == null) continue;
-					R_TorqueLimits.Add(refT.InverseTransformDirection(Vector3.Cross(t.position-wCoM, t.up)*r.nominalThrusterPower));
+					R_TorqueLimits.Add(refT.InverseTransformDirection(Vector3.Cross(t.position-wCoM, t.up)*r.rcs.thrusterPower));
 				}
 			}
 		}

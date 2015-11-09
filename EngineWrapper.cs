@@ -44,7 +44,6 @@ namespace ThrottleControlledAvionics
 	public class RCSWrapper : ThrusterWrapper
 	{
 		public readonly ModuleRCS rcs;
-		public readonly float nominalThrusterPower;
 
 		Vector3 avg_thrust_dir;
 		Vector3 avg_thrust_pos;
@@ -54,7 +53,6 @@ namespace ThrottleControlledAvionics
 		public RCSWrapper(ModuleRCS rcs)
 		{
 			zeroISP = rcs.atmosphereCurve.Evaluate(0f);
-			nominalThrusterPower = rcs.thrusterPower;
 			this.rcs = rcs;
 		}
 
@@ -63,7 +61,7 @@ namespace ThrottleControlledAvionics
 
 		public override void InitState()
 		{
-			thrustMod = rcs.atmosphereCurve.Evaluate((float)(rcs.vessel.staticPressurekPa * PhysicsGlobals.KpaToAtmospheres))/zeroISP;
+			thrustMod = rcs.atmosphereCurve.Evaluate((float)(rcs.part.staticPressureAtm))/zeroISP;
 			var total_sthrust = 0f;
 			avg_thrust_dir = Vector3.zero;
 			avg_thrust_pos = Vector3.zero;
@@ -79,8 +77,8 @@ namespace ThrottleControlledAvionics
 			var current_sthrust = avg_thrust_dir.magnitude;
 			avg_thrust_pos /= total_sthrust;
 			avg_thrust_dir.Normalize();
-			current_max_thrust = current_sthrust*nominalThrusterPower*thrustMod;
-			current_thrust = current_sthrust*rcs.thrusterPower*thrustMod;
+			current_max_thrust = current_sthrust*rcs.thrusterPower*thrustMod;
+			current_thrust = current_sthrust*rcs.thrustPercentage*0.01f*rcs.thrusterPower*thrustMod;
 			InitLimits();
 		}
 
@@ -98,12 +96,12 @@ namespace ThrottleControlledAvionics
 
 		public override float thrustLimit
 		{
-			get { return rcs.thrusterPower/nominalThrusterPower; }
-			set { rcs.thrusterPower = Mathf.Clamp(Utils.EWA(rcs.thrusterPower, value*nominalThrusterPower), 0, nominalThrusterPower); }
+			get { return rcs.thrustPercentage*0.01f; }
+			set { rcs.thrustPercentage = Mathf.Clamp(Utils.EWA(rcs.thrustPercentage, value*100), 0, 100); }
 		}
 
 		public override bool isOperational 
-		{ get { return rcs.rcsEnabled && rcs.thrusterTransforms.Count > 0 && rcs.thrusterTransforms.Count == rcs.thrustForces.Count; } }
+		{ get { return rcs.rcsEnabled && rcs.thrusterTransforms.Count > 0; } }
 	}
 
 	public class EngineID
@@ -185,7 +183,7 @@ namespace ThrottleControlledAvionics
 			engine.OnCenterOfThrustQuery(thrustInfo);
 			thrustInfo.dir.Normalize();
 			//compute velocity and atmosphere thrust modifier
-			thrustMod = engine.atmosphereCurve.Evaluate((float)(engine.vessel.staticPressurekPa * PhysicsGlobals.KpaToAtmospheres))/zeroISP;
+			thrustMod = engine.atmosphereCurve.Evaluate((float)(engine.part.staticPressureAtm))/zeroISP;
 			if(engine.atmChangeFlow)
 			{
 				thrustMod = (float)(engine.part.atmDensity / 1.225);
