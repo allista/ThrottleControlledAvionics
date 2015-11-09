@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
 	public class SetVerticalSpeedMacroNode : SetFloatMacroNode
 	{
 		public SetVerticalSpeedMacroNode()
-		{ Name = "Set vertical speed to"; Suffix = "m/s"; }
+		{ Name = "Set Vertical Speed to"; Suffix = "m/s"; }
 
 		protected override void OnValueChanged ()
 		{ Value = Utils.Clamp(Value, -GLB.VSC.MaxSpeed, GLB.VSC.MaxSpeed); }
@@ -35,12 +35,26 @@ namespace ThrottleControlledAvionics
 	public class SetAltitudeMacroNode : SetFloatMacroNode
 	{
 		public SetAltitudeMacroNode()
-		{ Name = "Set altitude to"; Suffix = "m"; }
+		{ Name = "Set Altitude to"; Suffix = "m"; }
 		protected override bool Action(VesselWrapper VSL)
 		{ 
 			VSL.CFG.BlockThrottle = true;
 			VSL.CFG.VF.OnIfNot(VFlight.AltitudeControl);
 			VSL.CFG.DesiredAltitude = Value;
+			return false; 
+		}
+	}
+
+	public class SetThrottleMacroNode : SetFloatMacroNode
+	{
+		public SetThrottleMacroNode() { Name += ":"; Suffix = "%"; }
+
+		protected override void OnValueChanged ()
+		{ Value = Utils.Clamp(Value, 0, 100); }
+
+		protected override bool Action(VesselWrapper VSL)
+		{ 
+			VSL.ThrottleRequest = Value/100;
 			return false; 
 		}
 	}
@@ -147,7 +161,7 @@ namespace ThrottleControlledAvionics
 
 	public class FlyMacroNode : SetFloatMacroNode
 	{
-		public enum Mode { Forward, Backward, Right, Left, Bearing }
+		public enum Mode { Forward, Backward, Right, Left, Bearing, Off }
 
 		[Persistent] public Mode mode;
 		[Persistent] public float Bearing;
@@ -162,9 +176,9 @@ namespace ThrottleControlledAvionics
 			{ 
 				GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(mode.ToString(), Styles.normal_button, GUILayout.ExpandWidth(false)))
-					mode = (Mode)(((int)mode+1)%5);
+					mode = (Mode)(((int)mode+1)%6);
 				if(mode == Mode.Bearing) BearingField.Draw(Bearing, "°", false);
-				ValueField.Draw(Value, Suffix, false);
+				if(mode != Mode.Off) ValueField.Draw(Value, Suffix, false);
 				if(GUILayout.Button("Done", Styles.green_button, GUILayout.ExpandWidth(false)))
 				{ 
 					if(BearingField.UpdateValue(Bearing)) Bearing = BearingField.Value;
@@ -177,7 +191,7 @@ namespace ThrottleControlledAvionics
 			{
 				var title = Name+" "+mode+" ";
 				if(mode == Mode.Bearing) title += Bearing+"°, ";
-				title += Value.ToString("F1")+Suffix;
+				if(mode != Mode.Off) title += Value.ToString("F1")+Suffix;
 				Edit |= GUILayout.Button(title, Styles.normal_button);
 			}
 			GUILayout.EndHorizontal();
@@ -204,6 +218,9 @@ namespace ThrottleControlledAvionics
 				nv = Quaternion.AngleAxis(Bearing, VSL.Up) * 
 					Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-VSL.wCoM, VSL.Up).normalized;
 				break;
+			case Mode.Off:
+				VSL.CFG.HF.Off();
+				return false;
 			}
 			VSL.CFG.HF.On(HFlight.CruiseControl);
 			VSL.SetNeededHorVelocity(nv*Value);
@@ -288,5 +305,69 @@ namespace ThrottleControlledAvionics
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, On); return false; }
 	}
+
+	public class RCSMacroNode : OnOffMacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{ VSL.ActionGroups.SetGroup(KSPActionGroup.RCS, On); return false; }
+	}
+
+	public class AutoThrottleMacroNode : OnOffMacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{ VSL.CFG.BlockThrottle = On; return false; }
+	}
+
+	public class TSASMacroNode : MacroNode
+	{
+		[Persistent] public Attitude attitude;
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginHorizontal();
+			if(Edit)
+			{ 
+				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				if(GUILayout.Button(attitude.ToString(), Styles.normal_button, GUILayout.ExpandWidth(false)))
+					attitude = (Attitude)(((int)attitude+1)%10);
+			}
+			else Edit |= GUILayout.Button(Name+": "+attitude, Styles.normal_button);
+			GUILayout.EndHorizontal();
+		}
+
+		protected override bool Action(VesselWrapper VSL)
+		{ 
+			if(attitude.Equals(Attitude.None)) VSL.CFG.AT.Off();
+			else VSL.CFG.AT.OnIfNot(attitude);
+			return false; 
+		}
+	}
+
+	public class DisableVerticalControlMacroNode : MacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{ VSL.CFG.DisableVSC(); return false; }
+	}
+
+	public class StockSASControlMacroNode : OnOffMacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{ 
+			if(On)
+			{
+				CFG.HF.Off();
+				CFG.AT.Off();
+				VSL.UnblockSAS();
+			}
+			else VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
+			return false; 
+		}
+	}
+
+//	public class StageMacroNode : MacroNode
+//	{
+//		protected override bool Action(VesselWrapper VSL)
+//		{ VSL.vessel.stag; return false; }
+//	}
 }
 
