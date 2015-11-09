@@ -319,7 +319,9 @@ namespace ThrottleControlledAvionics
 		public struct Ray
 		{
 			RaycastHit hit;
+			#if DEBUG
 			float max_distance;
+			#endif
 			public Vector3 Ori { get; private set; }
 			public Vector3 Dir { get; private set; }
 			public float Distance { get { return Valid? hit.distance : float.MaxValue; } }
@@ -337,7 +339,10 @@ namespace ThrottleControlledAvionics
 			/// <param name="radius">Radius of the ray</param>
 			public bool Cast(Vector3 ori, Vector3 dir, float dist, float radius)
 			{
-				Ori = ori; Dir = dir; max_distance = dist;
+				#if DEBUG
+				max_distance = dist;
+				#endif
+				Ori = ori; Dir = dir;
 				Valid = Physics.SphereCast(Ori, radius, Dir, out hit, dist, RadarMask);
 				return Valid;
 			}
