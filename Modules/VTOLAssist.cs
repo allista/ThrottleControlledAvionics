@@ -64,7 +64,7 @@ namespace ThrottleControlledAvionics
 			working(false);
 		}
 
-		public override void UpdateState()
+		protected override void UpdateState()
 		{ 
 			IsActive = VSL.OnPlanet && CFG.VTOLAssistON; 
 			if(IsActive) return;
@@ -73,7 +73,7 @@ namespace ThrottleControlledAvionics
 			working(false);
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive) return;
 			//update state

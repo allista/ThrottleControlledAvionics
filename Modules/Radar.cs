@@ -115,7 +115,7 @@ namespace ThrottleControlledAvionics
 		}
 		#endif
 
-		public override void UpdateState() 
+		protected override void UpdateState() 
 		{ 
 			IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed;
 			if(IsActive)
@@ -188,7 +188,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive) return;
 			var zero_needed = VSL.NeededHorVelocity.IsZero();

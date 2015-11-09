@@ -43,9 +43,9 @@ namespace ThrottleControlledAvionics
 			CFG.HF.AddCallback(HFlight.NoseOnCourse, NoseOnCourse);
 		}
 
-		public override void UpdateState() 
+		protected override void UpdateState() 
 		{ 
-			IsActive = VSL.OnPlanet && CFG.HF[HFlight.CruiseControl]; 
+			IsActive = VSL.OnPlanet && CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl); 
 			if(!inited && IsActive && !VSL.Up.IsZero())
 			{
 				UpdateNeededVelocity();
@@ -81,7 +81,7 @@ namespace ThrottleControlledAvionics
 			                         Quaternion.FromToRotation(CFG.SavedUp, VSL.Up)*CFG.NeededHorVelocity);
 		}
 
-		protected override void Update(FlightCtrlState s)
+		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && 

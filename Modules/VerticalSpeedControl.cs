@@ -41,7 +41,7 @@ namespace ThrottleControlledAvionics
 		readonly EWA setpoint_correction = new EWA();
 		readonly Timer Falling = new Timer();
 
-		public override void UpdateState()
+		protected override void UpdateState()
 		{ IsActive = VSL.OnPlanet && CFG.VSCIsActive; }
 
 		public override void Init()
@@ -54,7 +54,7 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = -10;
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			VSL.VSF = 1f;
 			if(!IsActive) return;

@@ -322,8 +322,19 @@ namespace ThrottleControlledAvionics
 		#endregion
 		void block_throttle(FlightCtrlState s)
 		{ 
-			if(CFG.Enabled && CFG.BlockThrottle && VSL.OnPlanet) 
+			if(!CFG.Enabled) return;
+			if(CFG.BlockThrottle) 
 				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
+			else 
+			{
+				var t = VSL.ThrottleRequest;
+				if(t >= 0) 
+				{ 
+					s.mainThrottle = t; 
+					VSL.ctrlState.mainThrottle = t; 
+					if(VSL.IsActiveVessel) FlightInputHandler.state.mainThrottle = t;
+				}
+			}
 		}
 
 		public override void OnUpdate()
@@ -349,19 +360,18 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateCommons();
 			if(VSL.NumActive > 0)
 			{
-				for(int i = 0; i < modules.Count; i++) modules[i].UpdateState();
 				VSL.UpdateOnPlanetStats();
 				//these follow specific order
-				mpr.Update();
-				rad.Update();//sets AltitudeAhead
-				lnd.Update();//sets VerticalCutoff, sets DesiredAltitude
-				alt.Update();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
-				cps.Update();//updates VerticalCutoff
-				vsc.Update();//uses VerticalCutoff
-				anc.Update();
-				tla.Update();
-				stb.Update();
-				pn.Update();
+				mpr.OnFixedUpdate();
+				rad.OnFixedUpdate();//sets AltitudeAhead
+				lnd.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
+				alt.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
+				cps.OnFixedUpdate();//updates VerticalCutoff
+				vsc.OnFixedUpdate();//uses VerticalCutoff
+				anc.OnFixedUpdate();
+				tla.OnFixedUpdate();
+				stb.OnFixedUpdate();
+				pn.OnFixedUpdate();
 			}
 			//handle engines
 			VSL.TuneEngines();

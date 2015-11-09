@@ -39,7 +39,7 @@ namespace ThrottleControlledAvionics
 		Quaternion attitude_error, locked_attitude;
 		bool attitude_locked;
 		Vector3 thrust, lthrust, needed_lthrust, steering;
-		float omega2, last_omega2;
+		float omega2, p_omega2, pp_omega2;
 
 		public AttitudeControl(VesselWrapper vsl) { VSL = vsl; }
 
@@ -50,14 +50,13 @@ namespace ThrottleControlledAvionics
 			CFG.AT.AddSingleCallback(Enable);
 		}
 
-		public override void UpdateState() { IsActive = CFG.AT; }
+		protected override void UpdateState() { IsActive = CFG.AT; }
 
 		public override void Enable(bool enable = true)
 		{
 			reset();
 			if(enable)
 			{
-				Log("============== {0} ==============", CFG.AT.state);//debug
 				VSL.UpdateOnPlanetStats();
 				if(!CFG.AT[Attitude.Custom])
 				{
@@ -73,7 +72,9 @@ namespace ThrottleControlledAvionics
 		{
 			pid.Reset();
 			AngleError = 0;
-			last_omega2 = 0;
+			omega2 = 0;
+			p_omega2 = 0;
+			pp_omega2 = 0;
 			attitude_locked = false;
 		}
 
@@ -89,7 +90,7 @@ namespace ThrottleControlledAvionics
 				attitude_error = VSL.CustomRotation;
 				break;
 			case Attitude.KillRot:
-				if(!attitude_locked || omega2 > last_omega2 || refT != VSL.refT)
+				if(!attitude_locked || p_omega2 <= pp_omega2 && p_omega2 < omega2 || refT != VSL.refT)
 				{
 					refT = VSL.refT;
 					locked_attitude = refT.rotation;
@@ -144,10 +145,10 @@ namespace ThrottleControlledAvionics
 					var axis1 = axis.MaxComponent();
 					var lthrust_cmp1 = Vector3.ProjectOnPlane(lthrust, axis1);
 					var needed_lthrust_cmp1 = Vector3.ProjectOnPlane(needed_lthrust, axis1);
-					var angle1 = Vector3.Angle(needed_lthrust_cmp1, lthrust_cmp1);//debug
+					var angle1 = Vector3.Angle(needed_lthrust_cmp1, lthrust_cmp1);
 					//second rotation component
 					var axis2 = (axis - axis1).MaxComponent();
-					var angle2 = Vector3.Angle(needed_lthrust, needed_lthrust_cmp1);//debug
+					var angle2 = Vector3.Angle(needed_lthrust, needed_lthrust_cmp1);
 					//steering
 					steering = (axis1.normalized * angle1 + axis2.normalized * angle2)*Mathf.Deg2Rad;
 //					Log("\naxis {0}\naxis1 {1}\naxis2 {2}\nangle1 {3}, angle2 {4}, error {5}",
@@ -160,10 +161,11 @@ namespace ThrottleControlledAvionics
 				                       Utils.CenterAngle(attitude_error.eulerAngles.y),
 				                       Utils.CenterAngle(attitude_error.eulerAngles.z))*Mathf.Deg2Rad;
 			VSL.ResetCustomRotation();
-			last_omega2 = omega2;
+			pp_omega2 = p_omega2;
+			p_omega2 = omega2;
 		}
 
-		protected override void Update(FlightCtrlState s)
+		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && CFG.AT && VSL.refT != null && orbit != null)) return;
@@ -193,7 +195,7 @@ namespace ThrottleControlledAvionics
 //			Log("\ncontrol {0}\nsteering {1}\naction {2}\n==========================================\n", 
 //			    control, steering*Mathf.Rad2Deg, pid.Action);//debug
 			#if DEBUG
-			ThrottleControlledAvionics.DebugMessage = string.Format("pid: {0}\nerror {1}", pid, steering);//debug
+			ThrottleControlledAvionics.DebugMessage = string.Format("pid: {0}\nerror {1}", pid, steering);
 			#endif
 		}
 	}

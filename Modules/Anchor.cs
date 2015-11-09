@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
-		public override void UpdateState() 
+		protected override void UpdateState() 
 		{ IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed && CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere); }
 
 		public override void Enable(bool enable = true)
@@ -68,7 +68,7 @@ namespace ThrottleControlledAvionics
 			Enable(enable);
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive || CFG.Anchor == null) return;
 			if(VSL.HorizontalSpeed > ANC.MaxSpeed)

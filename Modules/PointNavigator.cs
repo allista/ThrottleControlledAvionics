@@ -90,7 +90,7 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
-		public override void UpdateState() { IsActive = CFG.Nav && VSL.OnPlanet; }
+		protected override void UpdateState() { IsActive = CFG.Nav && VSL.OnPlanet; }
 
 		public void GoToTarget(bool enable = true)
 		{
@@ -228,7 +228,7 @@ namespace ThrottleControlledAvionics
 			//			    CanManeuver, fnode, VSL.Formation.Aggregate("", (s, f) => s+f+"\n"));//debug
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive || CFG.Target == null || CFG.Nav.Paused) return;
 			CFG.Target.Update(VSL.mainBody);
@@ -290,7 +290,7 @@ namespace ThrottleControlledAvionics
 				                              -VSL.vessel.transform.position, VSL.Up);
 				tvel = Vector3.zero;
 			}
-			else if(!IsActiveVessel && distance > GLB.UnpackDistance) 
+			else if(!VSL.IsActiveVessel && distance > GLB.UnpackDistance) 
 				VSL.SetUnpackDistance(distance*1.2f);
 			vdir.Normalize();
 			//check if we have arrived to the target and stayed long enough

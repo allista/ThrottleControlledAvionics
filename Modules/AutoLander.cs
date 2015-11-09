@@ -77,7 +77,7 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
-		public override void UpdateState() 
+		protected override void UpdateState() 
 		{ IsActive = VSL.OnPlanet && CFG.AP[Autopilot.Land]; }
 
 		public override void Enable(bool enable = true)
@@ -339,7 +339,7 @@ namespace ThrottleControlledAvionics
 				VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive || CFG.AP.Paused) return;
 			switch(stage)

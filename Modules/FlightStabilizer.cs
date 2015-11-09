@@ -36,7 +36,7 @@ namespace ThrottleControlledAvionics
 			OffTimer.Period = STB.Timer;
 		}
 
-		public override void UpdateState()
+		protected override void UpdateState()
 		{ 
 			IsActive = 
 				VSL.OnPlanet && 
@@ -50,7 +50,7 @@ namespace ThrottleControlledAvionics
 			OffTimer.Reset();
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive) return;
 			if(Working) 

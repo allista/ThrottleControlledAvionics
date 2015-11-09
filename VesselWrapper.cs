@@ -144,6 +144,8 @@ namespace ThrottleControlledAvionics
 		public CelestialBody mainBody { get { return vessel.mainBody; } }
 		public bool OnPlanet { get; private set; }
 		public bool isEVA { get { return vessel.isEVA; } }
+		public bool IsActiveVessel 
+		{ get { return vessel != null && vessel == FlightGlobals.ActiveVessel; } }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
 		public ActionGroupList ActionGroups { get { return vessel.ActionGroups; } }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
@@ -376,6 +378,13 @@ namespace ThrottleControlledAvionics
 				t.thrustLimit = Mathf.Clamp01(t.limit);
 			}
 		}
+
+		float throttle = -1;
+		public float ThrottleRequest
+		{ 
+			get { var t = throttle; throttle = -1; return t; }
+			set { throttle = value; CFG.BlockThrottle = throttle < 0; }
+		}
 		#endregion
 
 		#region Updates
@@ -395,8 +404,7 @@ namespace ThrottleControlledAvionics
 				CFG.EnginesProfiles.OnPlanetChanged(on_planet);
 				if(!on_planet) 
 				{ 
-					if(CFG.BlockThrottle) ctrlState.mainThrottle = 0f;
-					CFG.BlockThrottle = false;
+					if(CFG.BlockThrottle) ThrottleRequest = 0f;
 					CFG.DisableVSC();
 					CFG.AP.Off(); CFG.Nav.Off(); CFG.HF.Off();
 				}

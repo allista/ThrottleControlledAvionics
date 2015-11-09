@@ -25,10 +25,10 @@ namespace ThrottleControlledAvionics
 
 		public MacroProcessor(VesselWrapper vsl) { VSL = vsl; }
 
-		public override void UpdateState()
+		protected override void UpdateState()
 		{ IsActive = CFG.MacroIsActive && CFG.SelectedMacro != null; }
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive) return;
 			CFG.MacroIsActive &= CFG.SelectedMacro.Execute(VSL);

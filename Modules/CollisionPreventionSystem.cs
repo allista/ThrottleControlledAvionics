@@ -44,7 +44,7 @@ namespace ThrottleControlledAvionics
 
 		public CollisionPreventionSystem(VesselWrapper vsl) { VSL = vsl; }
 
-		public override void UpdateState() 
+		protected override void UpdateState() 
 		{ 
 			IsActive = CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed; 
 			if(IsActive) return;
@@ -212,7 +212,7 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive || VSL.refT == null) return;
 			if(scan())

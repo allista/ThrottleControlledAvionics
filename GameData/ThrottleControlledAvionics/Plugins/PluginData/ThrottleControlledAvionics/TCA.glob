@@ -129,7 +129,7 @@ HSC
 		D = 0.0
 	}
 
-	AccelerationFactor    = 1
+	AccelerationFactor    = 6
 	MinHvThreshold        = 10
 	TWRf                  = 0.8
 	HVCurve               = 1.2

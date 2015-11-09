@@ -38,12 +38,12 @@ namespace ThrottleControlledAvionics
 		public bool Working { get; protected set; }
 		public void SetState(TCAState state) { VSL.State |= state; }
 		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
-		public bool IsActiveVessel 
-		{ get { return VSL.vessel != null && VSL.vessel == FlightGlobals.ActiveVessel; } }
 
 		public virtual void Init() {}
 		public virtual void Enable(bool enable = true) {}
-		public virtual void UpdateState() {}
+		protected virtual void UpdateState() {}
+		protected virtual void Update() {}
+		public void OnFixedUpdate() { UpdateState(); Update(); }
 		public virtual void Reset() {}
 
 		protected void BlockSAS(bool block = true) 
@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
 		{
 			CFG.Target = wp;
 			var t = wp == null? null : wp.GetTarget();
-			if(IsActiveVessel && t != null)
+			if(VSL.IsActiveVessel && t != null)
 				ScreenMessages.PostScreenMessage("Target: "+t.GetName(),
 				                                 5, ScreenMessageStyle.UPPER_CENTER);
 			VSL.vessel.targetObject = t;
@@ -101,9 +101,10 @@ namespace ThrottleControlledAvionics
 
 	public abstract class AutopilotModule : TCAModule
 	{
-		public override void Init() { VSL.OnAutopilotUpdate -= Update; VSL.OnAutopilotUpdate += Update; }
-		protected abstract void Update(FlightCtrlState s);
-		public override void Reset() { VSL.OnAutopilotUpdate -= Update; }
+		public override void Init() { VSL.OnAutopilotUpdate -= Autopilot; VSL.OnAutopilotUpdate += Autopilot; }
+		public override void Reset() { VSL.OnAutopilotUpdate -= Autopilot; }
+		public void Autopilot(FlightCtrlState s) { UpdateState(); OnAutopilotUpdate(s); }
+		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
 
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
 		{

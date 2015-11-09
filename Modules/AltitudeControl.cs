@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.LandedOrSplashed) CFG.DesiredAltitude = -10;
 		}
 
-		public override void UpdateState()
+		protected override void UpdateState()
 		{ IsActive = VSL.OnPlanet && CFG.VF[VFlight.AltitudeControl]; }
 
 		public void SetAltitudeAboveTerrain(bool enable = true)
@@ -82,7 +82,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void Update()
+		protected override void Update()
 		{
 			if(!IsActive) return;
 			SetState(TCAState.AltitudeControl);
