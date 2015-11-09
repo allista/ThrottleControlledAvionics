@@ -109,7 +109,7 @@ ATC
 	InertiaFactor         = 10
 	MoIFactor             = 0.01
 	AngularMomentumFactor = 0.001
-	KillRotThreshold      = 0.0001
+	AngleThreshold        = 10
 }
 
 HSC
@@ -129,19 +129,9 @@ HSC
 		D = 0.0
 	}
 
-	P                     = 0.9
-	If                    = 20
-	MinD                  = 0.02
-	MaxD                  = 0.07
-	MinTf                 = 0.1
-	MaxTf                 = 1
-	InertiaFactor         = 10
-	AngularMomentumFactor = 0.002
-	AccelerationFactor    = 6
+	AccelerationFactor    = 1
 	MinHvThreshold        = 10
-	MoIFactor             = 0.01
 	TWRf                  = 0.8
-	TorF                  = 0.1
 	HVCurve               = 1.2
 }
 

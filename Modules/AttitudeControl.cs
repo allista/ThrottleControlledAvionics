@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinTf = 0.1f,  MaxTf = 1f;
 			[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
 			[Persistent] public float MoIFactor = 0.01f;
-			[Persistent] public float KillRotThreshold = 0.02f;
+			[Persistent] public float AngleThreshold = 25f;
 		}
 		static Config ATC { get { return TCAScenario.Globals.ATC; } }
 
@@ -38,7 +38,8 @@ namespace ThrottleControlledAvionics
 		Transform refT;
 		Quaternion attitude_error, locked_attitude;
 		bool attitude_locked;
-		float last_omega2;
+		Vector3 thrust, lthrust, needed_lthrust, steering;
+		float omega2, last_omega2;
 
 		public AttitudeControl(VesselWrapper vsl) { VSL = vsl; }
 
@@ -56,6 +57,7 @@ namespace ThrottleControlledAvionics
 			reset();
 			if(enable)
 			{
+				Log("============== {0} ==============", CFG.AT.state);//debug
 				VSL.UpdateOnPlanetStats();
 				if(!CFG.AT[Attitude.Custom])
 				{
@@ -75,13 +77,12 @@ namespace ThrottleControlledAvionics
 			attitude_locked = false;
 		}
 
-		void CalculatedRotation()
+		void CalculateSteering()
 		{
 			Vector3 v;
-			var thrust = VSL.Thrust.IsZero()? VSL.MaxThrust : VSL.Thrust;
-			var lthrust = VSL.refT.InverseTransformDirection(thrust);
-			var omega2 = VSL.vessel.angularVelocity.sqrMagnitude;
+			omega2 = VSL.vessel.angularVelocity.sqrMagnitude;
 			attitude_error = Quaternion.identity;
+			needed_lthrust = Vector3.zero;
 			switch(CFG.AT.state)
 			{
 			case Attitude.Custom:
@@ -101,36 +102,65 @@ namespace ThrottleControlledAvionics
 				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
 					VSL.vessel.situation == Vessel.Situations.SUB_ORBITAL? 
 					-VSL.vessel.obt_velocity : -VSL.vessel.srf_velocity;
-				attitude_error = Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(v), lthrust);
+				needed_lthrust = VSL.refT.InverseTransformDirection(v);
 				break;
 			case Attitude.Retrograde:
 				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
 					VSL.vessel.situation == Vessel.Situations.SUB_ORBITAL? 
 					VSL.vessel.obt_velocity : VSL.vessel.srf_velocity;
-				attitude_error = Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(v), lthrust);
+				needed_lthrust = VSL.refT.InverseTransformDirection(v);
 				break;
 			case Attitude.Normal:
-				attitude_error = Quaternion.FromToRotation(-VSL.refT.InverseTransformDirection(orbit.h.xzy), lthrust);
+				needed_lthrust = -VSL.refT.InverseTransformDirection(orbit.h.xzy);
 				break;
 			case Attitude.AntiNormal:
-				attitude_error = Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(orbit.h.xzy), lthrust);
+				needed_lthrust = VSL.refT.InverseTransformDirection(orbit.h.xzy);
 				break;
 			case Attitude.Radial:
-				attitude_error = Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(Vector3.Cross(VSL.vessel.obt_velocity, orbit.h.xzy)), lthrust);
+				needed_lthrust = VSL.refT.InverseTransformDirection(Vector3.Cross(VSL.vessel.obt_velocity, orbit.h.xzy));
 				break;
 			case Attitude.AntiRadial:
-				attitude_error = Quaternion.FromToRotation(-VSL.refT.InverseTransformDirection(Vector3.Cross(VSL.vessel.obt_velocity, orbit.h.xzy)), lthrust);
+				needed_lthrust = -VSL.refT.InverseTransformDirection(Vector3.Cross(VSL.vessel.obt_velocity, orbit.h.xzy));
 				break;
 			case Attitude.ManeuverNode:
 				var solver = VSL.vessel.patchedConicSolver;
 				if(solver == null || solver.maneuverNodes.Count == 0)
 				{ CFG.AT.On(Attitude.KillRot); break; }
-				attitude_error = 
-					Quaternion.FromToRotation(VSL.refT.InverseTransformDirection(-solver.maneuverNodes[0].GetBurnVector(orbit)), lthrust);
+				needed_lthrust = VSL.refT.InverseTransformDirection(-solver.maneuverNodes[0].GetBurnVector(orbit));
 				break;
 			}
-			last_omega2 = omega2;
+			if(!needed_lthrust.IsZero())
+			{
+				thrust = VSL.Thrust.IsZero()? VSL.MaxThrust : VSL.Thrust;
+				lthrust = VSL.refT.InverseTransformDirection(thrust).normalized;
+				needed_lthrust.Normalize();
+				if(Vector3.Angle(needed_lthrust, lthrust) > ATC.AngleThreshold)
+				{
+					//rotational axis
+					var axis = Vector3.Cross(needed_lthrust, lthrust).Exclude(lthrust.MaxI());
+					if(axis.sqrMagnitude < 0.01f) 
+						axis = VSL.MaxAngularA.Exclude(lthrust.MaxI()).MaxComponent();
+					//main rotation component
+					var axis1 = axis.MaxComponent();
+					var lthrust_cmp1 = Vector3.ProjectOnPlane(lthrust, axis1);
+					var needed_lthrust_cmp1 = Vector3.ProjectOnPlane(needed_lthrust, axis1);
+					var angle1 = Vector3.Angle(needed_lthrust_cmp1, lthrust_cmp1);//debug
+					//second rotation component
+					var axis2 = (axis - axis1).MaxComponent();
+					var angle2 = Vector3.Angle(needed_lthrust, needed_lthrust_cmp1);//debug
+					//steering
+					steering = (axis1.normalized * angle1 + axis2.normalized * angle2)*Mathf.Deg2Rad;
+//					Log("\naxis {0}\naxis1 {1}\naxis2 {2}\nangle1 {3}, angle2 {4}, error {5}",
+//					    axis, axis1, axis2, angle1, angle2, steering);//debug
+				}
+				else attitude_error = Quaternion.FromToRotation(needed_lthrust, lthrust);   
+			}
+			if(attitude_error != Quaternion.identity)
+				steering = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
+				                       Utils.CenterAngle(attitude_error.eulerAngles.y),
+				                       Utils.CenterAngle(attitude_error.eulerAngles.z))*Mathf.Deg2Rad;
 			VSL.ResetCustomRotation();
+			last_omega2 = omega2;
 		}
 
 		protected override void Update(FlightCtrlState s)
@@ -141,12 +171,8 @@ namespace ThrottleControlledAvionics
 			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			//allow user to intervene
 			if(UserIntervening(s)) { reset(); return; }
-			//calculate needed rotation
-			CalculatedRotation();
-			//calculate corresponding rotation
-			var steering = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
-			                           Utils.CenterAngle(attitude_error.eulerAngles.y),
-			                           Utils.CenterAngle(attitude_error.eulerAngles.z))*Mathf.Deg2Rad;
+			//calculate needed steering
+			CalculateSteering();
 			AngleError = steering.magnitude*Mathf.Rad2Deg;
 			//tune PID parameters and steering_error
 			var angularM = Vector3.Scale(angularVelocity, VSL.MoI);
@@ -164,7 +190,11 @@ namespace ThrottleControlledAvionics
 			pid.Update(steering, angularVelocity);
 			SetRot(pid.Action, s);
 
+//			Log("\ncontrol {0}\nsteering {1}\naction {2}\n==========================================\n", 
+//			    control, steering*Mathf.Rad2Deg, pid.Action);//debug
+			#if DEBUG
 			ThrottleControlledAvionics.DebugMessage = string.Format("pid: {0}\nerror {1}", pid, steering);//debug
+			#endif
 		}
 	}
 }
