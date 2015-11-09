@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
 		public static Vector3 AbsComponents(this Vector3 v)
 		{ return new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z)); }
 
-		public static Vector3 MaxComponent(this Vector3 v)
+		public static int MaxI(this Vector3 v)
 		{
 			var maxi = 0;
 			var max  = 0f;
@@ -68,10 +68,54 @@ namespace ThrottleControlledAvionics
 				if(Mathf.Abs(v[i]) > Mathf.Abs(max))
 				{ max = v[i]; maxi = i; }
 			}
+			return maxi;
+		}
+
+		public static int MinI(this Vector3 v)
+		{
+			var mini = 0;
+			var min   = float.MaxValue;
+			for(int i = 0; i < 3; i++)
+			{
+				if(Mathf.Abs(v[i]) < Mathf.Abs(min))
+				{ min = v[i]; mini = i; }
+			}
+			return mini;
+		}
+
+		public static int MedI(this Vector3 v)
+		{
+			return v.x < v.y? 
+				(v.x > v.z? 0 : (v.z < v.y? 2 : 1)) : 
+				(v.y > v.z? 1 : (v.z < v.x? 2 : 0));
+		}
+
+		public static Vector3 Component(this Vector3 v, int i)
+		{
 			var ret = Vector3.zero;
-			ret[maxi] = max;
+			ret[i] = v[i];
 			return ret;
 		}
+
+		public static Vector3 Axis(this Vector3 v, int i)
+		{
+			var ret = Vector3.zero;
+			ret[i] = 1;
+			return ret;
+		}
+
+		public static Vector3 Exclude(this Vector3 v, int i)
+		{
+			var ret = v;
+			ret[i] = 0;
+			return ret;
+		}
+
+		public static Vector3 MaxComponent(this Vector3 v)
+		{ return v.Component(v.MaxI()); }
+
+		public static Vector3 MinComponent(this Vector3 v)
+		{ return v.Component(v.MinI()); }
 		#endregion
 
 		#region From blizzy's Toolbar
