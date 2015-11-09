@@ -343,7 +343,7 @@ namespace ThrottleControlledAvionics
 					if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5) set_vspeed(VSP);
 				}
 				TCA.BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
-				                                   new GUIContent("Use throttle",
+				                                   new GUIContent("AutoThrottle",
 				                                                  CFG.VF[VFlight.AltitudeControl]?
 				                                                  "Change altitude with throttle controls" :
 				                                                  "Set vertical speed with throttle controls"), 
