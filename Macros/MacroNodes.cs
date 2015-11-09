@@ -349,14 +349,14 @@ namespace ThrottleControlledAvionics
 		{ VSL.CFG.DisableVSC(); return false; }
 	}
 
-	public class StockSASControlMacroNode : OnOffMacroNode
+	public class StockSASMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ 
 			if(On)
 			{
-				CFG.HF.Off();
-				CFG.AT.Off();
+				VSL.CFG.HF.Off();
+				VSL.CFG.AT.Off();
 				VSL.UnblockSAS();
 			}
 			else VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
