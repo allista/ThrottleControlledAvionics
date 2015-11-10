@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class ModuleTCA : PartModule, ITCAModule
+	public class ModuleTCA : PartModule, ITCAModule, IModuleInfo
 	{
 		#if DEBUG
 		internal static Profiler prof = new Profiler();
@@ -48,7 +48,6 @@ namespace ThrottleControlledAvionics
 		AttitudeControl atc;
 		CruiseControl cc;
 
-
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
@@ -66,8 +65,16 @@ namespace ThrottleControlledAvionics
 		#region Initialization
 		public void OnReloadGlobals() { invoke_in_modules("Init"); }
 
-		public override string GetInfo()
-		{ return HasTCA? "Software Installed" : "Not Available"; }
+		public override string GetInfo() 
+		{ return "Software can be installed"; }
+
+		internal const string TCA_NAME = "TCA";
+		public string GetModuleTitle() { return TCA_NAME; }
+
+		public string GetPrimaryField()
+		{ return "<b>TCA:</b> "+TCAScenario.ModuleStatusString(); }
+
+		public Callback<Rect> GetDrawModulePanelCallback() { return null; }
 
 		public override void OnAwake()
 		{

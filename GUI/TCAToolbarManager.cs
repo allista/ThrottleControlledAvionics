@@ -14,7 +14,7 @@ namespace ThrottleControlledAvionics
 	/// TCA toolbar manager. It is needed as since KSP-1.0 the ApplicationLauncher
 	/// works differently: it only fires OnReady event at MainMenu and the first 
 	/// time the Spacecenter is loaded. Thus we need to register the AppButton only 
-	/// once and then just hide and show it using VisibleScenes, not removing int.
+	/// once and then just hide and show it using VisibleScenes, not removing it.
 	/// IMHO, this is a bug in the RemoveModApplication method, cause if you use
 	/// Add/RemoveModApp repeatedly, the buttons are duplicated each time.
 	/// </summary>
@@ -98,18 +98,8 @@ namespace ThrottleControlledAvionics
 				TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible; 
 			EnginesProfileEditor.GUIVisible = !EnginesProfileEditor.GUIVisible; 
 		}
-
-		void onAppLaunchToggleOn() 
-		{ 
-			if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = true; 
-			EnginesProfileEditor.GUIVisible = true;
-		}
-
-		void onAppLaunchToggleOff() 
-		{ 
-			if(TCA != null && TCA.Controllable) TCA.CFG.GUIVisible = false; 
-			EnginesProfileEditor.GUIVisible = false;
-		}
+		void onAppLaunchToggleOn() { onToolbarToggle(null); }
+		void onAppLaunchToggleOff() { onToolbarToggle(null); }
 
 		public static void AttachTCA(ModuleTCA tca)
 		{

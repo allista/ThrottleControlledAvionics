@@ -68,6 +68,11 @@ namespace ThrottleControlledAvionics
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
 		public static bool ConfigsLoaded { get; private set; }
 
+		#region ModuleInfo
+		public static string ModuleStatusString()
+		{ return ModuleTCA.HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
+		#endregion
+
 		#region From KSPPluginFramework
 		static public string PluginFolder(string filename)
 		{ return Path.Combine(_AssemblyFolder, "../"+filename).Replace("\\","/"); }

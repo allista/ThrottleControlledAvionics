@@ -38,6 +38,18 @@ namespace ThrottleControlledAvionics
 			GameEvents.onEditorShipModified.Add(OnShipModified);
 			GameEvents.onEditorLoad.Add(OnShipLoad);
 			GameEvents.onEditorRestart.Add(Reset);
+			TCAToolbarManager.SetDefaultButton();
+			TCAToolbarManager.ShowButton(false);
+			//update TCA part infos
+			foreach(var ap in PartLoader.LoadedPartsList)
+			{
+				foreach(var mi in ap.moduleInfos)
+				{
+					if(mi.moduleName != ModuleTCA.TCA_NAME) continue;
+					mi.info = TCAScenario.ModuleStatusString();
+					mi.primaryInfo = "<b>TCA:</b> "+mi.info;
+				}
+			}
 		}
 
 		public override void OnDestroy ()
@@ -54,10 +66,10 @@ namespace ThrottleControlledAvionics
 		void OnShipLoad(ShipConstruct ship, CraftBrowser.LoadType load_type)
 		{ init_engines = load_type == CraftBrowser.LoadType.Normal; }
 
-		void GetCFG(ShipConstruct ship)
+		bool GetCFG(ShipConstruct ship)
 		{
 			var TCA_Modules = ModuleTCA.AllTCA(ship);
-			if(TCA_Modules.Count == 0) { Reset(); return; }
+			if(TCA_Modules.Count == 0) { Reset(); return false; }
 			CFG = null;
 			foreach(var tca in TCA_Modules)
 			{
@@ -73,6 +85,7 @@ namespace ThrottleControlledAvionics
 			else CFG.ActiveProfile.Apply(Engines);
 			CFG.ActiveProfile.Update(Engines);
 			UpdateCFG(TCA_Modules);
+			return true;
 		}
 
 		void UpdateCFG(IList<ModuleTCA> TCA_Modules)
@@ -89,18 +102,16 @@ namespace ThrottleControlledAvionics
 			Engines.Clear();
 			if(ModuleTCA.HasTCA) 
 			{ 
-				TCAToolbarManager.SetDefaultButton();
-				TCAToolbarManager.ShowButton();
 				foreach(Part p in ship.Parts)
 					foreach(var module in p.Modules)
 					{	
 						var engine = module as ModuleEngines;
 						if(engine != null) Engines.Add(new EngineWrapper(engine)); 
 					}
-				if(Engines.Count > 0) return true;
 			}
-			Reset();
-			return false;
+			var ret = Engines.Count > 0;
+			if(!ret) Reset();
+			return ret;
 		}
 
 		void OnShipModified(ShipConstruct ship) { update_engines = true; }
@@ -109,6 +120,22 @@ namespace ThrottleControlledAvionics
 		void Update()
 		{
 			if(EditorLogic.fetch == null) return;
+			if(init_engines)
+			{
+				if(UpdateEngines(EditorLogic.fetch.ship))
+					GetCFG(EditorLogic.fetch.ship);
+				init_engines = false;
+			}
+			if(update_engines)
+			{
+				if(UpdateEngines(EditorLogic.fetch.ship))
+				{
+					if(CFG != null) UpdateCFG(EditorLogic.fetch.ship);
+					else GetCFG(EditorLogic.fetch.ship);
+					if(CFG != null) CFG.ActiveProfile.Update(Engines);
+				}
+				update_engines = false;
+			}
 			if(reset)
 			{
 				TCAToolbarManager.ShowButton(false);
@@ -116,21 +143,8 @@ namespace ThrottleControlledAvionics
 				CFG = null;
 				reset = false;
 			}
-			if(init_engines)
-			{
-				if(UpdateEngines(EditorLogic.fetch.ship)) 
-					GetCFG(EditorLogic.fetch.ship);
-				else TCAToolbarManager.ShowButton(false);
-				init_engines = false;
-			}
-			if(update_engines)
-			{
-				if(!UpdateEngines(EditorLogic.fetch.ship)) return;
-				if(CFG == null) GetCFG(EditorLogic.fetch.ship);
-				else UpdateCFG(EditorLogic.fetch.ship);
-				if(CFG != null) CFG.ActiveProfile.Update(Engines);
-				update_engines = false;
-			}
+			else if(CFG != null && Engines.Count > 0)
+				TCAToolbarManager.ShowButton();
 		}
 
 		protected override void DrawMainWindow(int windowID)
