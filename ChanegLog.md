@@ -2,7 +2,10 @@
     
 _**BUT** do not delete the TCA.conf and config.xml file to preserve your settings_
 
-* **v2.3.0.1**
+* **v2.3.0.2**
+    * Recompiled for KSP-1.0.5.
+
+* v2.3.0.1
     * Fixed issues with engines' balancing when Vertical Speed Control is disabled.
     * Fixed handling of flameouted engines.
     * Fixed issues with changing TCA key on some OSes.
