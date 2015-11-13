@@ -43,6 +43,7 @@ namespace ThrottleControlledAvionics
 		FlightStabilizer stb;
 		CollisionPreventionSystem cps;
 		MacroProcessor mpr;
+		ManeuverAutopilot man;
 
 		HorizontalSpeedControl hsc;
 		AttitudeControl atc;
@@ -56,7 +57,6 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public float TorqueError { get { return eng == null? 0f : eng.TorqueError; } }
 		#endif
-		public float AttitudeError { get { return atc == null? 0f : atc.AngleError; } }
 		public bool  Available { get { return enabled && VSL != null; } }
 		public bool  Controllable { get { return Available && vessel.IsControllable; } }
 		public static bool HasTCA { get { return !GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCAGlobals.TCA_PART); } }
@@ -278,9 +278,9 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateCommons();
 			VSL.UpdateOnPlanetStats();
 			VSL.UpdateBounds();
+			vessel.OnAutopilotUpdate += block_throttle;
 			create_modules();
 			modules.ForEach(m => m.Init());
-			vessel.OnAutopilotUpdate += block_throttle;
 			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
 			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowTarget)) 
 				pn.GoToTarget(VSL.vessel.targetObject != null);
@@ -330,6 +330,7 @@ namespace ThrottleControlledAvionics
 		void block_throttle(FlightCtrlState s)
 		{ 
 			if(!CFG.Enabled) return;
+			VSL.UpdateAutopilotInfo(s);
 			if(CFG.BlockThrottle) 
 				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
 			else 
@@ -370,6 +371,7 @@ namespace ThrottleControlledAvionics
 				VSL.UpdateOnPlanetStats();
 				//these follow specific order
 				mpr.OnFixedUpdate();
+				man.OnFixedUpdate();
 				rad.OnFixedUpdate();//sets AltitudeAhead
 				lnd.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
 				alt.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff

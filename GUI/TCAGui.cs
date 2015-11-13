@@ -118,6 +118,7 @@ namespace ThrottleControlledAvionics
 			SelectConfig_start();
 			AdvancedOptions();
 			AttitudeControls();
+			ManeuverControl();
 			AutopilotControls();
 			MacroControls();
 			WaypointList();
@@ -239,9 +240,29 @@ namespace ThrottleControlledAvionics
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.Toggle(Attitude.AntiNormal);
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? 
-			                    Styles.green_button : Styles.grey_button, GUILayout.ExpandWidth(false)))
+			                    Styles.green_button : Styles.grey, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
-			GUILayout.Label(string.Format("Err: {0:F1}°", TCA.AttitudeError), Styles.white, GUILayout.ExpandWidth(true));
+			GUILayout.Label(string.Format("Err: {0:F1}°", VSL.AttitudeError), Styles.white, GUILayout.ExpandWidth(true));
+			GUILayout.EndHorizontal();
+		}
+
+		static void ManeuverControl()
+		{
+			if(!VSL.HasManeuverNode) return;
+			GUILayout.BeginHorizontal();
+			if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Next Maneuver", 
+			                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
+				CFG.AP.Toggle(Autopilot.Maneuver);
+			if(CFG.AP[Autopilot.Maneuver])
+			{
+				if(GUILayout.Button("Warp", CFG.WarpToNode? Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				{
+					CFG.WarpToNode = !CFG.WarpToNode;
+					if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
+				}
+				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Countdown), Styles.white, GUILayout.ExpandWidth(true));
+				GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.TTB), Styles.yellow, GUILayout.ExpandWidth(true));
+			}
 			GUILayout.EndHorizontal();
 		}
 
@@ -512,7 +533,7 @@ namespace ThrottleControlledAvionics
 					apply_cfg(cfg => cfg.MaxNavSpeed = max_nav_speed);
 				GUILayout.EndHorizontal();
 			}
-			else GUILayout.Label("Autopilot Not Available In Orbit", Styles.grey, GUILayout.ExpandWidth(true));
+//			else GUILayout.Label("Autopilot Not Available In Orbit", Styles.grey, GUILayout.ExpandWidth(true));
 		}
 
 		static bool selecting_macro;

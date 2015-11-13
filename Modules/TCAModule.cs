@@ -64,16 +64,6 @@ namespace ThrottleControlledAvionics
 			VSL.vessel.targetObject = t;
 		}
 
-		protected bool UserIntervening(FlightCtrlState s)
-		{
-			return !Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
-				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
-				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);// || 
-			//				Mathf.Abs(s.X) > 0.1f ||
-			//				Mathf.Abs(s.Y) > 0.1f ||
-			//				Mathf.Abs(s.Z) > 0.1f;
-		}
-
 		#region SquadMode
 		public void SquadAction(Action<VesselWrapper> action)
 		{
@@ -101,16 +91,25 @@ namespace ThrottleControlledAvionics
 
 	public abstract class AutopilotModule : TCAModule
 	{
-		public override void Init() { VSL.OnAutopilotUpdate -= Autopilot; VSL.OnAutopilotUpdate += Autopilot; }
-		public override void Reset() { VSL.OnAutopilotUpdate -= Autopilot; }
-		public void Autopilot(FlightCtrlState s) { UpdateState(); OnAutopilotUpdate(s); }
+		public override void Init() { VSL.OnAutopilotUpdate -= UpdateCtrlState; VSL.OnAutopilotUpdate += UpdateCtrlState; }
+		public override void Reset() { VSL.OnAutopilotUpdate -= UpdateCtrlState; }
+		public void UpdateCtrlState(FlightCtrlState s) { UpdateState(); OnAutopilotUpdate(s); }
 		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
+
+		protected void DisableSAS()
+		{
+			// Disable the new SAS so it won't interfere. But enable it while in timewarp for compatibility with PersistentRotation
+			if (TimeWarp.WarpMode != TimeWarp.Modes.HIGH || TimeWarp.CurrentRateIndex == 0)
+				VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
+		}
 
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
 		{
-			s.pitch = s.pitchTrim = rot.x;
-			s.roll = s.rollTrim = rot.y;
-			s.yaw = s.yawTrim = rot.z;
+			s.pitch = rot.x;
+			s.roll = rot.y;
+			s.yaw = rot.z;
+//			Log("Set Rot: {0}:{1}, {2}:{3}, {4}:{5}", 
+//			    s.pitch, s.pitchTrim, s.roll, s.rollTrim, s.yaw, s.yawTrim);//debug 
 		}
 	}
 }

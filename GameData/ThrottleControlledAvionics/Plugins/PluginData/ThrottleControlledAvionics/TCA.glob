@@ -102,7 +102,7 @@ ATC
 {
 	P                     = 0.5
 	I                     = 0.01
-	MinD                  = 0.001
+	MinD                  = 0.0001
 	MaxD                  = 0.05
 	MinTf                 = 0.1
 	MaxTf                 = 1
@@ -110,6 +110,7 @@ ATC
 	MoIFactor             = 0.01
 	AngularMomentumFactor = 0.001
 	AngleThreshold        = 10
+	MaxEf                 = 4
 }
 
 HSC
@@ -270,5 +271,15 @@ STB
 {
 	Timer = 2;
 	MinAngularVelocity = 0.001
+}
+
+MAN
+{
+	MinDeltaV        = 0.1 //m/s
+	MaxAttitudeError = 10  //deg
+	AlignedF         = 0.3
+	DeltaVThreshold  = 10  //sec
+	DewarpTime       = 15  //sec
+	MaxWarp          = 10000
 }
 //:mode=c#:

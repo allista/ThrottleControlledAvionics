@@ -129,6 +129,7 @@ namespace ThrottleControlledAvionics
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && CFG.HF && VSL.refT != null && VSL.OnPlanet)) return;
+			if(VSL.AutopilotDisabled) return;
 			CFG.AT.OnIfNot(Attitude.Custom);
 			//set forward direction
 			VSL.ForwardDirection = VSL.NeededHorVelocity;

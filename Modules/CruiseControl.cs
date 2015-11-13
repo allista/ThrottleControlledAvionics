@@ -88,9 +88,9 @@ namespace ThrottleControlledAvionics
 			     CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl) && 
 			     VSL.OnPlanet && VSL.refT != null && 
 			     !VSL.ForwardDirection.IsZero())) return;
-			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
+			DisableSAS();
 			//allow user to intervene
-			if(UserIntervening(s)) 
+			if(VSL.AutopilotDisabled) 
 			{ pid.Reset(); VSL.SetNeededHorVelocity(VSL.HorizontalVelocity); return; }
 			//update needed velocity
 			if(CFG.HF[HFlight.CruiseControl])

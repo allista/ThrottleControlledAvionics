@@ -1075,21 +1075,20 @@ def loadCSV(filename, columns=None, header=None):
     df = pa.read_csv(filename, header=header, names=columns)
     return df
 
-def drawDF(df, columns, colors=None, axes=None):
+def drawDF(df, x, columns, colors=None, axes=None):
     from collections import Counter
-    l = df.shape[0]
-    L = df.L if 'L' in df else np.arange(0, l, 1)
     if axes is not None:
         num_axes = Counter(axes)
         nrows = max(num_axes.values())
         ncols = len(num_axes.keys())
+    X = df[x]
     if colors is None: colors = color_grad(len(columns))
     for i, k in enumerate(columns):
         if axes is None:
-            plt.plot(L, df[k], label=k, color=colors[i])
+            plt.plot(X, df[k], label=k, color=colors[i])
         else:
             plt.subplot(nrows, ncols, ncols*(i%nrows)+axes[i])
-            plt.plot(L, df[k], label=k, color=colors[i])
+            plt.plot(X, df[k], label=k, color=colors[i])
             plt.ylabel(k)
 #     plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.0)
     plt_show_maxed()
@@ -1140,7 +1139,7 @@ def addL(df):
         L = np.arange(0, df.shape[0], 1)
     df['L'] = pa.Series(L, index=df.index)
 
-def analyzeCSV(filename, header, cols=None, axes=(), region = None):
+def analyzeCSV(filename, header, cols=None, x=None, axes=(), region = None):
     df = loadCSV(filename, header)
     if 'name' in df:
         del df['name']
@@ -1149,6 +1148,8 @@ def analyzeCSV(filename, header, cols=None, axes=(), region = None):
         df.AltitudeAhead[df.AltitudeAhead > 10000] = 0
     if 'Alt' in df:
         df = df[df.Alt > 3].reset_index()
+    if 'UT' in df:
+        df['UT'] -= df.UT[0]
     addL(df)
     #slice by L
     if region:
@@ -1162,7 +1163,8 @@ def analyzeCSV(filename, header, cols=None, axes=(), region = None):
     if cols is None: 
         cols = list(df.keys())
         if 'L' in cols: cols.remove('L')
-    drawDF(df, cols, axes=[1]*len(cols) if axes is () else axes)
+        if x in cols: cols.remove(x)
+    drawDF(df, 'L' if x is None else x, cols, axes=[1]*len(cols) if axes is () else axes)
 
 
 def sim_PointNav():
@@ -1228,13 +1230,11 @@ if __name__ == '__main__':
 # #                ['AltAhead']
 #                 , (13,))
 
-    analyzeCSV('Debugging/pn-follow-target1.csv',
+    analyzeCSV('Debugging/MAN1.csv',
                ('name',
-                'distance', 'cur_vel', 
-               'DeltaSpeed', 'eta', 'brake_time', 'Max', 'Action'),
-               ('distance', 'cur_vel', 'brake_time', 'Action'),
-               (),
-                (1500,))
+                'UT', 'dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
+               ('dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
+               x='UT')
 
 #     analyzeCSV('Debugging/vertical-overshooting-bug.csv',
 #                ('name',
