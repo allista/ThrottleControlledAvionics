@@ -78,7 +78,7 @@ namespace ThrottleControlledAvionics
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position - 
 			                                  (VSL.wCoM+
-			                                   VSL.PredictedSrfVelocity(ANC.LookAheadTime)*ANC.LookAheadTime), 
+			                                   VSL.HorizontalVelocity*ANC.LookAheadTime), 
 			                                  VSL.Up);
 			var distance = vdir.magnitude;
 			vdir.Normalize();
