@@ -10,6 +10,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -280,6 +281,67 @@ namespace ThrottleControlledAvionics
 
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.CFG.EnginesProfiles.Activate(Profile); return false; }
+	}
+
+	public class SetEngineParamsMacroNode : MacroNode
+	{
+		[Persistent] public EngineConfig Config = new EngineConfig();
+		[Persistent] public int Group;
+		Vector2 scroll;
+		bool show_single;
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginHorizontal();
+			if(Edit)
+			{ 
+				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Group = Utils.IntSelector(Group, 0, tooltip: "Group ID");
+				if(CFG != null && CFG.ActiveProfile != null && CFG.ActiveProfile.Single.Count > 0)
+				{
+					GUILayout.BeginVertical();
+					if(GUILayout.Button("Show Single Engines", Styles.normal_button, GUILayout.ExpandWidth(true)))
+						show_single = !show_single;
+					if(show_single)
+					{
+						scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandWidth(true), GUILayout.Height(70));
+						GUILayout.BeginVertical();
+						foreach(var k in CFG.ActiveProfile.Single.DB.Keys)
+						{
+							var p = CFG.ActiveProfile.Single[k];
+							if(GUILayout.Button(p.Name, Styles.normal_button, GUILayout.ExpandWidth(true)))
+								Config.Name = p.Name;
+						}
+						GUILayout.EndVertical();
+						GUILayout.EndScrollView();
+					}
+					GUILayout.EndVertical();
+				}
+				Config.Draw();
+			}
+			else Edit |= GUILayout.Button(Name+": "+Config.Name, Styles.normal_button);
+			GUILayout.EndHorizontal();
+		}
+
+		protected override bool Action(VesselWrapper VSL)
+		{ 
+			if(VSL.CFG.ActiveProfile == null) return false;
+			if(Group > 0 && Group < VSL.CFG.ActiveProfile.Groups.Count)
+			{
+				VSL.CFG.ActiveProfile.Groups[Group].Update(Config);
+				VSL.CFG.ActiveProfile.Changed = true;
+			}
+			else
+			{
+				var c = VSL.CFG.ActiveProfile.Single.DB.FirstOrDefault(it => it.Value.Name == Config.Name).Value;
+				if(c != null) 
+				{
+					c.Update(Config);
+					VSL.CFG.ActiveProfile.Changed = true;
+				}
+			}
+			return false; 
+		}
 	}
 
 	public class FollowTerrainMacroNode : OnOffMacroNode
