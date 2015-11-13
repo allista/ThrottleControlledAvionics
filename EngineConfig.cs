@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
 		new public const string NODE_NAME = "ENGINECFG";
 		const float lim_eps = 1e-5f;
 
-		[Persistent] public string Name;
+		[Persistent] public string Name = "";
 		[Persistent] public bool On;
 		[Persistent] public float Limit;
 		[Persistent] string role;
@@ -30,8 +30,9 @@ namespace ThrottleControlledAvionics
 		public EngineConfig() {}
 		public EngineConfig(EngineWrapper e) 
 		{ Name = e.Group > 0? ("Group "+e.Group) : e.name; Update(e, true); }
+		public EngineConfig(EngineConfig c)	{ Update(c); }
 
-		public EngineConfig(EngineConfig c)
+		public void Update(EngineConfig c)
 		{
 			Name  = c.Name;
 			On    = c.On;
