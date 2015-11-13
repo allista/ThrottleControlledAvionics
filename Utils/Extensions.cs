@@ -44,7 +44,13 @@ namespace ThrottleControlledAvionics
 			return max.Equals(0)? c : new Color(c.r / max, c.g / max, c.b / max);
 		}
 
-		public static Vector3 Inverse(this Vector3 v) { return new Vector3(1f/v.x, 1f/v.y, 1f/v.z); }
+		public static Vector3 Inverse(this Vector3 v, float nan=float.MaxValue) 
+		{ 
+			return new Vector3(
+			v.x.Equals(0)? nan : 1f/v.x, 
+			v.y.Equals(0)? nan : 1f/v.y, 
+			v.z.Equals(0)? nan : 1f/v.z); 
+		}
 
 		public static Vector3 ClampComponents(this Vector3 v, float min, float max) 
 		{ 
