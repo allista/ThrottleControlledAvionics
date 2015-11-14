@@ -131,7 +131,7 @@ namespace ThrottleControlledAvionics
 		void finish()
 		{
 			SetTarget(null);
-			CFG.HF.On(HFlight.Stop);
+			CFG.HF.XOn(HFlight.Stop);
 			reset_formation();
 		}
 
@@ -139,7 +139,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(CFG.Target == null) return false;
 			if(CFG.Target.Pause) { PauseMenu.Display(); CFG.Target.Pause = false; }
-			if(CFG.Target.Land)	{ CFG.AP.OnIfNot(Autopilot.Land); return true; }
+			if(CFG.Target.Land)	{ CFG.AP.XOn(Autopilot.Land); return true; }
 			return false;
 		}
 
