@@ -165,12 +165,13 @@ namespace ThrottleControlledAvionics
 				{
 					var rVl   = VSL.refT.InverseTransformDirection(rV);
 					//correction for low TWR
-					var upF   = Vector3.Dot(thrust, rVl) < 0? 1 : Utils.Clamp(VSL.MaxTWR*0.70710678f/HSC.TWRf, 1e-9, 1); //MaxTWR at 45deg
+					var twr   = VSL.SlowEngines? VSL.DTWR : VSL.MaxTWR*0.70710678f; //MaxTWR at 45deg
+					var upF   = Utils.Clamp(twr/HSC.TWRf, 1e-9, 1);
 					var MaxHv = Utils.ClampL(Vector3d.Project(acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
 					needed_thrust_dir = rVl.normalized - VSL.UpL*Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), 1)/upF*Utils.ClampL(fVm/rVm, 1);
 //					Log("upF {0}, MaxHv {1}, downF {2}\n" +
-//					    "rV {3}\nhV {4}\nMT {5}\nneeded_thrust {6}", upF, MaxHv, Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), 1)/upF*Utils.ClampL(fVm/rVm, 1), 
-//					    rVl, VSL.refT.InverseTransformDirection(hV), VSL.refT.InverseTransformDirection(VSL.ManualThrust), needed_thrust_dir);//debug
+//					    "rV {3}\nhV {4}\nMT {5}\nneeded_thrust {6}\ntwr {7}", upF, MaxHv, Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), 1)/upF*Utils.ClampL(fVm/rVm, 1), 
+//					    rVl, VSL.refT.InverseTransformDirection(hV), VSL.refT.InverseTransformDirection(VSL.ManualThrust), needed_thrust_dir, twr);//debug
 				}
 				if(hVm > HSC.TranslationLowerThreshold)
 				{
@@ -247,8 +248,6 @@ namespace ThrottleControlledAvionics
 				GLUtils.GLVec(VSL.wCoM+VSL.Up*2,  VSL.ForwardDirection, Color.green);
 			if(!VSL.CourseCorrection.IsZero())
 				GLUtils.GLVec(VSL.wCoM+VSL.Up*3, VSL.CourseCorrection, Color.blue);
-//			if(!needed_thrust_dir.IsZero())
-//				GLUtils.GLVec(VSL.wCoM, VSL.refT.TransformDirection(needed_thrust_dir.normalized)*20, Color.yellow);
 		}
 
 		public override void Reset()
