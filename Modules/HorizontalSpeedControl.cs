@@ -78,7 +78,6 @@ namespace ThrottleControlledAvionics
 			translation_pid.Reset();
 			if(enable) 
 			{
-				CFG.Nav.Off();
 				CFG.AT.OnIfNot(Attitude.Custom);
 				VSL.UpdateOnPlanetStats();
 				VSL.SetNeededHorVelocity(Vector3d.zero);
@@ -96,7 +95,7 @@ namespace ThrottleControlledAvionics
 			translation_pid.Reset();
 			if(enable) 
 			{
-				CFG.AT.On(Attitude.Custom);
+				CFG.AT.OnIfNot(Attitude.Custom);
 				VSL.UpdateOnPlanetStats();
 			}
 			else 
@@ -248,8 +247,8 @@ namespace ThrottleControlledAvionics
 				GLUtils.GLVec(VSL.wCoM+VSL.Up*2,  VSL.ForwardDirection, Color.green);
 			if(!VSL.CourseCorrection.IsZero())
 				GLUtils.GLVec(VSL.wCoM+VSL.Up*3, VSL.CourseCorrection, Color.blue);
-			if(!needed_thrust_dir.IsZero())
-				GLUtils.GLVec(VSL.wCoM, VSL.refT.TransformDirection(needed_thrust_dir.normalized)*20, Color.yellow);
+//			if(!needed_thrust_dir.IsZero())
+//				GLUtils.GLVec(VSL.wCoM, VSL.refT.TransformDirection(needed_thrust_dir.normalized)*20, Color.yellow);
 		}
 
 		public override void Reset()

@@ -402,7 +402,7 @@ namespace ThrottleControlledAvionics
 				eng.Steer();
 			}
 			rcs.Steer();
-			VSL.SetThrustLimiters();
+			VSL.SetEnginesControls();
 		}
 	}
 }

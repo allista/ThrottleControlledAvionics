@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
 			pid.Reset();
 			BlockSAS(enable);
 			if(enable) VSL.UpdateOnPlanetStats();
-			else { CFG.Anchor = null; CFG.HF.On(HFlight.Stop); }
+			else CFG.Anchor = null;
 		}
 
 		public void AnchorHere(bool enable = true)

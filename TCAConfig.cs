@@ -104,7 +104,7 @@ Notes:
 		public override void Save(ConfigNode node) {}
 	}
 
-	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, ManeuverNode, Custom }
+	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, Target, AntiTarget, ManeuverNode, Custom }
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
@@ -164,6 +164,14 @@ Notes:
 		[Persistent] public TCAMacroLibrary Macros = new TCAMacroLibrary();
 		[Persistent] public TCAMacro SelectedMacro;
 		[Persistent] public bool MacroIsActive;
+		public void StopMacro()
+		{
+			if(SelectedMacro != null && MacroIsActive)
+			{
+				MacroIsActive = false;
+				SelectedMacro.Rewind();
+			}
+		}
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
@@ -172,6 +180,10 @@ Notes:
 		{
 			VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed;
 			Engines.setPI(TCAScenario.Globals.ENG.EnginesPI);
+			AT.AddConflicts(HF, Nav, AP);
+			HF.AddConflicts(AT, Nav, AP);
+			Nav.AddConflicts(AT, HF, AP);
+			AP.AddConflicts(AT, Nav, HF);
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
 		public VesselConfig(Guid vid) : this() { VesselID = vid; }

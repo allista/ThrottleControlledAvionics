@@ -57,12 +57,7 @@ namespace ThrottleControlledAvionics
 		{
 			pid.Reset();
 			UpdateTimer.Reset();
-			if(enable) 
-			{
-				CFG.AT.Off();
-				CFG.Nav.Off();
-				VSL.UpdateOnPlanetStats();
-			}
+			if(enable) VSL.UpdateOnPlanetStats();
 			BlockSAS(enable);
 			VSL.SetNeededHorVelocity(enable? VSL.HorizontalVelocity : Vector3d.zero);
 		}

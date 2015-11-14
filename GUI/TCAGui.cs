@@ -108,9 +108,9 @@ namespace ThrottleControlledAvionics
 			                    GUILayout.Width(70)))
 				Apply(tca => tca.ToggleTCA());
 			//squad mode switch
-			squad_mode = GUILayout.Toggle(squad_mode, 
-			                              new GUIContent("Squadron Mode", "Control autopilot on all squadron vessels"), 
-			                              GUILayout.ExpandWidth(false));
+			Utils.ButtonSwitch("Squadron Mode", ref squad_mode, 
+			                   "Control autopilot on all squadron vessels", 
+			                   GUILayout.ExpandWidth(false));
 			if(squad_mode) CFG.Squad = Utils.IntSelector(CFG.Squad, 1, tooltip: "Squad ID");
 			GUILayout.FlexibleSpace();
 			StatusString();
@@ -211,34 +211,40 @@ namespace ThrottleControlledAvionics
 		{
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
-			                Styles.label, GUILayout.ExpandWidth(false));
-			if(GUILayout.Button(new GUIContent("Stop", "Stop rotation"), CFG.AT[Attitude.KillRotation]? 
+			                CFG.AT? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false));
+			if(GUILayout.Button(new GUIContent("Kill", "Kill rotation"), CFG.AT[Attitude.KillRotation]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.KillRotation);
+				CFG.AT.XToggle(Attitude.KillRotation);
 			if(GUILayout.Button(new GUIContent("Hold", "Hold current attitude"), CFG.AT[Attitude.HoldAttitude]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.HoldAttitude);
+				CFG.AT.XToggle(Attitude.HoldAttitude);
 			if(GUILayout.Button(new GUIContent("Maneuver", "Maneuver node"), CFG.AT[Attitude.ManeuverNode]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.ManeuverNode);
+				CFG.AT.XToggle(Attitude.ManeuverNode);
 			if(GUILayout.Button(new GUIContent("PG", "Prograde"), CFG.AT[Attitude.Prograde]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.Prograde);
+				CFG.AT.XToggle(Attitude.Prograde);
 			if(GUILayout.Button(new GUIContent("RG", "Retrograde"), CFG.AT[Attitude.Retrograde]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.Retrograde);
+				CFG.AT.XToggle(Attitude.Retrograde);
 			if(GUILayout.Button(new GUIContent("R+", "Radial"), CFG.AT[Attitude.Radial]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.Radial);
+				CFG.AT.XToggle(Attitude.Radial);
 			if(GUILayout.Button(new GUIContent("R-", "AntiRadial"), CFG.AT[Attitude.AntiRadial]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.AntiRadial);
+				CFG.AT.XToggle(Attitude.AntiRadial);
 			if(GUILayout.Button(new GUIContent("N+", "Normal"), CFG.AT[Attitude.Normal]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.Normal);
+				CFG.AT.XToggle(Attitude.Normal);
 			if(GUILayout.Button(new GUIContent("N-", "AntiNormal"), CFG.AT[Attitude.AntiNormal]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
-				CFG.AT.Toggle(Attitude.AntiNormal);
+				CFG.AT.XToggle(Attitude.AntiNormal);
+			if(GUILayout.Button(new GUIContent("T+", "Target"), CFG.AT[Attitude.Target]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.Target);
+			if(GUILayout.Button(new GUIContent("T-", "AntiTarget"), CFG.AT[Attitude.AntiTarget]? 
+			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.AntiTarget);
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? 
 			                    Styles.green_button : Styles.grey, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
@@ -252,7 +258,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Next Maneuver", 
 			                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
-				CFG.AP.Toggle(Autopilot.Maneuver);
+				CFG.AP.XToggle(Autopilot.Maneuver);
 			if(CFG.AP[Autopilot.Maneuver])
 			{
 				if(GUILayout.Button("Warp", CFG.WarpToNode? Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
@@ -394,56 +400,38 @@ namespace ThrottleControlledAvionics
 				                    CFG.HF[HFlight.Stop]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
 				{
-					var state = !CFG.HF[HFlight.Stop];
-						apply_cfg(cfg =>
-					{
-						cfg.HF[HFlight.Stop] = state;
-						if(state) { cfg.Nav.Off(); cfg.AP.Off(); }
-					});
-					if(CFG.SelectedMacro != null && CFG.MacroIsActive)
-					{
-						CFG.MacroIsActive = false;
-						CFG.SelectedMacro.Rewind();
-					}
+					if(CFG.HF[HFlight.Stop]) apply_cfg(cfg => cfg.HF.OffIfOn(HFlight.Stop));
+					else apply_cfg(cfg => { cfg.HF.XOn(HFlight.Stop); cfg.StopMacro(); });
 				}
 				if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
 				                    CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor)? 
 				                    Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(60)))
-				{
-					var state = !CFG.Nav[Navigation.Anchor];
-					apply_cfg(cfg => cfg.Nav[Navigation.AnchorHere] = state);
-				}
+					apply_cfg(cfg => cfg.Nav.XToggle(Navigation.AnchorHere));
 				if(GUILayout.Button(new GUIContent("Level", "Point thrust vertically"), 
 				                    CFG.HF[HFlight.Level]? 
 				                    Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
-				{
-					var state = !CFG.HF[HFlight.Level];
-					apply_cfg(cfg => cfg.HF[HFlight.Level] = state);
-				}
+					apply_cfg(cfg => cfg.HF.XToggle(HFlight.Level));
 				if(GUILayout.Button(new GUIContent("Land", "Try to land on a nearest flat surface"), 
 				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
 				{
 					var state = !CFG.AP[Autopilot.Land];
-					if(state) { follow_me(); CFG.AP.On(Autopilot.Land); }
-					else apply_cfg(cfg => cfg.AP[Autopilot.Land] = false);
+					if(state) { follow_me(); CFG.AP.XOn(Autopilot.Land); }
+					else apply_cfg(cfg => cfg.AP.XOffIfOn(Autopilot.Land));
 				}
 				if(GUILayout.Button(new GUIContent("Cruise", "Maintain course and speed"), 
 				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(60)))
 				{
-					CFG.HF.Toggle(HFlight.CruiseControl);
+					CFG.HF.XToggle(HFlight.CruiseControl);
 					if(CFG.HF[HFlight.CruiseControl]) follow_me();
 				}
 				if(GUILayout.Button(new GUIContent("Hover", "Maintain altitude"), 
 				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(60)))
-				{
-					var state = !CFG.VF[VFlight.AltitudeControl];
-					apply_cfg(cfg => cfg.VF[VFlight.AltitudeControl] = state);
-				}
+					apply_cfg(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
 				var follow_terrain = GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
 				                                      new GUIContent("Follow Terrain", 
 				                                                     "Keep altitude above the ground and avoid collisions"),
@@ -460,10 +448,8 @@ namespace ThrottleControlledAvionics
 					                    : Styles.yellow_button,
 					                    GUILayout.Width(50)))
 					{
-						
-						CFG.Nav.On(Navigation.GoToTarget);
-						if(CFG.Nav[Navigation.GoToTarget])
-							follow_me();
+						CFG.Nav.XOn(Navigation.GoToTarget);
+						if(CFG.Nav[Navigation.GoToTarget]) follow_me();
 					}
 					if(GUILayout.Button(new GUIContent("Follow", "Follow current target"), 
 						CFG.Nav[Navigation.FollowTarget]? Styles.green_button 
@@ -473,7 +459,7 @@ namespace ThrottleControlledAvionics
 					{
 						if(TCA.vessel.targetObject as Vessel == tca.vessel) return;
 						tca.vessel.targetObject = TCA.vessel.targetObject;
-						tca.CFG.Nav.On(Navigation.FollowTarget);
+						tca.CFG.Nav.XOn(Navigation.FollowTarget);
 					});
 				}
 				else 
@@ -521,7 +507,7 @@ namespace ThrottleControlledAvionics
 					                    : Styles.yellow_button,
 					                    GUILayout.Width(90)))
 					{
-						CFG.Nav.Toggle(Navigation.FollowPath);
+						CFG.Nav.XToggle(Navigation.FollowPath);
 						if(CFG.Nav[Navigation.FollowPath])
 							follow_me();
 					}
@@ -547,10 +533,7 @@ namespace ThrottleControlledAvionics
 				if(GUILayout.Button("Pause", Styles.green_button, GUILayout.Width(70))) 
 					CFG.MacroIsActive = false;
 				if(GUILayout.Button("Stop", Styles.red_button, GUILayout.ExpandWidth(false))) 
-				{
-					CFG.MacroIsActive = false;
-					CFG.SelectedMacro.Rewind();
-				}
+					CFG.StopMacro();
 				GUILayout.Label("Edit", Styles.grey, GUILayout.ExpandWidth(false));
 			}
 			else if(CFG.SelectedMacro != null)
@@ -644,8 +627,7 @@ namespace ThrottleControlledAvionics
 					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
 					CFG.Waypoints = new Queue<WayPoint>(edited);
 				}
-				if(CFG.Waypoints.Count == 0 && CFG.Nav)
-				{ CFG.Nav.Off(); CFG.HF.On(HFlight.Stop); }
+				if(CFG.Waypoints.Count == 0 && CFG.Nav) CFG.HF.XOn(HFlight.Stop);
 				GUILayout.EndVertical();
 				GUILayout.EndScrollView();
 				GUILayout.EndVertical();
@@ -776,7 +758,6 @@ namespace ThrottleControlledAvionics
 				center = body.GetWorldSurfacePosition(lat, lon, Utils.TerrainAltitude(body, lat, lon)+GLB.WaypointHeight);
 				if(Vector3d.Dot(center-camera.transform.position, 
 				                camera.transform.forward) <= 0) return;
-//				r *= Utils.Clamp(1000f/Vector3.Distance(VSL.wCoM, center), 0.1f, 1f);
 			}
 			if(IsOccluded(center, body)) return;
 			DrawMarker(camera.WorldToScreenPoint(MapView.MapIsEnabled? ScaledSpace.LocalToScaledSpace(center) : center), c, r, texture);

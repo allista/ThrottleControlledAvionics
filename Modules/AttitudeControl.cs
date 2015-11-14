@@ -21,12 +21,12 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "ATC";
 
 			[Persistent] public float P = 0.9f, I = 20f;
-			[Persistent] public float MinD  = 0.02f, MaxD  = 0.07f;
+			[Persistent] public float MinD  = 0.02f, MaxD  = 0.07f, Df = 0.002f;
 			[Persistent] public float MinTf = 0.1f,  MaxTf = 1f;
-			[Persistent] public float InertiaFactor = 10f, AngularMomentumFactor = 0.002f;
+			[Persistent] public float InertiaFactor = 10f;
 			[Persistent] public float MoIFactor = 0.01f;
 			[Persistent] public float AngleThreshold = 25f;
-			[Persistent] public float MaxEf = 5f;
+			[Persistent] public float MaxEf  = 5f;
 		}
 		static Config ATC { get { return TCAScenario.Globals.ATC; } }
 
@@ -40,6 +40,7 @@ namespace ThrottleControlledAvionics
 		Vector3 thrust, lthrust, needed_lthrust, steering;
 		Vector3 angularV { get { return VSL.vessel.angularVelocity; } }
 		float omega2, p_omega2, pp_omega2;
+		const float steering_norm = Mathf.PI*Mathf.PI;
 
 		public AttitudeControl(VesselWrapper vsl) { VSL = vsl; }
 
@@ -60,7 +61,7 @@ namespace ThrottleControlledAvionics
 			if(!thrust.IsZero())
 				GLUtils.GLVec(VSL.wCoM, thrust.normalized*20, Color.red);
 			if(!needed_lthrust.IsZero())
-				GLUtils.GLVec(VSL.wCoM, VSL.refT.TransformDirection(needed_lthrust)*20, Color.yellow);
+				GLUtils.GLVec(VSL.wCoM, VSL.refT.TransformDirection(needed_lthrust.normalized)*20, Color.yellow);
 		}
 
 		public override void Reset()
@@ -75,16 +76,7 @@ namespace ThrottleControlledAvionics
 		public override void Enable(bool enable = true)
 		{
 			reset();
-			if(enable)
-			{
-				VSL.UpdateOnPlanetStats();
-				if(!CFG.AT[Attitude.Custom])
-				{
-					CFG.HF.Off();
-					CFG.Nav.Off();
-					CFG.AP.OffIfOn(Autopilot.Land);
-				}
-			}
+			if(enable) VSL.UpdateOnPlanetStats();
 			BlockSAS(enable);
 		}
 
@@ -92,6 +84,7 @@ namespace ThrottleControlledAvionics
 		{
 			pid.Reset();
 			refT = null;
+			VSL.GimbalLimit = 100;
 			VSL.AttitudeError = 0;
 			omega2 = 0;
 			p_omega2 = 0;
@@ -153,6 +146,16 @@ namespace ThrottleControlledAvionics
 			case Attitude.AntiRadial:
 				needed_lthrust = -VSL.refT.InverseTransformDirection(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, orbit.h.xzy.normalized));
 				break;
+			case Attitude.Target:
+				if(!VSL.HasTarget) 
+				{ CFG.AT.On(Attitude.KillRotation); break; }
+				needed_lthrust = VSL.refT.InverseTransformDirection((VSL.wCoM-VSL.vessel.targetObject.GetTransform().position).normalized);
+				break;
+			case Attitude.AntiTarget:
+				if(!VSL.HasTarget) 
+				{ CFG.AT.On(Attitude.KillRotation); break; }
+				needed_lthrust = VSL.refT.InverseTransformDirection((VSL.vessel.targetObject.GetTransform().position-VSL.wCoM).normalized);
+				break;
 			case Attitude.ManeuverNode:
 				var solver = VSL.vessel.patchedConicSolver;
 				if(solver == null || solver.maneuverNodes.Count == 0)
@@ -188,9 +191,16 @@ namespace ThrottleControlledAvionics
 				else attitude_error = Quaternion.FromToRotation(needed_lthrust, lthrust);   
 			}
 			if(attitude_error != Quaternion.identity)
+			{
 				steering = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
 				                       Utils.CenterAngle(attitude_error.eulerAngles.y),
 				                       Utils.CenterAngle(attitude_error.eulerAngles.z))*Mathf.Deg2Rad;
+				#if DEBUG
+				thrust = VSL.Thrust.IsZero()? VSL.MaxThrust : VSL.Thrust;
+				lthrust = VSL.refT.InverseTransformDirection(thrust).normalized;
+				needed_lthrust = attitude_error.Inverse()*lthrust;
+				#endif
+			}
 			VSL.ResetCustomRotation();
 			pp_omega2 = p_omega2;
 			p_omega2 = omega2;
@@ -201,35 +211,44 @@ namespace ThrottleControlledAvionics
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && CFG.AT && VSL.refT != null && orbit != null)) return;
 			DisableSAS();
+			VSL.GimbalLimit = 100;
 			if(VSL.AutopilotDisabled) { reset(); return; }
 			//calculate needed steering
 			CalculateSteering();
 			VSL.AttitudeError = steering.magnitude*Mathf.Rad2Deg;
+			var control = new Vector3(steering.x.Equals(0)? 0 : 1,
+			                          steering.y.Equals(0)? 0 : 1,
+			                          steering.z.Equals(0)? 0 : 1);
 			//tune PID parameters
 			var angularM = Vector3.Scale(angularV, VSL.MoI);
 			var Tf = Mathf.Clamp(1/VSL.MaxAngularA_m, ATC.MinTf, ATC.MaxTf)/ATC.MinTf;
-			var Ef = 1/Utils.ClampL(steering.sqrMagnitude, 1e-45f);
-			pid.D = Mathf.Lerp(ATC.MinD, ATC.MaxD, angularM.magnitude*Ef*ATC.AngularMomentumFactor)*Tf;
-			Ef = Utils.ClampH(Ef, ATC.MaxEf);
-			pid.P = ATC.P*Tf*Ef;
-			pid.I = ATC.I*Tf/Ef;
+			var Ef = Utils.Clamp(steering.sqrMagnitude/steering_norm, 1e-30f, 1);
+//			Log("Raw Eg: {0}", Ef);//debug
+			pid.D = Mathf.Lerp(ATC.MinD, ATC.MaxD, angularM.magnitude/Ef*ATC.Df)*Tf;
+			var PIf = Tf*(1-Ef)*ATC.MaxEf;
+			pid.P = ATC.P*PIf;
+			pid.I = ATC.I*PIf;
+			//set gimbal limit
+			VSL.GimbalLimit = Ef*100;
 			//tune steering
+			steering.Scale(Vector3.Scale(VSL.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).normalized);
 			var inertia  = Vector3.Scale(angularM.Sign(),
 			                             Vector3.Scale(Vector3.Scale(angularM, angularM),
 			                                           Vector3.Scale(VSL.MaxTorque, VSL.MoI).Inverse(0)))
 				.ClampComponents(-Mathf.PI, Mathf.PI);
 			steering += inertia / Mathf.Lerp(ATC.InertiaFactor, 1, VSL.MoI.magnitude*ATC.MoIFactor);
-//			if(VSL.AttitudeError > ATC.AngleThreshold)
-//				steering.Scale(VSL.MaxAngularA.Inverse(0).normalized);
 			//update PID controller and set steering
 			pid.Update(steering, angularV);
 			SetRot(pid.Action, s);
 
 			#if DEBUG
-//			Log("\nTf {0}\nMoI {1}\nangularV {2}\nangularM {3}\nmaxAA {4}\ninertia {5}\nsteering {6}\naction {7}\npid {8}",
-//			    Tf, VSL.MoI, angularV, angularM, VSL.MaxAngularA, inertia, steering, pid.Action, pid);//debug
+//			Log("\nTf {0}\nMoI {1}\nangularV {2}\nangularM {3}\nmaxAA {4}\ninertia {5}\nmaxAAmod {6}\nsteering {7}\naction {8}\npid {9}",
+//			    Tf, VSL.MoI, angularV, angularM, VSL.MaxAngularA, inertia, 
+//			    Vector3.Scale(VSL.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).normalized,
+//			    steering, pid.Action, pid);//debug
 			ThrottleControlledAvionics.DebugMessage = 
-				string.Format("pid: {0}\nerror {1}", pid, steering*Mathf.Rad2Deg);
+				string.Format("pid: {0}\nerror: {1}°\ngimbal limit: {2}",
+				              pid, steering*Mathf.Rad2Deg, VSL.GimbalLimit);
 			#endif
 		}
 	}

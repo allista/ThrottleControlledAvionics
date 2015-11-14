@@ -100,17 +100,17 @@ ALT
 
 ATC
 {
-	P                     = 0.5
-	I                     = 0.01
-	MinD                  = 0.0001
-	MaxD                  = 0.05
-	MinTf                 = 0.1
-	MaxTf                 = 1
-	InertiaFactor         = 10
-	MoIFactor             = 0.01
-	AngularMomentumFactor = 0.001
-	AngleThreshold        = 10
-	MaxEf                 = 4
+	P              = 1
+	I              = 0.002
+	MinD           = 0.0001
+	MaxD           = 0.05
+	Df             = 0.0001
+	MinTf          = 0.1
+	MaxTf          = 1
+	InertiaFactor  = 10
+	MoIFactor      = 0.01
+	AngleThreshold = 10
+	MaxEf          = 2
 }
 
 HSC

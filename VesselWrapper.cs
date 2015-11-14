@@ -165,6 +165,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 ManualTranslation;
 		public Switch ManualTranslationSwitch = new Switch();
 		//attitude
+		public float GimbalLimit = 100;
 		public Quaternion CustomRotation { get; private set; }
 		public void AddCustomRotation(Vector3 from, Vector3 to)
 		{ CustomRotation = Quaternion.FromToRotation(from, to) * CustomRotation; }
@@ -202,8 +203,8 @@ namespace ThrottleControlledAvionics
 				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
 				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
-			vessel.Log("Update Autopilot Info: {0}:{1}, {2}:{3}, {4}:{5}", 
-			    		s.pitch, s.pitchTrim, s.roll, s.rollTrim, s.yaw, s.yawTrim);//debug 
+//			vessel.Log("Update Autopilot Info: {0}:{1}, {2}:{3}, {4}:{5}", 
+//			    		s.pitch, s.pitchTrim, s.roll, s.rollTrim, s.yaw, s.yawTrim);//debug 
 		}
 
 		public Vector3 GetStarboard(Vector3d hV) { return hV.IsZero()? Vector3.zero : Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
@@ -375,11 +376,13 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void SetThrustLimiters()
+		public void SetEnginesControls()
 		{
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = ActiveEngines[i];
+				if(e.gimbal != null) 
+					e.gimbal.gimbalLimiter = GimbalLimit;
 				if(!Equals(e.Role, TCARole.MANUAL))
 					e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
 				else if(ManualTranslationSwitch.On)
@@ -674,8 +677,7 @@ namespace ThrottleControlledAvionics
 		void update_MaxAngularA()
 		{
 			MaxTorque = E_TorqueLimits.Max+R_TorqueLimits.Max+W_TorqueLimits.Max;
-			var new_angularA = AngularAcceleration(MaxTorque);
-			MaxAngularA = new_angularA;
+			MaxAngularA = AngularAcceleration(MaxTorque);
 			wMaxAngularA = refT.TransformDirection(MaxAngularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
 		}

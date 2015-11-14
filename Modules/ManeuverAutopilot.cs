@@ -55,12 +55,16 @@ namespace ThrottleControlledAvionics
 			{
 				if(!VSL.HasManeuverNode) 
 				{ CFG.AP[Autopilot.Maneuver] = false; return; }
-				CFG.DisableVSC(); CFG.HF.Off(); CFG.Nav.Off();
-				Node = Solver.maneuverNodes[0];
 				CFG.AT.On(Attitude.ManeuverNode);
+				Node = Solver.maneuverNodes[0];
 				VSL.ThrottleRequest = 0;
+				CFG.DisableVSC();
 			}
-			else reset();
+			else 
+			{
+				TimeWarp.SetRate(0, false);
+				reset();
+			}
 		}
 
 		void reset()

@@ -89,7 +89,8 @@ namespace ThrottleControlledAvionics
 			StopTimer.Reset();
 			CutoffTimer.Reset();
 			landing_started = false;
-			if(VSL.LandedOrSplashed) CFG.AP.Off();
+			if(VSL.LandedOrSplashed && enable) 
+				CFG.AP.OffIfOn(Autopilot.Land);
 			else if(enable) 
 			{
 				CFG.HF.On(HFlight.Stop);
@@ -98,7 +99,6 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				CFG.Nav.Off();
 				CFG.VF.On(VFlight.AltitudeControl);
 				DesiredAltitude = VSL.Altitude;
 			}

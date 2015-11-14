@@ -27,7 +27,7 @@ namespace ThrottleControlledAvionics
 		protected override bool Action(VesselWrapper VSL)
 		{ 
 			VSL.CFG.BlockThrottle = true;
-			VSL.CFG.VF.OffIfOn(VFlight.AltitudeControl);
+			VSL.CFG.VF.XOffIfOn(VFlight.AltitudeControl);
 			VSL.CFG.VerticalCutoff = Value; 
 			return false;
 		}
@@ -40,7 +40,7 @@ namespace ThrottleControlledAvionics
 		protected override bool Action(VesselWrapper VSL)
 		{ 
 			VSL.CFG.BlockThrottle = true;
-			VSL.CFG.VF.OnIfNot(VFlight.AltitudeControl);
+			VSL.CFG.VF.XOnIfNot(VFlight.AltitudeControl);
 			VSL.CFG.DesiredAltitude = Value;
 			return false; 
 		}
@@ -63,26 +63,26 @@ namespace ThrottleControlledAvionics
 	public class StopMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.CFG.HF.On(HFlight.Stop); return false; }
+		{ VSL.CFG.HF.XOn(HFlight.Stop); return false; }
 	}
 
 	public class LevelMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.CFG.HF.On(HFlight.Level); return false; }
+		{ VSL.CFG.HF.XOn(HFlight.Level); return false; }
 	}
 
 	public class AnchorMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.CFG.Nav.On(Navigation.AnchorHere); return false; }
+		{ VSL.CFG.Nav.XOn(Navigation.AnchorHere); return false; }
 	}
 
 	public class LandMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ 
-			VSL.CFG.AP.OnIfNot(Autopilot.Land); 
+			VSL.CFG.AP.XOnIfNot(Autopilot.Land); 
 			return VSL.CFG.AP[Autopilot.Land];
 		}
 	}
@@ -97,7 +97,7 @@ namespace ThrottleControlledAvionics
 				                                 5, ScreenMessageStyle.UPPER_CENTER);
 				return false;
 			}
-			VSL.CFG.Nav.OnIfNot(Navigation.GoToTarget);
+			VSL.CFG.Nav.XOnIfNot(Navigation.GoToTarget);
 			return VSL.CFG.Nav[Navigation.GoToTarget];
 		}
 	}
@@ -112,7 +112,7 @@ namespace ThrottleControlledAvionics
 				                                 5, ScreenMessageStyle.UPPER_CENTER);
 				return false;
 			}
-			VSL.CFG.Nav.On(Navigation.FollowTarget);
+			VSL.CFG.Nav.XOn(Navigation.FollowTarget);
 			return false;
 		}
 	}
@@ -155,7 +155,7 @@ namespace ThrottleControlledAvionics
 				                                 5, ScreenMessageStyle.UPPER_CENTER);
 				return true;
 			}
-			VSL.CFG.Nav.OnIfNot(Navigation.FollowPath);
+			VSL.CFG.Nav.XOnIfNot(Navigation.FollowPath);
 			return VSL.CFG.Nav[Navigation.FollowPath];
 		}
 	}
@@ -220,10 +220,10 @@ namespace ThrottleControlledAvionics
 					Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-VSL.wCoM, VSL.Up).normalized;
 				break;
 			case Mode.Off:
-				VSL.CFG.HF.Off();
+				VSL.CFG.HF.XOff();
 				return false;
 			}
-			VSL.CFG.HF.On(HFlight.CruiseControl);
+			VSL.CFG.HF.XOn(HFlight.CruiseControl);
 			VSL.SetNeededHorVelocity(nv*Value);
 			return false;
 		}
@@ -399,8 +399,8 @@ namespace ThrottleControlledAvionics
 
 		protected override bool Action(VesselWrapper VSL)
 		{ 
-			if(attitude.Equals(Attitude.None)) VSL.CFG.AT.Off();
-			else VSL.CFG.AT.OnIfNot(attitude);
+			if(attitude.Equals(Attitude.None)) VSL.CFG.AT.XOff();
+			else VSL.CFG.AT.XOnIfNot(attitude);
 			return false; 
 		}
 	}
@@ -417,8 +417,8 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(On)
 			{
-				VSL.CFG.HF.Off();
-				VSL.CFG.AT.Off();
+				VSL.CFG.HF.XOff();
+				VSL.CFG.AT.XOff();
 				VSL.UnblockSAS();
 			}
 			else VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
