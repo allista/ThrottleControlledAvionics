@@ -129,6 +129,7 @@ namespace ThrottleControlledAvionics
 		protected PIf_Controller thrustController = new PIf_Controller();
 
 		public readonly ModuleEngines engine;
+		public readonly ModuleGimbal  gimbal;
 		public readonly TCAEngineInfo info;
 		public string name { get; private set; }
 
@@ -144,14 +145,19 @@ namespace ThrottleControlledAvionics
 
 		public EngineWrapper(ModuleEngines engine) 
 		{
+			//init
 			thrustController.setMaster(ThrustPI);
-			info = engine.part.GetModule<TCAEngineInfo>();
 			zeroISP = engine.atmosphereCurve.Evaluate(0f);
 			name = Utils.ParseCamelCase(engine.part.Title());
 			if(engine.engineID.Length > 0 && engine.engineID != "Engine") 
 				name += " (" + engine.engineID + ")";
+			//generate engine ID
 			this.engine = engine;
 			ID = new EngineID(this);
+			//get info
+			info = engine.part.GetModule<TCAEngineInfo>();
+			//find gimbal
+			gimbal = engine.part.GetModule<ModuleGimbal>();
 		}
 
 		#region methods
