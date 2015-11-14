@@ -34,6 +34,7 @@ namespace ThrottleControlledAvionics
 		public static GUIStyle yellow;
 		public static GUIStyle green;
 		public static GUIStyle blue;
+		public static GUIStyle cyan;
 		public static GUIStyle label;
 		public static GUIStyle tooltip;
 		public static GUIStyle slider;
@@ -98,6 +99,7 @@ namespace ThrottleControlledAvionics
 			yellow = white.OtherColor(Color.yellow);
 			green  = white.OtherColor(Color.green);
 			blue   = white.OtherColor(new Color(0.6f, 0.6f, 1f, 1f));
+			cyan   = white.OtherColor(Color.cyan);
 
 			//tooltip
 			tooltip  = white.OtherColor(Color.white);
