@@ -156,18 +156,13 @@ namespace ThrottleControlledAvionics
 				TCAMacroEditor.Edit(CFG);
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("On Launch:", GUILayout.ExpandWidth(false));
-			if(Utils.ButtonSwitch("Enable TCA", CFG.Enabled, "", GUILayout.ExpandWidth(false)))
-				CFG.Enabled = !CFG.Enabled;
+			Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false));
 			if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Enable Altitude Control", GUILayout.ExpandWidth(false)))
 				CFG.VF.Toggle(VFlight.AltitudeControl);
-			if(Utils.ButtonSwitch("Follow Terrain", CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false)))
-				CFG.AltitudeAboveTerrain = !CFG.AltitudeAboveTerrain;
-			if(Utils.ButtonSwitch("Use Throttle", CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false)))
-				CFG.BlockThrottle = !CFG.BlockThrottle;
-			if(Utils.ButtonSwitch("VTOL Assist", CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false)))
-				CFG.VTOLAssistON = !CFG.VTOLAssistON;
-			if(Utils.ButtonSwitch("Flight Stabilizer", CFG.StabilizeFlight, "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false)))
-				CFG.StabilizeFlight = !CFG.StabilizeFlight;
+			Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false));
+			Utils.ButtonSwitch("Use Throttle", ref CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
+			Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
+			Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			CFG.EnginesProfiles.Draw(height);
 			if(CFG.ActiveProfile.Changed)
