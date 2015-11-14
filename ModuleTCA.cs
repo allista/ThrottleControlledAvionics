@@ -128,7 +128,7 @@ namespace ThrottleControlledAvionics
 			{ reset(); init(); }
 			else 
 			{
-				VSL.ForceUpdateEngines = true;
+				VSL.ForceUpdateParts = true;
 				StartCoroutine(onVesselModifiedUpdate());
 			}
 		}
@@ -144,7 +144,7 @@ namespace ThrottleControlledAvionics
 		{
 			VSL.CanUpdateEngines = false;
 			yield return new WaitForSeconds(0.5f);
-			VSL.UpdateEngines();
+			VSL.UpdateParts();
 			CFG.ActiveProfile.Update(VSL.Engines, true);
 			VSL.CanUpdateEngines = true;
 		}
@@ -272,7 +272,8 @@ namespace ThrottleControlledAvionics
 			VSL = new VesselWrapper(vessel, CFG);
 			VSL.Init();
 			VSL.UpdateState();
-			VSL.UpdateEngines();
+			VSL.UpdatePhysicsParams();
+			VSL.UpdateParts();
 			enabled = isEnabled = VSL.Engines.Count > 0 || VSL.RCS.Count > 0;
 			if(!enabled) { VSL = null; return; }
 			VSL.UpdateCommons();
@@ -361,10 +362,11 @@ namespace ThrottleControlledAvionics
 			if(!CFG.Enabled) return;
 			State = TCAState.Enabled;
 			if(!VSL.ElectricChargeAvailible) return;
+			//update
 			SetState(TCAState.HaveEC);
+			VSL.UpdatePhysicsParams();
 			if(VSL.CheckEngines()) 
 				SetState(TCAState.HaveActiveEngines);
-			//update state
 			VSL.UpdateCommons();
 			if(VSL.NumActive > 0)
 			{

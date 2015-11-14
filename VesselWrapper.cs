@@ -37,18 +37,18 @@ namespace ThrottleControlledAvionics
 		public VesselConfig CFG { get; private set; }
 		public TCAGlobals GLB { get { return TCAScenario.Globals; } }
 
-		public List<EngineWrapper> Engines         = new List<EngineWrapper>();
-		public List<EngineWrapper> ActiveEngines   = new List<EngineWrapper>();
-		public List<EngineWrapper> BalancedEngines = new List<EngineWrapper>();
-		public List<EngineWrapper> ManeuverEngines = new List<EngineWrapper>();
-		public List<EngineWrapper> SteeringEngines = new List<EngineWrapper>();
-		public List<EngineWrapper> ManualEngines = new List<EngineWrapper>();
-		public List<ModuleReactionWheel> RWheels = new List<ModuleReactionWheel>();
+		public List<EngineWrapper> Engines          = new List<EngineWrapper>();
+		public List<EngineWrapper> ActiveEngines    = new List<EngineWrapper>();
+		public List<EngineWrapper> BalancedEngines  = new List<EngineWrapper>();
+		public List<EngineWrapper> ManeuverEngines  = new List<EngineWrapper>();
+		public List<EngineWrapper> SteeringEngines  = new List<EngineWrapper>();
+		public List<EngineWrapper> ManualEngines    = new List<EngineWrapper>();
+		public List<ModuleReactionWheel> RWheels    = new List<ModuleReactionWheel>();
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
 		public bool NoActiveRCS { get; private set; }
 		public bool CanUpdateEngines = true;
-		public bool ForceUpdateEngines;
+		public bool ForceUpdateParts;
 
 		public int  NumActive { get; private set; }
 		public int  NumActiveRCS { get; private set; }
@@ -224,7 +224,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		#region Engines
-		public void UpdateEngines()
+		public void UpdateParts()
 		{
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
 			Engines.Clear(); RCS.Clear(); RWheels.Clear();
@@ -253,21 +253,21 @@ namespace ThrottleControlledAvionics
 		{
 			//update engines' list if needed
 			var num_engines = Engines.Count;
-			if(!ForceUpdateEngines)
+			if(!ForceUpdateParts)
 			{
 				for(int i = 0; i < num_engines; i++)
-				{ ForceUpdateEngines |= !Engines[i].Valid(this); if(ForceUpdateEngines) break; }
-				if(!ForceUpdateEngines)
+				{ ForceUpdateParts |= !Engines[i].Valid(this); if(ForceUpdateParts) break; }
+				if(!ForceUpdateParts)
 				{
 					for(int i = 0; i < RCS.Count; i++)
-					{ ForceUpdateEngines |= !RCS[i].Valid(this); if(ForceUpdateEngines) break; }
+					{ ForceUpdateParts |= !RCS[i].Valid(this); if(ForceUpdateParts) break; }
 				}
 			}
-			if(ForceUpdateEngines) 
+			if(ForceUpdateParts) 
 			{ 
-				UpdateEngines(); 
+				UpdateParts(); 
 				num_engines = Engines.Count;
-				ForceUpdateEngines = false;
+				ForceUpdateParts = false;
 			}
 			//unflameout engines
 			for(int i = 0; i < num_engines; i++)
@@ -408,15 +408,29 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Updates
-		public void UpdateAltitude()
+		public void UpdateRelAltitude()
 		{ 
 			TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
 			RelAltitude = (float)(vessel.altitude) - TerrainAltitude;
 			Altitude = CFG.AltitudeAboveTerrain? RelAltitude : AbsAltitude;
 		}
 
+		public void UpdatePhysicsParams()
+		{
+			UT   = Planetarium.GetUniversalTime();
+			wCoM = vessel.CurrentCoM;
+			refT = vessel.ReferenceTransform;
+			Up   = (wCoM - vessel.mainBody.position).normalized;
+			UpL  = refT.InverseTransformDirection(Up);
+			M    = vessel.GetTotalMass();
+			StG  = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
+			G    = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
+			AbsAltitude = (float)vessel.altitude;
+		}
+
 		public void UpdateState()
 		{
+			//update onPlanet state
 			var on_planet = _OnPlanet();
 			if(on_planet != OnPlanet) 
 			{
@@ -430,6 +444,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			OnPlanet = on_planet;
+			//update steering and translation
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
 			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
@@ -440,15 +455,6 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateCommons()
 		{
-			UT   = Planetarium.GetUniversalTime();
-			wCoM = vessel.CurrentCoM;
-			refT = vessel.ReferenceTransform;
-			Up   = (wCoM - vessel.mainBody.position).normalized;
-			UpL  = refT.InverseTransformDirection(Up);
-			M    = vessel.GetTotalMass();
-			StG  = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
-			G    = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
-			AbsAltitude = (float)vessel.altitude;
 			//init engine wrappers
 			Thrust = Vector3.zero;
 			MaxThrust = Vector3.zero;
@@ -557,12 +563,12 @@ namespace ThrottleControlledAvionics
 			VerticalAccel     = (AbsVerticalSpeed-VerticalSpeed)/TimeWarp.fixedDeltaTime;
 			VerticalSpeed     = AbsVerticalSpeed;
 			VerticalSpeedDisp = AbsVerticalSpeed;
-			var old_alt = Altitude;
-			UpdateAltitude();
+			var old_rel_alt = RelAltitude;
+			UpdateRelAltitude();
 			//use relative vertical speed instead of absolute if following terrain
 			if(CFG.AltitudeAboveTerrain)
 			{
-				RelVerticalSpeed  = (Altitude - old_alt)/TimeWarp.fixedDeltaTime;
+				RelVerticalSpeed  = (RelAltitude - old_rel_alt)/TimeWarp.fixedDeltaTime;
 				VerticalSpeedDisp = RelVerticalSpeed;
 			}
 			HorizontalVelocity = Vector3d.Exclude(Up, vessel.srf_velocity);

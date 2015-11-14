@@ -209,7 +209,7 @@ namespace ThrottleControlledAvionics
 				CFG.AltitudeAboveTerrain = true;
 				if(DesiredAltitude <= 0) 
 				{
-					VSL.UpdateAltitude();
+					VSL.UpdateRelAltitude();
 					DesiredAltitude = VSL.Altitude;
 				}
 				CFG.DesiredAltitude = DesiredAltitude;
@@ -349,7 +349,7 @@ namespace ThrottleControlledAvionics
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(DesiredAltitude <= 0) 
 				{   //here we just need the altitude control to prevent smashing into something while stopping
-					VSL.UpdateAltitude();
+					VSL.UpdateRelAltitude();
 					DesiredAltitude = VSL.Altitude > LND.MaxStartAltitude? LND.MaxStartAltitude : VSL.Altitude;
 					CFG.DesiredAltitude = DesiredAltitude;
 				}
