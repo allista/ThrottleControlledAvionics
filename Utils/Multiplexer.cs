@@ -14,16 +14,24 @@ using System.Collections.Generic;
 
 namespace ThrottleControlledAvionics
 {
-	public class Multiplexer<T> : ConfigNodeObject where T : struct
+	public abstract class MultiplexerBase : ConfigNodeObject
 	{
 		[Persistent] public string State;
-		public T state { get; protected set; }
 		public bool Paused;
+		public abstract void Off();
+	}
+
+	public class Multiplexer<T> : MultiplexerBase where T : struct
+	{
+		public T state { get; protected set; }
 
 		readonly Dictionary<T, Action<bool>> callbacks = new Dictionary<T, Action<bool>>();
+		public readonly List<MultiplexerBase> Conflicts = new List<MultiplexerBase>();
 
 		public Multiplexer() 
 		{ if(!typeof(T).IsEnum) throw new ArgumentException("Multiplexer<T> T must be an enumerated type"); }
+
+		public void AddConflicts(params MultiplexerBase[] ms) { Conflicts.AddRange(ms); }
 
 		public bool Any(params T[] keys)
 		{
@@ -42,6 +50,7 @@ namespace ThrottleControlledAvionics
 				else if(key.Equals(state)) Off();
 			}
 		}
+
 		public void On(T key) 
 		{ 
 			if(Paused) return;
@@ -51,7 +60,8 @@ namespace ThrottleControlledAvionics
 			if(callbacks.TryGetValue(key, out callback))
 			{ if(callback != null) callback(true); }
 		}
-		public void Off() 
+
+		public override void Off() 
 		{ 
 			if(Paused || state.Equals(default(T))) return;
 			var old_state = state; //prevents recursion
@@ -70,6 +80,19 @@ namespace ThrottleControlledAvionics
 			for(int i = 0, keysLength = keys.Length; i < keysLength; i++)
 			{ if(state.Equals(keys[i])) { Off(); return; } }
 		}
+
+		void ConflictsOff()
+		{
+			Paused = true;
+			Conflicts.ForEach(m => m.Off());
+			Paused = false;
+		}
+
+		public void XOn(T key) { ConflictsOff(); On(key); }
+		public void XOnIfNot(T key) { if(!state.Equals(key)) { ConflictsOff(); On(key); } }
+		public void XOff() { ConflictsOff(); Off(); }
+		public void XOffIfOn(T key) { if(state.Equals(key)) { ConflictsOff(); Off(); } }
+		public void XToggle(T key) { ConflictsOff(); Toggle(key); }
 
 		public static implicit operator bool(Multiplexer<T> m) { return !m[default(T)]; }
 
