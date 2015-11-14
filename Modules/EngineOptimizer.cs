@@ -192,27 +192,28 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
-		public override void Init() 
-		{ 
-			base.Init(); 
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-		}
-
-		public void RadarBeam()
-		{
-			if(VSL == null || VSL.vessel == null) return;
-			for(int i = 0, VSLEnginesCount = VSL.Engines.Count; i < VSLEnginesCount; i++)
-			{
-				var e = VSL.Engines[i];
-				GLUtils.GLVec(e.wThrustPos, e.wThrustDir * 0.5f, Color.yellow);
-			}
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
-		}
+//		public override void Init() 
+//		{ 
+//			base.Init(); 
+//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+//		}
+//
+//		public void RadarBeam()
+//		{
+//			if(VSL == null || VSL.vessel == null) return;
+//			for(int i = 0, VSLEnginesCount = VSL.Engines.Count; i < VSLEnginesCount; i++)
+//			{
+//				var e = VSL.Engines[i];
+//				if(e.thrustInfo == null) continue;
+//				GLUtils.GLVec(e.wThrustPos, e.wThrustDir * 0.5f, Color.yellow);
+//			}
+//		}
+//
+//		public override void Reset()
+//		{
+//			base.Reset();
+//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+//		}
 
 		void DebugEngines(IList<EngineWrapper> engines, Vector3 needed_torque)
 		{
