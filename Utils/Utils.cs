@@ -117,6 +117,13 @@ namespace ThrottleControlledAvionics
 				GUILayout.Button(name, current_value ? Styles.green_button : Styles.yellow_button, options) : 
 				GUILayout.Button(new GUIContent(name, tooltip), current_value ? Styles.green_button : Styles.yellow_button, options);
 		}
+
+		public static bool ButtonSwitch(string name, ref bool current_value, string tooltip = "", params GUILayoutOption[] options)
+		{
+			var ret = ButtonSwitch(name, current_value, tooltip, options);
+			if(ret) current_value = !current_value;
+			return ret;
+		}
 		#endregion
 
 		//from http://stackoverflow.com/questions/716399/c-sharp-how-do-you-get-a-variables-name-as-it-was-physically-typed-in-its-dec
