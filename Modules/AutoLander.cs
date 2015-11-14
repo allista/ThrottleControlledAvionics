@@ -405,7 +405,7 @@ namespace ThrottleControlledAvionics
 				if(!landing_started)
 				{
 					landing_started = true;
-					SquadAction(vsl => vsl.CFG.AP.OnIfNot(Autopilot.Land));
+					SquadAction(vsl => vsl.CFG.AP.XOnIfNot(Autopilot.Land));
 				}
 				if(DesiredAltitude > 0)
 				{
@@ -421,7 +421,7 @@ namespace ThrottleControlledAvionics
 				if(VSL.LandedOrSplashed) 
 				{ 
 					if(!CutoffTimer.Check) break;
-					CFG.AP.Off(); 
+					CFG.AP.XOff(); 
 					CFG.VerticalCutoff = -10; 
 					CFG.VF.On(VFlight.AltitudeControl);
 				}
@@ -429,7 +429,11 @@ namespace ThrottleControlledAvionics
 				{
 					if(VSL.Altitude > LND.StopAtAlt+VSL.H)
 						CFG.Nav.OnIfNot(Navigation.Anchor);
-					else CFG.HF.OnIfNot(HFlight.Stop);
+					else 
+					{
+						CFG.Nav.OffIfOn(Navigation.Anchor);
+						CFG.HF.OnIfNot(HFlight.Stop);
+					}
 					set_VSpeed(VSL.SlowEngines? -0.5f :
 					           Mathf.Lerp(-0.5f, -1, VSL.Altitude/(VSL.H*LND.GearOnAtH)));
 				}
