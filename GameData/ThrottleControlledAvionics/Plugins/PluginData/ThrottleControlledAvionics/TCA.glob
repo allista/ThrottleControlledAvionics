@@ -100,16 +100,20 @@ ALT
 
 ATC
 {
-	P              = 1
-	I              = 0.002
-	MinD           = 0.0001
-	MaxD           = 0.05
-	Df             = 0.0001
-	MinTf          = 0.1
-	MaxTf          = 1
+	PID
+	{
+		P = 10
+		I = 0.02
+		D = 0.5
+	}
+	
+	MinAAf         = 0.2
+	MaxAAf         = 1
+	AngularMf      = 0.001
 	InertiaFactor  = 10
 	MoIFactor      = 0.01
 	AngleThreshold = 10
+	MinEf          = 0.0001
 	MaxEf          = 2
 }
 
@@ -212,7 +216,7 @@ RAD
 	MinClosingSpeed   = 4
 	MinDistanceAhead  = 60
 	PitchRollAAf      = 100
-	MinAltitude       = 10
+	MaxLittleSteps    = 5
 	NHVf              = 0.5
 	ManeuverTimer     = 1
 }
@@ -256,7 +260,7 @@ CPS
 	LatAvoidMinVelSqr = 0.25
 	LookAheadTime = 2
 	TraverseAngle = 10
-	ManeuverTimer = 1
+	ManeuverTimer = 0.1
 	VerticalManeuverF = 0.5
 	
 	PID

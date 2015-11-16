@@ -20,13 +20,13 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "ATC";
 
-			[Persistent] public float P = 0.9f, I = 20f;
-			[Persistent] public float MinD  = 0.02f, MaxD  = 0.07f, Df = 0.002f;
-			[Persistent] public float MinTf = 0.1f,  MaxTf = 1f;
-			[Persistent] public float InertiaFactor = 10f;
+			[Persistent] public PID_Controller PID = new PID_Controller(10f, 0.02f, 0.5f, -1, 1);
+
+			[Persistent] public float MinAAf = 0.1f,  MaxAAf = 1f;
+			[Persistent] public float InertiaFactor = 10f, AngularMf = 0.002f;
 			[Persistent] public float MoIFactor = 0.01f;
 			[Persistent] public float AngleThreshold = 25f;
-			[Persistent] public float MaxEf  = 5f;
+			[Persistent] public float MinEf = 0.001f, MaxEf  = 5f;
 		}
 		static Config ATC { get { return TCAScenario.Globals.ATC; } }
 
@@ -47,6 +47,7 @@ namespace ThrottleControlledAvionics
 		public override void Init() 
 		{ 
 			base.Init();
+			pid.setPID(ATC.PID);
 			reset();
 			CFG.AT.AddSingleCallback(Enable);
 			#if DEBUG
@@ -221,15 +222,15 @@ namespace ThrottleControlledAvionics
 			                          steering.z.Equals(0)? 0 : 1);
 			//tune PID parameters
 			var angularM = Vector3.Scale(angularV, VSL.MoI);
-			var Tf = Mathf.Clamp(1/VSL.MaxAngularA_m, ATC.MinTf, ATC.MaxTf)/ATC.MinTf;
-			var Ef = Utils.Clamp(steering.sqrMagnitude/steering_norm, 1e-30f, 1);
-//			Log("Raw Eg: {0}", Ef);//debug
-			pid.D = Mathf.Lerp(ATC.MinD, ATC.MaxD, angularM.magnitude/Ef*ATC.Df)*Tf;
-			var PIf = Tf*(1-Ef)*ATC.MaxEf;
-			pid.P = ATC.P*PIf;
-			pid.I = ATC.I*PIf;
+			var AAf = Mathf.Clamp(1/VSL.MaxAngularA_m, ATC.MinAAf, ATC.MaxAAf);
+			var Ef = Utils.Clamp(steering.sqrMagnitude/steering_norm, ATC.MinEf, 1);
+			var PIf = AAf*Utils.ClampL(1-Ef, 0.5f)*ATC.MaxEf;
+			pid.P = ATC.PID.P*PIf;
+			pid.I = ATC.PID.I*PIf;
+			pid.D = ATC.PID.D*Utils.ClampH(Utils.ClampL(1-Ef*2, 0)+angularM.magnitude*ATC.AngularMf, 1)*AAf*AAf;
 			//set gimbal limit
 			VSL.GimbalLimit = Ef*100;
+//			Log("Ef: {0}", Ef);//debug
 			//tune steering
 			steering.Scale(Vector3.Scale(VSL.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).normalized);
 			var inertia  = Vector3.Scale(angularM.Sign(),
@@ -242,10 +243,12 @@ namespace ThrottleControlledAvionics
 			SetRot(pid.Action, s);
 
 			#if DEBUG
-//			Log("\nTf {0}\nMoI {1}\nangularV {2}\nangularM {3}\nmaxAA {4}\ninertia {5}\nmaxAAmod {6}\nsteering {7}\naction {8}\npid {9}",
-//			    Tf, VSL.MoI, angularV, angularM, VSL.MaxAngularA, inertia, 
+//			Log("\nTf {0}\nMoI {1}\nangularV {2}\nangularM {3}\nmaxAA {4}\n" +
+//				"inertia {5}\nmaxAAmod {6}\nsteering {7}\naction {8}\npid {9}\n" +
+//			    "GimbalLimit {10}",
+//			    AAf, VSL.MoI, angularV, angularM, VSL.MaxAngularA, inertia, 
 //			    Vector3.Scale(VSL.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).normalized,
-//			    steering, pid.Action, pid);//debug
+//			    steering, pid.Action, pid, VSL.GimbalLimit);//debug
 			ThrottleControlledAvionics.DebugMessage = 
 				string.Format("pid: {0}\nerror: {1}°\ngimbal limit: {2}",
 				              pid, steering*Mathf.Rad2Deg, VSL.GimbalLimit);
