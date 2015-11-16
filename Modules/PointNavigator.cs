@@ -131,7 +131,9 @@ namespace ThrottleControlledAvionics
 		void finish()
 		{
 			SetTarget(null);
-			CFG.HF.XOn(HFlight.Stop);
+			VSL.Destination = Vector3d.zero;
+			CFG.Nav.Off();
+			CFG.HF.On(HFlight.Stop);
 			reset_formation();
 		}
 
@@ -236,6 +238,8 @@ namespace ThrottleControlledAvionics
 			if(CFG.Nav[Navigation.FollowTarget]) update_formation_offset();
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.wCoM, VSL.Up);
 			var distance = Utils.ClampL(vdir.magnitude-VSL.R, 0);
+			//update destination
+			VSL.Destination = CFG.Nav[Navigation.GoToTarget] || CFG.Nav[Navigation.FollowPath] ? vdir : Vector3.zero;
 			//handle flying in formation
 			var tvsl = CFG.Target.GetVessel();
 			var tvel = Vector3.zero;
