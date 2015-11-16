@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState() 
 		{ 
-			IsActive = CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed; 
+			IsActive = CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null; 
 			if(IsActive) return;
 			Correction = Vector3d.zero;
 		}
@@ -97,7 +97,7 @@ namespace ThrottleControlledAvionics
 			var sinA = Mathf.Sqrt(1-cosA*cosA);
 			var vdist = dist*cosA;
 			var min_separation = dist*sinA;
-			var sep_threshold = vsl.R+CPS.SafeDistance;
+			var sep_threshold = vsl.R*2;
 			if(min_separation > sep_threshold ||
 			   min_separation > vsl.R && vdist < min_separation) return false;
 			maneuver = (dVn*cosA-dir).normalized;
@@ -167,7 +167,15 @@ namespace ThrottleControlledAvionics
 			//first try to get TCA from other vessel and get vessel's R
 			var vR = 0f;
 			var tca = ModuleTCA.EnabledTCA(v);
-			if(tca != null) vR = tca.VSL.R;
+			if(tca != null) 
+			{
+				if(tca.CPS != null && 
+				   tca.CPS.IsActive && 
+				   VSL.M > tca.VSL.M &&
+				   VSL.vessel.srfSpeed > v.srfSpeed) //test 
+					return false;
+				vR = tca.VSL.R;
+			}
 			else //do a raycast
 			{
 				RaycastHit raycastHit;
@@ -214,7 +222,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive || VSL.refT == null) return;
+			if(!IsActive) return;
 			if(scan())
 			{
 				var correction = Vector3d.zero;
