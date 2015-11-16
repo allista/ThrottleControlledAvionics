@@ -64,6 +64,27 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
+		#if DEBUG
+		public void RadarBeam()
+		{
+			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
+//			if(!VSL.NeededHorVelocity.IsZero())
+//				GLUtils.GLVec(VSL.wCoM,  VSL.NeededHorVelocity, Color.red);
+//			if(!VSL.HorizontalVelocity.IsZero())
+//				GLUtils.GLVec(VSL.wCoM+VSL.Up,  VSL.HorizontalVelocity, Color.magenta);
+//			if(!VSL.ForwardDirection.IsZero())
+//				GLUtils.GLVec(VSL.wCoM+VSL.Up*2,  VSL.ForwardDirection, Color.green);
+			if(!VSL.CourseCorrection.IsZero())
+				GLUtils.GLVec(VSL.wCoM+VSL.Up*3, VSL.CourseCorrection, Color.blue);
+		}
+
+		public override void Reset()
+		{
+			base.Reset();
+			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+		}
+		#endif
+
 		protected override void UpdateState() 
 		{ 
 			IsActive = VSL.OnPlanet && CFG.HF; 
@@ -235,27 +256,6 @@ namespace ThrottleControlledAvionics
 			}
 			VSL.AddCustomRotation(needed_thrust_dir, thrust);
 		}
-
-		#if DEBUG
-		public void RadarBeam()
-		{
-			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
-			if(!VSL.NeededHorVelocity.IsZero())
-				GLUtils.GLVec(VSL.wCoM,  VSL.NeededHorVelocity, Color.red);
-			if(!VSL.HorizontalVelocity.IsZero())
-				GLUtils.GLVec(VSL.wCoM+VSL.Up,  VSL.HorizontalVelocity, Color.magenta);
-			if(!VSL.ForwardDirection.IsZero())
-				GLUtils.GLVec(VSL.wCoM+VSL.Up*2,  VSL.ForwardDirection, Color.green);
-			if(!VSL.CourseCorrection.IsZero())
-				GLUtils.GLVec(VSL.wCoM+VSL.Up*3, VSL.CourseCorrection, Color.blue);
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
-		}
-		#endif
 	}
 }
 
