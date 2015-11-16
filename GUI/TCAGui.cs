@@ -160,7 +160,7 @@ namespace ThrottleControlledAvionics
 				else if(TCA.IsStateSet(TCAState.Searching))
 				{ state = "Searching For Landing Site"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Scanning))
-				{ state = "Scanning Surface"; style = Styles.yellow; }
+				{ state = string.Format("Scanning Surface {0:P0}", TCA.LND.Progress); style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
 				{ state = "Altitude Control"; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
@@ -796,7 +796,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(string.Format("Steering: {0}", VSL.Steering), GUILayout.ExpandWidth(false));
-			GUILayout.Label(string.Format("Angular Accel Error: {0:F3}rad/s2", TCA.TorqueError), GUILayout.ExpandWidth(false));
+			GUILayout.Label(string.Format("Angular Accel Error: {0:F3}rad/s2", TCA.ENG.TorqueError), GUILayout.ExpandWidth(false));
 			GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", VSL.VSF), GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			eInfoScroll = GUILayout.BeginScrollView(eInfoScroll, GUILayout.Height(controlsHeight*4));

@@ -31,32 +31,29 @@ namespace ThrottleControlledAvionics
 		public bool IsStateSet(TCAState state) { return Available && VSL.IsStateSet(state); }
 
 		#region Modules
-		EngineOptimizer eng;
-		VerticalSpeedControl vsc;
-		Anchor anc;
-		AltitudeControl alt;
-		RCSOptimizer rcs;
-		PointNavigator pn;
-		Radar rad;
-		AutoLander lnd;
-		VTOLAssist tla;
-		FlightStabilizer stb;
-		CollisionPreventionSystem cps;
-		MacroProcessor mpr;
-		ManeuverAutopilot man;
+		public EngineOptimizer ENG;
+		public VerticalSpeedControl VSC;
+		public Anchor ANC;
+		public AltitudeControl ALT;
+		public RCSOptimizer RCS;
+		public PointNavigator PN;
+		public Radar RAD;
+		public AutoLander LND;
+		public VTOLAssist TLA;
+		public FlightStabilizer STB;
+		public CollisionPreventionSystem CPS;
+		public MacroProcessor MPR;
+		public ManeuverAutopilot MAN;
 
-		HorizontalSpeedControl hsc;
-		AttitudeControl atc;
-		CruiseControl cc;
+		public HorizontalSpeedControl HSC;
+		public AttitudeControl ATC;
+		public CruiseControl CC;
 
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
 
 		#region Public Info
-		#if DEBUG
-		public float TorqueError { get { return eng == null? 0f : eng.TorqueError; } }
-		#endif
 		public bool  Available { get { return enabled && VSL != null; } }
 		public bool  Controllable { get { return Available && vessel.IsControllable; } }
 		public static bool HasTCA { get { return !GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCAGlobals.TCA_PART); } }
@@ -176,7 +173,7 @@ namespace ThrottleControlledAvionics
 			var vt = typeof(VesselWrapper);
 			if(mod_fields == null)
 				mod_fields = GetType()
-					.GetFields(BindingFlags.DeclaredOnly|BindingFlags.NonPublic|BindingFlags.Instance)
+					.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Public|BindingFlags.Instance)
 					.Where(fi => fi.FieldType.IsSubclassOf(mt)).ToArray();
 			modules = new List<TCAModule>(mod_fields.Length);
 			foreach(var fi in mod_fields)
@@ -284,9 +281,9 @@ namespace ThrottleControlledAvionics
 			modules.ForEach(m => m.Init());
 			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
 			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowTarget)) 
-				pn.GoToTarget(VSL.vessel.targetObject != null);
+				PN.GoToTarget(VSL.vessel.targetObject != null);
 			else if(CFG.Nav[Navigation.FollowPath]) 
-				pn.FollowPath(CFG.Waypoints.Count > 0);
+				PN.FollowPath(CFG.Waypoints.Count > 0);
 			ThrottleControlledAvionics.AttachTCA(this);
 			VSL.SetUnpackDistance(GLB.UnpackDistance);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
@@ -326,7 +323,7 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 
-		public void AltitudeAboveTerrain(bool state) { alt.SetAltitudeAboveTerrain(state); }
+		public void AltitudeAboveTerrain(bool state) { ALT.SetAltitudeAboveTerrain(state); }
 		#endregion
 		void block_throttle(FlightCtrlState s)
 		{ 
@@ -352,7 +349,7 @@ namespace ThrottleControlledAvionics
 			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) updateCFG();
 			//update heavy to compute parameters
 			if(IsStateSet(TCAState.HaveActiveEngines)) VSL.UpdateMoI();
-			if(rad.IsActive || lnd.IsActive) VSL.UpdateBounds();
+			if(RAD.IsActive || LND.IsActive) VSL.UpdateBounds();
 		}
 
 		public override void OnFixedUpdate() 
@@ -372,17 +369,17 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.UpdateOnPlanetStats();
 				//these follow specific order
-				mpr.OnFixedUpdate();
-				man.OnFixedUpdate();
-				rad.OnFixedUpdate();//sets AltitudeAhead
-				lnd.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
-				alt.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
-				cps.OnFixedUpdate();//updates VerticalCutoff
-				vsc.OnFixedUpdate();//uses VerticalCutoff
-				anc.OnFixedUpdate();
-				tla.OnFixedUpdate();
-				stb.OnFixedUpdate();
-				pn.OnFixedUpdate();
+				MPR.OnFixedUpdate();
+				MAN.OnFixedUpdate();
+				RAD.OnFixedUpdate();//sets AltitudeAhead
+				LND.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
+				ALT.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
+				CPS.OnFixedUpdate();//updates VerticalCutoff
+				VSC.OnFixedUpdate();//uses VerticalCutoff
+				ANC.OnFixedUpdate();
+				TLA.OnFixedUpdate();
+				STB.OnFixedUpdate();
+				PN.OnFixedUpdate();
 			}
 			//handle engines
 			VSL.TuneEngines();
@@ -391,19 +388,19 @@ namespace ThrottleControlledAvionics
 				VSL.SortEngines();
 				//:preset manual limits for translation if needed
 				if(VSL.ManualTranslationSwitch.On)
-					eng.PresetLimitsForTranslation(VSL.ManualEngines, VSL.ManualTranslation);
+					ENG.PresetLimitsForTranslation(VSL.ManualEngines, VSL.ManualTranslation);
 				//:balance-only engines
 				if(VSL.BalancedEngines.Count > 0)
 				{
 					VSL.UpdateTorque(VSL.ManualEngines);
-					eng.OptimizeLimitsForTorque(VSL.BalancedEngines, Vector3.zero);
+					ENG.OptimizeLimitsForTorque(VSL.BalancedEngines, Vector3.zero);
 				}
 				VSL.UpdateTorque(VSL.ManualEngines, VSL.BalancedEngines);
 				//:optimize limits for steering
-				eng.PresetLimitsForTranslation(VSL.ManeuverEngines, VSL.Translation);
-				eng.Steer();
+				ENG.PresetLimitsForTranslation(VSL.ManeuverEngines, VSL.Translation);
+				ENG.Steer();
 			}
-			rcs.Steer();
+			RCS.Steer();
 			VSL.SetEnginesControls();
 		}
 	}

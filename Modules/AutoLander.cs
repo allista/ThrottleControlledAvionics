@@ -55,13 +55,15 @@ namespace ThrottleControlledAvionics
 		readonly List<SurfaceNode> FlatNodes = new List<SurfaceNode>();
 		HashSet<SurfaceNode> TriedNodes;
 		SurfaceNode NextNode, FlattestNode;
-		int side, bside, center;
+		int side, bside, center, total_rays, done_rays;
 		Vector3 right, fwd, up, down, dir, sdir, anchor;
 		float MaxDistance, delta;
 		float DesiredAltitude;
 		bool landing_started;
 		readonly Timer StopTimer = new Timer();
 		readonly Timer CutoffTimer = new Timer();
+
+		public float Progress { get { return scanner != null? done_rays/(float)total_rays : 0f; } }
 
 		public AutoLander(VesselWrapper vsl) { VSL = vsl; }
 
@@ -134,6 +136,9 @@ namespace ThrottleControlledAvionics
 			anchor = Vector3.zero;
 			if(start == null) anchor = VSL.wCoM+down;
 			else anchor = start.position;
+			//job progress
+			total_rays = bside*bside+side*side+1;
+			done_rays = 0;
 //			Utils.Log("Scanning Surface: {0}x{0} -> {1}x{1}", bside, side);//debug
 			yield return null;
 			//cast the rays
@@ -144,6 +149,7 @@ namespace ThrottleControlledAvionics
 					MaxDistance = sdir.magnitude * 10;
 					dir = (sdir+right*(i-center)*delta+fwd*(j-center)*delta).normalized;
 					Nodes[i,j] = get_surface_node(delta/2);
+					done_rays++;
 					yield return null;
 				}
 			//compute unevenness
@@ -159,6 +165,7 @@ namespace ThrottleControlledAvionics
 							if(n1 == null) continue;
 							n.UpdateUnevenness(n1);
 						}
+					done_rays++;
 					yield return null;
 				}
 			if(lvl > 1)
@@ -171,6 +178,7 @@ namespace ThrottleControlledAvionics
 						if(n != null && n.flat && !TriedNodes.Contains(n))
 							FlatNodes.Add(n);
 					}
+				done_rays++;
 				yield return null;
 				FlatNodes.Sort((n1, n2) => n1.distance.CompareTo(n2.distance));
 			}
@@ -209,7 +217,7 @@ namespace ThrottleControlledAvionics
 				CFG.AltitudeAboveTerrain = true;
 				if(DesiredAltitude <= 0) 
 				{
-					VSL.UpdateRelAltitude();
+					VSL.UpdateAltitudeInfo();
 					DesiredAltitude = VSL.Altitude;
 				}
 				CFG.DesiredAltitude = DesiredAltitude;
@@ -349,7 +357,7 @@ namespace ThrottleControlledAvionics
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(DesiredAltitude <= 0) 
 				{   //here we just need the altitude control to prevent smashing into something while stopping
-					VSL.UpdateRelAltitude();
+					VSL.UpdateAltitudeInfo();
 					DesiredAltitude = VSL.Altitude > LND.MaxStartAltitude? LND.MaxStartAltitude : VSL.Altitude;
 					CFG.DesiredAltitude = DesiredAltitude;
 				}

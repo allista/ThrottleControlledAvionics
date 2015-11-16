@@ -109,6 +109,7 @@ namespace ThrottleControlledAvionics
 		public float    Altitude { get; private set; }
 		public float    AbsAltitude { get; private set; }
 		public float    RelAltitude { get; private set; }
+		public float    PrevRelAltitude { get; private set; }
 		public float    AltitudeAhead;
 		public float    TimeAhead;
 		public float    TerrainAltitude { get; private set; }
@@ -116,19 +117,12 @@ namespace ThrottleControlledAvionics
 		public float    HorizontalSpeed { get; private set; }
 		public Vector3d PredictedSrfVelocity(float time) { return vessel.srf_velocity+vessel.acceleration*time; }
 		public Vector3d PredictedHorVelocity(float time) { return Vector3d.Exclude(Up, vessel.srf_velocity+vessel.acceleration*time); }
-		public bool     AltitudeAboveGround 
-		{ 
-			get 
-			{ 
-				return CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= 0 ||
-				!CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= TerrainAltitude; 
-			} 
-		}
-
+		public bool     AltitudeAboveGround { get; private set; }
 		public Vector3d NeededHorVelocity;
 		public Vector3d ForwardDirection;
 		public List<Vector3d> CourseCorrections = new List<Vector3d>();
 		public Vector3d CourseCorrection;
+		public Vector3  Destination;
 		public float AttitudeError;
 
 		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
@@ -181,6 +175,8 @@ namespace ThrottleControlledAvionics
 
 		public VesselWrapper(Vessel vsl, VesselConfig cfg) 
 		{ vessel = vsl; CFG = cfg; }
+
+		public void Log(string msg, params object[] args) { vessel.Log(msg, args); }
 
 		public void Init() 
 		{
@@ -408,11 +404,16 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Updates
-		public void UpdateRelAltitude()
+		public void UpdateAltitudeInfo()
 		{ 
+			PrevRelAltitude = RelAltitude;
+			AbsAltitude = (float)vessel.altitude;
 			TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
 			RelAltitude = (float)(vessel.altitude) - TerrainAltitude;
 			Altitude = CFG.AltitudeAboveTerrain? RelAltitude : AbsAltitude;
+			AltitudeAboveGround = 
+				CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= 0 ||
+				!CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= TerrainAltitude; 
 		}
 
 		public void UpdatePhysicsParams()
@@ -425,7 +426,7 @@ namespace ThrottleControlledAvionics
 			M    = vessel.GetTotalMass();
 			StG  = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
 			G    = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
-			AbsAltitude = (float)vessel.altitude;
+			UpdateAltitudeInfo();
 		}
 
 		public void UpdateState()
@@ -563,12 +564,10 @@ namespace ThrottleControlledAvionics
 			VerticalAccel     = (AbsVerticalSpeed-VerticalSpeed)/TimeWarp.fixedDeltaTime;
 			VerticalSpeed     = AbsVerticalSpeed;
 			VerticalSpeedDisp = AbsVerticalSpeed;
-			var old_rel_alt = RelAltitude;
-			UpdateRelAltitude();
 			//use relative vertical speed instead of absolute if following terrain
 			if(CFG.AltitudeAboveTerrain)
 			{
-				RelVerticalSpeed  = (RelAltitude - old_rel_alt)/TimeWarp.fixedDeltaTime;
+				RelVerticalSpeed  = (RelAltitude - PrevRelAltitude)/TimeWarp.fixedDeltaTime;
 				VerticalSpeedDisp = RelVerticalSpeed;
 			}
 			HorizontalVelocity = Vector3d.Exclude(Up, vessel.srf_velocity);

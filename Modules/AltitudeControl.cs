@@ -65,7 +65,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(enable == CFG.AltitudeAboveTerrain) return;
 			CFG.AltitudeAboveTerrain = enable;
-			VSL.UpdateRelAltitude();
+			VSL.UpdateAltitudeInfo();
 			Falling.Reset();
 			if(CFG.AltitudeAboveTerrain)
 				CFG.DesiredAltitude -= VSL.TerrainAltitude;
@@ -77,7 +77,7 @@ namespace ThrottleControlledAvionics
 			Falling.Reset();
 			if(enable)
 			{
-				VSL.UpdateRelAltitude();
+				VSL.UpdateAltitudeInfo();
 				CFG.DesiredAltitude = VSL.LandedOrSplashed? -10 : VSL.Altitude;
 			}
 		}
