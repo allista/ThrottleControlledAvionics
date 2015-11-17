@@ -75,7 +75,8 @@ namespace ThrottleControlledAvionics
 				total_sthrust += sthrust;
 			}
 			var current_sthrust = avg_thrust_dir.magnitude;
-			avg_thrust_pos /= total_sthrust;
+			if(total_sthrust > 0) avg_thrust_pos /= total_sthrust;
+			else avg_thrust_pos = rcs.transform.position;
 			avg_thrust_dir.Normalize();
 			current_max_thrust = current_sthrust*rcs.thrusterPower*thrustMod;
 			current_thrust = current_sthrust*rcs.thrustPercentage*0.01f*rcs.thrusterPower*thrustMod;
