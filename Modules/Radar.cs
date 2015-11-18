@@ -159,9 +159,11 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
-			   (CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
-			    !VSL.AltitudeAboveGround || IsStateSet(TCAState.Landing)))
+			var zero_needed = VSL.NeededHorVelocity.IsZero();
+			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && zero_needed &&
+			   !CFG.Nav.Any(Navigation.FollowPath, Navigation.FollowTarget, Navigation.GoToTarget))
+//			   (CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
+//			    !VSL.AltitudeAboveGround || IsStateSet(TCAState.Landing)))
 			{ reset(); return; }
 			//check boundary conditions
 			if(ViewAngle > RAD.DownViewAngle) 
@@ -180,7 +182,6 @@ namespace ThrottleControlledAvionics
 				rewind();
 			}
 			//calculate closing speed and initial ray direction
-			var zero_needed = VSL.NeededHorVelocity.IsZero();
 			var alt_threshold = VSL.AbsAltitude-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2);
 			Dir = Vector3.zero;
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
@@ -257,7 +258,10 @@ namespace ThrottleControlledAvionics
 			VSL.TimeAhead = -1;
 			DistanceAhead = -1;
 			RelObstaclePosition = Vector3.zero;
-			Obstacle = DetectedHit.Obstacle > Altimeter.Obstacle? DetectedHit.Obstacle : Altimeter.Obstacle;
+			Obstacle = DetectedHit.Obstacle;
+			if(Altimeter.BeforeDestination(SurfaceVelocity) && 
+			   DetectedHit.Obstacle > Altimeter.Obstacle)
+				Obstacle = Altimeter.Obstacle;
 			if(ForwardRay.Valid)
 			{
 				ForwardRay.ClaculateAltitude(VSL.Up, VSL.AbsAltitude);
@@ -329,6 +333,14 @@ namespace ThrottleControlledAvionics
 			{ return p1.Altitude < p2.Altitude;	}
 			public static bool operator >(TerrainPoint p1, TerrainPoint p2)
 			{ return p1.Altitude > p2.Altitude;	}
+
+			public bool BeforeDestination(VesselWrapper vsl, Vector3d vel)
+			{ 
+				return Valid &&
+					(vsl.Destination.IsZero() ||
+					 Vector3.Dot(RelPosition(vsl.wCoM+vsl.Destination), vsl.Destination) < 0 ||
+					 Vector3.Dot(vel, vsl.Destination) < 0);
+			}
 
 			public override string ToString()
 			{ return string.Format("[TerrainPoint: Valid={0}, Altitude={1}, Position={2}]", Valid, Altitude, Position); }
@@ -418,12 +430,7 @@ namespace ThrottleControlledAvionics
 			public bool  Valid { get; private set; }
 
 			public bool BeforeDestination(Vector3d vel)
-			{ 
-				return Valid &&
-					(VSL.Destination.IsZero() ||
-					 Vector3.Dot(Obstacle.RelPosition(VSL.wCoM+VSL.Destination), VSL.Destination) < 0 ||
-					 Vector3.Dot(vel, VSL.Destination) < 0);
-			}
+			{ return Obstacle.BeforeDestination(VSL, vel); }
 
 			public Sweep(VesselWrapper vsl)	{ VSL = vsl; }
 
@@ -509,6 +516,9 @@ namespace ThrottleControlledAvionics
 				LookAheadTimeDelta = 1;
 				BestPoint.Reset();
 			}
+
+			public bool BeforeDestination(Vector3d vel)
+			{ return Obstacle.BeforeDestination(VSL, vel); }
 
 			public void ProbeHeightAhead(Vector3 Dir)
 			{
