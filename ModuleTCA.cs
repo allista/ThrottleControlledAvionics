@@ -388,7 +388,10 @@ namespace ThrottleControlledAvionics
 				VSL.SortEngines();
 				//:preset manual limits for translation if needed
 				if(VSL.ManualTranslationSwitch.On)
+				{
 					ENG.PresetLimitsForTranslation(VSL.ManualEngines, VSL.ManualTranslation);
+					if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.ManualEngines, VSL.UpL);
+				}
 				//:balance-only engines
 				if(VSL.BalancedEngines.Count > 0)
 				{
