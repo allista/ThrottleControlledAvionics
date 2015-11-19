@@ -226,23 +226,35 @@ namespace ThrottleControlledAvionics
 		{
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
 			Engines.Clear(); RCS.Clear(); RWheels.Clear();
-			foreach(Part p in vessel.Parts)
-				foreach(var module in p.Modules)
-				{	
+			for(int i = 0, vesselPartsCount = vessel.Parts.Count; i < vesselPartsCount; i++)
+			{
+				Part p = vessel.Parts[i];
+				for(int j = 0, pModulesCount = p.Modules.Count; j < pModulesCount; j++)
+				{
 					//engines
+					var module = p.Modules[j];
 					var engine = module as ModuleEngines;
 					if(engine != null)
-					{ 
-						Engines.Add(new EngineWrapper(engine)); 
-						continue; 
+					{
+						Engines.Add(new EngineWrapper(engine));
+						continue;
 					}
 					//reaction wheels
 					var rwheel = module as ModuleReactionWheel;
-					if(rwheel != null) { RWheels.Add(rwheel); continue; }
+					if(rwheel != null)
+					{
+						RWheels.Add(rwheel);
+						continue;
+					}
 					//rcs
 					var rcs = module as ModuleRCS;
-					if(rcs != null) { RCS.Add(new RCSWrapper(rcs)); continue; }
+					if(rcs != null)
+					{
+						RCS.Add(new RCSWrapper(rcs));
+						continue;
+					}
 				}
+			}
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines);
 			else if(CFG.Enabled && CanUpdateEngines) CFG.ActiveProfile.Update(Engines);
 		}
