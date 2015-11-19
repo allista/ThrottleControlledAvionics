@@ -125,6 +125,24 @@ namespace ThrottleControlledAvionics
 		public override void Rewind()
 		{ base.Rewind(); waypoints_loaded = false; }
 
+		public override void Save(ConfigNode node)
+		{
+			base.Save(node);
+			var wpn = node.AddNode("Waypoints");
+			foreach(var wp in Waypoints)
+				wp.Save(wpn.AddNode(WayPoint.NODE_NAME));
+		}
+
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			Waypoints.Clear();
+			var wpn = node.GetNode("Waypoints");
+			if(wpn == null) return;
+			foreach(var n in wpn.GetNodes(WayPoint.NODE_NAME))
+				Waypoints.Enqueue(ConfigNodeObject.FromConfig<WayPoint>(n));
+		}
+
 		protected override void DrawThis ()
 		{
 			var title = Name;
@@ -132,7 +150,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(title, Styles.yellow_button, GUILayout.ExpandWidth(false));
 				if(CFG != null && GUILayout.Button("Copy waypoints from Vessel", 
 					Styles.yellow_button, GUILayout.ExpandWidth(false)))
 					Waypoints = new Queue<WayPoint>(CFG.Waypoints);
@@ -153,7 +171,7 @@ namespace ThrottleControlledAvionics
 			{
 				ScreenMessages.PostScreenMessage(Name+": No Waypoints", 
 				                                 5, ScreenMessageStyle.UPPER_CENTER);
-				return true;
+				return false;
 			}
 			VSL.CFG.Nav.XOnIfNot(Navigation.FollowPath);
 			return VSL.CFG.Nav[Navigation.FollowPath];
