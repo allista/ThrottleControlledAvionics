@@ -54,9 +54,8 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Public Info
-		public bool  Available { get { return enabled && VSL != null; } }
-		public bool  Controllable { get { return Available && vessel.IsControllable; } }
-		public static bool HasTCA { get { return !GLB.IntegrateIntoCareer || Utils.PartIsPurchased(TCAGlobals.TCA_PART); } }
+		public bool Available { get { return enabled && VSL != null; } }
+		public bool Controllable { get { return Available && vessel.IsControllable; } }
 		#endregion
 
 		#region Initialization
@@ -165,7 +164,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		void check_career_part()
-		{ if(enabled) enabled = isEnabled = HasTCA; }
+		{ if(enabled) enabled = isEnabled = TCAScenario.HasTCA; }
 
 		void create_modules()
 		{

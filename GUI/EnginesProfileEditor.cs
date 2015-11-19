@@ -100,7 +100,7 @@ namespace ThrottleControlledAvionics
 		bool UpdateEngines(ShipConstruct ship)
 		{
 			Engines.Clear();
-			if(ModuleTCA.HasTCA) 
+			if(TCAScenario.HasTCA) 
 			{ 
 				foreach(Part p in ship.Parts)
 					foreach(var module in p.Modules)

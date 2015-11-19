@@ -70,7 +70,8 @@ namespace ThrottleControlledAvionics
 
 		#region ModuleInfo
 		public static string ModuleStatusString()
-		{ return ModuleTCA.HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
+		{ return HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
+		public static bool HasTCA { get { return !Globals.IntegrateIntoCareer || Utils.PartIsPurchased(TCAGlobals.TCA_PART); } }
 		#endregion
 
 		#region From KSPPluginFramework
