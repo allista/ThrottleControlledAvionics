@@ -361,6 +361,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	#region LowPass
 	public class TimeAverage
 	{
 		public float dT;
@@ -405,6 +406,81 @@ namespace ThrottleControlledAvionics
 		public override string ToString() { return value.ToString(); }
 		public string ToString(string F) { return value.ToString(F); }
 	}
+
+	public class LowPassFilterF
+	{
+		float prev;
+		public float Tau = 1;
+
+		public float Value { get { return prev; } }
+
+		public float Update(float cur)
+		{
+			prev = prev + (TimeWarp.fixedDeltaTime/(Tau+TimeWarp.fixedDeltaTime)) * (cur-prev);
+			return prev;
+		}
+	}
+
+	public class LowPassFilterV
+	{
+		Vector3 prev;
+		public float Tau = 1;
+
+		public Vector3 Value { get { return prev; } }
+
+		public Vector3 Update(Vector3 cur)
+		{
+			prev = prev + (TimeWarp.fixedDeltaTime/(Tau+TimeWarp.fixedDeltaTime)) * (cur-prev);
+			return prev;
+		}
+	}
+
+	public class LowPassFilterVd
+	{
+		Vector3d prev;
+		public double Tau = 1;
+
+		public Vector3d Value { get { return prev; } }
+
+		public Vector3d Update(Vector3d cur)
+		{
+			prev = prev + (TimeWarp.fixedDeltaTime/(Tau+TimeWarp.fixedDeltaTime)) * (cur-prev);
+			return prev;
+		}
+	}
+
+	public class LowPassFilterVV
+	{
+		Vector3 prev;
+		public Vector3 Value { get { return prev; } }
+
+		public Vector3 Update(Vector3 cur, Vector3 tau)
+		{
+			var output = Vector3.zero;
+			output.x = prev.x + (TimeWarp.fixedDeltaTime/(tau.x+TimeWarp.fixedDeltaTime)) * (cur.x-prev.x);
+			output.y = prev.y + (TimeWarp.fixedDeltaTime/(tau.y+TimeWarp.fixedDeltaTime)) * (cur.y-prev.y);
+			output.z = prev.z + (TimeWarp.fixedDeltaTime/(tau.z+TimeWarp.fixedDeltaTime)) * (cur.z-prev.z);
+			prev = output;
+			return output;
+		}
+	}
+
+	public class LowPassFilterVVd
+	{
+		Vector3d prev;
+		public Vector3d Value { get { return prev; } }
+
+		public Vector3d Update(Vector3d cur, Vector3d tau)
+		{
+			var output = Vector3d.zero;
+			output.x = prev.x + (TimeWarp.fixedDeltaTime/(tau.x+TimeWarp.fixedDeltaTime)) * (cur.x-prev.x);
+			output.y = prev.y + (TimeWarp.fixedDeltaTime/(tau.y+TimeWarp.fixedDeltaTime)) * (cur.y-prev.y);
+			output.z = prev.z + (TimeWarp.fixedDeltaTime/(tau.z+TimeWarp.fixedDeltaTime)) * (cur.z-prev.z);
+			prev = output;
+			return output;
+		}
+	}
+	#endregion
 
 	public class Switch
 	{
@@ -464,10 +540,26 @@ namespace ThrottleControlledAvionics
 		{
 			var cvec = Vector3.zero;
 			for(int i = 0; i < 3; i++)
-				cvec[i] = vec[i] >= 0 ? 
-					Mathf.Min(positive[i], vec[i]) : 
-					Mathf.Max(negative[i], vec[i]);
+			{
+				var vi = vec[i];
+				cvec[i] = vi >= 0 ? 
+					Mathf.Min(positive[i], vi) : 
+					Mathf.Max(negative[i], vi);
+			}
 			return cvec;
+		}
+
+		public Vector3 Scale(Vector3 vec)
+		{
+			var svec = Vector3.zero;
+			for(int i = 0; i < 3; i++)
+			{
+				var vi = vec[i];
+				svec[i] = vi >= 0 ? 
+					positive[i]*Mathf.Abs(vi) : 
+					negative[i]*Mathf.Abs(vi);
+			}
+			return svec;
 		}
 
 		public Vector3 Max
