@@ -74,10 +74,9 @@ namespace ThrottleControlledAvionics
 		static bool init()
 		{
 			TCA = null; TCAToolbarManager.AttachTCA(null); 
-			part = vessel.parts.FirstOrDefault(p => p.HasModule<ModuleTCA>());
-			if(part == null) return false;
-			TCA = part.Modules.OfType<ModuleTCA>().FirstOrDefault();
-			if(TCA == null || !TCA.Available) { TCA = null; return false; }
+			TCA = ModuleTCA.EnabledTCA(vessel);
+			if(TCA == null || !TCA.Available) 
+			{ TCA = null; return false; }
 			TCAToolbarManager.AttachTCA(TCA);
 			updateConfigs();
 			UpDamper.Reset();
