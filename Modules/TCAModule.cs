@@ -105,12 +105,11 @@ namespace ThrottleControlledAvionics
 
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
 		{
-			s.pitch = rot.x;
-			s.roll = rot.y;
-			s.yaw = rot.z;
+			s.pitch = Utils.Clamp(rot.x, -1, 1);
+			s.roll  = Utils.Clamp(rot.y, -1, 1);
+			s.yaw   = Utils.Clamp(rot.z, -1, 1);
 //			Log("Set Rot: {0}:{1}, {2}:{3}, {4}:{5}", 
 //			    s.pitch, s.pitchTrim, s.roll, s.rollTrim, s.yaw, s.yawTrim);//debug 
 		}
 	}
 }
-
