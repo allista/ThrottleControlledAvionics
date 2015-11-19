@@ -54,6 +54,7 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Public Info
+		public bool Valid { get { return vessel != null && part != null && Available; } }
 		public bool Available { get { return enabled && VSL != null; } }
 		public bool Controllable { get { return Available && vessel.IsControllable; } }
 		#endregion
@@ -212,7 +213,7 @@ namespace ThrottleControlledAvionics
 		{
 			//get all ModuleTCA instances in the vessel
 			var TCA_Modules = new List<ModuleTCA>();
-			(from p in ship.Parts select p.Modules.OfType<ModuleTCA>())
+			(from p in ship.Parts select p.Modules.GetModules<ModuleTCA>())
 				.ForEach(TCA_Modules.AddRange);
 			return TCA_Modules;
 		}
@@ -223,7 +224,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0, shipPartsCount = ship.Parts.Count; i < shipPartsCount; i++) 
 			{
 				tca = ship.Parts[i].Modules
-					.OfType<ModuleTCA>()
+					.GetModules<ModuleTCA>()
 					.FirstOrDefault(m => m.enabled);
 				if(tca != null) break;
 			}
