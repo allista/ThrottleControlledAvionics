@@ -260,7 +260,7 @@ namespace ThrottleControlledAvionics
 			RelObstaclePosition = Vector3.zero;
 			Obstacle = DetectedHit.Obstacle;
 			if(Altimeter.BeforeDestination(SurfaceVelocity) && 
-			   DetectedHit.Obstacle > Altimeter.Obstacle)
+			   DetectedHit.Obstacle < Altimeter.Obstacle)
 				Obstacle = Altimeter.Obstacle;
 			if(ForwardRay.Valid)
 			{
@@ -300,9 +300,6 @@ namespace ThrottleControlledAvionics
 			public double Altitude { get; private set; }
 			public Vector3d Position { get; private set; }
 			public bool Valid { get { return !Altitude.Equals(double.MinValue); } }
-
-			public TerrainPoint() 
-			{ Altitude = double.MinValue; Position = Vector3d.zero; }
 
 			public TerrainPoint(double alt, Vector3d pos)
 			{ Altitude = alt; Position = pos; }
