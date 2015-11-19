@@ -90,7 +90,7 @@ namespace ThrottleControlledAvionics
 		float next_throttle(float dV, float thrust, float throttle)
 		{ 
 			var dt = Utils.Clamp(dV/MAN.DeltaVThreshold, 0.5f, 2f);
-			return Utils.Clamp((dV/dt/thrust*VSL.M-throttle*VSL.DecelTime/dt), 0f, 1f); 
+			return Utils.Clamp((dV/dt/thrust*VSL.M-throttle*VSL.ThrustDecelerationTime/dt), 0f, 1f); 
 		}
 
 		protected override void Update()
@@ -121,7 +121,7 @@ namespace ThrottleControlledAvionics
 				else if(CFG.WarpToNode && Aligned && 
 				        DewarpTime > TimeWarp.CurrentRate && 
 				        TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
-				        TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] < MAN.MaxWarp &&
+				        TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= MAN.MaxWarp &&
 				        VSL.AbsAltitude > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody))
 					TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
 				if(VSL.Countdown > 0) return;

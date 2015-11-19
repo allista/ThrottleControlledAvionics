@@ -73,8 +73,10 @@ namespace ThrottleControlledAvionics
 		public float  MaxTWR { get; private set; }
 		public float  AccelSpeed { get; private set; }
 		public float  DecelSpeed { get; private set; }
-		public float  DecelTime { get; private set; }
-		public bool   SlowEngines { get; private set; }
+		public float  ThrustDecelerationTime { get; private set; }
+		public bool   SlowThrust { get; private set; }
+		public bool   SlowTorque { get; private set; }
+		public float  TorqueResponseTime { get; private set; }
 		public float  VSF; //vertical speed factor
 		public float  MinVSF;
 		public float  MinVSFtwr;
@@ -91,13 +93,15 @@ namespace ThrottleControlledAvionics
 		public Vector3    MaxAngularA { get; private set; } //current maximum angular acceleration
 		public Vector3    wMaxAngularA { get; private set; } //current maximum angular acceleration
 		public float      MaxAngularA_m { get; private set; }
+		public float      MaxAAMod { get; private set; }
+		LowPassFilterF    MaxAAFilter = new LowPassFilterF();
 		public Vector3    MaxPitchRollAA { get; private set; }
 		public float      MaxPitchRollAA_m { get; private set; }
 
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
 		public Vector3  ManualThrust { get; private set; }
-		public Vector3  Torque { get; private set; } //current torque applied to the vessel by the engines
+		public Vector3  Torque { get; private set; } //current torque applied to the vessel by engines
 		public Vector3  MaxTorque { get; private set; }
 		public float    MaxMassFlow { get; private set; }
 		public float    MassFlow { get; private set; }
@@ -143,8 +147,7 @@ namespace ThrottleControlledAvionics
 		public CelestialBody mainBody { get { return vessel.mainBody; } }
 		public bool OnPlanet { get; private set; }
 		public bool isEVA { get { return vessel.isEVA; } }
-		public bool IsActiveVessel 
-		{ get { return vessel != null && vessel == FlightGlobals.ActiveVessel; } }
+		public bool IsActiveVessel { get; private set; }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
 		public ActionGroupList ActionGroups { get { return vessel.ActionGroups; } }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
@@ -183,6 +186,7 @@ namespace ThrottleControlledAvionics
 			CanUpdateEngines = true;
 			AltitudeAhead = float.MinValue;
 			OnPlanet = _OnPlanet();
+			MaxAAFilter.Tau = GLB.MaxAAFilter;
 		}
 
 		bool _OnPlanet() 
@@ -203,8 +207,6 @@ namespace ThrottleControlledAvionics
 //			    		s.pitch, s.pitchTrim, s.roll, s.rollTrim, s.yaw, s.yawTrim);//debug 
 		}
 
-		public Vector3 GetStarboard(Vector3d hV) { return hV.IsZero()? Vector3.zero : Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(hV, Up); }
-		public Vector3 CurrentStarboard { get { return Quaternion.FromToRotation(Up, Vector3.up)*Vector3d.Cross(HorizontalVelocity, Up); } }
 		public void SetNeededHorVelocity(Vector3d hV)
 		{
 			CFG.SavedUp = Up;
@@ -445,13 +447,8 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			OnPlanet = on_planet;
-			//update steering and translation
-			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
-			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
-			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
-			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
+			IsActiveVessel = vessel != null && vessel == FlightGlobals.ActiveVessel;
 			if(!CFG.HF && !CFG.AT) UnblockSAS();
-			CourseCorrections.Clear();
 		}
 
 		public void UpdateCommons()
@@ -461,7 +458,10 @@ namespace ThrottleControlledAvionics
 			MaxThrust = Vector3.zero;
 			MassFlow = 0f;
 			MaxMassFlow = 0f;
-			DecelTime = 0f;
+			ThrustDecelerationTime = 0f;
+			SlowTorque = false;
+			TorqueResponseTime = 0f;
+			var total_torque = 0f;
 			for(int i = 0; i < NumActive; i++) 
 			{
 				var e = ActiveEngines[i];
@@ -477,15 +477,22 @@ namespace ThrottleControlledAvionics
 				{
 					MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
 					MaxMassFlow += e.engine.maxThrust/e.engine.realIsp;
+					if(e.useEngineResponseTime && e.finalThrust > 0)
+					{
+						var decelT = 1f/e.engineDecelerationSpeed;
+						if(decelT > ThrustDecelerationTime) ThrustDecelerationTime = decelT;
+					}
+				}
+				if(e.useEngineResponseTime && (e.Role == TCARole.MAIN || e.Role == TCARole.MANEUVER))
+				{
+					total_torque += e.currentTorque_m;
+					TorqueResponseTime = e.currentTorque_m*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed);
 				}
 				MassFlow += e.engine.requestedMassFlow*e.engine.propellantReqMet/100;
-				if(e.useEngineResponseTime && e.finalThrust > 0)
-				{
-					var decelT = 1f/e.engineDecelerationSpeed;
-					if(decelT > DecelTime) DecelTime = decelT;
-				}
 			}
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
+			if(TorqueResponseTime > 0) TorqueResponseTime = total_torque/TorqueResponseTime;
+			SlowTorque = TorqueResponseTime > 0;
 			//init RCS wrappers if needed
 			if(!NoActiveRCS)
 			{
@@ -501,37 +508,48 @@ namespace ThrottleControlledAvionics
 					t.currentTorque_m = t.currentTorque.magnitude;
 				}
 			}
+			//update torque limits and MaxAA
 			UpdateETorqueLimits();
 			UpdateRTorqueLimits();
 			UpdateWTorqueLimits();
-			update_MaxAngularA();
+			UpdateMaxAngularA();
+			MaxPitchRollAA   = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(Thrust));
+			MaxPitchRollAA_m = MaxPitchRollAA.magnitude;
+			//update steering and translation
+			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
+			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
+			if(!Steering.IsZero()) //tune steering if MaxAA has changed drastically
+				Steering = Steering*Utils.ClampH(MaxAAMod, 1)/Steering.CubeNorm().magnitude;
+			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
+			CourseCorrections.Clear();
 		}
 
-		public void UpdateETorqueLimits()
+		void UpdateETorqueLimits()
 		{
 			E_TorqueLimits = new Vector6();
 			for(int i = 0, count = SteeringEngines.Count; i < count; i++)
 				E_TorqueLimits.Add(SteeringEngines[i].currentTorque);
 		}
 
-		public void UpdateWTorqueLimits()
+		void UpdateWTorqueLimits()
 		{
 			W_TorqueLimits = new Vector6();
 			for(int i = 0, count = RWheels.Count; i < count; i++)
 			{
 				var w = RWheels[i];
 				if(!w.operational) continue;
-				W_TorqueLimits.Add(refT.InverseTransformDirection(new Vector3(w.PitchTorque, w.RollTorque, w.YawTorque)));
+				var torque = new Vector3(w.PitchTorque, w.RollTorque, w.YawTorque);
+				W_TorqueLimits.Add(torque);
+				W_TorqueLimits.Add(-torque);
 			}
 		}
 
-		public void UpdateRTorqueLimits()
+		void UpdateRTorqueLimits()
 		{
 			R_TorqueLimits = new Vector6();
-			for(int i = 0, count = RCS.Count; i < count; i++)
+			for(int i = 0; i < NumActiveRCS; i++)
 			{
-				var r = RCS[i];
-				if(!r.rcs.isEnabled) continue;
+				var r = ActiveRCS[i];
 				for(int j = 0, tcount = r.rcs.thrusterTransforms.Count; j < tcount; j++)
 				{
 					var t = r.rcs.thrusterTransforms[j];
@@ -558,7 +576,7 @@ namespace ThrottleControlledAvionics
 		public void UpdateOnPlanetStats()
 		{
 			if(!OnPlanet) return;
-			AccelSpeed = 0f; DecelSpeed = 0f; SlowEngines = false;
+			AccelSpeed = 0f; DecelSpeed = 0f; SlowThrust = false;
 			//calculate altitude, vertical and horizontal speed and acceleration
 			AbsVerticalSpeed  = CoM_verticalSpeed;
 			VerticalAccel     = (AbsVerticalSpeed-VerticalSpeed)/TimeWarp.fixedDeltaTime;
@@ -609,8 +627,6 @@ namespace ThrottleControlledAvionics
 			MaxTWR  = MaxThrust.magnitude/M/G;
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/M/G, 0.1f);
 			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/M/G : 0f;
-			MaxPitchRollAA   = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(Thrust));
-			MaxPitchRollAA_m = MaxPitchRollAA.magnitude;
 			if(refT != null)
 			{
 				Fwd = Vector3.Cross(refT.right, -MaxThrust).normalized;
@@ -626,7 +642,7 @@ namespace ThrottleControlledAvionics
 			//correct setpoint for current TWR and slow engines
 			if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
 			if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
-			SlowEngines = AccelSpeed > 0 || DecelSpeed > 0;
+			SlowThrust = AccelSpeed > 0 || DecelSpeed > 0;
 		}
 
 		public void UpdateBounds()
@@ -660,7 +676,7 @@ namespace ThrottleControlledAvionics
 			}
 			B = b;
 			C = vT.TransformPoint(B.center);
-			H = Mathf.Abs(Vector3.Dot(vT.TransformDirection(B.extents), Up))-Vector3.Dot(C-wCoM, Up);
+			H = Mathf.Abs(Vector3.Dot(vT.TransformDirection(B.extents), Up))-Vector3.Dot(C-vessel.CurrentCoM, Up);
 			R = B.extents.magnitude;
 		}
 
@@ -679,12 +695,14 @@ namespace ThrottleControlledAvionics
 				 MoI.z.Equals(0)? float.MaxValue : torque.z/MoI.z);
 		}
 
-		void update_MaxAngularA()
+		void UpdateMaxAngularA()
 		{
 			MaxTorque = E_TorqueLimits.Max+R_TorqueLimits.Max+W_TorqueLimits.Max;
 			MaxAngularA = AngularAcceleration(MaxTorque);
 			wMaxAngularA = refT.TransformDirection(MaxAngularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
+			MaxAAMod = MaxAAFilter.Update(MaxAngularA_m)/MaxAngularA_m;
+			MaxAAMod *= MaxAAMod*MaxAAMod;
 		}
 
 		#region From MechJeb2

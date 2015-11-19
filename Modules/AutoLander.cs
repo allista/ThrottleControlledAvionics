@@ -442,7 +442,7 @@ namespace ThrottleControlledAvionics
 						CFG.Nav.OffIfOn(Navigation.Anchor);
 						CFG.HF.OnIfNot(HFlight.Stop);
 					}
-					set_VSpeed(VSL.SlowEngines? -0.5f :
+					set_VSpeed(VSL.SlowThrust? -0.5f :
 					           Mathf.Lerp(-0.5f, -1, VSL.Altitude/(VSL.H*LND.GearOnAtH)));
 				}
 				CutoffTimer.Reset();

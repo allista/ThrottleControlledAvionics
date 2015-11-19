@@ -10,6 +10,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -30,9 +31,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float TraverseAngle = 30f;
 			[Persistent] public float ManeuverTimer = 3f;
 			[Persistent] public float VerticalManeuverF = 0.5f;
+			[Persistent] public float LowPassF = 0.5f;
 			public float TraverseSin;
-
-			[Persistent] public PID_Controller PID = new PID_Controller(0.5f, 0f, 0.5f, 0, 10);
 
 			public override void Init()
 			{
@@ -48,23 +48,20 @@ namespace ThrottleControlledAvionics
 		{ 
 			IsActive = CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null; 
 			if(IsActive) return;
-			Correction = Vector3d.zero;
+			Correction = Vector3.zero;
 		}
 
 		static int RadarMask = (1 | 1 << LayerMask.NameToLayer("Parts"));
 		readonly HashSet<Guid> Dangerous = new HashSet<Guid>();
 		List<Vector3d> Corrections = new List<Vector3d>();
-		Vector3d Correction;
+		Vector3 Correction;
 		IEnumerator scanner;
-		readonly PIDvd_Controller pid = new PIDvd_Controller();
+		readonly LowPassFilterV filter = new LowPassFilterV();
 		readonly Timer ManeuverTimer = new Timer();
 
 		public override void Init()
 		{
 			base.Init();
-			pid.setPID(CPS.PID);
-			pid.Max = CPS.MaxAvoidanceSpeed;
-			pid.Reset();
 			ManeuverTimer.Period = CPS.ManeuverTimer;
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
@@ -74,8 +71,8 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
-			if(!IsActive || VSL == null || VSL.vessel == null || pid.Action.IsZero()) return;
-			GLUtils.GLVec(VSL.wCoM, pid.Action, Color.magenta);
+			if(!IsActive || VSL == null || VSL.vessel == null || filter.Value.IsZero()) return;
+			GLUtils.GLVec(VSL.wCoM, filter.Value, Color.magenta);
 		}
 
 		public override void Reset()
@@ -233,8 +230,8 @@ namespace ThrottleControlledAvionics
 					if(ManeuverTimer.Check) 
 					{ 
 						Dangerous.Clear();
-						Correction.Zero(); 
-						pid.Reset(); 
+						Correction = Vector3.zero;
+						filter.Reset();
 						return; 
 					}
 				}
@@ -245,17 +242,22 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			if(Correction.IsZero()) return;
-			pid.Update(Correction);
+			filter.Update(Correction.ClampComponents(0, CPS.MaxAvoidanceSpeed));
 			//correct needed vertical speed
 			if(CFG.VF[VFlight.AltitudeControl])
 			{
-				CFG.VerticalCutoff += (float)Vector3d.Dot(pid.Action, VSL.Up);
-//				Log("Correction {0}\ncorrectins {1}, dVSP {2}", 
-//				    Correction, Corrections.Count, Vector3d.Dot(pid.Action, VSL.Up));//debug
+				var dVSP = (float)Vector3d.Dot(filter.Value, VSL.Up);
+				if(dVSP > 0 || 
+				   VSL.RelAltitude-VSL.H +
+				   (dVSP+VSL.RelVerticalSpeed)*CPS.LookAheadTime > 0)
+					CFG.VerticalCutoff += dVSP;
+//				else dVSP = 0;//debug
+//				Log("\nCorrection {0}\nAction {1}\ndVSP {2}\ncorrectins:{3}", 
+//				    Correction, filter.Value, dVSP,
+//				    Corrections.Aggregate("\n", (s, v) => s+v+"\n"));//debug
 			}
 			//correct horizontal course
-			VSL.CourseCorrections.Add(Vector3d.Exclude(VSL.Up, pid.Action));
+			VSL.CourseCorrections.Add(Vector3d.Exclude(VSL.Up, filter.Value));
 		}
 	}
 }
-

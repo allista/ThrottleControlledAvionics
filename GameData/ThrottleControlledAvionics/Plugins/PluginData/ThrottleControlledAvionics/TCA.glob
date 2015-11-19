@@ -25,6 +25,8 @@ ENG
 	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 0.1
 	
+	MaxAAFilter = 5
+	
 	MaxP = 1
 	MaxI = 1
 	EnginesPI
@@ -115,6 +117,7 @@ ATC
 	AngleThreshold = 10
 	MinEf          = 0.0001
 	MaxEf          = 2
+	SlowTorqueF    = 0.1
 }
 
 HSC
@@ -134,10 +137,12 @@ HSC
 		D = 0.0
 	}
 
-	AccelerationFactor    = 1
-	MinHvThreshold        = 10
-	TWRf                  = 3
-	HVCurve               = 1.5
+	AccelerationFactor = 1
+	MinHvThreshold     = 10
+	TWRf               = 3
+	HVCurve            = 1.5
+	SlowTorqueF        = 1
+	LowPassF           = 0.5
 }
 
 CC
@@ -207,11 +212,11 @@ LND
 RAD
 {
 	UpViewAngle       = 60
-	DownViewAngle     = 20
+	DownViewAngle     = 40
 	MinAngleDelta     = 0.1
 	UpViewSlope       = 1
 	LookAheadTime     = 40
-	NumRays           = 20
+	NumRays           = 30
 	MinAltitudeFactor = 2
 	MinClosingSpeed   = 4
 	MinDistanceAhead  = 60
@@ -254,21 +259,15 @@ TLA
 
 CPS
 {
-	SafeDistance = 30
-	SafeTime     = 10
+	SafeDistance      = 30
+	SafeTime          = 10
 	MaxAvoidanceSpeed = 10
 	LatAvoidMinVelSqr = 0.25
-	LookAheadTime = 2
-	TraverseAngle = 10
-	ManeuverTimer = 0.1
+	LookAheadTime     = 2
+	TraverseAngle     = 10
+	ManeuverTimer     = 0.1
 	VerticalManeuverF = 0.5
-	
-	PID
-	{
-		P = 0.5
-		I = 0.01
-		D = 0.001
-	}
+	LowPassF          = 0.5
 }
 
 STB
