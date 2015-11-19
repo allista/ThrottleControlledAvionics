@@ -245,19 +245,15 @@ namespace ThrottleControlledAvionics
 				}
 			//if it is found in one of the modules, use it
 			//else, get it from common database or create a new one
-			if(vessel != null)
+			if(CFG != null)
 			{
-				if(CFG != null)
-				{
-					if(CFG.VesselID == Guid.Empty)
-						CFG.VesselID = vessel.id;
-					else if(CFG.VesselID != vessel.id)
-						CFG = VesselConfig.FromVesselConfig(vessel, CFG);
-					TCAScenario.Configs[CFG.VesselID] = CFG;
-				}
-				else CFG = TCAScenario.GetConfig(vessel);
+				if(CFG.VesselID == Guid.Empty)
+					CFG.VesselID = vessel.id;
+				else if(CFG.VesselID != vessel.id)
+					CFG = VesselConfig.FromVesselConfig(vessel, CFG);
+				TCAScenario.Configs[CFG.VesselID] = CFG;
 			}
-			else CFG = new VesselConfig();
+			else CFG = TCAScenario.GetConfig(vessel);
 			//finally, update references in other modules
 			TCA_Modules.ForEach(m => m.CFG = CFG);
 		}
