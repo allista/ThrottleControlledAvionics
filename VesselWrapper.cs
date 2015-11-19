@@ -465,7 +465,7 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateCommons()
 		{
-			//init engine wrappers
+			//init engine wrappers, thrust and torque information
 			Thrust = Vector3.zero;
 			MaxThrust = Vector3.zero;
 			MassFlow = 0f;
@@ -533,7 +533,9 @@ namespace ThrottleControlledAvionics
 			if(!Steering.IsZero()) //tune steering if MaxAA has changed drastically
 				Steering = Steering*Utils.ClampH(MaxAAMod, 1)/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
+			//reset things
 			CourseCorrections.Clear();
+			Destination = Vector3.zero;
 		}
 
 		void UpdateETorqueLimits()

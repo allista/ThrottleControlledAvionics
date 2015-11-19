@@ -154,9 +154,12 @@ namespace ThrottleControlledAvionics
 			fnode = null;			
 		}
 
-		void update_formation_offset()
+		void update_formation_info()
 		{
+			tVSL = CFG.Target.GetVessel();
 			if(tVSL == null) { reset_formation(); CanManeuver = false; return; }
+			if(tTCA == null || !tTCA.Valid || tTCA.vessel != tVSL)
+				tTCA = ModuleTCA.EnabledTCA(tVSL);
 			var only_count = false;
 			if(tVSL.srf_velocity.sqrMagnitude < PN.FormationSpeedSqr)
 			{ reset_formation(); CanManeuver = false; only_count = true; }
@@ -198,8 +201,6 @@ namespace ThrottleControlledAvionics
 				else for(int i = 0; i < num_offsets; i++) 
 					VSL.Formation[i].Update(forward, side, PN.MinDistance);
 			}
-			//			Log("CanManeuver: {0}\nnode {1}\nFormation: {2}", 
-			//			    CanManeuver, fnode, VSL.Formation);//debug
 			keep_formation = VSL.Formation != null;
 			if(VSL.Formation == null || fnode != null) return;
 			//compute follower offset
@@ -218,27 +219,27 @@ namespace ThrottleControlledAvionics
 			}
 			VSL.Formation[min_off].Follower = VSL.vessel;
 			fnode = VSL.Formation[min_off];
-			//			Log("CanManeuver: {0}, node {1}\nFormation:\n{2}", 
-			//			    CanManeuver, fnode, VSL.Formation.Aggregate("", (s, f) => s+f+"\n"));//debug
 		}
 
 		protected override void Update()
 		{
 			if(!IsActive || CFG.Target == null || CFG.Nav.Paused) return;
 			CFG.Target.Update(VSL.mainBody);
+			//update things that are needed to fly in formation
+			if(CFG.Nav[Navigation.FollowTarget]) update_formation_info();
+			else { tVSL = null; tTCA = null; }
 			//calculate direct distance
-			if(CFG.Nav[Navigation.FollowTarget]) update_formation_offset();
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.wCoM, VSL.Up);
 			var distance = Utils.ClampL(vdir.magnitude-VSL.R, 0);
 			//update destination
-			VSL.Destination = CFG.Nav[Navigation.GoToTarget] || CFG.Nav[Navigation.FollowPath] ? vdir : Vector3.zero;
+			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath)) VSL.Destination = vdir;
+			else if(tTCA != null && tTCA.Valid && tTCA.CFG.Enabled) VSL.Destination = tTCA.VSL.Destination;
 			//handle flying in formation
-			tVSL = CFG.Target.GetVessel();
 			var tvel = Vector3.zero;
 			var vel_is_set = false;
 			var end_distance = CFG.Target.Land?  CFG.Target.Distance/4 : CFG.Target.Distance;
 			var dvel = VSL.HorizontalVelocity;
-			if(tVSL != null && tVSL.loaded && CFG.Nav[Navigation.FollowTarget])
+			if(tVSL != null && tVSL.loaded)
 			{
 				if(formation_offset.IsZero()) end_distance *= all_followers.Count/2f;
 				tvel = Vector3d.Exclude(VSL.Up, tVSL.srf_velocity);
@@ -426,8 +427,6 @@ namespace ThrottleControlledAvionics
 			   Vector3d.Dot(tvel, vdir) > 0)
 				VSL.NeededHorVelocity += tvel;
 			VSL.SetNeededHorVelocity(VSL.NeededHorVelocity);
-//			CSV(dist2bound, Vector3d.Dot(dvel, vdir), DeltaSpeed, eta, brake_time, 
-//			    pid.Max, pid.Action);//debug
 		}
 
 		#if DEBUG
