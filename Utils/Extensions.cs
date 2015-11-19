@@ -168,10 +168,10 @@ namespace ThrottleControlledAvionics
 
 		#region From MechJeb2
 		public static bool HasModule<T>(this Part p) where T : PartModule
-		{ return p.Modules.OfType<T>().Any(); }
+		{ return p.Modules.GetModules<T>().Any(); }
 
 		public static T GetModule<T>(this Part p) where T : PartModule
-		{ return p.Modules.OfType<T>().FirstOrDefault(); }
+		{ return p.Modules.GetModules<T>().FirstOrDefault(); }
 
 		public static bool IsPhysicallySignificant(this Part p)
 		{
