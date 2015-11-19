@@ -67,6 +67,8 @@ namespace ThrottleControlledAvionics
 		readonly PIDf_Controller pid = new PIDf_Controller();
 		readonly Timer ArrivedTimer = new Timer();
 
+		Vessel tVSL;
+		ModuleTCA tTCA;
 		SortedList<Guid, ModuleTCA> all_followers = new SortedList<Guid, ModuleTCA>();
 		FormationNode fnode;
 		Vector3 formation_offset { get { return fnode == null? Vector3.zero : fnode.Offset; } }
@@ -145,14 +147,6 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		bool update_formation_offset()
-		{
-			if(updater == null) updater = offset_updater();
-			if(updater.MoveNext()) return true;
-			updater = null;
-			return false;
-		}
-
 		void reset_formation()
 		{
 			VSL.Maneuvering = false;
@@ -160,13 +154,11 @@ namespace ThrottleControlledAvionics
 			fnode = null;			
 		}
 
-		IEnumerator updater;
-		IEnumerator offset_updater()
+		void update_formation_offset()
 		{
-			var tvsl = CFG.Target.GetVessel();
-			if(tvsl == null) { reset_formation(); CanManeuver = false; yield break; }
+			if(tVSL == null) { reset_formation(); CanManeuver = false; return; }
 			var only_count = false;
-			if(tvsl.srf_velocity.sqrMagnitude < PN.FormationSpeedSqr)
+			if(tVSL.srf_velocity.sqrMagnitude < PN.FormationSpeedSqr)
 			{ reset_formation(); CanManeuver = false; only_count = true; }
 			//update followers
 			var can_maneuver = true;
@@ -188,19 +180,19 @@ namespace ThrottleControlledAvionics
 							(VSL.Maneuvering && VSL.vessel.id.CompareTo(v.id) > 0);
 				}
 			}
-			if(only_count) yield break;
+			if(only_count) return;
 			CanManeuver = can_maneuver;
 			var follower_index = all_followers.IndexOfKey(VSL.vessel.id);
 			if(follower_index == 0)
 			{
-				var forward = tvsl == null? Vector3d.zero : -tvsl.srf_velocity.normalized;
+				var forward = tVSL == null? Vector3d.zero : -tVSL.srf_velocity.normalized;
 				var side = Vector3d.Cross(VSL.Up, forward).normalized;
 				var num_offsets = all_followers.Count+(all_followers.Count%2);
 				if(VSL.Formation == null || VSL.Formation.Count != num_offsets)
 				{
 					VSL.Formation = new List<FormationNode>(num_offsets);
 					for(int i = 0; i < num_offsets; i++) 
-						VSL.Formation.Add(new FormationNode(tvsl, i, forward, side, PN.MinDistance));
+						VSL.Formation.Add(new FormationNode(tVSL, i, forward, side, PN.MinDistance));
 					all_followers.ForEach(p => p.Value.VSL.Formation = VSL.Formation);
 				}
 				else for(int i = 0; i < num_offsets; i++) 
@@ -209,7 +201,7 @@ namespace ThrottleControlledAvionics
 			//			Log("CanManeuver: {0}\nnode {1}\nFormation: {2}", 
 			//			    CanManeuver, fnode, VSL.Formation);//debug
 			keep_formation = VSL.Formation != null;
-			if(VSL.Formation == null || fnode != null) yield break;
+			if(VSL.Formation == null || fnode != null) return;
 			//compute follower offset
 			var min_d   = -1f;
 			var min_off = 0;
@@ -241,19 +233,19 @@ namespace ThrottleControlledAvionics
 			//update destination
 			VSL.Destination = CFG.Nav[Navigation.GoToTarget] || CFG.Nav[Navigation.FollowPath] ? vdir : Vector3.zero;
 			//handle flying in formation
-			var tvsl = CFG.Target.GetVessel();
+			tVSL = CFG.Target.GetVessel();
 			var tvel = Vector3.zero;
 			var vel_is_set = false;
 			var end_distance = CFG.Target.Land?  CFG.Target.Distance/4 : CFG.Target.Distance;
 			var dvel = VSL.HorizontalVelocity;
-			if(tvsl != null && tvsl.loaded && CFG.Nav[Navigation.FollowTarget])
+			if(tVSL != null && tVSL.loaded && CFG.Nav[Navigation.FollowTarget])
 			{
 				if(formation_offset.IsZero()) end_distance *= all_followers.Count/2f;
-				tvel = Vector3d.Exclude(VSL.Up, tvsl.srf_velocity+tvsl.acceleration*PN.LookAheadTime);
+				tvel = Vector3d.Exclude(VSL.Up, tVSL.srf_velocity);
 				dvel -= tvel;
 				var tvel_m = tvel.magnitude;
 				var dir2vel_cos = Vector3.Dot(vdir.normalized, tvel.normalized);
-				var lat_dir  = Vector3.ProjectOnPlane(vdir-VSL.PredictedHorVelocity(PN.LookAheadTime)*PN.LookAheadTime, tvel);
+				var lat_dir  = Vector3.ProjectOnPlane(vdir-VSL.HorizontalVelocity*PN.LookAheadTime, tvel);
 				var lat_dist = lat_dir.magnitude;
 				FormationBreakTimer.RunIf(() => keep_formation = false, 
 				                          tvel_m < PN.FormationSpeedCutoff);
