@@ -85,23 +85,31 @@ namespace ThrottleControlledAvionics
 			     !VSL.ForwardDirection.IsZero())) return;
 			DisableSAS();
 			//allow user to intervene
+			var cDir = Vector3.ProjectOnPlane(VSL.FwdL, VSL.UpL).normalized;
 			if(VSL.AutopilotDisabled) 
-			{ pid.Reset(); VSL.SetNeededHorVelocity(VSL.HorizontalVelocity); return; }
+			{ 
+				pid.Reset();
+				VSL.SetNeededHorVelocity(VSL.refT.TransformDirection(cDir) * 
+				                         Utils.ClampL((float)VSL.NeededHorVelocity.magnitude-s.pitch, 0));
+				return; 
+			}
 			//update needed velocity
 			if(CFG.HF[HFlight.CruiseControl])
 				UpdateTimer.Run(UpdateNeededVelocity);
 			//turn ship's nose in the direction of needed velocity
-			var cDir = Vector3.ProjectOnPlane(VSL.FwdL, VSL.UpL).normalized;
+			var axis = VSL.NoseUp? Vector3.up : Vector3.forward;
 			var nDir = VSL.refT.InverseTransformDirection(VSL.ForwardDirection);
-			var attitude_error = Quaternion.FromToRotation(cDir, nDir);
-			var angle = Utils.CenterAngle(VSL.NoseUp? attitude_error.eulerAngles.y : attitude_error.eulerAngles.z)/180;
-			var AAf = Utils.Clamp(1/(Vector3.Scale(VSL.NoseUp? Vector3.up : Vector3.forward, VSL.MaxAngularA).magnitude), CC.MinAAf, CC.MaxAAf);
+			var angle = Vector3.Angle(cDir, nDir)/180*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
+			var AAf = Utils.Clamp(1/(Mathf.Abs(Vector3.Dot(axis, VSL.MaxAngularA))), CC.MinAAf, CC.MaxAAf);
 			var eff = Mathf.Abs(Vector3.Dot(VSL.MaxThrust.normalized, VSL.Up));
 			pid.P = CC.DirectionPID.P*AAf;
 			pid.D = CC.DirectionPID.D*AAf*AAf;
 			pid.Update(angle);
-			if(VSL.NoseUp) s.roll = s.rollTrim = -pid.Action*eff;
-			else s.yaw = s.yawTrim = -pid.Action*eff;
+			var act = pid.Action*eff;
+			if(VSL.NoseUp) s.roll = s.rollTrim = act;
+			else s.yaw = s.yawTrim = act;
+
+//			CSV(angle, AAf, AAf*AAf, eff, pid.Action, act);//debug
 		}
 	}
 }
