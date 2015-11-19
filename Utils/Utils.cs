@@ -407,44 +407,40 @@ namespace ThrottleControlledAvionics
 		public string ToString(string F) { return value.ToString(F); }
 	}
 
-	public class LowPassFilterF
+	public abstract class LowPassFilter<T>
 	{
-		float prev;
+		protected T prev;
 		public float Tau = 1;
+		protected float alpha { get { return (TimeWarp.fixedDeltaTime/(Tau+TimeWarp.fixedDeltaTime)); } }
 
-		public float Value { get { return prev; } }
+		public T Value { get { return prev; } }
+		public abstract T Update(T cur);
+		public void Reset() { prev = default(T); }
+	}
 
-		public float Update(float cur)
+	public class LowPassFilterF : LowPassFilter<float>
+	{
+		public override float Update(float cur)
 		{
-			prev = prev + (TimeWarp.fixedDeltaTime/(Tau+TimeWarp.fixedDeltaTime)) * (cur-prev);
+			prev = prev +  alpha * (cur-prev);
 			return prev;
 		}
 	}
 
-	public class LowPassFilterV
+	public class LowPassFilterV : LowPassFilter<Vector3>
 	{
-		Vector3 prev;
-		public float Tau = 1;
-
-		public Vector3 Value { get { return prev; } }
-
-		public Vector3 Update(Vector3 cur)
+		public override Vector3 Update(Vector3 cur)
 		{
-			prev = prev + (TimeWarp.fixedDeltaTime/(Tau+TimeWarp.fixedDeltaTime)) * (cur-prev);
+			prev = prev + alpha * (cur-prev);
 			return prev;
 		}
 	}
 
-	public class LowPassFilterVd
+	public class LowPassFilterVd : LowPassFilter<Vector3d>
 	{
-		Vector3d prev;
-		public double Tau = 1;
-
-		public Vector3d Value { get { return prev; } }
-
-		public Vector3d Update(Vector3d cur)
+		public override Vector3d Update(Vector3d cur)
 		{
-			prev = prev + (TimeWarp.fixedDeltaTime/(Tau+TimeWarp.fixedDeltaTime)) * (cur-prev);
+			prev = prev + alpha * (cur-prev);
 			return prev;
 		}
 	}
