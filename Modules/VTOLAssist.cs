@@ -134,7 +134,13 @@ namespace ThrottleControlledAvionics
 					                VSL.HorizontalSpeed < TLA.GearOnMaxHSpeed &&
 					                VSL.RelAltitude+VSL.RelVerticalSpeed*(TLA.GearOnTime+TLA.GearTimer) < TLA.GearOnAtH*VSL.H);
 				}
-				
+				else GearTimer.RunIf(() => 
+				{
+					VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+					VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
+				},
+				                     VSL.RelVerticalSpeed > 0 ||
+				                     VSL.HorizontalSpeed > TLA.GearOnMaxHSpeed);
 			}
 		}
 	}
