@@ -182,7 +182,7 @@ namespace ThrottleControlledAvionics
 			if(!advOptions) return;
 			GUILayout.BeginVertical(Styles.white);
 			GUILayout.Label(TCATitle, Styles.label);
-			if(GUILayout.Button("Reload Globals", Styles.yellow_button, GUILayout.ExpandWidth(true))) 
+			if(GUILayout.Button("Reload TCA Settings", Styles.yellow_button, GUILayout.ExpandWidth(true))) 
 			{
 				TCAScenario.LoadGlobals();
 				TCA.OnReloadGlobals();
