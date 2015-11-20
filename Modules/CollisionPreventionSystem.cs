@@ -42,7 +42,7 @@ namespace ThrottleControlledAvionics
 		}
 		static Config CPS { get { return TCAScenario.Globals.CPS; } }
 
-		public CollisionPreventionSystem(VesselWrapper vsl) { VSL = vsl; }
+		public CollisionPreventionSystem(ModuleTCA tca) { TCA = tca; }
 
 		protected override void UpdateState() 
 		{ 

@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
 		readonly LowPassFilterVd filter = new LowPassFilterVd();
 		Vector3d needed_thrust_dir;
 
-		public HorizontalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
+		public HorizontalSpeedControl(ModuleTCA tca) { TCA = tca; }
 
 		public override void Init() 
 		{ 

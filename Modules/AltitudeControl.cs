@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
 		readonly PIDf_Controller  jets_pid   = new PIDf_Controller();
 		readonly Timer            Falling    = new Timer();
 
-		public AltitudeControl(VesselWrapper vsl) { VSL = vsl; }
+		public AltitudeControl(ModuleTCA tca) { TCA = tca; }
 
 		public override void Init()
 		{

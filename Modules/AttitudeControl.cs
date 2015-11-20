@@ -44,7 +44,7 @@ namespace ThrottleControlledAvionics
 		float omega2, p_omega2, pp_omega2, AAf, Ef, PIf;
 		const float steering_norm = Mathf.PI*Mathf.PI;
 
-		public AttitudeControl(VesselWrapper vsl) { VSL = vsl; }
+		public AttitudeControl(ModuleTCA tca) { TCA = tca; }
 
 		public override void Init() 
 		{ 

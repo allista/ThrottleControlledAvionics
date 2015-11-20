@@ -35,7 +35,7 @@ namespace ThrottleControlledAvionics
 		}
 		static Config VSC { get { return TCAScenario.Globals.VSC; } }
 
-		public VerticalSpeedControl(VesselWrapper vsl) { VSL = vsl; }
+		public VerticalSpeedControl(ModuleTCA tca) { TCA = tca; }
 
 		float old_accel, accelV;
 		readonly EWA setpoint_correction = new EWA();

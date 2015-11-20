@@ -23,7 +23,7 @@ namespace ThrottleControlledAvionics
 //		}
 //		static Config MAC { get { return TCAScenario.Globals.MAC; } }
 
-		public MacroProcessor(VesselWrapper vsl) { VSL = vsl; }
+		public MacroProcessor(ModuleTCA tca) { TCA = tca; }
 
 		protected override void UpdateState()
 		{ IsActive = CFG.MacroIsActive && CFG.SelectedMacro != null; }

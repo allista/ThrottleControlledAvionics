@@ -29,8 +29,9 @@ namespace ThrottleControlledAvionics
 			public virtual void Init() {}
 		}
 
-		protected VesselWrapper VSL;
+		protected ModuleTCA TCA;
 
+		protected VesselWrapper VSL { get { return TCA.VSL; } }
 		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 		public VesselConfig CFG { get { return VSL.CFG; } }
 		public TCAState State { get { return VSL.State; } }

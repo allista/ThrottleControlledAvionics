@@ -169,20 +169,18 @@ namespace ThrottleControlledAvionics
 
 		void create_modules()
 		{
-			var mt = typeof(TCAModule);
-			var vt = typeof(VesselWrapper);
 			if(mod_fields == null)
 				mod_fields = GetType()
 					.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Public|BindingFlags.Instance)
-					.Where(fi => fi.FieldType.IsSubclassOf(mt)).ToArray();
+					.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToArray();
 			modules = new List<TCAModule>(mod_fields.Length);
 			foreach(var fi in mod_fields)
 			{
-				if(!fi.FieldType.IsSubclassOf(mt)) continue;
-				var method = fi.FieldType.GetConstructor(new [] {vt});
+				if(!fi.FieldType.IsSubclassOf(typeof(TCAModule))) continue;
+				var method = fi.FieldType.GetConstructor(new [] {typeof(ModuleTCA)});
 				if(method != null)
 				{
-					var m = (TCAModule)method.Invoke(null, new [] {VSL});
+					var m = (TCAModule)method.Invoke(null, new [] {this});
 					if(m != null)
 					{
 						fi.SetValue(this, m);

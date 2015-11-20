@@ -49,7 +49,7 @@ namespace ThrottleControlledAvionics
 		}
 		static Config ENG { get { return TCAScenario.Globals.ENG; } }
 
-		public EngineOptimizer(VesselWrapper vsl) { VSL = vsl; }
+		public EngineOptimizer(ModuleTCA tca) { TCA = tca; }
 
 		Vector3 Steering;
 

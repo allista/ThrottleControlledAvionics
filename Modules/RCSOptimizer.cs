@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
 	public class RCSOptimizer : TorqueOptimizer
 	{
 		static RCSOptimizer.Config RCS { get { return TCAScenario.Globals.RCS; } }
-		public RCSOptimizer(VesselWrapper vsl) { VSL = vsl; }
+		public RCSOptimizer(ModuleTCA tca) { TCA = tca; }
 
 		static bool optimization_pass(IList<RCSWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
 		{

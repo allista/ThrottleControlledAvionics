@@ -61,7 +61,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 		static Config PN { get { return TCAScenario.Globals.PN; } }
-		public PointNavigator(VesselWrapper vsl) { VSL = vsl; }
+		public PointNavigator(ModuleTCA tca) { TCA = tca; }
 
 		float DeltaSpeed;
 		readonly PIDf_Controller pid = new PIDf_Controller();

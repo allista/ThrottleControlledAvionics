@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float GearOnTime      = 5f;
 		}
 		static Config TLA { get { return TCAScenario.Globals.TLA; } }
-		public VTOLAssist(VesselWrapper vsl) { VSL = vsl; }
+		public VTOLAssist(ModuleTCA tca) { TCA = tca; }
 
 		bool last_state, landed, tookoff;
 		readonly Timer GearTimer   = new Timer();

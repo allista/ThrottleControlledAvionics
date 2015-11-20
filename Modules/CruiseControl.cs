@@ -31,7 +31,7 @@ namespace ThrottleControlledAvionics
 		readonly ActionDamper UpdateTimer = new ActionDamper();
 		bool inited;
 
-		public CruiseControl(VesselWrapper vsl) { VSL = vsl; }
+		public CruiseControl(ModuleTCA tca) { TCA = tca; }
 
 		public override void Init()
 		{

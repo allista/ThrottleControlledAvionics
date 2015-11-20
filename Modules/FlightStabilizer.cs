@@ -24,7 +24,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinAngularVelocity = 0.001f; //(rad/s)^2 ~= 1.8deg/s
 		}
 		static Config STB { get { return TCAScenario.Globals.STB; } }
-		public FlightStabilizer(VesselWrapper vsl) { VSL = vsl; }
+		public FlightStabilizer(ModuleTCA tca) { TCA = tca; }
 
 		readonly Timer OnTimer = new Timer();
 		readonly Timer OffTimer = new Timer();

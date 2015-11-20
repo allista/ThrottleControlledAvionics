@@ -65,7 +65,7 @@ namespace ThrottleControlledAvionics
 
 		public float Progress { get { return scanner != null? done_rays/(float)total_rays : 0f; } }
 
-		public AutoLander(VesselWrapper vsl) { VSL = vsl; }
+		public AutoLander(ModuleTCA tca) { TCA = tca; }
 
 		public override void Init()
 		{

@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 		}
 		static Config MAN { get { return TCAScenario.Globals.MAN; } }
 
-		public ManeuverAutopilot(VesselWrapper vsl) { VSL = vsl; }
+		public ManeuverAutopilot(ModuleTCA tca) { TCA = tca; }
 
 		protected bool Aligned;
 		protected ManeuverNode Node;
@@ -95,7 +95,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive || Node == null) return;
+			if(!IsActive || Node == null || VSL.MaxThrust.IsZero()) return;
 			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0])
 			{ reset(); return; }
 			var dVrem = (float)Node.GetBurnVector(VSL.vessel.orbit).magnitude;
@@ -104,8 +104,6 @@ namespace ThrottleControlledAvionics
 			{ Node.RemoveSelf(); reset(); return; }
 			//orient along the burning vector
 			CFG.AT.OnIfNot(Attitude.ManeuverNode);
-			//if we don't have potential thrust, return
-			if(VSL.MaxThrust.IsZero()) return;
 			//calculate remaining time to the full thrust burn
 			var mthrust = VSL.MaxThrust.magnitude;
 			//see if we need to thrust
@@ -129,10 +127,9 @@ namespace ThrottleControlledAvionics
 				Working = true;
 			}
 			//calculate needed throttle and remaining TTB
-			VSL.ThrottleRequest = //Aligned ? 
+			VSL.ThrottleRequest = 
 				Utils.ClampL(1-VSL.AttitudeError/MAN.MaxAttitudeError, 0) * 
-				next_throttle(dVrem, mthrust, VSL.ctrlState.mainThrottle);// : 0;
+				next_throttle(dVrem, mthrust, VSL.ctrlState.mainThrottle);
 		}
 	}
 }
-

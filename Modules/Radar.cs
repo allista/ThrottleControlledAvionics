@@ -55,13 +55,13 @@ namespace ThrottleControlledAvionics
 			Both = Vertical|Horizontal 
 		}
 
-		public Radar(VesselWrapper vsl) 
+		public Radar(ModuleTCA tca)
 		{ 
-			VSL = vsl;
-			CurHit = new Sweep(vsl);
-			BestHit = new Sweep(vsl);
-			DetectedHit = new Sweep(vsl);
-			Altimeter = new PQS_Altimeter(vsl);
+			TCA = tca;
+			CurHit = new Sweep(VSL);
+			BestHit = new Sweep(VSL);
+			DetectedHit = new Sweep(VSL);
+			Altimeter = new PQS_Altimeter(VSL);
 		}
 
 		static   int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery"));
