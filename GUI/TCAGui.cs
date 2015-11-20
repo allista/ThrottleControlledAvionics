@@ -245,8 +245,11 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button(new GUIContent("T-", "AntiTarget"), CFG.AT[Attitude.AntiTarget]? 
 			                    Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.AntiTarget);
-			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? 
-			                    Styles.green_button : Styles.grey, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("rV+", CFG.AT[Attitude.RelVel], "Relative Velocity", GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.RelVel);
+			if(Utils.ButtonSwitch("rV-", CFG.AT[Attitude.AntiRelVel], "Against Relative Velocity", GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.AntiRelVel);
+			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.green_button : Styles.grey, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
 			GUILayout.Label(string.Format("Err: {0:F1}°", VSL.AttitudeError), Styles.white, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
@@ -484,13 +487,13 @@ namespace ThrottleControlledAvionics
 						selecting_target = false;
 				}
 				else if(VSL.HasTarget && 
-				        !(VSL.vessel.targetObject is WayPoint) && 
-				        (CFG.Waypoints.Count == 0 || VSL.vessel.targetObject != CFG.Waypoints.Peek().GetTarget()))
+				        !(VSL.Target is WayPoint) && 
+				        (CFG.Waypoints.Count == 0 || VSL.Target != CFG.Waypoints.Peek().GetTarget()))
 				{
 					if(GUILayout.Button(new GUIContent("Add As Waypoint", "Add current target as a waypoint"), 
 					                    Styles.yellow_button, GUILayout.Width(120)))
 					{
-						CFG.Waypoints.Enqueue(new WayPoint(VSL.vessel.targetObject));
+						CFG.Waypoints.Enqueue(new WayPoint(VSL.Target));
 						CFG.ShowWaypoints = true;
 					}
 				}

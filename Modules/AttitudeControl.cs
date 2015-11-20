@@ -64,7 +64,7 @@ namespace ThrottleControlledAvionics
 			if(!thrust.IsZero())
 				GLUtils.GLVec(VSL.wCoM, thrust.normalized*20, Color.red);
 			if(!needed_lthrust.IsZero())
-				GLUtils.GLVec(VSL.wCoM, VSL.refT.TransformDirection(needed_lthrust.normalized)*20, Color.yellow);
+				GLUtils.GLVec(VSL.wCoM, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
 		}
 
 		public override void Reset()
@@ -126,50 +126,56 @@ namespace ThrottleControlledAvionics
 					attitude_error = Quaternion.Inverse(refT.rotation.Inverse()*locked_attitude);
 				break;
 			case Attitude.Prograde:
-				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
-					VSL.vessel.situation == Vessel.Situations.SUB_ORBITAL? 
-					-VSL.vessel.obt_velocity : -VSL.vessel.srf_velocity;
-				needed_lthrust = VSL.refT.InverseTransformDirection(v.normalized);
-				break;
 			case Attitude.Retrograde:
 				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
 					VSL.vessel.situation == Vessel.Situations.SUB_ORBITAL? 
 					VSL.vessel.obt_velocity : VSL.vessel.srf_velocity;
-				needed_lthrust = VSL.refT.InverseTransformDirection(v.normalized);
+				if(v.magnitude < GLB.MAN.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
+				if(CFG.AT.state == Attitude.Retrograde) v *= -1;
+				needed_lthrust = VSL.LocalDir(v.normalized);
 				break;
 			case Attitude.Normal:
-				needed_lthrust = -VSL.refT.InverseTransformDirection(orbit.h.xzy);
+				needed_lthrust = -VSL.LocalDir(orbit.h.xzy);
 				break;
 			case Attitude.AntiNormal:
-				needed_lthrust = VSL.refT.InverseTransformDirection(orbit.h.xzy);
+				needed_lthrust = VSL.LocalDir(orbit.h.xzy);
 				break;
 			case Attitude.Radial:
-				needed_lthrust = VSL.refT.InverseTransformDirection(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, orbit.h.xzy.normalized));
+				needed_lthrust = VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, orbit.h.xzy.normalized));
 				break;
 			case Attitude.AntiRadial:
-				needed_lthrust = -VSL.refT.InverseTransformDirection(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, orbit.h.xzy.normalized));
+				needed_lthrust = -VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, orbit.h.xzy.normalized));
 				break;
 			case Attitude.Target:
-				if(!VSL.HasTarget) 
-				{ CFG.AT.On(Attitude.KillRotation); break; }
-				needed_lthrust = VSL.refT.InverseTransformDirection((VSL.wCoM-VSL.vessel.targetObject.GetTransform().position).normalized);
+				if(VSL.Target == null) { CFG.AT.On(Attitude.KillRotation); break; }
+				needed_lthrust = VSL.LocalDir((VSL.wCoM-VSL.Target.GetTransform().position).normalized);
 				break;
 			case Attitude.AntiTarget:
-				if(!VSL.HasTarget) 
-				{ CFG.AT.On(Attitude.KillRotation); break; }
-				needed_lthrust = VSL.refT.InverseTransformDirection((VSL.vessel.targetObject.GetTransform().position-VSL.wCoM).normalized);
+				if(VSL.Target == null) { CFG.AT.On(Attitude.KillRotation); break; }
+				needed_lthrust = VSL.LocalDir((VSL.Target.GetTransform().position-VSL.wCoM).normalized);
+				break;
+			case Attitude.RelVel:
+			case Attitude.AntiRelVel:
+				if(!VSL.HasTarget) { CFG.AT.On(Attitude.KillRotation); break; }
+				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
+					VSL.vessel.situation == Vessel.Situations.SUB_ORBITAL? 
+					VSL.Target.GetObtVelocity()-VSL.vessel.obt_velocity : 
+					VSL.Target.GetSrfVelocity()-VSL.vessel.srf_velocity;
+				if(v.magnitude < GLB.MAN.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
+				if(CFG.AT.state == Attitude.AntiRelVel) v *= -1;
+				needed_lthrust = VSL.LocalDir(v.normalized);
 				break;
 			case Attitude.ManeuverNode:
 				var solver = VSL.vessel.patchedConicSolver;
 				if(solver == null || solver.maneuverNodes.Count == 0)
 				{ CFG.AT.On(Attitude.KillRotation); break; }
-				needed_lthrust = VSL.refT.InverseTransformDirection(-solver.maneuverNodes[0].GetBurnVector(orbit).normalized);
+				needed_lthrust = VSL.LocalDir(-solver.maneuverNodes[0].GetBurnVector(orbit).normalized);
 				break;
 			}
 			if(!needed_lthrust.IsZero())
 			{
 				thrust = VSL.Thrust.IsZero()? VSL.MaxThrust : VSL.Thrust;
-				lthrust = VSL.refT.InverseTransformDirection(thrust).normalized;
+				lthrust = VSL.LocalDir(thrust).normalized;
 				if(Vector3.Angle(needed_lthrust, lthrust) > ATC.AngleThreshold)
 				{
 					//rotational axis
@@ -198,7 +204,7 @@ namespace ThrottleControlledAvionics
 				                       Utils.CenterAngle(attitude_error.eulerAngles.z))*Mathf.Deg2Rad;
 				#if DEBUG
 				thrust = VSL.Thrust.IsZero()? VSL.MaxThrust : VSL.Thrust;
-				lthrust = VSL.refT.InverseTransformDirection(thrust).normalized;
+				lthrust = VSL.LocalDir(thrust).normalized;
 				needed_lthrust = attitude_error.Inverse()*lthrust;
 				#endif
 			}
