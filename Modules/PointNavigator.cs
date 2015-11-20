@@ -99,8 +99,8 @@ namespace ThrottleControlledAvionics
 			if(enable && !VSL.HasTarget) return;
 			if(enable) 
 			{
-				var wp = VSL.vessel.targetObject as WayPoint ?? 
-					new WayPoint(VSL.vessel.targetObject);
+				var wp = VSL.Target as WayPoint ?? 
+					new WayPoint(VSL.Target);
 				start_to(wp);
 			}
 			else finish();
@@ -381,7 +381,7 @@ namespace ThrottleControlledAvionics
 			pid.Max = CFG.MaxNavSpeed;
 			if(cur_vel > 0)
 			{
-				var lateral_thrust = VSL.ManualThrustLimits.Project(VSL.refT.InverseTransformDirection(vdir)).magnitude;
+				var lateral_thrust = VSL.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
 				var down_thrust = VSL.MaxThrust.magnitude*VSL.MinVSFtwr*0.707f;
 				var brake_thrust = lateral_thrust >= down_thrust? lateral_thrust : down_thrust;
 				var eta = distance/cur_vel;

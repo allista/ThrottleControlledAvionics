@@ -276,7 +276,7 @@ namespace ThrottleControlledAvionics
 					else return true;
 				}
 				else if(!CFG.Nav[Navigation.Anchor] && 
-				        (!CFG.Nav[Navigation.GoToTarget] || VSL.vessel.targetObject != CFG.Anchor))
+				        (!CFG.Nav[Navigation.GoToTarget] || VSL.Target != CFG.Anchor))
 				{
 					SetTarget(CFG.Anchor);
 					CFG.Nav.On(Navigation.GoToTarget);

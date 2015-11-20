@@ -89,7 +89,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.AutopilotDisabled) 
 			{ 
 				pid.Reset();
-				VSL.SetNeededHorVelocity(VSL.refT.TransformDirection(cDir) * 
+				VSL.SetNeededHorVelocity(VSL.WorldDir(cDir) * 
 				                         Utils.ClampL((float)VSL.NeededHorVelocity.magnitude-s.pitch, 0));
 				return; 
 			}
@@ -98,7 +98,7 @@ namespace ThrottleControlledAvionics
 				UpdateTimer.Run(UpdateNeededVelocity);
 			//turn ship's nose in the direction of needed velocity
 			var axis = VSL.NoseUp? Vector3.up : Vector3.forward;
-			var nDir = VSL.refT.InverseTransformDirection(VSL.ForwardDirection);
+			var nDir = VSL.LocalDir(VSL.ForwardDirection);
 			var angle = Vector3.Angle(cDir, nDir)/180*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
 			var AAf = Utils.Clamp(1/(Mathf.Abs(Vector3.Dot(axis, VSL.MaxAngularA))), CC.MinAAf, CC.MaxAAf);
 			var eff = Mathf.Abs(Vector3.Dot(VSL.MaxThrust.normalized, VSL.Up));

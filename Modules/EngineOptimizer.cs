@@ -233,7 +233,7 @@ namespace ThrottleControlledAvionics
 			Utils.Log("Engines:\n"+
 			          engines.Aggregate("", (s, e) => s 
 		                +string.Format("engine(vec{0}, vec{1}, vec{2}, {3}, {4}),\n",
-						VSL.refT.InverseTransformDirection(e.wThrustPos-VSL.wCoM),
+						VSL.LocalDir(e.wThrustPos-VSL.wCoM),
                        	e.thrustDirection,e.specificTorque, e.nominalCurrentThrust(0), e.nominalCurrentThrust(1))));
 			Utils.Log("Engines Torque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.Torque(e.throttle*e.limit)+",\n"));
 			Utils.Log(

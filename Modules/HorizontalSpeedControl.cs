@@ -163,7 +163,7 @@ namespace ThrottleControlledAvionics
 			//set forward direction
 			VSL.ForwardDirection = VSL.NeededHorVelocity;
 			//calculate prerequisites
-			var thrust = VSL.refT.InverseTransformDirection(VSL.Thrust);
+			var thrust = VSL.LocalDir(VSL.Thrust);
 			needed_thrust_dir = -VSL.UpL;
 			if(!CFG.HF[HFlight.Level])
 			{
@@ -184,7 +184,7 @@ namespace ThrottleControlledAvionics
 				   hVm > HSC.TranslationLowerThreshold && 
 				   Vector3.Dot(VSL.ManualThrust, hV) > 0)
 				{
-					thrust -= VSL.refT.InverseTransformDirection(VSL.ManualThrust);
+					thrust -= VSL.LocalDir(VSL.ManualThrust);
 					rV = Vector3.ProjectOnPlane(hV, VSL.ManualThrust);
 					fV = hV-rV;
 				}
@@ -193,7 +193,7 @@ namespace ThrottleControlledAvionics
 				//calculate needed thrust direction
 				if(rVm > HSC.RotationLowerThreshold)
 				{
-					var rVl   = VSL.refT.InverseTransformDirection(rV);
+					var rVl   = VSL.LocalDir(rV);
 					//correction for low TWR
 					var twr   = VSL.SlowThrust? VSL.DTWR : VSL.MaxTWR*0.70710678f; //MaxTWR at 45deg
 					var MaxHv = Utils.ClampL(Vector3d.Project(acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
@@ -207,9 +207,9 @@ namespace ThrottleControlledAvionics
 				{
 					//try to use translation
 					var nVm = nV.magnitude;
-					var hVl = VSL.refT.InverseTransformDirection(hV);
+					var hVl = VSL.LocalDir(hV);
 					var hVl_dir = hVl.CubeNorm();
-					var cVl_lat = VSL.refT.InverseTransformDirection(Vector3.ProjectOnPlane(VSL.CourseCorrection, nV));
+					var cVl_lat = VSL.LocalDir(Vector3.ProjectOnPlane(VSL.CourseCorrection, nV));
 					var cVl_lat_m = cVl_lat.magnitude;
 					var nVn = nVm > 0? nV/nVm : Vector3d.zero;
 					var HVn = VSL.HorizontalVelocity.normalized;
@@ -261,7 +261,7 @@ namespace ThrottleControlledAvionics
 			{
 				EnableManualTranslation(false);
 				if(thrust.IsZero()) 
-					thrust = VSL.refT.InverseTransformDirection(VSL.MaxThrust);
+					thrust = VSL.LocalDir(VSL.MaxThrust);
 			}
 			//tune filter
 			if(VSL.SlowTorque) 

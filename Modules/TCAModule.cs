@@ -61,7 +61,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.IsActiveVessel && t != null)
 				ScreenMessages.PostScreenMessage("Target: "+t.GetName(),
 				                                 5, ScreenMessageStyle.UPPER_CENTER);
-			VSL.vessel.targetObject = t;
+			VSL.Target = t;
 		}
 
 		#region SquadMode

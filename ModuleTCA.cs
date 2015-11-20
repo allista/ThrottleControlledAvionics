@@ -277,7 +277,7 @@ namespace ThrottleControlledAvionics
 			modules.ForEach(m => m.Init());
 			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
 			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowTarget)) 
-				PN.GoToTarget(VSL.vessel.targetObject != null);
+				PN.GoToTarget(VSL.Target != null);
 			else if(CFG.Nav[Navigation.FollowPath]) 
 				PN.FollowPath(CFG.Waypoints.Count > 0);
 			ThrottleControlledAvionics.AttachTCA(this);

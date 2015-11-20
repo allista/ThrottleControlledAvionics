@@ -34,6 +34,8 @@ namespace ThrottleControlledAvionics
 
 		public Vessel vessel { get; private set; }
 		public Transform refT { get; private set; } //transform of the controller-part
+		public Vector3 LocalDir(Vector3 worldV) { return refT.InverseTransformDirection(worldV); }
+		public Vector3 WorldDir(Vector3 localV) { return refT.TransformDirection(localV); }
 		public VesselConfig CFG { get; private set; }
 		public TCAGlobals GLB { get { return TCAScenario.Globals; } }
 
@@ -150,6 +152,7 @@ namespace ThrottleControlledAvionics
 		public bool IsActiveVessel { get; private set; }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
 		public ActionGroupList ActionGroups { get { return vessel.ActionGroups; } }
+		public ITargetable Target { get { return vessel.targetObject; } set { vessel.targetObject = value; } }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 		public bool HasManeuverNode { get { return vessel.patchedConicSolver != null && vessel.patchedConicSolver.maneuverNodes.Count > 0; } }
 		//controls
