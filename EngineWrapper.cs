@@ -35,6 +35,7 @@ namespace ThrottleControlledAvionics
 		public abstract Vector3 wThrustPos { get; }
 		public abstract Vector3 wThrustDir { get; }
 
+		public abstract Vector3 Thrust(float throttle);
 		public abstract Vector3 Torque(float throttle);
 
 		public abstract void InitLimits();
@@ -91,6 +92,9 @@ namespace ThrottleControlledAvionics
 
 		public float maxThrust { get { return current_max_thrust; } }
 		public override float finalThrust { get { return current_thrust; } }
+
+		public override Vector3 Thrust (float throttle)
+		{ return thrustDirection*current_max_thrust*throttle; }
 
 		public override Vector3 Torque (float throttle)
 		{ return specificTorque*current_max_thrust*throttle; }
@@ -203,6 +207,14 @@ namespace ThrottleControlledAvionics
 			if(engine.throttleLocked && info.Role != TCARole.MANUAL) 
 				info.SetRole(TCARole.MANUAL);
 			InitLimits();
+		}
+
+		public override Vector3 Thrust(float throttle)
+		{
+			return thrustDirection * 
+				(Role != TCARole.MANUAL? 
+				 nominalCurrentThrust(throttle) :
+				 engine.finalThrust);
 		}
 
 		public override Vector3 Torque(float throttle)
