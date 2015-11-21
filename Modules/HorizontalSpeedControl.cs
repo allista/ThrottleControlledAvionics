@@ -96,7 +96,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState() 
 		{ 
-			IsActive = VSL.OnPlanet && CFG.HF; 
+			IsActive = CFG.Enabled && VSL.OnPlanet && CFG.HF && VSL.refT != null; 
 			if(IsActive) return;
 			if(VSL.ManualTranslationSwitch.On)
 				EnableManualTranslation(false);
@@ -156,8 +156,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
-			//need to check all the prerequisites, because the callback is called asynchroniously
-			if(!(CFG.Enabled && CFG.HF && VSL.refT != null && VSL.OnPlanet)) return;
+			if(!IsActive) return;
 			if(VSL.AutopilotDisabled) { filter.Reset(); return; }
 			CFG.AT.OnIfNot(Attitude.Custom);
 			//set forward direction
@@ -208,23 +207,15 @@ namespace ThrottleControlledAvionics
 					//try to use translation
 					var nVm = nV.magnitude;
 					var hVl = VSL.LocalDir(hV);
-					var hVl_dir = hVl.CubeNorm();
 					var cVl_lat = VSL.LocalDir(Vector3.ProjectOnPlane(VSL.CourseCorrection, nV));
-					var cVl_lat_m = cVl_lat.magnitude;
 					var nVn = nVm > 0? nV/nVm : Vector3d.zero;
 					var HVn = VSL.HorizontalVelocity.normalized;
 					//normal translation controls (maneuver engines and RCS)
 					if(nVm < HSC.TranslationUpperThreshold || 
 					   Mathf.Abs((float)Vector3d.Dot(HVn, nVn)) < HSC.TranslationMaxCos)
-					{
-						var trans = Utils.ClampH((float)hVm/HSC.TranslationUpperThreshold, 1)*hVl_dir;
-						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
-					}
-					else if(cVl_lat_m > HSC.TranslationLowerThreshold)
-					{
-						var trans = -Utils.ClampH(cVl_lat_m/HSC.TranslationUpperThreshold, 1)*cVl_lat.CubeNorm();
-						s.X = trans.x; s.Z = trans.y; s.Y = trans.z;
-					}
+						TCA.TRA.AddDeltaV(hVl);
+					else if(cVl_lat.magnitude > HSC.TranslationLowerThreshold)
+						TCA.TRA.AddDeltaV(cVl_lat);
 					//manual engine control
 					if(with_manual_thrust && 
 					   (nVm >= HSC.TranslationUpperThreshold ||
@@ -250,7 +241,7 @@ namespace ThrottleControlledAvionics
 						                     VSL.vessel.mainBody.atmosphere)? 
 							HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
 						translation_pid.Update((float)fVm);
-						VSL.ManualTranslation = translation_pid.Action*hVl_dir;
+						VSL.ManualTranslation = translation_pid.Action*hVl.CubeNorm();
 						EnableManualTranslation(translation_pid.Action > 0);
 					}
 					else EnableManualTranslation(false);

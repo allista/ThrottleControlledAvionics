@@ -86,7 +86,13 @@ namespace ThrottleControlledAvionics
 			CFG.Nav.AddCallback(Navigation.GoToTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowTarget, GoToTarget);
 			CFG.Nav.AddCallback(Navigation.FollowPath, FollowPath);
-			if(CFG.Target != null) SetTarget(CFG.Target);
+			if(CFG.Target != null) 
+			{
+				if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowTarget)) 
+					start_to(CFG.Target);
+				else SetTarget(CFG.Target);
+			}
+			if(CFG.Nav[Navigation.FollowPath]) FollowPath();
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -382,7 +388,7 @@ namespace ThrottleControlledAvionics
 			if(cur_vel > 0)
 			{
 				var lateral_thrust = VSL.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
-				var down_thrust = VSL.MaxThrust.magnitude*VSL.MinVSFtwr*0.707f;
+				var down_thrust = VSL.MaxThrustM*VSL.MinVSFtwr*0.707f;
 				var brake_thrust = lateral_thrust >= down_thrust? lateral_thrust : down_thrust;
 				var eta = distance/cur_vel;
 				var max_speed = 0f;

@@ -28,21 +28,30 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float AngleThreshold = 25f;
 			[Persistent] public float MinEf = 0.001f, MaxEf  = 5f;
 			[Persistent] public float SlowTorqueF = 2;
+
+			[Persistent] public float MaxAttitudeError       = 10f;  //deg
+			[Persistent] public float AttitudeErrorThreshold = 3f;   //deg
 		}
 		static Config ATC { get { return TCAScenario.Globals.ATC; } }
 
 		Transform  vesselTransform { get { return VSL.vessel.transform; } }
 		Orbit orbit { get { return VSL.vessel.orbit; } }
 
+		const float steering_norm = Mathf.PI*Mathf.PI;
 		readonly PIDv_Controller2 pid = new PIDv_Controller2();
+		readonly FloatMinimum omega_min = new FloatMinimum();
 		Transform refT;
 		Quaternion attitude_error, locked_attitude;
 		bool attitude_locked;
 		Vector3 thrust, lthrust, needed_lthrust, steering;
 		Vector3 angularV { get { return VSL.vessel.angularVelocity; } }
 		Vector3 angularM;
-		float omega2, p_omega2, pp_omega2, AAf, Ef, PIf;
-		const float steering_norm = Mathf.PI*Mathf.PI;
+		float AAf, Ef, PIf;
+
+
+		public float AttitudeError { get; private set; }
+		public bool Aligned { get; private set; }
+		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/ATC.MaxAttitudeError, 0); } }
 
 		public AttitudeControl(ModuleTCA tca) { TCA = tca; }
 
@@ -88,17 +97,16 @@ namespace ThrottleControlledAvionics
 			pid.Reset();
 			refT = null;
 			VSL.GimbalLimit = 100;
-			VSL.AttitudeError = 0;
-			omega2 = 0;
-			p_omega2 = 0;
-			pp_omega2 = 0;
+			AttitudeError = 180;
+			Aligned = false;
+			omega_min.Reset();
 			attitude_locked = false;
 		}
 
 		void CalculateSteering()
 		{
 			Vector3 v;
-			omega2 = VSL.vessel.angularVelocity.sqrMagnitude;
+			omega_min.Update(VSL.vessel.angularVelocity.sqrMagnitude);
 			attitude_error = Quaternion.identity;
 			needed_lthrust = Vector3.zero;
 			switch(CFG.AT.state)
@@ -117,7 +125,7 @@ namespace ThrottleControlledAvionics
 					attitude_error = Quaternion.Inverse(refT.rotation.Inverse()*locked_attitude);
 				break;
 			case Attitude.KillRotation:
-				if(refT != VSL.refT || p_omega2 <= pp_omega2 && p_omega2 < omega2)
+				if(refT != VSL.refT || omega_min.True)
 				{
 					refT = VSL.refT;
 					locked_attitude = refT.rotation;
@@ -127,10 +135,8 @@ namespace ThrottleControlledAvionics
 				break;
 			case Attitude.Prograde:
 			case Attitude.Retrograde:
-				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
-					VSL.vessel.situation == Vessel.Situations.SUB_ORBITAL? 
-					VSL.vessel.obt_velocity : VSL.vessel.srf_velocity;
-				if(v.magnitude < GLB.MAN.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
+				v = VSL.InOrbit? VSL.vessel.obt_velocity : VSL.vessel.srf_velocity;
+				if(v.magnitude < GLB.THR.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
 				if(CFG.AT.state == Attitude.Retrograde) v *= -1;
 				needed_lthrust = VSL.LocalDir(v.normalized);
 				break;
@@ -157,11 +163,10 @@ namespace ThrottleControlledAvionics
 			case Attitude.RelVel:
 			case Attitude.AntiRelVel:
 				if(!VSL.HasTarget) { CFG.AT.On(Attitude.KillRotation); break; }
-				v = VSL.vessel.situation == Vessel.Situations.ORBITING ||
-					VSL.vessel.situation == Vessel.Situations.SUB_ORBITAL? 
+				v = VSL.InOrbit? 
 					VSL.Target.GetObtVelocity()-VSL.vessel.obt_velocity : 
 					VSL.Target.GetSrfVelocity()-VSL.vessel.srf_velocity;
-				if(v.magnitude < GLB.MAN.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
+				if(v.magnitude < GLB.THR.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
 				if(CFG.AT.state == Attitude.AntiRelVel) v *= -1;
 				needed_lthrust = VSL.LocalDir(v.normalized);
 				break;
@@ -209,8 +214,6 @@ namespace ThrottleControlledAvionics
 				#endif
 			}
 			VSL.ResetCustomRotation();
-			pp_omega2 = p_omega2;
-			p_omega2 = omega2;
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
@@ -222,7 +225,10 @@ namespace ThrottleControlledAvionics
 			if(VSL.AutopilotDisabled) { reset(); return; }
 			//calculate needed steering
 			CalculateSteering();
-			VSL.AttitudeError = steering.magnitude*Mathf.Rad2Deg;
+			//calculate attitude error and Aligned state
+			AttitudeError = steering.magnitude*Mathf.Rad2Deg;
+			Aligned &= TCA.ATC.AttitudeError < ATC.MaxAttitudeError;
+			Aligned |= TCA.ATC.AttitudeError < ATC.AttitudeErrorThreshold;
 			//tune PID parameters
 			angularM = Vector3.Scale(angularV, VSL.MoI);
 			AAf = Mathf.Clamp(1/VSL.MaxAngularA_m, ATC.MinAAf, ATC.MaxAAf);

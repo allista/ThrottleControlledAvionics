@@ -83,7 +83,7 @@ namespace ThrottleControlledAvionics
 			var distance = vdir.magnitude;
 			vdir.Normalize();
 			//tune the pid and update needed velocity
-			AccelCorrection.Update(Mathf.Clamp(VSL.MaxThrust.magnitude*VSL.MinVSFtwr/VSL.M/ANC.MaxAccelF, 0.01f, 1)*
+			AccelCorrection.Update(Mathf.Clamp(VSL.MaxThrustM*VSL.MinVSFtwr/VSL.M/ANC.MaxAccelF, 0.01f, 1)*
 			                       Mathf.Clamp(VSL.MaxPitchRollAA_m/ANC.AngularAccelF, 0.01f, 1), 0.01f);
 			pid.P   = ANC.DistancePID.P*AccelCorrection;
 			pid.D   = ANC.DistancePID.D*(2-AccelCorrection);

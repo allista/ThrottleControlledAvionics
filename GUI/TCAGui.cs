@@ -118,7 +118,7 @@ namespace ThrottleControlledAvionics
 			SelectConfig_start();
 			AdvancedOptions();
 			AttitudeControls();
-			ManeuverControl();
+			InOrbitControl();
 			AutopilotControls();
 			MacroControls();
 			WaypointList();
@@ -251,26 +251,36 @@ namespace ThrottleControlledAvionics
 				CFG.AT.XToggle(Attitude.AntiRelVel);
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.green_button : Styles.grey, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
-			GUILayout.Label(string.Format("Err: {0:F1}°", VSL.AttitudeError), Styles.white, GUILayout.ExpandWidth(true));
+			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", TCA.ATC.AttitudeError) : "Err: N/A", 
+			                TCA.ATC.Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 
-		static void ManeuverControl()
+		static void InOrbitControl()
 		{
-			if(!VSL.HasManeuverNode) return;
+			if(!VSL.InOrbit) return;
 			GUILayout.BeginHorizontal();
-			if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Next Maneuver", 
-			                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
-				CFG.AP.XToggle(Autopilot.Maneuver);
-			if(CFG.AP[Autopilot.Maneuver])
+			if(VSL.HasTarget && !CFG.AP[Autopilot.Maneuver])
 			{
-				if(GUILayout.Button("Warp", CFG.WarpToNode? Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				if(Utils.ButtonSwitch("Match Velocity", CFG.AP[Autopilot.MatchVel], 
+				                      "Match orbital velocity with the target", GUILayout.ExpandWidth(true)))
+					CFG.AP.XToggle(Autopilot.MatchVel);
+			}
+			if(VSL.HasManeuverNode) 
+			{
+				if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Next Maneuver", 
+				                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
+					CFG.AP.XToggle(Autopilot.Maneuver);
+				if(CFG.AP[Autopilot.Maneuver])
 				{
-					CFG.WarpToNode = !CFG.WarpToNode;
-					if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
+					if(Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
+					{
+						CFG.WarpToNode = !CFG.WarpToNode;
+						if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
+					}
+					GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Countdown), Styles.white, GUILayout.ExpandWidth(true));
+					GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.TTB), Styles.yellow, GUILayout.ExpandWidth(true));
 				}
-				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Countdown), Styles.white, GUILayout.ExpandWidth(true));
-				GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.TTB), Styles.yellow, GUILayout.ExpandWidth(true));
 			}
 			GUILayout.EndHorizontal();
 		}

@@ -105,7 +105,7 @@ ATC
 	PID
 	{
 		P = 10
-		I = 0.02
+		I = 0.04
 		D = 0.5
 	}
 	
@@ -118,12 +118,14 @@ ATC
 	MinEf          = 0.0001
 	MaxEf          = 2
 	SlowTorqueF    = 0.1
+	MaxAttitudeError = 10  //deg
+	AttitudeErrorThreshold = 3
 }
 
 HSC
 {
 	TranslationUpperThreshold  = 5
-	TranslationLowerThreshold  = 0.01
+	TranslationLowerThreshold  = 0.5
 	RotationLowerThreshold     = 0.01
 	RotationUpperThreshold     = 30
 	TranslationMaxAngle        = 80
@@ -142,7 +144,7 @@ HSC
 	TWRf               = 3
 	HVCurve            = 1.5
 	SlowTorqueF        = 1
-	LowPassF           = 0.5
+	LowPassF           = 0.1
 }
 
 CC
@@ -276,13 +278,32 @@ STB
 	MinAngularVelocity = 0.001
 }
 
+THR
+{
+	MinDeltaV       = 0.1 //m/s
+	DeltaVThreshold = 10  //sec
+}
+
+TRA
+{
+	MinDeltaV = 0.01 //m/s
+	TransPID
+	{
+		P = 0.5
+		I = 0.01
+		D = 0.5
+	}
+}
+
 MAN
 {
-	MinDeltaV        = 0.1 //m/s
-	MaxAttitudeError = 10  //deg
-	AlignedF         = 0.3
-	DeltaVThreshold  = 10  //sec
-	DewarpTime       = 15  //sec
-	MaxWarp          = 10000
+	DewarpTime = 15  //sec
+	MaxWarp    = 10000
+}
+
+MVA
+{
+	StartAttitudeError   = 1 //deg
+	TranslationThreshold = 5 //m/s
 }
 //:mode=c#:

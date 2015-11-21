@@ -32,12 +32,14 @@ namespace ThrottleControlledAvionics
 			} 
 		}
 
+		public ModuleTCA TCA { get; private set; }
 		public Vessel vessel { get; private set; }
 		public Transform refT { get; private set; } //transform of the controller-part
-		public Vector3 LocalDir(Vector3 worldV) { return refT.InverseTransformDirection(worldV); }
-		public Vector3 WorldDir(Vector3 localV) { return refT.TransformDirection(localV); }
 		public VesselConfig CFG { get; private set; }
 		public TCAGlobals GLB { get { return TCAScenario.Globals; } }
+
+		public Vector3 LocalDir(Vector3 worldV) { return refT.InverseTransformDirection(worldV); }
+		public Vector3 WorldDir(Vector3 localV) { return refT.TransformDirection(localV); }
 
 		public List<EngineWrapper> Engines          = new List<EngineWrapper>();
 		public List<EngineWrapper> ActiveEngines    = new List<EngineWrapper>();
@@ -102,6 +104,7 @@ namespace ThrottleControlledAvionics
 
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
+		public float    MaxThrustM { get; private set; }
 		public Vector3  ManualThrust { get; private set; }
 		public Vector3  Torque { get; private set; } //current torque applied to the vessel by engines
 		public Vector3  MaxTorque { get; private set; }
@@ -129,7 +132,6 @@ namespace ThrottleControlledAvionics
 		public List<Vector3d> CourseCorrections = new List<Vector3d>();
 		public Vector3d CourseCorrection;
 		public Vector3  Destination;
-		public float AttitudeError;
 
 		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
 		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, Up); } }
@@ -137,6 +139,7 @@ namespace ThrottleControlledAvionics
 		public TCAState State;
 		public void SetState(TCAState state) { State |= state; }
 		public bool IsStateSet(TCAState state) { return (State & state) == state; }
+		public bool TranslationAvailable { get; private set; }
 		public bool ElectricChargeAvailible
 		{
 			get
@@ -148,6 +151,7 @@ namespace ThrottleControlledAvionics
 
 		public CelestialBody mainBody { get { return vessel.mainBody; } }
 		public bool OnPlanet { get; private set; }
+		public bool InOrbit { get; private set; }
 		public bool isEVA { get { return vessel.isEVA; } }
 		public bool IsActiveVessel { get; private set; }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
@@ -155,6 +159,7 @@ namespace ThrottleControlledAvionics
 		public ITargetable Target { get { return vessel.targetObject; } set { vessel.targetObject = value; } }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 		public bool HasManeuverNode { get { return vessel.patchedConicSolver != null && vessel.patchedConicSolver.maneuverNodes.Count > 0; } }
+		public Vessel.Situations Situation { get { return vessel.situation; } }
 		//controls
 		public FlightCtrlState ctrlState { get { return vessel.ctrlState; } }
 		public FlightInputCallback OnAutopilotUpdate 
@@ -179,8 +184,8 @@ namespace ThrottleControlledAvionics
 		public double Countdown;
 		public float TTB;
 
-		public VesselWrapper(Vessel vsl, VesselConfig cfg) 
-		{ vessel = vsl; CFG = cfg; }
+		public VesselWrapper(ModuleTCA tca) 
+		{ TCA = tca; vessel = tca.vessel; CFG = tca.CFG; }
 
 		public void Log(string msg, params object[] args) { vessel.Log(msg, args); }
 
@@ -189,6 +194,7 @@ namespace ThrottleControlledAvionics
 			CanUpdateEngines = true;
 			AltitudeAhead = float.MinValue;
 			OnPlanet = _OnPlanet();
+			InOrbit = _InOrbit();
 			MaxAAFilter.Tau = GLB.MaxAAFilter;
 		}
 
@@ -199,6 +205,12 @@ namespace ThrottleControlledAvionics
 			        vessel.situation != Vessel.Situations.ESCAPING); 
 		}
 
+		bool _InOrbit()
+		{
+			return vessel.situation == Vessel.Situations.ORBITING ||
+				vessel.situation == Vessel.Situations.SUB_ORBITAL;
+		}
+
 		public bool AutopilotDisabled { get; private set; }
 		public void UpdateAutopilotInfo(FlightCtrlState s)
 		{
@@ -206,8 +218,6 @@ namespace ThrottleControlledAvionics
 				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
 				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
-//			vessel.Log("Update Autopilot Info: {0}:{1}, {2}:{3}, {4}:{5}", 
-//			    		s.pitch, s.pitchTrim, s.roll, s.rollTrim, s.yaw, s.yawTrim);//debug 
 		}
 
 		public void SetNeededHorVelocity(Vector3d hV)
@@ -411,13 +421,6 @@ namespace ThrottleControlledAvionics
 				t.thrustLimit = Mathf.Clamp01(t.limit);
 			}
 		}
-
-		float throttle = -1;
-		public float ThrottleRequest
-		{ 
-			get { var t = throttle; throttle = -1; return t; }
-			set { throttle = value; CFG.BlockThrottle = throttle < 0; }
-		}
 		#endregion
 
 		#region Updates
@@ -450,18 +453,21 @@ namespace ThrottleControlledAvionics
 		{
 			//update onPlanet state
 			var on_planet = _OnPlanet();
+			var in_orbit = _InOrbit();
 			if(on_planet != OnPlanet) 
 			{
 				CFG.EnginesProfiles.OnPlanetChanged(on_planet);
 				if(!on_planet) 
 				{ 
-					if(CFG.BlockThrottle) ThrottleRequest = 0f;
+					if(CFG.BlockThrottle) 
+						TCA.THR.Throttle = 0f;
 					CFG.DisableVSC();
 					CFG.Nav.Off(); 
 					CFG.HF.Off();
 				}
 			}
 			OnPlanet = on_planet;
+			InOrbit = in_orbit;
 			IsActiveVessel = vessel != null && vessel == FlightGlobals.ActiveVessel;
 			if(!CFG.HF && !CFG.AT) UnblockSAS();
 		}
@@ -486,7 +492,7 @@ namespace ThrottleControlledAvionics
 				e.specificTorque = refT.InverseTransformDirection(Vector3.Cross(e.wThrustLever, e.wThrustDir));
 				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(e.wThrustLever.normalized, e.wThrustDir))), 
 				                          GLB.ENG.TorqueRatioFactor);
-				//do not include maneuver engines to break the feedback loop with HSC
+				//do not include maneuver engines' thrust into the total to break the feedback loop with HSC
 				if(e.Role != TCARole.MANEUVER) Thrust += e.wThrustDir*e.finalThrust;
 				if(e.isVSC)
 				{
@@ -508,6 +514,7 @@ namespace ThrottleControlledAvionics
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
 			if(TorqueResponseTime > 0) TorqueResponseTime = total_torque/TorqueResponseTime;
 			SlowTorque = TorqueResponseTime > 0;
+			MaxThrustM = MaxThrust.magnitude;
 			//init RCS wrappers if needed
 			if(!NoActiveRCS)
 			{
@@ -536,6 +543,7 @@ namespace ThrottleControlledAvionics
 			if(!Steering.IsZero()) //tune steering if MaxAA has changed drastically
 				Steering = Steering*Utils.ClampH(MaxAAMod, 1)/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
+			TranslationAvailable = ManeuverEngines.Count > 0 || RCS.Count > 0 && ActionGroups[KSPActionGroup.RCS];
 			//reset things
 			CourseCorrections.Clear();
 			Destination = Vector3.zero;
@@ -641,7 +649,7 @@ namespace ThrottleControlledAvionics
 					ManualThrust += e.wThrustDir*e.finalThrust;
 				}
 			}
-			MaxTWR  = MaxThrust.magnitude/M/G;
+			MaxTWR  = MaxThrustM/M/G;
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/M/G, 0.1f);
 			DTWR = Vector3.Dot(Thrust, Up) < 0? Vector3.Project(Thrust, Up).magnitude/M/G : 0f;
 			if(refT != null)

@@ -74,6 +74,7 @@ namespace ThrottleControlledAvionics
 			CutoffTimer.Period = LND.CutoffTimer;
 			CFG.AP.AddCallback(Autopilot.Land, Enable);
 			TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.R));
+			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif

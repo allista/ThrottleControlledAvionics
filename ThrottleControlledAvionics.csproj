@@ -121,6 +121,11 @@
     <Compile Include="Modules\MacroProcessor.cs" />
     <Compile Include="Modules\AttitudeControl.cs" />
     <Compile Include="Modules\ManeuverAutopilot.cs" />
+    <Compile Include="Utils\Vector6.cs" />
+    <Compile Include="Utils\Filters.cs" />
+    <Compile Include="Modules\MatchVelocityAutopilot.cs" />
+    <Compile Include="Modules\ThrottleControl.cs" />
+    <Compile Include="Modules\TranslationControl.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

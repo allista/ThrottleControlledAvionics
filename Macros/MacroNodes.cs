@@ -55,7 +55,7 @@ namespace ThrottleControlledAvionics
 
 		protected override bool Action(VesselWrapper VSL)
 		{ 
-			VSL.ThrottleRequest = Value/100;
+			VSL.TCA.THR.Throttle = Value/100;
 			return false; 
 		}
 	}

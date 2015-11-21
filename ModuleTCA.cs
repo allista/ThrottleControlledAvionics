@@ -44,11 +44,14 @@ namespace ThrottleControlledAvionics
 		public CollisionPreventionSystem CPS;
 		public MacroProcessor MPR;
 		public ManeuverAutopilot MAN;
-
+		public MatchVelocityAutopilot MVA;
+		//ctrlState autopilots: executed in this exact order
 		public HorizontalSpeedControl HSC;
+		public TranslationControl TRA;
+		public ThrottleControl THR;
 		public AttitudeControl ATC;
 		public CruiseControl CC;
-
+		//all the modules
 		List<TCAModule> modules;
 		FieldInfo[] mod_fields;
 		#endregion
@@ -260,7 +263,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!enabled) return;
 			updateCFG();
-			VSL = new VesselWrapper(vessel, CFG);
+			VSL = new VesselWrapper(this);
 			VSL.Init();
 			VSL.UpdateState();
 			VSL.UpdatePhysicsParams();
@@ -270,14 +273,9 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateCommons();
 			VSL.UpdateOnPlanetStats();
 			VSL.UpdateBounds();
-			vessel.OnAutopilotUpdate += block_throttle;
+			vessel.OnAutopilotUpdate += OnAutopilotUpdate;
 			create_modules();
 			modules.ForEach(m => m.Init());
-			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
-			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowTarget)) 
-				PN.GoToTarget(VSL.Target != null);
-			else if(CFG.Nav[Navigation.FollowPath]) 
-				PN.FollowPath(CFG.Waypoints.Count > 0);
 			ThrottleControlledAvionics.AttachTCA(this);
 			VSL.SetUnpackDistance(GLB.UnpackDistance);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
@@ -288,7 +286,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL != null)
 			{
-				VSL.OnAutopilotUpdate -= block_throttle;
+				VSL.OnAutopilotUpdate -= OnAutopilotUpdate;
 				modules.ForEach(m => m.Reset());
 				CFG.ClearCallbacks();
 			}
@@ -319,22 +317,11 @@ namespace ThrottleControlledAvionics
 
 		public void AltitudeAboveTerrain(bool state) { ALT.SetAltitudeAboveTerrain(state); }
 		#endregion
-		void block_throttle(FlightCtrlState s)
+
+		void OnAutopilotUpdate(FlightCtrlState s)
 		{ 
 			if(!CFG.Enabled) return;
 			VSL.UpdateAutopilotInfo(s);
-			if(CFG.BlockThrottle) 
-				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
-			else 
-			{
-				var t = VSL.ThrottleRequest;
-				if(t >= 0) 
-				{ 
-					s.mainThrottle = t; 
-					VSL.ctrlState.mainThrottle = t; 
-					if(VSL.IsActiveVessel) FlightInputHandler.state.mainThrottle = t;
-				}
-			}
 		}
 
 		public override void OnUpdate()
@@ -365,6 +352,7 @@ namespace ThrottleControlledAvionics
 				//these follow specific order
 				MPR.OnFixedUpdate();
 				MAN.OnFixedUpdate();
+				MVA.OnFixedUpdate();
 				RAD.OnFixedUpdate();//sets AltitudeAhead
 				LND.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
 				ALT.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
