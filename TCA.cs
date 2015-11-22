@@ -13,7 +13,6 @@ namespace ThrottleControlledAvionics
 	public partial class ThrottleControlledAvionics : AddonWindowBase<ThrottleControlledAvionics>
 	{
 		static Vessel vessel;
-		static Part part;
 		public static ModuleTCA TCA { get; private set; }
 		public static VesselWrapper VSL { get { return TCA.VSL; } }
 		public static VesselConfig CFG { get { return TCA.CFG; } }
