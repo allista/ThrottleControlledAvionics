@@ -54,6 +54,7 @@ namespace ThrottleControlledAvionics
 		public void On(T key) 
 		{ 
 			if(Paused) return;
+//			Utils.Log("{0}.On: state {1}, key {2}", GetType(), state, key);//debug
 			if(!key.Equals(state)) Off();
 			state = key;
 			Action<bool> callback;
@@ -64,6 +65,7 @@ namespace ThrottleControlledAvionics
 		public override void Off() 
 		{ 
 			if(Paused || state.Equals(default(T))) return;
+//			Utils.Log("{0}.Off: state {1}", GetType(), state);//debug
 			var old_state = state; //prevents recursion
 			state = default(T);
 			Action<bool> callback;
