@@ -37,7 +37,8 @@ namespace ThrottleControlledAvionics
 				else if(args[i] is Vector3d) args[i] = formatVector((Vector3d)args[i]);
 				else if(args[i] == null) args[i] = "null";
 			}
-			Debug.Log(string.Format("[TCA] "+msg, args)); 
+			msg = string.Format("[TCA: {0:HH:mm:ss.fff}] {1}", DateTime.Now, msg);
+			Debug.Log(string.Format(msg, args)); 
 		}
 
 		public static void Log(this MonoBehaviour mb, string msg, params object[] args)
