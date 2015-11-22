@@ -295,7 +295,7 @@ TRA
 	}
 }
 
-MAN
+WRP
 {
 	DewarpTime = 15  //sec
 	MaxWarp    = 10000
@@ -303,7 +303,11 @@ MAN
 
 MVA
 {
-	StartAttitudeError   = 1 //deg
-	TranslationThreshold = 5 //m/s
+	OrbitSolverIterations = 20  //deg
+	OrbitSolverMinTTA     = 120 //sec
+	TimeBeforeApproach    = 1
+
+	StartAttitudeError    = 1   //deg
+	TranslationThreshold  = 5   //m/s
 }
 //:mode=c#:

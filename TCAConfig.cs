@@ -38,9 +38,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public FlightStabilizer.Config          STB = new FlightStabilizer.Config();
 		[Persistent] public ThrottleControl.Config           THR = new ThrottleControl.Config();
 		[Persistent] public TranslationControl.Config        TRA = new TranslationControl.Config();
-		[Persistent] public ManeuverAutopilot.Config         MAN = new ManeuverAutopilot.Config();
+		[Persistent] public TimeWarpControl.Config           WRP = new TimeWarpControl.Config();
 		[Persistent] public MatchVelocityAutopilot.Config    MVA = new MatchVelocityAutopilot.Config();
-//		[Persistent] public MacroProcessor.Config            MAC = new MacroProcessor.Config();
 
 		//help text
 		public string Instructions = string.Empty;
@@ -112,7 +111,7 @@ Notes:
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
-	public enum Autopilot { None, Land, Maneuver, MatchVel }
+	public enum Autopilot { None, Land, Maneuver, MatchVel, MatchVelNear }
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{

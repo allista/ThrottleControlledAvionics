@@ -43,6 +43,7 @@ namespace ThrottleControlledAvionics
 		public FlightStabilizer STB;
 		public CollisionPreventionSystem CPS;
 		public MacroProcessor MPR;
+		public TimeWarpControl WRP;
 		public ManeuverAutopilot MAN;
 		public MatchVelocityAutopilot MVA;
 		//ctrlState autopilots: executed in this exact order
@@ -314,8 +315,6 @@ namespace ThrottleControlledAvionics
 			if(CFG.BlockThrottle && CFG.VerticalCutoff >= GLB.VSC.MaxSpeed)
 				CFG.VerticalCutoff = 0;
 		}
-
-		public void AltitudeAboveTerrain(bool state) { ALT.SetAltitudeAboveTerrain(state); }
 		#endregion
 
 		void OnAutopilotUpdate(FlightCtrlState s)
@@ -353,6 +352,7 @@ namespace ThrottleControlledAvionics
 				MPR.OnFixedUpdate();
 				MAN.OnFixedUpdate();
 				MVA.OnFixedUpdate();
+				WRP.OnFixedUpdate();
 				RAD.OnFixedUpdate();//sets AltitudeAhead
 				LND.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
 				ALT.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff

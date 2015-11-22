@@ -260,28 +260,30 @@ namespace ThrottleControlledAvionics
 		{
 			if(!VSL.InOrbit) return;
 			GUILayout.BeginHorizontal();
+			if(Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
+			{
+				CFG.WarpToNode = !CFG.WarpToNode;
+				if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
+			}
 			if(VSL.HasTarget && !CFG.AP[Autopilot.Maneuver])
 			{
 				if(Utils.ButtonSwitch("Match Velocity", CFG.AP[Autopilot.MatchVel], 
 				                      "Match orbital velocity with the target", GUILayout.ExpandWidth(true)))
 					CFG.AP.XToggle(Autopilot.MatchVel);
+				if(Utils.ButtonSwitch("Brake Near", CFG.AP[Autopilot.MatchVelNear], 
+				                      "Match orbital velocity with the target at nearest point", GUILayout.ExpandWidth(true)))
+					CFG.AP.XToggle(Autopilot.MatchVelNear);
 			}
 			if(VSL.HasManeuverNode) 
 			{
 				if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Next Maneuver", 
 				                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
 					CFG.AP.XToggle(Autopilot.Maneuver);
-				if(CFG.AP[Autopilot.Maneuver])
-				{
-					if(Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
-					{
-						CFG.WarpToNode = !CFG.WarpToNode;
-						if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
-					}
-					GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Countdown), Styles.white, GUILayout.ExpandWidth(true));
-					GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.TTB), Styles.yellow, GUILayout.ExpandWidth(true));
-				}
 			}
+			if(VSL.Countdown >= 0)
+				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Countdown), Styles.white, GUILayout.ExpandWidth(true));
+			if(VSL.TTB >= 0)
+				GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.TTB), Styles.yellow, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 
@@ -396,7 +398,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginHorizontal();
 				GUILayout.Label(string.Format("vV: {0:0.0}m/s", VSL.AbsVerticalSpeed), GUILayout.Width(100));
 				GUILayout.Label(string.Format("A: {0:0.0}m/s2", VSL.VerticalAccel), GUILayout.Width(80));
-				GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.vessel.orbit.ApA), GUILayout.Width(120));
+				GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.orbit.ApA), GUILayout.Width(120));
 				GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed), GUILayout.Width(100));
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
@@ -450,7 +452,7 @@ namespace ThrottleControlledAvionics
 				                                                     "Keep altitude above the ground and avoid collisions"),
 				                                      GUILayout.ExpandWidth(false));
 				if(follow_terrain != CFG.AltitudeAboveTerrain)
-					Apply(tca => tca.AltitudeAboveTerrain(follow_terrain));
+					Apply(tca => tca.ALT.SetAltitudeAboveTerrain(follow_terrain));
 				GUILayout.EndHorizontal();
 				//navigator toggles
 				GUILayout.BeginHorizontal();

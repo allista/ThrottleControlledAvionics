@@ -126,6 +126,7 @@
     <Compile Include="Modules\MatchVelocityAutopilot.cs" />
     <Compile Include="Modules\ThrottleControl.cs" />
     <Compile Include="Modules\TranslationControl.cs" />
+    <Compile Include="Modules\TimeWarpControl.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

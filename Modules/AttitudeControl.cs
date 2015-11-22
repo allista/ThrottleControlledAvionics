@@ -35,8 +35,6 @@ namespace ThrottleControlledAvionics
 		static Config ATC { get { return TCAScenario.Globals.ATC; } }
 
 		Transform  vesselTransform { get { return VSL.vessel.transform; } }
-		Orbit orbit { get { return VSL.vessel.orbit; } }
-
 		const float steering_norm = Mathf.PI*Mathf.PI;
 		readonly PIDv_Controller2 pid = new PIDv_Controller2();
 		readonly FloatMinimum omega_min = new FloatMinimum();
@@ -47,7 +45,6 @@ namespace ThrottleControlledAvionics
 		Vector3 angularV { get { return VSL.vessel.angularVelocity; } }
 		Vector3 angularM;
 		float AAf, Ef, PIf;
-
 
 		public float AttitudeError { get; private set; }
 		public bool Aligned { get; private set; }
@@ -92,11 +89,22 @@ namespace ThrottleControlledAvionics
 			BlockSAS(enable);
 		}
 
+		public float GimbalLimit { get; private set; } = 100;
+		public Quaternion CustomRotation { get; private set; }
+
+		public void AddCustomRotation(Vector3 from, Vector3 to)
+		{ CustomRotation = Quaternion.FromToRotation(from, to) * CustomRotation; }
+
+		public void AddCustomRotationW(Vector3 from, Vector3 to)
+		{ AddCustomRotation(VSL.LocalDir(from), VSL.LocalDir(to)); }
+
+		public void ResetCustomRotation() { CustomRotation = Quaternion.identity; }
+
 		void reset()
 		{
 			pid.Reset();
 			refT = null;
-			VSL.GimbalLimit = 100;
+			GimbalLimit = 100;
 			AttitudeError = 180;
 			Aligned = false;
 			omega_min.Reset();
@@ -112,7 +120,7 @@ namespace ThrottleControlledAvionics
 			switch(CFG.AT.state)
 			{
 			case Attitude.Custom:
-				attitude_error = VSL.CustomRotation;
+				attitude_error = CustomRotation;
 				break;
 			case Attitude.HoldAttitude:
 				if(refT != VSL.refT || !attitude_locked)
@@ -141,16 +149,16 @@ namespace ThrottleControlledAvionics
 				needed_lthrust = VSL.LocalDir(v.normalized);
 				break;
 			case Attitude.Normal:
-				needed_lthrust = -VSL.LocalDir(orbit.h.xzy);
+				needed_lthrust = -VSL.LocalDir(VSL.orbit.h.xzy);
 				break;
 			case Attitude.AntiNormal:
-				needed_lthrust = VSL.LocalDir(orbit.h.xzy);
+				needed_lthrust = VSL.LocalDir(VSL.orbit.h.xzy);
 				break;
 			case Attitude.Radial:
-				needed_lthrust = VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, orbit.h.xzy.normalized));
+				needed_lthrust = VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, VSL.orbit.h.xzy.normalized));
 				break;
 			case Attitude.AntiRadial:
-				needed_lthrust = -VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, orbit.h.xzy.normalized));
+				needed_lthrust = -VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, VSL.orbit.h.xzy.normalized));
 				break;
 			case Attitude.Target:
 				if(VSL.Target == null) { CFG.AT.On(Attitude.KillRotation); break; }
@@ -174,7 +182,7 @@ namespace ThrottleControlledAvionics
 				var solver = VSL.vessel.patchedConicSolver;
 				if(solver == null || solver.maneuverNodes.Count == 0)
 				{ CFG.AT.On(Attitude.KillRotation); break; }
-				needed_lthrust = VSL.LocalDir(-solver.maneuverNodes[0].GetBurnVector(orbit).normalized);
+				needed_lthrust = VSL.LocalDir(-solver.maneuverNodes[0].GetBurnVector(VSL.orbit).normalized);
 				break;
 			}
 			if(!needed_lthrust.IsZero())
@@ -213,15 +221,15 @@ namespace ThrottleControlledAvionics
 				needed_lthrust = attitude_error.Inverse()*lthrust;
 				#endif
 			}
-			VSL.ResetCustomRotation();
+			ResetCustomRotation();
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
-			if(!(CFG.Enabled && CFG.AT && VSL.refT != null && orbit != null)) return;
+			if(!(CFG.Enabled && CFG.AT && VSL.refT != null && VSL.orbit != null)) return;
 			DisableSAS();
-			VSL.GimbalLimit = 100;
+			GimbalLimit = 100;
 			if(VSL.AutopilotDisabled) { reset(); return; }
 			//calculate needed steering
 			CalculateSteering();
@@ -239,7 +247,7 @@ namespace ThrottleControlledAvionics
 			pid.I = ATC.PID.I*PIf;
 			pid.D = ATC.PID.D*Utils.ClampH(Utils.ClampL(1-Ef*2, 0)+angularM.magnitude*ATC.AngularMf, 1)*AAf*AAf*slow;
 			//set gimbal limit
-			VSL.GimbalLimit = Ef*100;
+			GimbalLimit = Ef*100;
 			//tune steering
 			var control = new Vector3(steering.x.Equals(0)? 0 : 1,
 			                          steering.y.Equals(0)? 0 : 1,
@@ -259,7 +267,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.IsActiveVessel)
 				ThrottleControlledAvionics.DebugMessage = 
 					string.Format("pid: {0}\nsteering: {1}°\ngimbal limit: {2}",
-					              pid, steering*Mathf.Rad2Deg, VSL.GimbalLimit);
+					              pid, steering*Mathf.Rad2Deg, GimbalLimit);
 			#endif
 		}
 	}

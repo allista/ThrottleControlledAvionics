@@ -16,15 +16,6 @@ namespace ThrottleControlledAvionics
 {
 	public class ManeuverAutopilot : TCAModule
 	{
-		public class Config : ModuleConfig
-		{
-			new public const string NODE_NAME = "MAN";
-
-			[Persistent] public float DewarpTime = 20f;  //sec
-			[Persistent] public float MaxWarp    = 10000f;
-		}
-		static Config MAN { get { return TCAScenario.Globals.MAN; } }
-
 		public ManeuverAutopilot(ModuleTCA tca) { TCA = tca; }
 
 		protected ManeuverNode Node;
@@ -88,7 +79,8 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0])
 			{ reset(); return; }
-			var dVrem = (float)Node.GetBurnVector(VSL.vessel.orbit).magnitude;
+			var dV = Node.GetBurnVector(VSL.orbit);
+			var dVrem = (float)dV.magnitude;
 			//end if below the minimum dV
 			if(dVrem < GLB.THR.MinDeltaV) 
 			{ Node.RemoveSelf(); reset(); return; }
@@ -98,21 +90,17 @@ namespace ThrottleControlledAvionics
 			if(!Working)
 			{
 				VSL.TTB = TTB(dVrem, VSL.MaxThrustM, TCA.THR.NextThrottle(dVrem, VSL.MaxThrustM, 1));
-				VSL.Countdown = Node.UT-VSL.TTB/2f-VSL.UT;
-				var DewarpTime = VSL.Countdown-(MAN.DewarpTime+(1+TimeWarp.deltaTime)*(TimeWarp.CurrentRateIndex+1))-TCA.ATC.AttitudeError;
-				if(TimeWarp.CurrentRateIndex > 0 && DewarpTime < 0)
-					TimeWarp.SetRate(TimeWarp.CurrentRateIndex-1, false);
-				else if(CFG.WarpToNode && TCA.ATC.Aligned && 
-				        DewarpTime > TimeWarp.CurrentRate && 
-				        TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
-				        TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= MAN.MaxWarp &&
-				        VSL.AbsAltitude > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody))
-					TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
+				var burn = Node.UT-VSL.TTB/2f;
+				if(CFG.WarpToNode && TCA.ATC.Aligned)
+					TCA.WRP.WarpToTime = burn-TCA.ATC.AttitudeError;
+				VSL.Countdown = burn-VSL.UT;
 				if(VSL.Countdown > 0) return;
 				VSL.Countdown = 0;
 				Working = true;
 			}
 			TCA.THR.DeltaV = dVrem;
+			if(TCA.ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
+				TCA.TRA.AddDeltaV(-VSL.LocalDir(dV));
 		}
 	}
 }

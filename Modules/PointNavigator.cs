@@ -63,6 +63,9 @@ namespace ThrottleControlledAvionics
 		static Config PN { get { return TCAScenario.Globals.PN; } }
 		public PointNavigator(ModuleTCA tca) { TCA = tca; }
 
+		public bool Maneuvering { get; private set; }
+		public List<FormationNode> Formation;
+
 		float DeltaSpeed;
 		readonly PIDf_Controller pid = new PIDf_Controller();
 		readonly Timer ArrivedTimer = new Timer();
@@ -155,8 +158,8 @@ namespace ThrottleControlledAvionics
 
 		void reset_formation()
 		{
-			VSL.Maneuvering = false;
-			VSL.Formation = null;
+			Maneuvering = false;
+			Formation = null;
 			fnode = null;			
 		}
 
@@ -185,8 +188,8 @@ namespace ThrottleControlledAvionics
 				{
 					all_followers.Add(v.id, tca);
 					if(v.id != VSL.vessel.id)
-						can_maneuver &= !tca.VSL.Maneuvering || 
-							(VSL.Maneuvering && VSL.vessel.id.CompareTo(v.id) > 0);
+						can_maneuver &= !tca.PN.Maneuvering || 
+							(Maneuvering && VSL.vessel.id.CompareTo(v.id) > 0);
 				}
 			}
 			if(only_count) return;
@@ -197,24 +200,24 @@ namespace ThrottleControlledAvionics
 				var forward = tVSL == null? Vector3d.zero : -tVSL.srf_velocity.normalized;
 				var side = Vector3d.Cross(VSL.Up, forward).normalized;
 				var num_offsets = all_followers.Count+(all_followers.Count%2);
-				if(VSL.Formation == null || VSL.Formation.Count != num_offsets)
+				if(Formation == null || Formation.Count != num_offsets)
 				{
-					VSL.Formation = new List<FormationNode>(num_offsets);
+					Formation = new List<FormationNode>(num_offsets);
 					for(int i = 0; i < num_offsets; i++) 
-						VSL.Formation.Add(new FormationNode(tVSL, i, forward, side, PN.MinDistance));
-					all_followers.ForEach(p => p.Value.VSL.Formation = VSL.Formation);
+						Formation.Add(new FormationNode(tVSL, i, forward, side, PN.MinDistance));
+					all_followers.ForEach(p => p.Value.PN.Formation = Formation);
 				}
 				else for(int i = 0; i < num_offsets; i++) 
-					VSL.Formation[i].Update(forward, side, PN.MinDistance);
+					Formation[i].Update(forward, side, PN.MinDistance);
 			}
-			keep_formation = VSL.Formation != null;
-			if(VSL.Formation == null || fnode != null) return;
+			keep_formation = Formation != null;
+			if(Formation == null || fnode != null) return;
 			//compute follower offset
 			var min_d   = -1f;
 			var min_off = 0;
-			for(int i = 0; i < VSL.Formation.Count; i++)
+			for(int i = 0; i < Formation.Count; i++)
 			{
-				var node = VSL.Formation[i];
+				var node = Formation[i];
 				if(node.Follower != null) continue;
 				var d = node.Distance(VSL.vessel);
 				if(min_d < 0 || min_d > d)
@@ -223,8 +226,8 @@ namespace ThrottleControlledAvionics
 					min_off = i;
 				}
 			}
-			VSL.Formation[min_off].Follower = VSL.vessel;
-			fnode = VSL.Formation[min_off];
+			Formation[min_off].Follower = VSL.vessel;
+			fnode = Formation[min_off];
 		}
 
 		protected override void Update()
@@ -256,7 +259,7 @@ namespace ThrottleControlledAvionics
 				var lat_dist = lat_dir.magnitude;
 				FormationBreakTimer.RunIf(() => keep_formation = false, 
 				                          tvel_m < PN.FormationSpeedCutoff);
-				VSL.Maneuvering = CanManeuver && lat_dist > CFG.Target.Distance && distance < CFG.Target.Distance*3;
+				Maneuvering = CanManeuver && lat_dist > CFG.Target.Distance && distance < CFG.Target.Distance*3;
 				if(keep_formation && tvel_m > 0 &&
 				   (!CanManeuver || 
 				    dir2vel_cos <= PN.BearingCutoffCos || 
@@ -264,7 +267,7 @@ namespace ThrottleControlledAvionics
 				{
 					if(CanManeuver) VSL.CourseCorrections.Add( 
 						lat_dir.normalized*Utils.ClampH(lat_dist/CFG.Target.Distance, 1) * 
-						tvel_m*PN.FormationFactor*(VSL.Maneuvering? 1 : 0.5f));
+						tvel_m*PN.FormationFactor*(Maneuvering? 1 : 0.5f));
 					distance = Utils.ClampL(Mathf.Abs(dir2vel_cos)*distance-VSL.R, 0);
 					if(dir2vel_cos < 0)
 					{
@@ -351,7 +354,7 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.SetNeededHorVelocity(vdir);
 				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
-				VSL.Maneuvering = false;
+				Maneuvering = false;
 				vel_is_set = true;
 			}
 			if(vel_is_set) return;
@@ -441,7 +444,7 @@ namespace ThrottleControlledAvionics
 			if(VSL == null || VSL.vessel == null) return;
 			if(CFG.Target != null && CFG.Target.GetTransform() != null && CFG.Nav[Navigation.FollowTarget])
 				GLUtils.GLLine(VSL.wCoM, CFG.Target.GetTransform().position+formation_offset,
-				               VSL.Maneuvering? Color.yellow : Color.cyan);
+				               Maneuvering? Color.yellow : Color.cyan);
 		}
 
 		public override void Reset()

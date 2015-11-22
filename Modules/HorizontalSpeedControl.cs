@@ -100,24 +100,12 @@ namespace ThrottleControlledAvionics
 			if(IsActive) return;
 			if(VSL.ManualTranslationSwitch.On)
 				EnableManualTranslation(false);
-			CFG.AT.OffIfOn(Attitude.Custom);
 		}
 
 		public override void Enable(bool enable = true)
 		{
-			translation_pid.Reset();
-			if(enable) 
-			{
-				CFG.AT.OnIfNot(Attitude.Custom);
-				VSL.UpdateOnPlanetStats();
-				VSL.SetNeededHorVelocity(Vector3d.zero);
-			}
-			else 
-			{
-				CFG.AT.OffIfOn(Attitude.Custom);
-				EnableManualTranslation(false); 
-			}
-			BlockSAS(enable);
+			Move(enable);
+			if(enable) VSL.SetNeededHorVelocity(Vector3d.zero);
 		}
 
 		public void Move(bool enable = true)
@@ -258,7 +246,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.SlowTorque) 
 				filter.Tau = HSC.LowPassF/(1+VSL.TorqueResponseTime*HSC.SlowTorqueF);
 			else filter.Tau = HSC.LowPassF;
-			VSL.AddCustomRotation(filter.Update(needed_thrust_dir), thrust);
+			TCA.ATC.AddCustomRotation(filter.Update(needed_thrust_dir), thrust);
 		}
 	}
 }

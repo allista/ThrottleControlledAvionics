@@ -150,6 +150,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public CelestialBody mainBody { get { return vessel.mainBody; } }
+		public Orbit orbit { get { return vessel.orbit; } }
 		public bool OnPlanet { get; private set; }
 		public bool InOrbit { get; private set; }
 		public bool isEVA { get { return vessel.isEVA; } }
@@ -169,18 +170,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 Translation { get; private set; }
 		public Vector3 ManualTranslation;
 		public Switch ManualTranslationSwitch = new Switch();
-		//attitude
-		public float GimbalLimit = 100;
-		public Quaternion CustomRotation { get; private set; }
-		public void AddCustomRotation(Vector3 from, Vector3 to)
-		{ CustomRotation = Quaternion.FromToRotation(from, to) * CustomRotation; }
-		public void AddCustomRotationW(Vector3 from, Vector3 to)
-		{ AddCustomRotation(refT.InverseTransformDirection(from), refT.InverseTransformDirection(to)); }
-		public void ResetCustomRotation() { CustomRotation = Quaternion.identity; }
 		//maneuvering
-		public bool Maneuvering;
-		public List<FormationNode> Formation;
-		public float dVremaining;
 		public double Countdown;
 		public float TTB;
 
@@ -405,7 +395,7 @@ namespace ThrottleControlledAvionics
 			{
 				var e = ActiveEngines[i];
 				if(e.gimbal != null) 
-					e.gimbal.gimbalLimiter = GimbalLimit;
+					e.gimbal.gimbalLimiter = TCA.ATC.GimbalLimit;
 				if(!Equals(e.Role, TCARole.MANUAL))
 					e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
 				else if(ManualTranslationSwitch.On)
@@ -547,6 +537,8 @@ namespace ThrottleControlledAvionics
 			//reset things
 			CourseCorrections.Clear();
 			Destination = Vector3.zero;
+			Countdown = -1;
+			TTB = -1;
 		}
 
 		void UpdateETorqueLimits()

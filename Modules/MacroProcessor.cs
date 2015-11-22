@@ -16,13 +16,6 @@ namespace ThrottleControlledAvionics
 {
 	public class MacroProcessor : TCAModule
 	{
-//		public class Config : ModuleConfig
-//		{
-//			new public const string NODE_NAME = "MAC";
-//
-//		}
-//		static Config MAC { get { return TCAScenario.Globals.MAC; } }
-
 		public MacroProcessor(ModuleTCA tca) { TCA = tca; }
 
 		protected override void UpdateState()
