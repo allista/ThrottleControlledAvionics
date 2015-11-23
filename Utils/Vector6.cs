@@ -18,7 +18,9 @@ namespace ThrottleControlledAvionics
 	//convergent with Anatid's Vector6, but not taken from it
 	public class Vector6 
 	{
-		public Vector3 positive = Vector3.zero, negative = Vector3.zero;
+		public static Vector6 zero { get { return new Vector6(); } }
+
+		public Vector3 positive, negative;
 
 		public static Vector6 operator+(Vector6 first, Vector6 second)
 		{ 
@@ -117,6 +119,28 @@ namespace ThrottleControlledAvionics
 				if(projm > 0) proj += normal*projm;
 			}
 			return proj;
+		}
+
+		public Vector6 Transform(Transform T)
+		{
+			var tV = new Vector6();
+			for(int i = 0; i < 3; i++)
+			{
+				tV.Add(T.TransformDirection(negative.Component(i)));
+				tV.Add(T.TransformDirection(positive.Component(i)));
+			}
+			return tV;
+		}
+
+		public Vector6 Local2Local(Transform fromT, Transform toT)
+		{
+			var tV = new Vector6();
+			for(int i = 0; i < 3; i++)
+			{
+				tV.Add(toT.InverseTransformDirection(fromT.TransformDirection(negative.Component(i))));
+				tV.Add(toT.InverseTransformDirection(fromT.TransformDirection(positive.Component(i))));
+			}
+			return tV;
 		}
 
 		public override string ToString()
