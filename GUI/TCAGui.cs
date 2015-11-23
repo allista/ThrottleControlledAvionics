@@ -265,20 +265,20 @@ namespace ThrottleControlledAvionics
 				CFG.WarpToNode = !CFG.WarpToNode;
 				if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
 			}
+			if(VSL.HasManeuverNode) 
+			{
+				if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Maneuver", 
+				                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
+					CFG.AP.XToggle(Autopilot.Maneuver);
+			}
 			if(VSL.HasTarget && !CFG.AP[Autopilot.Maneuver])
 			{
 				if(Utils.ButtonSwitch("Match Velocity", CFG.AP[Autopilot.MatchVel], 
 				                      "Match orbital velocity with the target", GUILayout.ExpandWidth(true)))
 					CFG.AP.XToggle(Autopilot.MatchVel);
-				if(Utils.ButtonSwitch("Brake Near", CFG.AP[Autopilot.MatchVelNear], 
+				if(Utils.ButtonSwitch("Brake Near Target", CFG.AP[Autopilot.MatchVelNear], 
 				                      "Match orbital velocity with the target at nearest point", GUILayout.ExpandWidth(true)))
 					CFG.AP.XToggle(Autopilot.MatchVelNear);
-			}
-			if(VSL.HasManeuverNode) 
-			{
-				if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Next Maneuver", 
-				                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
-					CFG.AP.XToggle(Autopilot.Maneuver);
 			}
 			if(VSL.Countdown >= 0)
 				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Countdown), Styles.white, GUILayout.ExpandWidth(true));
