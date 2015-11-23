@@ -50,19 +50,22 @@ namespace ThrottleControlledAvionics
 		public List<ModuleReactionWheel> RWheels    = new List<ModuleReactionWheel>();
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
+
 		public bool NoActiveRCS { get; private set; }
+		public int  NumActiveEngines { get; private set; }
+		public int  NumActiveRCS { get; private set; }
 		public bool CanUpdateEngines = true;
 		public bool ForceUpdateParts;
 
-		public int  NumActive { get; private set; }
-		public int  NumActiveRCS { get; private set; }
-		public bool NormalizeLimits = true; //if engines' limits should be normalized
-
 		//physics
-		public Vector6 E_TorqueLimits { get; private set; } = new Vector6(); //torque limits of engines
-		public Vector6 W_TorqueLimits { get; private set; } = new Vector6(); //torque limits of reaction wheels
-		public Vector6 R_TorqueLimits { get; private set; } = new Vector6(); //torque limits of rcs
-		public Vector6 ManualThrustLimits { get; private set; } = new Vector6();
+		public Vector6 E_TorqueLimits { get; private set; } = Vector6.zero; //torque limits of engines
+		public Vector6 W_TorqueLimits { get; private set; } = Vector6.zero; //torque limits of reaction wheels
+		public Vector6 R_TorqueLimits { get; private set; } = Vector6.zero; //torque limits of rcs
+		public Vector6 ManualThrustLimits { get; private set; } = Vector6.zero;
+		public Bounds  EnginesExhaust { get; private set; }
+
+		public float DistToExhaust(Vector3 world_point)
+		{ return Mathf.Sqrt(EnginesExhaust.SqrDistance(refT.InverseTransformPoint(world_point))); }
 
 		public Bounds  B { get; private set; } //bounds
 		public Vector3 C { get; private set; } //center
@@ -132,9 +135,6 @@ namespace ThrottleControlledAvionics
 		public List<Vector3d> CourseCorrections = new List<Vector3d>();
 		public Vector3d CourseCorrection;
 		public Vector3  Destination;
-
-		//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
-		float CoM_verticalSpeed { get { return (float)Vector3d.Dot(vessel.srf_velocity, Up); } }
 
 		public TCAState State;
 		public void SetState(TCAState state) { State |= state; }
@@ -298,21 +298,21 @@ namespace ThrottleControlledAvionics
 			{ var e = Engines[i]; if(e.isOperational) ActiveEngines.Add(e); }
 			ActiveRCS = vessel.ActionGroups[KSPActionGroup.RCS]? 
 				RCS.Where(t => t.isOperational).ToList() : new List<RCSWrapper>();
-			NumActive = ActiveEngines.Count;
+			NumActiveEngines = ActiveEngines.Count;
 			NumActiveRCS = ActiveRCS.Count;
 			NoActiveRCS = NumActiveRCS == 0 || 
 				Steering.sqrMagnitude < GLB.InputDeadZone && 
 				Translation.sqrMagnitude < GLB.InputDeadZone;
-			return NumActive > 0 && vessel.ctrlState.mainThrottle > 0 || !NoActiveRCS;
+			return NumActiveEngines > 0 && vessel.ctrlState.mainThrottle > 0 || !NoActiveRCS;
 		}
 
 		public void SortEngines()
 		{
-			SteeringEngines.Clear(); SteeringEngines.Capacity = NumActive;
-			ManeuverEngines.Clear(); ManeuverEngines.Capacity = NumActive;
-			BalancedEngines.Clear(); BalancedEngines.Capacity = NumActive;
-			ManualEngines.Clear();   ManualEngines.Capacity   = NumActive;
-			for(int i = 0; i < NumActive; i++)
+			SteeringEngines.Clear(); SteeringEngines.Capacity = NumActiveEngines;
+			ManeuverEngines.Clear(); ManeuverEngines.Capacity = NumActiveEngines;
+			BalancedEngines.Clear(); BalancedEngines.Capacity = NumActiveEngines;
+			ManualEngines.Clear();   ManualEngines.Capacity   = NumActiveEngines;
+			for(int i = 0; i < NumActiveEngines; i++)
 			{
 				var e = ActiveEngines[i];
 				switch(e.Role)
@@ -332,24 +332,22 @@ namespace ThrottleControlledAvionics
 					break;
 				}
 			}
-			NormalizeLimits = SteeringEngines.Count > ManeuverEngines.Count;
 		}
 
 		public void TuneEngines()
 		{
-			NormalizeLimits = true;
 			//calculate VSF correction
 			if(IsStateSet(TCAState.VerticalSpeedControl))
 			{
 				//calculate min imbalance
 				var min_imbalance = Vector3.zero;
-				for(int i = 0; i < NumActive; i++) min_imbalance += ActiveEngines[i].Torque(0);
+				for(int i = 0; i < NumActiveEngines; i++) min_imbalance += ActiveEngines[i].Torque(0);
 				min_imbalance = E_TorqueLimits.Clamp(min_imbalance);
 				//correct VerticalSpeedFactor if needed
 				if(!min_imbalance.IsZero())
 				{
 					var anti_min_imbalance = Vector3.zero;
-					for(int i = 0; i < NumActive; i++)
+					for(int i = 0; i < NumActiveEngines; i++)
 					{
 						var e = ActiveEngines[i];
 						if(Vector3.Dot(e.specificTorque, min_imbalance) < 0)
@@ -359,7 +357,7 @@ namespace ThrottleControlledAvionics
 					VSF = Mathf.Clamp(VSF, Mathf.Clamp01(min_imbalance.magnitude/anti_min_imbalance.magnitude
 					                                     *GLB.VSC.BalanceCorrection), 1f);
 				}
-				for(int i = 0; i < NumActive; i++)
+				for(int i = 0; i < NumActiveEngines; i++)
 				{
 					var e = ActiveEngines[i];
 					if(e.isVSC)
@@ -378,7 +376,7 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				for(int i = 0; i < NumActive; i++)
+				for(int i = 0; i < NumActiveEngines; i++)
 				{
 					var e = ActiveEngines[i];
 					e.VSF = 1f;
@@ -391,7 +389,7 @@ namespace ThrottleControlledAvionics
 
 		public void SetEnginesControls()
 		{
-			for(int i = 0; i < NumActive; i++)
+			for(int i = 0; i < NumActiveEngines; i++)
 			{
 				var e = ActiveEngines[i];
 				if(e.gimbal != null) 
@@ -414,31 +412,6 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Updates
-		public void UpdateAltitudeInfo()
-		{ 
-			PrevRelAltitude = RelAltitude;
-			AbsAltitude = (float)vessel.altitude;
-			TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
-			RelAltitude = (float)(vessel.altitude) - TerrainAltitude;
-			Altitude = CFG.AltitudeAboveTerrain? RelAltitude : AbsAltitude;
-			AltitudeAboveGround = 
-				CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= 0 ||
-				!CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= TerrainAltitude; 
-		}
-
-		public void UpdatePhysicsParams()
-		{
-			UT   = Planetarium.GetUniversalTime();
-			wCoM = vessel.CurrentCoM;
-			refT = vessel.ReferenceTransform;
-			Up   = (wCoM - vessel.mainBody.position).normalized;
-			UpL  = refT.InverseTransformDirection(Up);
-			M    = vessel.GetTotalMass();
-			StG  = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
-			G    = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
-			UpdateAltitudeInfo();
-		}
-
 		public void UpdateState()
 		{
 			//update onPlanet state
@@ -462,6 +435,31 @@ namespace ThrottleControlledAvionics
 			if(!CFG.HF && !CFG.AT) UnblockSAS();
 		}
 
+		public void UpdatePhysicsParams()
+		{
+			UT   = Planetarium.GetUniversalTime();
+			wCoM = vessel.CurrentCoM;
+			refT = vessel.ReferenceTransform;
+			Up   = (wCoM - vessel.mainBody.position).normalized;
+			UpL  = refT.InverseTransformDirection(Up);
+			M    = vessel.GetTotalMass();
+			StG  = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
+			G    = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
+			UpdateAltitudeInfo();
+		}
+
+		public void UpdateAltitudeInfo()
+		{ 
+			PrevRelAltitude = RelAltitude;
+			AbsAltitude = (float)vessel.altitude;
+			TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
+			RelAltitude = (float)(vessel.altitude) - TerrainAltitude;
+			Altitude = CFG.AltitudeAboveTerrain? RelAltitude : AbsAltitude;
+			AltitudeAboveGround = 
+				CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= 0 ||
+				!CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= TerrainAltitude; 
+		}
+
 		public void UpdateCommons()
 		{
 			//init engine wrappers, thrust and torque information
@@ -473,7 +471,7 @@ namespace ThrottleControlledAvionics
 			SlowTorque = false;
 			TorqueResponseTime = 0f;
 			var total_torque = 0f;
-			for(int i = 0; i < NumActive; i++) 
+			for(int i = 0; i < NumActiveEngines; i++) 
 			{
 				var e = ActiveEngines[i];
 				e.InitState();
@@ -543,14 +541,14 @@ namespace ThrottleControlledAvionics
 
 		void UpdateETorqueLimits()
 		{
-			E_TorqueLimits = new Vector6();
+			E_TorqueLimits = Vector6.zero;
 			for(int i = 0, count = SteeringEngines.Count; i < count; i++)
 				E_TorqueLimits.Add(SteeringEngines[i].currentTorque);
 		}
 
 		void UpdateWTorqueLimits()
 		{
-			W_TorqueLimits = new Vector6();
+			W_TorqueLimits = Vector6.zero;
 			for(int i = 0, count = RWheels.Count; i < count; i++)
 			{
 				var w = RWheels[i];
@@ -563,7 +561,7 @@ namespace ThrottleControlledAvionics
 
 		void UpdateRTorqueLimits()
 		{
-			R_TorqueLimits = new Vector6();
+			R_TorqueLimits = Vector6.zero;
 			for(int i = 0; i < NumActiveRCS; i++)
 			{
 				var r = ActiveRCS[i];
@@ -595,7 +593,8 @@ namespace ThrottleControlledAvionics
 			if(!OnPlanet) return;
 			AccelSpeed = 0f; DecelSpeed = 0f; SlowThrust = false;
 			//calculate altitude, vertical and horizontal speed and acceleration
-			AbsVerticalSpeed  = CoM_verticalSpeed;
+			//unlike the vessel.verticalSpeed, this method is unaffected by ship's rotation (from MechJeb)
+			AbsVerticalSpeed  = (float)Vector3d.Dot(vessel.srf_velocity, Up);
 			VerticalAccel     = (AbsVerticalSpeed-VerticalSpeed)/TimeWarp.fixedDeltaTime;
 			VerticalSpeed     = AbsVerticalSpeed;
 			VerticalSpeedDisp = AbsVerticalSpeed;
@@ -609,11 +608,11 @@ namespace ThrottleControlledAvionics
 			HorizontalSpeed = (float)HorizontalVelocity.magnitude;
 			//calculate total downward thrust and slow engines' corrections
 			ManualThrust = Vector3.zero;
-			ManualThrustLimits = new Vector6();
+			ManualThrustLimits = Vector6.zero;
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
-			for(int i = 0; i < NumActive; i++)
+			for(int i = 0; i < NumActiveEngines; i++)
 			{
 				var e = ActiveEngines[i];
 				e.VSF = 1f;
@@ -664,7 +663,6 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateBounds()
 		{
-			var vT = vessel.vesselTransform;
 			var b = new Bounds();
 			bool inited = false;
 			var parts = vessel.parts;
@@ -681,7 +679,7 @@ namespace ThrottleControlledAvionics
 					var bounds = Utils.BoundCorners(m.sharedMesh.bounds);
 					for(int j = 0; j < 8; j++)
 					{
-						var c = vT.InverseTransformPoint(m.transform.TransformPoint(bounds[j]));
+						var c = refT.InverseTransformPoint(m.transform.TransformPoint(bounds[j]));
 						if(inited) b.Encapsulate(c);
 						else
 						{
@@ -692,9 +690,28 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			B = b;
-			C = vT.TransformPoint(B.center);
-			H = Mathf.Abs(Vector3.Dot(vT.TransformDirection(B.extents), Up))-Vector3.Dot(C-vessel.CurrentCoM, Up);
+			C = refT.TransformPoint(B.center);
+			H = Mathf.Abs(Vector3.Dot(refT.TransformDirection(B.extents), Up))+Vector3.Dot(C-vessel.CurrentCoM, Up);
 			R = B.extents.magnitude;
+		}
+
+		public void UpdateExhaustInfo()
+		{
+			var b = new Bounds();
+			var inited = false;
+			foreach(var e in Engines)
+			{
+				if(!e.engine.exhaustDamage) continue;
+				for(int k = 0, tCount = e.engine.thrustTransforms.Count; k < tCount; k++)
+				{
+					var t = e.engine.thrustTransforms[k];
+					var term = refT.InverseTransformPoint(t.position + t.forward * e.engine.exhaustDamageMaxRange);
+					if(inited) b.Encapsulate(term);
+					else { b = new Bounds(term, Vector3.zero); inited = true; }
+				}
+			}
+			b.Encapsulate(B);
+			EnginesExhaust  = b;
 		}
 
 		public void UnblockSAS(bool set_flag = true)
@@ -718,8 +735,12 @@ namespace ThrottleControlledAvionics
 			MaxAngularA = AngularAcceleration(MaxTorque);
 			wMaxAngularA = refT.TransformDirection(MaxAngularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
-			MaxAAMod = MaxAAFilter.Update(MaxAngularA_m)/MaxAngularA_m;
-			MaxAAMod *= MaxAAMod*MaxAAMod;
+			if(MaxAngularA_m > 0)
+			{
+				MaxAAMod = MaxAAFilter.Update(MaxAngularA_m)/MaxAngularA_m;
+				MaxAAMod *= MaxAAMod*MaxAAMod;
+			}
+			else MaxAAMod = 1;
 		}
 
 		#region From MechJeb2

@@ -279,6 +279,7 @@ namespace ThrottleControlledAvionics
 			if(!enabled) { VSL = null; return; }
 			VSL.UpdateCommons();
 			VSL.UpdateOnPlanetStats();
+			VSL.UpdateExhaustInfo();
 			VSL.UpdateBounds();
 			vessel.OnAutopilotUpdate += OnAutopilotUpdate;
 			create_modules();
@@ -333,9 +334,13 @@ namespace ThrottleControlledAvionics
 		{
 			//update vessel config if needed
 			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) updateCFG();
-			//update heavy to compute parameters
-			if(IsStateSet(TCAState.HaveActiveEngines)) VSL.UpdateMoI();
-			if(RAD.IsActive || LND.IsActive) VSL.UpdateBounds();
+			if(CFG.Enabled)
+			{
+				//update heavy to compute parameters
+				VSL.UpdateMoI();
+				VSL.UpdateBounds();
+				VSL.UpdateExhaustInfo();
+			}
 		}
 
 		public override void OnFixedUpdate() 
@@ -351,7 +356,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.CheckEngines()) 
 				SetState(TCAState.HaveActiveEngines);
 			VSL.UpdateCommons();
-			if(VSL.NumActive > 0)
+			if(VSL.NumActiveEngines > 0)
 			{
 				VSL.UpdateOnPlanetStats();
 				//these follow specific order
@@ -371,7 +376,7 @@ namespace ThrottleControlledAvionics
 			}
 			//handle engines
 			VSL.TuneEngines();
-			if(VSL.NumActive > 0)
+			if(VSL.NumActiveEngines > 0)
 			{
 				VSL.SortEngines();
 				//:preset manual limits for translation if needed
