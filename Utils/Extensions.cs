@@ -166,13 +166,13 @@ namespace ThrottleControlledAvionics
 		}
 		#endregion
 
-		#region From MechJeb2
 		public static bool HasModule<T>(this Part p) where T : PartModule
 		{ return p.Modules.GetModules<T>().Any(); }
 
 		public static T GetModule<T>(this Part p) where T : PartModule
 		{ return p.Modules.GetModules<T>().FirstOrDefault(); }
 
+		#region From MechJeb2
 		public static bool IsPhysicallySignificant(this Part p)
 		{
 			bool physicallySignificant = (p.physicalSignificance != Part.PhysicalSignificance.NONE);
@@ -184,9 +184,35 @@ namespace ThrottleControlledAvionics
 			physicallySignificant &= !p.HasModule<ModuleLandingGear>() && !p.HasModule<LaunchClamp>();
 			return physicallySignificant;
 		}
+		#endregion
 
 		public static float TotalMass(this Part p) { return p.mass+p.GetResourceMass(); }
-		#endregion
+
+		public static Bounds EnginesExhaust(this Vessel vessel)
+		{
+			var CoM = vessel.CurrentCoM;
+			var refT = vessel.ReferenceTransform;
+			var b = new Bounds();
+			var inited = false;
+			for(int i = 0, vesselPartsCount = vessel.Parts.Count; i < vesselPartsCount; i++)
+			{
+				var p = vessel.Parts[i];
+				var engines = p.Modules.GetModules<ModuleEngines>();
+				for(int j = 0, enginesCount = engines.Count; j < enginesCount; j++)
+				{
+					var e = engines[j];
+					if(!e.exhaustDamage) continue;
+					for(int k = 0, tCount = e.thrustTransforms.Count; k < tCount; k++)
+					{
+						var t = e.thrustTransforms[k];
+						var term = refT.InverseTransformDirection(t.position + t.forward * e.exhaustDamageMaxRange - CoM);
+						if(inited) b.Encapsulate(term);
+						else { b = new Bounds(term, Vector3.zero); inited = true; }
+					}
+				}
+			}
+			return b;
+		}
 	}
 }
 
