@@ -4,7 +4,7 @@ RoleSymmetryInFlight = true
 InputDeadZone        = 0.03
 MaxManualGroups      = 10
 KeyRepeatTime        = 0.1
-WaypointHeight       = 3
+WaypointHeight       = 5
 
 RCS
 {
