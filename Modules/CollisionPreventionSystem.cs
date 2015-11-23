@@ -71,8 +71,19 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
-			if(!IsActive || VSL == null || VSL.vessel == null || filter.Value.IsZero()) return;
-			GLUtils.GLVec(VSL.wCoM, filter.Value, Color.magenta);
+			if(!IsActive || VSL == null || VSL.vessel == null) return;
+			if(!filter.Value.IsZero())
+				GLUtils.GLVec(VSL.wCoM, filter.Value, Color.magenta);
+//			GLUtils.GLBounds(VSL.EnginesExhaust, VSL.refT, Color.cyan);
+//			for(int i = 0, VSLEnginesCount = VSL.Engines.Count; i < VSLEnginesCount; i++)
+//			{
+//				var e = VSL.Engines[i];
+//				for(int j = 0, eenginethrustTransformsCount = e.engine.thrustTransforms.Count; j < eenginethrustTransformsCount; j++)
+//				{
+//					var t = e.engine.thrustTransforms[j];
+//					GLUtils.GLVec(t.position, t.forward * e.engine.exhaustDamageMaxRange, Color.yellow);
+//				}
+//			}
 		}
 
 		public override void Reset()
@@ -104,13 +115,19 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		public static bool AvoideVessel(VesselWrapper vsl, Vector3d dir, float dist, Vector3d dV, float r2, out Vector3d maneuver, float threshold = -1)
+		public static bool AvoideVessel(VesselWrapper vsl, Vector3d dir, float dist, Vector3d dV, 
+		                                float r2, Bounds exhaust2, Transform refT2,
+		                                out Vector3d maneuver, float threshold = -1)
 		{
 			maneuver = Vector3d.zero;
 			//filter vessels on non-collision courses
 			var dVn = dV.normalized;
-			var collision_dist = vsl.R+r2;
 			var cosA = Mathf.Clamp(Vector3.Dot(dir, dVn), -1, 1);
+			var collision_dist = Mathf.Max(vsl.R, dist-vsl.DistToExhaust(vsl.wCoM+dir*dist)) +
+				Mathf.Max(r2, dist-Mathf.Sqrt(exhaust2.SqrDistance(refT2.InverseTransformPoint(vsl.wCoM))));
+//			vsl.Log("R {0}, R2 {1}; r {2}, r2 {3}", vsl.R, r2, 
+//			        dist-vsl.DistToExhaust(vsl.wCoM+dir*dist), 
+//			        dist-Mathf.Sqrt(exhaust2.SqrDistance(refT2.InverseTransformPoint(vsl.wCoM))));//debug
 //			Utils.Log("{0}: cosA: {1}, threshold {2}", vsl.vessel.vesselName, cosA, threshold);//debug
 			if(cosA <= 0) goto check_distance;
 			if(threshold < 0) threshold = collision_dist;
@@ -161,8 +178,10 @@ namespace ThrottleControlledAvionics
 			var dir = (v.CurrentCoM-VSL.wCoM);
 			var dist = dir.magnitude;
 			dir /= dist;
-			//first try to get TCA from other vessel and get vessel's R
+			//first try to get TCA from other vessel and get vessel's R and Exhaust
 			var vR = 0f;
+			var vE = new Bounds();
+			Transform vT = null;
 			var tca = ModuleTCA.EnabledTCA(v);
 			if(tca != null) 
 			{
@@ -172,6 +191,8 @@ namespace ThrottleControlledAvionics
 				   VSL.vessel.srfSpeed > v.srfSpeed) //test 
 					return false;
 				vR = tca.VSL.R;
+				vE = tca.VSL.EnginesExhaust;
+				vT = tca.VSL.refT;
 			}
 			else //do a raycast
 			{
@@ -179,13 +200,15 @@ namespace ThrottleControlledAvionics
 				if(Physics.SphereCast(VSL.C+dir*(VSL.R+0.1f), VSL.R, dir,
 				               out raycastHit, dist, RadarMask))
 					vR = (raycastHit.point-v.CurrentCoM).magnitude;
+				vE = v.EnginesExhaust();
+				vT = v.ReferenceTransform;
 			}
 			//compute course correction
 			var dV = VSL.vessel.srf_velocity-v.srf_velocity+(VSL.vessel.acceleration-v.acceleration)*CPS.LookAheadTime;
 			var thrershold = -1f;
 			if(v.LandedOrSplashed) thrershold = 0;
 			else if(Dangerous.Contains(v.id)) thrershold = CPS.SafeDistance;
-			var collision = AvoideVessel(VSL, dir, dist, dV, vR, out maneuver, thrershold);
+			var collision = AvoideVessel(VSL, dir, dist, dV, vR, vE, vT, out maneuver, thrershold);
 			if(collision) Dangerous.Add(v.id);
 			else Dangerous.Remove(v.id);
 			return collision;
