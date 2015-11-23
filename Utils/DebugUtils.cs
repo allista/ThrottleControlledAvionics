@@ -120,6 +120,35 @@ namespace ThrottleControlledAvionics
 
 		public static void GLVec(Vector3 ori, Vector3 vec, Color c)
 		{ GLLine(ori, ori+vec, c); }
+
+//		edges[0] = new Vector3(min.x, min.y, min.z); //left-bottom-back
+//		edges[1] = new Vector3(min.x, min.y, max.z); //left-bottom-front
+//		edges[2] = new Vector3(min.x, max.y, min.z); //left-top-back
+//		edges[3] = new Vector3(min.x, max.y, max.z); //left-top-front
+//		edges[4] = new Vector3(max.x, min.y, min.z); //right-bottom-back
+//		edges[5] = new Vector3(max.x, min.y, max.z); //right-bottom-front
+//		edges[6] = new Vector3(max.x, max.y, min.z); //right-top-back
+//		edges[7] = new Vector3(max.x, max.y, max.z); //right-top-front
+
+		public static void GLBounds(Bounds b, Transform T, Color col)
+		{
+			var c = Utils.BoundCorners(b);
+			for(int i = 0; i < 8; i++) c[i] = T.TransformPoint(c[i]);
+			GLLine(c[0], c[1], col);
+			GLLine(c[1], c[5], col);
+			GLLine(c[5], c[4], col);
+			GLLine(c[4], c[0], col);
+
+			GLLine(c[2], c[3], col);
+			GLLine(c[3], c[7], col);
+			GLLine(c[7], c[6], col);
+			GLLine(c[6], c[2], col);
+
+			GLLine(c[2], c[0], col);
+			GLLine(c[3], c[1], col);
+			GLLine(c[7], c[5], col);
+			GLLine(c[6], c[4], col);
+		}
 	}
 
 	class NamedStopwatch
