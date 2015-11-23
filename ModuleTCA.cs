@@ -220,17 +220,23 @@ namespace ThrottleControlledAvionics
 			return TCA_Modules;
 		}
 
-		public static ModuleTCA EnabledTCA(IShipconstruct ship)
+		public static ModuleTCA AvailableTCA(IShipconstruct ship)
 		{
 			ModuleTCA tca = null;
 			for(int i = 0, shipPartsCount = ship.Parts.Count; i < shipPartsCount; i++) 
 			{
 				tca = ship.Parts[i].Modules
 					.GetModules<ModuleTCA>()
-					.FirstOrDefault(m => m.enabled);
+					.FirstOrDefault(m => m.Available);
 				if(tca != null) break;
 			}
 			return tca;
+		}
+
+		public static ModuleTCA EnabledTCA(IShipconstruct ship)
+		{ 
+			var tca = AvailableTCA(ship);
+			return tca.CFG != null && tca.CFG.Enabled? tca : null;
 		}
 
 		void updateCFG()

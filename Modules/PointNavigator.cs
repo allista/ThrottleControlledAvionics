@@ -242,7 +242,7 @@ namespace ThrottleControlledAvionics
 			var distance = Utils.ClampL(vdir.magnitude-VSL.R, 0);
 			//update destination
 			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath)) VSL.Destination = vdir;
-			else if(tTCA != null && tTCA.Valid && tTCA.CFG.Enabled) VSL.Destination = tTCA.VSL.Destination;
+			else if(tTCA != null) VSL.Destination = tTCA.VSL.Destination;
 			//handle flying in formation
 			var tvel = Vector3.zero;
 			var vel_is_set = false;
