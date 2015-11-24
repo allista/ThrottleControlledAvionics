@@ -701,17 +701,18 @@ namespace ThrottleControlledAvionics
 			var inited = false;
 			foreach(var e in Engines)
 			{
-				if(!e.engine.exhaustDamage) continue;
+				if(!e.Valid(this) || !e.engine.exhaustDamage) continue;
 				for(int k = 0, tCount = e.engine.thrustTransforms.Count; k < tCount; k++)
 				{
 					var t = e.engine.thrustTransforms[k];
+					if(t == null) continue;
 					var term = refT.InverseTransformPoint(t.position + t.forward * e.engine.exhaustDamageMaxRange);
 					if(inited) b.Encapsulate(term);
 					else { b = new Bounds(term, Vector3.zero); inited = true; }
 				}
 			}
 			b.Encapsulate(B);
-			EnginesExhaust  = b;
+			EnginesExhaust = b;
 		}
 
 		public void UnblockSAS(bool set_flag = true)

@@ -236,7 +236,7 @@ namespace ThrottleControlledAvionics
 		public static ModuleTCA EnabledTCA(IShipconstruct ship)
 		{ 
 			var tca = AvailableTCA(ship);
-			return tca.CFG != null && tca.CFG.Enabled? tca : null;
+			return tca != null && tca.CFG != null && tca.CFG.Enabled? tca : null;
 		}
 
 		void updateCFG()
