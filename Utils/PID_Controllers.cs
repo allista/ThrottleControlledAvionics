@@ -1,10 +1,11 @@
-﻿/* Name: Throttle Controlled Avionics, Fork by Allis Tauri
- *
- * Authors: Quinten Feys & Willem van Vliet & Allis Tauri
- * License: BY: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0): 
- * http://creativecommons.org/licenses/by-sa/3.0/
- * 
- */
+//  Author:
+//       Allis Tauri <allista@gmail.com>
+//
+//  Copyright (c) 2015 Allis Tauri
+//
+// This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. 
+// To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
+// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
 using UnityEngine;

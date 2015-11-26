@@ -1,8 +1,13 @@
-//------------------------------------------------------------------------------
-// This EngineWrapper class came from HoneyFox's EngineIgnitor mod:
-// Edited by Willem van Vliet 2014, by Allis Tauri 2015
-// More info: https://github.com/HoneyFox/EngineIgnitor
-//------------------------------------------------------------------------------
+//  Author:
+//       Allis Tauri <allista@gmail.com>
+//
+//  Copyright (c) 2015 Allis Tauri
+//
+// This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. 
+// To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
+// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+
+// Original idea of EngineWrapper came from HoneyFox's EngineIgnitor mod: https://github.com/HoneyFox/EngineIgnitor
 
 using System;
 using UnityEngine;
