@@ -87,8 +87,8 @@ namespace ThrottleControlledAvionics
 			pid.D   = ANC.DistancePID.D*(2-AccelCorrection);
 			pid.Update(distance*ANC.DistanceF);
 			//set needed velocity and starboard
-			VSL.SetNeededHorVelocity(vdir*pid.Action);
-//			Log("dist {0}, pid {1}, nHV {2}", distance, pid, VSL.NeededHorVelocity);//debug
+			TCA.HSC.SetNeededHorVelocity(vdir*pid.Action);
+//			Log("dist {0}, pid {1}, nHV {2}", distance, pid, TCA.HSC.NeededHorVelocity);//debug
 		}
 
 		#if DEBUG

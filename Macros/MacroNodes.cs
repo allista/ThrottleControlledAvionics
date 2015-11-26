@@ -244,7 +244,7 @@ namespace ThrottleControlledAvionics
 				return false;
 			}
 			VSL.CFG.HF.XOn(HFlight.CruiseControl);
-			VSL.SetNeededHorVelocity(nv*Value);
+			VSL.TCA.HSC.SetNeededHorVelocity(nv*Value);
 			return false;
 		}
 	}

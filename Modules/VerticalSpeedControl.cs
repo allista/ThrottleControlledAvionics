@@ -67,12 +67,12 @@ namespace ThrottleControlledAvionics
 			{
 				accelV = (VSL.VerticalAccel-old_accel)/TimeWarp.fixedDeltaTime;
 				old_accel = VSL.VerticalAccel;
-				var missed = VSL.VerticalSpeed > CFG.VerticalCutoff && VSL.VerticalSpeed < CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel > 0 ||
-					VSL.VerticalSpeed < CFG.VerticalCutoff && VSL.VerticalSpeed > CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel < 0;
+				var missed = VSL.AbsVerticalSpeed > CFG.VerticalCutoff && VSL.AbsVerticalSpeed < CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel > 0 ||
+					VSL.AbsVerticalSpeed < CFG.VerticalCutoff && VSL.AbsVerticalSpeed > CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel < 0;
 				if(missed || Mathf.Abs(VSL.VerticalAccel) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
-					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.VerticalSpeed+setpoint_correction, 0));
+					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.AbsVerticalSpeed+setpoint_correction, 0));
 			}
-			var err = setpoint-VSL.VerticalSpeed+setpoint_correction;
+			var err = setpoint-VSL.AbsVerticalSpeed+setpoint_correction;
 			var K = Mathf.Clamp01(err
 			                      /VSC.K0
 			                      /Mathf.Pow(Utils.ClampL(VSL.VerticalAccel/VSC.K1+1, VSC.L1), 2f)
@@ -83,7 +83,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.LandedOrSplashed) return;
 			//loosing altitude alert
 			if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
-				        		      VSL.VerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > VSC.MaxDeltaV);
+				        		      VSL.AbsVerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.AbsVerticalSpeed > VSC.MaxDeltaV);
 //			CSV(VSL.Altitude, VSL.TerrainAltitude, VSL.RelVerticalSpeed,
 //			               VSL.VerticalSpeed, CFG.VerticalCutoff, setpoint, setpoint_correction, 
 //			               VSL.VerticalAccel, upAF, K, VSL.VSF);//debug

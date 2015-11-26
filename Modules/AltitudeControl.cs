@@ -89,28 +89,28 @@ namespace ThrottleControlledAvionics
 			var ttAp = VSL.AbsVerticalSpeed/VSL.G;
 			if(VSL.AbsVerticalSpeed > 0 && !VSL.LandedOrSplashed)
 			{
-				if(VSL.TimeAhead > 0 && VSL.TimeAhead < ttAp) ttAp = VSL.TimeAhead;
+				if(TCA.RAD.TimeAhead > 0 && TCA.RAD.TimeAhead < ttAp) ttAp = TCA.RAD.TimeAhead;
 				alt = VSL.AbsAltitude+ttAp*(VSL.AbsVerticalSpeed - ttAp*VSL.G/2);
-//				CSV(CFG.DesiredAltitude, alt-VSL.TerrainAltitude, VSL.RelAltitude, VSL.AltitudeAhead-VSL.AbsAltitude,
-//				    VSL.VSF, -VSL.G, ttAp, VSL.TimeAhead);//debug
+//				CSV(CFG.DesiredAltitude, alt-VSL.TerrainAltitude, VSL.RelAltitude, TCA.RAD.AltitudeAhead-VSL.AbsAltitude,
+//				    VSL.VSF, -VSL.G, ttAp, TCA.RAD.TimeAhead);//debug
 			}
 			//correct for terrain altitude and radar data if following terrain
 			if(CFG.AltitudeAboveTerrain) 
 			{
-				if(VSL.AltitudeAhead > VSL.TerrainAltitude)
+				if(TCA.RAD.AltitudeAhead > VSL.TerrainAltitude)
 				{
-					alt -= VSL.AltitudeAhead;
+					alt -= TCA.RAD.AltitudeAhead;
 					if(alt <= VSL.H) 
 					{
 						SetState(VSL.AbsVerticalSpeed < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
-						if(VSL.TimeAhead > 0) 
+						if(TCA.RAD.TimeAhead > 0) 
 						{
-							CFG.VerticalCutoff = Mathf.Sqrt(2f*Utils.ClampL((VSL.AltitudeAhead+CFG.DesiredAltitude-VSL.AbsAltitude)*VSL.G, 0));
+							CFG.VerticalCutoff = Mathf.Sqrt(2f*Utils.ClampL((TCA.RAD.AltitudeAhead+CFG.DesiredAltitude-VSL.AbsAltitude)*VSL.G, 0));
 							ttAp = CFG.VerticalCutoff/VSL.G;
-							if(ttAp > VSL.TimeAhead) 
-								CFG.VerticalCutoff = (VSL.AltitudeAhead+CFG.DesiredAltitude-VSL.AbsAltitude)/VSL.TimeAhead+VSL.TimeAhead*VSL.G/2;
-//							Log("VSP {0}, ttAp {1}, TimeAhead {2}, ApA {3}, Obst {4}", CFG.VerticalCutoff, ttAp, VSL.TimeAhead, 
-//							    VSL.AbsAltitude+ttAp*(CFG.VerticalCutoff - ttAp*VSL.G/2), VSL.AltitudeAhead);//debug
+							if(ttAp > TCA.RAD.TimeAhead) 
+								CFG.VerticalCutoff = (TCA.RAD.AltitudeAhead+CFG.DesiredAltitude-VSL.AbsAltitude)/TCA.RAD.TimeAhead+TCA.RAD.TimeAhead*VSL.G/2;
+//							Log("VSP {0}, ttAp {1}, TimeAhead {2}, ApA {3}, Obst {4}", CFG.VerticalCutoff, ttAp, TCA.RAD.TimeAhead, 
+//							    VSL.AbsAltitude+ttAp*(CFG.VerticalCutoff - ttAp*VSL.G/2), TCA.RAD.AltitudeAhead);//debug
 							return;
 						}
 					}
@@ -150,7 +150,7 @@ namespace ThrottleControlledAvionics
 				jets_pid.Min = min_speed;
 				jets_pid.Max = max_speed; 
 				jets_pid.P = Utils.ClampH(ALT.JetsPID.P/VSL.MaxTWR/ALT.TWRd*
-				                          Mathf.Clamp(Mathf.Abs(1/VSL.VerticalSpeed)*ALT.ErrF, 1, VSL.MaxTWR*ALT.TWRd), 
+				                          Mathf.Clamp(Mathf.Abs(1/VSL.AbsVerticalSpeed)*ALT.ErrF, 1, VSL.MaxTWR*ALT.TWRd), 
 				                          ALT.JetsPID.P);
 				if(CFG.AltitudeAboveTerrain)
 					jets_pid.D = ALT.JetsPID.D/Utils.ClampL(VSL.HorizontalSpeed, 1);
@@ -178,12 +178,12 @@ namespace ThrottleControlledAvionics
 				//Loosing Altitude alert
 				Falling.RunIf(() => SetState(TCAState.LoosingAltitude),
 				              VSL.RelVerticalSpeed < 0 && 
-				              VSL.CFG.VerticalCutoff-VSL.VerticalSpeed > 0 && 
+				              VSL.CFG.VerticalCutoff-VSL.AbsVerticalSpeed > 0 && 
 				              VSL.Altitude < CFG.DesiredAltitude-VSL.RelVerticalSpeed*ALT.TimeAhead);
 //				Log("error {0}, dV: {1}, VSP: {2}, min speed {3}, max speed {4}", 
 //				    error, dV, CFG.VerticalCutoff, min_speed, max_speed);//debug
-//				CSV(alt, VSL.vessel.altitude, VSL.TerrainAltitude, VSL.Altitude, VSL.AltitudeAhead, error, 
-//				    CFG.VerticalCutoff, VSL.VSF, VSL.MinVSF, VSL.AbsVerticalSpeed, VSL.RelVerticalSpeed, 
+//				CSV(alt, VSL.vessel.altitude, VSL.TerrainAltitude, VSL.Altitude, TCA.RAD.AltitudeAhead, error, 
+//				    CFG.VerticalCutoff, VSL.VSF, VSL.MinVSF, VSL.VerticalSpeed, VSL.RelVerticalSpeed, 
 //				    dV, min_speed, max_speed);//debug
 			}
 		}

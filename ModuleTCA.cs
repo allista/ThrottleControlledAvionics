@@ -354,6 +354,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.CheckEngines()) 
 				SetState(TCAState.HaveActiveEngines);
 			VSL.UpdateCommons();
+			VSL.ClearFrameState();
 			if(VSL.NumActiveEngines > 0)
 			{
 				VSL.UpdateOnPlanetStats();
@@ -378,9 +379,9 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.SortEngines();
 				//:preset manual limits for translation if needed
-				if(VSL.ManualTranslationSwitch.On)
+				if(HSC.ManualTranslationSwitch.On)
 				{
-					ENG.PresetLimitsForTranslation(VSL.ManualEngines, VSL.ManualTranslation);
+					ENG.PresetLimitsForTranslation(VSL.ManualEngines, HSC.ManualTranslation);
 					if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.ManualEngines, VSL.UpL);
 				}
 				//:balance-only engines

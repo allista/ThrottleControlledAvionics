@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -56,6 +57,19 @@ namespace ThrottleControlledAvionics
 		readonly LowPassFilterVd filter = new LowPassFilterVd();
 		Vector3d needed_thrust_dir;
 
+		public Vector3d       NeededHorVelocity;
+		public List<Vector3d> CourseCorrections = new List<Vector3d>();
+		Vector3d              CourseCorrection;
+		public Vector3        ManualTranslation;
+		public Switch         ManualTranslationSwitch = new Switch();
+
+		public void SetNeededHorVelocity(Vector3d hV)
+		{
+			CFG.SavedUp = VSL.Up;
+			CFG.NeededHorVelocity = hV;
+			TCA.HSC.NeededHorVelocity = hV;
+		}
+
 		public HorizontalSpeedControl(ModuleTCA tca) { TCA = tca; }
 
 		public override void Init() 
@@ -75,14 +89,14 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
-			if(!VSL.NeededHorVelocity.IsZero())
-				GLUtils.GLVec(VSL.wCoM,  VSL.NeededHorVelocity, Color.red);
+			if(!NeededHorVelocity.IsZero())
+				GLUtils.GLVec(VSL.wCoM,  NeededHorVelocity, Color.red);
 //			if(!VSL.HorizontalVelocity.IsZero())
 //				GLUtils.GLVec(VSL.wCoM+VSL.Up,  VSL.HorizontalVelocity, Color.magenta);
-//			if(!VSL.ForwardDirection.IsZero())
-//				GLUtils.GLVec(VSL.wCoM+VSL.Up*2,  VSL.ForwardDirection, Color.green);
-			if(!VSL.CourseCorrection.IsZero())
-				GLUtils.GLVec(VSL.wCoM+VSL.Up*3, VSL.CourseCorrection, Color.blue);
+//			if(!TCA.CC.ForwardDirection.IsZero())
+//				GLUtils.GLVec(VSL.wCoM+VSL.Up*2,  TCA.CC.ForwardDirection, Color.green);
+			if(!CourseCorrection.IsZero())
+				GLUtils.GLVec(VSL.wCoM+VSL.Up*3, CourseCorrection, Color.blue);
 		}
 
 		public override void Reset()
@@ -96,14 +110,14 @@ namespace ThrottleControlledAvionics
 		{ 
 			IsActive = CFG.Enabled && VSL.OnPlanet && CFG.HF && VSL.refT != null; 
 			if(IsActive) return;
-			if(VSL.ManualTranslationSwitch.On)
+			if(ManualTranslationSwitch.On)
 				EnableManualTranslation(false);
 		}
 
 		public override void Enable(bool enable = true)
 		{
 			Move(enable);
-			if(enable) VSL.SetNeededHorVelocity(Vector3d.zero);
+			if(enable) TCA.HSC.SetNeededHorVelocity(Vector3d.zero);
 		}
 
 		public void Move(bool enable = true)
@@ -124,8 +138,8 @@ namespace ThrottleControlledAvionics
 
 		void EnableManualTranslation(bool enable = true)
 		{
-			VSL.ManualTranslationSwitch.Set(enable);
-			if(VSL.ManualTranslationSwitch.On) return;
+			ManualTranslationSwitch.Set(enable);
+			if(ManualTranslationSwitch.On) return;
 			var Changed = false;
 			for(int i = 0, count = VSL.ManualEngines.Count; i < count; i++)
 			{
@@ -146,7 +160,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.AutopilotDisabled) { filter.Reset(); return; }
 			CFG.AT.OnIfNot(Attitude.Custom);
 			//set forward direction
-			VSL.ForwardDirection = VSL.NeededHorVelocity;
+			TCA.CC.ForwardDirection = NeededHorVelocity;
 			//calculate prerequisites
 			var thrust = VSL.LocalDir(VSL.Thrust);
 			needed_thrust_dir = -VSL.UpL;
@@ -155,10 +169,10 @@ namespace ThrottleControlledAvionics
 				//if the vessel is not moving, nothing to do
 				if(VSL.LandedOrSplashed || VSL.Thrust.IsZero()) return;
 				//calculate horizontal velocity
-				VSL.CourseCorrection = Vector3d.zero;
-				for(int i = 0, count = VSL.CourseCorrections.Count; i < count; i++)
-					VSL.CourseCorrection += VSL.CourseCorrections[i];
-				var nV  = VSL.NeededHorVelocity+VSL.CourseCorrection;
+				CourseCorrection = Vector3d.zero;
+				for(int i = 0, count = CourseCorrections.Count; i < count; i++)
+					CourseCorrection += CourseCorrections[i];
+				var nV  = NeededHorVelocity+CourseCorrection;
 				var hV  = VSL.HorizontalVelocity-nV;
 				var rV  = hV; //velocity that is needed to be handled by attitude control of the total thrust
 				var fV  = hV; //forward-backward velocity with respect to the manual thrust vector
@@ -193,7 +207,7 @@ namespace ThrottleControlledAvionics
 					//try to use translation
 					var nVm = nV.magnitude;
 					var hVl = VSL.LocalDir(hV);
-					var cVl_lat = VSL.LocalDir(Vector3.ProjectOnPlane(VSL.CourseCorrection, nV));
+					var cVl_lat = VSL.LocalDir(Vector3.ProjectOnPlane(CourseCorrection, nV));
 					var nVn = nVm > 0? nV/nVm : Vector3d.zero;
 					var HVn = VSL.HorizontalVelocity.normalized;
 					//normal translation controls (maneuver engines and RCS)
@@ -206,28 +220,28 @@ namespace ThrottleControlledAvionics
 					if(with_manual_thrust && 
 					   (nVm >= HSC.TranslationUpperThreshold ||
 					    hVm >= HSC.TranslationUpperThreshold ||
-					    VSL.CourseCorrection.magnitude >= HSC.TranslationUpperThreshold))
+					    CourseCorrection.magnitude >= HSC.TranslationUpperThreshold))
 					{
 						//turn the nose if nesessary
-						var pure_hV = VSL.HorizontalVelocity-VSL.NeededHorVelocity;
-						var NVm = VSL.NeededHorVelocity.magnitude;
+						var pure_hV = VSL.HorizontalVelocity-NeededHorVelocity;
+						var NVm = NeededHorVelocity.magnitude;
 						if(pure_hV.magnitude >= HSC.RotationUpperThreshold &&
 						   (NVm < HSC.TranslationLowerThreshold || 
-						    Vector3.Dot(HVn, VSL.NeededHorVelocity/NVm) < HSC.RotationMaxCos))
+						    Vector3.Dot(HVn, NeededHorVelocity/NVm) < HSC.RotationMaxCos))
 						{
 							var max_MT = VSL.ManualThrustLimits.MaxInPlane(VSL.UpL);
 							if(!max_MT.IsZero())
 							{
 								var rot = Quaternion.AngleAxis(Vector3.Angle(max_MT, Vector3.ProjectOnPlane(VSL.FwdL, VSL.UpL)),
 								                               VSL.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
-									VSL.ForwardDirection = rot*pure_hV;
+								TCA.CC.ForwardDirection = rot*pure_hV;
 							}
 						}
 						translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslationIMinSpeed && 
 						                     VSL.vessel.mainBody.atmosphere)? 
 							HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
 						translation_pid.Update((float)fVm);
-						VSL.ManualTranslation = translation_pid.Action*hVl.CubeNorm();
+						ManualTranslation = translation_pid.Action*hVl.CubeNorm();
 						EnableManualTranslation(translation_pid.Action > 0);
 					}
 					else EnableManualTranslation(false);

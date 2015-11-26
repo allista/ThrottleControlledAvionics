@@ -29,6 +29,8 @@ namespace ThrottleControlledAvionics
 		readonly ActionDamper UpdateTimer = new ActionDamper();
 		bool inited;
 
+		public Vector3d ForwardDirection;
+
 		public CruiseControl(ModuleTCA tca) { TCA = tca; }
 
 		public override void Init()
@@ -57,7 +59,7 @@ namespace ThrottleControlledAvionics
 			UpdateTimer.Reset();
 			if(enable) VSL.UpdateOnPlanetStats();
 			BlockSAS(enable);
-			VSL.SetNeededHorVelocity(enable? VSL.HorizontalVelocity : Vector3d.zero);
+			TCA.HSC.SetNeededHorVelocity(enable? VSL.HorizontalVelocity : Vector3d.zero);
 		}
 
 		public void NoseOnCourse(bool enable = true)
@@ -69,7 +71,7 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateNeededVelocity()
 		{
-			VSL.SetNeededHorVelocity(CFG.NeededHorVelocity.IsZero()? 
+			TCA.HSC.SetNeededHorVelocity(CFG.NeededHorVelocity.IsZero()? 
 			                         Vector3.zero : 
 			                         Quaternion.FromToRotation(CFG.SavedUp, VSL.Up)*CFG.NeededHorVelocity);
 		}
@@ -80,15 +82,15 @@ namespace ThrottleControlledAvionics
 			if(!(CFG.Enabled && 
 			     CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl) && 
 			     VSL.OnPlanet && VSL.refT != null && 
-			     !VSL.ForwardDirection.IsZero())) return;
+			     !ForwardDirection.IsZero())) return;
 			DisableSAS();
 			//allow user to intervene
 			var cDir = Vector3.ProjectOnPlane(VSL.FwdL, VSL.UpL).normalized;
 			if(VSL.AutopilotDisabled) 
 			{ 
 				pid.Reset();
-				VSL.SetNeededHorVelocity(VSL.WorldDir(cDir) * 
-				                         Utils.ClampL((float)VSL.NeededHorVelocity.magnitude-s.pitch, 0));
+				TCA.HSC.SetNeededHorVelocity(VSL.WorldDir(cDir) * 
+				                             Utils.ClampL((float)TCA.HSC.NeededHorVelocity.magnitude-s.pitch, 0));
 				return; 
 			}
 			//update needed velocity
@@ -96,7 +98,7 @@ namespace ThrottleControlledAvionics
 				UpdateTimer.Run(UpdateNeededVelocity);
 			//turn ship's nose in the direction of needed velocity
 			var axis = VSL.NoseUp? Vector3.up : Vector3.forward;
-			var nDir = VSL.LocalDir(VSL.ForwardDirection);
+			var nDir = VSL.LocalDir(ForwardDirection);
 			var angle = Vector3.Angle(cDir, nDir)/180*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
 			var AAf = Utils.Clamp(1/(Mathf.Abs(Vector3.Dot(axis, VSL.MaxAngularA))), CC.MinAAf, CC.MaxAAf);
 			var eff = Mathf.Abs(Vector3.Dot(VSL.MaxThrust.normalized, VSL.Up));

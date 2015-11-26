@@ -231,7 +231,7 @@ namespace ThrottleControlledAvionics
 					CFG.VF.OffIfOn(VFlight.AltitudeControl);
 					CFG.VerticalCutoff = 0;
 				}
-				return Mathf.Abs(VSL.VerticalSpeed) < LND.MinVerticalSpeed;
+				return Mathf.Abs(VSL.AbsVerticalSpeed) < LND.MinVerticalSpeed;
 			}
 		}
 

@@ -183,9 +183,9 @@ namespace ThrottleControlledAvionics
 			{
 				var dist_to_safe = Utils.ClampH(dist-threshold, -0.01f);
 				var dc = dir*dist_to_safe;
-				if(vsl.NeededHorVelocity.sqrMagnitude > CPS.LatAvoidMinVelSqr)
+				if(vsl.TCA.HSC.NeededHorVelocity.sqrMagnitude > CPS.LatAvoidMinVelSqr)
 				{
-					var lat_avoid = Vector3d.Cross(vsl.Up, vsl.NeededHorVelocity.normalized);
+					var lat_avoid = Vector3d.Cross(vsl.Up, vsl.TCA.HSC.NeededHorVelocity.normalized);
 					dc = Vector3d.Dot(dc, lat_avoid) >= 0? 
 						lat_avoid*dist_to_safe :
 						lat_avoid*-dist_to_safe;
@@ -313,7 +313,7 @@ namespace ThrottleControlledAvionics
 //				    Corrections.Aggregate("\n", (s, v) => s+v+"\n"));//debug
 			}
 			//correct horizontal course
-			VSL.CourseCorrections.Add(Vector3d.Exclude(VSL.Up, filter.Value));
+			TCA.HSC.CourseCorrections.Add(Vector3d.Exclude(VSL.Up, filter.Value));
 		}
 	}
 }
