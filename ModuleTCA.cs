@@ -269,17 +269,9 @@ namespace ThrottleControlledAvionics
 			if(!enabled) return;
 			updateCFG();
 			VSL = new VesselWrapper(this);
-			VSL.Init();
-			VSL.UpdateState();
-			VSL.UpdatePhysicsParams();
-			VSL.UpdateParts();
 			enabled = isEnabled = VSL.Engines.Count > 0 || VSL.RCS.Count > 0;
 			if(!enabled) { VSL = null; return; }
-			VSL.UpdateCommons();
-			VSL.UpdateOnPlanetStats();
-			VSL.UpdateExhaustInfo();
-			VSL.UpdateBounds();
-			vessel.OnAutopilotUpdate += OnAutopilotUpdate;
+			VSL.Init();
 			create_modules();
 			modules.ForEach(m => m.Init());
 			ThrottleControlledAvionics.AttachTCA(this);
@@ -292,7 +284,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL != null)
 			{
-				VSL.OnAutopilotUpdate -= OnAutopilotUpdate;
+				VSL.Reset();
 				modules.ForEach(m => m.Reset());
 				CFG.ClearCallbacks();
 			}
@@ -321,12 +313,6 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 		#endregion
-
-		void OnAutopilotUpdate(FlightCtrlState s)
-		{ 
-			if(!CFG.Enabled) return;
-			VSL.UpdateAutopilotInfo(s);
-		}
 
 		public override void OnUpdate()
 		{

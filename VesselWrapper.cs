@@ -157,8 +157,6 @@ namespace ThrottleControlledAvionics
 		public double Countdown;
 		public float TTB;
 
-		public VesselWrapper(ModuleTCA tca) { TCA = tca; vessel = tca.vessel; CFG = tca.CFG; }
-
 		#region Utils
 		public void Log(string msg, params object[] args) { vessel.Log(msg, args); }
 
@@ -173,12 +171,32 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Updates
-		public void Init() 
+		public VesselWrapper(ModuleTCA tca)
 		{
+			TCA = tca; 
+			CFG = tca.CFG;
+			vessel = tca.vessel; 
 			CanUpdateEngines = true;
 			OnPlanet = _OnPlanet();
 			InOrbit = _InOrbit();
 			MaxAAFilter.Tau = GLB.MaxAAFilter;
+			UpdateState();
+			UpdatePhysicsParams();
+			UpdateParts();
+		}
+
+		public void Init()
+		{
+			UpdateCommons();
+			UpdateOnPlanetStats();
+			UpdateBounds();
+			UpdateExhaustInfo();
+			OnAutopilotUpdate += UpdateAutopilotInfo;
+		}
+
+		public void Reset()
+		{
+			OnAutopilotUpdate -= UpdateAutopilotInfo;
 		}
 
 		bool _OnPlanet() 
@@ -197,6 +215,7 @@ namespace ThrottleControlledAvionics
 		public bool AutopilotDisabled { get; private set; }
 		public void UpdateAutopilotInfo(FlightCtrlState s)
 		{
+			if(!CFG.Enabled) return;
 			AutopilotDisabled = 
 				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
