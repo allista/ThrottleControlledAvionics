@@ -261,14 +261,13 @@ TLA
 
 CPS
 {
+	MinDistance       = 5
 	SafeDistance      = 30
 	SafeTime          = 10
-	MaxAvoidanceSpeed = 10
+	MaxAvoidanceSpeed = 15
 	LatAvoidMinVelSqr = 0.25
 	LookAheadTime     = 2
-	TraverseAngle     = 10
 	ManeuverTimer     = 0.1
-	VerticalManeuverF = 0.5
 	LowPassF          = 0.5
 }
 

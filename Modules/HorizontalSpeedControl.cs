@@ -77,8 +77,8 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
-//			if(!VSL.NeededHorVelocity.IsZero())
-//				GLUtils.GLVec(VSL.wCoM,  VSL.NeededHorVelocity, Color.red);
+			if(!VSL.NeededHorVelocity.IsZero())
+				GLUtils.GLVec(VSL.wCoM,  VSL.NeededHorVelocity, Color.red);
 //			if(!VSL.HorizontalVelocity.IsZero())
 //				GLUtils.GLVec(VSL.wCoM+VSL.Up,  VSL.HorizontalVelocity, Color.magenta);
 //			if(!VSL.ForwardDirection.IsZero())
