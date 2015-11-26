@@ -16,7 +16,7 @@ namespace ThrottleControlledAvionics
 	{
 		public delegate void Selector(Action<MacroNode> callback);
 		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
-		protected VesselConfig CFG;
+		protected VesselConfig EditedCFG;
 
 		public MacroNode Parent;
 		[Persistent] public string Name;
@@ -116,7 +116,10 @@ namespace ThrottleControlledAvionics
 		{ SelectCondition = selector; }
 
 		public virtual void SetCFG(VesselConfig cfg) 
-		{ CFG = cfg; }
+		{ EditedCFG = cfg; }
+
+		protected void Message(string msg)
+		{ ScreenMessages.PostScreenMessage(Name+": "+msg, 5, ScreenMessageStyle.UPPER_CENTER); }
 
 		#if DEBUG
 		protected void Log(VesselWrapper VSL, string msg, params object[] args)

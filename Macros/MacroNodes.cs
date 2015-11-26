@@ -76,6 +76,25 @@ namespace ThrottleControlledAvionics
 		{ VSL.CFG.Nav.XOn(Navigation.AnchorHere); return false; }
 	}
 
+	public class MatchVelocityMacroNode : MacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{
+			VSL.CFG.AP.XOn(Autopilot.MatchVel);
+			return false;
+		}
+	}
+
+	public class BrakeNearTargetMacroNode : MacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(!VSL.HasTarget) { Message("No Target"); return false; }
+			VSL.CFG.AP.XOnIfNot(Autopilot.MatchVelNear);
+			return VSL.CFG.AP[Autopilot.MatchVelNear];
+		}
+	}
+
 	public class LandMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -89,12 +108,7 @@ namespace ThrottleControlledAvionics
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{
-			if(!VSL.HasTarget)
-			{
-				ScreenMessages.PostScreenMessage(Name+": No Target", 
-				                                 5, ScreenMessageStyle.UPPER_CENTER);
-				return false;
-			}
+			if(!VSL.HasTarget) { Message("No Target"); return false; }
 			VSL.CFG.Nav.XOnIfNot(Navigation.GoToTarget);
 			return VSL.CFG.Nav[Navigation.GoToTarget];
 		}
@@ -104,12 +118,7 @@ namespace ThrottleControlledAvionics
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{
-			if(!VSL.HasTarget) 
-			{
-				ScreenMessages.PostScreenMessage(Name+": No Target", 
-				                                 5, ScreenMessageStyle.UPPER_CENTER);
-				return false;
-			}
+			if(!VSL.HasTarget) { Message("No Target"); return false; }
 			VSL.CFG.Nav.XOn(Navigation.FollowTarget);
 			return false;
 		}
@@ -149,11 +158,11 @@ namespace ThrottleControlledAvionics
 			if(Edit)
 			{ 
 				Edit &= !GUILayout.Button(title, Styles.yellow_button, GUILayout.ExpandWidth(false));
-				if(CFG != null && GUILayout.Button("Copy waypoints from Vessel", 
+				if(EditedCFG != null && GUILayout.Button("Copy waypoints from Vessel", 
 					Styles.yellow_button, GUILayout.ExpandWidth(false)))
-					Waypoints = new Queue<WayPoint>(CFG.Waypoints);
+					Waypoints = new Queue<WayPoint>(EditedCFG.Waypoints);
 			}
-			else Edit |= GUILayout.Button(title, Styles.normal_button) && CFG != null;
+			else Edit |= GUILayout.Button(title, Styles.normal_button) && EditedCFG != null;
 			GUILayout.EndHorizontal();
 		}
 
@@ -165,12 +174,7 @@ namespace ThrottleControlledAvionics
 					VSL.CFG.Waypoints = new Queue<WayPoint>(Waypoints);
 				waypoints_loaded = true;
 			}
-			if(VSL.CFG.Waypoints.Count == 0) 
-			{
-				ScreenMessages.PostScreenMessage(Name+": No Waypoints", 
-				                                 5, ScreenMessageStyle.UPPER_CENTER);
-				return false;
-			}
+			if(VSL.CFG.Waypoints.Count == 0) { Message("No Waypoints"); return false; }
 			VSL.CFG.Nav.XOnIfNot(Navigation.FollowPath);
 			return VSL.CFG.Nav[Navigation.FollowPath];
 		}
@@ -276,13 +280,13 @@ namespace ThrottleControlledAvionics
 			if(Edit)
 			{ 
 				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
-				if(CFG != null)
+				if(EditedCFG != null)
 				{
 					scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandWidth(true), GUILayout.Height(70));
 					GUILayout.BeginVertical();
-					for(int i = 0, CFGEnginesProfilesDBCount = CFG.EnginesProfiles.DB.Count; i < CFGEnginesProfilesDBCount; i++)
+					for(int i = 0, CFGEnginesProfilesDBCount = EditedCFG.EnginesProfiles.DB.Count; i < CFGEnginesProfilesDBCount; i++)
 					{
-						var p = CFG.EnginesProfiles.DB[i];
+						var p = EditedCFG.EnginesProfiles.DB[i];
 						if(GUILayout.Button(p.Name, p.Name == Profile ? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true)))
 							Profile = p.Name;
 					}
@@ -313,7 +317,7 @@ namespace ThrottleControlledAvionics
 			{ 
 				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
 				Group = Utils.IntSelector(Group, 0, tooltip: "Group ID");
-				if(CFG != null && CFG.ActiveProfile != null && CFG.ActiveProfile.Single.Count > 0)
+				if(EditedCFG != null && EditedCFG.ActiveProfile != null && EditedCFG.ActiveProfile.Single.Count > 0)
 				{
 					GUILayout.BeginVertical();
 					if(GUILayout.Button("Show Single Engines", Styles.normal_button, GUILayout.ExpandWidth(true)))
@@ -322,9 +326,9 @@ namespace ThrottleControlledAvionics
 					{
 						scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandWidth(true), GUILayout.Height(70));
 						GUILayout.BeginVertical();
-						foreach(var k in CFG.ActiveProfile.Single.DB.Keys)
+						foreach(var k in EditedCFG.ActiveProfile.Single.DB.Keys)
 						{
-							var p = CFG.ActiveProfile.Single[k];
+							var p = EditedCFG.ActiveProfile.Single[k];
 							if(GUILayout.Button(p.Name, Styles.normal_button, GUILayout.ExpandWidth(true)))
 								Config.Name = p.Name;
 						}
