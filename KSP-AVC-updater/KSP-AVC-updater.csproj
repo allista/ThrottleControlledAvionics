@@ -9,7 +9,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>KSPAVCupdater</RootNamespace>
     <AssemblyName>KSP-AVC-updater</AssemblyName>
-    <ReleaseVersion>1.3</ReleaseVersion>
+    <ReleaseVersion>2.3</ReleaseVersion>
     <StartupObject>KSPAVCupdater.MainClass</StartupObject>
     <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
   </PropertyGroup>

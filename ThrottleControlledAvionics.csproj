@@ -10,7 +10,7 @@
     <RootNamespace>ThrottleControlledAvionics</RootNamespace>
     <AssemblyName>ThrottleControlledAvionics</AssemblyName>
     <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
-    <ReleaseVersion>1.3</ReleaseVersion>
+    <ReleaseVersion>2.3</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>True</DebugSymbols>
