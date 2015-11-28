@@ -312,7 +312,7 @@ namespace ThrottleControlledAvionics
 				if(e.useEngineResponseTime && (e.Role == TCARole.MAIN || e.Role == TCARole.MANEUVER))
 				{
 					total_torque += e.currentTorque_m;
-					TorqueResponseTime = e.currentTorque_m*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed);
+					TorqueResponseTime += e.currentTorque_m*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed);
 				}
 				MassFlow += e.engine.requestedMassFlow*e.engine.propellantReqMet/100;
 			}

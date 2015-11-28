@@ -117,7 +117,7 @@ ATC
 	AngleThreshold = 10
 	MinEf          = 0.0001
 	MaxEf          = 2
-	SlowTorqueF    = 0.1
+	SlowTorqueF    = 0.2
 	MaxAttitudeError = 10  //deg
 	AttitudeErrorThreshold = 3
 }

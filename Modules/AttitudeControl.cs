@@ -240,10 +240,11 @@ namespace ThrottleControlledAvionics
 			AAf = Mathf.Clamp(1/VSL.MaxAngularA_m, ATC.MinAAf, ATC.MaxAAf);
 			Ef = Utils.Clamp(steering.sqrMagnitude/steering_norm, ATC.MinEf, 1);
 			var slow = VSL.SlowTorque? 1+VSL.TorqueResponseTime*ATC.SlowTorqueF : 1;
+//			if(VSL.SlowTorque) Log("slow {0}", slow); //debug
 			PIf = AAf*Utils.ClampL(1-Ef, 0.5f)*ATC.MaxEf/slow;
 			pid.P = ATC.PID.P*PIf;
 			pid.I = ATC.PID.I*PIf;
-			pid.D = ATC.PID.D*Utils.ClampH(Utils.ClampL(1-Ef*2, 0)+angularM.magnitude*ATC.AngularMf, 1)*AAf*AAf*slow;
+			pid.D = ATC.PID.D*Utils.ClampH(Utils.ClampL(1-Ef*2, 0)+angularM.magnitude*ATC.AngularMf, 1)*AAf*AAf*slow*slow;
 			//set gimbal limit
 			GimbalLimit = Ef*100;
 			//tune steering
