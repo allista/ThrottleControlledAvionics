@@ -377,7 +377,6 @@ namespace ThrottleControlledAvionics
 				else land();
 				break;
 			case Stage.FlatCheck:
-				SetState(TCAState.Scanning);
 				if(!fully_stopped) break;
 				if(FlatNodes.Count > 0)
 				{
@@ -392,8 +391,9 @@ namespace ThrottleControlledAvionics
 				else try_move_to_flattest();
 				break;
 			case Stage.WideCheck:
+				if(!fully_stopped) 
+				{ SetState(TCAState.Searching); break; }
 				SetState(TCAState.Scanning);
-				if(!fully_stopped) break;
 				if(scan(LND.WideCheckLevel)) break;
 				FlattestNode = flattest_node;
 				if(FlatNodes.Count > 0) 
