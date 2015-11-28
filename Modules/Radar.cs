@@ -162,10 +162,10 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			var zero_needed = TCA.HSC.NeededHorVelocity.IsZero();
-			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && zero_needed &&
-			   !CFG.Nav.Any(Navigation.FollowPath, Navigation.FollowTarget, Navigation.GoToTarget))
-//			   (CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
-//			    !VSL.AltitudeAboveGround || IsStateSet(TCAState.Landing)))
+			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
+			   (zero_needed && !CFG.Nav.Any(Navigation.FollowPath, Navigation.FollowTarget, Navigation.GoToTarget) ||
+			    CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
+			    !VSL.AltitudeAboveGround || IsStateSet(TCAState.Landing)))
 			{ reset(); return; }
 			//check boundary conditions
 			if(ViewAngle > RAD.DownViewAngle) 
