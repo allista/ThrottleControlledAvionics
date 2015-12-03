@@ -98,7 +98,7 @@ namespace ThrottleControlledAvionics
 			ManeuverTimer.Period = RAD.ManeuverTimer;
 			reset();
 			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
 		}
 
@@ -115,7 +115,7 @@ namespace ThrottleControlledAvionics
 		public override void Reset()
 		{
 			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 
@@ -305,7 +305,7 @@ namespace ThrottleControlledAvionics
 			public Vector3d Position { get; private set; }
 			public bool Valid { get { return !Altitude.Equals(double.MinValue); } }
 
-			public TerrainPoint(double alt, Vector3d pos)
+			public TerrainPoint(double alt, Vector3d pos) : this()
 			{ Altitude = alt; Position = pos; }
 
 			public void Reset() 
