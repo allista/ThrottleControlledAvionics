@@ -40,7 +40,6 @@ namespace ThrottleControlledAvionics
 		{
 			base.Init();
 			pid.setPID(TRA.TransPID);
-			CFG.AP.AddCallback(Autopilot.MatchVel, Enable);
 		}
 
 		protected override void UpdateState()
