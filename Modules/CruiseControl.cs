@@ -59,17 +59,18 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
+				TCA.SASC.Register(this);
 				TCA.RAD.Register(this);
 				break;
 
 			case Multiplexer.Command.On:
 				VSL.UpdateOnPlanetStats();
 				TCA.HSC.SetNeededHorVelocity(VSL.HorizontalVelocity);
-				BlockSAS();
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
 				TCA.HSC.SetNeededHorVelocity(Vector3d.zero);
+				TCA.SASC.Unregister(this);
 				TCA.RAD.Unregister(this);
 				break;
 			}
@@ -81,14 +82,13 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
+			case Multiplexer.Command.On:
+				TCA.SASC.Register(this);
 				TCA.RAD.Register(this, vsl => vsl.TCA.RAD.MoovingFast);
 				break;
 
-			case Multiplexer.Command.On:
-				BlockSAS();
-				goto case Multiplexer.Command.Resume;
-
 			case Multiplexer.Command.Off:
+				TCA.SASC.Unregister(this);
 				TCA.RAD.Unregister(this);
 				break;
 			}

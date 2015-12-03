@@ -52,13 +52,16 @@ namespace ThrottleControlledAvionics
 			pid.Reset();
 			switch(cmd)
 			{
+			case Multiplexer.Command.Resume:
+				TCA.SASC.Register(this);
+				break;
 			case Multiplexer.Command.On:
 				if(CFG.Anchor == null) return;
 				VSL.UpdateOnPlanetStats();
-				BlockSAS();
-				break;
+				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
+				TCA.SASC.Unregister(this);
 				CFG.Anchor = null;
 				break;
 			}

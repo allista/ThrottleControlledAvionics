@@ -83,10 +83,19 @@ namespace ThrottleControlledAvionics
 		public void Enable(Multiplexer.Command cmd)
 		{
 			reset();
-			if(cmd == Multiplexer.Command.On)
+			switch(cmd)
 			{
+			case Multiplexer.Command.Resume:
+				TCA.SASC.Register(this);
+				break;
+
+			case Multiplexer.Command.On:
 				VSL.UpdateOnPlanetStats();
-				BlockSAS();
+				goto case Multiplexer.Command.Resume;
+
+			case Multiplexer.Command.Off:
+				TCA.SASC.Unregister(this);
+				break;
 			}
 		}
 

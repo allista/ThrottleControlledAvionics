@@ -46,13 +46,6 @@ namespace ThrottleControlledAvionics
 		public void OnFixedUpdate() { UpdateState(); Update(); }
 		public virtual void Reset() {}
 
-		protected void BlockSAS() 
-		{ 
-			if(!CFG.SASIsControlled)
-				CFG.SASWasEnabled = VSL.ActionGroups[KSPActionGroup.SAS]; 
-			CFG.SASIsControlled = true;
-		}
-
 		protected void SetTarget(WayPoint wp)
 		{
 			CFG.Target = wp;
@@ -98,7 +91,7 @@ namespace ThrottleControlledAvionics
 		protected void DisableSAS()
 		{
 			// Disable the new SAS so it won't interfere. But enable it while in timewarp for compatibility with PersistentRotation
-			if (TimeWarp.WarpMode != TimeWarp.Modes.HIGH || TimeWarp.CurrentRateIndex == 0)
+			if(TimeWarp.WarpMode != TimeWarp.Modes.HIGH || TimeWarp.CurrentRateIndex == 0)
 				VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 		}
 

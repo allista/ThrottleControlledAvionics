@@ -44,6 +44,7 @@ namespace ThrottleControlledAvionics
 		public TimeWarpControl WRP;
 		public ManeuverAutopilot MAN;
 		public MatchVelocityAutopilot MVA;
+		public SASBlocker SASC;
 		//ctrlState autopilots: executed in this exact order
 		public HorizontalSpeedControl HSC;
 		public TranslationControl TRA;
@@ -292,7 +293,7 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.Engines.ForEach(e => e.forceThrustPercentage(100));
 				State = TCAState.Disabled;
-				VSL.UnblockSAS(false);
+				SASC.UnblockSAS();
 			}
 		}
 
@@ -332,14 +333,13 @@ namespace ThrottleControlledAvionics
 				SetState(TCAState.HaveActiveEngines);
 			VSL.UpdateCommons();
 			VSL.ClearFrameState();
+			VSL.UpdateOnPlanetStats();
+			MPR.OnFixedUpdate();
 			if(VSL.NumActiveEngines > 0)
 			{
-				VSL.UpdateOnPlanetStats();
 				//these follow specific order
-				MPR.OnFixedUpdate();
 				MAN.OnFixedUpdate();
 				MVA.OnFixedUpdate();
-				WRP.OnFixedUpdate();
 				RAD.OnFixedUpdate();//sets AltitudeAhead
 				LND.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
 				ALT.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
@@ -350,6 +350,8 @@ namespace ThrottleControlledAvionics
 				STB.OnFixedUpdate();
 				PN.OnFixedUpdate();
 			}
+			SASC.OnFixedUpdate();
+			WRP.OnFixedUpdate();
 			//handle engines
 			VSL.TuneEngines();
 			if(VSL.NumActiveEngines > 0)

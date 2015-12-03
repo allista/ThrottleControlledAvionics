@@ -249,7 +249,6 @@ namespace ThrottleControlledAvionics
 			OnPlanet = on_planet;
 			InOrbit = in_orbit;
 			IsActiveVessel = vessel != null && vessel == FlightGlobals.ActiveVessel;
-			if(!CFG.HF && !CFG.AT) UnblockSAS();
 		}
 
 		public void UpdatePhysicsParams()
@@ -532,13 +531,6 @@ namespace ThrottleControlledAvionics
 			}
 			b.Encapsulate(B);
 			EnginesExhaust = b;
-		}
-
-		public void UnblockSAS(bool set_flag = true)
-		{
-			if(CFG.SASIsControlled) 
-				ActionGroups.SetGroup(KSPActionGroup.SAS, CFG.SASWasEnabled);
-			if(set_flag) CFG.SASIsControlled = false;
 		}
 
 		public Vector3 AngularAcceleration(Vector3 torque)

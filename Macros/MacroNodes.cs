@@ -439,7 +439,7 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.CFG.HF.XOff();
 				VSL.CFG.AT.XOff();
-				VSL.UnblockSAS();
+				VSL.TCA.SASC.EnableSAS();
 			}
 			else VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			return false; 
