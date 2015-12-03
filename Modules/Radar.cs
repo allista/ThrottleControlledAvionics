@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class Radar : TCAModule
+	public class Radar : TCAService
 	{
 		public class Config : ModuleConfig
 		{
@@ -62,8 +62,9 @@ namespace ThrottleControlledAvionics
 			Altimeter = new PQS_Altimeter(VSL);
 		}
 
-		public float AltitudeAhead;
-		public float TimeAhead;
+		public float AltitudeAhead { get; private set; }
+		public float TimeAhead { get; private set; }
+		public bool  MoovingFast { get; private set; }
 
 		static   int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery"));
 		//normal radar
@@ -97,7 +98,7 @@ namespace ThrottleControlledAvionics
 			ManeuverTimer.Period = RAD.ManeuverTimer;
 			reset();
 			#if DEBUG
-//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
 		}
 
@@ -114,7 +115,7 @@ namespace ThrottleControlledAvionics
 		public override void Reset()
 		{
 			base.Reset();
-//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 
@@ -124,11 +125,12 @@ namespace ThrottleControlledAvionics
 			if(IsActive)
 			{
 				mode = Mode.Off;
-				if(CFG.HF) 
+				MoovingFast = VSL.HorizontalSpeed > RAD.MinClosingSpeed;
+				if(CFG.HF && !CFG.HF[HFlight.Level])
 					mode |= Mode.Horizontal;
 				if(CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain)
 					mode |= Mode.Vertical;
-				IsActive &= mode != Mode.Off;
+				IsActive = CollisionSpeed > 0 || mode != Mode.Off && HasActiveClients;
 			}
 			if(IsActive) return;
 			reset();
@@ -162,11 +164,11 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			var zero_needed = TCA.HSC.NeededHorVelocity.IsZero();
-			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
-			   (zero_needed && !CFG.Nav.Any(Navigation.FollowPath, Navigation.FollowTarget, Navigation.GoToTarget) ||
-			    CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
-			    !VSL.AltitudeAboveGround || IsStateSet(TCAState.Landing)))
-			{ reset(); return; }
+//			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
+//			   (zero_needed && !CFG.Nav.Any(Navigation.FollowPath, Navigation.FollowTarget, Navigation.GoToTarget) ||
+//			    CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
+//			    !VSL.AltitudeAboveGround || IsStateSet(TCAState.Landing)))
+//			{ reset(); return; }
 			//check boundary conditions
 			if(ViewAngle > RAD.DownViewAngle) 
 			{ 

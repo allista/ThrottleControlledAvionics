@@ -39,8 +39,7 @@ namespace ThrottleControlledAvionics
 			UpdateTimer.Period = CC.UpdateDelay;
 			pid.setPID(CC.DirectionPID);
 			pid.Reset();
-			CFG.HF.AddCallback(HFlight.CruiseControl, Enable);
-			CFG.HF.AddCallback(HFlight.NoseOnCourse, NoseOnCourse);
+			CFG.HF.AddHandler(this, HFlight.CruiseControl, HFlight.NoseOnCourse);
 		}
 
 		protected override void UpdateState() 
@@ -53,20 +52,46 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public override void Enable(bool enable = true)
+		public void CruiseControlCallback(Multiplexer.Command cmd)
 		{
 			pid.Reset();
 			UpdateTimer.Reset();
-			if(enable) VSL.UpdateOnPlanetStats();
-			BlockSAS(enable);
-			TCA.HSC.SetNeededHorVelocity(enable? VSL.HorizontalVelocity : Vector3d.zero);
+			switch(cmd)
+			{
+			case Multiplexer.Command.Resume:
+				TCA.RAD.Register(this);
+				break;
+
+			case Multiplexer.Command.On:
+				VSL.UpdateOnPlanetStats();
+				TCA.HSC.SetNeededHorVelocity(VSL.HorizontalVelocity);
+				BlockSAS();
+				goto case Multiplexer.Command.Resume;
+
+			case Multiplexer.Command.Off:
+				TCA.HSC.SetNeededHorVelocity(Vector3d.zero);
+				TCA.RAD.Unregister(this);
+				break;
+			}
 		}
 
-		public void NoseOnCourse(bool enable = true)
+		public void NoseOnCourseCallback(Multiplexer.Command cmd)
 		{
 			pid.Reset();
-			if(enable) VSL.UpdateOnPlanetStats();
-			BlockSAS(enable);
+			switch(cmd)
+			{
+			case Multiplexer.Command.Resume:
+				TCA.RAD.Register(this, vsl => vsl.TCA.RAD.MoovingFast);
+				break;
+
+			case Multiplexer.Command.On:
+				BlockSAS();
+				goto case Multiplexer.Command.Resume;
+
+			case Multiplexer.Command.Off:
+				TCA.RAD.Unregister(this);
+				break;
+			}
 		}
 
 		public void UpdateNeededVelocity()

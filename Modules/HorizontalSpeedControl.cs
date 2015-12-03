@@ -77,9 +77,7 @@ namespace ThrottleControlledAvionics
 			base.Init(); 
 			filter.Tau = HSC.LowPassF;
 			translation_pid.setPID(HSC.ManualTranslationPID);
-			CFG.HF.AddCallback(HFlight.Stop, Enable);
-			CFG.HF.AddCallback(HFlight.Level, Enable);
-			CFG.HF.AddCallback(HFlight.Move, Move);
+			CFG.HF.AddCallback(ControlCallback, HFlight.Stop, HFlight.Level, HFlight.Move);
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -114,26 +112,29 @@ namespace ThrottleControlledAvionics
 				EnableManualTranslation(false);
 		}
 
-		public override void Enable(bool enable = true)
-		{
-			Move(enable);
-			if(enable) TCA.HSC.SetNeededHorVelocity(Vector3d.zero);
-		}
-
-		public void Move(bool enable = true)
+		public void ControlCallback(Multiplexer.Command cmd)
 		{
 			translation_pid.Reset();
-			if(enable) 
+			switch(cmd)
 			{
+			case Multiplexer.Command.Resume:
+				TCA.RAD.Register(this, vsl => vsl.TCA.RAD.MoovingFast);
+				break;
+
+			case Multiplexer.Command.On:
+				if(CFG.HF[HFlight.Stop])
+					TCA.HSC.SetNeededHorVelocity(Vector3d.zero);
 				CFG.AT.OnIfNot(Attitude.Custom);
 				VSL.UpdateOnPlanetStats();
-			}
-			else 
-			{
+				BlockSAS();
+				goto case Multiplexer.Command.Resume;
+
+			case Multiplexer.Command.Off:
+				TCA.RAD.Unregister(this);
 				CFG.AT.OffIfOn(Attitude.Custom);
 				EnableManualTranslation(false); 
+				break;
 			}
-			BlockSAS(enable);
 		}
 
 		void EnableManualTranslation(bool enable = true)

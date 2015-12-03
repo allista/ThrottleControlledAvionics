@@ -38,8 +38,7 @@ namespace ThrottleControlledAvionics
 			pid.Min = 0;
 			pid.Max = ANC.MaxSpeed;
 			pid.Reset();
-			CFG.Nav.AddCallback(Navigation.Anchor, Enable);
-			CFG.Nav.AddCallback(Navigation.AnchorHere, AnchorHere);
+			CFG.Nav.AddHandler(this, Navigation.Anchor, Navigation.AnchorHere);
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, AnchorPointer);
 			#endif
@@ -48,22 +47,29 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState() 
 		{ IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed && CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere); }
 
-		public override void Enable(bool enable = true)
+		public void AnchorCallback(Multiplexer.Command cmd)
 		{
-			if(enable && CFG.Anchor == null) return;
 			pid.Reset();
-			BlockSAS(enable);
-			if(enable) VSL.UpdateOnPlanetStats();
-			else CFG.Anchor = null;
+			switch(cmd)
+			{
+			case Multiplexer.Command.On:
+				if(CFG.Anchor == null) return;
+				VSL.UpdateOnPlanetStats();
+				BlockSAS();
+				break;
+
+			case Multiplexer.Command.Off:
+				CFG.Anchor = null;
+				break;
+			}
 		}
 
-		public void AnchorHere(bool enable = true)
+		public void AnchorHereCallback(Multiplexer.Command cmd)
 		{
-			CFG.Anchor = enable? 
-				new WayPoint(VSL.mainBody.GetLatitude(VSL.wCoM), 
-				             VSL.mainBody.GetLongitude(VSL.wCoM)) 
-				: null;
-			Enable(enable);
+			if(cmd == Multiplexer.Command.On)
+				CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(VSL.wCoM), 
+				                          VSL.mainBody.GetLongitude(VSL.wCoM));
+			AnchorCallback(cmd);
 		}
 
 		protected override void Update()

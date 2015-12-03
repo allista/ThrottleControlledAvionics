@@ -51,8 +51,10 @@ namespace ThrottleControlledAvionics
 		public AttitudeControl ATC;
 		public CruiseControl CC;
 		//all the modules
+		static List<FieldInfo> mod_fields = typeof(ModuleTCA)
+			.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Public|BindingFlags.Instance)
+			.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToList();
 		List<TCAModule> modules;
-		FieldInfo[] mod_fields;
 		#endregion
 
 		#region Public Info
@@ -62,7 +64,8 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Initialization
-		public void OnReloadGlobals() { invoke_in_modules("Init"); }
+		public void OnReloadGlobals() 
+		{ if(modules != null) modules.ForEach(m => m.Init()); }
 
 		public override string GetInfo() 
 		{ return "Software can be installed"; }
@@ -171,14 +174,10 @@ namespace ThrottleControlledAvionics
 
 		void create_modules()
 		{
-			if(mod_fields == null)
-				mod_fields = GetType()
-					.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Public|BindingFlags.Instance)
-					.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToArray();
-			modules = new List<TCAModule>(mod_fields.Length);
-			foreach(var fi in mod_fields)
+			modules = new List<TCAModule>(mod_fields.Count);
+			for(int i = 0, count = mod_fields.Count; i < count; i++)
 			{
-				if(!fi.FieldType.IsSubclassOf(typeof(TCAModule))) continue;
+				var fi = mod_fields[i];
 				var method = fi.FieldType.GetConstructor(new [] {typeof(ModuleTCA)});
 				if(method != null)
 				{
@@ -196,17 +195,8 @@ namespace ThrottleControlledAvionics
 
 		void delete_modules()
 		{
-			if(mod_fields == null) return;
 			mod_fields.ForEach(mf => mf.SetValue(this, null));
-		}
-
-		void invoke_in_modules(string m)
-		{
-			if(modules == null) return;
-			var mt = typeof(TCAModule);
-			var method = mt.GetMethod(m);
-			if(method == null) this.Log("No {0} method in {1} found.", m, mt.Name);
-			for(int i = 0; i<modules.Count; i++) method.Invoke(modules[i], null);
+			modules = null;
 		}
 
 		public static List<ModuleTCA> AllTCA(IShipconstruct ship)
@@ -278,6 +268,7 @@ namespace ThrottleControlledAvionics
 			VSL.SetUnpackDistance(GLB.UnpackDistance);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
 			StartCoroutine(onVesselModifiedUpdate());
+			CFG.Resume();
 		}
 
 		void reset()

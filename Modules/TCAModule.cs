@@ -8,6 +8,8 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -29,7 +31,7 @@ namespace ThrottleControlledAvionics
 
 		protected ModuleTCA TCA;
 
-		protected VesselWrapper VSL { get { return TCA.VSL; } }
+		public VesselWrapper VSL { get { return TCA.VSL; } }
 		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
 		public VesselConfig CFG { get { return VSL.CFG; } }
 		public TCAState State { get { return VSL.State; } }
@@ -39,15 +41,13 @@ namespace ThrottleControlledAvionics
 		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
 
 		public virtual void Init() {}
-		public virtual void Enable(bool enable = true) {}
 		protected virtual void UpdateState() {}
 		protected virtual void Update() {}
 		public void OnFixedUpdate() { UpdateState(); Update(); }
 		public virtual void Reset() {}
 
-		protected void BlockSAS(bool block = true) 
+		protected void BlockSAS() 
 		{ 
-			if(!block) return;
 			if(!CFG.SASIsControlled)
 				CFG.SASWasEnabled = VSL.ActionGroups[KSPActionGroup.SAS]; 
 			CFG.SASIsControlled = true;
@@ -90,7 +90,7 @@ namespace ThrottleControlledAvionics
 
 	public abstract class AutopilotModule : TCAModule
 	{
-		public override void Init() { VSL.OnAutopilotUpdate -= UpdateCtrlState; VSL.OnAutopilotUpdate += UpdateCtrlState; }
+		public override void Init() { base.Init(); VSL.OnAutopilotUpdate -= UpdateCtrlState; VSL.OnAutopilotUpdate += UpdateCtrlState; }
 		public override void Reset() { VSL.OnAutopilotUpdate -= UpdateCtrlState; }
 		public void UpdateCtrlState(FlightCtrlState s) { UpdateState(); OnAutopilotUpdate(s); }
 		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
@@ -110,5 +110,35 @@ namespace ThrottleControlledAvionics
 //			Log("Set Rot: {0}:{1}, {2}:{3}, {4}:{5}", 
 //			    s.pitch, s.pitchTrim, s.roll, s.rollTrim, s.yaw, s.yawTrim);//debug 
 		}
+	}
+
+	public abstract class TCAService : TCAModule
+	{
+		public struct Client
+		{
+			public readonly TCAModule Module;
+			public Func<VesselWrapper,bool> Predicate;
+
+			public Client(TCAModule module, Func<VesselWrapper,bool> predicate = null)
+			{ Module = module; Predicate = predicate; }
+
+			public static implicit operator bool(Client c)
+			{ return c.Module != null && (c.Predicate == null || c.Predicate(c.Module.VSL)); }
+
+			public override int GetHashCode() { return Module.GetHashCode(); }
+		}
+
+		readonly HashSet<Client> Clients = new HashSet<Client>();
+		protected bool HasActiveClients { get { return Clients.Any(c => c); } }
+
+		public bool Register(TCAModule module, Func<VesselWrapper,bool> predicate = null) 
+		{ 
+			Log("Registering: {0}", module.GetType().Name);//debug
+			return Clients.Add(new Client(module, predicate)); }
+
+		public bool Unregister(TCAModule module) 
+		{ 
+			Log("UnRegistering: {0}", module.GetType().Name);//debug
+			return Clients.Remove(new Client(module)); }
 	}
 }

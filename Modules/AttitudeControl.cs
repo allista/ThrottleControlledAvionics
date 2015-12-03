@@ -55,7 +55,7 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			pid.setPID(ATC.PID);
 			reset();
-			CFG.AT.AddSingleCallback(Enable);
+			CFG.AT.SetSingleCallback(Enable);
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -80,11 +80,14 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState() { IsActive = CFG.AT; }
 
-		public override void Enable(bool enable = true)
+		public void Enable(Multiplexer.Command cmd)
 		{
 			reset();
-			if(enable) VSL.UpdateOnPlanetStats();
-			BlockSAS(enable);
+			if(cmd == Multiplexer.Command.On)
+			{
+				VSL.UpdateOnPlanetStats();
+				BlockSAS();
+			}
 		}
 
 		public float GimbalLimit { get; private set; } = 100;

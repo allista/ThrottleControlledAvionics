@@ -38,8 +38,7 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			CFG.AP.AddCallback(Autopilot.MatchVel, Enable);
-			CFG.AP.AddCallback(Autopilot.MatchVelNear, Enable);
+			CFG.AP.AddCallback(MatchVelCallback, Autopilot.MatchVel, Autopilot.MatchVelNear);
 		}
 
 		protected override void UpdateState()
@@ -51,16 +50,21 @@ namespace ThrottleControlledAvionics
 			reset();
 		}
 
-		public override void Enable(bool enable = true)
+		public void MatchVelCallback(Multiplexer.Command cmd)
 		{
-			if(enable) 
+			switch(cmd)
 			{
+			case Multiplexer.Command.Resume:
+			case Multiplexer.Command.On:
 				Working = false;
 				MainThrust = false;
 				TCA.THR.Throttle = 0;
 				CFG.AT.On(Attitude.KillRotation);
+				break;
+
+			case Multiplexer.Command.Off:
+				reset(); break;
 			}
-			else reset();
 		}
 
 		void reset()

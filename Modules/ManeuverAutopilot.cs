@@ -22,8 +22,7 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			CFG.AP.AddCallback(Autopilot.Maneuver, Enable);
-			if(CFG.AP[Autopilot.Maneuver]) Enable();
+			CFG.AP.AddHandler(this, Autopilot.Maneuver);
 		}
 
 		protected override void UpdateState()
@@ -35,21 +34,24 @@ namespace ThrottleControlledAvionics
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) == GameVariables.OrbitDisplayMode.PatchedConics;
 		}
 
-		public override void Enable(bool enable = true)
+		public void ManeuverCallback(Multiplexer.Command cmd)
 		{
-			if(enable)
+			switch(cmd)
 			{
+			case Multiplexer.Command.Resume:
+			case Multiplexer.Command.On:
 				if(!VSL.HasManeuverNode) 
 				{ CFG.AP[Autopilot.Maneuver] = false; return; }
 				CFG.AT.On(Attitude.ManeuverNode);
 				Node = Solver.maneuverNodes[0];
 				TCA.THR.Throttle = 0;
 				CFG.DisableVSC();
-			}
-			else 
-			{
+				break;
+
+			case Multiplexer.Command.Off:
 				TimeWarp.SetRate(0, false);
 				reset();
+				break;
 			}
 		}
 

@@ -49,10 +49,11 @@ namespace ThrottleControlledAvionics
 
 		public override void Init()
 		{
+			base.Init();
 			rocket_pid.setPID(ALT.RocketPID);
 			jets_pid.setPID(ALT.JetsPID);
 			Falling.Period = ALT.FallingTime;
-			CFG.VF.AddCallback(VFlight.AltitudeControl, Enable);
+			CFG.VF.AddHandler(this, VFlight.AltitudeControl);
 			if(VSL.LandedOrSplashed) CFG.DesiredAltitude = -10;
 		}
 
@@ -70,13 +71,23 @@ namespace ThrottleControlledAvionics
 			else CFG.DesiredAltitude += VSL.TerrainAltitude;
 		}
 
-		public override void Enable(bool enable = true)
+		public void AltitudeControlCallback(Multiplexer.Command cmd)
 		{
 			Falling.Reset();
-			if(enable)
+			switch(cmd)
 			{
+			case Multiplexer.Command.Resume:
+				TCA.RAD.Register(this, vsl => vsl.TCA.RAD.MoovingFast);
+				break;
+
+			case Multiplexer.Command.On:
 				VSL.UpdateAltitudeInfo();
 				CFG.DesiredAltitude = VSL.LandedOrSplashed? -10 : VSL.Altitude;
+				goto case Multiplexer.Command.Resume;
+
+			case Multiplexer.Command.Off:
+				TCA.RAD.Unregister(this);
+				break;
 			}
 		}
 

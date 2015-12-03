@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 ﻿using System;
+using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using UnityEngine;
@@ -184,18 +185,26 @@ Notes:
 				SelectedMacro.Rewind();
 			}
 		}
+		//automation
+		static List<FieldInfo> multiplexer_fields = typeof(VesselConfig).GetFields(BindingFlags.Public|BindingFlags.Instance)
+			.Where(fi => fi.FieldType.IsSubclassOf(typeof(Multiplexer))).ToList();
+		readonly List<Multiplexer> multiplexers = new List<Multiplexer>();
 
 		public ConfigNode Configuration 
 		{ get { var node = new ConfigNode(); Save(node); return node; } }
 
-		public VesselConfig() //set defaults
+		public VesselConfig()
 		{
+			//set defaults
 			VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed;
 			Engines.setPI(TCAScenario.Globals.ENG.EnginesPI);
+			//explicitly set multiplexer conflicts
 			AT.AddConflicts(HF, Nav, AP);
 			HF.AddConflicts(AT, Nav, AP);
 			Nav.AddConflicts(AT, HF, AP);
 			AP.AddConflicts(AT, Nav, HF);
+			//get all multiplexers
+			multiplexer_fields.ForEach(fi => multiplexers.Add((Multiplexer)fi.GetValue(this)));
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
 		public VesselConfig(Guid vid) : this() { VesselID = vid; }
@@ -244,12 +253,10 @@ Notes:
 		}
 
 		public void ClearCallbacks()
-		{
-			HF.ClearCallbacks();
-			VF.ClearCallbacks();
-			Nav.ClearCallbacks();
-			AP.ClearCallbacks();
-		}
+		{ multiplexers.ForEach(m => m.ClearCallbacks()); }
+
+		public void Resume()
+		{ multiplexers.ForEach(m => m.Resume()); }
 	}
 
 	public class NamedConfig : VesselConfig

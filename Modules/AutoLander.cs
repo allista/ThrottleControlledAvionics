@@ -70,9 +70,8 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			StopTimer.Period = LND.StopTimer;
 			CutoffTimer.Period = LND.CutoffTimer;
-			CFG.AP.AddCallback(Autopilot.Land, Enable);
+			CFG.AP.AddHandler(this, Autopilot.Land);
 			TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.R));
-			if(CFG.AP[Autopilot.Land] && VSL.LandedOrSplashed) CFG.AP.Off();
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -81,7 +80,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState() 
 		{ IsActive = VSL.OnPlanet && CFG.AP[Autopilot.Land]; }
 
-		public override void Enable(bool enable = true)
+		public void LandCallback(Multiplexer.Command cmd)
 		{
 			stage = Stage.None;
 			scanner = null;
@@ -90,18 +89,21 @@ namespace ThrottleControlledAvionics
 			StopTimer.Reset();
 			CutoffTimer.Reset();
 			landing_started = false;
-			if(VSL.LandedOrSplashed && enable) 
-				CFG.AP.OffIfOn(Autopilot.Land);
-			else if(enable) 
+
+			switch(cmd)
 			{
+			case Multiplexer.Command.On:
+			case Multiplexer.Command.Resume:
+				if(VSL.LandedOrSplashed) { CFG.AP.OffIfOn(Autopilot.Land); break; }
 				CFG.HF.On(HFlight.Stop);
 				DesiredAltitude = 0;
 				TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.R));
-			}
-			else
-			{
+				break;
+
+			case Multiplexer.Command.Off:
 				CFG.VF.On(VFlight.AltitudeControl);
 				DesiredAltitude = VSL.Altitude;
+				break;
 			}
 		}
 

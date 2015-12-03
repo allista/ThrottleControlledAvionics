@@ -85,16 +85,8 @@ namespace ThrottleControlledAvionics
 			pid.Reset();
 			ArrivedTimer.Period = PN.MinTime;
 			FormationBreakTimer.Period = PN.FormationBreakTime;
-			CFG.Nav.AddCallback(Navigation.GoToTarget, GoToTarget);
-			CFG.Nav.AddCallback(Navigation.FollowTarget, GoToTarget);
-			CFG.Nav.AddCallback(Navigation.FollowPath, FollowPath);
-			if(CFG.Target != null) 
-			{
-				if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowTarget)) 
-					start_to(CFG.Target);
-				else SetTarget(CFG.Target);
-			}
-			if(CFG.Nav[Navigation.FollowPath]) FollowPath();
+			CFG.Nav.AddCallback(GoToTargetCallback, Navigation.GoToTarget, Navigation.FollowTarget);
+			CFG.Nav.AddCallback(FollowPathCallback, Navigation.FollowPath);
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -107,23 +99,40 @@ namespace ThrottleControlledAvionics
 			Destination = Vector3.zero;
 		}
 
-		public void GoToTarget(bool enable = true)
+		public void GoToTargetCallback(Multiplexer.Command cmd)
 		{
-			if(enable && !VSL.HasTarget) return;
-			if(enable) 
+			switch(cmd)
 			{
+			case Multiplexer.Command.Resume:
+				if(CFG.Target != null) 
+					start_to(CFG.Target);
+				break;
+
+			case Multiplexer.Command.On:
+				if(!VSL.HasTarget) return;
 				var wp = VSL.Target as WayPoint ?? 
 					new WayPoint(VSL.Target);
 				start_to(wp);
+				break;
+
+			case Multiplexer.Command.Off:
+				finish(); break;
 			}
-			else finish();
 		}
 
-		public void FollowPath(bool enable = true)
+		public void FollowPathCallback(Multiplexer.Command cmd)
 		{
-			if(enable && CFG.Waypoints.Count == 0) return;
-			if(enable) start_to(CFG.Waypoints.Peek());	
-			else finish();
+			switch(cmd)
+			{
+			case Multiplexer.Command.Resume:
+			case Multiplexer.Command.On:
+				if(CFG.Waypoints.Count > 0)
+					start_to(CFG.Waypoints.Peek());
+				break;
+
+			case Multiplexer.Command.Off:
+				finish(); break;
+			}
 		}
 
 		void start_to(WayPoint wp)
@@ -141,6 +150,7 @@ namespace ThrottleControlledAvionics
 			SetTarget(wp);
 			pid.Reset();
 			CFG.HF.On(HFlight.NoseOnCourse);
+			TCA.RAD.Register(this);
 		}
 
 		void finish()
@@ -149,6 +159,7 @@ namespace ThrottleControlledAvionics
 			Destination = Vector3d.zero;
 			CFG.Nav.Off();
 			CFG.HF.On(HFlight.Stop);
+			TCA.RAD.Unregister(this);
 			reset_formation();
 		}
 
