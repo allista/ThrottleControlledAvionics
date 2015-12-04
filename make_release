@@ -1,0 +1,111 @@
+#!/usr/bin/python
+# coding=utf-8
+
+'''
+Created on Dec 3, 2015
+
+@author: Allis Tauri <allista@gmail.com> 
+'''
+
+import sys, os, re
+import fnmatch
+import argparse
+import zipfile
+
+from git import Repo
+from os.path import join
+
+sources = ['.', 'src', 'source', 'Source']
+exclude = []
+
+assembly_info = 'AssemblyInfo.cs'
+title_re = re.compile(r'.*AssemblyTitle\(\"(.*)\"\)\]')
+version_re = re.compile(r'.*AssemblyVersion\(\"(.*)\"\)\]')
+
+def parse_assembly_info(dirname):
+    if not os.path.isdir(dirname): return None
+    _modname = None
+    _version = None
+    for filename in os.listdir(dirname):
+        if assembly_info not in filename: continue
+        with open(filename) as ainfo:
+            for line in ainfo:
+                match = title_re.match(line)
+                if not match: 
+                    match = version_re.match(line)
+                    if match: _version = 'v'+match.group(1)
+                else: _modname = match.group(1)
+                if _modname and _version: break
+    return _modname, _version
+#end def
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Creates a KSP mod distribution and changelog file')
+    parser.add_argument('-d', '--dir', metavar='path', dest='dir',
+                        type=str, nargs=1, default=['.'],
+                        help='Path to the root directory of the mod')
+    parser.add_argument('-s',  '--source', metavar='path', dest='source', 
+                        type=str, nargs=1, default=[],
+                        help='Relative path to the source directory')
+    parser.add_argument('-e',  '--exclude', metavar='paths', dest='exclude', 
+                        type=str, nargs="*", default=[],
+                        help='Files that should be excluded from the distribution. '
+                        'Relative the the GameData directory. Wildcards are supported')
+    args = parser.parse_args()
+    #go to the root dir
+    root = args.dir[0]
+    if not os.path.isdir(root):
+        print 'No such directory:', root
+        sys.exit(1)
+    os.chdir(root)
+    #use source and exclude
+    if args.source: sources += args.source
+    if args.exclude: exclude += args.exclude
+    #check if it is indeed the mod directory
+    if not os.path.exists('./GameData'):
+        print 'No %s/GameData directory.' % root
+        sys.exit(1)
+    #check repository
+    repo = Repo('.')
+    if repo.bare:
+        print 'Git repository is empty'
+        sys.exit(2)
+    #get mod name and current version
+    modname, version = None, None
+    wd = os.path.abspath(os.path.curdir)
+    for src in sources:
+        modname, version = parse_assembly_info(join(wd, src))
+        if modname and version: break
+    if not modname or not version:
+        print 'Unable to determine mod name and version'
+        sys.exit(3)
+    current = "%s-%s" % (modname, version)
+    #make distribution package
+    releases = 'Releases'
+    try: os.mkdir(releases)
+    except: pass
+    release = join(releases, current+'.zip')
+    print 'Making release: %s\n' % release
+    with zipfile.ZipFile(release, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for dirname, dirs, files in os.walk('GameData'):
+            for f in files:
+                if f.endswith('~'): continue
+                to_add = os.path.relpath(join(dirname, f), wd)
+                if filter(lambda pat: fnmatch.fnmatch(to_add, pat), exclude): continue
+                print 'Adding: %s' % to_add
+                zipf.write(to_add)
+    #get commit history
+    commits = repo.log('HEAD')
+    changelog = ''
+    for c in commits:
+        if c.message.startswith('v'):
+            if c.message.startswith(version): continue
+            break
+        else: changelog += '* %s\n' % c.message
+    #write changelog
+    if changelog:
+        chlog_file = join(releases, current+'.log') 
+        with open(chlog_file, 'w') as log:
+            log.write(changelog)
+        print '\nChangeLog:', chlog_file
+    print 'Done'
