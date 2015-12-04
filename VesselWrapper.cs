@@ -524,7 +524,7 @@ namespace ThrottleControlledAvionics
 				{
 					var t = e.engine.thrustTransforms[k];
 					if(t == null) continue;
-					var term = refT.InverseTransformPoint(t.position + t.forward * e.engine.exhaustDamageMaxRange);
+					var term = refT.InverseTransformPoint(t.position + t.forward * e.engine.exhaustDamageMaxRange*GLB.ExhaustSafeDist);
 					if(inited) b.Encapsulate(term);
 					else { b = new Bounds(term, Vector3.zero); inited = true; }
 				}

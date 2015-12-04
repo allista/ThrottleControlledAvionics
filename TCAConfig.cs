@@ -33,6 +33,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float UnpackDistance       = 5000f;
 		[Persistent] public float ActionListHeight     = 110f;
 		[Persistent] public float MaxAAFilter          = 1f;
+		[Persistent] public float ExhaustSafeDist      = 1.1f;
 
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
