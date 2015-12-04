@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
 		new public const string NODE_NAME = "TCAGLOBALS";
 
 		public const string TCA_PART = "ThrottleControlledAvionics";
-		public const string INSTRUCTIONS = "INSTRUCTIONS.txt";
+		public const string INSTRUCTIONS = "INSTRUCTIONS.md";
 
 		[Persistent] public bool  IntegrateIntoCareer  = true;
 		[Persistent] public bool  RoleSymmetryInFlight = true;
@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
 			try
 			{
 				using(var file = new StreamReader(TCAScenario.PluginFolder(INSTRUCTIONS)))
-					Instructions = file.ReadToEnd();
+					Instructions = MD2Unity.Parse(file);
 			}
 			catch { Instructions = string.Format("{0} file cannot be read", TCAScenario.PluginFolder(INSTRUCTIONS)); }
 			InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude

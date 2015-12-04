@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
 		static readonly DropDownList namedConfigsListBox = new DropDownList();
 		//dimensions
 		public const int controlsWidth = 600, controlsHeight = 100, lineHeight = 35;
-		public const int helpWidth = 550, helpHeight = 500;
+		public const int helpWidth = 800, helpHeight = 600;
 		static Rect HelpWindow     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
 		static Vector2 waypointsScroll, helpScroll;
 		//keybindings
@@ -833,7 +833,7 @@ namespace ThrottleControlledAvionics
 		{
 			GUILayout.BeginVertical();
 			helpScroll = GUILayout.BeginScrollView(helpScroll);
-			GUILayout.Label(GLB.Instructions, GUILayout.MaxWidth(helpWidth));
+			GUILayout.Label(GLB.Instructions, Styles.rich_label, GUILayout.MaxWidth(helpWidth));
 			GUILayout.EndScrollView();
 			if(GUILayout.Button("Close")) showHelp = !showHelp;
 			GUILayout.EndVertical();

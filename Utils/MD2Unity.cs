@@ -64,7 +64,7 @@ namespace ThrottleControlledAvionics
 					text += string.Format("<size=25><b>{0}</b></size>\n\n", line.TrimStart(new [] {'#'}));
 				//end of the paragraph or list
 				else if(empty.IsMatch(line)) text += flush();
-				else 
+				else //paragraph or list
 				{
 					//replace bold and italics
 					line = bold.Replace(line, "<b>$2</b>");

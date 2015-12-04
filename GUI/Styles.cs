@@ -34,6 +34,7 @@ namespace ThrottleControlledAvionics
 		public static GUIStyle blue;
 		public static GUIStyle cyan;
 		public static GUIStyle label;
+		public static GUIStyle rich_label;
 		public static GUIStyle tooltip;
 		public static GUIStyle slider;
 		public static GUIStyle slider_text;
@@ -107,6 +108,9 @@ namespace ThrottleControlledAvionics
 			//lable
 			label  = GUI.skin.label.OtherColor(Color.white);
 			label.alignment = TextAnchor.MiddleCenter;
+
+			rich_label = GUI.skin.label.OtherColor(Color.white);
+			rich_label.richText = true;
 
 			//slider
 			slider = new GUIStyle(GUI.skin.horizontalSlider);
