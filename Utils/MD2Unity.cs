@@ -54,8 +54,10 @@ namespace ThrottleControlledAvionics
 			{
 				var line = file.ReadLine();
 				//support only the first three levels of headers
-				if(line.StartsWith("####")) line = line.TrimStart(new [] {'#'});
+				if(line.StartsWith("#####")) line = line.TrimStart(new [] {'#'});
 				//check header
+				if(line.StartsWith("####"))
+					text += string.Format("\n<b>{0}</b>\n\n", line.TrimStart(new [] {'#'}));
 				if(line.StartsWith("###"))
 					text += string.Format("\n<size=15><b>{0}</b></size>\n\n", line.TrimStart(new [] {'#'}));
 				else if(line.StartsWith("##"))
