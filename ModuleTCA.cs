@@ -289,7 +289,9 @@ namespace ThrottleControlledAvionics
 		public void ToggleTCA()
 		{
 			CFG.Enabled = !CFG.Enabled;
-			if(!CFG.Enabled) //reset engine limiters
+			if(CFG.Enabled) //test
+				CFG.ActiveProfile.Update(VSL.Engines, true);
+			else //reset engine limiters
 			{
 				VSL.Engines.ForEach(e => e.forceThrustPercentage(100));
 				State = TCAState.Disabled;
