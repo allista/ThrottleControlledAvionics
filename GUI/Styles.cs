@@ -27,6 +27,7 @@ namespace ThrottleControlledAvionics
 		public static GUIStyle cyan_button;
 		public static GUIStyle magenta_button;
 		public static GUIStyle white;
+		public static GUIStyle white_on_black;
 		public static GUIStyle grey;
 		public static GUIStyle red;
 		public static GUIStyle yellow;
@@ -72,7 +73,7 @@ namespace ThrottleControlledAvionics
 			initialized = true;
 
 			var b_texture = new Texture2D(1, 1);
-			b_texture.SetPixel(0, 0, new Color(0.05f, 0.05f, 0.05f, 1f));
+			b_texture.SetPixel(0, 0, new Color(0.15f, 0.15f, 0.15f, 1f));
 			b_texture.Apply();
 
 			//buttons
@@ -92,6 +93,9 @@ namespace ThrottleControlledAvionics
 			//boxes
 			white = GUI.skin.box.OtherColor(Color.white);
 			white.padding = new RectOffset (4, 4, 4, 4);
+
+			white_on_black = new GUIStyle(white);
+			white_on_black.normal.background = white_on_black.onNormal.background = white_on_black.hover.background = white_on_black.onHover.background = b_texture;
 
 			grey   = white.OtherColor(Color.grey);
 			red    = white.OtherColor(Color.red);
