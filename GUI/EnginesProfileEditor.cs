@@ -147,6 +147,9 @@ namespace ThrottleControlledAvionics
 
 		protected override void DrawMainWindow(int windowID)
 		{
+			//help button
+			if(GUI.Button(new Rect(MainWindow.width - 23f, 2f, 20f, 18f), 
+			              new GUIContent("?", "Help"))) TCAManual.Toggle();
 			GUILayout.BeginVertical();
 			if(TCAMacroEditor.Editing)
 				GUILayout.Label("Edit Macros", Styles.grey, GUILayout.ExpandWidth(true));
