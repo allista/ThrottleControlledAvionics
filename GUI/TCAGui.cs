@@ -13,7 +13,8 @@ namespace ThrottleControlledAvionics
 	public partial class ThrottleControlledAvionics
 	{
 		#region GUI Parameters
-		static bool showHelp;
+		const string LockName = "TCAGui";
+
 		static bool advOptions;
 		//named configs
 		static NamedConfig selected_config;
@@ -21,9 +22,7 @@ namespace ThrottleControlledAvionics
 		static readonly DropDownList namedConfigsListBox = new DropDownList();
 		//dimensions
 		public const int controlsWidth = 600, controlsHeight = 100, lineHeight = 35;
-		public const int helpWidth = 800, helpHeight = 600;
-		static Rect HelpWindow     = new Rect(Screen.width/2-helpWidth/2, 100, helpWidth, helpHeight);
-		static Vector2 waypointsScroll, helpScroll;
+		static Vector2 waypointsScroll;
 		//keybindings
 		public static KeyCode TCA_Key = KeyCode.Y;
 		static bool selecting_key;
@@ -93,7 +92,7 @@ namespace ThrottleControlledAvionics
 				advOptions = !advOptions;
 			//help button
 			if(GUI.Button(new Rect(MainWindow.width - 23f, 2f, 20f, 18f), 
-			              new GUIContent("?", "Help"))) showHelp = !showHelp;
+			              new GUIContent("?", "Help"))) TCAManual.Toggle();
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
 			//tca toggle
@@ -829,21 +828,15 @@ namespace ThrottleControlledAvionics
 		}
 		#endif
 
-		static void windowHelp(int windowID)
-		{
-			GUILayout.BeginVertical();
-			helpScroll = GUILayout.BeginScrollView(helpScroll);
-			GUILayout.Label(GLB.Instructions, Styles.rich_label, GUILayout.MaxWidth(helpWidth));
-			GUILayout.EndScrollView();
-			if(GUILayout.Button("Close")) showHelp = !showHelp;
-			GUILayout.EndVertical();
-			GUI.DragWindow();
-		}
-
 		public void OnGUI()
 		{
-			if(TCA == null || !TCA.Controllable || !CFG.GUIVisible || !showHUD) return;
+			if(TCA == null || !TCA.Controllable || !CFG.GUIVisible || !showHUD) 
+			{
+				Utils.LockIfMouseOver(LockName, MainWindow, false);
+				return;
+			}
 			Styles.Init();
+			Utils.LockIfMouseOver(LockName, MainWindow);
 			MainWindow = 
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 MainWindow, 
@@ -852,17 +845,6 @@ namespace ThrottleControlledAvionics
 				                 GUILayout.Width(controlsWidth),
 				                 GUILayout.Height(controlsHeight));
 			MainWindow.clampToScreen();
-			if(showHelp) 
-			{
-				HelpWindow = 
-					GUILayout.Window(TCA.GetInstanceID()+1, 
-					                 HelpWindow, 
-					                 windowHelp, 
-					                 "Instructions",
-					                 GUILayout.Width(helpWidth),
-					                 GUILayout.Height(helpHeight));
-				HelpWindow.clampToScreen();
-			}
 		}
 	}
 }

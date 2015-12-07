@@ -129,6 +129,7 @@
     <Compile Include="Modules\TimeWarpControl.cs" />
     <Compile Include="Modules\SASBlocker.cs" />
     <Compile Include="Utils\MD2Unity.cs" />
+    <Compile Include="GUI\TCAManual.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

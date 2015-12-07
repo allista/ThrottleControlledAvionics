@@ -21,7 +21,6 @@ namespace ThrottleControlledAvionics
 		public override void LoadConfig()
 		{
 			base.LoadConfig ();
-			HelpWindow = GUI_CFG.GetValue<Rect>(Utils.PropertyName(new {HelpWindow}), HelpWindow);
 			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
 			UpDamper.Period = GLB.KeyRepeatTime;
 			DownDamper.Period = GLB.KeyRepeatTime;
@@ -30,7 +29,6 @@ namespace ThrottleControlledAvionics
 
 		public override void SaveConfig(ConfigNode node = null)
 		{
-			GUI_CFG.SetValue(Utils.PropertyName(new {HelpWindow}), HelpWindow);
 			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);
 			base.SaveConfig(node);
 		}

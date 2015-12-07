@@ -54,16 +54,19 @@ namespace ThrottleControlledAvionics
 		[Persistent] public TimeWarpControl.Config           WRP = new TimeWarpControl.Config();
 		[Persistent] public MatchVelocityAutopilot.Config    MVA = new MatchVelocityAutopilot.Config();
 
-		public string Instructions = string.Empty;
+		public MDSection Manual;
 
 		public void Init()
 		{ 
 			try
 			{
 				using(var file = new StreamReader(TCAScenario.PluginFolder(INSTRUCTIONS)))
-					Instructions = MD2Unity.Parse(file);
+				{
+					Manual = MD2Unity.Parse(file);
+					if(Manual.NoTitle) Manual.Title = "TCA Reference Manual";
+				}
 			}
-			catch { Instructions = string.Format("{0} file cannot be read", TCAScenario.PluginFolder(INSTRUCTIONS)); }
+			catch(Exception ex) { Utils.Log("Error loading {0} file:\n{1}\n{2}", TCAScenario.PluginFolder(INSTRUCTIONS), ex.Message, ex.StackTrace); }
 			InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
 			//init all module configs
 			var mt = typeof(TCAModule.ModuleConfig);
