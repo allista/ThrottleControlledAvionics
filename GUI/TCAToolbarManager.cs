@@ -19,25 +19,31 @@ namespace ThrottleControlledAvionics
 	/// IMHO, this is a bug in the RemoveModApplication method, cause if you use
 	/// Add/RemoveModApp repeatedly, the buttons are duplicated each time.
 	/// </summary>
-	[KSPAddon(KSPAddon.Startup.MainMenu, true)]
+	[KSPAddon(KSPAddon.Startup.EveryScene, false)]
 	public class TCAToolbarManager : MonoBehaviour
 	{
+		//state
+		static bool inited;
 		//icons
 		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
 		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
 		const string ICON_NC  = "ThrottleControlledAvionics/Icons/icon_button_noCharge";
-		//buttons
-		const ApplicationLauncher.AppScenes SCENES = ApplicationLauncher.AppScenes.FLIGHT|ApplicationLauncher.AppScenes.VAB|ApplicationLauncher.AppScenes.SPH;
-		static IButton TCAToolbarButton;
-		static ApplicationLauncherButton TCAButton;
+		const string ICON_MAN = "ThrottleControlledAvionics/Icons/icon_button_man";
+
 		static Texture textureOn;
 		static Texture textureOff;
 		static Texture textureNoCharge;
+		static Texture textureMan;
+		//buttons
+		const ApplicationLauncher.AppScenes SCENES = ApplicationLauncher.AppScenes.FLIGHT|ApplicationLauncher.AppScenes.VAB|ApplicationLauncher.AppScenes.SPH|ApplicationLauncher.AppScenes.SPACECENTER|ApplicationLauncher.AppScenes.MAPVIEW;
+		static IButton TCAToolbarButton;
+		static ApplicationLauncherButton TCAButton;
 		//TCA isntance
 		static ModuleTCA TCA;
 
 		void Awake()
 		{
+			if(inited) return;
 			//setup toolbar/applauncher button
 			if(TCAToolbarButton == null &&
 				ToolbarManager.ToolbarAvailable && 
@@ -45,10 +51,10 @@ namespace ThrottleControlledAvionics
 			{
 				Utils.Log("Using Blizzy's toolbar");
 				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
-				TCAToolbarButton.TexturePath = ICON_OFF;
+				TCAToolbarButton.TexturePath = ICON_MAN;
 				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
-				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT, GameScenes.EDITOR);
-				TCAToolbarButton.Visible     = false;
+				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT, GameScenes.EDITOR, GameScenes.SPACECENTER);
+				TCAToolbarButton.Visible     = true;
 				TCAToolbarButton.OnClick    += onToolbarToggle;
 			}
 			else 
@@ -57,9 +63,11 @@ namespace ThrottleControlledAvionics
 				textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);
 				textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);
 				textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);
+				textureMan = GameDatabase.Instance.GetTexture(ICON_MAN, false);
 				GameEvents.onGUIApplicationLauncherReady.Add(AddAppLauncherButton);
 //				GameEvents.onGUIApplicationLauncherDestroyed.Add(RemoveAppLauncherButton);
 			}
+			inited = true;
 		}
 
 		//left here in case the RemoveModApp will be fixed
@@ -88,61 +96,57 @@ namespace ThrottleControlledAvionics
 					onAppLaunchToggleOn,
 					onAppLaunchToggleOff,
 					null, null, null, null,
-					ApplicationLauncher.AppScenes.NEVER,
-					textureOff);
+					SCENES,
+					textureMan);
 			}
 		}
 
 		void onToolbarToggle(ClickEvent e) 
 		{ 
-			if(TCA != null && TCA.Controllable) 
-				TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible; 
-			EnginesProfileEditor.GUIVisible = !EnginesProfileEditor.GUIVisible; 
+			if(TCA != null) 
+				TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible;
+			else if(HighLogic.LoadedSceneIsEditor && EnginesProfileEditor.Available)
+				EnginesProfileEditor.GUIVisible = !EnginesProfileEditor.GUIVisible;
+			else TCAManual.Toggle();
 		}
 		void onAppLaunchToggleOn() { onToolbarToggle(null); }
 		void onAppLaunchToggleOff() { onToolbarToggle(null); }
 
-		public static void AttachTCA(ModuleTCA tca)
-		{
-			TCA = tca;
-			ShowButton(TCA != null);
-		}
-
-		public static void ShowButton(bool show = true)
-		{
-			if(show)
-			{
-				if(TCAButton != null) TCAButton.VisibleInScenes = SCENES;
-				if(TCAToolbarButton != null) TCAToolbarButton.Visible = true;
-			}
-			else
-			{
-				if(TCAButton != null) TCAButton.VisibleInScenes = ApplicationLauncher.AppScenes.NEVER;
-				if(TCAToolbarButton != null) TCAToolbarButton.Visible = false;
-			}
+		public static void AttachTCA(ModuleTCA tca) 
+		{ 
+			TCA = tca; 
+			if(TCA == null) SetDefaultButton();
 		}
 
 		public static void SetDefaultButton()
 		{
-			if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = ICON_OFF;
-			if(TCAButton != null) TCAButton.SetTexture(textureOff);
+			if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = ICON_MAN;
+			if(TCAButton != null) TCAButton.SetTexture(textureMan);
 		}
 
-		public static void UpdateToolbarButton()
+		public void Update()
 		{ 
-			if(TCA == null) return;
-			if(TCAToolbarButton != null)
+			if(TCA != null)
 			{
-				if(TCA.IsStateSet(TCAState.Enabled))
-					TCAToolbarButton.TexturePath = TCA.State != TCAState.NoEC? ICON_ON : ICON_NC;
-				else TCAToolbarButton.TexturePath = ICON_OFF;
+				if(TCAToolbarButton != null)
+				{
+					if(TCA.IsStateSet(TCAState.Enabled))
+						TCAToolbarButton.TexturePath = TCA.State != TCAState.NoEC? ICON_ON : ICON_NC;
+					else TCAToolbarButton.TexturePath = ICON_OFF;
+				}
+				if(TCAButton != null) 
+				{
+					if(TCA.IsStateSet(TCAState.Enabled))
+						TCAButton.SetTexture(TCA.State != TCAState.NoEC? textureOn : textureNoCharge);
+					else TCAButton.SetTexture(textureOff);
+				}
 			}
-			if(TCAButton != null) 
+			else if(HighLogic.LoadedSceneIsEditor && EnginesProfileEditor.Available)
 			{
-				if(TCA.IsStateSet(TCAState.Enabled))
-					TCAButton.SetTexture(TCA.State != TCAState.NoEC? textureOn : textureNoCharge);
-				else TCAButton.SetTexture(textureOff);
+				if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = ICON_OFF;
+				if(TCAButton != null) TCAButton.SetTexture(textureOff);
 			}
+			else SetDefaultButton();
 		}
 	}
 }

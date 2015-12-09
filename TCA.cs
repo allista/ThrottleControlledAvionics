@@ -148,9 +148,9 @@ namespace ThrottleControlledAvionics
 			apply_cfg(cfg =>
 			{
 				cfg.DesiredAltitude = altitude;
-				s_altitude = altitude.ToString("F1");
-				cfg.BlockThrottle |= CFG.VSCIsActive;
+				cfg.BlockThrottle = true;
 			});
+			s_altitude = altitude.ToString("F1");
 		}
 
 		static void set_vspeed(float vspeed)
@@ -158,7 +158,7 @@ namespace ThrottleControlledAvionics
 			apply_cfg(cfg =>
 			{
 				cfg.VerticalCutoff = vspeed;
-				cfg.BlockThrottle |= CFG.VSCIsActive;
+				cfg.BlockThrottle |= cfg.VSCIsActive;
 			});
 		}
 		#endregion
@@ -167,7 +167,6 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCA == null) return;
 			if(!TCA.Available && !init()) return;
-			TCAToolbarManager.UpdateToolbarButton();
 			if(!TCA.Controllable) return;
 			if(selecting_key)
 			{ 

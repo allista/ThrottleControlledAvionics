@@ -28,6 +28,8 @@ namespace ThrottleControlledAvionics
 			set { if(instance != null && instance.CFG != null) instance.CFG.GUIVisible = value; }
 		}
 
+		public static bool Available { get; private set; }
+
 		public override void Awake()
 		{
 			base.Awake();
@@ -36,8 +38,7 @@ namespace ThrottleControlledAvionics
 			GameEvents.onEditorShipModified.Add(OnShipModified);
 			GameEvents.onEditorLoad.Add(OnShipLoad);
 			GameEvents.onEditorRestart.Add(Reset);
-			TCAToolbarManager.SetDefaultButton();
-			TCAToolbarManager.ShowButton(false);
+			Available = false;
 			//update TCA part infos
 			foreach(var ap in PartLoader.LoadedPartsList)
 			{
@@ -136,13 +137,12 @@ namespace ThrottleControlledAvionics
 			}
 			if(reset)
 			{
-				TCAToolbarManager.ShowButton(false);
+				Available = false;
 				Engines.Clear();
 				CFG = null;
 				reset = false;
 			}
-			else if(CFG != null && Engines.Count > 0)
-				TCAToolbarManager.ShowButton();
+			else Available |= CFG != null && Engines.Count > 0;
 		}
 
 		protected override void DrawMainWindow(int windowID)

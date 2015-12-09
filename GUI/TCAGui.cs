@@ -85,44 +85,48 @@ namespace ThrottleControlledAvionics
 
 		protected override void DrawMainWindow(int windowID)
 		{
-			//options button
-			if(GUI.Button(new Rect(2f, 2f, 70f, 18f), 
-			              new GUIContent("advanced", "Advanced configuration"), 
-			              advOptions? Styles.green_button : Styles.normal_button)) 
-				advOptions = !advOptions;
 			//help button
 			if(GUI.Button(new Rect(MainWindow.width - 23f, 2f, 20f, 18f), 
-			              new GUIContent("?", "Help"))) TCAManual.Toggle();
-			GUILayout.BeginVertical();
-			GUILayout.BeginHorizontal();
-			//tca toggle
-			if(GUILayout.Button("Enabled", 
-			                    CFG.Enabled? Styles.green_button : Styles.grey_button,
-			                    GUILayout.Width(70)))
-				Apply(tca => tca.ToggleTCA());
-			//squad mode switch
-			Utils.ButtonSwitch("Squadron Mode", ref squad_mode, 
-			                   "Control autopilot on all squadron vessels", 
-			                   GUILayout.ExpandWidth(false));
-			if(squad_mode) CFG.Squad = Utils.IntSelector(CFG.Squad, 1, tooltip: "Squad ID");
-			GUILayout.FlexibleSpace();
-			StatusString();
-			GUILayout.EndHorizontal();
-			SelectConfig_start();
-			AdvancedOptions();
-			AttitudeControls();
-			InOrbitControl();
-			AutopilotControls();
-			MacroControls();
-			WaypointList();
-			EnginesControl();
-			#if DEBUG
-			if(!string.IsNullOrEmpty(DebugMessage))
-				GUILayout.Label(DebugMessage, Styles.white, GUILayout.ExpandWidth(true));
-//			EnginesInfo();
-			#endif
-			SelectConfig_end();
-			GUILayout.EndVertical();
+			                  new GUIContent("?", "Help"))) TCAManual.Toggle();
+			if(TCA.Controllable)
+			{
+				//options button
+				if(GUI.Button(new Rect(2f, 2f, 70f, 18f), 
+				              new GUIContent("advanced", "Advanced configuration"), 
+				              advOptions? Styles.green_button : Styles.normal_button)) 
+					advOptions = !advOptions;
+				GUILayout.BeginVertical();
+				GUILayout.BeginHorizontal();
+				//tca toggle
+				if(GUILayout.Button("Enabled", 
+				                    CFG.Enabled? Styles.green_button : Styles.grey_button,
+				                    GUILayout.Width(70)))
+					Apply(tca => tca.ToggleTCA());
+				//squad mode switch
+				Utils.ButtonSwitch("Squadron Mode", ref squad_mode, 
+				                   "Control autopilot on all squadron vessels", 
+				                   GUILayout.ExpandWidth(false));
+				if(squad_mode) CFG.Squad = Utils.IntSelector(CFG.Squad, 1, tooltip: "Squad ID");
+				GUILayout.FlexibleSpace();
+				StatusString();
+				GUILayout.EndHorizontal();
+				SelectConfig_start();
+				AdvancedOptions();
+				AttitudeControls();
+				InOrbitControl();
+				AutopilotControls();
+				MacroControls();
+				WaypointList();
+				EnginesControl();
+				#if DEBUG
+				if(!string.IsNullOrEmpty(DebugMessage))
+					GUILayout.Label(DebugMessage, Styles.white, GUILayout.ExpandWidth(true));
+	//			EnginesInfo();
+				#endif
+				SelectConfig_end();
+				GUILayout.EndVertical();
+			}
+			else GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
 			base.DrawMainWindow(windowID);
 		}
 
@@ -830,7 +834,7 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(TCA == null || !TCA.Controllable || !CFG.GUIVisible || !showHUD) 
+			if(TCA == null || !CFG.GUIVisible || !showHUD) 
 			{
 				Utils.LockIfMouseOver(LockName, MainWindow, false);
 				return;
