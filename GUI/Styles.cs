@@ -112,9 +112,11 @@ namespace ThrottleControlledAvionics
 			//lable
 			label  = GUI.skin.label.OtherColor(Color.white);
 			label.alignment = TextAnchor.MiddleCenter;
+			label.wordWrap = true;
 
 			rich_label = GUI.skin.label.OtherColor(Color.white);
 			rich_label.richText = true;
+			rich_label.wordWrap = true;
 
 			//slider
 			slider = new GUIStyle(GUI.skin.horizontalSlider);

@@ -178,7 +178,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!advOptions) return;
 			GUILayout.BeginVertical(Styles.white);
-			GUILayout.Label(TCATitle, Styles.label);
+			GUILayout.Label(TCATitle, Styles.label, GUILayout.ExpandWidth(true));
 			if(GUILayout.Button("Reload TCA Settings", Styles.yellow_button, GUILayout.ExpandWidth(true))) 
 			{
 				TCAScenario.LoadGlobals();
@@ -287,7 +287,7 @@ namespace ThrottleControlledAvionics
 		static void ConfigsGUI()
 		{
 			GUILayout.BeginVertical();
-			GUILayout.Label("Manage named configurations:", Styles.label);
+			GUILayout.Label("Manage named configurations", Styles.label, GUILayout.ExpandWidth(true));
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Name:", GUILayout.Width(50));
 			config_name = GUILayout.TextField(config_name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
