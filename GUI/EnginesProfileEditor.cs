@@ -119,6 +119,13 @@ namespace ThrottleControlledAvionics
 		void Update()
 		{
 			if(EditorLogic.fetch == null) return;
+			if(reset)
+			{
+				Available = false;
+				Engines.Clear();
+				CFG = null;
+				reset = false;
+			}
 			if(init_engines)
 			{
 				if(UpdateEngines(EditorLogic.fetch.ship))
@@ -135,14 +142,7 @@ namespace ThrottleControlledAvionics
 				}
 				update_engines = false;
 			}
-			if(reset)
-			{
-				Available = false;
-				Engines.Clear();
-				CFG = null;
-				reset = false;
-			}
-			else Available |= CFG != null && Engines.Count > 0;
+			Available |= CFG != null && Engines.Count > 0;
 		}
 
 		protected override void DrawMainWindow(int windowID)
