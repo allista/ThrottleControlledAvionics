@@ -95,13 +95,12 @@ if __name__ == '__main__':
                 print 'Adding: %s' % to_add
                 zipf.write(to_add)
     #get commit history
-    commits = repo.log('HEAD')
     changelog = ''
-    for c in commits:
+    for c in repo.iter_commits('HEAD'):
         if c.message.startswith('v'):
             if c.message.startswith(version): continue
             break
-        else: changelog += '* %s\n' % c.message
+        else: changelog += '* %s' % c.message
     #write changelog
     if changelog:
         chlog_file = join(releases, current+'.log') 
