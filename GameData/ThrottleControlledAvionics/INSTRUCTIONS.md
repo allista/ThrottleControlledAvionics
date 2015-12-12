@@ -58,15 +58,31 @@ Each engine has also a *group ID*. By default it is set to zero, meaning the eng
 
 ##Engines' Profiles
 
+An *Engines Profile* is a sets of configurations of all the engines a ship has.
+Engine configuration includes: 
+
+* *On/Off* state: should the engine be active when its profile is?
+* Engine's *mode*
+* For a *Manual* engine: its *thrust limiter*
+
+A *group* of engines has a single configuration.
+
+An engine in a profile is identified by its name, position in a ship and thrust characteristics; so, in principle, a profile may be transferred to another ship of a similar design via *Named Configuration* (see *Appendix*).
+
+Only one profile can be active at any moment, and there is always an active profile. A profile may be designated as *Default*. A default profile cannot be deleted and is automatically switched to when no other profile is available in a given situation.
+
+In-flight a profile may be switched to manually, or automatically on one of the two conditions: *on activation of a given stage*; or *on going into/out-of orbit*. The latter is defined by the current trajectory: if the ship is in orbit or on an escape trajectory, or not.
+
 ##Interface Basics
 
-TCA graphical interface consists of the three separate windows:
+TCA graphical interface consists of the four separate windows:
 
 * In-Flight main window that controls all the aspects of TCA functionality
 * In-Editor configuration window that allows editing of engines profiles and pre-launch TCA state
 * Macro Editor window that is available both in flight and in editor
+* Manual wondow (in which you're probably reading this), that is always available.
 
-First two windows are summoned by TCA toolbar button. Both Blizzy's Toolbar and the stock AppLauncher are supported; by default the Toolbar is used when it is available, but this may be changed in TCA.glob file (see *Appendix*).
+The Main, In-Editor and Manual windows are summoned by TCA toolbar button. Both Blizzy's Toolbar and the stock AppLauncher are supported; by default the Toolbar is used when it is available, but this may be changed in TCA.glob file (see *Appendix*).
 
 ###Tooltips
 
@@ -76,15 +92,31 @@ Most of TCA control elements -- buttons, input fields, sliders -- have tooltips 
 
 Many of the TCA functions are controlled through *switches*. These are buttons that are <color=lime>green</color> when the function is enabled, <color=yellow>yellow</color> when it is disabled, and gray when it is unavailable.
 
+###Mutually exclusive functions
+
+Many of the TCA functions are mutually exclusive from the user's point of view. This means that often when **you** enable one button switch others that were active are automatically switched off.
+
+Autopilot programs, on the other hand, use underlying basic functionality through a different interface; that's why when **you** enable, say, *Land* switch, the *Stop* switch also becomes enabled, but if **you** enable the *Stop* switch by hand, all other programs stop and corresponding switches become inactive.
+
 ###TCA activation and status
 
 To enable/disable TCA, use the **Enabled** switch at the top-left corner of the main window, **or** the hot-key (Y by default). The hot-key may be changed in the *Advanced* section (see *Appendix*).
 
 In flight the icon of the TCA toolbar button changes according to TCA state: "Disabled", "Enabled", "No Electric Charge". A more descriptive status is displayed in the top-right corner of the main window.
 
+###In-Editor Configuration Window
+
+In Editor, TCA Configuration window may be summoned by the toolbar button **if** a ship has at least one TCA-capable command module **and** at least one engine. Otherwise the Manual is summoned by that button. On the right corner of the titlebar of the Configuration window there is a [**?**] button that also summons the Manual.
+
+On top of the Configuration window there's a big *Edit Macros* button that summons the Macro Editor (see **Macros** section).
+
+Below it there's a set of switches that correspond to several TCA functions in-flight, which allows to set the initial TCA state for current vessel.
+
+Next there's a big field of the *Engines Profile Editor*, that allows you to create, delete and modify ship's Engines Profiles.
+
 ##Attitude Control (T-SAS)
 
-##Vertical Speed and Altitude Control
+##Vertical Speed and Altitude Control (VCS)
 
 ###Hovering and horizontal flight
 
@@ -98,7 +130,7 @@ VSC is also very useful to maintain stable horizontal flight. Consider a VTOL th
 
 ###AutoThrottle
 
-When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
+When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed or altitude instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
 
 ##Horizontal Speed Control (HSC)
 
