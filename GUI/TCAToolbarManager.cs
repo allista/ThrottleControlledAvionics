@@ -60,10 +60,6 @@ namespace ThrottleControlledAvionics
 			else 
 			{
 				Utils.Log("Using stock AppLauncher");
-				textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);
-				textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);
-				textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);
-				textureMan = GameDatabase.Instance.GetTexture(ICON_MAN, false);
 				GameEvents.onGUIApplicationLauncherReady.Add(AddAppLauncherButton);
 //				GameEvents.onGUIApplicationLauncherDestroyed.Add(RemoveAppLauncherButton);
 			}
@@ -89,6 +85,10 @@ namespace ThrottleControlledAvionics
 		void AddAppLauncherButton()
 		{
 			if(!ApplicationLauncher.Ready) return;
+			textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);
+			textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);
+			textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);
+			textureMan = GameDatabase.Instance.GetTexture(ICON_MAN, false);
 			if(TCAButton == null)
 			{
 				Utils.Log("Adding AppLauncher button");
