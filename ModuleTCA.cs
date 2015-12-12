@@ -298,14 +298,6 @@ namespace ThrottleControlledAvionics
 				SASC.UnblockSAS();
 			}
 		}
-
-		public void BlockThrottle(bool state)
-		{
-			if(state == CFG.BlockThrottle) return;
-			CFG.BlockThrottle = state;
-			if(CFG.BlockThrottle && CFG.VerticalCutoff >= GLB.VSC.MaxSpeed)
-				CFG.VerticalCutoff = 0;
-		}
 		#endregion
 
 		public override void OnUpdate()

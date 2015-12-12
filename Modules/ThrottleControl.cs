@@ -23,12 +23,7 @@ namespace ThrottleControlledAvionics
 		static Config THR { get { return TCAScenario.Globals.THR; } }
 		public ThrottleControl(ModuleTCA tca) { TCA = tca; }
 
-		float throttle = -1;
-		public float Throttle
-		{ 
-			get { return throttle; }
-			set { throttle = value; CFG.BlockThrottle = throttle < 0; }
-		}
+		public float Throttle = -1;
 		public float DeltaV;
 
 		public float NextThrottle(float dV, float thrust, float throttle)
@@ -37,9 +32,17 @@ namespace ThrottleControlledAvionics
 			return Utils.Clamp((dV/dt/thrust*VSL.M-throttle*VSL.ThrustDecelerationTime/dt), 0f, 1f); 
 		}
 
+		public void BlockThrottle(bool state)
+		{
+			if(state == CFG.BlockThrottle) return;
+			CFG.BlockThrottle = state;
+			if(CFG.BlockThrottle && CFG.VerticalCutoff >= GLB.VSC.MaxSpeed)
+				CFG.VerticalCutoff = 0;
+		}
+
 		void reset()
 		{
-			throttle = -1;
+			Throttle = -1;
 			DeltaV = 0;
 		}
 
@@ -49,14 +52,14 @@ namespace ThrottleControlledAvionics
 			if(DeltaV >= THR.MinDeltaV)
 				Throttle = NextThrottle(DeltaV, VSL.MaxThrustM, VSL.ctrlState.mainThrottle) *
 					TCA.ATC.AttitudeFactor;
-			if(CFG.BlockThrottle)
-				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
-			else if(Throttle >= 0) 
+			if(Throttle >= 0) 
 			{ 
 				s.mainThrottle = Throttle; 
 				VSL.ctrlState.mainThrottle = Throttle; 
 				if(VSL.IsActiveVessel) FlightInputHandler.state.mainThrottle = Throttle;
 			}
+			else if(CFG.BlockThrottle)
+				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
 			reset();
 		}
 	}

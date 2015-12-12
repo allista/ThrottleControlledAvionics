@@ -257,7 +257,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!VSL.InOrbit) return;
 			GUILayout.BeginHorizontal();
-			if(Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
+			if(VSL.Countdown >= 0 && Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
 			{
 				CFG.WarpToNode = !CFG.WarpToNode;
 				if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
@@ -384,12 +384,12 @@ namespace ThrottleControlledAvionics
 		                                                GLB.VSC.MaxSpeed);
 					if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5) set_vspeed(VSP);
 				}
-				TCA.BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
-				                                   new GUIContent("AutoThrottle",
-				                                                  CFG.VF[VFlight.AltitudeControl]?
-				                                                  "Change altitude with throttle controls" :
-				                                                  "Set vertical speed with throttle controls"), 
-				                                   GUILayout.ExpandWidth(false)));
+				TCA.THR.BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
+					                                   new GUIContent("AutoThrottle",
+					                                                  CFG.VF[VFlight.AltitudeControl]?
+					                                                  "Change altitude with throttle controls" :
+					                                                  "Set vertical speed with throttle controls"), 
+					                                   GUILayout.ExpandWidth(false)));
 				GUILayout.EndHorizontal();
 				#if DEBUG
 				GUILayout.BeginHorizontal();
