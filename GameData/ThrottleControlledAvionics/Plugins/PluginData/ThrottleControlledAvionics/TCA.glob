@@ -5,7 +5,7 @@ InputDeadZone        = 0.03
 MaxManualGroups      = 10
 KeyRepeatTime        = 0.1
 WaypointHeight       = 5
-ExhaustSafeDist      = 1.1
+ExhaustSafeDist      = 1.3
 
 RCS
 {
