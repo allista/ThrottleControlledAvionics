@@ -44,7 +44,7 @@ TCA can also control horizontal speed of a vessel *by changing the direction of 
 
 All of the above combined provides basis for a set of a much more complex autopilot programs, including waypoint navigation, automatic landing and more.
 
-##Engines' Modes and Groups
+##Engine Modes and Groups
 
 In editor or in flight, through the part menu or engines' *Profiles* (discussed later) you may set any engine to work in one of the following modes: 
 
@@ -56,7 +56,7 @@ In editor or in flight, through the part menu or engines' *Profiles* (discussed 
 Each engine has also a *group ID*. By default it is set to zero, meaning the engine is not included into any group. But *all the engines sharing the same non-zero group ID will also share the mode and*, if they are Manual engines, *the value of thrust limiters*
 . This is a mere convenience to setup engines quicker during construction and to have shorter Profiles.
 
-##Engines' Profiles
+##Engines Profiles
 
 An *Engines Profile* is a sets of configurations of all the engines a ship has.
 Engine configuration includes: 
@@ -71,7 +71,9 @@ An engine in a profile is identified by its name, position in a ship and thrust 
 
 Only one profile can be active at any moment, and there is always an active profile. A profile may be designated as *Default*. A default profile cannot be deleted and is automatically switched to when no other profile is available in a given situation.
 
-In-flight a profile may be switched to manually, or automatically on one of the two conditions: *on activation of a given stage*; or *on going into/out-of orbit*. The latter is defined by the current trajectory: if the ship is in orbit or on an escape trajectory, or not.
+In-flight a profile may activated manually; or automatically on one of the following conditions: *on activation of a given stage*; or *on going into/out-of orbit*. The latter is defined by the current trajectory: if the ship is in orbit or on an escape trajectory, or not.
+
+Another option available for a profile is leveling of a ship on activation (the *Level *switch). If enabled, this option automatically enables the *Level* program of the *HSC*, causing the ship to point its thrust vector downwards. This is useful when you switch between, say, linear-rocket profile and a VTOL profile while deorbiting.
 
 ##Interface Basics
 
@@ -80,7 +82,7 @@ TCA graphical interface consists of the four separate windows:
 * In-Flight main window that controls all the aspects of TCA functionality
 * In-Editor configuration window that allows editing of engines profiles and pre-launch TCA state
 * Macro Editor window that is available both in flight and in editor
-* Manual wondow (in which you're probably reading this), that is always available.
+* Manual wondow (in which you're probably reading this), that is *always* available.
 
 The Main, In-Editor and Manual windows are summoned by TCA toolbar button. Both Blizzy's Toolbar and the stock AppLauncher are supported; by default the Toolbar is used when it is available, but this may be changed in TCA.glob file (see *Appendix*).
 
@@ -110,27 +112,71 @@ In Editor, TCA Configuration window may be summoned by the toolbar button **if**
 
 On top of the Configuration window there's a big *Edit Macros* button that summons the Macro Editor (see **Macros** section).
 
-Below it there's a set of switches that correspond to several TCA functions in-flight, which allows to set the initial TCA state for current vessel.
+Below it there's a set of switches that correspond to several TCA functions in-flight, which allows to define the initial TCA state for current ship construct.
 
-Next there's a big field of the *Engines Profile Editor*, that allows you to create, delete and modify ship's Engines Profiles.
+Next there's a big field of the *Engines Profile Editor*, that allows you to create, delete and edit ship's Engines Profiles.
+
+###In-Flight Main Window
+
+The Main window consists of several rows of controls. Generally, each row represents one of the TCA subsystems, which are discussed in the corresponding sections. The first row, however, has just three elements:
+
+1. *Enabled* switch that enables/disables the TCA itself.
+2. *Squadron Mode* switch that toggles the squadron mode (see below).
+    * If it is enabled, the *squad ID chooser* is shown next to this switch.
+3. *TCA Status Indicator* that shows current TCA status.
+
+And above the rows there's a titlebar which also has tow buttons: the **advanced** switch that toggles *Advanced* section (see *Appendix*) and the [**?**] button that summons the **Manual**.
 
 ##Attitude Control (T-SAS)
 
+The controls of the T-SAS subsystem are located in the second row of the Main window:
+
+* *State Indicator* that is white when T-SAS is inactive and <color=cyan>cyan</color> when it's active. It is followed by the *mode switches*:
+    * **Kill** causes T-SAS to automatically kill any angular velocity the ship has. It is different from the stock SAS in that it does not try to hold any particular attitude; it just kills any rotation. But it does this much more quickly and efficiently, without oscillations.
+    * **Hold** is analogous to the stock SAS.
+    * **Maneuver** points the thrust vector along the maneuver vector, thus allowing to perform maneuvers with engines that are not aligned with the command module.
+    * **PG** and **RG** -- prograde and retrograde respectively.
+    * **R+** and **R-** -- along/against the radius-vector of the current curvature of the ship's trajectory.
+    * **N+** and **N-** -- along/against the orbit normal vector.
+    * **T+** and **T-** -- to/from the current target.
+    * **rV+** and **rV-** -- along/against the velocity relative to the target.
+* *Auto* indicator/switch that is green when some other subsystem uses T-SAS to point the thrust in some custom direction, and is grayed out otherwise.
+* *Error* indicator that displays the angular error (in degrees) between the desired and actual attitudes. When T-SAS is inactive, this indicator shows "N/A".
+
 ##Vertical Speed and Altitude Control (VCS)
 
-###Hovering and horizontal flight
+If you're using TCA to control VTOL or during vertical landing of a rocket, it is more convenient to control the vertical speed or altitude of a ship 'directly', rather than the Main Throttle. The VSC allows you (or the autopilot program) to do just that. Its controls are located in the third row of the Main window.
 
-If you're using TCA to control VTOL or during vertical landing of a rocket, you may enable the Vertical Speed Control.
+###Vertical Speed mode controls
 
-The desired vertical speed may be set with the slider. Then the total thrust of all controllable engines is modified in an attempt to reach the specified vertical speed. To completely disable the VSC, just set the desired vertical speed to its maximum value.
+This is the default mode of the VSC which has the following controls:
 
-VSC is also very useful to maintain stable horizontal flight. Consider a VTOL that has lifted off, reached some altitude and started to pitch to get some forward momentum. If the thrust of its engines will remain constant, it will start to loose altitude as it moves forward. But with the VSC the thrust will be adjusted, and the VTOL will move more or less in a plane.
+* *Vertical Speed* indicator that shows current vertical speed.
+* **Set Point** slider that shows and allows to set the desired vertical speed. The limits of the set-point are defined in *TCA.glob::VSC* (see *Appendix*). *If the slider is set to its **maximum***, the VSC is <color=red>switched off</color> and the engines are controlled by Main Throttle only.
+
+###Altitude mode controls
+
+The mode itself is toggled with the *Hover* switch located in the row below. When it is enabled, it provides the following controls:
+
+* *Altitude* indicator that shows *current altitude +/- current vertical speed*. In the *Follow Terrain* mode both values are relative to the surface below and may change very rapidly if you're flying above a ragged terrain.
+* **Set Point** control that consists of several elements:
+    1. *Desired Altitude* filed that shows and allows to change the value of the desired altitude directly typing it in from keyboard. If the value *is set* and is <color=lime>green</color>, the altitude is above the ground; if it's <color=red>red</color> it is below.
+    2. **Set** button that applies the value entered in the *Desired Altitude* field.
+    3. **-10m** and **+10m** buttons subtract or add ten meters to the currently set desired altitude.
 
 ###Follow Terrain mode
 
+This option is controlled by a check-box to the right of the *Hover* switch.
+
+When it is enabled, it changes the meaning of altitude and vertical speed within TCA: all systems start using *height from the ground* and *vertical speed of the **ground** relative to the ship* rather than altitude relative to the 'sea level' and vertical speed relative to the planet's center.
+
+It also enables the *Radar* that scans the relief on course. The, to avoid collisions with hillside, mountains or buildings, TCA temporarily either changes the course, or slows the ship down and increases the altitude to fly above the obstacle. This behavior is also indicated by corresponding status messages: "Ascending" and "Obstacle On Course".
+
 ###AutoThrottle
 
-When this option is enabled, the throttle is locked at 100% and throttle controls are used to set desired vertical speed or altitude instead. If VSC system was switched off it is automatically enabled and the desired speed is set to 0.
+This option is controlled by a check-box at the end of the VSC controls row of the Main window.
+
+When it is enabled, the Main Throttle is locked at 100% and the keyboard throttle controls (default: *Shift*/*Ctrl*, *Z* and *X*) are used to set desired vertical speed or altitude instead. If VSC itself is off (i.e. the *Hover* is off and the desired vertical speed is set to maximum) and *AutoThrottle* is enabled, it automatically enables VSC and sets the desired vertical speed to 0.
 
 ##Horizontal Speed Control (HSC)
 
@@ -226,3 +272,5 @@ If you have already tuned these parameters for the ship, _save its configuration
 Most of the user-related settings are available through the TCA GUI. There are, however, tons of internal parameters that are located in the _GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/**TCA.glob**_ file. Generally, it is not recommended to tamper with this file, but several of the settings there may be of interest to some users.
 
 It is a plane text file which may be edited using any text editor. After saving, if the game is already running and a TCA-enabled vessel is in flight, you may apply the changes by going to the "Advanced" pane in the main window and pressing the "Reload TCA Settings" button.
+
+Its contents is divided into sections dedicated to TCA subsystems. To reference those in this Manual I use the special notation: **TCA.glob::SectionName**.
