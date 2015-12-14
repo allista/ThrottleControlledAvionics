@@ -161,7 +161,7 @@ namespace ThrottleControlledAvionics
 			if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Enable Altitude Control", GUILayout.ExpandWidth(false)))
 				CFG.VF.Toggle(VFlight.AltitudeControl);
 			Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false));
-			Utils.ButtonSwitch("Use Throttle", ref CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
+			Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
 			Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
 			Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
