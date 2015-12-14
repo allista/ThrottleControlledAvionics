@@ -107,8 +107,8 @@ namespace ThrottleControlledAvionics
 
 		public int Level = 1;
 		public override string Text
-		{ get { return items.Aggregate("", (s, i) => s+(i is MDList? i.Text : indent(Level)+i.Text+"\n"))+"\n"; } }
-		public override string ToString() { return Root.Text; }
+		{ get { return items.Aggregate("", (s, i) => s+(i is MDList? i.Text : indent(Level)+i.Text+"\n")); } }
+		public override string ToString() { return Root.Text+"\n"; }
 
 		public MDList(int ind) { OrigIndent = ind; }
 
