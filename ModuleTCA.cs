@@ -123,7 +123,7 @@ namespace ThrottleControlledAvionics
 
 		void onVesselModify(Vessel vsl)
 		{ 
-			if(vsl == null || vsl != vessel) return;
+			
 			check_priority();
 			if(!enabled) reset();
 			else if(VSL == null || VSL.vessel == null ||
@@ -154,8 +154,9 @@ namespace ThrottleControlledAvionics
 
 		IEnumerator<YieldInstruction> onVesselModifiedUpdate()
 		{
-			yield break; //for some future initializations//
-//			yield return new WaitForSeconds(0.5f);
+			if(!CFG.Enabled) yield break;
+			yield return new WaitForSeconds(0.5f);
+			VSL.SetUnpackDistance(GLB.UnpackDistance);
 		}
 
 		void check_priority()
@@ -266,7 +267,6 @@ namespace ThrottleControlledAvionics
 			create_modules();
 			modules.ForEach(m => m.Init());
 			ThrottleControlledAvionics.AttachTCA(this);
-			VSL.SetUnpackDistance(GLB.UnpackDistance);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
 			StartCoroutine(onVesselModifiedUpdate());
 			CFG.Resume();
@@ -290,10 +290,14 @@ namespace ThrottleControlledAvionics
 		{
 			CFG.Enabled = !CFG.Enabled;
 			if(CFG.Enabled) //test
+			{
 				CFG.ActiveProfile.Update(VSL.Engines, true);
-			else //reset engine limiters
+				VSL.SetUnpackDistance(GLB.UnpackDistance);
+			}
+			else
 			{
 				VSL.Engines.ForEach(e => e.forceThrustPercentage(100));
+				VSL.RestoreUnpackDistance();
 				State = TCAState.Disabled;
 				SASC.UnblockSAS();
 			}
