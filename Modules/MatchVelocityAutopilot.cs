@@ -98,7 +98,6 @@ namespace ThrottleControlledAvionics
 				                           VSL.UT, VSL.UT + VSL.orbit.period, 0.01, 
 				                           MVA.OrbitSolverIterations, ref iters);
 				TTA = (float)(ApprUT-VSL.UT);
-				//test
 				//if near enough, use local-space calculation
 				var pos = VSL.Target.GetTransform().position-VSL.wCoM;
 				if(TimeWarp.CurrentRateIndex == 0 && 

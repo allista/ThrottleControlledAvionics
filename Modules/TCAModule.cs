@@ -126,12 +126,12 @@ namespace ThrottleControlledAvionics
 
 		public bool Register(TCAModule module, Func<VesselWrapper,bool> predicate = null) 
 		{ 
-			Log("Registering: {0}", module.GetType().Name);//debug
+//			Log("Registering: {0}", module.GetType().Name);//debug
 			return Clients.Add(new Client(module, predicate)); }
 
 		public bool Unregister(TCAModule module) 
 		{ 
-			Log("UnRegistering: {0}", module.GetType().Name);//debug
+//			Log("UnRegistering: {0}", module.GetType().Name);//debug
 			return Clients.Remove(new Client(module)); }
 	}
 }
