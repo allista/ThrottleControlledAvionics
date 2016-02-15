@@ -255,11 +255,13 @@ namespace ThrottleControlledAvionics
 			get { return engine.thrustPercentage/100f; }
 			set
 			{
+				if(engine.throttleLocked) return;
 				thrustController.Update(value*100-engine.thrustPercentage);
 				engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController.Action, 0, 100);
 			}
 		}
-		public void forceThrustPercentage(float value) { engine.thrustPercentage = Mathf.Clamp(value, 0, 100); }
+		public void forceThrustPercentage(float value) 
+		{ if(!engine.throttleLocked) engine.thrustPercentage = Mathf.Clamp(value, 0, 100); }
 
 		public override bool isOperational { get { return engine.isOperational; } }
 		#endregion

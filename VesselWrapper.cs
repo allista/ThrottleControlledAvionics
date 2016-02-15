@@ -10,6 +10,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -170,6 +171,37 @@ namespace ThrottleControlledAvionics
 		public Vector3d PredictedHorVelocity(float time) { return Vector3d.Exclude(Up, vessel.srf_velocity+vessel.acceleration*time); }
 		#endregion
 
+		#region VesselRanges
+		static List<FieldInfo> situation_ranges = typeof(VesselRanges)
+			.GetFields(BindingFlags.Public|BindingFlags.Instance)
+			.Where(fi => fi.FieldType.Equals(typeof(VesselRanges.Situation))).ToList();
+		VesselRanges saved_ranges;
+
+		public void SetUnpackDistance(float distance)
+		{
+			if(saved_ranges == null) 
+				saved_ranges = new VesselRanges(vessel.vesselRanges);
+			foreach(var fi in situation_ranges)
+			{
+				var sit = fi.GetValue(vessel.vesselRanges) as VesselRanges.Situation;
+				if(sit == null) continue;
+				sit.pack   = distance*1.5f;
+				sit.unpack = distance;
+				sit.unload = distance*2.5f;
+				sit.load   = distance*2f;
+				Log("{0}: unload {1}, load {2}, pack {3}, unpack {4}", fi.Name, sit.unload, sit.load, sit.pack, sit.unpack);//debug
+			}
+		}
+
+		public void RestoreUnpackDistance()
+		{
+			if(saved_ranges == null) return;
+			vessel.vesselRanges = new VesselRanges(saved_ranges);
+			saved_ranges = null;
+			Log("VesselRanges restored");//debug
+		}
+		#endregion
+
 		#region Updates
 		public VesselWrapper(ModuleTCA tca)
 		{
@@ -197,6 +229,7 @@ namespace ThrottleControlledAvionics
 		public void Reset()
 		{
 			OnAutopilotUpdate -= UpdateAutopilotInfo;
+			RestoreUnpackDistance();
 		}
 
 		bool _OnPlanet() 
@@ -220,13 +253,6 @@ namespace ThrottleControlledAvionics
 				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
 				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
-		}
-
-		public void SetUnpackDistance(float distance)
-		{
-			var sit = vessel.vesselRanges.GetSituationRanges(vessel.situation);
-			sit.pack = distance*1.5f;
-			sit.unpack = distance;
 		}
 
 		public void UpdateState()
@@ -772,7 +798,7 @@ namespace ThrottleControlledAvionics
 				else if(TCA.HSC.ManualTranslationSwitch.On)
 					e.forceThrustPercentage(e.limit*100);
 				else if(TCA.HSC.ManualTranslationSwitch.WasSet)
-					e.engine.thrustPercentage = 0;
+					e.forceThrustPercentage(0);
 			}
 			TCA.HSC.ManualTranslationSwitch.Checked();
 			if(NoActiveRCS) return;

@@ -150,10 +150,11 @@ namespace ThrottleControlledAvionics
 				{
 					Changed = true;
 					e.limit = e.best_limit = 0;
-					e.engine.thrustPercentage = 0;
+					e.forceThrustPercentage(0);
 				}
 			}
-			if(Changed && VSL.CanUpdateEngines) CFG.ActiveProfile.Update(VSL.ActiveEngines);
+			if(Changed && VSL.CanUpdateEngines) 
+				CFG.ActiveProfile.Update(VSL.ActiveEngines);
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
