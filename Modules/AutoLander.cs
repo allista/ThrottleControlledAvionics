@@ -30,7 +30,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float NodeTargetRange      = 15;
 			[Persistent] public float NodeAnchorF          = 0.5f;
 			[Persistent] public float GearOnAtH            = 5;
-			[Persistent] public float StopAtAlt            = 2;
+			[Persistent] public float StopAtH              = 2;
 			[Persistent] public float StopTimer            = 2;
 			[Persistent] public float CutoffTimer          = 2;
 
@@ -436,15 +436,15 @@ namespace ThrottleControlledAvionics
 				}
 				else
 				{
-					if(VSL.Altitude > LND.StopAtAlt+VSL.H)
+					if(VSL.Altitude > LND.StopAtH*VSL.H)
 						CFG.Nav.OnIfNot(Navigation.Anchor);
 					else 
 					{
 						CFG.Nav.OffIfOn(Navigation.Anchor);
 						CFG.HF.OnIfNot(HFlight.Stop);
 					}
-					set_VSpeed(VSL.SlowThrust? -0.5f :
-					           Mathf.Lerp(-0.5f, -1, VSL.Altitude/(VSL.H*LND.GearOnAtH)));
+					set_VSpeed((VSL.SlowThrust? -0.5f : -1f)
+					           *Utils.ClampL(1-VSL.HorizontalSpeed, 0.1f));
 				}
 				CutoffTimer.Reset();
 				break;
