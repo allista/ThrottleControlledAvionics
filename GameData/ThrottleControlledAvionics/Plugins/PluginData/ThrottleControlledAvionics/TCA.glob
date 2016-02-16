@@ -203,14 +203,14 @@ LND
 	MaxUnevenness        = 0.3
 	UnevennessThreshold  = 0.6
 	MaxHorizontalTime    = 2
-	MinVerticalSpeed     = 0.7
+	MinVerticalSpeed     = 1
 	WideCheckAltitude    = 100
 	MaxWideCheckAltitude = 1000
 	WideCheckLevel       = 7
 	NodeTargetRange      = 50
 	NodeAnchorRange      = 5
 	GearOnAtH            = 5
-	StopAtAlt            = 2
+	StopAtH              = 2
 	StopTimer            = 1
 	CutoffTimer          = 1
 }
@@ -234,11 +234,12 @@ RAD
 
 ANC
 {
-	DistanceF     = 0.2
+	DistanceF     = 0.5
 	MaxSpeed      = 10
 	AngularAccelF = 0.5
 	MaxAccelF     = 4
 	LookAheadTime = 2
+	SlowTorqueF   = 1
 	
 	DistancePID
 	{
