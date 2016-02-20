@@ -21,28 +21,23 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "PN";
 
-			[Persistent] public float MinDistance        = 30;
-			[Persistent] public float MinTime            = 10;
-			[Persistent] public float OnPathMinDistance  = 300;
-			[Persistent] public float MinSpeed           = 10;
-			[Persistent] public float MaxSpeed           = 300;
-			[Persistent] public float DeltaSpeed         = 10f;
-			[Persistent] public float DeltaSpeedF        = 0.5f;
-			[Persistent] public float FallingSensitivity = 10f;
-			[Persistent] public float FallingCorrection  = 3f;
-			[Persistent] public float AltErrSensitivity  = 10f;
-			[Persistent] public float DistanceF          = 2;
-			[Persistent] public float DirectNavThreshold = 1;
-			[Persistent] public float GCNavStep          = 0.1f;
-			[Persistent] public float LookAheadTime      = 2f;
-			[Persistent] public float BearingCutoff      = 60f;
+			[Persistent] public float MinDistance          = 30;
+			[Persistent] public float MinTime              = 10;
+			[Persistent] public float OnPathMinDistance    = 300;
+			[Persistent] public float MinSpeed             = 10;
+			[Persistent] public float MaxSpeed             = 300;
+			[Persistent] public float DistanceF            = 2;
+			[Persistent] public float DirectNavThreshold   = 1;
+			[Persistent] public float GCNavStep            = 0.1f;
+			[Persistent] public float LookAheadTime        = 2f;
+			[Persistent] public float BearingCutoff        = 60f;
 			[Persistent] public float FormationSpeedCutoff = 5f;
-			[Persistent] public float FormationFactor    = 0.2f;
-			[Persistent] public float FormationBreakTime = 10f;
-			[Persistent] public float TakeoffAltitude    = 100f;
-			[Persistent] public float BrakeOffset        = 1.5f;
-			[Persistent] public float PitchRollAAf       = 100f;
-			[Persistent] public float FollowerMaxAwaySpped = 15f;
+			[Persistent] public float FormationFactor      = 0.2f;
+			[Persistent] public float FormationBreakTime   = 10f;
+			[Persistent] public float TakeoffAltitude      = 100f;
+			[Persistent] public float BrakeOffset          = 1.5f;
+			[Persistent] public float PitchRollAAf         = 100f;
+			[Persistent] public float FollowerMaxAwaySpeed = 15f;
 
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 
@@ -65,7 +60,6 @@ namespace ThrottleControlledAvionics
 		public bool Maneuvering { get; private set; }
 		public List<FormationNode> Formation;
 
-		float DeltaSpeed;
 		readonly PIDf_Controller pid = new PIDf_Controller();
 		readonly Timer ArrivedTimer = new Timer();
 
@@ -289,7 +283,7 @@ namespace ThrottleControlledAvionics
 						if(distance < CFG.Target.Distance)
 							TCA.HSC.CourseCorrections.Add(tvel*Utils.Clamp(-distance/CFG.Target.Distance*PN.FormationFactor, -PN.FormationFactor, 0));
 						else if(Vector3.Dot(vdir, dvel) < 0 && 
-						        (dvel.magnitude > PN.FollowerMaxAwaySpped ||
+						        (dvel.magnitude > PN.FollowerMaxAwaySpeed ||
 						         distance > CFG.Target.Distance*5))
 						{
 							keep_formation = true;
@@ -421,31 +415,7 @@ namespace ThrottleControlledAvionics
 			}
 			//update the needed velocity
 			pid.Update(distance*PN.DistanceF);
-			//increase the needed velocity slowly
-			cur_vel = Utils.ClampL(cur_vel, 1);
-			DeltaSpeed = PN.DeltaSpeed*Mathf.Pow(PN.DeltaSpeed/(cur_vel+PN.DeltaSpeed), PN.DeltaSpeedF);
-			//make a correction if falling or flyin too low
-			var mtwr = Utils.ClampL(VSL.MaxTWR, 0.1f);
-			var V = (CFG.AltitudeAboveTerrain? VSL.RelVerticalSpeed : VSL.AbsVerticalSpeed);
-			if(V < 0 && IsStateSet(TCAState.LoosingAltitude))
-			{
-				DeltaSpeed /= 1-Utils.ClampH(V, 0)
-					/(CFG.AltitudeAboveTerrain? VSL.Altitude : 1)
-					*PN.FallingSensitivity/mtwr;
-				if(DeltaSpeed < 1) 
-				{
-					var a = Utils.ClampL(PN.FallingCorrection/mtwr/-V, PN.FallingCorrection);
-					cur_vel *= (a-1+DeltaSpeed)/a;
-				}
-			}
-			if(CFG.VF[VFlight.AltitudeControl])
-			{
-				var alt_error = (CFG.DesiredAltitude-VSL.Altitude);
-				if(CFG.AltitudeAboveTerrain) alt_error /= VSL.Altitude;
-				if(alt_error > 0) DeltaSpeed /= 1+alt_error*PN.AltErrSensitivity/mtwr;
-			}
-			//set needed velocity and starboard
-			var nV = pid.Action-cur_vel > DeltaSpeed? vdir*(cur_vel+DeltaSpeed) : vdir*pid.Action;
+			var nV = vdir*pid.Action;
 			//correcto for Follow Target program
 			if(CFG.Nav[Navigation.FollowTarget] && Vector3d.Dot(tvel, vdir) > 0) nV += tvel;
 			TCA.HSC.SetNeededHorVelocity(nV);
