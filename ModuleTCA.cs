@@ -333,21 +333,18 @@ namespace ThrottleControlledAvionics
 			VSL.ClearFrameState();
 			VSL.UpdateOnPlanetStats();
 			MPR.OnFixedUpdate();
-			if(VSL.NumActiveEngines > 0)
-			{
-				//these follow specific order
-				MAN.OnFixedUpdate();
-				MVA.OnFixedUpdate();
-				RAD.OnFixedUpdate();//sets AltitudeAhead
-				LND.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
-				ALT.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
-				CPS.OnFixedUpdate();//updates VerticalCutoff
-				VSC.OnFixedUpdate();//uses VerticalCutoff
-				ANC.OnFixedUpdate();
-				TLA.OnFixedUpdate();
-				STB.OnFixedUpdate();
-				PN.OnFixedUpdate();
-			}
+			//these follow specific order
+			MAN.OnFixedUpdate();
+			MVA.OnFixedUpdate();
+			RAD.OnFixedUpdate();//sets AltitudeAhead
+			LND.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
+			ALT.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
+			CPS.OnFixedUpdate();//updates VerticalCutoff
+			VSC.OnFixedUpdate();//uses VerticalCutoff
+			ANC.OnFixedUpdate();
+			TLA.OnFixedUpdate();
+			STB.OnFixedUpdate();
+			PN.OnFixedUpdate();
 			SASC.OnFixedUpdate();
 			WRP.OnFixedUpdate();
 			//handle engines
