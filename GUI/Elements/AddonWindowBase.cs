@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
 		protected static Rect drag_handle = new Rect(0,0, 10000, 20);
 		protected static int  width = 550, height = 100;
 		protected static Rect MainWindow = new Rect();
-		static protected bool showHUD = true;
+		public static bool showHUD { get; protected set; } = true;
 
 		static protected string TCATitle;
 

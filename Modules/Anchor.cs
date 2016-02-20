@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(HorizontalSpeedControl))]
 	public class Anchor : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -27,7 +28,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
 		static Config ANC { get { return TCAScenario.Globals.ANC; } }
-		public Anchor(ModuleTCA tca) { TCA = tca; }
+		public Anchor(ModuleTCA tca) : base(tca) {}
 
 		readonly PIDf_Controller pid = new PIDf_Controller();
 		readonly EWA AccelCorrection = new EWA();
@@ -54,7 +55,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				TCA.SASC.Register(this);
+				RegisterTo<SASBlocker>();
 				break;
 			case Multiplexer.Command.On:
 				if(CFG.Anchor == null) return;
@@ -62,7 +63,7 @@ namespace ThrottleControlledAvionics
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
-				TCA.SASC.Unregister(this);
+				UnregisterFrom<SASBlocker>();
 				CFG.Anchor = null;
 				break;
 			}
@@ -71,8 +72,8 @@ namespace ThrottleControlledAvionics
 		public void AnchorHereCallback(Multiplexer.Command cmd)
 		{
 			if(cmd == Multiplexer.Command.On)
-				CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(VSL.wCoM), 
-				                          VSL.mainBody.GetLongitude(VSL.wCoM));
+				CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(VSL.Physics.wCoM), 
+				                          VSL.mainBody.GetLongitude(VSL.Physics.wCoM));
 			AnchorCallback(cmd);
 		}
 
@@ -85,27 +86,36 @@ namespace ThrottleControlledAvionics
 			CFG.Anchor.Update(VSL.mainBody);
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position - 
-			                                  (VSL.wCoM+
-			                                   VSL.HorizontalVelocity*ANC.LookAheadTime), 
-			                                  VSL.Up);
+			                                  (VSL.Physics.wCoM+
+			                                   VSL.HorizontalSpeed.Vector*ANC.LookAheadTime), 
+			                                  VSL.Physics.Up);
 			var distance = Mathf.Sqrt(vdir.magnitude);
 			vdir.Normalize();
 			//tune the pid and update needed velocity
-			AccelCorrection.Update(Mathf.Clamp(VSL.MaxThrustM*VSL.MinVSFtwr/VSL.M/ANC.MaxAccelF, 0.01f, 1)*
-			                       Mathf.Clamp(VSL.MaxPitchRollAA_m/ANC.AngularAccelF, 0.01f, 1), 0.01f);
+			AccelCorrection.Update(Mathf.Clamp(VSL.Engines.MaxThrustM*VSL.OnPlanetParams.MinVSFtwr/VSL.Physics.M/ANC.MaxAccelF, 0.01f, 1)*
+			                       Mathf.Clamp(VSL.Torque.MaxPitchRollAA_m/ANC.AngularAccelF, 0.01f, 1), 0.01f);
 			pid.P   = ANC.DistancePID.P*AccelCorrection;
 			pid.D   = ANC.DistancePID.D*(2-AccelCorrection);
-			pid.Update(distance*ANC.DistanceF/(VSL.SlowTorque? 1+VSL.TorqueResponseTime*ANC.SlowTorqueF : 1f));
-			TCA.HSC.SetNeededHorVelocity(vdir*pid.Action);
+			pid.Update(distance*ANC.DistanceF/(VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ANC.SlowTorqueF : 1f));
+			VSL.HorizontalSpeed.SetNeeded(vdir*pid.Action);
 //			Log("dist {0}, pid {1}, nHV {2}, slow {3}, torque response {4}", 
-//			    distance, pid, TCA.HSC.NeededHorVelocity, slow, VSL.TorqueResponseTime);//debug
+//			    distance, pid, VSL.HorizontalSpeed.NeededVector, slow, VSL.TorqueResponseTime);//debug
+		}
+
+		public override void Draw()
+		{
+			if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
+			                    CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor)? 
+			                    Styles.green_button : Styles.yellow_button,
+			                    GUILayout.Width(60)))
+				apply_cfg(cfg => cfg.Nav.XToggle(Navigation.AnchorHere));
 		}
 
 		#if DEBUG
 		public void AnchorPointer()
 		{
 			if(CFG.Anchor == null) return;
-			GLUtils.GLLine(VSL.wCoM, CFG.Anchor.GetTransform().position, Color.cyan);
+			GLUtils.GLLine(VSL.Physics.wCoM, CFG.Anchor.GetTransform().position, Color.cyan);
 		}
 
 		public override void Reset()

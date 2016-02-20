@@ -7,11 +7,11 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(HorizontalSpeedControl))]
 	public class FlightStabilizer : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinAngularVelocity = 0.001f; //(rad/s)^2 ~= 1.8deg/s
 		}
 		static Config STB { get { return TCAScenario.Globals.STB; } }
-		public FlightStabilizer(ModuleTCA tca) { TCA = tca; }
+		public FlightStabilizer(ModuleTCA tca) : base(tca) {}
 
 		readonly Timer OnTimer = new Timer();
 		readonly Timer OffTimer = new Timer();
@@ -40,7 +40,7 @@ namespace ThrottleControlledAvionics
 				VSL.OnPlanet && 
 				CFG.StabilizeFlight && 
 				!VSL.LandedOrSplashed && 
-				(Working || !CFG.HF && !CFG.AT && !VSL.ActionGroups[KSPActionGroup.SAS] && !VSL.AutopilotDisabled);
+				(Working || !CFG.HF && !CFG.AT && !VSL.vessel.ActionGroups[KSPActionGroup.SAS] && !VSL.AutopilotDisabled);
 			if(IsActive) return;
 			if(Working) CFG.HF.OffIfOn(HFlight.Level);
 			Working = false;
@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
 				SetState(TCAState.StabilizeFlight);
 				CFG.HF.OnIfNot(HFlight.Level);
 			}
-			var omega = Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.Up);
+			var omega = Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.Physics.Up);
 			if(omega.sqrMagnitude > STB.MinAngularVelocity)
 			{ 
 				OffTimer.Reset();
@@ -70,7 +70,7 @@ namespace ThrottleControlledAvionics
 					Working = false;
 					CFG.HF.OffIfOn(HFlight.Level);
 					CFG.SASIsControlled = false;
-					VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
+					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
 				}, Working);
 			}
 		}

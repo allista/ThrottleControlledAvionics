@@ -11,6 +11,8 @@ using System;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(HorizontalSpeedControl))]
+	[OptionalModules(typeof(PointNavigator))]
 	public class VTOLAssist : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -31,7 +33,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float GearOnTime      = 5f;
 		}
 		static Config TLA { get { return TCAScenario.Globals.TLA; } }
-		public VTOLAssist(ModuleTCA tca) { TCA = tca; }
+		public VTOLAssist(ModuleTCA tca) : base(tca) {}
 
 		bool last_state, landed, tookoff;
 		readonly Timer GearTimer   = new Timer();
@@ -86,7 +88,7 @@ namespace ThrottleControlledAvionics
 			{
 				working();
 				CFG.HF.OnIfNot(HFlight.Level);
-				VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
+				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
 				LandedTimer.RunIf(() => landed = false,
 				                  VSL.HorizontalSpeed < TLA.MinHSpeed);
 			}
@@ -97,10 +99,10 @@ namespace ThrottleControlledAvionics
 				StopAction.Run(() => CFG.HF.OnIfNot(HFlight.Stop));
 				GearTimer.RunIf(() =>
 				{ 
-					VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
-					VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
+					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 					tookoff = false;
-				}, VSL.RelAltitude > TLA.GearOnAtH+VSL.H);
+				}, VSL.Altitude.Relative > TLA.GearOnAtH+VSL.Geometry.H);
 			}
 			//moving on the ground
 			else if(VSL.LandedOrSplashed)
@@ -111,8 +113,8 @@ namespace ThrottleControlledAvionics
 				{
 					working();
 					CFG.HF.OnIfNot(HFlight.Level);
-					if(avSqr > TLA.GearOffAngularVelocity && VSL.DTWR > TLA.MinDTWR)
-						VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+					if(avSqr > TLA.GearOffAngularVelocity && VSL.OnPlanetParams.DTWR > TLA.MinDTWR)
+						VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 				}
 				else working(false);
 			}
@@ -121,24 +123,24 @@ namespace ThrottleControlledAvionics
 			{
 				working(false);
 				//if the gear is on, nothing to do; and autopilot takes precedence
-				if(!VSL.ActionGroups[KSPActionGroup.Gear] && !CFG.AP[Autopilot.Land])
+				if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear] && !CFG.AP[Autopilot.Land])
 				{
 					//check boundary conditions
 					GearTimer.RunIf(() => 
 					{
-						VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
-						VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
+						VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
+						VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
 					},
-					                VSL.RelVerticalSpeed < 0 &&
+					                VSL.VerticalSpeed.Relative < 0 &&
 					                VSL.HorizontalSpeed < TLA.GearOnMaxHSpeed &&
-					                VSL.RelAltitude+VSL.RelVerticalSpeed*(TLA.GearOnTime+TLA.GearTimer) < TLA.GearOnAtH*VSL.H);
+					                VSL.Altitude.Relative+VSL.VerticalSpeed.Relative*(TLA.GearOnTime+TLA.GearTimer) < TLA.GearOnAtH*VSL.Geometry.H);
 				}
 				else GearTimer.RunIf(() => 
 				{
-					VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
-					VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
+					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
 				},
-				                     VSL.RelVerticalSpeed > 0 ||
+				                     VSL.VerticalSpeed.Relative > 0 ||
 				                     VSL.HorizontalSpeed > TLA.GearOnMaxHSpeed);
 			}
 		}

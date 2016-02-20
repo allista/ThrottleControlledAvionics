@@ -10,6 +10,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -22,29 +23,68 @@ namespace ThrottleControlledAvionics
 		bool IsStateSet(TCAState state);
 	}
 
-	public class TCAModule : ITCAModule
+	public abstract class TCAComponent : ITCAModule
+	{
+		public readonly ModuleTCA TCA;
+		public VesselWrapper VSL { get { return TCA.VSL; } }
+		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		public VesselConfig CFG { get { return VSL.CFG; } }
+		public TCAState State { get { return VSL.State; } }
+		public void SetState(TCAState state) { VSL.State |= state; }
+		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
+
+		protected SquadControl SQD;
+
+		protected TCAComponent(ModuleTCA tca)
+		{ 
+			TCA = tca; 
+			InitModuleFields();
+		}
+
+		protected void InitModuleFields()
+		{
+			List<FieldInfo> ModuleFields = GetType()
+				.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Instance|BindingFlags.NonPublic)
+				.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToList();
+			ModuleFields.ForEach(fi => fi.SetValue(this, TCA.GetModule(fi.FieldType)));
+		}
+
+		protected void apply(Action<ModuleTCA> action)
+		{
+			if(SQD == null) action(TCA);
+			else SQD.Apply(action);
+		}
+
+		protected void apply_cfg(Action<VesselConfig> action)
+		{
+			if(SQD == null) action(CFG);
+			else SQD.ApplyCFG(action);
+		}
+
+		public abstract void Draw();
+	}
+
+	public class TCAModule : TCAComponent
 	{
 		public class ModuleConfig : ConfigNodeObject
 		{
 			public virtual void Init() {}
 		}
 
-		protected ModuleTCA TCA;
-
-		public VesselWrapper VSL { get { return TCA.VSL; } }
-		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
-		public VesselConfig CFG { get { return VSL.CFG; } }
-		public TCAState State { get { return VSL.State; } }
 		public bool IsActive { get; protected set; }
 		public bool Working { get; protected set; }
-		public void SetState(TCAState state) { VSL.State |= state; }
-		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
+
+		protected TCAModule(ModuleTCA tca) : base(tca) {}
 
 		public virtual void Init() {}
 		protected virtual void UpdateState() {}
 		protected virtual void Update() {}
 		public void OnFixedUpdate() { UpdateState(); Update(); }
 		public virtual void Reset() {}
+		public virtual void ClearFrameState() {}
+		public virtual void OnEnable(bool enabled) {}
+		public virtual void ProcessKeys() {}
+		public override void Draw() {}
 
 		protected void SetTarget(WayPoint wp)
 		{
@@ -56,13 +96,19 @@ namespace ThrottleControlledAvionics
 			VSL.Target = t;
 		}
 
-		#region SquadMode
-		public void SquadAction(Action<VesselWrapper> action)
+		public bool RegisterTo<S>(Func<VesselWrapper,bool> predicate = null) 
+			where S : TCAService
 		{
-			if(ThrottleControlledAvionics.VSL != this.VSL) return;
-			ThrottleControlledAvionics.Apply(tca => action(tca.VSL));
+			var srv = TCA.GetModule<S>();
+			return srv != null && srv.Register(this, predicate);
 		}
-		#endregion
+
+		public bool UnregisterFrom<S>() 
+			where S : TCAService
+		{
+			var srv = TCA.GetModule<S>();
+			return srv != null && srv.Unregister(this);
+		}
 
 		#if DEBUG
 		protected void Log(string msg, params object[] args)
@@ -83,8 +129,9 @@ namespace ThrottleControlledAvionics
 
 	public abstract class AutopilotModule : TCAModule
 	{
-		public override void Init() { base.Init(); VSL.OnAutopilotUpdate -= UpdateCtrlState; VSL.OnAutopilotUpdate += UpdateCtrlState; }
-		public override void Reset() { VSL.OnAutopilotUpdate -= UpdateCtrlState; }
+		protected AutopilotModule(ModuleTCA tca) : base(tca) {}
+		public override void Init() { base.Init(); VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; VSL.vessel.OnAutopilotUpdate += UpdateCtrlState; }
+		public override void Reset() { VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; }
 		public void UpdateCtrlState(FlightCtrlState s) { UpdateState(); OnAutopilotUpdate(s); }
 		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
 
@@ -92,7 +139,7 @@ namespace ThrottleControlledAvionics
 		{
 			// Disable the new SAS so it won't interfere. But enable it while in timewarp for compatibility with PersistentRotation
 			if(TimeWarp.WarpMode != TimeWarp.Modes.HIGH || TimeWarp.CurrentRateIndex == 0)
-				VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
+				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 		}
 
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
@@ -125,13 +172,11 @@ namespace ThrottleControlledAvionics
 		protected bool HasActiveClients { get { return Clients.Any(c => c); } }
 
 		public bool Register(TCAModule module, Func<VesselWrapper,bool> predicate = null) 
-		{ 
-//			Log("Registering: {0}", module.GetType().Name);//debug
-			return Clients.Add(new Client(module, predicate)); }
+		{ return Clients.Add(new Client(module, predicate)); }
 
 		public bool Unregister(TCAModule module) 
-		{ 
-//			Log("UnRegistering: {0}", module.GetType().Name);//debug
-			return Clients.Remove(new Client(module)); }
+		{ return Clients.Remove(new Client(module)); }
+
+		protected TCAService(ModuleTCA tca) : base(tca) {}
 	}
 }

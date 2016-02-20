@@ -41,7 +41,7 @@ namespace ThrottleControlledAvionics
 	{
 		public VerticalVelocityCondition() { Suffix = "m/s"; }
 		protected override float VesselValue(VesselWrapper VSL)
-		{ return VSL.AbsVerticalSpeed; }
+		{ return VSL.VerticalSpeed.Absolute; }
 	}
 
 	public class OnPlanetCondition : Condition

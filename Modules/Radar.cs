@@ -12,6 +12,9 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[OptionalModules(typeof(AltitudeControl),
+	                 typeof(HorizontalSpeedControl),
+	                 typeof(PointNavigator))]
 	public class Radar : TCAService
 	{
 		public class Config : ModuleConfig
@@ -53,9 +56,10 @@ namespace ThrottleControlledAvionics
 			Both = Vertical|Horizontal 
 		}
 
-		public Radar(ModuleTCA tca)
+		HorizontalSpeedControl HSC;
+
+		public Radar(ModuleTCA tca) : base(tca)
 		{ 
-			TCA = tca;
 			CurHit = new Sweep(VSL);
 			BestHit = new Sweep(VSL);
 			DetectedHit = new Sweep(VSL);
@@ -64,7 +68,7 @@ namespace ThrottleControlledAvionics
 
 		public float AltitudeAhead { get; private set; }
 		public float TimeAhead { get; private set; }
-		public bool  MoovingFast { get; private set; }
+//		public bool  MoovingFast { get; private set; }
 
 		static   int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery"));
 		//normal radar
@@ -125,7 +129,7 @@ namespace ThrottleControlledAvionics
 			if(IsActive)
 			{
 				mode = Mode.Off;
-				MoovingFast = VSL.HorizontalSpeed > RAD.MinClosingSpeed;
+				VSL.HorizontalSpeed.MoovingFast = VSL.HorizontalSpeed > RAD.MinClosingSpeed;
 				if(CFG.HF && !CFG.HF[HFlight.Level])
 					mode |= Mode.Horizontal;
 				if(CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain)
@@ -163,7 +167,8 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			var zero_needed = TCA.HSC.NeededHorVelocity.IsZero();
+			var NeededHorVelocity = HSC == null? Vector3d.zero : VSL.HorizontalSpeed.NeededVector;
+			var zero_needed = NeededHorVelocity.IsZero();
 //			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
 //			   (zero_needed && !CFG.Nav.Any(Navigation.FollowPath, Navigation.FollowTarget, Navigation.GoToTarget) ||
 //			    CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
@@ -186,30 +191,30 @@ namespace ThrottleControlledAvionics
 				rewind();
 			}
 			//calculate closing speed and initial ray direction
-			var alt_threshold = VSL.AbsAltitude-VSL.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2);
+			var alt_threshold = VSL.Altitude.Absolute-VSL.Geometry.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2);
 			Dir = Vector3.zero;
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
 			if((DistanceAhead < 0 || DistanceAhead > RAD.MinDistanceAhead ||
-		        Vector3.Dot(RelObstaclePosition, TCA.HSC.NeededHorVelocity) < 0) &&
-		       (VSL.HorizontalSpeed >= RAD.MaxClosingSpeed ||
+		        Vector3.Dot(RelObstaclePosition, NeededHorVelocity) < 0) &&
+			   (VSL.HorizontalSpeed >= RAD.MaxClosingSpeed ||
 			    zero_needed && 
-		        VSL.HorizontalSpeed >= RAD.MinClosingSpeed))
+			    VSL.HorizontalSpeed >= RAD.MinClosingSpeed))
 			{
-				Dir = VSL.HorizontalVelocity.normalized;
+				Dir = VSL.HorizontalSpeed.normalized;
 				if(VSL.IsStateSet(TCAState.LoosingAltitude))
 					Dir = Vector3.Lerp(Dir, SurfaceVelocity.normalized,
-					                   RAD.LookAheadTime/(VSL.Altitude/-VSL.RelVerticalSpeed)/VSL.MaxDTWR);
+					                   RAD.LookAheadTime/(VSL.Altitude/-VSL.VerticalSpeed.Relative)/VSL.OnPlanetParams.MaxDTWR);
 			}
 			else Dir = zero_needed? 
-					Vector3d.Exclude(VSL.Up, VSL.Fwd).normalized : 
-					TCA.HSC.NeededHorVelocity.normalized;
+					Vector3d.Exclude(VSL.Physics.Up, VSL.OnPlanetParams.Fwd).normalized : 
+					NeededHorVelocity.normalized;
 			Dir.Normalize();
 			ClosingSpeed = Utils.ClampL(Vector3.Dot(SurfaceVelocity, Dir), RAD.MinClosingSpeed);
 			//cast the sweep and the fwd ray
 			MaxDistance = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
 			if(ViewAngle < 0) MaxDistance = MaxDistance/Mathf.Cos(ViewAngle*Mathf.Deg2Rad)*(1+ClosingSpeed/RAD.UpViewSlope*Utils.ClampL(-ViewAngle/RAD.UpViewAngle, 0));
 			CurHit.Cast(Dir, ViewAngle, MaxDistance);
-			ForwardRay.Cast(VSL.wCoM, SurfaceVelocity.normalized, (float)SurfaceVelocity.magnitude*GLB.CPS.LookAheadTime*3, VSL.R*2);
+			ForwardRay.Cast(VSL.Physics.wCoM, SurfaceVelocity.normalized, (float)SurfaceVelocity.magnitude*GLB.CPS.LookAheadTime*3, VSL.Geometry.R*2);
 			//check the hit
 			if(CurHit.BeforeDestination(SurfaceVelocity))
 			{
@@ -222,11 +227,11 @@ namespace ThrottleControlledAvionics
 					{
 						//queue avoiding maneuver with CPS
 						SideCollision = true;
-						var collision_point = Vector3.ProjectOnPlane(CurHit.Obstacle.RelPosition(VSL.wCoM), VSL.Up);
+						var collision_point = Vector3.ProjectOnPlane(CurHit.Obstacle.RelPosition(VSL.Physics.wCoM), VSL.Physics.Up);
 						var dist = collision_point.magnitude;
 						Vector3d maneuver;
 						if(CollisionPreventionSystem.AvoidStatic(VSL, collision_point/dist, dist, 
-						                                         Vector3d.Exclude(VSL.Up, SurfaceVelocity), out maneuver))
+						                                         Vector3d.Exclude(VSL.Physics.Up, SurfaceVelocity), out maneuver))
 						{
 							if(Vector3d.Dot(SideManeuver, maneuver) > 0 ||
 							   SideManeuver.sqrMagnitude < maneuver.sqrMagnitude)
@@ -255,7 +260,8 @@ namespace ThrottleControlledAvionics
 			}
 			if(AngleDelta < RAD.AngleDelta) LittleSteps++;
 			//if on side collision course, correct it
-			if(!SideManeuver.IsZero()) TCA.HSC.CourseCorrections.Add(SideManeuver);
+			if(HSC != null && !SideManeuver.IsZero()) 
+				HSC.CourseCorrections.Add(SideManeuver);
 			//probe for surface height
 			Altimeter.ProbeHeightAhead(Dir);
 			//update collision info if detected something
@@ -268,7 +274,7 @@ namespace ThrottleControlledAvionics
 				Obstacle = Altimeter.Obstacle;
 			if(ForwardRay.Valid)
 			{
-				ForwardRay.ClaculateAltitude(VSL.Up, VSL.AbsAltitude);
+				ForwardRay.ClaculateAltitude(VSL.Physics.Up, VSL.Altitude.Absolute);
 				if(ForwardRay.Altitude > Obstacle.Altitude || ForwardRay.Altitude > alt_threshold)
 					Obstacle = new TerrainPoint(ForwardRay.Altitude, ForwardRay.CollisionPoint);
 			}
@@ -279,20 +285,23 @@ namespace ThrottleControlledAvionics
 			if(AltitudeAhead > alt_threshold) //deadzone of twice the detection height
 			{ 
 				if(CollisionSpeed < ClosingSpeed) CollisionSpeed = ClosingSpeed;
-				RelObstaclePosition = Vector3.ProjectOnPlane(Obstacle.RelPosition(VSL.wCoM), VSL.Up);
-				DistanceAhead = Utils.ClampL(RelObstaclePosition.magnitude-VSL.R, 0.1f);
+				RelObstaclePosition = Vector3.ProjectOnPlane(Obstacle.RelPosition(VSL.Physics.wCoM), VSL.Physics.Up);
+				DistanceAhead = Utils.ClampL(RelObstaclePosition.magnitude-VSL.Geometry.R, 0.1f);
 				TimeAhead = DistanceAhead/Vector3.Dot(SurfaceVelocity, RelObstaclePosition.normalized);
-				Vector3d dV;
-				if(DistanceAhead > RAD.MinDistanceAhead)
-					dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
-						-Math.Sqrt(1-Utils.ClampH(DistanceAhead/ClosingSpeed/RAD.LookAheadTime*VSL.MaxTWR*RAD.NHVf, 1));
-				else if(DistanceAhead > RAD.MinDistanceAhead/2)
-					dV = -TCA.HSC.NeededHorVelocity;
-				else if(Vector3d.Dot(SurfaceVelocity, RelObstaclePosition) > 0)
-					dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
-						-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.MaxPitchRollAA_m;
-				else dV = -TCA.HSC.NeededHorVelocity;
-				TCA.HSC.CourseCorrections.Add(dV);
+				if(HSC != null)
+				{
+					Vector3d dV;
+					if(DistanceAhead > RAD.MinDistanceAhead)
+						dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
+							-Math.Sqrt(1-Utils.ClampH(DistanceAhead/ClosingSpeed/RAD.LookAheadTime*VSL.OnPlanetParams.MaxTWR*RAD.NHVf, 1));
+					else if(DistanceAhead > RAD.MinDistanceAhead/2)
+						dV = -NeededHorVelocity;
+					else if(Vector3d.Dot(SurfaceVelocity, RelObstaclePosition) > 0)
+						dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
+							-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.Torque.MaxPitchRollAA_m;
+					else dV = -NeededHorVelocity;
+					HSC.CourseCorrections.Add(dV);
+				}
 			}
 			else CollisionSpeed = -1;
 			//update angle for the next ray
@@ -328,19 +337,20 @@ namespace ThrottleControlledAvionics
 			{ return Valid? (float)(Position-pos).magnitude : -1; }
 
 			public bool CanCollideWith(VesselWrapper vsl, float threshold = 0)
-			{ return vsl.AbsAltitude-Altitude-vsl.H-threshold < 0; }
+			{ return vsl.Altitude.Absolute-Altitude-vsl.Geometry.H-threshold < 0; }
 
 			public static bool operator <(TerrainPoint p1, TerrainPoint p2)
 			{ return p1.Altitude < p2.Altitude;	}
 			public static bool operator >(TerrainPoint p1, TerrainPoint p2)
 			{ return p1.Altitude > p2.Altitude;	}
 
-			public bool BeforeDestination(VesselWrapper vsl, Vector3d vel)
+			public bool BeforeDestination(VesselWrapper VSL, PointNavigator PN, Vector3d vel)
 			{ 
 				return Valid &&
-					(vsl.TCA.PN.Destination.IsZero() ||
-					 Vector3.Dot(RelPosition(vsl.wCoM+vsl.TCA.PN.Destination), vsl.TCA.PN.Destination) < 0 ||
-					 Vector3.Dot(vel, vsl.TCA.PN.Destination) < 0);
+					(PN == null || 
+					 PN.Destination.IsZero() ||
+					 Vector3.Dot(RelPosition(VSL.Physics.wCoM+PN.Destination), PN.Destination) < 0 ||
+					 Vector3.Dot(vel, PN.Destination) < 0);
 			}
 
 			public override string ToString()
@@ -423,6 +433,7 @@ namespace ThrottleControlledAvionics
 			public enum ManeuverType { None, Horizontal, Vertical }
 
 			VesselWrapper VSL;
+			PointNavigator PN;
 			Ray L, C, R;
 
 			public ManeuverType Maneuver { get; private set; }
@@ -431,13 +442,15 @@ namespace ThrottleControlledAvionics
 			public bool  Valid { get; private set; }
 
 			public bool BeforeDestination(Vector3d vel)
-			{ return Obstacle.BeforeDestination(VSL, vel); }
+			{ return Obstacle.BeforeDestination(VSL, PN, vel); }
 
-			public Sweep(VesselWrapper vsl)	{ VSL = vsl; }
+			public Sweep(VesselWrapper vsl)	
+			{ VSL = vsl; PN = vsl.TCA.GetModule<PointNavigator>(); }
 
 			public void Copy(Sweep s)
 			{
 				VSL = s.VSL;
+				PN = s.PN;
 				L = s.L; C = s.C; R = s.R;
 				Obstacle = s.Obstacle;
 				Altitude = s.Altitude;
@@ -458,17 +471,17 @@ namespace ThrottleControlledAvionics
 				Reset();
 				if(VSL.refT == null) return;
 				//cast the rays
-				var side = Vector3.Cross(VSL.Up, dir)*VSL.R*1.5f;
+				var side = Vector3.Cross(VSL.Physics.Up, dir)*VSL.Geometry.R*1.5f;
 				var cast_dir = Quaternion.AngleAxis(angle, side)*dir;
-				Valid |= L.Cast(VSL.wCoM-side, cast_dir, dist, VSL.R);
-				Valid |= C.Cast(VSL.wCoM,      cast_dir, dist, VSL.R);
-				Valid |= R.Cast(VSL.wCoM+side, cast_dir, dist, VSL.R);
+				Valid |= L.Cast(VSL.Physics.wCoM-side, cast_dir, dist, VSL.Geometry.R);
+				Valid |= C.Cast(VSL.Physics.wCoM,      cast_dir, dist, VSL.Geometry.R);
+				Valid |= R.Cast(VSL.Physics.wCoM+side, cast_dir, dist, VSL.Geometry.R);
 				if(Valid) 
 				{
 					L.ClaculateAltitude(dir, angle);
 					C.ClaculateAltitude(dir, angle);
 					R.ClaculateAltitude(dir, angle);
-					Altitude = VSL.AbsAltitude-Mathf.Min(L.Altitude, C.Altitude, R.Altitude);
+					Altitude = VSL.Altitude.Absolute-Mathf.Min(L.Altitude, C.Altitude, R.Altitude);
 					Ray ray;
 					if(L.Valid && !R.Valid) { ray = L; Maneuver = ManeuverType.Horizontal; }
 					else if(!L.Valid && R.Valid) { ray = R; Maneuver = ManeuverType.Horizontal; }
@@ -501,6 +514,7 @@ namespace ThrottleControlledAvionics
 		public class PQS_Altimeter
 		{
 			readonly VesselWrapper VSL;
+			readonly PointNavigator PN;
 			float LookAheadTime = 1;
 			float LookAheadTimeDelta = 1;
 
@@ -509,7 +523,8 @@ namespace ThrottleControlledAvionics
 			public TerrainPoint Obstacle { get; private set; }
 			public float Altitude { get { return (float)Obstacle.Altitude; } }
 
-			public PQS_Altimeter(VesselWrapper vsl) { VSL = vsl; }
+			public PQS_Altimeter(VesselWrapper vsl) 
+			{ VSL = vsl; PN = vsl.TCA.GetModule<PointNavigator>(); }
 
 			void rewind()
 			{
@@ -519,7 +534,7 @@ namespace ThrottleControlledAvionics
 			}
 
 			public bool BeforeDestination(Vector3d vel)
-			{ return Obstacle.BeforeDestination(VSL, vel); }
+			{ return Obstacle.BeforeDestination(VSL, PN, vel); }
 
 			public void ProbeHeightAhead(Vector3 Dir)
 			{
@@ -535,10 +550,10 @@ namespace ThrottleControlledAvionics
 						Obstacle = BestPoint;
 					rewind();
 				}
-				CurPoint.Update(VSL.wCoM+Dir*(VSL.R+Utils.ClampL(VSL.HorizontalSpeed, 0.1f)*LookAheadTime), VSL.mainBody);
+				CurPoint.Update(VSL.Physics.wCoM+Dir*(VSL.Geometry.R+Utils.ClampL(VSL.HorizontalSpeed, 0.1f)*LookAheadTime), VSL.mainBody);
 				if(CurPoint > BestPoint) BestPoint = CurPoint;
 				if(BestPoint > Obstacle) Obstacle = BestPoint;
-				if(VSL.AbsAltitude-CurPoint.Altitude <= VSL.H)
+				if(VSL.Altitude.Absolute-CurPoint.Altitude <= VSL.Geometry.H)
 				{
 					LookAheadTime -= LookAheadTimeDelta;
 					LookAheadTimeDelta /= 2;
@@ -551,7 +566,7 @@ namespace ThrottleControlledAvionics
 
 			#if DEBUG
 			public void Draw() 
-			{ GLUtils.GLLine(VSL.wCoM, CurPoint.Position, Color.green); }
+			{ GLUtils.GLLine(VSL.Physics.wCoM, CurPoint.Position, Color.green); }
 			#endif
 		}
 	}

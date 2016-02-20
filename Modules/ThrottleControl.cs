@@ -8,9 +8,12 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[OptionalModules(typeof(VerticalSpeedControl))]
+	[ModuleInputs(typeof(AttitudeControl))]
 	public class ThrottleControl : AutopilotModule
 	{
 		public class Config : ModuleConfig
@@ -21,7 +24,9 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float DeltaVThreshold  = 10f;  //sec
 		}
 		static Config THR { get { return TCAScenario.Globals.THR; } }
-		public ThrottleControl(ModuleTCA tca) { TCA = tca; }
+		public ThrottleControl(ModuleTCA tca) : base(tca) {}
+
+		AttitudeControl ATC;
 
 		public float Throttle = -1;
 		public float DeltaV;
@@ -29,7 +34,7 @@ namespace ThrottleControlledAvionics
 		public float NextThrottle(float dV, float thrust, float throttle)
 		{ 
 			var dt = Utils.Clamp(dV/THR.DeltaVThreshold, 0.5f, 2f);
-			return Utils.Clamp((dV/dt/thrust*VSL.M-throttle*VSL.ThrustDecelerationTime/dt), 0f, 1f); 
+			return Utils.Clamp((dV/dt/thrust*VSL.Physics.M-throttle*VSL.Engines.ThrustDecelerationTime/dt), 0f, 1f); 
 		}
 
 		public void BlockThrottle(bool state)
@@ -50,17 +55,29 @@ namespace ThrottleControlledAvionics
 		{
 			if(!CFG.Enabled) return;
 			if(DeltaV >= THR.MinDeltaV)
-				Throttle = NextThrottle(DeltaV, VSL.MaxThrustM, VSL.ctrlState.mainThrottle) *
-					TCA.ATC.AttitudeFactor;
+			{
+				Throttle = NextThrottle(DeltaV, VSL.Engines.MaxThrustM, VSL.vessel.ctrlState.mainThrottle) *
+					(ATC == null? 1f : ATC.AttitudeFactor);
+			}
 			if(Throttle >= 0) 
 			{ 
 				s.mainThrottle = Throttle; 
-				VSL.ctrlState.mainThrottle = Throttle; 
+				VSL.vessel.ctrlState.mainThrottle = Throttle; 
 				if(VSL.IsActiveVessel) FlightInputHandler.state.mainThrottle = Throttle;
 			}
 			else if(CFG.BlockThrottle)
 				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
 			reset();
+		}
+
+		public override void Draw()
+		{
+			BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
+			                               new GUIContent("AutoThrottle",
+			                                                          CFG.VF[VFlight.AltitudeControl]?
+			                                                          "Change altitude with throttle controls" :
+			                                                          "Set vertical speed with throttle controls"), 
+			                               GUILayout.ExpandWidth(false)));
 		}
 	}
 }

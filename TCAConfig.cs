@@ -39,6 +39,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
 		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
+		[Persistent] public BearingControl.Config            BRC = new BearingControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config    HSC = new HorizontalSpeedControl.Config();
 		[Persistent] public RCSOptimizer.Config              RCS = new RCSOptimizer.Config();
 		[Persistent] public CruiseControl.Config             CC  = new CruiseControl.Config();

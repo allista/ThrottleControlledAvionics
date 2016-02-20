@@ -7,14 +7,12 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System;
-using UnityEngine;
-
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(null)]
 	public class MacroProcessor : TCAModule
 	{
-		public MacroProcessor(ModuleTCA tca) { TCA = tca; }
+		public MacroProcessor(ModuleTCA tca) : base(tca) {}
 
 		protected override void UpdateState()
 		{ IsActive = CFG.MacroIsActive && CFG.SelectedMacro != null; }

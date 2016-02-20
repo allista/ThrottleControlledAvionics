@@ -29,33 +29,40 @@ namespace ThrottleControlledAvionics
 		public bool IsStateSet(TCAState state) { return Available && VSL.IsStateSet(state); }
 
 		#region Modules
+		//core modules
 		public EngineOptimizer ENG;
-		public VerticalSpeedControl VSC;
-		public Anchor ANC;
-		public AltitudeControl ALT;
 		public RCSOptimizer RCS;
-		public PointNavigator PN;
-		public Radar RAD;
-		public AutoLander LND;
-		public VTOLAssist TLA;
-		public FlightStabilizer STB;
-		public CollisionPreventionSystem CPS;
-		public MacroProcessor MPR;
-		public TimeWarpControl WRP;
-		public ManeuverAutopilot MAN;
-		public MatchVelocityAutopilot MVA;
-		public SASBlocker SASC;
-		//ctrlState autopilots: executed in this exact order
-		public HorizontalSpeedControl HSC;
-		public TranslationControl TRA;
-		public ThrottleControl THR;
-		public AttitudeControl ATC;
-		public CruiseControl CC;
-		//all the modules
-		static List<FieldInfo> mod_fields = typeof(ModuleTCA)
+		public static List<FieldInfo> CoreModuleFields = typeof(ModuleTCA)
 			.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Public|BindingFlags.Instance)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToList();
-		List<TCAModule> modules;
+		//optional modules
+		public Dictionary<Type, TCAModule> ModulesDB = new Dictionary<Type, TCAModule>();
+		public List<TCAModule> AllModules = new List<TCAModule>();
+		public List<TCAModule> ModulePipeline = new List<TCAModule>();
+		public List<TCAModule> AutopilotPipeline = new List<TCAModule>();
+
+		public M GetModule<M>() where M : TCAModule 
+		{ 
+			TCAModule module = null;
+			return ModulesDB.TryGetValue(typeof(M), out module)? module as M : null;
+		}
+
+		public TCAModule GetModule(Type T)
+		{
+			TCAModule module = null;
+			return ModulesDB.TryGetValue(T, out module)? module : null;
+		}
+
+		public object CreateComponent(Type T)
+		{
+			var constructor = T.GetConstructor(new [] {typeof(ModuleTCA)});
+			if(constructor == null)
+				throw new MissingMemberException(string.Format("No suitable constructor found for {0}", T.Name));
+			return constructor.Invoke(new [] {this});
+		}
+
+		public void CreateComponent(object obj, FieldInfo fi)
+		{ fi.SetValue(obj, CreateComponent(fi.FieldType)); }
 		#endregion
 
 		#region Public Info
@@ -66,7 +73,7 @@ namespace ThrottleControlledAvionics
 
 		#region Initialization
 		public void OnReloadGlobals() 
-		{ if(modules != null) modules.ForEach(m => m.Init()); }
+		{ AllModules.ForEach(m => m.Init()); }
 
 		public override string GetInfo() 
 		{ return "Software can be installed"; }
@@ -139,17 +146,17 @@ namespace ThrottleControlledAvionics
 		void onStageActive(int stage)
 		{ 
 			if(VSL == null || !CFG.Enabled) return;
-			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines))
+			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines.All))
 				StartCoroutine(onStageUpdate());
 		}
 
 		IEnumerator<YieldInstruction> onStageUpdate()
 		{
-			VSL.CanUpdateEngines = false;
+			VSL.Engines.ProfileSyncAllowed = false;
 			yield return new WaitForSeconds(0.5f);
 			VSL.UpdateParts();
-			CFG.ActiveProfile.Update(VSL.Engines, true);
-			VSL.CanUpdateEngines = true;
+			CFG.ActiveProfile.Update(VSL.Engines.All, true);
+			VSL.Engines.ProfileSyncAllowed = true;
 		}
 
 		IEnumerator<YieldInstruction> onVesselModifiedUpdate()
@@ -174,31 +181,14 @@ namespace ThrottleControlledAvionics
 		void check_career_part()
 		{ if(enabled) enabled = isEnabled = TCAScenario.HasTCA; }
 
-		void create_modules()
+		public void DeleteModules()
 		{
-			modules = new List<TCAModule>(mod_fields.Count);
-			for(int i = 0, count = mod_fields.Count; i < count; i++)
-			{
-				var fi = mod_fields[i];
-				var method = fi.FieldType.GetConstructor(new [] {typeof(ModuleTCA)});
-				if(method != null)
-				{
-					var m = (TCAModule)method.Invoke(null, new [] {this});
-					if(m != null)
-					{
-						fi.SetValue(this, m);
-						modules.Add(m);
-					}
-					else this.Log("Failed to create {0}. Constructor returned null.", fi.FieldType);
-				}
-				else this.Log("Failed to create {0}. No constructor found.", fi.FieldType);
-			}
-		}
-
-		void delete_modules()
-		{
-			mod_fields.ForEach(mf => mf.SetValue(this, null));
-			modules = null;
+			ModulesDB.Clear();
+			AllModules.Clear();
+			ModulePipeline.Clear();
+			AutopilotPipeline.Clear();
+			foreach(var core_field in CoreModuleFields)
+				core_field.SetValue(this, null);
 		}
 
 		public static List<ModuleTCA> AllTCA(IShipconstruct ship)
@@ -261,11 +251,10 @@ namespace ThrottleControlledAvionics
 			if(!enabled) return;
 			updateCFG();
 			VSL = new VesselWrapper(this);
-			enabled = isEnabled = VSL.Engines.Count > 0 || VSL.RCS.Count > 0;
+			enabled = isEnabled = VSL.Engines.All.Count > 0 || VSL.Engines.RCS.Count > 0;
 			if(!enabled) { VSL = null; return; }
 			VSL.Init();
-			create_modules();
-			modules.ForEach(m => m.Init());
+			TCAModulesDatabase.InitModules(this);
 			ThrottleControlledAvionics.AttachTCA(this);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
 			StartCoroutine(onVesselModifiedUpdate());
@@ -277,10 +266,10 @@ namespace ThrottleControlledAvionics
 			if(VSL != null)
 			{
 				VSL.Reset();
-				modules.ForEach(m => m.Reset());
+				AllModules.ForEach(m => m.Reset());
 				CFG.ClearCallbacks();
 			}
-			delete_modules();
+			DeleteModules();
 			VSL = null;
 		}
 		#endregion
@@ -291,18 +280,22 @@ namespace ThrottleControlledAvionics
 			CFG.Enabled = !CFG.Enabled;
 			if(CFG.Enabled) //test
 			{
-				CFG.ActiveProfile.Update(VSL.Engines, true);
+				CFG.ActiveProfile.Update(VSL.Engines.All, true);
 				VSL.SetUnpackDistance(GLB.UnpackDistance);
+				AllModules.ForEach(m => m.OnEnable(true));
 			}
 			else
 			{
-				VSL.Engines.ForEach(e => e.forceThrustPercentage(100));
+				VSL.Engines.All.ForEach(e => e.forceThrustPercentage(100));
 				VSL.RestoreUnpackDistance();
 				State = TCAState.Disabled;
-				SASC.UnblockSAS();
+				AllModules.ForEach(m => m.OnEnable(false));
 			}
 		}
 		#endregion
+
+		public void ClearFrameState()
+		{ AllModules.ForEach(m => m.ClearFrameState()); }
 
 		public override void OnUpdate()
 		{
@@ -311,9 +304,8 @@ namespace ThrottleControlledAvionics
 			if(CFG.Enabled)
 			{
 				//update heavy to compute parameters
-				VSL.UpdateMoI();
-				VSL.UpdateBounds();
-				VSL.UpdateExhaustInfo();
+				VSL.Physics.UpdateMoI();
+				VSL.Geometry.Update();
 			}
 		}
 
@@ -323,57 +315,41 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateState();
 			if(!CFG.Enabled) return;
 			State = TCAState.Enabled;
-			if(!VSL.ElectricChargeAvailible) return;
-			//update
+			if(!VSL.Info.ElectricChargeAvailible) return;
+			//update vessel info
 			SetState(TCAState.HaveEC);
-			VSL.UpdatePhysicsParams();
-			if(VSL.CheckEngines()) 
+			VSL.UpdatePhysics();
+			if(VSL.Engines.Check()) 
 				SetState(TCAState.HaveActiveEngines);
 			VSL.UpdateCommons();
 			VSL.ClearFrameState();
 			VSL.UpdateOnPlanetStats();
-			MPR.OnFixedUpdate();
-			if(VSL.NumActiveEngines > 0)
-			{
-				//these follow specific order
-				MAN.OnFixedUpdate();
-				MVA.OnFixedUpdate();
-				RAD.OnFixedUpdate();//sets AltitudeAhead
-				LND.OnFixedUpdate();//sets VerticalCutoff, sets DesiredAltitude
-				ALT.OnFixedUpdate();//uses AltitudeAhead, uses DesiredAltitude, sets VerticalCutoff
-				CPS.OnFixedUpdate();//updates VerticalCutoff
-				VSC.OnFixedUpdate();//uses VerticalCutoff
-				ANC.OnFixedUpdate();
-				TLA.OnFixedUpdate();
-				STB.OnFixedUpdate();
-				PN.OnFixedUpdate();
-			}
-			SASC.OnFixedUpdate();
-			WRP.OnFixedUpdate();
+			//update modules
+			ModulePipeline.ForEach(m => m.OnFixedUpdate());
 			//handle engines
-			VSL.TuneEngines();
-			if(VSL.NumActiveEngines > 0)
+			VSL.Engines.Tune();
+			if(VSL.Engines.NumActive > 0)
 			{
-				VSL.SortEngines();
+				VSL.Engines.Sort();
 				//:preset manual limits for translation if needed
-				if(HSC.ManualTranslationSwitch.On)
+				if(VSL.Controls.ManualTranslationSwitch.On)
 				{
-					ENG.PresetLimitsForTranslation(VSL.ManualEngines, HSC.ManualTranslation);
-					if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.ManualEngines, VSL.UpL);
+					ENG.PresetLimitsForTranslation(VSL.Engines.Manual, VSL.Controls.ManualTranslation);
+					if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.Engines.Manual, VSL.Physics.UpL);
 				}
 				//:balance-only engines
-				if(VSL.BalancedEngines.Count > 0)
+				if(VSL.Engines.Balanced.Count > 0)
 				{
-					VSL.UpdateTorque(VSL.ManualEngines);
-					ENG.OptimizeLimitsForTorque(VSL.BalancedEngines, Vector3.zero);
+					VSL.Torque.UpdateTorque(VSL.Engines.Manual);
+					ENG.OptimizeLimitsForTorque(VSL.Engines.Balanced, Vector3.zero);
 				}
-				VSL.UpdateTorque(VSL.ManualEngines, VSL.BalancedEngines);
+				VSL.Torque.UpdateTorque(VSL.Engines.Manual, VSL.Engines.Balanced);
 				//:optimize limits for steering
-				ENG.PresetLimitsForTranslation(VSL.ManeuverEngines, VSL.Translation);
+				ENG.PresetLimitsForTranslation(VSL.Engines.Maneuver, VSL.Controls.Translation);
 				ENG.Steer();
 			}
 			RCS.Steer();
-			VSL.SetEnginesControls();
+			VSL.Engines.SetControls();
 		}
 	}
 }

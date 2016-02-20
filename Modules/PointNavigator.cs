@@ -8,41 +8,37 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
-using System.Linq;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(HorizontalSpeedControl), 
+	                typeof(BearingControl))]
+	[OptionalModules(typeof(AltitudeControl))]
 	public class PointNavigator : TCAModule
 	{
 		public class Config : ModuleConfig
 		{
 			new public const string NODE_NAME = "PN";
 
-			[Persistent] public float MinDistance        = 30;
-			[Persistent] public float MinTime            = 10;
-			[Persistent] public float OnPathMinDistance  = 300;
-			[Persistent] public float MinSpeed           = 10;
-			[Persistent] public float MaxSpeed           = 300;
-			[Persistent] public float DeltaSpeed         = 10f;
-			[Persistent] public float DeltaSpeedF        = 0.5f;
-			[Persistent] public float FallingSensitivity = 10f;
-			[Persistent] public float FallingCorrection  = 3f;
-			[Persistent] public float AltErrSensitivity  = 10f;
-			[Persistent] public float DistanceF          = 2;
-			[Persistent] public float DirectNavThreshold = 1;
-			[Persistent] public float GCNavStep          = 0.1f;
-			[Persistent] public float LookAheadTime      = 2f;
-			[Persistent] public float BearingCutoff      = 60f;
+			[Persistent] public float MinDistance          = 30;
+			[Persistent] public float MinTime              = 10;
+			[Persistent] public float OnPathMinDistance    = 300;
+			[Persistent] public float MinSpeed             = 10;
+			[Persistent] public float MaxSpeed             = 300;
+			[Persistent] public float DistanceF            = 2;
+			[Persistent] public float DirectNavThreshold   = 1;
+			[Persistent] public float GCNavStep            = 0.1f;
+			[Persistent] public float LookAheadTime        = 2f;
+			[Persistent] public float BearingCutoff        = 60f;
 			[Persistent] public float FormationSpeedCutoff = 5f;
-			[Persistent] public float FormationFactor    = 0.2f;
-			[Persistent] public float FormationBreakTime = 10f;
-			[Persistent] public float TakeoffAltitude    = 100f;
-			[Persistent] public float BrakeOffset        = 1.5f;
-			[Persistent] public float PitchRollAAf       = 100f;
-			[Persistent] public float FollowerMaxAwaySpped = 15f;
+			[Persistent] public float FormationFactor      = 0.2f;
+			[Persistent] public float FormationBreakTime   = 10f;
+			[Persistent] public float TakeoffAltitude      = 100f;
+			[Persistent] public float BrakeOffset          = 1.5f;
+			[Persistent] public float PitchRollAAf         = 100f;
+			[Persistent] public float FollowerMaxAwaySpeed = 15f;
 
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 
@@ -59,24 +55,25 @@ namespace ThrottleControlledAvionics
 			}
 		}
 		static Config PN { get { return TCAScenario.Globals.PN; } }
-		public PointNavigator(ModuleTCA tca) { TCA = tca; }
+		public PointNavigator(ModuleTCA tca) : base(tca) {}
 
 		public Vector3 Destination;
 		public bool Maneuvering { get; private set; }
 		public List<FormationNode> Formation;
 
-		float DeltaSpeed;
 		readonly PIDf_Controller pid = new PIDf_Controller();
 		readonly Timer ArrivedTimer = new Timer();
 
 		Vessel tVSL;
-		ModuleTCA tTCA;
-		SortedList<Guid, ModuleTCA> all_followers = new SortedList<Guid, ModuleTCA>();
+		PointNavigator tPN;
+		SortedList<Guid, PointNavigator> all_followers = new SortedList<Guid, PointNavigator>();
 		FormationNode fnode;
 		Vector3 formation_offset { get { return fnode == null? Vector3.zero : fnode.Offset; } }
 		bool CanManeuver = true;
 		Timer FormationBreakTimer = new Timer();
 		bool keep_formation;
+
+		HorizontalSpeedControl HSC;
 
 		public override void Init()
 		{
@@ -142,15 +139,15 @@ namespace ThrottleControlledAvionics
 			{
 				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
-				CFG.DesiredAltitude = PN.TakeoffAltitude+VSL.H;
+				CFG.DesiredAltitude = PN.TakeoffAltitude+VSL.Geometry.H;
 			}				
 			else if(CFG.VTOLAssistON) 
-				VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
 			reset_formation();
 			SetTarget(wp);
 			pid.Reset();
 			CFG.HF.On(HFlight.NoseOnCourse);
-			TCA.RAD.Register(this);
+			RegisterTo<Radar>();
 		}
 
 		void finish()
@@ -159,7 +156,7 @@ namespace ThrottleControlledAvionics
 			Destination = Vector3d.zero;
 			CFG.Nav.Off();
 			CFG.HF.On(HFlight.Stop);
-			TCA.RAD.Unregister(this);
+			UnregisterFrom<Radar>();
 			reset_formation();
 		}
 
@@ -182,8 +179,11 @@ namespace ThrottleControlledAvionics
 		{
 			tVSL = CFG.Target.GetVessel();
 			if(tVSL == null) { reset_formation(); CanManeuver = false; return; }
-			if(tTCA == null || !tTCA.Valid || tTCA.vessel != tVSL)
-				tTCA = ModuleTCA.EnabledTCA(tVSL);
+			if(tPN == null || !tPN.TCA.Valid || tPN.VSL.vessel != tVSL)
+			{
+				var tTCA = ModuleTCA.EnabledTCA(tVSL);
+				if(tTCA != null) tPN = tTCA.GetModule<PointNavigator>();
+			}
 			var only_count = false;
 			if(tVSL.srf_velocity.sqrMagnitude < PN.FormationSpeedSqr)
 			{ reset_formation(); CanManeuver = false; only_count = true; }
@@ -201,9 +201,11 @@ namespace ThrottleControlledAvionics
 				    tca.CFG.Target.GetTarget() != null && 
 				    tca.CFG.Target.GetTarget() == CFG.Target.GetTarget()))
 				{
-					all_followers.Add(v.id, tca);
+					var vPN = tca.GetModule<PointNavigator>();
+					if(vPN == null) continue;
+					all_followers.Add(v.id, vPN);
 					if(v.id != VSL.vessel.id)
-						can_maneuver &= !tca.PN.Maneuvering || 
+						can_maneuver &= !vPN.Maneuvering || 
 							(Maneuvering && VSL.vessel.id.CompareTo(v.id) > 0);
 				}
 			}
@@ -213,14 +215,14 @@ namespace ThrottleControlledAvionics
 			if(follower_index == 0)
 			{
 				var forward = tVSL == null? Vector3d.zero : -tVSL.srf_velocity.normalized;
-				var side = Vector3d.Cross(VSL.Up, forward).normalized;
+				var side = Vector3d.Cross(VSL.Physics.Up, forward).normalized;
 				var num_offsets = all_followers.Count+(all_followers.Count%2);
 				if(Formation == null || Formation.Count != num_offsets)
 				{
 					Formation = new List<FormationNode>(num_offsets);
 					for(int i = 0; i < num_offsets; i++) 
 						Formation.Add(new FormationNode(tVSL, i, forward, side, PN.MinDistance));
-					all_followers.ForEach(p => p.Value.PN.Formation = Formation);
+					all_followers.ForEach(p => p.Value.Formation = Formation);
 				}
 				else for(int i = 0; i < num_offsets; i++) 
 					Formation[i].Update(forward, side, PN.MinDistance);
@@ -251,26 +253,26 @@ namespace ThrottleControlledAvionics
 			CFG.Target.Update(VSL.mainBody);
 			//update things that are needed to fly in formation
 			if(CFG.Nav[Navigation.FollowTarget]) update_formation_info();
-			else { tVSL = null; tTCA = null; }
+			else { tVSL = null; tPN = null; }
 			//calculate direct distance
-			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.wCoM, VSL.Up);
-			var distance = Utils.ClampL(vdir.magnitude-VSL.R, 0);
+			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.Physics.wCoM, VSL.Physics.Up);
+			var distance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
 			//update destination
 			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath)) Destination = vdir;
-			else if(tTCA != null) Destination = tTCA.PN.Destination;
+			else if(tPN != null) Destination = tPN.Destination;
 			//handle flying in formation
 			var tvel = Vector3.zero;
 			var vel_is_set = false;
 			var end_distance = CFG.Target.Land?  CFG.Target.Distance/4 : CFG.Target.Distance;
-			var dvel = VSL.HorizontalVelocity;
+			var dvel = VSL.HorizontalSpeed.Vector;
 			if(tVSL != null && tVSL.loaded)
 			{
 				if(formation_offset.IsZero()) end_distance *= all_followers.Count/2f;
-				tvel = Vector3d.Exclude(VSL.Up, tVSL.srf_velocity);
+				tvel = Vector3d.Exclude(VSL.Physics.Up, tVSL.srf_velocity);
 				dvel -= tvel;
 				var tvel_m = tvel.magnitude;
 				var dir2vel_cos = Vector3.Dot(vdir.normalized, tvel.normalized);
-				var lat_dir  = Vector3.ProjectOnPlane(vdir-VSL.HorizontalVelocity*PN.LookAheadTime, tvel);
+				var lat_dir  = Vector3.ProjectOnPlane(vdir-VSL.HorizontalSpeed.Vector*PN.LookAheadTime, tvel);
 				var lat_dist = lat_dir.magnitude;
 				FormationBreakTimer.RunIf(() => keep_formation = false, 
 				                          tvel_m < PN.FormationSpeedCutoff);
@@ -280,23 +282,23 @@ namespace ThrottleControlledAvionics
 				    dir2vel_cos <= PN.BearingCutoffCos || 
 				    lat_dist < CFG.Target.Distance*3))
 				{
-					if(CanManeuver) TCA.HSC.CourseCorrections.Add( 
+					if(CanManeuver) HSC.CourseCorrections.Add( 
 						lat_dir.normalized*Utils.ClampH(lat_dist/CFG.Target.Distance, 1) * 
 						tvel_m*PN.FormationFactor*(Maneuvering? 1 : 0.5f));
-					distance = Utils.ClampL(Mathf.Abs(dir2vel_cos)*distance-VSL.R, 0);
+					distance = Utils.ClampL(Mathf.Abs(dir2vel_cos)*distance-VSL.Geometry.R, 0);
 					if(dir2vel_cos < 0)
 					{
 						if(distance < CFG.Target.Distance)
-							TCA.HSC.CourseCorrections.Add(tvel*Utils.Clamp(-distance/CFG.Target.Distance*PN.FormationFactor, -PN.FormationFactor, 0));
+							HSC.CourseCorrections.Add(tvel*Utils.Clamp(-distance/CFG.Target.Distance*PN.FormationFactor, -PN.FormationFactor, 0));
 						else if(Vector3.Dot(vdir, dvel) < 0 && 
-						        (dvel.magnitude > PN.FollowerMaxAwaySpped ||
+						        (dvel.magnitude > PN.FollowerMaxAwaySpeed ||
 						         distance > CFG.Target.Distance*5))
 						{
 							keep_formation = true;
-							TCA.HSC.SetNeededHorVelocity(vdir);
+							VSL.HorizontalSpeed.SetNeeded(vdir);
 							return;
 						}
-						else TCA.HSC.CourseCorrections.Add(tvel*(PN.FormationFactor-1));
+						else HSC.CourseCorrections.Add(tvel*(PN.FormationFactor-1));
 						distance = 0;
 					}
 					vdir = tvel;
@@ -308,7 +310,7 @@ namespace ThrottleControlledAvionics
 				var next = CFG.Target.PointFrom(VSL.vessel, 0.1);
 				distance = (float)CFG.Target.DistanceTo(VSL.vessel);
 				vdir = Vector3.ProjectOnPlane(VSL.mainBody.GetWorldSurfacePosition(next.Lat, next.Lon, VSL.vessel.altitude)
-				                              -VSL.vessel.transform.position, VSL.Up);
+				                              -VSL.vessel.transform.position, VSL.Physics.Up);
 				tvel = Vector3.zero;
 			}
 			else if(!VSL.IsActiveVessel && distance > GLB.UnpackDistance) 
@@ -317,17 +319,17 @@ namespace ThrottleControlledAvionics
 			//check if we have arrived to the target and stayed long enough
 			if(distance < end_distance)
 			{
-				CFG.HF.OnIfNot(TCA.HSC.NeededHorVelocity.sqrMagnitude > 1? HFlight.NoseOnCourse : HFlight.Move);
+				CFG.HF.OnIfNot(VSL.HorizontalSpeed.NeededVector.sqrMagnitude > 1? HFlight.NoseOnCourse : HFlight.Move);
 				if(CFG.Nav[Navigation.FollowTarget])
 				{
 					if(tvel.sqrMagnitude > 1)
 					{
 						//set needed velocity and starboard to match that of the target
 						keep_formation = true;
-						TCA.HSC.SetNeededHorVelocity(tvel);
-						TCA.HSC.CourseCorrections.Add((tvel-VSL.HorizontalVelocity)*0.9f);
+						VSL.HorizontalSpeed.SetNeeded(tvel);
+						HSC.CourseCorrections.Add((tvel-VSL.HorizontalSpeed.Vector)*0.9f);
 					}
-					else TCA.HSC.SetNeededHorVelocity(Vector3d.zero);
+					else VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
 					vel_is_set = true;
 				}
 				else if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 0)
@@ -364,10 +366,10 @@ namespace ThrottleControlledAvionics
 				ArrivedTimer.Reset();
 			}
 			//if we need to make a sharp turn, stop and turn, then go on
-			if(Vector3.Dot(vdir, VSL.Fwd) < PN.BearingCutoffCos &&
-			   Vector3d.Dot(VSL.HorizontalVelocity.normalized, vdir) < PN.BearingCutoffCos)
+			if(Vector3.Dot(vdir, VSL.OnPlanetParams.Fwd) < PN.BearingCutoffCos &&
+			   Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir) < PN.BearingCutoffCos)
 			{
-				TCA.HSC.SetNeededHorVelocity(vdir);
+				VSL.HorizontalSpeed.SetNeeded(vdir);
 				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 				Maneuvering = false;
 				vel_is_set = true;
@@ -392,9 +394,9 @@ namespace ThrottleControlledAvionics
 				if(next_wp != null)
 				{
 					next_wp.Update(VSL.mainBody);
-					var next_dist = Vector3.ProjectOnPlane(next_wp.GetTransform().position-CFG.Target.GetTransform().position, VSL.Up);
+					var next_dist = Vector3.ProjectOnPlane(next_wp.GetTransform().position-CFG.Target.GetTransform().position, VSL.Physics.Up);
 					var angle2next = Vector3.Angle(vdir, next_dist);
-					var minD = Utils.ClampL(PN.OnPathMinDistance*(1-angle2next/180/VSL.MaxPitchRollAA_m*PN.PitchRollAAf), CFG.Target.Distance);
+					var minD = Utils.ClampL(PN.OnPathMinDistance*(1-angle2next/180/VSL.Torque.MaxPitchRollAA_m*PN.PitchRollAAf), CFG.Target.Distance);
 					if(minD > distance) distance = minD;
 				}
 				else distance = PN.OnPathMinDistance;
@@ -405,50 +407,26 @@ namespace ThrottleControlledAvionics
 			pid.Max = CFG.MaxNavSpeed;
 			if(cur_vel > 0)
 			{
-				var lateral_thrust = VSL.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
-				var down_thrust = VSL.MaxThrustM*VSL.MinVSFtwr*0.707f;
+				var lateral_thrust = VSL.OnPlanetParams.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
+				var down_thrust = VSL.Engines.MaxThrustM*VSL.OnPlanetParams.MinVSFtwr*0.707f;
 				var brake_thrust = lateral_thrust >= down_thrust? lateral_thrust : down_thrust;
 				var eta = distance/cur_vel;
 				var max_speed = 0f;
 				if(brake_thrust > 0)
 				{
-					var brake_time = cur_vel/brake_thrust*VSL.M;
-					max_speed = brake_thrust/VSL.M*eta;
+					var brake_time = cur_vel/brake_thrust*VSL.Physics.M;
+					max_speed = brake_thrust/VSL.Physics.M*eta;
 					if(eta <= brake_time*PN.BrakeOffset)
-						TCA.HSC.CourseCorrections.Add((eta/brake_time/PN.BrakeOffset-1)*VSL.HorizontalVelocity);
+						HSC.CourseCorrections.Add((eta/brake_time/PN.BrakeOffset-1)*VSL.HorizontalSpeed.Vector);
 				}
 				if(max_speed < CFG.MaxNavSpeed) pid.Max = max_speed;
 			}
 			//update the needed velocity
 			pid.Update(distance*PN.DistanceF);
-			//increase the needed velocity slowly
-			cur_vel = Utils.ClampL(cur_vel, 1);
-			DeltaSpeed = PN.DeltaSpeed*Mathf.Pow(PN.DeltaSpeed/(cur_vel+PN.DeltaSpeed), PN.DeltaSpeedF);
-			//make a correction if falling or flyin too low
-			var mtwr = Utils.ClampL(VSL.MaxTWR, 0.1f);
-			var V = (CFG.AltitudeAboveTerrain? VSL.RelVerticalSpeed : VSL.AbsVerticalSpeed);
-			if(V < 0 && IsStateSet(TCAState.LoosingAltitude))
-			{
-				DeltaSpeed /= 1-Utils.ClampH(V, 0)
-					/(CFG.AltitudeAboveTerrain? VSL.Altitude : 1)
-					*PN.FallingSensitivity/mtwr;
-				if(DeltaSpeed < 1) 
-				{
-					var a = Utils.ClampL(PN.FallingCorrection/mtwr/-V, PN.FallingCorrection);
-					cur_vel *= (a-1+DeltaSpeed)/a;
-				}
-			}
-			if(CFG.VF[VFlight.AltitudeControl])
-			{
-				var alt_error = (CFG.DesiredAltitude-VSL.Altitude);
-				if(CFG.AltitudeAboveTerrain) alt_error /= VSL.Altitude;
-				if(alt_error > 0) DeltaSpeed /= 1+alt_error*PN.AltErrSensitivity/mtwr;
-			}
-			//set needed velocity and starboard
-			var nV = pid.Action-cur_vel > DeltaSpeed? vdir*(cur_vel+DeltaSpeed) : vdir*pid.Action;
+			var nV = vdir*pid.Action;
 			//correcto for Follow Target program
 			if(CFG.Nav[Navigation.FollowTarget] && Vector3d.Dot(tvel, vdir) > 0) nV += tvel;
-			TCA.HSC.SetNeededHorVelocity(nV);
+			VSL.HorizontalSpeed.SetNeeded(nV);
 		}
 
 		#if DEBUG
@@ -456,7 +434,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL == null || VSL.vessel == null) return;
 			if(CFG.Target != null && CFG.Target.GetTransform() != null && CFG.Nav[Navigation.FollowTarget])
-				GLUtils.GLLine(VSL.wCoM, CFG.Target.GetTransform().position+formation_offset,
+				GLUtils.GLLine(VSL.Physics.wCoM, CFG.Target.GetTransform().position+formation_offset,
 				               Maneuvering? Color.yellow : Color.cyan);
 		}
 

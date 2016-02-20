@@ -54,6 +54,7 @@ namespace ThrottleControlledAvionics
 
 		static void EditMacro(TCAMacro macro)
 		{
+			Components.UpdateAvailableComponents();
 			if(macro == null)
 			{
 				Macro = new TCAMacro();
@@ -206,10 +207,10 @@ namespace ThrottleControlledAvionics
 
 	public static class Components
 	{
-		public static SortedList<string, ComponentDB<Condition>.Factory> Conditions
+		public static SortedList<string, ComponentDB<Condition>.ComponentFactory> Conditions
 		{ get { return ComponentDB<Condition>.Components; } }
 
-		public static SortedList<string, ComponentDB<MacroNode>.Factory> Actions
+		public static SortedList<string, ComponentDB<MacroNode>.ComponentFactory> Actions
 		{ get { return ComponentDB<MacroNode>.Components; } }
 
 		public static bool ConditionSelector(out Condition condition)
@@ -217,6 +218,12 @@ namespace ThrottleControlledAvionics
 
 		public static bool ActionSelector(out MacroNode action)
 		{ return ComponentDB<MacroNode>.Selector(out action); }
+
+		public static void UpdateAvailableComponents()
+		{
+			ComponentDB<Condition>.UpdateAvailableComponents();
+			ComponentDB<MacroNode>.UpdateAvailableComponents();
+		}
 	}
 }
 

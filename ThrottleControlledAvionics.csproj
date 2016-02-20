@@ -31,10 +31,6 @@
     <ConsolePause>False</ConsolePause>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System">
-      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
@@ -55,16 +51,20 @@
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Mono.Security.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="System.Xml">
-      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.Xml.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="TDx.TDxInput">
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\TDx.TDxInput.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System">
+      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Xml">
+      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.Xml.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
@@ -90,13 +90,8 @@
     <Compile Include="Modules\VTOLAssist.cs" />
     <Compile Include="EngineConfig.cs" />
     <Compile Include="TCAScenario.cs" />
-    <Compile Include="GUI\AddonWindowBase.cs" />
-    <Compile Include="GUI\DropDownList.cs" />
-    <Compile Include="GUI\Styles.cs" />
     <Compile Include="GUI\TCAGui.cs" />
     <Compile Include="GUI\EnginesProfileEditor.cs" />
-    <Compile Include="GUI\UI_IntRange.cs" />
-    <Compile Include="GUI\ToolbarWrapper.cs" />
     <Compile Include="GUI\TCAToolbarManager.cs" />
     <Compile Include="TCA.cs" />
     <Compile Include="Modules\CollisionPreventionSystem.cs" />
@@ -130,6 +125,32 @@
     <Compile Include="Modules\SASBlocker.cs" />
     <Compile Include="Utils\MD2Unity.cs" />
     <Compile Include="GUI\TCAManual.cs" />
+    <Compile Include="Modules\BearingControl.cs" />
+    <Compile Include="TCAModulesDatabase.cs" />
+    <Compile Include="Modules\SquadControl.cs" />
+    <Compile Include="GUI\Panels\OnPlanetPanel.cs" />
+    <Compile Include="GUI\Panels\NavigationPanel.cs" />
+    <Compile Include="GUI\Panels\InOrbitPanel.cs" />
+    <Compile Include="GUI\Panels\AttitudePanel.cs" />
+    <Compile Include="GUI\Panels\MacrosPanel.cs" />
+    <Compile Include="GUI\Panels\SquadPanel.cs" />
+    <Compile Include="VesselProps\VesselProps.cs" />
+    <Compile Include="GUI\Elements\AddonWindowBase.cs" />
+    <Compile Include="GUI\Elements\DropDownList.cs" />
+    <Compile Include="GUI\Elements\Styles.cs" />
+    <Compile Include="GUI\Elements\ToolbarWrapper.cs" />
+    <Compile Include="GUI\Elements\UI_IntRange.cs" />
+    <Compile Include="GUI\Elements\ControlPanel.cs" />
+    <Compile Include="VesselProps\PhysicalProps.cs" />
+    <Compile Include="VesselProps\GeometryProps.cs" />
+    <Compile Include="VesselProps\AltitudeProps.cs" />
+    <Compile Include="VesselProps\VerticalSpeedProps.cs" />
+    <Compile Include="VesselProps\HorizontalSpeedProps.cs" />
+    <Compile Include="VesselProps\EnginesProps.cs" />
+    <Compile Include="VesselProps\TorqueProps.cs" />
+    <Compile Include="VesselProps\ControlProps.cs" />
+    <Compile Include="VesselProps\InfoProps.cs" />
+    <Compile Include="VesselProps\OnPlanetProps.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -137,5 +158,8 @@
     <Folder Include="GUI\" />
     <Folder Include="Macros\" />
     <Folder Include="Utils\" />
+    <Folder Include="GUI\Panels\" />
+    <Folder Include="VesselProps\" />
+    <Folder Include="GUI\Elements\" />
   </ItemGroup>
 </Project>

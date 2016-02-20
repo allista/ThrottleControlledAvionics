@@ -9,31 +9,35 @@
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	public class SASBlocker : TCAService
 	{
-		public SASBlocker(ModuleTCA tca) { TCA = tca; }
+		public SASBlocker(ModuleTCA tca) : base(tca) {}
 
 		protected override void UpdateState()
 		{
 			if(HasActiveClients)
 			{
 				if(!CFG.SASIsControlled)
-					CFG.SASWasEnabled = VSL.ActionGroups[KSPActionGroup.SAS]; 
+					CFG.SASWasEnabled = VSL.vessel.ActionGroups[KSPActionGroup.SAS]; 
 				CFG.SASIsControlled = true;
 			}
 			else UnblockSAS();
 		}
 
+		public override void OnEnable(bool enabled)
+		{ if(!enabled) UnblockSAS(); }
+
 		public void UnblockSAS(bool set_flag = true)
 		{
 			if(CFG.SASIsControlled) 
-				VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, CFG.SASWasEnabled);
+				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, CFG.SASWasEnabled);
 			CFG.SASIsControlled &= !set_flag;
 		}
 
 		public void EnableSAS()
 		{
-			VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
+			VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
 			CFG.SASIsControlled = false;
 		}
 	}

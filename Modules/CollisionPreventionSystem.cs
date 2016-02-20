@@ -14,6 +14,9 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(HorizontalSpeedControl))]
+	[OptionalModules(typeof(VerticalSpeedControl))]
+	[OverrideModules(typeof(AltitudeControl))]
 	public class CollisionPreventionSystem : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -31,7 +34,9 @@ namespace ThrottleControlledAvionics
 		}
 		static Config CPS { get { return TCAScenario.Globals.CPS; } }
 
-		public CollisionPreventionSystem(ModuleTCA tca) { TCA = tca; }
+		public CollisionPreventionSystem(ModuleTCA tca) : base(tca) {}
+
+		HorizontalSpeedControl HSC;
 
 		protected override void UpdateState() 
 		{ 
@@ -64,17 +69,17 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive || VSL == null || VSL.vessel == null) return;
 			if(!filter.Value.IsZero())
-				GLUtils.GLVec(VSL.wCoM, filter.Value, Color.magenta);
+				GLUtils.GLVec(VSL.Physics.wCoM, filter.Value, Color.magenta);
 //			if(VSL.IsActiveVessel)
 //			{
 //				if(!Dir.IsZero())
-//					GLUtils.GLVec(VSL.wCoM, Dir, Color.cyan);
+//					GLUtils.GLVec(VSL.Physics.wCoM, Dir, Color.cyan);
 //				if(!DeltaV.IsZero())
-//					GLUtils.GLVec(VSL.wCoM, DeltaV, Color.green);
+//					GLUtils.GLVec(VSL.Physics.wCoM, DeltaV, Color.green);
 //				if(!Maneuver.IsZero() && !DeltaV.IsZero())
-//					GLUtils.GLVec(VSL.wCoM+DeltaV, Maneuver, Color.yellow);
+//					GLUtils.GLVec(VSL.Physics.wCoM+DeltaV, Maneuver, Color.yellow);
 //				if(!Maneuver.IsZero() && !DeltaV.IsZero())
-//					GLUtils.GLVec(VSL.wCoM, Maneuver+DeltaV, Color.red);
+//					GLUtils.GLVec(VSL.Physics.wCoM, Maneuver+DeltaV, Color.red);
 //			}
 //			GLUtils.GLBounds(VSL.EnginesExhaust, VSL.refT, Collided? Color.red : Color.white);
 //			for(int i = 0, VSLEnginesCount = VSL.Engines.Count; i < VSLEnginesCount; i++)
@@ -96,7 +101,7 @@ namespace ThrottleControlledAvionics
 		#endif
 
 		static float SafeTime(VesselWrapper vsl, Vector3d dVn)
-		{ return CPS.SafeTime/Utils.Clamp(Mathf.Abs(Vector3.Dot(vsl.wMaxAngularA, dVn)), 0.01f, 1f); }
+		{ return CPS.SafeTime/Utils.Clamp(Mathf.Abs(Vector3.Dot(vsl.Torque.wMaxAngularA, dVn)), 0.01f, 1f); }
 
 		public static bool AvoidStatic(VesselWrapper vsl, Vector3d dir, float dist, Vector3d dV, out Vector3d maneuver)
 		{
@@ -107,9 +112,9 @@ namespace ThrottleControlledAvionics
 			var sinA = Mathf.Sqrt(1-cosA*cosA);
 			var vdist = dist*cosA;
 			var min_separation = dist*sinA;
-			var sep_threshold = vsl.R*2;
+			var sep_threshold = vsl.Geometry.R*2;
 			if(min_separation > sep_threshold ||
-			   min_separation > vsl.R && vdist < min_separation) return false;
+			   min_separation > vsl.Geometry.R && vdist < min_separation) return false;
 			maneuver = (dVn*cosA-dir).normalized;
 			var vTime = dist*cosA/dV.magnitude;
 			if(vTime > SafeTime(vsl, dVn)) return false;
@@ -128,10 +133,10 @@ namespace ThrottleControlledAvionics
 			//filter vessels on non-collision courses
 			var dVn = dV.normalized;
 			var cosA = Mathf.Clamp(Vector3.Dot(dir, dVn), -1, 1);
-			var collision_dist = Mathf.Max(vsl.R, dist-vsl.DistToExhaust(vsl.wCoM+dir*dist)) +
-				Mathf.Max(r2, dist-Mathf.Sqrt(exhaust2.SqrDistance(refT2.InverseTransformPoint(vsl.wCoM))));
-//			vsl.Log("R {0}, R2 {1}; r {2}, r2 {3}", vsl.R, r2, 
-//			        dist-vsl.DistToExhaust(vsl.wCoM+dir*dist), 
+			var collision_dist = Mathf.Max(vsl.Geometry.R, dist-vsl.Geometry.DistToBounds(vsl.Physics.wCoM+dir*dist)) +
+				Mathf.Max(r2, dist-Mathf.Sqrt(exhaust2.SqrDistance(refT2.InverseTransformPoint(vsl.Physics.wCoM))));
+//			vsl.Log("R {0}, R2 {1}; r {2}, r2 {3}", vsl.Geometry.R, r2, 
+//			        dist-vsl.DistToBounds(vsl.wCoM+dir*dist), 
 //			        dist-Mathf.Sqrt(exhaust2.SqrDistance(refT2.InverseTransformPoint(vsl.wCoM))));//debug
 //			Utils.Log("{0}: cosA: {1}, threshold {2}", vsl.vessel.vesselName, cosA, threshold);//debug
 			if(cosA <= 0) goto check_distance;
@@ -155,9 +160,9 @@ namespace ThrottleControlledAvionics
 			//calculate maneuver
 			Vector3d side;
 			if(cosA < 0.9) side = (dVn*cosA-dir).normalized;
-			else if(Math.Abs(Vector3d.Dot(dVn, vsl.Up)) < 0.9) 
-				side = Vector3d.Cross(dVn, vsl.Up).normalized;
-			else side = Vector3d.Cross(dVn, vsl.Fwd).normalized;
+			else if(Math.Abs(Vector3d.Dot(dVn, vsl.Physics.Up)) < 0.9) 
+				side = Vector3d.Cross(dVn, vsl.Physics.Up).normalized;
+			else side = Vector3d.Cross(dVn, vsl.OnPlanetParams.Fwd).normalized;
 //			if(dist > sep_threshold)
 //			{
 //				var beta = Mathf.Asin(sep_threshold/dist)-alpha;
@@ -165,7 +170,7 @@ namespace ThrottleControlledAvionics
 //			}
 //			else 
 			maneuver  = side;
-			maneuver += vsl.Up*Mathf.Sign(Vector3.Dot(dir, vsl.Up))*(min_separation/sep_threshold-1);
+			maneuver += vsl.Physics.Up*Mathf.Sign(Vector3.Dot(dir, vsl.Physics.Up))*(min_separation/sep_threshold-1);
 			maneuver *= (sep_threshold-min_separation) / Math.Sqrt(vTime);
 //			maneuver = (-vsl.Up*Mathf.Sign(Vector3.Dot(dir, vsl.Up))*(1-min_separation/sep_threshold) + 
 //			            (dVn*cosA-dir).normalized).normalized * (sep_threshold-min_separation) / vTime;
@@ -183,9 +188,9 @@ namespace ThrottleControlledAvionics
 			{
 				var dist_to_safe = Utils.ClampH(dist-threshold, -0.01f);
 				var dc = dir*dist_to_safe;
-				if(vsl.TCA.HSC.NeededHorVelocity.sqrMagnitude > CPS.LatAvoidMinVelSqr)
+				if(vsl.HorizontalSpeed.NeededVector.sqrMagnitude > CPS.LatAvoidMinVelSqr)
 				{
-					var lat_avoid = Vector3d.Cross(vsl.Up, vsl.TCA.HSC.NeededHorVelocity.normalized);
+					var lat_avoid = Vector3d.Cross(vsl.Physics.Up, vsl.HorizontalSpeed.NeededVector.normalized);
 					dc = Vector3d.Dot(dc, lat_avoid) >= 0? 
 						lat_avoid*dist_to_safe :
 						lat_avoid*-dist_to_safe;
@@ -205,32 +210,32 @@ namespace ThrottleControlledAvionics
 		{
 			maneuver = Vector3d.zero;
 			//calculate distance
-			var dir = (v.CurrentCoM-VSL.wCoM);
+			var dir = (v.CurrentCoM-VSL.Physics.wCoM);
 			var dist = dir.magnitude;
 			dir /= dist;
 			//first try to get TCA from other vessel and get vessel's R and Exhaust
 			var vR = 0f;
-			var vE = new Bounds();
+			var vB = new Bounds();
 			Transform vT = null;
 			var tca = ModuleTCA.EnabledTCA(v);
 			if(tca != null) 
 			{
 //				if(tca.CPS != null && 
 //				   tca.CPS.IsActive && 
-//				   VSL.M > tca.VSL.M &&
+//				   VSL.Physics.M > tca.VSL.Physics.M &&
 //				   VSL.vessel.srfSpeed > v.srfSpeed) //test 
 //					return false;
-				vR = tca.VSL.R;
-				vE = tca.VSL.EnginesExhaust;
+				vR = tca.VSL.Geometry.R;
+				vB = tca.VSL.Geometry.B;
 				vT = tca.VSL.refT;
 			}
 			else //do a raycast
 			{
 				RaycastHit raycastHit;
-				if(Physics.SphereCast(VSL.C+dir*(VSL.R+0.1f), VSL.R, dir,
+				if(Physics.SphereCast(VSL.Geometry.C+dir*(VSL.Geometry.R+0.1f), VSL.Geometry.R, dir,
 				               out raycastHit, dist, RadarMask))
 					vR = (raycastHit.point-v.CurrentCoM).magnitude;
-				vE = v.EnginesExhaust();
+				vB = v.EnginesExhaust();
 				vT = v.ReferenceTransform;
 			}
 			//compute course correction
@@ -238,7 +243,7 @@ namespace ThrottleControlledAvionics
 			var thrershold = -1f;
 			if(v.LandedOrSplashed) thrershold = 0;
 			else if(Dangerous.Contains(v.id)) thrershold = CPS.SafeDistance;
-			if(AvoideVessel(VSL, dir, dist, dV, vR, vE, vT, out maneuver, thrershold))
+			if(AvoideVessel(VSL, dir, dist, dV, vR, vB, vT, out maneuver, thrershold))
 				Dangerous.Add(v.id);
 			else Dangerous.Remove(v.id);
 			return !maneuver.IsZero();
@@ -302,10 +307,10 @@ namespace ThrottleControlledAvionics
 			//correct needed vertical speed
 			if(CFG.VF[VFlight.AltitudeControl])
 			{
-				var dVSP = (float)Vector3d.Dot(filter.Value, VSL.Up);
+				var dVSP = (float)Vector3d.Dot(filter.Value, VSL.Physics.Up);
 				if(dVSP > 0 || 
-				   VSL.RelAltitude-VSL.H +
-				   (dVSP+VSL.RelVerticalSpeed)*CPS.LookAheadTime > 0)
+				   VSL.Altitude.Relative-VSL.Geometry.H +
+				   (dVSP+VSL.VerticalSpeed.Relative)*CPS.LookAheadTime > 0)
 					CFG.VerticalCutoff += dVSP;
 //				else dVSP = 0;//debug
 //				Log("\nCorrection {0}\nAction {1}\ndVSP {2}\ncorrectins:{3}", 
@@ -313,7 +318,7 @@ namespace ThrottleControlledAvionics
 //				    Corrections.Aggregate("\n", (s, v) => s+v+"\n"));//debug
 			}
 			//correct horizontal course
-			TCA.HSC.CourseCorrections.Add(Vector3d.Exclude(VSL.Up, filter.Value));
+			HSC.CourseCorrections.Add(Vector3d.Exclude(VSL.Physics.Up, filter.Value));
 		}
 	}
 }

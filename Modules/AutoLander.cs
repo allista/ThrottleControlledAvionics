@@ -14,6 +14,11 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(HorizontalSpeedControl),
+	                typeof(AltitudeControl),
+	                typeof(VerticalSpeedControl),
+	                typeof(Anchor),
+	                typeof(PointNavigator))]
 	public class AutoLander : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -63,7 +68,7 @@ namespace ThrottleControlledAvionics
 
 		public float Progress { get { return scanner != null? done_rays/(float)total_rays : 0f; } }
 
-		public AutoLander(ModuleTCA tca) { TCA = tca; }
+		public AutoLander(ModuleTCA tca) : base(tca) {}
 
 		public override void Init()
 		{
@@ -71,7 +76,7 @@ namespace ThrottleControlledAvionics
 			StopTimer.Period = LND.StopTimer;
 			CutoffTimer.Period = LND.CutoffTimer;
 			CFG.AP.AddHandler(this, Autopilot.Land);
-			TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.R));
+			TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -97,7 +102,7 @@ namespace ThrottleControlledAvionics
 				if(VSL.LandedOrSplashed) { CFG.AP.OffIfOn(Autopilot.Land); break; }
 				CFG.HF.On(HFlight.Stop);
 				DesiredAltitude = 0;
-				TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.R));
+				TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
 				break;
 
 			case Multiplexer.Command.Off:
@@ -110,7 +115,7 @@ namespace ThrottleControlledAvionics
 		SurfaceNode get_surface_node(float radius)
 		{
 			RaycastHit raycastHit;
-			var c = VSL.C+dir*(VSL.R+0.1f);
+			var c = VSL.Geometry.C+dir*(VSL.Geometry.R+0.1f);
 			if(Physics.SphereCast(c, radius, dir, out raycastHit, MaxDistance, RadarMask))
 			{
 				if(VSL.mainBody.ocean && 
@@ -128,14 +133,14 @@ namespace ThrottleControlledAvionics
 			side   = lvl*2-1;
 			bside  = side+2;
 			center = (bside-1)/2;
-			up     = VSL.Up;
+			up     = VSL.Physics.Up;
 			down   = -VSL.Altitude*up;
-			right  = Vector3d.Cross(VSL.Up, VSL.Fwd).normalized;
+			right  = Vector3d.Cross(VSL.Physics.Up, VSL.OnPlanetParams.Fwd).normalized;
 			fwd    = Vector3.Cross(right, up);
 			Nodes  = new SurfaceNode[bside,bside];
 			delta  = d > 0? d : DesiredAltitude/bside*lvl;
 			anchor = Vector3.zero;
-			if(start == null) anchor = VSL.wCoM+down;
+			if(start == null) anchor = VSL.Physics.wCoM+down;
 			else anchor = start.position;
 			//job progress
 			total_rays = bside*bside+side*side+1;
@@ -146,7 +151,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < bside; i++)
 				for(int j = 0; j < bside; j++)
 				{
-					sdir = anchor-VSL.wCoM;
+					sdir = anchor-VSL.Physics.wCoM;
 					MaxDistance = sdir.magnitude * 10;
 					dir = (sdir+right*(i-center)*delta+fwd*(j-center)*delta).normalized;
 					Nodes[i,j] = get_surface_node(delta/2);
@@ -218,7 +223,7 @@ namespace ThrottleControlledAvionics
 				CFG.AltitudeAboveTerrain = true;
 				if(DesiredAltitude <= 0) 
 				{
-					VSL.UpdateAltitudeInfo();
+					VSL.Altitude.Update();
 					DesiredAltitude = VSL.Altitude;
 				}
 				CFG.DesiredAltitude = DesiredAltitude;
@@ -233,7 +238,7 @@ namespace ThrottleControlledAvionics
 					CFG.VF.OffIfOn(VFlight.AltitudeControl);
 					CFG.VerticalCutoff = 0;
 				}
-				return Mathf.Abs(VSL.AbsVerticalSpeed) < LND.MinVerticalSpeed;
+				return Mathf.Abs(VSL.VerticalSpeed.Absolute) < LND.MinVerticalSpeed;
 			}
 		}
 
@@ -242,7 +247,7 @@ namespace ThrottleControlledAvionics
 			get
 			{
 				CFG.HF.OnIfNot(HFlight.Stop);
-				if(VSL.R/VSL.HorizontalSpeed > LND.MaxHorizontalTime)
+				if(VSL.Geometry.R/VSL.HorizontalSpeed > LND.MaxHorizontalTime)
 					return StopTimer.Check;
 				else StopTimer.Reset();
 				return false;
@@ -266,7 +271,7 @@ namespace ThrottleControlledAvionics
 				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(CFG.Anchor == null) { CFG.AP.Off(); return false; }
-				if(CFG.Anchor.DistanceTo(VSL.vessel)-VSL.R < CFG.Anchor.Distance)
+				if(CFG.Anchor.DistanceTo(VSL.vessel)-VSL.Geometry.R < CFG.Anchor.Distance)
 				{
 					if(NextNode.flat)
 					{
@@ -288,7 +293,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		float distance_to_node(SurfaceNode n)
-		{ return Vector3.ProjectOnPlane(n.position-VSL.wCoM, VSL.Up).magnitude; }
+		{ return Vector3.ProjectOnPlane(n.position-VSL.Physics.wCoM, VSL.Physics.Up).magnitude; }
 
 		void wide_check(float delta_alt = 0)
 		{
@@ -330,7 +335,7 @@ namespace ThrottleControlledAvionics
 			                          VSL.mainBody.GetLongitude(c.position));
 			CFG.Anchor.Distance = LND.NodeTargetRange;
 			CFG.Nav.On(Navigation.Anchor);
-			DesiredAltitude = LND.GearOnAtH+VSL.H;
+			DesiredAltitude = LND.GearOnAtH+VSL.Geometry.H;
 			stage = Stage.Land;
 		}
 
@@ -344,13 +349,14 @@ namespace ThrottleControlledAvionics
 
 		void gear_on()
 		{
-			if(!VSL.ActionGroups[KSPActionGroup.Gear])
-				VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
+			if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear])
+				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
 		}
 
 		protected override void Update()
 		{
 			if(!IsActive || CFG.AP.Paused) return;
+			VSL.Info.ScanningProgress = Progress;
 			switch(stage)
 			{
 			case Stage.None:
@@ -358,7 +364,7 @@ namespace ThrottleControlledAvionics
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(DesiredAltitude <= 0) 
 				{   //here we just need the altitude control to prevent smashing into something while stopping
-					VSL.UpdateAltitudeInfo();
+					VSL.Altitude.Update();
 					DesiredAltitude = VSL.Altitude > LND.MaxStartAltitude? LND.MaxStartAltitude : VSL.Altitude;
 					CFG.DesiredAltitude = DesiredAltitude;
 				}
@@ -371,7 +377,7 @@ namespace ThrottleControlledAvionics
 			case Stage.PointCheck:
 				SetState(TCAState.CheckingSite);
 				if(!fully_stopped) break;
-				if(scan(1, null, VSL.R*2)) break;
+				if(scan(1, null, VSL.Geometry.R*2)) break;
 				if(Nodes == null || center_node == null) 
 				{ wide_check(); break; }
 				TriedNodes.Add(center_node);
@@ -382,7 +388,7 @@ namespace ThrottleControlledAvionics
 				if(!fully_stopped) break;
 				if(FlatNodes.Count > 0)
 				{
-					if(scan(1, FlatNodes[0], VSL.R*2)) break;
+					if(scan(1, FlatNodes[0], VSL.Geometry.R*2)) break;
 					FlatNodes.RemoveAt(0);
 					var c = center_node;
 					if(c == null || !c.flat) break;
@@ -414,12 +420,12 @@ namespace ThrottleControlledAvionics
 				if(!landing_started)
 				{
 					landing_started = true;
-					SquadAction(vsl => vsl.CFG.AP.XOnIfNot(Autopilot.Land));
+					apply_cfg(cfg => cfg.AP.XOnIfNot(Autopilot.Land));
 				}
 				if(DesiredAltitude > 0)
 				{
 					CFG.Nav.OnIfNot(Navigation.Anchor);
-					DesiredAltitude = VSL.H*LND.GearOnAtH;
+					DesiredAltitude = VSL.Geometry.H*LND.GearOnAtH;
 					if(VSL.Altitude > DesiredAltitude &&
 					   !altitude_changed) break;
 					CFG.VerticalCutoff = -0.5f;
@@ -436,14 +442,14 @@ namespace ThrottleControlledAvionics
 				}
 				else
 				{
-					if(VSL.Altitude > LND.StopAtH*VSL.H)
+					if(VSL.Altitude > LND.StopAtH*VSL.Geometry.H)
 						CFG.Nav.OnIfNot(Navigation.Anchor);
 					else 
 					{
 						CFG.Nav.OffIfOn(Navigation.Anchor);
 						CFG.HF.OnIfNot(HFlight.Stop);
 					}
-					set_VSpeed((VSL.SlowThrust? -0.5f : -1f)
+					set_VSpeed((VSL.OnPlanetParams.SlowThrust? -0.5f : -1f)
 					           *Utils.ClampL(1-VSL.HorizontalSpeed, 0.1f));
 				}
 				CutoffTimer.Reset();
@@ -464,7 +470,7 @@ namespace ThrottleControlledAvionics
 			if(Nodes == null) return;
 			if(scanner == null && NextNode != null)
 			{
-				GLUtils.GLLine(VSL.wCoM, NextNode.position, Color.Lerp(Color.blue, Color.red, NextNode.unevenness));
+				GLUtils.GLLine(VSL.Physics.wCoM, NextNode.position, Color.Lerp(Color.blue, Color.red, NextNode.unevenness));
 				return;
 			}
 			for(int i = 0; i < bside; i++)
@@ -472,7 +478,7 @@ namespace ThrottleControlledAvionics
 				{
 					var n = Nodes[i,j];
 					if(n == null) continue;
-					GLUtils.GLLine(VSL.wCoM, n.position, Color.Lerp(Color.blue, Color.red, n.unevenness));
+					GLUtils.GLLine(VSL.Physics.wCoM, n.position, Color.Lerp(Color.blue, Color.red, n.unevenness));
 				}
 		}
 

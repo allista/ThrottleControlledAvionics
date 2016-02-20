@@ -16,7 +16,7 @@ namespace ThrottleControlledAvionics
 	public class RCSOptimizer : TorqueOptimizer
 	{
 		static RCSOptimizer.Config RCS { get { return TCAScenario.Globals.RCS; } }
-		public RCSOptimizer(ModuleTCA tca) { TCA = tca; }
+		public RCSOptimizer(ModuleTCA tca) : base(tca) {}
 
 		static bool optimization_pass(IList<RCSWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
 		{
@@ -55,7 +55,7 @@ namespace ThrottleControlledAvionics
 				{ var e = engines[j]; cur_imbalance += e.Torque(e.limit); }
 				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);
 				target = needed_torque-cur_imbalance;
-				error  = VSL.AngularAcceleration(target).magnitude;
+				error  = VSL.Torque.AngularAcceleration(target).magnitude;
 				//remember the best state
 				if(angle <= 0f && error < TorqueError || angle < TorqueAngle || TorqueAngle < 0) 
 				{ 
@@ -97,20 +97,20 @@ namespace ThrottleControlledAvionics
 
 		public void Steer()
 		{
-			if(VSL.NoActiveRCS) return;
+			if(VSL.Engines.NoActiveRCS) return;
 			//calculate needed torque
 			var needed_torque = Vector3.zero;
-			if(VSL.Steering.sqrMagnitude >= TCAScenario.Globals.InputDeadZone)
+			if(VSL.Controls.Steering.sqrMagnitude >= TCAScenario.Globals.InputDeadZone)
 			{
-				for(int i = 0; i < VSL.NumActiveRCS; i++)
-				{ needed_torque += VSL.ActiveRCS[i].currentTorque; }
-				needed_torque = Vector3.Project(needed_torque, VSL.Steering);
+				for(int i = 0; i < VSL.Engines.NumActiveRCS; i++)
+				{ needed_torque += VSL.Engines.ActiveRCS[i].currentTorque; }
+				needed_torque = Vector3.Project(needed_torque, VSL.Controls.Steering);
 			}
 			//optimize engines; if failed, set the flag and kill torque if requested
-			if(!Optimize(VSL.ActiveRCS, needed_torque) && !needed_torque.IsZero())
+			if(!Optimize(VSL.Engines.ActiveRCS, needed_torque) && !needed_torque.IsZero())
 			{
-				for(int j = 0; j < VSL.NumActiveRCS; j++) VSL.ActiveRCS[j].InitLimits();
-				Optimize(VSL.ActiveRCS, Vector3.zero);
+				for(int j = 0; j < VSL.Engines.NumActiveRCS; j++) VSL.Engines.ActiveRCS[j].InitLimits();
+				Optimize(VSL.Engines.ActiveRCS, Vector3.zero);
 			}
 		}
 	}

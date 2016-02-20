@@ -14,6 +14,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(VerticalSpeedControl))]
 	public class SetVerticalSpeedMacroNode : SetFloatMacroNode
 	{
 		public SetVerticalSpeedMacroNode()
@@ -31,6 +32,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(AltitudeControl))]
 	public class SetAltitudeMacroNode : SetFloatMacroNode
 	{
 		public SetAltitudeMacroNode()
@@ -44,6 +46,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(ThrottleControl))]
 	public class SetThrottleMacroNode : SetFloatMacroNode
 	{
 		public SetThrottleMacroNode() { Name += ":"; Suffix = "%"; }
@@ -53,29 +56,34 @@ namespace ThrottleControlledAvionics
 
 		protected override bool Action(VesselWrapper VSL)
 		{ 
-			VSL.TCA.THR.Throttle = Value/100;
+			var THR = VSL.TCA.GetModule<ThrottleControl>();
+			if(THR != null) THR.Throttle = Value/100;
 			return false; 
 		}
 	}
 
+	[RequireModules(typeof(HorizontalSpeedControl))]
 	public class StopMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.CFG.HF.XOn(HFlight.Stop); return false; }
 	}
 
+	[RequireModules(typeof(HorizontalSpeedControl))]
 	public class LevelMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.CFG.HF.XOn(HFlight.Level); return false; }
 	}
 
+	[RequireModules(typeof(Anchor))]
 	public class AnchorMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.CFG.Nav.XOn(Navigation.AnchorHere); return false; }
 	}
 
+	[RequireModules(typeof(MatchVelocityAutopilot))]
 	public class MatchVelocityMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -85,6 +93,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(MatchVelocityAutopilot))]
 	public class BrakeNearTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -95,6 +104,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(AutoLander))]
 	public class LandMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -104,6 +114,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(PointNavigator))]
 	public class GoToTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -114,6 +125,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(PointNavigator))]
 	public class FollowTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -124,6 +136,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(PointNavigator))]
 	public class FollowPathMacroNode : MacroNode
 	{
 		protected Queue<WayPoint> Waypoints = new Queue<WayPoint>();
@@ -180,6 +193,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(HorizontalSpeedControl))]
 	public class FlyMacroNode : SetFloatMacroNode
 	{
 		public enum Mode { Forward, Backward, Right, Left, Bearing, Off }
@@ -224,27 +238,27 @@ namespace ThrottleControlledAvionics
 			switch(mode)
 			{
 			case Mode.Forward:
-				nv = VSL.HFwd;
+				nv = VSL.OnPlanetParams.Bearing;
 				break;
 			case Mode.Backward:
-				nv = -VSL.HFwd;
+				nv = -VSL.OnPlanetParams.Bearing;
 				break;
 			case Mode.Right:
-				nv = Vector3.ProjectOnPlane(VSL.refT.right, VSL.Up).normalized;
+				nv = Vector3.ProjectOnPlane(VSL.refT.right, VSL.Physics.Up).normalized;
 				break;
 			case Mode.Left:
-				nv = -Vector3.ProjectOnPlane(VSL.refT.right, VSL.Up).normalized;
+				nv = -Vector3.ProjectOnPlane(VSL.refT.right, VSL.Physics.Up).normalized;
 				break;
 			case Mode.Bearing:
-				nv = Quaternion.AngleAxis(Bearing, VSL.Up) * 
-					Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-VSL.wCoM, VSL.Up).normalized;
+				nv = Quaternion.AngleAxis(Bearing, VSL.Physics.Up) * 
+					Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-VSL.Physics.wCoM, VSL.Physics.Up).normalized;
 				break;
 			case Mode.Off:
 				VSL.CFG.HF.XOff();
 				return false;
 			}
 			VSL.CFG.HF.XOn(HFlight.CruiseControl);
-			VSL.TCA.HSC.SetNeededHorVelocity(nv*Value);
+			VSL.HorizontalSpeed.SetNeeded(nv*Value);
 			return false;
 		}
 	}
@@ -364,6 +378,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(AltitudeControl))]
 	public class FollowTerrainMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -373,33 +388,36 @@ namespace ThrottleControlledAvionics
 	public class LightsMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.ActionGroups.SetGroup(KSPActionGroup.Light, On); return false; }
+		{ VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Light, On); return false; }
 	}
 
 	public class BrakesMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.ActionGroups.SetGroup(KSPActionGroup.Brakes, On); return false; }
+		{ VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, On); return false; }
 	}
 
 	public class GearMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.ActionGroups.SetGroup(KSPActionGroup.Gear, On); return false; }
+		{ VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, On); return false; }
 	}
 
 	public class RCSMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
-		{ VSL.ActionGroups.SetGroup(KSPActionGroup.RCS, On); return false; }
+		{ VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.RCS, On); return false; }
 	}
 
+	[RequireModules(typeof(VerticalSpeedControl), 
+	                typeof(ThrottleControl))]
 	public class AutoThrottleMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.CFG.BlockThrottle = On; return false; }
 	}
 
+	[RequireModules(typeof(AttitudeControl))]
 	public class TSASMacroNode : MacroNode
 	{
 		[Persistent] public Attitude attitude;
@@ -425,6 +443,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(VerticalSpeedControl))]
 	public class DisableVerticalControlMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -439,9 +458,10 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.CFG.HF.XOff();
 				VSL.CFG.AT.XOff();
-				VSL.TCA.SASC.EnableSAS();
+				var SAS = VSL.TCA.GetModule<SASBlocker>();
+				if(SAS != null) SAS.EnableSAS();
 			}
-			else VSL.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
+			else VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
 			return false; 
 		}
 	}

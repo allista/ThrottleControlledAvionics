@@ -12,6 +12,11 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(ManeuverAutopilot),
+	                typeof(AttitudeControl),
+	                typeof(ThrottleControl),
+	                typeof(TranslationControl),
+	                typeof(TimeWarpControl))]
 	public class MatchVelocityAutopilot : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -30,7 +35,13 @@ namespace ThrottleControlledAvionics
 			{ OrbitSolverDPeriod = 2f/OrbitSolverIterations; }
 		}
 		static Config MVA { get { return TCAScenario.Globals.MVA; } }
-		public MatchVelocityAutopilot(ModuleTCA tca) { TCA = tca; }
+		public MatchVelocityAutopilot(ModuleTCA tca) : base(tca) {}
+
+		ThrottleControl THR;
+		TimeWarpControl WRP;
+		AttitudeControl ATC;
+		TranslationControl TRA;
+		ManeuverAutopilot MAN;
 
 		bool MainThrust;
 		float TTA = -1;
@@ -44,7 +55,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{ 
 			IsActive = CFG.Enabled && VSL.InOrbit && VSL.orbit != null && 
-				VSL.MaxThrustM > 0 && VSL.HasTarget && VSL.Target.GetOrbit() != null &&
+				VSL.Engines.MaxThrustM > 0 && VSL.HasTarget && VSL.Target.GetOrbit() != null &&
 				CFG.AP.Any(Autopilot.MatchVel, Autopilot.MatchVelNear);
 			if(IsActive) return;
 			reset();
@@ -58,7 +69,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.On:
 				Working = false;
 				MainThrust = false;
-				TCA.THR.Throttle = 0;
+				THR.Throttle = 0;
 				CFG.AT.On(Attitude.KillRotation);
 				break;
 
@@ -71,7 +82,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(Working) 
 			{
-				TCA.THR.Throttle = 0;
+				THR.Throttle = 0;
 				CFG.AT.On(Attitude.KillRotation);
 			}
 			CFG.AP.OffIfOn(Autopilot.MatchVel);
@@ -86,20 +97,20 @@ namespace ThrottleControlledAvionics
 			var dV  = VSL.vessel.obt_velocity-VSL.Target.GetObtVelocity();
 			var dVm = (float)dV.magnitude;
 			//if we're waiting for the nearest approach
-			TCA.THR.Throttle = 0;
+			THR.Throttle = 0;
 			if(!Working && CFG.AP[Autopilot.MatchVelNear])
 			{
 				//calculate time to nearest approach
 				var tOrb   = VSL.Target.GetOrbit();
-				var ApprUT = VSL.UT;
+				var ApprUT = VSL.Physics.UT;
 				int iters  = 0;
 				var min_dist = Orbit.SolveClosestApproach(VSL.orbit, tOrb, ref ApprUT, 
 				                           VSL.orbit.period*MVA.OrbitSolverDPeriod, 0.0, 
-				                           VSL.UT, VSL.UT + VSL.orbit.period, 0.01, 
+				                           VSL.Physics.UT, VSL.Physics.UT + VSL.orbit.period, 0.01, 
 				                           MVA.OrbitSolverIterations, ref iters);
-				TTA = (float)(ApprUT-VSL.UT);
+				TTA = (float)(ApprUT-VSL.Physics.UT);
 				//if near enough, use local-space calculation
-				var pos = VSL.Target.GetTransform().position-VSL.wCoM;
+				var pos = VSL.Target.GetTransform().position-VSL.Physics.wCoM;
 				if(TimeWarp.CurrentRateIndex == 0 && 
 				   (TTA < MVA.OrbitSolverMinTTA ||
 				    pos.magnitude < min_dist*2))
@@ -116,17 +127,17 @@ namespace ThrottleControlledAvionics
 					if(dVm > MVA.TranslationThreshold)
 					{
 						CFG.AT.OnIfNot(Attitude.Custom);
-						TCA.ATC.AddCustomRotationW(dV, VSL.MaxThrust);
+						ATC.AddCustomRotationW(dV, VSL.Engines.MaxThrust);
 					}
 				}
 				if(TTA > 0)
 				{
-					VSL.TTB = TCA.MAN.TTB(dVm, VSL.MaxThrustM, 1);
-					VSL.Countdown = TTA-VSL.TTB-MVA.TimeBeforeApproach;
+					VSL.Info.TTB = MAN.TTB(dVm, VSL.Engines.MaxThrustM, 1);
+					VSL.Info.Countdown = TTA-VSL.Info.TTB-MVA.TimeBeforeApproach;
 					//warp to the nearest approach point if requested
-					if(CFG.WarpToNode && TCA.ATC.Aligned)
-						TCA.WRP.WarpToTime = VSL.UT+VSL.Countdown-TCA.ATC.AttitudeError;
-					if(VSL.Countdown > 0) return;
+					if(CFG.WarpToNode && ATC.Aligned)
+						WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
+					if(VSL.Info.Countdown > 0) return;
 				}
 				Working = true;
 			}
@@ -137,23 +148,23 @@ namespace ThrottleControlledAvionics
 				return;
 			}
 			//use main engines if dV is big enough, or if there's no translation capabilities
-			if(MainThrust || dVm > MVA.TranslationThreshold || !VSL.TranslationAvailable)
+			if(MainThrust || dVm > MVA.TranslationThreshold || !VSL.Controls.TranslationAvailable)
 			{
 				CFG.AT.OnIfNot(Attitude.AntiRelVel);
-				if(MainThrust || TCA.ATC.AttitudeError < MVA.StartAttitudeError)
+				if(MainThrust || ATC.AttitudeError < MVA.StartAttitudeError)
 				{
-					TCA.THR.DeltaV = dVm;
-					MainThrust = TCA.ATC.AttitudeError < GLB.ATC.AttitudeErrorThreshold;
+					THR.DeltaV = dVm;
+					MainThrust = ATC.AttitudeError < GLB.ATC.AttitudeErrorThreshold;
 				}
 			}
 			//if translation is available, use it as necessary
-			if(VSL.TranslationAvailable)
+			if(VSL.Controls.TranslationAvailable)
 			{
 				if(dVm <= MVA.TranslationThreshold)
 				{
 					if(!MainThrust)
 						CFG.AT.OnIfNot(Attitude.KillRotation);
-					TCA.TRA.AddDeltaV(VSL.LocalDir(dV));
+					TRA.AddDeltaV(VSL.LocalDir(dV));
 				}
 			}
 		}

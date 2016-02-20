@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(SASBlocker))]
 	public class AttitudeControl : AutopilotModule
 	{
 		public class Config : ModuleConfig
@@ -48,7 +49,7 @@ namespace ThrottleControlledAvionics
 		public bool Aligned { get; private set; }
 		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/ATC.MaxAttitudeError, 0); } }
 
-		public AttitudeControl(ModuleTCA tca) { TCA = tca; }
+		public AttitudeControl(ModuleTCA tca) : base(tca) {}
 
 		public override void Init() 
 		{ 
@@ -66,9 +67,9 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.AT) return;
 			if(!thrust.IsZero())
-				GLUtils.GLVec(VSL.wCoM, thrust.normalized*20, Color.red);
+				GLUtils.GLVec(VSL.Physics.wCoM, thrust.normalized*20, Color.red);
 			if(!needed_lthrust.IsZero())
-				GLUtils.GLVec(VSL.wCoM, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
+				GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
 		}
 
 		public override void Reset()
@@ -86,7 +87,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				TCA.SASC.Register(this);
+				RegisterTo<SASBlocker>();
 				break;
 
 			case Multiplexer.Command.On:
@@ -94,12 +95,12 @@ namespace ThrottleControlledAvionics
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
-				TCA.SASC.Unregister(this);
+				UnregisterFrom<SASBlocker>();
 				break;
 			}
 		}
 
-		public float GimbalLimit { get; private set; } = 100;
+//		public float GimbalLimit { get; private set; } = 100;
 		public Quaternion CustomRotation { get; private set; }
 
 		public void AddCustomRotation(Vector3 from, Vector3 to)
@@ -114,7 +115,7 @@ namespace ThrottleControlledAvionics
 		{
 			pid.Reset();
 			refT = null;
-			GimbalLimit = 100;
+			VSL.Controls.GimbalLimit = 100;
 			AttitudeError = 180;
 			Aligned = false;
 			omega_min.Reset();
@@ -172,11 +173,11 @@ namespace ThrottleControlledAvionics
 				break;
 			case Attitude.Target:
 				if(VSL.Target == null) { CFG.AT.On(Attitude.KillRotation); break; }
-				needed_lthrust = VSL.LocalDir((VSL.wCoM-VSL.Target.GetTransform().position).normalized);
+				needed_lthrust = VSL.LocalDir((VSL.Physics.wCoM-VSL.Target.GetTransform().position).normalized);
 				break;
 			case Attitude.AntiTarget:
 				if(VSL.Target == null) { CFG.AT.On(Attitude.KillRotation); break; }
-				needed_lthrust = VSL.LocalDir((VSL.Target.GetTransform().position-VSL.wCoM).normalized);
+				needed_lthrust = VSL.LocalDir((VSL.Target.GetTransform().position-VSL.Physics.wCoM).normalized);
 				break;
 			case Attitude.RelVel:
 			case Attitude.AntiRelVel:
@@ -197,7 +198,7 @@ namespace ThrottleControlledAvionics
 			}
 			if(!needed_lthrust.IsZero())
 			{
-				thrust = VSL.Thrust.IsZero()? VSL.MaxThrust : VSL.Thrust;
+				thrust = VSL.Engines.Thrust.IsZero()? VSL.Engines.MaxThrust : VSL.Engines.Thrust;
 				lthrust = VSL.LocalDir(thrust).normalized;
 				if(Vector3.Angle(needed_lthrust, lthrust) > ATC.AngleThreshold)
 				{
@@ -205,7 +206,7 @@ namespace ThrottleControlledAvionics
 					var lthrust_maxI = lthrust.MaxI();
 					var axis = Vector3.Cross(needed_lthrust, lthrust).Exclude(lthrust_maxI);
 					if(axis.sqrMagnitude < 0.01f) 
-						axis = VSL.MaxAngularA.Exclude(lthrust_maxI).MaxComponent();
+						axis = VSL.Torque.MaxAngularA.Exclude(lthrust_maxI).MaxComponent();
 					//main rotation component
 					var axis1 = axis.MaxComponent();
 					var lthrust_cmp1 = Vector3.ProjectOnPlane(lthrust, axis1);
@@ -226,7 +227,7 @@ namespace ThrottleControlledAvionics
 				                       Utils.CenterAngle(attitude_error.eulerAngles.y),
 				                       Utils.CenterAngle(attitude_error.eulerAngles.z))*Mathf.Deg2Rad;
 				#if DEBUG
-				thrust = VSL.Thrust.IsZero()? VSL.MaxThrust : VSL.Thrust;
+				thrust = VSL.Engines.Thrust.IsZero()? VSL.Engines.MaxThrust : VSL.Engines.Thrust;
 				lthrust = VSL.LocalDir(thrust).normalized;
 				needed_lthrust = attitude_error.Inverse()*lthrust;
 				#endif
@@ -239,37 +240,37 @@ namespace ThrottleControlledAvionics
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && CFG.AT && VSL.refT != null && VSL.orbit != null)) return;
 			DisableSAS();
-			GimbalLimit = 100;
+			VSL.Controls.GimbalLimit = 100;
 			if(VSL.AutopilotDisabled) { reset(); return; }
 			//calculate needed steering
 			CalculateSteering();
 			//calculate attitude error and Aligned state
 			AttitudeError = steering.magnitude*Mathf.Rad2Deg;
-			Aligned &= TCA.ATC.AttitudeError < ATC.MaxAttitudeError;
-			Aligned |= TCA.ATC.AttitudeError < ATC.AttitudeErrorThreshold;
+			Aligned &= AttitudeError < ATC.MaxAttitudeError;
+			Aligned |= AttitudeError < ATC.AttitudeErrorThreshold;
 			//tune PID parameters
-			angularM = Vector3.Scale(angularV, VSL.MoI);
-			AAf = Mathf.Clamp(1/VSL.MaxAngularA_m, ATC.MinAAf, ATC.MaxAAf);
+			angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
+			AAf = Mathf.Clamp(1/VSL.Torque.MaxAngularA_m, ATC.MinAAf, ATC.MaxAAf);
 			Ef = Utils.Clamp(steering.sqrMagnitude/steering_norm, ATC.MinEf, 1);
-			var slow = VSL.SlowTorque? 1+VSL.TorqueResponseTime*ATC.SlowTorqueF : 1;
+			var slow = VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ATC.SlowTorqueF : 1;
 //			if(VSL.SlowTorque) Log("slow {0}", slow); //debug
 			PIf = AAf*Utils.ClampL(1-Ef, 0.5f)*ATC.MaxEf/slow;
 			pid.P = ATC.PID.P*PIf;
 			pid.I = ATC.PID.I*PIf;
 			pid.D = ATC.PID.D*Utils.ClampH(Utils.ClampL(1-Ef*2, 0)+angularM.magnitude*ATC.AngularMf, 1)*AAf*AAf*slow*slow;
 			//set gimbal limit
-			GimbalLimit = Ef*100;
+			VSL.Controls.GimbalLimit = Ef*100;
 			//tune steering
 			var control = new Vector3(steering.x.Equals(0)? 0 : 1,
 			                          steering.y.Equals(0)? 0 : 1,
 			                          steering.z.Equals(0)? 0 : 1);
-			steering.Scale(Vector3.Scale(VSL.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).CubeNorm());
+			steering.Scale(Vector3.Scale(VSL.Torque.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).CubeNorm());
 			//add inertia
 			steering += Vector3.Scale(angularM.Sign(),
 			                         Vector3.Scale(Vector3.Scale(angularM, angularM),
-			                                       Vector3.Scale(VSL.MaxTorque, VSL.MoI).Inverse(0)))
+			                                       Vector3.Scale(VSL.Torque.MaxTorque, VSL.Physics.MoI).Inverse(0)))
 				.ClampComponents(-Mathf.PI, Mathf.PI)/
-				Mathf.Lerp(ATC.InertiaFactor, 1, VSL.MoI.magnitude*ATC.MoIFactor);
+				Mathf.Lerp(ATC.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATC.MoIFactor);
 			//update PID controller and set steering
 			pid.Update(steering, angularV);
 			SetRot(pid.Action, s);
@@ -278,8 +279,57 @@ namespace ThrottleControlledAvionics
 			if(VSL.IsActiveVessel)
 				ThrottleControlledAvionics.DebugMessage = 
 					string.Format("pid: {0}\nsteering: {1}°\ngimbal limit: {2}",
-					              pid, steering*Mathf.Rad2Deg, GimbalLimit);
+					              pid, steering*Mathf.Rad2Deg, VSL.Controls.GimbalLimit);
 			#endif
+		}
+
+		public override void Draw()
+		{
+			GUILayout.BeginHorizontal();
+			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
+			            CFG.AT? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false));
+			if(GUILayout.Button(new GUIContent("Kill", "Kill rotation"), CFG.AT[Attitude.KillRotation]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.KillRotation);
+			if(GUILayout.Button(new GUIContent("Hold", "Hold current attitude"), CFG.AT[Attitude.HoldAttitude]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.HoldAttitude);
+			if(GUILayout.Button(new GUIContent("Maneuver", "Maneuver node"), CFG.AT[Attitude.ManeuverNode]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.ManeuverNode);
+			if(GUILayout.Button(new GUIContent("PG", "Prograde"), CFG.AT[Attitude.Prograde]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.Prograde);
+			if(GUILayout.Button(new GUIContent("RG", "Retrograde"), CFG.AT[Attitude.Retrograde]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.Retrograde);
+			if(GUILayout.Button(new GUIContent("R+", "Radial"), CFG.AT[Attitude.Radial]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.Radial);
+			if(GUILayout.Button(new GUIContent("R-", "AntiRadial"), CFG.AT[Attitude.AntiRadial]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.AntiRadial);
+			if(GUILayout.Button(new GUIContent("N+", "Normal"), CFG.AT[Attitude.Normal]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.Normal);
+			if(GUILayout.Button(new GUIContent("N-", "AntiNormal"), CFG.AT[Attitude.AntiNormal]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.AntiNormal);
+			if(GUILayout.Button(new GUIContent("T+", "Target"), CFG.AT[Attitude.Target]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.Target);
+			if(GUILayout.Button(new GUIContent("T-", "AntiTarget"), CFG.AT[Attitude.AntiTarget]? 
+			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.AntiTarget);
+			if(Utils.ButtonSwitch("rV+", CFG.AT[Attitude.RelVel], "Relative Velocity", GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.RelVel);
+			if(Utils.ButtonSwitch("rV-", CFG.AT[Attitude.AntiRelVel], "Against Relative Velocity", GUILayout.ExpandWidth(false)))
+				CFG.AT.XToggle(Attitude.AntiRelVel);
+			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.green_button : Styles.grey, GUILayout.ExpandWidth(false)))
+				CFG.AT.OffIfOn(Attitude.Custom);
+			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", AttitudeError) : "Err: N/A", 
+			            Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
+			GUILayout.EndHorizontal();
 		}
 	}
 }

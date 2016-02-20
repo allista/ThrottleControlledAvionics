@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	public class VerticalSpeedControl : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -33,11 +34,20 @@ namespace ThrottleControlledAvionics
 		}
 		static Config VSC { get { return TCAScenario.Globals.VSC; } }
 
-		public VerticalSpeedControl(ModuleTCA tca) { TCA = tca; }
+		public VerticalSpeedControl(ModuleTCA tca) : base(tca) {}
 
 		float old_accel, accelV;
 		readonly EWA setpoint_correction = new EWA();
 		readonly Timer Falling = new Timer();
+
+		void set_vspeed(float vspeed)
+		{
+			apply_cfg(cfg =>
+			{
+				cfg.VerticalCutoff = vspeed;
+				cfg.BlockThrottle |= cfg.VSCIsActive;
+			});
+		}
 
 		protected override void UpdateState()
 		{ IsActive = VSL.OnPlanet && CFG.VSCIsActive; }
@@ -54,39 +64,70 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			VSL.VSF = 1f;
+			VSL.OnPlanetParams.VSF = 1f;
 			if(!IsActive) return;
 			SetState(TCAState.VerticalSpeedControl);
-			var upAF = -VSL.VerticalAccel
-				*(VSL.VerticalAccel < 0? VSL.AccelSpeed : VSL.DecelSpeed)*VSC.UpAf;
+			var upAF = -VSL.VerticalSpeed.Derivative
+				*(VSL.VerticalSpeed.Derivative < 0? VSL.OnPlanetParams.AccelSpeed : VSL.OnPlanetParams.DecelSpeed)*VSC.UpAf;
 			var setpoint = CFG.VerticalCutoff;
-			if(VSL.MaxDTWR > 0)
-				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/VSL.MaxDTWR;
+			if(VSL.OnPlanetParams.MaxDTWR > 0)
+				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/VSL.OnPlanetParams.MaxDTWR;
 			//calculate new VSF
 			if(!VSL.LandedOrSplashed)
 			{
-				accelV = (VSL.VerticalAccel-old_accel)/TimeWarp.fixedDeltaTime;
-				old_accel = VSL.VerticalAccel;
-				var missed = VSL.AbsVerticalSpeed > CFG.VerticalCutoff && VSL.AbsVerticalSpeed < CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel > 0 ||
-					VSL.AbsVerticalSpeed < CFG.VerticalCutoff && VSL.AbsVerticalSpeed > CFG.VerticalCutoff+setpoint_correction && VSL.VerticalAccel < 0;
-				if(missed || Mathf.Abs(VSL.VerticalAccel) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
-					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.AbsVerticalSpeed+setpoint_correction, 0));
+				accelV = (VSL.VerticalSpeed.Derivative-old_accel)/TimeWarp.fixedDeltaTime;
+				old_accel = VSL.VerticalSpeed.Derivative;
+				var missed = VSL.VerticalSpeed.Absolute > CFG.VerticalCutoff && VSL.VerticalSpeed.Absolute < CFG.VerticalCutoff+setpoint_correction && VSL.VerticalSpeed.Derivative > 0 ||
+					VSL.VerticalSpeed.Absolute < CFG.VerticalCutoff && VSL.VerticalSpeed.Absolute > CFG.VerticalCutoff+setpoint_correction && VSL.VerticalSpeed.Derivative < 0;
+				if(missed || Mathf.Abs(VSL.VerticalSpeed.Derivative) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
+					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.VerticalSpeed.Absolute+setpoint_correction, 0));
 			}
-			var err = setpoint-VSL.AbsVerticalSpeed+setpoint_correction;
+			var err = setpoint-VSL.VerticalSpeed.Absolute+setpoint_correction;
 			var K = Mathf.Clamp01(err
 			                      /VSC.K0
-			                      /Mathf.Pow(Utils.ClampL(VSL.VerticalAccel/VSC.K1+1, VSC.L1), 2f)
+			                      /Mathf.Pow(Utils.ClampL(VSL.VerticalSpeed.Derivative/VSC.K1+1, VSC.L1), 2f)
 			                      +upAF);
-			VSL.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.MinVSF);
+			VSL.OnPlanetParams.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.OnPlanetParams.MinVSF);
 //			Log("VSP {0}, setpoint {1}, setpoint correction {2}, err {3}, K {4}, VSF {5}, DTWR {6}, MinVSF {7}, G {8}",
-//			    CFG.VerticalCutoff, setpoint, setpoint_correction, err, K, VSL.VSF, VSL.DTWR, VSL.MinVSF, VSL.G);//debug
+//			    CFG.VerticalCutoff, setpoint, setpoint_correction, err, K, VSL.VSF, VSL.OnPlanetParams.DTWR, VSL.MinVSF, VSL.Physics.G);//debug
 			if(VSL.LandedOrSplashed) return;
 			//loosing altitude alert
 			if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
-				        		      VSL.AbsVerticalSpeed < 0 && VSL.CFG.VerticalCutoff-VSL.AbsVerticalSpeed > VSC.MaxDeltaV);
-//			CSV(VSL.Altitude, VSL.TerrainAltitude, VSL.RelVerticalSpeed,
+				        		      VSL.VerticalSpeed.Absolute < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed.Absolute > VSC.MaxDeltaV);
+//			CSV(VSL.Altitude, VSL.Altitude.TerrainAltitude, VSL.VerticalSpeed.Relative,
 //			               VSL.VerticalSpeed, CFG.VerticalCutoff, setpoint, setpoint_correction, 
-//			               VSL.VerticalAccel, upAF, K, VSL.VSF);//debug
+//			               VSL.VerticalSpeed.Derivative, upAF, K, VSL.VSF);//debug
+		}
+
+		public override void ProcessKeys()
+		{
+			if(!IsActive) return;
+			var cutoff = CFG.VerticalCutoff;
+			if(GameSettings.THROTTLE_UP.GetKey())
+				cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
+				                        GLB.VSC.MaxSpeed, 
+				                        CFG.VSControlSensitivity);
+			else if(GameSettings.THROTTLE_DOWN.GetKey())
+				cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
+				                        -GLB.VSC.MaxSpeed, 
+				                        CFG.VSControlSensitivity);
+			else if(GameSettings.THROTTLE_FULL.GetKeyDown())
+				cutoff = GLB.VSC.MaxSpeed;
+			else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
+				cutoff = -GLB.VSC.MaxSpeed;
+			if(!cutoff.Equals(CFG.VerticalCutoff)) set_vspeed(cutoff);
+		}
+
+		public override void Draw()
+		{
+			GUILayout.Label(string.Format("Vertical Speed: {0:0.00m/s}", VSL.VerticalSpeed.Display), GUILayout.Width(190));
+			GUILayout.Label("Set Point: " + (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
+			                                         CFG.VerticalCutoff.ToString("0.0m/s") : "OFF"), 
+			                        GUILayout.ExpandWidth(false));
+			var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, 
+			                                             -GLB.VSC.MaxSpeed, 
+			                                             GLB.VSC.MaxSpeed);
+			if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5) set_vspeed(VSP);
 		}
 	}
 }

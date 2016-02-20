@@ -19,7 +19,23 @@ namespace ThrottleControlledAvionics
 
 	public static class ComponentDB<T> where T : class, new()
 	{
-		public static TT Create<TT>() where TT : T, new() { return new TT(); }
+		public class ComponentFactory
+		{
+			static ST CreateComponent<ST>() where ST : T, new() { return new ST(); }
+
+			public delegate T Factory();
+			public readonly Type Component;
+			public readonly Factory Create;
+			public ComponentFactory(Type component)
+			{
+				Component = component;
+				Create = (Factory)Delegate
+					.CreateDelegate(typeof(Factory), 
+					                GetType()
+					                .GetMethod("CreateComponent", BindingFlags.Static)
+					                .MakeGenericMethod(Component));
+			}
+		}
 
 		/// <summary>
 		/// Gets all types defined in all loaded assemblies.
@@ -35,30 +51,49 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-
-		public delegate T Factory();
-		static SortedList<string, Factory> components;
-		public static SortedList<string, Factory> Components
+		static SortedList<string, ComponentFactory> components;
+		public static SortedList<string, ComponentFactory> Components
 		{
 			get
 			{
 				if(components == null)
 				{
-					var creator = typeof(ComponentDB<T>).GetMethod("Create", BindingFlags.Static | BindingFlags.Public);
-					components = new SortedList<string, Factory>();
+					components = new SortedList<string, ComponentFactory>();
 					foreach(var t in get_all_types())
 					{
 						if(!t.IsAbstract && t.IsSubclassOf(typeof(T)) &&
 						   t.GetCustomAttributes(typeof(HiddenComponent), true).Length == 0)
-						{
-							var constInfo = creator.MakeGenericMethod(t);
-							if(constInfo == null) continue;
 							components.Add(Utils.ParseCamelCase(t.Name.Replace(typeof(T).Name, "")), 
-							               (Factory)Delegate.CreateDelegate(typeof(Factory), constInfo));
-						}
+							               new ComponentFactory(t));
 					}
 				}
 				return components;
+			}
+		}
+
+		public static SortedList<string, ComponentFactory> AvailableComponents = new SortedList<string, ComponentFactory>();
+
+		public static void UpdateAvailableComponents() 
+		{
+			AvailableComponents.Clear();
+			foreach(var c in Components.Keys)
+			{
+				var cmp = Components[c];
+				var reqs = cmp.Component.GetCustomAttributes(typeof(RequireModules), true) as RequireModules[];
+				var available = true;
+				if(reqs != null && reqs.Length > 0)
+				{
+					foreach(var req in reqs)
+					{
+						foreach(var m in req.Modules)
+						{
+							available &= TCAModulesDatabase.ModuleAvailable(m);
+							if(!available) break;
+						}
+						if(!available) break;
+					}
+				}
+				if(available) AvailableComponents[c] = cmp;
 			}
 		}
 
@@ -69,12 +104,12 @@ namespace ThrottleControlledAvionics
 			component = null;
 			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(TCAScenario.Globals.ActionListHeight));
 			GUILayout.BeginVertical();
-			for(int i = 0, count = Components.Keys.Count; i < count; i++)
+			for(int i = 0, count = AvailableComponents.Keys.Count; i < count; i++)
 			{
-				var c = Components.Keys[i];
+				var c = AvailableComponents.Keys[i];
 				if(GUILayout.Button(c, Styles.normal_button, GUILayout.ExpandWidth(true)))
 				{
-					component = Components[c]();
+					component = AvailableComponents[c].Create();
 					ret = true;
 				}
 			}

@@ -29,6 +29,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public static bool Available { get; private set; }
+		static bool HasMacroProcessor, HasVTOLAssist, HasFlightStabilizer, HasAltitudeControl;
 
 		public override void Awake()
 		{
@@ -39,6 +40,11 @@ namespace ThrottleControlledAvionics
 			GameEvents.onEditorLoad.Add(OnShipLoad);
 			GameEvents.onEditorRestart.Add(Reset);
 			Available = false;
+			//module availability
+			HasMacroProcessor = TCAModulesDatabase.ModuleAvailable(typeof(MacroProcessor));
+			HasVTOLAssist = TCAModulesDatabase.ModuleAvailable(typeof(VTOLAssist));
+			HasFlightStabilizer = TCAModulesDatabase.ModuleAvailable(typeof(FlightStabilizer));
+			HasAltitudeControl = TCAModulesDatabase.ModuleAvailable(typeof(AltitudeControl));
 			//update TCA part infos
 			foreach(var ap in PartLoader.LoadedPartsList)
 			{
@@ -151,19 +157,27 @@ namespace ThrottleControlledAvionics
 			if(GUI.Button(new Rect(MainWindow.width - 23f, 2f, 20f, 18f), 
 			              new GUIContent("?", "Help"))) TCAManual.Toggle();
 			GUILayout.BeginVertical();
-			if(TCAMacroEditor.Editing)
-				GUILayout.Label("Edit Macros", Styles.grey, GUILayout.ExpandWidth(true));
-			else if(GUILayout.Button("Edit Macros", Styles.normal_button, GUILayout.ExpandWidth(true)))
-				TCAMacroEditor.Edit(CFG);
+			if(HasMacroProcessor)
+			{
+				if(TCAMacroEditor.Editing)
+					GUILayout.Label("Edit Macros", Styles.grey, GUILayout.ExpandWidth(true));
+				else if(GUILayout.Button("Edit Macros", Styles.normal_button, GUILayout.ExpandWidth(true)))
+					TCAMacroEditor.Edit(CFG);
+			}
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("On Launch:", GUILayout.ExpandWidth(false));
 			Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false));
-			if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Enable Altitude Control", GUILayout.ExpandWidth(false)))
-				CFG.VF.Toggle(VFlight.AltitudeControl);
-			Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false));
-			Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
-			Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
-			Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
+			if(HasAltitudeControl)
+			{
+				if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Enable Altitude Control", GUILayout.ExpandWidth(false)))
+					CFG.VF.Toggle(VFlight.AltitudeControl);
+				Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false));
+				Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
+			}
+			if(HasVTOLAssist)
+				Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
+			if(HasFlightStabilizer)
+				Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			CFG.EnginesProfiles.Draw(height);
 			if(CFG.ActiveProfile.Changed)

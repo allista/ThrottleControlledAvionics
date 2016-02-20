@@ -12,9 +12,18 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[RequireModules(typeof(AttitudeControl),
+	                typeof(ThrottleControl),
+	                typeof(TranslationControl),
+	                typeof(TimeWarpControl))]
 	public class ManeuverAutopilot : TCAModule
 	{
-		public ManeuverAutopilot(ModuleTCA tca) { TCA = tca; }
+		public ManeuverAutopilot(ModuleTCA tca) : base(tca) {}
+
+		ThrottleControl THR;
+		TimeWarpControl WRP;
+		AttitudeControl ATC;
+		TranslationControl TRA;
 
 		protected ManeuverNode Node;
 		protected PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
@@ -29,7 +38,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			IsActive = 
 				CFG.AP[Autopilot.Maneuver] && 
-				Node != null && VSL.MaxThrustM > 0 &&
+				Node != null && VSL.Engines.MaxThrustM > 0 &&
 				GameVariables.Instance
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) == GameVariables.OrbitDisplayMode.PatchedConics;
 		}
@@ -44,7 +53,7 @@ namespace ThrottleControlledAvionics
 				{ CFG.AP[Autopilot.Maneuver] = false; return; }
 				CFG.AT.On(Attitude.ManeuverNode);
 				Node = Solver.maneuverNodes[0];
-				TCA.THR.Throttle = 0;
+				THR.Throttle = 0;
 				CFG.DisableVSC();
 				break;
 
@@ -57,12 +66,12 @@ namespace ThrottleControlledAvionics
 
 		void reset()
 		{
-			if(Working) TCA.THR.Throttle = 0;
+			if(Working) THR.Throttle = 0;
 			if(CFG.AT[Attitude.ManeuverNode])
 				CFG.AT.On(Attitude.KillRotation);
 			CFG.AP.OffIfOn(Autopilot.Maneuver);
-			VSL.Countdown = 0;
-			VSL.TTB = 0;
+			VSL.Info.Countdown = 0;
+			VSL.Info.TTB = 0;
 			Working = false;
 			Node = null;
 		}
@@ -70,8 +79,8 @@ namespace ThrottleControlledAvionics
 		public float TTB(float dV, float thrust, float throttle)
 		{
 			return CheatOptions.InfiniteFuel?
-				VSL.M*dV/thrust/throttle : 
-				VSL.M*(Mathf.Exp(dV/thrust/throttle)-1)/VSL.MaxMassFlow/throttle;
+				VSL.Physics.M*dV/thrust/throttle : 
+				VSL.Physics.M*(Mathf.Exp(dV/thrust/throttle)-1)/VSL.Engines.MaxMassFlow/throttle;
 		}
 
 		protected override void Update()
@@ -89,18 +98,18 @@ namespace ThrottleControlledAvionics
 			//calculate remaining time to the full thrust burn
 			if(!Working)
 			{
-				VSL.TTB = TTB(dVrem, VSL.MaxThrustM, TCA.THR.NextThrottle(dVrem, VSL.MaxThrustM, 1));
-				var burn = Node.UT-VSL.TTB/2f;
-				if(CFG.WarpToNode && TCA.ATC.Aligned)
-					TCA.WRP.WarpToTime = burn-TCA.ATC.AttitudeError;
-				VSL.Countdown = burn-VSL.UT;
-				if(VSL.Countdown > 0) return;
-				VSL.Countdown = 0;
+				VSL.Info.TTB = TTB(dVrem, VSL.Engines.MaxThrustM, THR.NextThrottle(dVrem, VSL.Engines.MaxThrustM, 1));
+				var burn = Node.UT-VSL.Info.TTB/2f;
+				if(CFG.WarpToNode && ATC.Aligned)
+					WRP.WarpToTime = burn-ATC.AttitudeError;
+				VSL.Info.Countdown = burn-VSL.Physics.UT;
+				if(VSL.Info.Countdown > 0) return;
+				VSL.Info.Countdown = 0;
 				Working = true;
 			}
-			TCA.THR.DeltaV = dVrem;
-			if(TCA.ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
-				TCA.TRA.AddDeltaV(-VSL.LocalDir(dV));
+			THR.DeltaV = dVrem;
+			if(ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
+				TRA.AddDeltaV(-VSL.LocalDir(dV));
 		}
 	}
 }

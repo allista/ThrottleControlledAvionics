@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class TorqueOptimizer : TCAModule
+	public abstract class TorqueOptimizer : TCAModule
 	{
 		public class Config : ModuleConfig
 		{
@@ -29,6 +29,8 @@ namespace ThrottleControlledAvionics
 
 		public float TorqueError { get; protected set; }
 		public float TorqueAngle { get; protected set; }
+
+		protected TorqueOptimizer(ModuleTCA tca) : base(tca) {}
 	}
 
 	public class EngineOptimizer : TorqueOptimizer
@@ -47,7 +49,7 @@ namespace ThrottleControlledAvionics
 		}
 		static Config ENG { get { return TCAScenario.Globals.ENG; } }
 
-		public EngineOptimizer(ModuleTCA tca) { TCA = tca; }
+		public EngineOptimizer(ModuleTCA tca) : base(tca) {}
 
 		Vector3 Steering;
 
@@ -89,16 +91,16 @@ namespace ThrottleControlledAvionics
 			TorqueAngle = TorqueError = -1f;
 			float error, angle;
 			var last_error = -1f;
-			Vector3 cur_imbalance = VSL.Torque, target;
+			Vector3 cur_imbalance = VSL.Torque.EnginesTorque, target;
 			for(int i = 0; i < ENG.MaxIterations; i++)
 			{
 				//calculate current errors and target
-				cur_imbalance = VSL.Torque;
+				cur_imbalance = VSL.Torque.EnginesTorque;
 				for(int j = 0; j < num_engines; j++) 
 				{ var e = engines[j]; cur_imbalance += e.Torque(e.throttle * e.limit); }
 				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);
 				target = needed_torque-cur_imbalance;
-				error  = VSL.AngularAcceleration(target).magnitude;
+				error  = VSL.Torque.AngularAcceleration(target).magnitude;
 				//remember the best state
 				if(angle <= 0f && error < TorqueError || angle+error < TorqueAngle+TorqueError || TorqueAngle < 0) 
 				{ 
@@ -153,16 +155,16 @@ namespace ThrottleControlledAvionics
 
 		public void Steer()
 		{
-			var num_engines = VSL.SteeringEngines.Count;
+			var num_engines = VSL.Engines.Steering.Count;
 			if(num_engines == 0) return;
 			if(num_engines == 1 && 
-			   (VSL.Torque.IsZero() || 
-			    VSL.AngularAcceleration(VSL.Torque).magnitude < ENG.OptimizationTorqueCutoff))
-			{ VSL.SteeringEngines[0].limit = 1; return; }
+			   (VSL.Torque.EnginesTorque.IsZero() || 
+			    VSL.Torque.AngularAcceleration(VSL.Torque.EnginesTorque).magnitude < ENG.OptimizationTorqueCutoff))
+			{ VSL.Engines.Steering[0].limit = 1; return; }
 			//calculate steering
 			if(CFG.AutoTune) tune_steering_params();
 			var needed_torque = Vector3.zero;
-			Steering = VSL.Steering;
+			Steering = VSL.Controls.Steering;
 			if(Steering.sqrMagnitude >= TCAScenario.Globals.InputDeadZone)
 			{
 				//correct steering
@@ -171,18 +173,18 @@ namespace ThrottleControlledAvionics
 				//calculate needed torque
 				for(int i = 0; i < num_engines; i++)
 				{
-					var e = VSL.SteeringEngines[i];
+					var e = VSL.Engines.Steering[i];
 					if(Vector3.Dot(e.currentTorque, Steering) > 0)
 						needed_torque += e.currentTorque;
 				}
 				needed_torque = Vector3.Project(needed_torque, Steering) * Steering.magnitude;
-				needed_torque = VSL.E_TorqueLimits.Clamp(needed_torque);
+				needed_torque = VSL.Torque.EnginesLimits.Clamp(needed_torque);
 			}
 			//optimize engines; if failed, set the flag and kill torque if requested
-			if(!OptimizeLimitsForTorque(VSL.SteeringEngines, needed_torque) && !needed_torque.IsZero())
+			if(!OptimizeLimitsForTorque(VSL.Engines.Steering, needed_torque) && !needed_torque.IsZero())
 			{
-				for(int j = 0; j < num_engines; j++) VSL.SteeringEngines[j].InitLimits();
-				OptimizeLimitsForTorque(VSL.SteeringEngines, Vector3.zero);
+				for(int j = 0; j < num_engines; j++) VSL.Engines.Steering[j].InitLimits();
+				OptimizeLimitsForTorque(VSL.Engines.Steering, Vector3.zero);
 				SetState(TCAState.Unoptimized);
 			}
 		}
@@ -193,12 +195,12 @@ namespace ThrottleControlledAvionics
 			if(CFG.AT) CFG.SteeringModifier = Vector3.one;
 			else
 			{
-				CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.MaxAngularA.x)/100f);
-				CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.MaxAngularA.y)/100f);
-				CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.MaxAngularA.z)/100f);
+				CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAngularA.x)/100f);
+				CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAngularA.y)/100f);
+				CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAngularA.z)/100f);
 			}
 			//tune PI coefficients
-			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.MaxAngularA_m);
+			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.MaxAngularA_m);
 			CFG.Engines.I = CFG.Engines.P/2f;
 		}
 
@@ -231,7 +233,7 @@ namespace ThrottleControlledAvionics
 			Utils.Log("Engines:\n"+
 			          engines.Aggregate("", (s, e) => s 
 		                +string.Format("engine(vec{0}, vec{1}, vec{2}, {3}, {4}),\n",
-						VSL.LocalDir(e.wThrustPos-VSL.wCoM),
+						VSL.LocalDir(e.wThrustPos-VSL.Physics.wCoM),
                        	e.thrustDirection,e.specificTorque, e.nominalCurrentThrust(0), e.nominalCurrentThrust(1))));
 			Utils.Log("Engines Torque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.Torque(e.throttle*e.limit)+",\n"));
 			Utils.Log(
@@ -245,8 +247,8 @@ namespace ThrottleControlledAvionics
 				needed_torque,
 				engines.Aggregate(Vector3.zero, (v,e) => v+e.Torque(e.throttle*e.limit)),
 				TorqueError, TorqueAngle,
-				VSL.E_TorqueLimits.positive, 
-				VSL.E_TorqueLimits.negative,
+				VSL.Torque.EnginesLimits.positive, 
+				VSL.Torque.EnginesLimits.negative,
 				engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
 			);
 		}

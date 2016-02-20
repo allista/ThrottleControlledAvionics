@@ -151,9 +151,8 @@ HSC
 	LowPassF           = 0.1
 }
 
-CC
+BRC
 {
-	UpdateDelay = 5
 	MaxAAf = 2
 	MinAAf = 0.0001
 	
@@ -165,30 +164,30 @@ CC
 	}
 }
 
+CC
+{
+	UpdateDelay = 5
+}
+
 PN
 {
-	MinDistance        = 50
-	MinTime            = 5
-	OnPathMinDistance  = 300
-	DistanceF          = 0.1
-	MinSpeed           = 10
-	MaxSpeed           = 300
-	DeltaSpeed         = 10
-	DeltaSpeedF        = 0.5
-	FallingSensitivity = 10
-	FallingCorrection  = 2
-	AltErrSensitivity  = 20
-	DirectNavThreshold = 1
-	GCNavStep          = 0.1
-	LookAheadTime      = 3
-	BearingCutoff      = 80
+	MinDistance          = 50
+	MinTime              = 5
+	OnPathMinDistance    = 300
+	DistanceF            = 0.1
+	MinSpeed             = 10
+	MaxSpeed             = 300
+	DirectNavThreshold   = 1
+	GCNavStep            = 0.1
+	LookAheadTime        = 3
+	BearingCutoff        = 80
 	FormationSpeedCutoff = 10
-	FormationFactor    = 0.2
-	FormationBreakTime = 10
-	TakeoffAltitude    = 100
-	BrakeOffset        = 1.5
-	PitchRollAAf       = 100
-	FollowerMaxAwaySpped = 15
+	FormationFactor      = 0.2
+	FormationBreakTime   = 10
+	TakeoffAltitude      = 100
+	BrakeOffset          = 1.5
+	PitchRollAAf         = 100
+	FollowerMaxAwaySpeed = 15
 	
 	DistancePID
 	{

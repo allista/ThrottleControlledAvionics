@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	public class TranslationControl : AutopilotModule
 	{
 		public class Config : ModuleConfig
@@ -22,7 +23,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public PID_Controller TransPID = new PID_Controller(0.5f, 0.01f, 0.5f, 0, 1);
 		}
 		static Config TRA { get { return TCAScenario.Globals.TRA; } }
-		public TranslationControl(ModuleTCA tca) { TCA = tca; }
+		public TranslationControl(ModuleTCA tca) : base(tca) {}
 
 		readonly PIDf_Controller pid = new PIDf_Controller();
 
@@ -44,7 +45,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState()
 		{ 
-			IsActive = CFG.Enabled && VSL.TranslationAvailable;
+			IsActive = CFG.Enabled && VSL.Controls.TranslationAvailable;
 			if(IsActive) return;
 			pid.Reset();
 		}

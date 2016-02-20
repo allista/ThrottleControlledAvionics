@@ -8,10 +8,10 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
-using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	public class TimeWarpControl : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -23,20 +23,20 @@ namespace ThrottleControlledAvionics
 		}
 		static Config WRP { get { return TCAScenario.Globals.WRP; } }
 
-		public TimeWarpControl(ModuleTCA tca) { TCA = tca; }
+		public TimeWarpControl(ModuleTCA tca) : base(tca) {}
 
 		public double WarpToTime = -1;
 
 		protected override void Update()
 		{
-			if(WarpToTime <= VSL.UT) return;
-			var DewarpTime = WarpToTime-(WRP.DewarpTime+(1+TimeWarp.deltaTime)*(TimeWarp.CurrentRateIndex+1))-VSL.UT;
+			if(WarpToTime <= VSL.Physics.UT) return;
+			var DewarpTime = WarpToTime-(WRP.DewarpTime+(1+TimeWarp.deltaTime)*(TimeWarp.CurrentRateIndex+1))-VSL.Physics.UT;
 			if(TimeWarp.CurrentRateIndex > 0 && DewarpTime < 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex-1, false);
 			else if(DewarpTime > TimeWarp.CurrentRate && 
 			        TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
 			        TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= WRP.MaxWarp &&
-			        VSL.AbsAltitude > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody))
+			        VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody))
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
 		}
 	}
