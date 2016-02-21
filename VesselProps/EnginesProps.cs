@@ -68,8 +68,16 @@ namespace ThrottleControlledAvionics
 				VSL.ForceUpdateParts = false;
 			}
 			//unflameout engines
-			for(int i = 0; i < num_engines; i++)
-			{ var e = All[i]; if(e.engine.flameout) e.forceThrustPercentage(1); }
+			if(VSL.vessel.ctrlState.mainThrottle > 0)
+			{
+				for(int i = 0; i < num_engines; i++)
+				{ 
+					var e = All[i]; 
+					if(e.engine.flameout &&
+					   e.Role != TCARole.MANUAL) 
+						e.forceThrustPercentage(10); 
+				}
+			}
 			//sync with active profile
 			if(CFG.ActiveProfile.Activated) CFG.ActiveProfile.OnActivated(VSL);
 			if(ProfileSyncAllowed)
