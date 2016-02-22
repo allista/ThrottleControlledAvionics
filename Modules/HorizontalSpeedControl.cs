@@ -166,8 +166,8 @@ namespace ThrottleControlledAvionics
 			//set forward direction
 			BRC.ForwardDirection = VSL.HorizontalSpeed.NeededVector;
 			//calculate prerequisites
-			var thrust = VSL.LocalDir(VSL.Engines.Thrust);
-			needed_thrust_dir = -VSL.Physics.UpL;
+			var thrust = VSL.Engines.Thrust;
+			needed_thrust_dir = -VSL.Physics.Up;
 			if(!CFG.HF[HFlight.Level])
 			{
 				//if the vessel is not moving, nothing to do
@@ -182,21 +182,21 @@ namespace ThrottleControlledAvionics
 				var fV  = hV; //forward-backward velocity with respect to the manual thrust vector
 				var hVm = hV.magnitude;
 				var with_manual_thrust = VSL.Engines.Manual.Count > 0;
+				var manual_thrust = Vector3.ProjectOnPlane(VSL.OnPlanetParams.ManualThrust, VSL.Physics.Up);//test
 				if(with_manual_thrust && 
-				   VSL.OnPlanetParams.ManualThrust.sqrMagnitude/VSL.Physics.M > HSC.TranslationLowerThreshold &&
+				   manual_thrust.sqrMagnitude/VSL.Physics.M > HSC.TranslationLowerThreshold &&
 				   hVm > HSC.TranslationLowerThreshold && 
-				   Vector3.Dot(VSL.OnPlanetParams.ManualThrust, hV) > 0)
+				   Vector3.Dot(manual_thrust, hV) > 0)
 				{
-					thrust -= VSL.LocalDir(VSL.OnPlanetParams.ManualThrust);
-					rV = Vector3.ProjectOnPlane(hV, VSL.OnPlanetParams.ManualThrust);
+					thrust -= manual_thrust;
+					rV = Vector3.ProjectOnPlane(hV, manual_thrust);
 					fV = hV-rV;
 				}
 				var rVm = rV.magnitude;
 				var fVm = fV.magnitude;
 				//calculate needed thrust direction
-				if(rVm > HSC.RotationLowerThreshold)
+				if(Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)//test
 				{
-					var rVl   = VSL.LocalDir(rV);
 					//correction for low TWR
 					var twr   = VSL.OnPlanetParams.SlowThrust? VSL.OnPlanetParams.DTWR : VSL.OnPlanetParams.MaxTWR*0.70710678f; //MaxTWR at 45deg
 					var MaxHv = Utils.ClampL(Vector3d.Project(acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
@@ -204,22 +204,22 @@ namespace ThrottleControlledAvionics
 						Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), 1)/
 						Utils.Clamp(twr/HSC.TWRf, 1e-9, 1)*
 						Utils.ClampL(fVm/rVm, 1);
-					needed_thrust_dir = rVl.normalized - VSL.Physics.UpL*upF;
+					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
 				}
 				if(hVm > HSC.TranslationLowerThreshold)
 				{
 					//try to use translation
 					var nVm = nV.magnitude;
 					var hVl = VSL.LocalDir(hV);
-					var cVl_lat = VSL.LocalDir(Vector3.ProjectOnPlane(CourseCorrection, nV));
 					var nVn = nVm > 0? nV/nVm : Vector3d.zero;
 					var HVn = VSL.HorizontalSpeed.normalized;
+					var cV_lat = Vector3.ProjectOnPlane(CourseCorrection, nV);
 					//normal translation controls (maneuver engines and RCS)
 					if(nVm < HSC.TranslationUpperThreshold || 
 					   Mathf.Abs((float)Vector3d.Dot(HVn, nVn)) < HSC.TranslationMaxCos)
 						TRA.AddDeltaV(hVl);
-					else if(cVl_lat.magnitude > HSC.TranslationLowerThreshold)
-						TRA.AddDeltaV(cVl_lat);
+					else if(cV_lat.magnitude > HSC.TranslationLowerThreshold)
+						TRA.AddDeltaV(VSL.LocalDir(cV_lat));
 					//manual engine control
 					if(with_manual_thrust && 
 					   (nVm >= HSC.TranslationUpperThreshold ||
@@ -259,10 +259,16 @@ namespace ThrottleControlledAvionics
 					thrust = VSL.LocalDir(VSL.Engines.MaxThrust);
 			}
 			//tune filter
-			if(VSL.Engines.SlowTorque) 
-				filter.Tau = HSC.LowPassF/(1+VSL.Engines.TorqueResponseTime*HSC.SlowTorqueF);
-			else filter.Tau = HSC.LowPassF;
-			ATC.AddCustomRotation(filter.Update(needed_thrust_dir), thrust);
+			filter.Tau = VSL.Engines.SlowTorque ? 
+				HSC.LowPassF / (1 + VSL.Engines.TorqueResponseTime * HSC.SlowTorqueF) : 
+				HSC.LowPassF;
+			ATC.AddCustomRotationW(filter.Update(needed_thrust_dir), thrust);
+
+			#if DEBUG
+			CSV(VSL.Physics.UT, 
+			    filter.Value.x, filter.Value.y, filter.Value.z,
+			    thrust.x, thrust.y, thrust.z);//debug
+			#endif
 		}
 	}
 }

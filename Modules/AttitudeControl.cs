@@ -21,12 +21,13 @@ namespace ThrottleControlledAvionics
 
 			[Persistent] public PID_Controller PID = new PID_Controller(10f, 0.02f, 0.5f, -1, 1);
 
-			[Persistent] public float MinAAf = 0.1f,  MaxAAf = 1f;
+			[Persistent] public float MinAAf = 0.1f, MaxAAf  = 1f;
 			[Persistent] public float InertiaFactor = 10f, AngularMf = 0.002f;
-			[Persistent] public float MoIFactor = 0.01f;
-			[Persistent] public float AngleThreshold = 25f;
+			[Persistent] public float MoIFactor              = 0.01f;
+			[Persistent] public float AngleThreshold         = 25f;
 			[Persistent] public float MinEf = 0.001f, MaxEf  = 5f;
-			[Persistent] public float SlowTorqueF = 2;
+			[Persistent] public float SlowTorqueF            = 2;
+			[Persistent] public float AALowPassF             = 1f;
 
 			[Persistent] public float MaxAttitudeError       = 10f;  //deg
 			[Persistent] public float AttitudeErrorThreshold = 3f;   //deg
@@ -34,9 +35,9 @@ namespace ThrottleControlledAvionics
 		static Config ATC { get { return TCAScenario.Globals.ATC; } }
 
 		Transform  vesselTransform { get { return VSL.vessel.transform; } }
-		const float steering_norm = Mathf.PI*Mathf.PI;
 		readonly PIDv_Controller2 pid = new PIDv_Controller2();
 		readonly FloatMinimum omega_min = new FloatMinimum();
+		readonly LowPassFilterF AAf_filter = new LowPassFilterF();
 		Transform refT;
 		Quaternion attitude_error, locked_attitude;
 		bool attitude_locked;
@@ -100,20 +101,21 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-//		public float GimbalLimit { get; private set; } = 100;
 		public Quaternion CustomRotation { get; private set; }
 
 		public void AddCustomRotation(Vector3 from, Vector3 to)
 		{ CustomRotation = Quaternion.FromToRotation(from, to) * CustomRotation; }
 
 		public void AddCustomRotationW(Vector3 from, Vector3 to)
-		{ AddCustomRotation(VSL.LocalDir(from), VSL.LocalDir(to)); }
+		{ CustomRotation = VSL.refT.rotation.Inverse() * Quaternion.FromToRotation(from, to) * VSL.refT.rotation * CustomRotation; }
 
 		public void ResetCustomRotation() { CustomRotation = Quaternion.identity; }
 
 		void reset()
 		{
 			pid.Reset();
+			AAf_filter.Reset();
+			AAf_filter.Tau = 0;
 			refT = null;
 			VSL.Controls.GimbalLimit = 100;
 			AttitudeError = 180;
@@ -128,6 +130,7 @@ namespace ThrottleControlledAvionics
 			omega_min.Update(VSL.vessel.angularVelocity.sqrMagnitude);
 			attitude_error = Quaternion.identity;
 			needed_lthrust = Vector3.zero;
+			steering = Vector3.zero;
 			switch(CFG.AT.state)
 			{
 			case Attitude.Custom:
@@ -223,9 +226,11 @@ namespace ThrottleControlledAvionics
 			}
 			if(attitude_error != Quaternion.identity)
 			{
-				steering = new Vector3(Utils.CenterAngle(attitude_error.eulerAngles.x),
-				                       Utils.CenterAngle(attitude_error.eulerAngles.y),
-				                       Utils.CenterAngle(attitude_error.eulerAngles.z))*Mathf.Deg2Rad;
+				var euler = attitude_error.eulerAngles;
+				steering = new Vector3(Utils.CenterAngle(euler.x),
+				                       Utils.CenterAngle(euler.y),
+				                       Utils.CenterAngle(euler.z))*Mathf.Deg2Rad;
+					
 				#if DEBUG
 				thrust = VSL.Engines.Thrust.IsZero()? VSL.Engines.MaxThrust : VSL.Engines.Thrust;
 				lthrust = VSL.LocalDir(thrust).normalized;
@@ -245,15 +250,17 @@ namespace ThrottleControlledAvionics
 			//calculate needed steering
 			CalculateSteering();
 			//calculate attitude error and Aligned state
-			AttitudeError = steering.magnitude*Mathf.Rad2Deg;
+			var steering_m = steering.magnitude;
+			AttitudeError = steering_m*Mathf.Rad2Deg;
 			Aligned &= AttitudeError < ATC.MaxAttitudeError;
 			Aligned |= AttitudeError < ATC.AttitudeErrorThreshold;
+			Ef = Utils.Clamp(steering_m/Mathf.PI, ATC.MinEf, 1);
+			//tune lowpass filter
+			AAf_filter.Tau = (1-Mathf.Sqrt(Ef))*ATC.AALowPassF;
 			//tune PID parameters
 			angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
-			AAf = Mathf.Clamp(1/VSL.Torque.MaxAngularA_m, ATC.MinAAf, ATC.MaxAAf);
-			Ef = Utils.Clamp(steering.sqrMagnitude/steering_norm, ATC.MinEf, 1);
+			AAf = AAf_filter.Update(Mathf.Clamp(1/VSL.Torque.MaxAngularA_m, ATC.MinAAf, ATC.MaxAAf));
 			var slow = VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ATC.SlowTorqueF : 1;
-//			if(VSL.SlowTorque) Log("slow {0}", slow); //debug
 			PIf = AAf*Utils.ClampL(1-Ef, 0.5f)*ATC.MaxEf/slow;
 			pid.P = ATC.PID.P*PIf;
 			pid.I = ATC.PID.I*PIf;
@@ -267,19 +274,25 @@ namespace ThrottleControlledAvionics
 			steering.Scale(Vector3.Scale(VSL.Torque.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).CubeNorm());
 			//add inertia
 			steering += Vector3.Scale(angularM.Sign(),
-			                         Vector3.Scale(Vector3.Scale(angularM, angularM),
-			                                       Vector3.Scale(VSL.Torque.MaxTorque, VSL.Physics.MoI).Inverse(0)))
+			                          Vector3.Scale(Vector3.Scale(angularM, angularM),
+			                                        Vector3.Scale(VSL.Torque.MaxTorque, VSL.Physics.MoI).Inverse(0)))
 				.ClampComponents(-Mathf.PI, Mathf.PI)/
 				Mathf.Lerp(ATC.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATC.MoIFactor);
-			//update PID controller and set steering
+			//update PID and set steering
 			pid.Update(steering, angularV);
 			SetRot(pid.Action, s);
 
 			#if DEBUG
+			CSV(VSL.Physics.UT,
+			    AttitudeError, 
+			    steering.x, steering.y, steering.z, 
+			    angularV.x, angularV.y, angularV.z, 
+			    pid.Action.x, pid.Action.y, pid.Action.x
+			    );//debug
 			if(VSL.IsActiveVessel)
 				ThrottleControlledAvionics.DebugMessage = 
-					string.Format("pid: {0}\nsteering: {1}°\ngimbal limit: {2}",
-					              pid, steering*Mathf.Rad2Deg, VSL.Controls.GimbalLimit);
+					string.Format("pid: {0}\nsteering: {1}%\ngimbal limit: {2}",
+					              pid, pid.Action*100, VSL.Controls.GimbalLimit);
 			#endif
 		}
 
