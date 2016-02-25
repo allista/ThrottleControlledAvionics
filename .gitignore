@@ -226,6 +226,8 @@ pip-log.txt
 /Screenshots/**
 /Tests/Crafts/**
 /Tests/VSC/**
+/Tests/*.ods
+/Tests/*.csv
 /Debugging/**
 /Unity/**
 /Stash/**
@@ -239,5 +241,4 @@ pip-log.txt
 /GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/config.xml
 /TCA.glob
 /.directory
-
-
+/GameData/ThrottleControlledAvionics/TCA.macro
