@@ -230,8 +230,14 @@ pip-log.txt
 /Unity/**
 /Stash/**
 *.mdb
+/TechTree/ModuleDependencies/**
+/TechTree/PartDependencies/**
+/TechTree/*.png
+/TechTree/TCATechTree.cfg
 
 /GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/TCA.conf
 /GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/config.xml
 /TCA.glob
 /.directory
+
+
