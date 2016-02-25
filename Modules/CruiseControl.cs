@@ -11,6 +11,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[RequireModules(typeof(HorizontalSpeedControl),
 	         	    typeof(SASBlocker))]
 	public class CruiseControl : AutopilotModule

@@ -13,10 +13,11 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	[RequireModules(typeof(TranslationControl),
-	                typeof(AttitudeControl),
+	[CareerPart]
+	[RequireModules(typeof(AttitudeControl),
 	                typeof(BearingControl),
 	                typeof(SASBlocker))]
+	[OptionalModules(typeof(TranslationControl))]
 	public class HorizontalSpeedControl : AutopilotModule
 	{
 		public class Config : ModuleConfig
@@ -215,11 +216,14 @@ namespace ThrottleControlledAvionics
 					var HVn = VSL.HorizontalSpeed.normalized;
 					var cV_lat = Vector3.ProjectOnPlane(CourseCorrection, nV);
 					//normal translation controls (maneuver engines and RCS)
-					if(nVm < HSC.TranslationUpperThreshold || 
-					   Mathf.Abs((float)Vector3d.Dot(HVn, nVn)) < HSC.TranslationMaxCos)
-						TRA.AddDeltaV(hVl);
-					else if(cV_lat.magnitude > HSC.TranslationLowerThreshold)
-						TRA.AddDeltaV(VSL.LocalDir(cV_lat));
+					if(TRA != null)
+					{
+						if(nVm < HSC.TranslationUpperThreshold || 
+						   Mathf.Abs((float)Vector3d.Dot(HVn, nVn)) < HSC.TranslationMaxCos)
+							TRA.AddDeltaV(hVl);
+						else if(cV_lat.magnitude > HSC.TranslationLowerThreshold)
+							TRA.AddDeltaV(VSL.LocalDir(cV_lat));
+					}
 					//manual engine control
 					if(with_manual_thrust && 
 					   (nVm >= HSC.TranslationUpperThreshold ||

@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
+using System.IO;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -67,6 +68,8 @@ namespace ThrottleControlledAvionics
 			Utils.Log("\nTCA Modules in the ModulesDatabase:\n{0}", 
 			          RegisteredModules.Aggregate("", (s, t) => s + t.Value + "\n\n"));
 			Utils.Log("Pipeline: {0}", Pipeline.Aggregate("", (s, t) => s + t.Name + "->"));
+			File.WriteAllText("ModuleDatabase.csv",
+			                  RegisteredModules.Aggregate("", (s, t) => s + t.Value.ToCSV() + "\n"));
 			#endif
 		}
 
@@ -145,6 +148,7 @@ namespace ThrottleControlledAvionics
 	{
 		readonly string PartName = "";
 		public CareerPart(string part_name = "") { PartName = part_name; }
+		public CareerPart(Type module) { PartName = module.Name; }
 		public static implicit operator string(CareerPart cp) { return cp.PartName; }
 	}
 
@@ -191,10 +195,23 @@ namespace ThrottleControlledAvionics
 		{
 			Module = module;
 			var partname = GetAttr<CareerPart>(Module);
-			if(partname != null) PartName = partname;
+			if(partname != null) 
+			{
+				PartName = "TCAModule";
+				PartName += string.IsNullOrEmpty(partname)? Module.Name : partname;
+			}
 			AddToSet<RequireModules>(ref Requires);
 			AddToSet<OptionalModules>(ref Optional);
 			AddToSet<ModuleInputs>(ref Input);
+		}
+
+		public string ToCSV()
+		{
+			return string.Format("{0},{1},{2}|,{3}",
+			                     PartName,
+			                     Module.Name ?? "null",
+			                     Requires.Aggregate("", (s, t) => s + t.Name + ","),
+			                     Optional.Aggregate("", (s, t) => s + t.Name + ","));
 		}
 
 		public override string ToString()

@@ -11,6 +11,7 @@ using System;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[RequireModules(typeof(HorizontalSpeedControl))]
 	[OptionalModules(typeof(PointNavigator))]
 	public class VTOLAssist : TCAModule

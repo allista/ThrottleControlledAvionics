@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[RequireModules(typeof(SASBlocker))]
 	public class AttitudeControl : AutopilotModule
 	{

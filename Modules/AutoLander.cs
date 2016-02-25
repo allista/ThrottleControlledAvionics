@@ -14,6 +14,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[RequireModules(typeof(HorizontalSpeedControl),
 	                typeof(AltitudeControl),
 	                typeof(VerticalSpeedControl),

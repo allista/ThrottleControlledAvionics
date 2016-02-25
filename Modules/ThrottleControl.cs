@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[OptionalModules(typeof(VerticalSpeedControl))]
 	[ModuleInputs(typeof(AttitudeControl))]
 	public class ThrottleControl : AutopilotModule
@@ -74,9 +75,9 @@ namespace ThrottleControlledAvionics
 		{
 			BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
 			                               new GUIContent("AutoThrottle",
-			                                                          CFG.VF[VFlight.AltitudeControl]?
-			                                                          "Change altitude with throttle controls" :
-			                                                          "Set vertical speed with throttle controls"), 
+                                                          CFG.VF[VFlight.AltitudeControl]?
+                                                          "Change altitude with throttle controls" :
+                                                          "Set vertical speed with throttle controls"), 
 			                               GUILayout.ExpandWidth(false)));
 		}
 	}

@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart(typeof(AttitudeControl))]
 	[RequireModules(typeof(SASBlocker))]
     [OverrideModules(typeof(AttitudeControl))]
 	public class BearingControl : AutopilotModule

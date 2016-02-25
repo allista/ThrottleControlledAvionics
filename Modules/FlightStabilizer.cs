@@ -11,6 +11,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[RequireModules(typeof(HorizontalSpeedControl))]
 	public class FlightStabilizer : TCAModule
 	{

@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart(typeof(CollisionPreventionSystem))]
 	[OptionalModules(typeof(AltitudeControl),
 	                 typeof(HorizontalSpeedControl),
 	                 typeof(PointNavigator))]

@@ -9,7 +9,8 @@
 
 namespace ThrottleControlledAvionics
 {
-	[RequireModules(null)]
+	[CareerPart]
+	[OptionalModules(null)]
 	public class MacroProcessor : TCAModule
 	{
 		public MacroProcessor(ModuleTCA tca) : base(tca) {}

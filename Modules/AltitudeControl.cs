@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[RequireModules(typeof(VerticalSpeedControl))]
 	[ModuleInputs(typeof(Radar))]
 	public class AltitudeControl : TCAModule

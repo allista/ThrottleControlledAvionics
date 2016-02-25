@@ -11,7 +11,7 @@ using System;
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart]
+	[CareerPart(typeof(ManeuverAutopilot))]
 	public class TimeWarpControl : TCAModule
 	{
 		public class Config : ModuleConfig

@@ -9,7 +9,7 @@
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart]
+	[CareerPart(typeof(AttitudeControl))]
 	public class SASBlocker : TCAService
 	{
 		public SASBlocker(ModuleTCA tca) : base(tca) {}

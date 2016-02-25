@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[RequireModules(typeof(AttitudeControl),
 	                typeof(ThrottleControl),
 	                typeof(TranslationControl),
