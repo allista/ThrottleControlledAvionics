@@ -112,7 +112,8 @@ class TechTreeUpdater(object):
         for row in ws.rows[1:]:
             part = {}
             for i, attr in enumerate(h):
-                part[attr.value] = row[i].value
+                part[attr.value] = row[i].value or ''
+            if not part['name']: continue
             if part['name'] in self.parts:
                 self.parts.node[part['name']]['data'] = part
                 self.parts.node[part['name']]['label'] = part['title']
@@ -174,7 +175,7 @@ class TechTreeUpdater(object):
         return self.part_template.format(name=data.pop('name'), 
                                          title=data.pop('title'), 
                                          description=data.pop('description'),
-                                         cost=data.pop('cost', 10000),
+                                         cost=int(data.pop('cost', 10000)),
                                          model=data.pop('model', 'Squad/Parts/Command/probeCoreOcto2/model'),
                                          node=data.pop('node', 'specializedControl'))
 
@@ -234,7 +235,7 @@ partsfile     = 'Parts.xlsx'
 modulesdir    = 'ModuleDependencies'
 partsdir      = 'PartDependencies'
 templatefile  = 'DummyPartTemplate.cfg'
-techtreeparts = 'TCATechTree.cfg'
+techtreeparts = datapath('ThrottleControlledAvionics', 'TCATechTree.cfg')
 techtree      = datapath('Squad', 'Resources', 'TechTree.cfg')
 
 datafile = lambda f: os.path.join(datadir, f)
