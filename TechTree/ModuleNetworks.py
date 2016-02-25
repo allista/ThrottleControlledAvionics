@@ -115,7 +115,9 @@ class TechTreeUpdater(object):
                 part[attr.value] = row[i].value
             if part['name'] in self.parts:
                 self.parts.node[part['name']]['data'] = part
-            else: self.parts.add_node(part['name'], modules=set(), data=part)
+                self.parts.node[part['name']]['label'] = part['title']
+            else: self.parts.add_node(part['name'], label=part['title'], 
+                                      modules=set(), data=part)
         #add dependency information
         for p in self.parts:
             if 'data' not in self.parts.node[p]:
