@@ -32,10 +32,10 @@ namespace ThrottleControlledAvionics
 		public float Throttle = -1;
 		public float DeltaV;
 
-		public float NextThrottle(float dV, float thrust, float throttle)
+		public float NextThrottle(float dV, float throttle)
 		{ 
 			var dt = Utils.Clamp(dV/THR.DeltaVThreshold, 0.5f, 2f);
-			return Utils.Clamp((dV/dt/thrust*VSL.Physics.M-throttle*VSL.Engines.ThrustDecelerationTime/dt), 0f, 1f); 
+			return Utils.Clamp((dV/dt/VSL.Engines.MaxThrustM*VSL.Physics.M-throttle*VSL.Engines.ThrustDecelerationTime/dt), 0f, 1f); 
 		}
 
 		public void BlockThrottle(bool state)
@@ -57,7 +57,7 @@ namespace ThrottleControlledAvionics
 			if(!CFG.Enabled) return;
 			if(DeltaV >= THR.MinDeltaV)
 			{
-				Throttle = NextThrottle(DeltaV, VSL.Engines.MaxThrustM, VSL.vessel.ctrlState.mainThrottle) *
+				Throttle = NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) *
 					(ATC == null? 1f : ATC.AttitudeFactor);
 			}
 			if(Throttle >= 0) 

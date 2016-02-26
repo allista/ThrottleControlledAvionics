@@ -28,6 +28,7 @@ namespace ThrottleControlledAvionics
 
 		protected ManeuverNode Node;
 		protected PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
+		protected Timer AlignedTimer = new Timer();
 
 		public override void Init()
 		{
@@ -71,17 +72,19 @@ namespace ThrottleControlledAvionics
 			if(CFG.AT[Attitude.ManeuverNode])
 				CFG.AT.On(Attitude.KillRotation);
 			CFG.AP.OffIfOn(Autopilot.Maneuver);
+			AlignedTimer.Reset();
 			VSL.Info.Countdown = 0;
 			VSL.Info.TTB = 0;
 			Working = false;
 			Node = null;
 		}
 
-		public float TTB(float dV, float thrust, float throttle)
+		public float TTB(float dV, float throttle)
 		{
 			return CheatOptions.InfiniteFuel?
-				VSL.Physics.M*dV/thrust/throttle : 
-				VSL.Physics.M*(Mathf.Exp(dV/thrust/throttle)-1)/VSL.Engines.MaxMassFlow/throttle;
+				VSL.Physics.M*dV/VSL.Engines.MaxThrustM/throttle : 
+				VSL.Physics.M*(1-Mathf.Exp(-dV/VSL.Engines.MaxThrustM*VSL.Engines.MaxMassFlow))
+				/(VSL.Engines.MaxMassFlow*throttle);
 		}
 
 		protected override void Update()
@@ -99,10 +102,9 @@ namespace ThrottleControlledAvionics
 			//calculate remaining time to the full thrust burn
 			if(!Working)
 			{
-				VSL.Info.TTB = TTB(dVrem, VSL.Engines.MaxThrustM, THR.NextThrottle(dVrem, VSL.Engines.MaxThrustM, 1));
+				VSL.Info.TTB = TTB(dVrem, THR.NextThrottle(dVrem, 1));
 				var burn = Node.UT-VSL.Info.TTB/2f;
-				if(CFG.WarpToNode && ATC.Aligned)
-					WRP.WarpToTime = burn-ATC.AttitudeError;
+				if(CFG.WarpToNode) AlignedTimer.RunIf(() => WRP.WarpToTime = burn-ATC.AttitudeError, ATC.Aligned);
 				VSL.Info.Countdown = burn-VSL.Physics.UT;
 				if(VSL.Info.Countdown > 0) return;
 				VSL.Info.Countdown = 0;

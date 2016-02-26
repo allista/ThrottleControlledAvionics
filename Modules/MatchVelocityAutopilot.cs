@@ -133,7 +133,7 @@ namespace ThrottleControlledAvionics
 				}
 				if(TTA > 0)
 				{
-					VSL.Info.TTB = MAN.TTB(dVm, VSL.Engines.MaxThrustM, 1);
+					VSL.Info.TTB = MAN.TTB(dVm, 1);
 					VSL.Info.Countdown = TTA-VSL.Info.TTB-MVA.TimeBeforeApproach;
 					//warp to the nearest approach point if requested
 					if(CFG.WarpToNode && ATC.Aligned)
