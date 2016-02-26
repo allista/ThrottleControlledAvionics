@@ -67,9 +67,7 @@ namespace ThrottleControlledAvionics
 			Altimeter = new PQS_Altimeter(VSL);
 		}
 
-		public float AltitudeAhead { get; private set; }
 		public float TimeAhead { get; private set; }
-//		public bool  MoovingFast { get; private set; }
 
 		static   int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery"));
 		//normal radar
@@ -148,7 +146,7 @@ namespace ThrottleControlledAvionics
 			CollisionSpeed = -1;
 			DistanceAhead  = -1;
 			TimeAhead      = -1;
-			AltitudeAhead  = float.MinValue;
+			VSL.Altitude.Ahead  = float.MinValue;
 			RelObstaclePosition = Vector3.zero;
 		}
 
@@ -279,11 +277,11 @@ namespace ThrottleControlledAvionics
 				if(ForwardRay.Altitude > Obstacle.Altitude || ForwardRay.Altitude > alt_threshold)
 					Obstacle = new TerrainPoint(ForwardRay.Altitude, ForwardRay.CollisionPoint);
 			}
-			if(Obstacle.Valid) AltitudeAhead = (float)Obstacle.Altitude;
+			if(Obstacle.Valid) VSL.Altitude.Ahead = (float)Obstacle.Altitude;
 //			Log("\nCurHit {0}\nBestHit {1}\nDetectedHit {2}\nRObstacle {3}\nAObstacle {4}\nForwardRay {5}",
 //			    CurHit, BestHit, DetectedHit, Obstacle, Altimeter.Obstacle, ForwardRay);//debug
 			//check for possible stright collision
-			if(AltitudeAhead > alt_threshold) //deadzone of twice the detection height
+			if(VSL.Altitude.Ahead > alt_threshold) //deadzone of twice the detection height
 			{ 
 				if(CollisionSpeed < ClosingSpeed) CollisionSpeed = ClosingSpeed;
 				RelObstaclePosition = Vector3.ProjectOnPlane(Obstacle.RelPosition(VSL.Physics.wCoM), VSL.Physics.Up);

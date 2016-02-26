@@ -120,18 +120,18 @@ namespace ThrottleControlledAvionics
 			//correct for terrain altitude and radar data if following terrain
 			if(CFG.AltitudeAboveTerrain) 
 			{
-				if(RAD != null && RAD.AltitudeAhead > VSL.Altitude.TerrainAltitude)
+				if(VSL.Altitude.Ahead > VSL.Altitude.TerrainAltitude)
 				{
-					alt -= RAD.AltitudeAhead;
+					alt -= VSL.Altitude.Ahead;
 					if(alt <= VSL.Geometry.H) 
 					{
 						SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
 						if(RAD.TimeAhead > 0) 
 						{
-							CFG.VerticalCutoff = Mathf.Sqrt(2f*Utils.ClampL((RAD.AltitudeAhead+CFG.DesiredAltitude-VSL.Altitude.Absolute)*VSL.Physics.G, 0));
+							CFG.VerticalCutoff = Mathf.Sqrt(2f*Utils.ClampL((VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute)*VSL.Physics.G, 0));
 							ttAp = CFG.VerticalCutoff/VSL.Physics.G;
 							if(ttAp > RAD.TimeAhead) 
-								CFG.VerticalCutoff = (RAD.AltitudeAhead+CFG.DesiredAltitude-VSL.Altitude.Absolute)/RAD.TimeAhead+RAD.TimeAhead*VSL.Physics.G/2;
+								CFG.VerticalCutoff = (VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute)/RAD.TimeAhead+RAD.TimeAhead*VSL.Physics.G/2;
 //							Log("VSP {0}, ttAp {1}, TimeAhead {2}, ApA {3}, Obst {4}", CFG.VerticalCutoff, ttAp, RAD.TimeAhead, 
 //							    VSL.Altitude.Absolute+ttAp*(CFG.VerticalCutoff - ttAp*VSL.Physics.G/2), RAD.AltitudeAhead);//debug
 							return;
@@ -256,7 +256,7 @@ namespace ThrottleControlledAvionics
 			var above_ground = VSL.Altitude.AboveGround;
 			var style = above_ground? Styles.green : Styles.red;
 			GUILayout.Label(string.Format("Altitude: {0:F2}m {1:+0.0;-0.0;+0.0}m/s", 
-			                              VSL.Altitude, VSL.VerticalSpeed.Display), 
+			                              VSL.Altitude.Current, VSL.VerticalSpeed.Display), 
 			                        GUILayout.Width(190));
 			GUILayout.Label(new GUIContent("Set Point (m):", above_ground? 
 			                                       "Setpoint is above the ground" : "Warning! Setpoint is below the ground"), 

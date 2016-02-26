@@ -20,6 +20,7 @@ namespace ThrottleControlledAvionics
 		public float PrevRelative { get; private set; }
 		public float TerrainAltitude { get; private set; }
 		public bool  AboveGround { get; private set; }
+		public float Ahead = float.MinValue;
 
 		public static implicit operator float(AltitudeProps alt) { return alt.Current; }
 
