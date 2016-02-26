@@ -16,6 +16,8 @@ namespace ThrottleControlledAvionics
 {
 	public class EnginesProps : VesselProps
 	{
+		public const float G0 = 9.80665f; //m/s2
+
 		public EnginesProps(VesselWrapper vsl) : base(vsl) {}
 
 		public List<EngineWrapper> All       = new List<EngineWrapper>();
@@ -152,7 +154,7 @@ namespace ThrottleControlledAvionics
 				if(e.isVSC)
 				{
 					MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
-					MaxMassFlow += e.engine.maxThrust/e.engine.realIsp;
+					MaxMassFlow += e.engine.maxThrust/e.engine.realIsp/G0;
 					if(e.useEngineResponseTime && e.finalThrust > 0)
 					{
 						var decelT = 1f/e.engineDecelerationSpeed;
