@@ -163,7 +163,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!CFG.Enabled) yield break;
 			yield return new WaitForSeconds(0.5f);
-			VSL.SetUnpackDistance(GLB.UnpackDistance);
+			if(VSL != null) VSL.SetUnpackDistance(GLB.UnpackDistance);
 		}
 
 		void check_priority()
