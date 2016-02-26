@@ -81,7 +81,6 @@ namespace ThrottleControlledAvionics
 				sit.unpack = distance;
 				sit.unload = distance*2.5f;
 				sit.load   = distance*2f;
-				Log("{0}: unload {1}, load {2}, pack {3}, unpack {4}", fi.Name, sit.unload, sit.load, sit.pack, sit.unpack);//debug
 			}
 		}
 
@@ -90,16 +89,26 @@ namespace ThrottleControlledAvionics
 			if(saved_ranges == null) return;
 			vessel.vesselRanges = new VesselRanges(saved_ranges);
 			saved_ranges = null;
-			Log("VesselRanges restored");//debug
 		}
 		#endregion
+
+		void create_props()
+		{
+			foreach(var fi in AllProps)
+			{
+				var constructor = fi.FieldType.GetConstructor(new [] {typeof(VesselWrapper)});
+				if(constructor == null)
+					throw new MissingMemberException(string.Format("No suitable constructor found for {0}", fi.FieldType.Name));
+				fi.SetValue(this, constructor.Invoke(new [] {this}));
+			}
+		}
 
 		public VesselWrapper(ModuleTCA tca)
 		{
 			TCA = tca; 
 			CFG = tca.CFG;
 			vessel = tca.vessel;
-			AllProps.ForEach(fi => TCA.CreateComponent(this, fi));
+			create_props();
 			OnPlanet = _OnPlanet();
 			InOrbit  = _InOrbit();
 			UpdateState();
