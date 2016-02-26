@@ -80,12 +80,13 @@ namespace ThrottleControlledAvionics
 
 		static bool init()
 		{
-			TCA = null; TCAToolbarManager.AttachTCA(null); 
+			TCA = null; TCAToolbarManager.AttachTCA(null); parts = null;
 			TCA = ModuleTCA.AvailableTCA(vessel);
 			if(TCA == null) return false;
 			TCAToolbarManager.AttachTCA(TCA);
 			create_fields();
 			update_configs();
+			parts = TCAModulesDatabase.GetPurchasedParts();
 			return true;
 		}
 

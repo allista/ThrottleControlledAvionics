@@ -24,6 +24,8 @@ namespace ThrottleControlledAvionics
 		public static KeyCode TCA_Key = KeyCode.Y;
 		static bool selecting_key;
 		static bool adv_options;
+
+		static List<TCAPart> parts;
 		#endregion
 
 		#if DEBUG
@@ -121,9 +123,8 @@ namespace ThrottleControlledAvionics
 				NavigationControls.WaypointList();
 				EnginesControl();
 				#if DEBUG
-				if(!string.IsNullOrEmpty(DebugMessage))
-					GUILayout.Label(DebugMessage, Styles.white, GUILayout.ExpandWidth(true));
-	//			EnginesInfo();
+				DebugInfo();
+//				EnginesInfo();
 				#endif
 				SelectConfig_end();
 				GUILayout.EndVertical();
@@ -203,6 +204,7 @@ namespace ThrottleControlledAvionics
 			CFG.AutoTune = GUILayout.Toggle(CFG.AutoTune, "Autotune engines' controller parameters", GUILayout.ExpandWidth(false));
 			ControllerProperties();
 			ConfigsGUI();
+			PartsInfo();
 			GUILayout.EndVertical();
 		}
 
@@ -267,6 +269,28 @@ namespace ThrottleControlledAvionics
 			CFG.Engines.DrawControls("Engines Controller");
 		}
 
+		static bool show_parts_info;
+		static void PartsInfo()
+		{
+			if(parts == null || parts.Count == 0) return;
+			show_parts_info = Utils.ButtonSwitch("Show status of TCA Modules", show_parts_info, "", GUILayout.ExpandWidth(true));
+			if(show_parts_info)
+			{
+				GUILayout.BeginVertical(Styles.white);
+				for(int i = 0, partsCount = parts.Count; i < partsCount; i++)
+				{
+					var part = parts[i];
+					GUILayout.BeginHorizontal();
+					GUILayout.Label(part.Title);
+					GUILayout.FlexibleSpace();
+					GUILayout.Label(part.Active? "Active" : "Dependencies Unsatisfied",
+					                part.Active? Styles.green : Styles.red);
+					GUILayout.EndHorizontal();
+				}
+				GUILayout.EndVertical();
+			}
+		}
+
 		static void EnginesControl()
 		{
 			GUILayout.BeginVertical();
@@ -314,6 +338,25 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 			GUILayout.EndScrollView();
 			GUILayout.EndVertical();
+		}
+
+		static void DebugInfo()
+		{
+			GUILayout.BeginHorizontal();
+			GUILayout.Label(string.Format("vV: {0:0.0}m/s", VSL.VerticalSpeed.Absolute), GUILayout.Width(100));
+			GUILayout.Label(string.Format("A: {0:0.0}m/s2", VSL.VerticalSpeed.Derivative), GUILayout.Width(80));
+			GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.orbit.ApA), GUILayout.Width(120));
+			GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed.Absolute), GUILayout.Width(100));
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label(string.Format("VSP: {0:0.0m/s}", CFG.VerticalCutoff), GUILayout.Width(100));
+			GUILayout.Label(string.Format("TWR: {0:0.0}", VSL.OnPlanetParams.DTWR), GUILayout.Width(80));
+			if(VSL.Altitude.Ahead.Equals(float.MinValue)) GUILayout.Label("Obst: N/A", GUILayout.Width(120));
+			else GUILayout.Label(string.Format("Obst: {0:0.0}m", VSL.Altitude.Ahead), GUILayout.Width(120));
+			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*(VSL.Physics.wCoM-VSL.mainBody.position).magnitude)), GUILayout.Width(100));
+			GUILayout.EndHorizontal();
+			if(!string.IsNullOrEmpty(DebugMessage))
+				GUILayout.Label(DebugMessage, Styles.white, GUILayout.ExpandWidth(true));
 		}
 		#endif
 
