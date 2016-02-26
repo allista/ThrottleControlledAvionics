@@ -187,6 +187,7 @@ namespace ThrottleControlledAvionics
 				TCAScenario.LoadGlobals();
 				TCA.OnReloadGlobals();
 			}
+			PartsInfo();
 			//change key binding
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Press to change TCA hotkey:", GUILayout.ExpandWidth(false));
@@ -196,15 +197,17 @@ namespace ThrottleControlledAvionics
 			                    GUILayout.Width(40)))
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			GUILayout.EndHorizontal();
-			CFG.VTOLAssistON = GUILayout.Toggle(CFG.VTOLAssistON, "Assist with vertical takeoff and landing", GUILayout.ExpandWidth(true));
-			CFG.StabilizeFlight = GUILayout.Toggle(CFG.StabilizeFlight, "Try to stabilize flight if spinning uncontrollably", GUILayout.ExpandWidth(true));
-			GUILayout.BeginHorizontal();
-			CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity of throttle controls", CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
-			GUILayout.EndHorizontal();
+			if(VLA != null) Utils.ButtonSwitch("Assist with vertical takeoff and landing", ref CFG.VTOLAssistON, "", GUILayout.ExpandWidth(true));
+			if(STB != null) Utils.ButtonSwitch("Try to stabilize flight if spinning uncontrollably", ref CFG.StabilizeFlight, "", GUILayout.ExpandWidth(true));
+			if(THR != null)
+			{
+				GUILayout.BeginHorizontal();
+				CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity of throttle controls", CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
+				GUILayout.EndHorizontal();
+			}
 			CFG.AutoTune = GUILayout.Toggle(CFG.AutoTune, "Autotune engines' controller parameters", GUILayout.ExpandWidth(false));
 			ControllerProperties();
 			ConfigsGUI();
-			PartsInfo();
 			GUILayout.EndVertical();
 		}
 
@@ -273,7 +276,7 @@ namespace ThrottleControlledAvionics
 		static void PartsInfo()
 		{
 			if(parts == null || parts.Count == 0) return;
-			show_parts_info = Utils.ButtonSwitch("Show status of TCA Modules", show_parts_info, "", GUILayout.ExpandWidth(true));
+			Utils.ButtonSwitch("Show status of TCA Modules", ref show_parts_info, "", GUILayout.ExpandWidth(true));
 			if(show_parts_info)
 			{
 				GUILayout.BeginVertical(Styles.white);

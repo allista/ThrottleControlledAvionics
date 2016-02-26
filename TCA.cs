@@ -23,6 +23,8 @@ namespace ThrottleControlledAvionics
 		static AltitudeControl ALT;
 		static VerticalSpeedControl VSC;
 		static ThrottleControl THR;
+		static VTOLAssist VLA;
+		static FlightStabilizer STB;
 
 		static List<FieldInfo> ModuleFields = typeof(ThrottleControlledAvionics)
 			.GetFields(BindingFlags.Static|BindingFlags.NonPublic)
