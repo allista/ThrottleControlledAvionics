@@ -179,14 +179,16 @@ namespace ThrottleControlledAvionics
 					CourseCorrection += CourseCorrections[i];
 				var nV  = VSL.HorizontalSpeed.NeededVector+CourseCorrection;
 				var hV  = VSL.HorizontalSpeed.Vector-nV;
+				var hVl = VSL.LocalDir(hV);
 				var rV  = hV; //velocity that is needed to be handled by attitude control of the total thrust
 				var fV  = hV; //forward-backward velocity with respect to the manual thrust vector
+				var nVm = nV.magnitude;
 				var hVm = hV.magnitude;
+				var HVn = VSL.HorizontalSpeed.normalized;
 				var with_manual_thrust = VSL.Engines.Manual.Count > 0;
 				var manual_thrust = Vector3.ProjectOnPlane(VSL.OnPlanetParams.ManualThrust, VSL.Physics.Up);//test
 				if(with_manual_thrust && 
-				   manual_thrust.sqrMagnitude/VSL.Physics.M > HSC.TranslationLowerThreshold &&
-				   hVm > HSC.TranslationLowerThreshold && 
+				   manual_thrust.magnitude > 0 &&
 				   Vector3.Dot(manual_thrust, hV) > 0)
 				{
 					thrust -= manual_thrust;
@@ -210,10 +212,7 @@ namespace ThrottleControlledAvionics
 				if(hVm > HSC.TranslationLowerThreshold)
 				{
 					//try to use translation
-					var nVm = nV.magnitude;
-					var hVl = VSL.LocalDir(hV);
 					var nVn = nVm > 0? nV/nVm : Vector3d.zero;
-					var HVn = VSL.HorizontalSpeed.normalized;
 					var cV_lat = Vector3.ProjectOnPlane(CourseCorrection, nV);
 					//normal translation controls (maneuver engines and RCS)
 					if(TRA != null)
@@ -222,37 +221,36 @@ namespace ThrottleControlledAvionics
 						   Mathf.Abs((float)Vector3d.Dot(HVn, nVn)) < HSC.TranslationMaxCos)
 							TRA.AddDeltaV(hVl);
 						else if(cV_lat.magnitude > HSC.TranslationLowerThreshold)
-							TRA.AddDeltaV(VSL.LocalDir(cV_lat));
+							TRA.AddDeltaV(-VSL.LocalDir(cV_lat));
 					}
-					//manual engine control
-					if(with_manual_thrust && 
-					   (nVm >= HSC.TranslationUpperThreshold ||
-					    hVm >= HSC.TranslationUpperThreshold ||
-					    CourseCorrection.magnitude >= HSC.TranslationUpperThreshold))
+				}
+				//manual engine control
+				if(with_manual_thrust && 
+				   (nVm >= HSC.TranslationUpperThreshold ||
+				    hVm >= HSC.TranslationUpperThreshold ||
+				    CourseCorrection.magnitude >= HSC.TranslationUpperThreshold))
+				{
+					//turn the nose if nesessary
+					var pure_hV = VSL.HorizontalSpeed.Vector-VSL.HorizontalSpeed.NeededVector;
+					var NVm = VSL.HorizontalSpeed.NeededVector.magnitude;
+					if(pure_hV.magnitude >= HSC.RotationUpperThreshold &&
+					   (NVm < HSC.TranslationLowerThreshold || 
+					    Vector3.Dot(HVn, VSL.HorizontalSpeed.NeededVector/NVm) < HSC.RotationMaxCos))
 					{
-						//turn the nose if nesessary
-						var pure_hV = VSL.HorizontalSpeed.Vector-VSL.HorizontalSpeed.NeededVector;
-						var NVm = VSL.HorizontalSpeed.NeededVector.magnitude;
-						if(pure_hV.magnitude >= HSC.RotationUpperThreshold &&
-						   (NVm < HSC.TranslationLowerThreshold || 
-						    Vector3.Dot(HVn, VSL.HorizontalSpeed.NeededVector/NVm) < HSC.RotationMaxCos))
+						var max_MT = VSL.OnPlanetParams.ManualThrustLimits.MaxInPlane(VSL.Physics.UpL);
+						if(!max_MT.IsZero())
 						{
-							var max_MT = VSL.OnPlanetParams.ManualThrustLimits.MaxInPlane(VSL.Physics.UpL);
-							if(!max_MT.IsZero())
-							{
-								var rot = Quaternion.AngleAxis(Vector3.Angle(max_MT, Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL)),
-								                               VSL.Physics.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
-								BRC.ForwardDirection = rot*pure_hV;
-							}
+							var rot = Quaternion.AngleAxis(Vector3.Angle(max_MT, Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL)),
+							                               VSL.Physics.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
+							BRC.ForwardDirection = rot*pure_hV;
 						}
-						translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslationIMinSpeed && 
-						                     VSL.vessel.mainBody.atmosphere)? 
-							HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
-						translation_pid.Update((float)fVm);
-						VSL.Controls.ManualTranslation = translation_pid.Action*hVl.CubeNorm();
-						EnableManualTranslation(translation_pid.Action > 0);
 					}
-					else EnableManualTranslation(false);
+					translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslationIMinSpeed && 
+					                     VSL.vessel.mainBody.atmosphere)? 
+						HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
+					translation_pid.Update((float)fVm);
+					VSL.Controls.ManualTranslation = translation_pid.Action*hVl.CubeNorm();
+					EnableManualTranslation(translation_pid.Action > 0);
 				}
 				else EnableManualTranslation(false);
 			}

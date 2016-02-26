@@ -37,11 +37,18 @@ namespace ThrottleControlledAvionics
 
 		protected TCAComponent(ModuleTCA tca) { TCA = tca; }
 
+		public List<FieldInfo> get_all_module_fields(Type t, List<FieldInfo> list = null)
+		{
+			if(list == null) list = new List<FieldInfo>();
+			list.AddRange(t.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Instance|BindingFlags.NonPublic)
+			              .Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))));
+			if(t.BaseType != null) get_all_module_fields(t.BaseType, list);
+			return list;
+		}
+
 		public void InitModuleFields()
 		{
-			List<FieldInfo> ModuleFields = GetType()
-				.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Instance|BindingFlags.NonPublic)
-				.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToList();
+			var ModuleFields = get_all_module_fields(GetType());
 			ModuleFields.ForEach(fi => fi.SetValue(this, TCA.GetModule(fi.FieldType)));
 		}
 
@@ -58,6 +65,22 @@ namespace ThrottleControlledAvionics
 		}
 
 		public abstract void Draw();
+
+		#if DEBUG
+		protected void Log(string msg, params object[] args)
+		{ 
+			var s = string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg);
+			Utils.Log(s, args);
+		}
+
+		protected void CSV(params object[] args)
+		{
+			var tag = string.Format("{0}.{1}", VSL.vessel.vesselName, GetType().Name);
+			var args1 = new object[args.Length+1];
+			args1[0]= tag; args.CopyTo(args1, 1);
+			DebugUtils.CSV(args1);
+		}
+		#endif
 	}
 
 	public class TCAModule : TCAComponent
@@ -105,22 +128,6 @@ namespace ThrottleControlledAvionics
 			var srv = TCA.GetModule<S>();
 			return srv != null && srv.Unregister(this);
 		}
-
-		#if DEBUG
-		protected void Log(string msg, params object[] args)
-		{ 
-			var s = string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg);
-			Utils.Log(s, args);
-		}
-
-		protected void CSV(params object[] args)
-		{
-			var tag = string.Format("{0}.{1}", VSL.vessel.vesselName, GetType().Name);
-			var args1 = new object[args.Length+1];
-			args1[0]= tag; args.CopyTo(args1, 1);
-			DebugUtils.CSV(args1);
-		}
-		#endif
 	}
 
 	public abstract class AutopilotModule : TCAModule
@@ -138,20 +145,11 @@ namespace ThrottleControlledAvionics
 		public void UpdateCtrlState(FlightCtrlState s) { UpdateState(); OnAutopilotUpdate(s); }
 		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
 
-		protected void DisableSAS()
-		{
-			// Disable the new SAS so it won't interfere. But enable it while in timewarp for compatibility with PersistentRotation
-			if(TimeWarp.WarpMode != TimeWarp.Modes.HIGH || TimeWarp.CurrentRateIndex == 0)
-				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
-		}
-
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
 		{
 			s.pitch = Utils.Clamp(rot.x, -1, 1);
 			s.roll  = Utils.Clamp(rot.y, -1, 1);
 			s.yaw   = Utils.Clamp(rot.z, -1, 1);
-//			Log("Set Rot: {0}:{1}, {2}:{3}, {4}:{5}", 
-//			    s.pitch, s.pitchTrim, s.roll, s.rollTrim, s.yaw, s.yawTrim);//debug 
 		}
 	}
 

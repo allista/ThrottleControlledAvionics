@@ -58,7 +58,11 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.On:
 				VSL.UpdateOnPlanetStats();
-				VSL.HorizontalSpeed.SetNeeded(VSL.HorizontalSpeed.Vector);
+				var nV = VSL.HorizontalSpeed.Absolute;
+				if(nV < GLB.PN.MinSpeed) nV = GLB.PN.MinSpeed;
+				else if(nV > GLB.PN.MaxSpeed) nV = GLB.PN.MaxSpeed;
+				VSL.HorizontalSpeed.SetNeeded(VSL.HorizontalSpeed.Vector.normalized*nV);
+				CFG.MaxNavSpeed = needed_velocity = nV;
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
@@ -72,26 +76,34 @@ namespace ThrottleControlledAvionics
 		public void UpdateNeededVelocity()
 		{
 			VSL.HorizontalSpeed.SetNeeded(CFG.NeededHorVelocity.IsZero()? 
-			                         Vector3.zero : 
-			                         Quaternion.FromToRotation(CFG.SavedUp, VSL.Physics.Up)*CFG.NeededHorVelocity);
+			                              Vector3.zero : 
+			                              Quaternion.FromToRotation(CFG.SavedUp, VSL.Physics.Up)*CFG.NeededHorVelocity);
 		}
 
+		float needed_velocity;
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && VSL.OnPlanet && VSL.refT != null &&
 			     CFG.HF[HFlight.CruiseControl])) return;
-			DisableSAS();
 			//allow user to intervene
-			var cDir = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL).normalized;
 			if(VSL.AutopilotDisabled) 
 			{ 
-				VSL.HorizontalSpeed.SetNeeded(VSL.WorldDir(cDir) * 
-				                         Utils.ClampL((float)VSL.HorizontalSpeed.NeededVector.magnitude-s.pitch, 0));
+				CFG.MaxNavSpeed = Utils.Clamp((float)VSL.HorizontalSpeed.NeededVector.magnitude-s.pitch, GLB.PN.MinSpeed, GLB.PN.MaxSpeed);
+				var new_velocity = Quaternion.AngleAxis(s.yaw, VSL.Physics.Up) * VSL.HorizontalSpeed.NeededVector;
+				VSL.HorizontalSpeed.SetNeeded(new_velocity.normalized * CFG.MaxNavSpeed);
+				needed_velocity = CFG.MaxNavSpeed;
+				s.pitch = s.yaw = 0;
 				return; 
 			}
+			else if(Mathf.Abs(needed_velocity-CFG.MaxNavSpeed) > 1)
+			{
+				CFG.NeededHorVelocity = CFG.NeededHorVelocity.normalized * CFG.MaxNavSpeed;
+				needed_velocity = CFG.MaxNavSpeed;
+				UpdateNeededVelocity();
+			}
 			//update needed velocity
-			if(CFG.HF[HFlight.CruiseControl]) UpdateTimer.Run(UpdateNeededVelocity);
+			else if(CFG.HF[HFlight.CruiseControl]) UpdateTimer.Run(UpdateNeededVelocity);
 		}
 	}
 }

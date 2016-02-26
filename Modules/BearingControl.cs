@@ -69,7 +69,6 @@ namespace ThrottleControlledAvionics
 			     CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl) && 
 			     VSL.OnPlanet && VSL.refT != null && 
 			     !ForwardDirection.IsZero())) return;
-			DisableSAS();
 			//allow user to intervene
 			var cDir = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL).normalized;
 			if(VSL.AutopilotDisabled) pid.Reset();
