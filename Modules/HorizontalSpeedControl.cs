@@ -269,9 +269,9 @@ namespace ThrottleControlledAvionics
 			ATC.AddCustomRotationW(filter.Update(needed_thrust_dir), thrust);
 
 			#if DEBUG
-			CSV(VSL.Physics.UT, 
-			    filter.Value.x, filter.Value.y, filter.Value.z,
-			    thrust.x, thrust.y, thrust.z);//debug
+//			CSV(VSL.Physics.UT, 
+//			    filter.Value.x, filter.Value.y, filter.Value.z,
+//			    thrust.x, thrust.y, thrust.z);//debug
 			#endif
 		}
 	}
