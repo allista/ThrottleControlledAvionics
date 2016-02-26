@@ -24,7 +24,8 @@ namespace ThrottleControlledAvionics
 		{
 			if(!VSL.InOrbit || (MVA == null && MAP == null)) return;
 			GUILayout.BeginHorizontal();
-			if(WRP != null && VSL.Info.Countdown >= 0 && Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
+			if(WRP != null && VSL.Info.Countdown > 0 && 
+			   Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
 			{
 				CFG.WarpToNode = !CFG.WarpToNode;
 				if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
