@@ -22,6 +22,7 @@ namespace ThrottleControlledAvionics
 		public static readonly Type[] ValidModules = Assembly.GetExecutingAssembly().GetTypes().Where(ValidModule).ToArray();
 		public static readonly Dictionary<Type, ModuleMeta> RegisteredModules = new Dictionary<Type, ModuleMeta>();
 		public static readonly List<Type> Pipeline = new List<Type>();
+		public static readonly Dictionary<string, TCAPart> TechTreeParts = new Dictionary<string, TCAPart>();
 
 		static void sort_module(Type m, List<Type> route = null)
 		{
@@ -63,6 +64,19 @@ namespace ThrottleControlledAvionics
 				meta.Input.ForEach(inp => add_optional(module, inp));
 			}
 			SortModules();
+			foreach(var module in RegisteredModules.Values)
+			{
+				if(string.IsNullOrEmpty(module.PartName)) continue;
+				TCAPart part = null;
+				if(TechTreeParts.TryGetValue(module.PartName, out part))
+					part.AddModule(module);
+				else
+				{
+					part = new TCAPart(module.PartName);
+					part.AddModule(module);
+					TechTreeParts.Add(part.Name, part);
+				}
+			}
 
 			#if DEBUG
 			Utils.Log("\nTCA Modules in the ModulesDatabase:\n{0}", 
@@ -94,7 +108,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		static TCAModule create_module(Type mtype, ModuleTCA TCA)
-		{ return !ModuleAvailable(mtype) ? null : TCA.CreateComponent(mtype) as TCAModule; }
+		{ return ModuleAvailable(mtype)? TCA.CreateComponent(mtype) as TCAModule : null; }
 
 		public static void InitModules(ModuleTCA TCA)
 		{
@@ -117,6 +131,16 @@ namespace ThrottleControlledAvionics
 				TCA.AllModules.Add(module);
 			}
 			TCA.AllModules.ForEach(m => m.Init());
+		}
+
+		public static List<TCAPart> GetPurchasedParts()
+		{
+			if(HighLogic.CurrentGame == null ||
+			   HighLogic.CurrentGame.Mode != Game.Modes.CAREER) return null;
+			TechTreeParts.ForEach(p => p.Value.UpdateInfo());
+			var list = TechTreeParts.Values.Where(p => p.Purchased).ToList();
+			list.Sort((a, b) => a.Title.CompareTo(b.Title));
+			return list;
 		}
 	}
 
@@ -222,6 +246,39 @@ namespace ThrottleControlledAvionics
 			                     Requires.Aggregate("", (s, t) => s + t.Name + " "),
 			                     Optional.Aggregate("", (s, t) => s + t.Name + " "),
 			                     Input.Aggregate("", (s, t) => s + t.Name + " "));
+		}
+	}
+
+	public class TCAPart
+	{
+		public readonly string Name = "";
+		public string Title = "";
+		public bool Purchased;
+		public bool Active;
+
+		AvailablePart info;
+		readonly HashSet<ModuleMeta> modules = new HashSet<ModuleMeta>();
+
+		public TCAPart(string partname) { Name = partname; }
+
+		public void AddModule(ModuleMeta module)
+		{
+			if(module.PartName != Name)
+			{
+				Utils.Log("PartMeta[{0}]: trying to add {1} that belongs to the {2}", 
+				          Name, module.Module.Name, module.PartName);
+				return;
+			}
+			modules.Add(module);
+		}
+
+		public void UpdateInfo()
+		{ 
+			info = PartLoader.getPartInfoByName(Name); 
+			if(info == null) return;
+			Title = info.title;
+			Purchased = Utils.PartIsPurchased(Name);
+			Active = modules.All(m => TCAModulesDatabase.ModuleAvailable(m.Module));
 		}
 	}
 }
