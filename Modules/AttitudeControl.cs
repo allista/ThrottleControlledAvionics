@@ -14,6 +14,7 @@ namespace ThrottleControlledAvionics
 {
 	[CareerPart]
 	[RequireModules(typeof(SASBlocker))]
+	[OptionalModules(typeof(TimeWarpControl))]
 	public class AttitudeControl : AutopilotModule
 	{
 		public class Config : ModuleConfig
@@ -50,6 +51,8 @@ namespace ThrottleControlledAvionics
 		public float AttitudeError { get; private set; }
 		public bool Aligned { get; private set; }
 		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/ATC.MaxAttitudeError, 0); } }
+
+		TimeWarpControl TWR;
 
 		public AttitudeControl(ModuleTCA tca) : base(tca) {}
 
@@ -89,6 +92,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
+				if(TWR != null) TWR.StopWarp();
 				RegisterTo<SASBlocker>();
 				break;
 
@@ -160,7 +164,7 @@ namespace ThrottleControlledAvionics
 			case Attitude.Retrograde:
 				v = VSL.InOrbit? VSL.vessel.obt_velocity : VSL.vessel.srf_velocity;
 				if(v.magnitude < GLB.THR.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
-				if(CFG.AT.state == Attitude.Retrograde) v *= -1;
+				if(CFG.AT.state == Attitude.Prograde) v *= -1;
 				needed_lthrust = VSL.LocalDir(v.normalized);
 				break;
 			case Attitude.Normal:
@@ -284,12 +288,12 @@ namespace ThrottleControlledAvionics
 			SetRot(pid.Action, s);
 
 			#if DEBUG
-			CSV(VSL.Physics.UT,
-			    AttitudeError, 
-			    steering.x, steering.y, steering.z, 
-			    angularV.x, angularV.y, angularV.z, 
-			    pid.Action.x, pid.Action.y, pid.Action.x
-			    );//debug
+//			CSV(VSL.Physics.UT,
+//			    AttitudeError, 
+//			    steering.x, steering.y, steering.z, 
+//			    angularV.x, angularV.y, angularV.z, 
+//			    pid.Action.x, pid.Action.y, pid.Action.x
+//			    );//debug
 			if(VSL.IsActiveVessel)
 				ThrottleControlledAvionics.DebugMessage = 
 					string.Format("pid: {0}\nsteering: {1}%\ngimbal limit: {2}",
