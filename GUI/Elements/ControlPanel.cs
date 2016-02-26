@@ -12,7 +12,7 @@ namespace ThrottleControlledAvionics
 {
 	public abstract class ControlPanel : TCAComponent
 	{
-		protected ControlPanel(ModuleTCA tca) : base(tca) {}
+		protected ControlPanel(ModuleTCA tca) : base(tca) { InitModuleFields(); }
 
 		protected void follow_me() { if(SQD != null) SQD.FollowMe(); }
 	}

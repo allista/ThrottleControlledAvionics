@@ -28,20 +28,16 @@ namespace ThrottleControlledAvionics
 		public readonly ModuleTCA TCA;
 		public VesselWrapper VSL { get { return TCA.VSL; } }
 		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
-		public VesselConfig CFG { get { return VSL.CFG; } }
+		public VesselConfig CFG { get { return TCA.VSL.CFG; } }
 		public TCAState State { get { return VSL.State; } }
 		public void SetState(TCAState state) { VSL.State |= state; }
 		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
 
 		protected SquadControl SQD;
 
-		protected TCAComponent(ModuleTCA tca)
-		{ 
-			TCA = tca; 
-			InitModuleFields();
-		}
+		protected TCAComponent(ModuleTCA tca) { TCA = tca; }
 
-		protected void InitModuleFields()
+		public void InitModuleFields()
 		{
 			List<FieldInfo> ModuleFields = GetType()
 				.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Instance|BindingFlags.NonPublic)
@@ -76,7 +72,7 @@ namespace ThrottleControlledAvionics
 
 		protected TCAModule(ModuleTCA tca) : base(tca) {}
 
-		public virtual void Init() {}
+		public virtual void Init() { InitModuleFields(); }
 		protected virtual void UpdateState() {}
 		protected virtual void Update() {}
 		public void OnFixedUpdate() { UpdateState(); Update(); }
@@ -130,7 +126,14 @@ namespace ThrottleControlledAvionics
 	public abstract class AutopilotModule : TCAModule
 	{
 		protected AutopilotModule(ModuleTCA tca) : base(tca) {}
-		public override void Init() { base.Init(); VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; VSL.vessel.OnAutopilotUpdate += UpdateCtrlState; }
+
+		public override void Init() 
+		{ 
+			base.Init(); 
+			VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; 
+			VSL.vessel.OnAutopilotUpdate += UpdateCtrlState; 
+		
+		}
 		public override void Reset() { VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; }
 		public void UpdateCtrlState(FlightCtrlState s) { UpdateState(); OnAutopilotUpdate(s); }
 		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
