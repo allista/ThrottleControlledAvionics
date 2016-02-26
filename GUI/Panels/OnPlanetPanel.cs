@@ -81,16 +81,13 @@ namespace ThrottleControlledAvionics
 				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(60)))
 					apply_cfg(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
-				var follow_terrain = GUILayout.Toggle(CFG.AltitudeAboveTerrain, 
-				                                      new GUIContent("Follow Terrain", 
-				                                                     "Keep altitude above the ground and avoid collisions"),
-				                                      GUILayout.ExpandWidth(false));
-				if(follow_terrain != CFG.AltitudeAboveTerrain)
-					apply(tca => 
-				{
-					var alt = tca.GetModule<AltitudeControl>();
-					if(alt != null) alt.SetAltitudeAboveTerrain(follow_terrain);
-				});
+				if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
+				                      "Keep altitude above the ground", GUILayout.ExpandWidth(false)))
+						apply(tca => 
+					{
+						var alt = tca.GetModule<AltitudeControl>();
+						if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
+					});
 			}
 			GUILayout.EndHorizontal();
 		}
