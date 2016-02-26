@@ -44,6 +44,13 @@ class ConfigNode(object):
         self._vindex  = {}
         self._nindex  = {}
         
+    def Clone(self, other):
+        self.name = other.name
+        self.values   = other.values
+        self.subnodes = other.subnodes
+        self._vindex  = other._vindex
+        self._nindex  = other._nindex
+        
     def __getitem__(self, key):
         if isinstance(key, int):
             return self.values[key].value
@@ -56,8 +63,8 @@ class ConfigNode(object):
     
     @staticmethod
     def _register_index(db, key, index):
-        entry = db.get(key, None)
-        if entry: entry.append(index)
+        lst = db.get(key, None)
+        if lst: lst.append(index)
         else: db[key] = [index]
     
     def AddNode(self, node):
@@ -72,7 +79,7 @@ class ConfigNode(object):
     
     def AddValue(self, name, value):
         self.values.append(self.Value(name, value))
-        self._register_index(self._vindex, name, len(self)-1)
+        self._register_index(self._vindex, name, len(self.values)-1)
         
     def GetNode(self, name):
         idx = self._nindex.get(name, [])
@@ -95,11 +102,8 @@ class ConfigNode(object):
         self.subnodes = []
         lines = self._preformat(text.splitlines())
         self._parse(lines, self)
-        if len(self) == 0 and len(self.subnodes) == 1:
-            root = self.subnodes[0]
-            self.name = root.name
-            self.valus = root.values
-            self.subnodes = root.subnodes
+        if len(self.values) == 0 and len(self.subnodes) == 1:
+            self.Clone(self.subnodes[0])
             
     @classmethod
     def Load(cls, filename):
@@ -173,9 +177,9 @@ class ConfigNode(object):
     def __str__(self):
         s = '%s\n{\n' % self.name
         v = '\n'.join('    %s' % v for v in self.values)
-        if v: v += '\n'
         n = '\n'.join('    %s' % l for n in self.subnodes 
-                    for l in str(n).splitlines())  
+                    for l in str(n).splitlines())
+        if v and n: v += '\n'  
         return s+v+n+'\n}'
     
 #tests
@@ -196,4 +200,5 @@ if __name__ == '__main__':
     print
     #get
     print n['a']
+    print n.GetValue('b')
     print n.GetNode('sub')
