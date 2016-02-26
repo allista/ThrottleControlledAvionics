@@ -185,6 +185,7 @@ PN
 	FormationSpeedCutoff = 10
 	FormationFactor      = 0.2
 	FormationBreakTime   = 10
+	FormationUpdateTimer = 60
 	TakeoffAltitude      = 100
 	BrakeOffset          = 1.5
 	PitchRollAAf         = 100

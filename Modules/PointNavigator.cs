@@ -36,6 +36,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float FormationSpeedCutoff = 5f;
 			[Persistent] public float FormationFactor      = 0.2f;
 			[Persistent] public float FormationBreakTime   = 10f;
+			[Persistent] public float FormationUpdateTimer = 60f;
 			[Persistent] public float TakeoffAltitude      = 100f;
 			[Persistent] public float BrakeOffset          = 1.5f;
 			[Persistent] public float PitchRollAAf         = 100f;
@@ -72,6 +73,7 @@ namespace ThrottleControlledAvionics
 		Vector3 formation_offset { get { return fnode == null? Vector3.zero : fnode.Offset; } }
 		bool CanManeuver = true;
 		Timer FormationBreakTimer = new Timer();
+		Timer FormationUpdateTimer = new Timer();
 		bool keep_formation;
 
 		HorizontalSpeedControl HSC;
@@ -83,6 +85,7 @@ namespace ThrottleControlledAvionics
 			pid.Reset();
 			ArrivedTimer.Period = PN.MinTime;
 			FormationBreakTimer.Period = PN.FormationBreakTime;
+			FormationUpdateTimer.Period = PN.FormationUpdateTimer;
 			CFG.Nav.AddCallback(GoToTargetCallback, Navigation.GoToTarget, Navigation.FollowTarget);
 			CFG.Nav.AddCallback(FollowPathCallback, Navigation.FollowPath);
 			#if DEBUG
@@ -176,6 +179,12 @@ namespace ThrottleControlledAvionics
 			fnode = null;			
 		}
 
+		public void UpdateFormation(List<FormationNode> formation)
+		{
+			if(formation == null) reset_formation();
+			else { Formation = formation; fnode = null; }
+		}
+
 		void update_formation_info()
 		{
 			tVSL = CFG.Target.GetVessel();
@@ -218,12 +227,13 @@ namespace ThrottleControlledAvionics
 				var forward = tVSL == null? Vector3d.zero : -tVSL.srf_velocity.normalized;
 				var side = Vector3d.Cross(VSL.Physics.Up, forward).normalized;
 				var num_offsets = all_followers.Count+(all_followers.Count%2);
-				if(Formation == null || Formation.Count != num_offsets)
+				if(Formation == null || Formation.Count != num_offsets || FormationUpdateTimer.Check)
 				{
+					FormationUpdateTimer.Reset();
 					Formation = new List<FormationNode>(num_offsets);
 					for(int i = 0; i < num_offsets; i++) 
 						Formation.Add(new FormationNode(tVSL, i, forward, side, PN.MinDistance));
-					all_followers.ForEach(p => p.Value.Formation = Formation);
+					all_followers.ForEach(p => p.Value.UpdateFormation(Formation));
 				}
 				else for(int i = 0; i < num_offsets; i++) 
 					Formation[i].Update(forward, side, PN.MinDistance);
