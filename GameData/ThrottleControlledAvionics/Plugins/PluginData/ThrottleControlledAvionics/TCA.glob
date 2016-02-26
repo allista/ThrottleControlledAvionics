@@ -177,7 +177,7 @@ PN
 	OnPathMinDistance    = 300
 	DistanceF            = 0.1
 	MinSpeed             = 10
-	MaxSpeed             = 300
+	MaxSpeed             = 500
 	DirectNavThreshold   = 1
 	GCNavStep            = 0.1
 	LookAheadTime        = 3
