@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
 				Create = (Factory)Delegate
 					.CreateDelegate(typeof(Factory), 
 					                GetType()
-					                .GetMethod("CreateComponent", BindingFlags.Static)
+					                .GetMethod("CreateComponent", BindingFlags.Static|BindingFlags.NonPublic)
 					                .MakeGenericMethod(Component));
 			}
 		}
