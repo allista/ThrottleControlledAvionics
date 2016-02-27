@@ -54,6 +54,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public TranslationControl.Config        TRA = new TranslationControl.Config();
 		[Persistent] public TimeWarpControl.Config           WRP = new TimeWarpControl.Config();
 		[Persistent] public MatchVelocityAutopilot.Config    MVA = new MatchVelocityAutopilot.Config();
+		[Persistent] public DeorbitAutopilot.Config          DEO = new DeorbitAutopilot.Config();
 
 		public MDSection Manual;
 

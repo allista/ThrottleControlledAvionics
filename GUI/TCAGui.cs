@@ -367,7 +367,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("TWR: {0:0.0}", VSL.OnPlanetParams.DTWR), GUILayout.Width(80));
 			if(VSL.Altitude.Ahead.Equals(float.MinValue)) GUILayout.Label("Obst: N/A", GUILayout.Width(120));
 			else GUILayout.Label(string.Format("Obst: {0:0.0}m", VSL.Altitude.Ahead), GUILayout.Width(120));
-			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*(VSL.Physics.wCoM-VSL.mainBody.position).magnitude)), GUILayout.Width(100));
+			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			if(!string.IsNullOrEmpty(DebugMessage))
 				GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));

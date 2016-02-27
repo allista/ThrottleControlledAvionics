@@ -16,6 +16,7 @@ namespace ThrottleControlledAvionics
 	{
 		public PhysicalProps(VesselWrapper vsl) : base(vsl) {}
 
+		public Vector3d   Radial { get; private set; }  //up unit vector in world space
 		public Vector3d   Up { get; private set; }  //up unit vector in world space
 		public Vector3d   UpL { get; private set; }  //up unit vector in world space
 
@@ -29,14 +30,15 @@ namespace ThrottleControlledAvionics
 
 		public override void Update()
 		{
-			UT   = Planetarium.GetUniversalTime();
-			wCoM = vessel.CurrentCoM;
-			refT = vessel.ReferenceTransform;
-			Up   = (wCoM - vessel.mainBody.position).normalized;
-			UpL  = VSL.refT.InverseTransformDirection(Up);
-			M    = vessel.GetTotalMass();
-			StG  = (float)(vessel.mainBody.gMagnitudeAtCenter/(vessel.mainBody.position - wCoM).sqrMagnitude);
-			G    = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
+			UT     = Planetarium.GetUniversalTime();
+			wCoM   = vessel.CurrentCoM;
+			refT   = vessel.ReferenceTransform;
+			Radial = wCoM - vessel.mainBody.position;
+			Up     = Radial.normalized;
+			UpL    = VSL.refT.InverseTransformDirection(Up);
+			M      = vessel.GetTotalMass();
+			StG    = (float)(vessel.mainBody.gMagnitudeAtCenter/Radial.sqrMagnitude);
+			G      = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
 		}
 
 		// From MechJeb2:
