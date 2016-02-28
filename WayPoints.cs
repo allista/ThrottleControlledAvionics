@@ -46,9 +46,11 @@ namespace ThrottleControlledAvionics
 			var a = (1-Math.Cos(dlat))/2 + Math.Cos(lat1)*Math.Cos(lad2)*(1-Math.Cos(dlon))/2;
 			return 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1-a));
 		}
-		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
+		public double AngleTo(Coordinates c) { return AngleTo(c.Lat, c.Lon); }
 		public double AngleTo(WayPoint wp) { return AngleTo(wp.Lat, wp.Lon); }
+		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
+		public double SurfaceAlt(CelestialBody body) { return Utils.TerrainAltitude(body, Lat, Lon); }
 
 		public static double BearingTo(double lat1, double lat2, double dlon)
 		{
