@@ -315,4 +315,16 @@ MVA
 	StartAttitudeError    = 1   //deg
 	TranslationThreshold  = 5   //m/s
 }
+
+DEO
+{
+	StartOffset        = 60   //s
+	PeR                = 0.9  //of planet radius
+	dVtol              = 0.01 //m/s
+	Dtol               = 1000 //m
+	FlyOverAlt         = 1000 //m
+	MaxIterations      = 1000
+	PerFrameIterations = 50
+
+}
 //:mode=c#:
