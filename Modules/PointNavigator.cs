@@ -110,9 +110,8 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.On:
-				if(!VSL.HasTarget) return;
-				var wp = VSL.Target as WayPoint ?? 
-					new WayPoint(VSL.Target);
+				var wp = Target2WP();
+				if(wp == null) return;
 				start_to(wp);
 				break;
 

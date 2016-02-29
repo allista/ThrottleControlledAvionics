@@ -115,6 +115,13 @@ namespace ThrottleControlledAvionics
 			VSL.Target = t;
 		}
 
+		protected WayPoint Target2WP()
+		{
+			if(VSL.Target == null) return null;
+			return VSL.Target as WayPoint ?? 
+				new WayPoint(VSL.Target);
+		}
+
 		public bool RegisterTo<S>(Func<VesselWrapper,bool> predicate = null) 
 			where S : TCAService
 		{
