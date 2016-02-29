@@ -51,6 +51,7 @@ namespace ThrottleControlledAvionics
 		public bool IsActiveVessel { get; private set; }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
 		public ITargetable Target { get { return vessel.targetObject; } set { vessel.targetObject = value; } }
+		public Vessel TargetVessel { get { return vessel.targetObject == null? null : vessel.targetObject.GetVessel(); } }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
 		public bool HasManeuverNode { get { return vessel.patchedConicSolver != null && vessel.patchedConicSolver.maneuverNodes.Count > 0; } }
 		public Vessel.Situations Situation { get { return vessel.situation; } }
@@ -163,10 +164,10 @@ namespace ThrottleControlledAvionics
 				CFG.EnginesProfiles.OnPlanetChanged(on_planet);
 				if(!on_planet) 
 				{ 
-					if(CFG.BlockThrottle) 
+					if(CFG.BlockThrottle)
 					{
 						var THR = TCA.GetModule<ThrottleControl>();
-						if(THR != null ) THR.Throttle = 0f;
+						if(THR != null) THR.Throttle = 0f;
 					}
 					CFG.DisableVSC();
 					CFG.Nav.Off(); 
