@@ -79,13 +79,15 @@ namespace ThrottleControlledAvionics
 			Node = null;
 		}
 
-		public float TTB(float dV, float throttle)
+		public static float TTB(VesselWrapper VSL, float dV, float throttle)
 		{
 			return CheatOptions.InfiniteFuel?
 				VSL.Physics.M*dV/VSL.Engines.MaxThrustM/throttle : 
 				VSL.Physics.M*(1-Mathf.Exp(-dV/VSL.Engines.MaxThrustM*VSL.Engines.MaxMassFlow))
 				/(VSL.Engines.MaxMassFlow*throttle);
 		}
+
+		public float TTB(float dV, float throttle) { return TTB(VSL, dV, throttle); }
 
 		protected override void Update()
 		{
@@ -113,6 +115,13 @@ namespace ThrottleControlledAvionics
 			THR.DeltaV = dVrem;
 			if(ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
 				TRA.AddDeltaV(-VSL.LocalDir(dV));
+		}
+
+		public override void Draw()
+		{
+			if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Maneuver", 
+			                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
+				CFG.AP.XToggle(Autopilot.Maneuver);
 		}
 	}
 }

@@ -169,6 +169,16 @@ namespace ThrottleControlledAvionics
 				}
 			}
 		}
+
+		public override void Draw()
+		{
+			if(Utils.ButtonSwitch("Match Velocity", CFG.AP[Autopilot.MatchVel], 
+			                      "Match orbital velocity with the target", GUILayout.ExpandWidth(true)))
+				CFG.AP.XToggle(Autopilot.MatchVel);
+			if(Utils.ButtonSwitch("Brake Near Target", CFG.AP[Autopilot.MatchVelNear], 
+			                          "Match orbital velocity with the target at nearest point", GUILayout.ExpandWidth(true)))
+				CFG.AP.XToggle(Autopilot.MatchVelNear);
+		}
 	}
 }
 

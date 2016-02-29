@@ -19,32 +19,19 @@ namespace ThrottleControlledAvionics
 		TimeWarpControl WRP;
 		MatchVelocityAutopilot MVA;
 		ManeuverAutopilot MAP;
+		DeorbitAutopilot DEO;
 
 		public override void Draw()
 		{
 			if(!VSL.InOrbit || (MVA == null && MAP == null)) return;
 			GUILayout.BeginHorizontal();
-			if(WRP != null && VSL.Info.Countdown > 0 && 
-			   Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
-			{
-				CFG.WarpToNode = !CFG.WarpToNode;
-				if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
-			}
-			if(MAP != null && VSL.HasManeuverNode) 
-			{
-				if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Maneuver", 
-				                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
-					CFG.AP.XToggle(Autopilot.Maneuver);
-			}
-			if(MVA != null && VSL.HasTarget && !CFG.AP[Autopilot.Maneuver])
-			{
-				if(Utils.ButtonSwitch("Match Velocity", CFG.AP[Autopilot.MatchVel], 
-				                      "Match orbital velocity with the target", GUILayout.ExpandWidth(true)))
-					CFG.AP.XToggle(Autopilot.MatchVel);
-				if(Utils.ButtonSwitch("Brake Near Target", CFG.AP[Autopilot.MatchVelNear], 
-				                      "Match orbital velocity with the target at nearest point", GUILayout.ExpandWidth(true)))
-					CFG.AP.XToggle(Autopilot.MatchVelNear);
-			}
+			var tVessel = VSL.TargetVessel;
+			var MVA_aplicable = tVessel != null && tVessel.situation == Vessel.Situations.ORBITING && !CFG.AP[Autopilot.Maneuver];
+			var DEO_aplicable = tVessel != null && tVessel.LandedOrSplashed || VSL.Target is WayPoint && !CFG.AP[Autopilot.Maneuver];
+			if(WRP != null && (VSL.Info.Countdown > 0 || VSL.HasManeuverNode || VSL.HasTarget)) WRP.Draw();
+			if(MAP != null && VSL.HasManeuverNode) MAP.Draw();
+			if(DEO != null && DEO_aplicable) DEO.Draw();
+			if(MVA != null && MVA_aplicable) MVA.Draw();
 			if(VSL.Info.Countdown >= 0)
 				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Info.Countdown), Styles.white, GUILayout.ExpandWidth(true));
 			if(VSL.Info.TTB >= 0)
