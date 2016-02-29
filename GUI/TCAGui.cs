@@ -35,14 +35,14 @@ namespace ThrottleControlledAvionics
 		#endif
 
 		#region ControlPanels
-		static AttitudePanel AttitudeControls;
-		static InOrbitPanel InOrbitControls;
-		static OnPlanetPanel OnPlanetControls;
-		static NavigationPanel NavigationControls;
-		static MacrosPanel MacroControls;
-		static SquadPanel SquadControls;
+		public static AttitudePanel AttitudeControls;
+		public static InOrbitPanel InOrbitControls;
+		public static OnPlanetPanel OnPlanetControls;
+		public static NavigationPanel NavigationControls;
+		public static MacrosPanel MacroControls;
+		public static SquadPanel SquadControls;
 		static List<FieldInfo> AllPanels = typeof(ThrottleControlledAvionics)
-			.GetFields(BindingFlags.Static|BindingFlags.NonPublic)
+			.GetFields(BindingFlags.Static|BindingFlags.Public)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(ControlPanel))).ToList();
 		#endregion
 
