@@ -20,21 +20,18 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : TCAModule.ModuleConfig
 		{
-			[Persistent] public float StartOffset = 60f;   //s
-			[Persistent] public float PeR         = 0.9f;  //of planet radius
-			[Persistent] public float dVtol       = 0.01f; //m/s
-			[Persistent] public float Dtol        = 1000f;  //m
-			[Persistent] public int   MaxIterations = 1000;
-			[Persistent] public int   PerFrameIterations = 50;
-			[Persistent] public float FlyOverAlt  = 1000; //m
+			[Persistent] public float StartOffset        = 60f;   //s
+			[Persistent] public float StartPeR           = 0.5f;  //of planet radius
+			[Persistent] public float dVtol              = 0.01f; //m/s
+			[Persistent] public float Dtol               = 1000f; //m
+			[Persistent] public float FlyOverAlt         = 1000;  //m
+			[Persistent] public int   MaxIterations      = 100;
+			[Persistent] public int   PerFrameIterations = 10;
+
 		}
 		static Config DEO { get { return TCAScenario.Globals.DEO; } }
 
-		public const double TwoPi = 6.2831853;
-
 		public DeorbitAutopilot(ModuleTCA tca) : base(tca) {}
-
-		PointNavigator PN;
 
 		Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
 		CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
@@ -80,16 +77,6 @@ namespace ThrottleControlledAvionics
 			return NewOrbit(old, dV, UT);
 		}
 
-		public static WayPoint MakeWaypoint(Orbit orb, double tA, string name = "")
-		{
-			var pos = orb.getPositionFromTrueAnomaly(tA);
-			var lat = orb.referenceBody.GetLatitude(pos);
-			var lon = orb.referenceBody.GetLongitude(pos);
-			var wp = new WayPoint(lat, lon);
-			if(!string.IsNullOrEmpty(name)) wp.Name = name;
-			return wp;
-		}
-
 		public static void AddNode(VesselWrapper VSL, Vector3d dV, double UT)
 		{
 			var node = VSL.vessel.patchedConicSolver.AddManeuverNode(UT);
@@ -108,11 +95,10 @@ namespace ThrottleControlledAvionics
 			IsActive = VSL.InOrbit && VSL.HasTarget;
 		}
 
-		IEnumerator<LandingTrajectory> compute_landing_trajectory(WayPoint target)
+		IEnumerator<LandingTrajectory> compute_landing_trajectory(WayPoint target, double PeR)
 		{
 			var targetAlt = target.SurfaceAlt(Body)+DEO.FlyOverAlt;
 			var StartUT = VSL.Physics.UT+DEO.StartOffset;
-			double PeR = DEO.PeR;
 			LandingTrajectory site = null;
 			LandingTrajectory best = null;
 			Vector3d dVn = Vector3d.zero;
@@ -131,17 +117,10 @@ namespace ThrottleControlledAvionics
 							VesselOrbit.vel.magnitude*Math.Sin(site.LandingTargetInclination*Mathf.Deg2Rad/2);
 				}
 				site = new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, dVn), StartUT, targetAlt);
-				var targetPos0  = Body.GetRelSurfacePosition(target.Lat, target.Lon, 0);
-				var targetPos1  = Quaternion.AngleAxis((float)(site.TimeToSurface/Body.rotationPeriod * TwoPi), 
-				                                           Body.angularVelocity) * targetPos0;
-				var sitePos = site.GetRelSurfacePosition();
-				var dPos = Vector3d.Exclude(sitePos, targetPos1-sitePos);
-				var hVel = Vector3d.Exclude(sitePos, site.GetOrbitVelocityAtSurface());
+				var targetPos = site.CBRotation * Body.GetRelSurfacePosition(target.Lat, target.Lon, 0);;
 				site.UpdateDeltaLon(target.Lon);
-				site.DistanceToTarget = target.AngleTo(site.SurfacePoint);
-				site.DirectionToTarget = Math.Sign(Vector3d.Dot(hVel, dPos));
-				site.LandingTargetInclination = 90-Vector3d.Angle(site.LandingOrbit.GetOrbitNormal().xzy, targetPos1);
-				site.OrigTargetInclination = 90-Vector3d.Angle(VesselOrbit.GetOrbitNormal().xzy, targetPos1);
+				site.DistanceToTarget = target.AngleTo(site.SurfacePoint)*Body.Radius;
+				site.LandingTargetInclination = 90-Vector3d.Angle(site.LandingOrbit.GetOrbitNormal().xzy, targetPos);
 				if(best == null || site < best) best = site;
 				frameI--;
 				maxI--;
@@ -150,18 +129,19 @@ namespace ThrottleControlledAvionics
 					yield return null;
 					frameI = DEO.PerFrameIterations;
 				}
-			} while(best.DistanceToTarget*Body.Radius > DEO.Dtol && maxI > 0);
+			} while(best.DistanceToTarget > DEO.Dtol && maxI > 0);
 			yield return best;
 		}
 
+		double CurrentPeR;
 		bool compute_node;
 		LandingTrajectory trajectory;
 		IEnumerator<LandingTrajectory> trajectory_calculator;
-		bool trajectory_computed(WayPoint target)
+		bool trajectory_computed(WayPoint target, double PeR)
 		{
 			if(trajectory != null) return true;
 			if(trajectory_calculator == null)
-				trajectory_calculator = compute_landing_trajectory(target);
+				trajectory_calculator = compute_landing_trajectory(target, PeR);
 			if(trajectory_calculator.MoveNext())
 				trajectory = trajectory_calculator.Current;
 			else trajectory_calculator = null;
@@ -172,38 +152,51 @@ namespace ThrottleControlledAvionics
 		{
 			trajectory = null;
 			trajectory_calculator = null;
+			CurrentPeR = DEO.StartPeR;
 		}
 
-		protected override void Update()
+		void start()
 		{
-			if(!IsActive || VSL.orbit.referenceBody == null) return;
-			if(!compute_node || trajectory != null) return;
+			reset();
 			var target = Target2WP();
 			if(CFG.Target != target) 
 			{
 				target.UpdateCoordinates(Body);
 				CFG.Target = target;
-				reset();
 			}
-			if(trajectory_computed(CFG.Target))
+			compute_node = true;
+		}
+
+		protected override void Update()
+		{
+			if(!IsActive || CFG.Target == null || VSL.orbit.referenceBody == null) return;
+			if(!compute_node) return;
+			if(trajectory_computed(CFG.Target, CurrentPeR))
 			{
-				compute_node = false;
-				AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT);
-				CFG.ShowWaypoints = true;
-				CFG.GUIVisible = true;
-				MapView.EnterMapView();
-				ThrottleControlledAvionics.DebugMessage = string.Format("{0}", trajectory);//debug
+				if(trajectory.DistanceToTarget < DEO.Dtol || CurrentPeR >= 1)
+				{
+					compute_node = false;
+					AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT);
+					CFG.ShowWaypoints = true;
+					CFG.GUIVisible = true;
+					MapView.EnterMapView();
+					ThrottleControlledAvionics.DebugMessage = string.Format("{0}", trajectory);//debug
+				}
+				else 
+				{
+					CurrentPeR += 0.1;
+					if(CurrentPeR < 1) trajectory = null;
+				}
 			}
 		}
 
 		public override void Draw()
 		{
-			if(PN != null && ThrottleControlledAvionics.NavigationControls != null) 
-				ThrottleControlledAvionics.NavigationControls.AddSingleWaypointInMapView();
-			if(GUILayout.Button(new GUIContent("Deorbit", "Compute deorbit maneuver to land at target."), 
+			if(compute_node) GUILayout.Label("Computing...", Styles.grey_button, GUILayout.ExpandWidth(false));
+			else if(GUILayout.Button(new GUIContent("Deorbit", "Compute deorbit maneuver to land at target."), 
 			                    Styles.yellow_button, 
 			                    GUILayout.ExpandWidth(false)))
-			{ reset(); compute_node = true; }//TODO: convert to a standard CFG routine
+				start(); //TODO: convert to a standard CFG routine
 		}
 	}
 
@@ -220,21 +213,20 @@ namespace ThrottleControlledAvionics
 		public readonly double TargetAlt;
 
 		public Orbit LandingOrbit { get; private set; }
-		public double TimeToSurface { get; private set; }
+		public double FreeFallTime { get; private set; }
 		public double AtSurfaceUT { get; private set; }
 		public double TrueAnomaly { get; private set; }
+		public Quaternion CBRotation { get; private set; }
 		public WayPoint SurfacePoint { get; private set; }
 
 		public double DistanceToTarget = -1;
-		public int    DirectionToTarget = 0;
 		public double DeltaLon { get; private set; }
-		public double OrigTargetInclination = 90;
 		public double LandingTargetInclination = 90;
 
 		//for choosen trajectory
 		public Vector3d BrakeDeltaV { get; private set; }
 		public double BrakeDuration { get; private set; }
-		public double TimeToImpact { get { return AtSurfaceUT-VSL.Physics.UT; } }
+		public double TimeToSurface { get { return AtSurfaceUT-VSL.Physics.UT; } }
 
 		public LandingTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, double alt = 0)
 		{
@@ -253,17 +245,20 @@ namespace ThrottleControlledAvionics
 			LandingOrbit = orb;
 			var tA0 = LandingOrbit.TrueAnomalyAtUT(UT);
 			TrueAnomaly = LandingOrbit.TrueAnomalyAtRadius(LandingOrbit.referenceBody.Radius+TargetAlt);
-			if(tA0 > TrueAnomaly) TrueAnomaly = DeorbitAutopilot.TwoPi-TrueAnomaly;
-			SurfacePoint = DeorbitAutopilot.MakeWaypoint(LandingOrbit, TrueAnomaly, "Landing Site");
-			TimeToSurface = LandingOrbit.GetDTforTrueAnomaly(TrueAnomaly, LandingOrbit.period/2);
-			AtSurfaceUT = StartUT+TimeToSurface;
+			if(tA0 > TrueAnomaly) TrueAnomaly = Utils.TwoPI-TrueAnomaly;
+			FreeFallTime = LandingOrbit.GetDTforTrueAnomaly(TrueAnomaly, LandingOrbit.period/2);
+			AtSurfaceUT = UT+FreeFallTime;
+			CBRotation = Quaternion.AngleAxis((float)(TimeToSurface/orb.referenceBody.rotationPeriod*360), 
+			                                  orb.referenceBody.angularVelocity);
+			var pos = (CBRotation.Inverse()*orb.getRelativePositionAtUT(AtSurfaceUT).xzy)+orb.referenceBody.position;
+			SurfacePoint = new WayPoint(orb.referenceBody.GetLatitude(pos), orb.referenceBody.GetLongitude(pos));
 		}
 
 		public Vector3d GetRelSurfacePosition()
 		{ return LandingOrbit.referenceBody.GetRelSurfacePosition(SurfacePoint.Lat, SurfacePoint.Lon, 0); }
 
 		public Vector3d GetOrbitVelocityAtSurface()
-		{ return LandingOrbit.getOrbitalVelocityAtUT(StartUT+TimeToSurface); }
+		{ return LandingOrbit.getOrbitalVelocityAtUT(AtSurfaceUT); }
 
 		public void UpdateDeltaLon(double Lon)
 		{
@@ -293,13 +288,13 @@ namespace ThrottleControlledAvionics
 		public override string ToString()
 		{
 			return string.Format("LandingSite:\nTrueAnomaly: {0} deg,\nCoordinates: {1},\n" +
-			                         "DeltaV: {2}\n"+
-			                         "Node in: {3} s, TTB: {4} s, TimeToSurface: {5} s\n" +
-			                         "Distance to Target: {6} m, AngleToTarget: {7} deg, Delta Lon: {8} deg",
-			                         TrueAnomaly*Mathf.Rad2Deg, SurfacePoint, ManeuverDeltaV, 
-			                         TimeToStart, ManeuverDuration, TimeToSurface,
-			                         DistanceToTarget*DirectionToTarget*OrigOrbit.referenceBody.Radius, 
-			                         LandingTargetInclination, DeltaLon);
+		                         "DeltaV: {2}\n"+
+		                         "Node in: {3} s, TTB: {4} s, TimeToSurface: {5} s\n" +
+		                         "Distance to Target: {6} m, AngleToTarget: {7} deg, Delta Lon: {8} deg",
+		                         TrueAnomaly*Mathf.Rad2Deg, SurfacePoint, ManeuverDeltaV, 
+		                         TimeToStart, ManeuverDuration, FreeFallTime,
+		                         DistanceToTarget, 
+		                         LandingTargetInclination, DeltaLon);
 		}
 	}
 }

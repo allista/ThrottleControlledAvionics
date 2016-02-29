@@ -20,6 +20,7 @@ namespace ThrottleControlledAvionics
 		MatchVelocityAutopilot MVA;
 		ManeuverAutopilot MAP;
 		DeorbitAutopilot DEO;
+		PointNavigator PN;
 
 		public override void Draw()
 		{
@@ -27,9 +28,11 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			var tVessel = VSL.TargetVessel;
 			var MVA_aplicable = tVessel != null && tVessel.situation == Vessel.Situations.ORBITING && !CFG.AP[Autopilot.Maneuver];
-			var DEO_aplicable = tVessel != null && tVessel.LandedOrSplashed || VSL.Target is WayPoint && !CFG.AP[Autopilot.Maneuver];
+			var DEO_aplicable = (tVessel != null && tVessel.LandedOrSplashed || VSL.Target is WayPoint) && !CFG.AP[Autopilot.Maneuver];
 			if(WRP != null && (VSL.Info.Countdown > 0 || VSL.HasManeuverNode || VSL.HasTarget)) WRP.Draw();
 			if(MAP != null && VSL.HasManeuverNode) MAP.Draw();
+			if(PN != null && !CFG.AP[Autopilot.Maneuver] && ThrottleControlledAvionics.NavigationControls != null) 
+				ThrottleControlledAvionics.NavigationControls.AddSingleWaypointInMapView();
 			if(DEO != null && DEO_aplicable) DEO.Draw();
 			if(MVA != null && MVA_aplicable) MVA.Draw();
 			if(VSL.Info.Countdown >= 0)
