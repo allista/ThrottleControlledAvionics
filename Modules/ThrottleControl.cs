@@ -66,19 +66,19 @@ namespace ThrottleControlledAvionics
 				VSL.vessel.ctrlState.mainThrottle = Throttle; 
 				if(VSL.IsActiveVessel) FlightInputHandler.state.mainThrottle = Throttle;
 			}
-			else if(CFG.BlockThrottle)
+			else if(CFG.BlockThrottle && VSL.OnPlanet)
 				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
 			reset();
 		}
 
 		public override void Draw()
 		{
-			BlockThrottle(GUILayout.Toggle(CFG.BlockThrottle, 
-			                               new GUIContent("AutoThrottle",
-                                                          CFG.VF[VFlight.AltitudeControl]?
-                                                          "Change altitude with throttle controls" :
-                                                          "Set vertical speed with throttle controls"), 
-			                               GUILayout.ExpandWidth(false)));
+			if(Utils.ButtonSwitch("AutoThrottle", CFG.BlockThrottle, 
+			                      CFG.VF[VFlight.AltitudeControl]?
+			                      "Change altitude with throttle controls" :
+			                      "Set vertical speed with throttle controls",
+			                      GUILayout.ExpandWidth(false)))
+				BlockThrottle(!CFG.BlockThrottle);
 		}
 	}
 }
