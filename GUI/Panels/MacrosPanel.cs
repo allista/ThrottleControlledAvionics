@@ -24,7 +24,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(CFG.SelectedMacro != null && CFG.MacroIsActive)
 			{
-				GUILayout.Label(new GUIContent(CFG.SelectedMacro.Title, "The macro is executing..."), 
+				GUILayout.Label(new GUIContent("Macro: "+CFG.SelectedMacro.Title, "The macro is executing..."), 
 				                Styles.yellow, GUILayout.ExpandWidth(true));
 				CFG.MacroIsActive &= !GUILayout.Button("Pause", Styles.green_button, GUILayout.Width(70));
 				if(GUILayout.Button("Stop", Styles.red_button, GUILayout.ExpandWidth(false))) 
@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 			}
 			else if(CFG.SelectedMacro != null)
 			{
-				if(GUILayout.Button(new GUIContent(CFG.SelectedMacro.Title, "Select a macro from databases"), 
+				if(GUILayout.Button(new GUIContent("Macro: "+CFG.SelectedMacro.Title, "Select a macro from databases"), 
 				                    Styles.normal_button, GUILayout.ExpandWidth(true))) 
 					selecting_macro = !selecting_macro;
 				CFG.MacroIsActive |= GUILayout.Button(CFG.SelectedMacro.Active? "Resume" : "Execute", 
