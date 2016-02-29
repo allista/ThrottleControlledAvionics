@@ -15,6 +15,8 @@ namespace ThrottleControlledAvionics
 {
 	public static class Utils
 	{
+		public const double TwoPI = 6.2831853;
+
 		/// <summary>
 		/// The camel case components matching regexp.
 		/// From: http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
