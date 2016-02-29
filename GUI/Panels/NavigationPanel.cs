@@ -245,11 +245,16 @@ namespace ThrottleControlledAvionics
 							AddTargetDamper.Run(() => CFG.Waypoints.Enqueue(t));
 							CFG.ShowWaypoints = true;
 							clicked = false;
+							if(select_single)
+							{
+								selecting_target = false;
+								select_single = false;
+								VSL.Target = t;
+							}
 						}
 						if(Input.GetMouseButtonUp(1))
 						{ 
-							selecting_target &= !select_single && (DateTime.Now - clicked_time).TotalSeconds >= 0.5;
-							select_single &= selecting_target;
+							selecting_target &= (DateTime.Now - clicked_time).TotalSeconds >= 0.5;
 							clicked = false; 
 						}
 					}
