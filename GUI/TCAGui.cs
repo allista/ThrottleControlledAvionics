@@ -26,6 +26,8 @@ namespace ThrottleControlledAvionics
 		static bool adv_options;
 
 		static List<TCAPart> parts;
+
+		public static string StatusMessage;
 		#endregion
 
 		#if DEBUG
@@ -126,6 +128,10 @@ namespace ThrottleControlledAvionics
 				DebugInfo();
 //				EnginesInfo();
 				#endif
+				if(!string.IsNullOrEmpty(StatusMessage) && 
+				   GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
+				                    Styles.boxed_label, GUILayout.ExpandWidth(true)))
+					StatusMessage = "";
 				SelectConfig_end();
 				GUILayout.EndVertical();
 			}
@@ -197,15 +203,18 @@ namespace ThrottleControlledAvionics
 			                    GUILayout.Width(40)))
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			GUILayout.EndHorizontal();
-			if(VLA != null) Utils.ButtonSwitch("Assist with vertical takeoff and landing", ref CFG.VTOLAssistON, "", GUILayout.ExpandWidth(true));
-			if(STB != null) Utils.ButtonSwitch("Try to stabilize flight if spinning uncontrollably", ref CFG.StabilizeFlight, "", GUILayout.ExpandWidth(true));
+			GUILayout.BeginHorizontal();
+			if(VLA != null) Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, 
+			                                   "Assist with vertical takeoff and landing", GUILayout.ExpandWidth(true));
+			if(STB != null) Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
+			                                   "Try to stabilize flight if spinning uncontrollably", GUILayout.ExpandWidth(true));
+			GUILayout.EndHorizontal();
 			if(THR != null)
 			{
 				GUILayout.BeginHorizontal();
 				CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity of throttle controls", CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
 				GUILayout.EndHorizontal();
 			}
-			CFG.AutoTune = GUILayout.Toggle(CFG.AutoTune, "Autotune engines' controller parameters", GUILayout.ExpandWidth(false));
 			ControllerProperties();
 			ConfigsGUI();
 			GUILayout.EndVertical();
@@ -249,6 +258,7 @@ namespace ThrottleControlledAvionics
 
 		static void ControllerProperties()
 		{
+			Utils.ButtonSwitch("Autotune engines' controller parameters", ref CFG.AutoTune, "", GUILayout.ExpandWidth(true));
 			if(CFG.AutoTune) return;
 			//steering modifiers
 			GUILayout.BeginHorizontal();
@@ -359,7 +369,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*(VSL.Physics.wCoM-VSL.mainBody.position).magnitude)), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			if(!string.IsNullOrEmpty(DebugMessage))
-				GUILayout.Label(DebugMessage, Styles.white, GUILayout.ExpandWidth(true));
+				GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));
 		}
 		#endif
 
