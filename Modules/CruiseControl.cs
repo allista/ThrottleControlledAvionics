@@ -38,7 +38,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState() 
 		{ 
-			IsActive = VSL.OnPlanet && CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl); 
+			IsActive = VSL.OnPlanet && CFG.HF[HFlight.CruiseControl]; 
 			if(!inited && IsActive && !VSL.Physics.Up.IsZero())
 			{
 				UpdateNeededVelocity();
@@ -103,7 +103,7 @@ namespace ThrottleControlledAvionics
 				UpdateNeededVelocity();
 			}
 			//update needed velocity
-			else if(CFG.HF[HFlight.CruiseControl]) UpdateTimer.Run(UpdateNeededVelocity);
+			else UpdateTimer.Run(UpdateNeededVelocity);
 		}
 	}
 }
