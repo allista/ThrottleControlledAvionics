@@ -29,6 +29,15 @@ namespace ThrottleControlledAvionics
 		//a transform holder for simple lat-lon coordinates on the map
 		GameObject go;
 
+		void set_coordinates(double lat, double lon)
+		{
+			var c = new Coordinates(lat, lon);
+			Lat = c.Lat; Lon = c.Lon;
+		}
+
+		void set_coordinates(Vessel v)
+		{ set_coordinates(v.latitude, v.longitude); }
+
 		public override string ToString() { return string.Format("[{0}] {1}", GetName(), new Coordinates(Lat, Lon)); }
 
 		public WayPoint() { Distance = TCAScenario.Globals.PN.MinDistance; }
@@ -113,26 +122,23 @@ namespace ThrottleControlledAvionics
 			case ProtoTargetInfo.Type.Vessel:
 				var v = target as Vessel;
 				if(v == null) break;
-				Lat   = v.latitude;
-				Lon   = v.longitude;
+				set_coordinates(v);
 				return;
 			case ProtoTargetInfo.Type.PartModule:
 				var m = target as PartModule;
 				if(m == null || m.vessel == null) break;
-				Lat   = m.vessel.latitude;
-				Lon   = m.vessel.longitude;
+				set_coordinates(m.vessel);
 				return;
 			case ProtoTargetInfo.Type.Part:
 				var p = target as Part;
 				if(p == null || p.vessel == null) break;
-				Lat   = p.vessel.latitude;
-				Lon   = p.vessel.longitude;
+				set_coordinates(p.vessel);
 				return;
 			case ProtoTargetInfo.Type.Generic:
 				var t = target.GetTransform();
 				if(t == null) break;
-				Lat = body.GetLatitude(t.position);
-				Lat = body.GetLongitude(t.position);
+				set_coordinates(body.GetLatitude(t.position),
+				                body.GetLongitude(t.position));
 				return;
 //			case ProtoTargetInfo.Type.CelestialBody:
 			default:
