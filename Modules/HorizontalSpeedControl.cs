@@ -77,7 +77,7 @@ namespace ThrottleControlledAvionics
 			base.Init(); 
 			filter.Tau = HSC.LowPassF;
 			translation_pid.setPID(HSC.ManualTranslationPID);
-			CFG.HF.AddCallback(ControlCallback, HFlight.Stop, HFlight.Level, HFlight.Move);
+			CFG.HF.AddSingleCallback(ControlCallback);
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
@@ -125,10 +125,13 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.On:
-				if(CFG.HF[HFlight.Stop])
-					VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
-				CFG.AT.OnIfNot(Attitude.Custom);
 				VSL.UpdateOnPlanetStats();
+				if(CFG.HF[HFlight.Stop])
+				{
+					VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
+					CFG.Nav.Off(); //any kind of navigation conflicts with the Stop program; obviously.
+				}
+				CFG.AT.OnIfNot(Attitude.Custom);
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
