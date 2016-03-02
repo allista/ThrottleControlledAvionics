@@ -76,6 +76,9 @@ namespace ThrottleControlledAvionics
 		public static int ClampL(int x, int low)  { return x < low  ? low  : x; }
 		public static int ClampH(int x, int high) { return x > high ? high : x; }
 
+		public static float ClampAngle(float a) { a = a%360; return a < 0? 360+a : a; }
+		public static double ClampAngle(double a) { a = a%360; return a < 0? 360+a : a; }
+
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
 		public static double CenterAngle(double a) { return a > 180? a-360 : a; }
 
@@ -298,14 +301,17 @@ namespace ThrottleControlledAvionics
 	public class Coordinates
 	{
 		public double Lat, Lon;
-		public Coordinates(double lat, double lon) { Lat = lat; Lon = lon; }
+		public Coordinates(double lat, double lon) 
+		{ Lat = Utils.ClampAngle(lat); Lon = Utils.ClampAngle(lon); }
+
 		public static string AngleToDMS(double angle)
 		{
 			var d = (int)Math.Floor(Math.Abs(angle));
 			var m = (int)Math.Floor(60 * (Math.Abs(angle) - d));
 			var s = (int)Math.Floor(3600 * (Math.Abs(angle) - d - m / 60.0));
-			return String.Format("{0:0}°{1:00}'{2:00}\"", d, m, s);
+			return String.Format("{0:0}°{1:00}'{2:00}\"", Math.Sign(angle)*d, m, s);
 		}
+
 		public override string ToString()
 		{ return string.Format("Lat: {0} Lon: {1}", AngleToDMS(Lat), AngleToDMS(Lon)); }
 	}
