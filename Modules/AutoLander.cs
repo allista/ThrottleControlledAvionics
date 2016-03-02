@@ -76,7 +76,7 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			StopTimer.Period = LND.StopTimer;
 			CutoffTimer.Period = LND.CutoffTimer;
-			CFG.AP.AddHandler(this, Autopilot.Land);
+			CFG.AP1.AddHandler(this, Autopilot1.Land);
 			TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
 			#if DEBUG
 			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
@@ -84,7 +84,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected override void UpdateState() 
-		{ IsActive = VSL.OnPlanet && CFG.AP[Autopilot.Land]; }
+		{ IsActive = VSL.OnPlanet && CFG.AP1[Autopilot1.Land]; }
 
 		public void LandCallback(Multiplexer.Command cmd)
 		{
@@ -100,7 +100,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.On:
 			case Multiplexer.Command.Resume:
-				if(VSL.LandedOrSplashed) { CFG.AP.OffIfOn(Autopilot.Land); break; }
+				if(VSL.LandedOrSplashed) { CFG.AP1.OffIfOn(Autopilot1.Land); break; }
 				CFG.HF.On(HFlight.Stop);
 				DesiredAltitude = 0;
 				TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
@@ -247,7 +247,7 @@ namespace ThrottleControlledAvionics
 		{
 			get
 			{
-				CFG.HF.OnIfNot(HFlight.Stop);
+				if(!CFG.Nav[Navigation.Anchor]) CFG.HF.OnIfNot(HFlight.Stop);
 				if(VSL.Geometry.R/VSL.HorizontalSpeed > LND.MaxHorizontalTime)
 					return StopTimer.Check;
 				else StopTimer.Reset();
@@ -271,7 +271,7 @@ namespace ThrottleControlledAvionics
 			{
 				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
-				if(CFG.Anchor == null) { CFG.AP.Off(); return false; }
+				if(CFG.Anchor == null) { CFG.AP1.Off(); return false; }
 				if(CFG.Anchor.DistanceTo(VSL.vessel)-VSL.Geometry.R < CFG.Anchor.Distance)
 				{
 					if(NextNode.flat)
@@ -303,9 +303,8 @@ namespace ThrottleControlledAvionics
 			DesiredAltitude += delta_alt;
 			if(DesiredAltitude > LND.MaxWideCheckAltitude)
 			{
-				ScreenMessages.PostScreenMessage("Unable to find suitale place for landing",
-				                                 5, ScreenMessageStyle.UPPER_CENTER);
-				CFG.AP.Off();
+				ThrottleControlledAvionics.StatusMessage = "Unable to find suitale place for landing.";
+				CFG.AP1.Off();
 			}
 			else stage = Stage.WideCheck;
 		}
@@ -330,12 +329,11 @@ namespace ThrottleControlledAvionics
 
 		void land()
 		{
-			CFG.HF.Off();
 			var c = center_node;
 			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(c.position),
 			                          VSL.mainBody.GetLongitude(c.position));
 			CFG.Anchor.Distance = LND.NodeTargetRange;
-			CFG.Nav.On(Navigation.Anchor);
+			CFG.Nav.OnIfNot(Navigation.Anchor);
 			DesiredAltitude = LND.GearOnAtH+VSL.Geometry.H;
 			stage = Stage.Land;
 		}
@@ -356,7 +354,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive || CFG.AP.Paused) return;
+			if(!IsActive || CFG.AP1.Paused) return;
 			VSL.Info.ScanningProgress = Progress;
 			switch(stage)
 			{
@@ -421,7 +419,7 @@ namespace ThrottleControlledAvionics
 				if(!landing_started)
 				{
 					landing_started = true;
-					apply_cfg(cfg => cfg.AP.XOnIfNot(Autopilot.Land));
+					apply_cfg(cfg => cfg.AP1.XOnIfNot(Autopilot1.Land));
 				}
 				if(DesiredAltitude > 0)
 				{
@@ -437,7 +435,7 @@ namespace ThrottleControlledAvionics
 				if(VSL.LandedOrSplashed) 
 				{ 
 					if(!CutoffTimer.Check) break;
-					CFG.AP.XOff(); 
+					CFG.AP1.XOff(); 
 					CFG.VerticalCutoff = -10; 
 					CFG.VF.On(VFlight.AltitudeControl);
 				}
@@ -445,18 +443,14 @@ namespace ThrottleControlledAvionics
 				{
 					if(VSL.Altitude > LND.StopAtH*VSL.Geometry.H)
 						CFG.Nav.OnIfNot(Navigation.Anchor);
-					else 
-					{
-						CFG.Nav.OffIfOn(Navigation.Anchor);
-						CFG.HF.OnIfNot(HFlight.Stop);
-					}
+					else CFG.HF.OnIfNot(HFlight.Stop);
 					set_VSpeed((VSL.OnPlanetParams.SlowThrust? -0.5f : -1f)
 					           *Utils.ClampL(1-VSL.HorizontalSpeed, 0.1f));
 				}
 				CutoffTimer.Reset();
 				break;
 			default: 
-				CFG.AP.Off();
+				CFG.AP1.Off();
 				break;
 			}
 		}
@@ -467,7 +461,7 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void RadarBeam()
 		{
-			if(!CFG.AP[Autopilot.Land]) return;
+			if(!CFG.AP1[Autopilot1.Land]) return;
 			if(Nodes == null) return;
 			if(scanner == null && NextNode != null)
 			{

@@ -14,8 +14,8 @@ using UnityEngine;
 namespace ThrottleControlledAvionics
 {
 //	[CareerPart]
-	[RequireModules(typeof(ManeuverAutopilot))]
-	[OptionalModules(typeof(PointNavigator))]
+	[RequireModules(typeof(ManeuverAutopilot), 
+	                typeof(AutoLander))]
 	public class DeorbitAutopilot : TCAModule
 	{
 		public class Config : TCAModule.ModuleConfig
@@ -25,7 +25,9 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float dVtol              = 0.01f; //m/s
 			[Persistent] public float Dtol               = 1000f; //m
 			[Persistent] public float FlyOverAlt         = 1000;  //m
-			[Persistent] public int   MaxIterations      = 100;
+			[Persistent] public float ApproachAlt        = 500;   //m
+			[Persistent] public float BrakeEndSpeed      = 100;   //m/s
+			[Persistent] public int   MaxIterations      = 1000;
 			[Persistent] public int   PerFrameIterations = 10;
 
 		}
@@ -77,26 +79,15 @@ namespace ThrottleControlledAvionics
 			return NewOrbit(old, dV, UT);
 		}
 
-		public static void AddNode(VesselWrapper VSL, Vector3d dV, double UT)
+		public override void Init()
 		{
-			var node = VSL.vessel.patchedConicSolver.AddManeuverNode(UT);
-			var norm = VSL.orbit.GetOrbitNormal().normalized;
-			var prograde = VSL.orbit.getOrbitalVelocityAtUT(UT).normalized;
-			var radial = Vector3d.Cross(prograde, norm).normalized;
-			node.DeltaV = new Vector3d(Vector3d.Dot(dV, radial),
-			                           Vector3d.Dot(dV, norm),
-			                           Vector3d.Dot(dV, prograde));
-			VSL.vessel.patchedConicSolver.UpdateFlightPlan();
-		}
-
-		protected override void UpdateState()
-		{
-			base.UpdateState();
-			IsActive = VSL.InOrbit && VSL.HasTarget;
+			base.Init();
+			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
 		}
 
 		IEnumerator<LandingTrajectory> compute_landing_trajectory(WayPoint target, double PeR)
 		{
+//			Log("\nComputing trajectory for PeR={0}\nFor target: {1}", PeR, target);//debug
 			var targetAlt = target.SurfaceAlt(Body)+DEO.FlyOverAlt;
 			var StartUT = VSL.Physics.UT+DEO.StartOffset;
 			LandingTrajectory site = null;
@@ -115,6 +106,7 @@ namespace ThrottleControlledAvionics
 					}
 					else dVn += VesselOrbit.GetOrbitNormal().normalized*
 							VesselOrbit.vel.magnitude*Math.Sin(site.LandingTargetInclination*Mathf.Deg2Rad/2);
+//					Log("StartUT change: {0}\ndVn {1}", StartUT-site.StartUT, dVn);//debug
 				}
 				site = new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, dVn), StartUT, targetAlt);
 				var targetPos = site.CBRotation * Body.GetRelSurfacePosition(target.Lat, target.Lon, 0);;
@@ -124,6 +116,7 @@ namespace ThrottleControlledAvionics
 				if(best == null || site < best) best = site;
 				frameI--;
 				maxI--;
+//				Log("target: {0}\n{1}", target, site);//debug
 				if(frameI < 0)
 				{
 					yield return null;
@@ -150,53 +143,119 @@ namespace ThrottleControlledAvionics
 
 		void reset()
 		{
+			Working = false;
+			Target = null;
+			stage = Stage.None;
 			trajectory = null;
 			trajectory_calculator = null;
 			CurrentPeR = DEO.StartPeR;
+			CFG.AP1.Off();
 		}
 
-		void start()
+		public void DeorbitCallback(Multiplexer.Command cmd)
 		{
-			reset();
-			var target = Target2WP();
-			if(CFG.Target != target) 
+			switch(cmd)
 			{
-				target.UpdateCoordinates(Body);
-				CFG.Target = target;
+			case Multiplexer.Command.Resume:
+				break;
+
+			case Multiplexer.Command.On:
+				reset();
+				if(VSL.Target == null) return;
+				VSL.vessel.patchedConicSolver.maneuverNodes
+					.ForEach(n => VSL.vessel.patchedConicSolver.RemoveManeuverNode(n));
+				VSL.vessel.patchedConicSolver.UpdateFlightPlan();
+				Target = Target2WP();
+				Target.UpdateCoordinates(Body);
+				SetTarget(Target);
+				compute_node = true;
+				goto case Multiplexer.Command.Resume;
+
+			case Multiplexer.Command.Off:
+				reset();
+				break;
 			}
-			compute_node = true;
 		}
+
+		WayPoint Target;
+		enum Stage { None, Deorbit, Decelerate, Approach, Land, Waiting }
+		Stage stage;
 
 		protected override void Update()
 		{
-			if(!IsActive || CFG.Target == null || VSL.orbit.referenceBody == null) return;
-			if(!compute_node) return;
-			if(trajectory_computed(CFG.Target, CurrentPeR))
+			if(Target == null || VSL.orbit.referenceBody == null) return;
+			if(CFG.Target == null) SetTarget(Target);
+			if(compute_node && trajectory_computed(CFG.Target, CurrentPeR))
 			{
 				if(trajectory.DistanceToTarget < DEO.Dtol || CurrentPeR >= 1)
 				{
 					compute_node = false;
-					AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT);
-					CFG.ShowWaypoints = true;
-					CFG.GUIVisible = true;
-					MapView.EnterMapView();
-					ThrottleControlledAvionics.DebugMessage = string.Format("{0}", trajectory);//debug
+					ManeuverAutopilot.AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT);
+					if(trajectory.DistanceToTarget < DEO.Dtol) 
+					{ CFG.AP1.On(Autopilot1.Maneuver); Working = true; stage = Stage.Deorbit; }
+					else 
+					{
+						ThrottleControlledAvionics.StatusMessage = "Predicted landing site is too far from the target.\n" +
+							"To proceed, activate maneuver execution manually.";
+						stage = Stage.Waiting;
+					}
 				}
 				else 
 				{
 					CurrentPeR += 0.1;
 					if(CurrentPeR < 1) trajectory = null;
 				}
+				return;
+			}
+			if(Working) 
+			{ 
+				switch(stage)
+				{
+				case Stage.Waiting:
+					if(!CFG.AP1[Autopilot1.Maneuver]) break;
+					stage = Stage.Deorbit;
+					break;
+				case Stage.Deorbit:
+					if(CFG.AP1[Autopilot1.Maneuver]) break;
+					trajectory.UpdateOrbit(VesselOrbit);
+					ManeuverAutopilot.AddNode(VSL, trajectory.BrakeDeltaV-trajectory.BrakeDeltaV.normalized*DEO.BrakeEndSpeed, 
+					                          trajectory.BrakeStartUT);
+					CFG.AP1.On(Autopilot1.Maneuver);
+					stage = Stage.Decelerate;
+					break;
+				case Stage.Decelerate:
+					if(VSL.Altitude.Relative < DEO.FlyOverAlt)
+						CFG.AP1.Off();
+					if(CFG.AP1[Autopilot1.Maneuver]) break;
+					CFG.AltitudeAboveTerrain = true;
+					CFG.BlockThrottle = true;
+					CFG.VF.On(VFlight.AltitudeControl);
+					CFG.HF.On(HFlight.Level);
+					CFG.DesiredAltitude = DEO.ApproachAlt;
+					stage = Stage.Approach;
+					break;
+				case Stage.Approach:
+					CFG.Nav.OnIfNot(Navigation.GoToTarget);
+					if(CFG.Nav[Navigation.GoToTarget]) break;
+					CFG.AP1.OnIfNot(Autopilot1.Land);
+					stage = Stage.Land;
+					break;
+				case Stage.Land:
+					if(CFG.AP1[Autopilot1.Land]) break;
+					CFG.AP2.Off();
+					break;
+				}
+				return;
 			}
 		}
 
 		public override void Draw()
 		{
 			if(compute_node) GUILayout.Label("Computing...", Styles.grey_button, GUILayout.ExpandWidth(false));
-			else if(GUILayout.Button(new GUIContent("Deorbit", "Compute deorbit maneuver to land at target."), 
-			                    Styles.yellow_button, 
-			                    GUILayout.ExpandWidth(false)))
-				start(); //TODO: convert to a standard CFG routine
+			else if(Utils.ButtonSwitch("Land at Target", CFG.AP2[Autopilot2.Deorbit],
+			                           "Compute and perform a deorbit maneuver, then land at the target.", 
+			                           GUILayout.ExpandWidth(false)))
+				CFG.AP2.XToggle(Autopilot2.Deorbit);
 		}
 	}
 
@@ -226,6 +285,7 @@ namespace ThrottleControlledAvionics
 		//for choosen trajectory
 		public Vector3d BrakeDeltaV { get; private set; }
 		public double BrakeDuration { get; private set; }
+		public double BrakeStartUT { get; private set; }
 		public double TimeToSurface { get { return AtSurfaceUT-VSL.Physics.UT; } }
 
 		public LandingTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, double alt = 0)
@@ -263,14 +323,15 @@ namespace ThrottleControlledAvionics
 		public void UpdateDeltaLon(double Lon)
 		{
 			var dLon = Utils.CenterAngle(Lon)-Utils.CenterAngle(SurfacePoint.Lon);
-			DeltaLon = Math.Abs(dLon) > 180? Math.Sign(dLon)*(360-Math.Abs(dLon)) : dLon;
+			DeltaLon = Math.Abs(dLon) > 180? -Math.Sign(dLon)*(360-Math.Abs(dLon)) : dLon;
 		}
 
 		public void UpdateOrbit(Orbit current)
 		{
 			update_from_orbit(current, VSL.Physics.UT);
-			BrakeDeltaV = LandingOrbit.getOrbitalVelocityAtUT(AtSurfaceUT);
+			BrakeDeltaV = -LandingOrbit.getOrbitalVelocityAtUT(AtSurfaceUT);
 			BrakeDuration = ManeuverAutopilot.TTB(VSL, (float)BrakeDeltaV.magnitude, 1);
+			BrakeStartUT = AtSurfaceUT-BrakeDuration;
 		}
 
 		public static bool operator <(LandingTrajectory s1, LandingTrajectory s2)
@@ -289,8 +350,8 @@ namespace ThrottleControlledAvionics
 		{
 			return string.Format("LandingSite:\nTrueAnomaly: {0} deg,\nCoordinates: {1},\n" +
 		                         "DeltaV: {2}\n"+
-		                         "Node in: {3} s, TTB: {4} s, TimeToSurface: {5} s\n" +
-		                         "Distance to Target: {6} m, AngleToTarget: {7} deg, Delta Lon: {8} deg",
+		                         "Node in: {3} s, TTB: {4} s, FreeFallTime: {5} s\n" +
+		                         "Distance to Target: {6} m, Target Inclination: {7} deg, Delta Lon: {8} deg",
 		                         TrueAnomaly*Mathf.Rad2Deg, SurfacePoint, ManeuverDeltaV, 
 		                         TimeToStart, ManeuverDuration, FreeFallTime,
 		                         DistanceToTarget, 

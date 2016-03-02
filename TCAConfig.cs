@@ -89,7 +89,8 @@ namespace ThrottleControlledAvionics
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
-	public enum Autopilot { None, Land, Maneuver, MatchVel, MatchVelNear }
+	public enum Autopilot1 { None, Land, Maneuver, MatchVel, MatchVelNear }
+	public enum Autopilot2 { None, Deorbit }
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{
@@ -130,7 +131,8 @@ namespace ThrottleControlledAvionics
 		public Queue<WayPoint>       Waypoints = new Queue<WayPoint>();
 		[Persistent] public WayPoint Target;
 		//autopilot
-		[Persistent] public Multiplexer<Autopilot> AP = new Multiplexer<Autopilot>();
+		[Persistent] public Multiplexer<Autopilot1> AP1 = new Multiplexer<Autopilot1>();
+		[Persistent] public Multiplexer<Autopilot2> AP2 = new Multiplexer<Autopilot2>();
 		[Persistent] public bool VTOLAssistON = true;
 		[Persistent] public bool StabilizeFlight = true;
 		//engines
@@ -167,10 +169,11 @@ namespace ThrottleControlledAvionics
 			VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed;
 			Engines.setPI(TCAScenario.Globals.ENG.EnginesPI);
 			//explicitly set multiplexer conflicts
-			AT.AddConflicts(HF, Nav, AP);
-			HF.AddConflicts(AT, Nav, AP);
-			Nav.AddConflicts(AT, HF, AP);
-			AP.AddConflicts(AT, Nav, HF);
+			AT.AddConflicts(HF, Nav, AP1, AP2);
+			HF.AddConflicts(AT, Nav, AP1, AP2);
+			Nav.AddConflicts(AT, HF, AP1, AP2);
+			AP1.AddConflicts(AT, Nav, HF, AP2);
+			AP2.AddConflicts(AT, Nav, HF, AP1);
 			//get all multiplexers
 			multiplexer_fields.ForEach(fi => multiplexers.Add((Multiplexer)fi.GetValue(this)));
 		}

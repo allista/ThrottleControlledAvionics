@@ -27,11 +27,11 @@ namespace ThrottleControlledAvionics
 			if(!VSL.InOrbit || (MVA == null && MAP == null)) return;
 			GUILayout.BeginHorizontal();
 			var tVessel = VSL.TargetVessel;
-			var MVA_aplicable = tVessel != null && tVessel.situation == Vessel.Situations.ORBITING && !CFG.AP[Autopilot.Maneuver];
-			var DEO_aplicable = (tVessel != null && tVessel.LandedOrSplashed || VSL.Target is WayPoint) && !CFG.AP[Autopilot.Maneuver];
+			var MVA_aplicable = tVessel != null && tVessel.situation == Vessel.Situations.ORBITING && !CFG.AP1[Autopilot1.Maneuver];
+			var DEO_aplicable = (tVessel != null && tVessel.LandedOrSplashed || VSL.Target is WayPoint) && !CFG.AP1[Autopilot1.Maneuver];
 			if(WRP != null && (VSL.Info.Countdown > 0 || VSL.HasManeuverNode || VSL.HasTarget)) WRP.Draw();
 			if(MAP != null && VSL.HasManeuverNode) MAP.Draw();
-			if(PN != null && !CFG.AP[Autopilot.Maneuver] && ThrottleControlledAvionics.NavigationControls != null) 
+			if(PN != null && !CFG.AP1[Autopilot1.Maneuver] && !CFG.AP2[Autopilot2.Deorbit]) 
 				ThrottleControlledAvionics.NavigationControls.AddSingleWaypointInMapView();
 			if(DEO != null && DEO_aplicable) DEO.Draw();
 			if(MVA != null && MVA_aplicable) MVA.Draw();

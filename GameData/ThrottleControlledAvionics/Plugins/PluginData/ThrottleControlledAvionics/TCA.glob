@@ -319,10 +319,12 @@ MVA
 DEO
 {
 	StartOffset        = 60   //s
-	StartPeR           = 0.5  //of planet radius
+	StartPeR           = 0.49 //of planet radius
 	dVtol              = 0.01 //m/s
 	Dtol               = 1000 //m
 	FlyOverAlt         = 1000 //m
+	ApproachAlt        = 250
+	BrakeEndSpeed      = 100
 	MaxIterations      = 500
 	PerFrameIterations = 10
 

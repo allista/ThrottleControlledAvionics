@@ -58,12 +58,12 @@ namespace ThrottleControlledAvionics
 			if(LND != null)
 			{
 				if(GUILayout.Button(new GUIContent("Land", "Try to land on a nearest flat surface"), 
-				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
+				                    CFG.AP1[Autopilot1.Land]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(50)))
 				{
-					var state = !CFG.AP[Autopilot.Land];
-					if(state) { follow_me(); CFG.AP.XOn(Autopilot.Land); }
-					else apply_cfg(cfg => cfg.AP.XOffIfOn(Autopilot.Land));
+					var state = !CFG.AP1[Autopilot1.Land];
+					if(state) { follow_me(); CFG.AP1.XOn(Autopilot1.Land); }
+					else apply_cfg(cfg => cfg.AP1.XOffIfOn(Autopilot1.Land));
 				}
 			}
 			if(CC != null)

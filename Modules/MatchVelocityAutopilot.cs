@@ -50,14 +50,14 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			CFG.AP.AddCallback(MatchVelCallback, Autopilot.MatchVel, Autopilot.MatchVelNear);
+			CFG.AP1.AddCallback(MatchVelCallback, Autopilot1.MatchVel, Autopilot1.MatchVelNear);
 		}
 
 		protected override void UpdateState()
 		{ 
 			IsActive = CFG.Enabled && VSL.InOrbit && VSL.orbit != null && 
 				VSL.Engines.MaxThrustM > 0 && VSL.HasTarget && VSL.Target.GetOrbit() != null &&
-				CFG.AP.Any(Autopilot.MatchVel, Autopilot.MatchVelNear);
+				CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
 			if(IsActive) return;
 			reset();
 		}
@@ -86,8 +86,8 @@ namespace ThrottleControlledAvionics
 				THR.Throttle = 0;
 				CFG.AT.On(Attitude.KillRotation);
 			}
-			CFG.AP.OffIfOn(Autopilot.MatchVel);
-			CFG.AP.OffIfOn(Autopilot.MatchVelNear);
+			CFG.AP1.OffIfOn(Autopilot1.MatchVel);
+			CFG.AP1.OffIfOn(Autopilot1.MatchVelNear);
 			MainThrust = false;
 			Working = false;
 		}
@@ -99,7 +99,7 @@ namespace ThrottleControlledAvionics
 			var dVm = (float)dV.magnitude;
 			//if we're waiting for the nearest approach
 			THR.Throttle = 0;
-			if(!Working && CFG.AP[Autopilot.MatchVelNear])
+			if(!Working && CFG.AP1[Autopilot1.MatchVelNear])
 			{
 				//calculate time to nearest approach
 				var tOrb   = VSL.Target.GetOrbit();
@@ -145,7 +145,7 @@ namespace ThrottleControlledAvionics
 			//if dV is too small, don't do anything
 			if(dVm < GLB.THR.MinDeltaV) 
 			{
-				if(CFG.AP[Autopilot.MatchVelNear]) reset();
+				if(CFG.AP1[Autopilot1.MatchVelNear]) reset();
 				return;
 			}
 			//use main engines if dV is big enough, or if there's no translation capabilities
@@ -172,12 +172,12 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-			if(Utils.ButtonSwitch("Match Velocity", CFG.AP[Autopilot.MatchVel], 
+			if(Utils.ButtonSwitch("Match Velocity", CFG.AP1[Autopilot1.MatchVel], 
 			                      "Match orbital velocity with the target", GUILayout.ExpandWidth(true)))
-				CFG.AP.XToggle(Autopilot.MatchVel);
-			if(Utils.ButtonSwitch("Brake Near Target", CFG.AP[Autopilot.MatchVelNear], 
+				CFG.AP1.XToggle(Autopilot1.MatchVel);
+			if(Utils.ButtonSwitch("Brake Near Target", CFG.AP1[Autopilot1.MatchVelNear], 
 			                          "Match orbital velocity with the target at nearest point", GUILayout.ExpandWidth(true)))
-				CFG.AP.XToggle(Autopilot.MatchVelNear);
+				CFG.AP1.XToggle(Autopilot1.MatchVelNear);
 		}
 	}
 }

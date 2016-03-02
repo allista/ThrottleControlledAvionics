@@ -88,7 +88,7 @@ namespace ThrottleControlledAvionics
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{
-			VSL.CFG.AP.XOn(Autopilot.MatchVel);
+			VSL.CFG.AP1.XOn(Autopilot1.MatchVel);
 			return false;
 		}
 	}
@@ -99,8 +99,8 @@ namespace ThrottleControlledAvionics
 		protected override bool Action(VesselWrapper VSL)
 		{
 			if(!VSL.HasTarget) { Message("No Target"); return false; }
-			VSL.CFG.AP.XOnIfNot(Autopilot.MatchVelNear);
-			return VSL.CFG.AP[Autopilot.MatchVelNear];
+			VSL.CFG.AP1.XOnIfNot(Autopilot1.MatchVelNear);
+			return VSL.CFG.AP1[Autopilot1.MatchVelNear];
 		}
 	}
 
@@ -109,8 +109,8 @@ namespace ThrottleControlledAvionics
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ 
-			VSL.CFG.AP.XOnIfNot(Autopilot.Land); 
-			return VSL.CFG.AP[Autopilot.Land];
+			VSL.CFG.AP1.XOnIfNot(Autopilot1.Land); 
+			return VSL.CFG.AP1[Autopilot1.Land];
 		}
 	}
 

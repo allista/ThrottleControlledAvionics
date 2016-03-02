@@ -33,13 +33,13 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			CFG.AP.AddHandler(this, Autopilot.Maneuver);
+			CFG.AP1.AddHandler(this, Autopilot1.Maneuver);
 		}
 
 		protected override void UpdateState()
 		{ 
 			IsActive = 
-				CFG.AP[Autopilot.Maneuver] && 
+				CFG.AP1[Autopilot1.Maneuver] && 
 				Node != null && VSL.Engines.MaxThrustM > 0 &&
 				GameVariables.Instance
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) == GameVariables.OrbitDisplayMode.PatchedConics;
@@ -52,7 +52,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Resume:
 			case Multiplexer.Command.On:
 				if(!VSL.HasManeuverNode) 
-				{ CFG.AP[Autopilot.Maneuver] = false; return; }
+				{ CFG.AP1[Autopilot1.Maneuver] = false; return; }
 				CFG.AT.On(Attitude.ManeuverNode);
 				Node = Solver.maneuverNodes[0];
 				THR.Throttle = 0;
@@ -71,12 +71,24 @@ namespace ThrottleControlledAvionics
 			if(Working) THR.Throttle = 0;
 			if(CFG.AT[Attitude.ManeuverNode])
 				CFG.AT.On(Attitude.KillRotation);
-			CFG.AP.OffIfOn(Autopilot.Maneuver);
+			CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 			AlignedTimer.Reset();
 			VSL.Info.Countdown = 0;
 			VSL.Info.TTB = 0;
 			Working = false;
 			Node = null;
+		}
+
+		public static void AddNode(VesselWrapper VSL, Vector3d dV, double UT)
+		{
+			var node = VSL.vessel.patchedConicSolver.AddManeuverNode(UT);
+			var norm = VSL.orbit.GetOrbitNormal().normalized;
+			var prograde = VSL.orbit.getOrbitalVelocityAtUT(UT).normalized;
+			var radial = Vector3d.Cross(prograde, norm).normalized;
+			node.DeltaV = new Vector3d(Vector3d.Dot(dV, radial),
+			                           Vector3d.Dot(dV, norm),
+			                           Vector3d.Dot(dV, prograde));
+			VSL.vessel.patchedConicSolver.UpdateFlightPlan();
 		}
 
 		public static float TTB(VesselWrapper VSL, float dV, float throttle)
@@ -119,9 +131,9 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-			if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Maneuver", 
-			                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
-				CFG.AP.XToggle(Autopilot.Maneuver);
+			if(GUILayout.Button(CFG.AP1[Autopilot1.Maneuver]? "Abort Maneuver" : "Execute Maneuver", 
+			                    CFG.AP1[Autopilot1.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
+				CFG.AP1.XToggle(Autopilot1.Maneuver);
 		}
 	}
 }
