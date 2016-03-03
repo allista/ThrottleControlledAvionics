@@ -155,6 +155,7 @@
     <Compile Include="VesselProps\OnPlanetProps.cs" />
     <Compile Include="Modules\DeorbitAutopilot.cs" />
     <Compile Include="OrbitDBG.cs" />
+    <Compile Include="Utils\LandingTrajectory.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
