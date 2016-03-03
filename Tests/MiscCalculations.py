@@ -6,6 +6,8 @@ Created on Jan 8, 2015
 
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.lines as mlines
 import pandas as pa
 import sys
 import os
@@ -46,6 +48,8 @@ class vec(object):
 
     def __getitem__(self, index): return self.v[index]
     def __setitem__(self, index, value): self.v[index] = value
+
+    def __nonzero__(self): return bool(np.any(self.v))
 
     def __abs__(self):
         return np.linalg.norm(self.v)
@@ -97,6 +101,11 @@ class vec(object):
 
     @classmethod
     def sum(cls, vecs): return sum(vecs, vec())
+    
+    @classmethod
+    def rnd(cls, magnitude=1):
+        return cls.from_array(np.random.rand(3)*2-1).norm*magnitude
+        
 #end class
 
 class vec6(object):
@@ -126,6 +135,27 @@ class vec6(object):
 #end class
 
 def lerp(f, t, time): return f+(t-f)*clamp01(time)
+
+def xzy(v): return [v[0], v[2], v[1]]
+
+def draw_vectors(*vecs):
+    if not vecs: return;
+    X, Y, Z, U, V, W = zip(*(xzy(v)+xzy(v) for v in vecs))
+    colors = color_grad(len(vecs), 3)
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.quiver(X,Y,Z,U,V,W, colors=colors, lw=2, arrow_length_ratio=0.1)
+    ax.set_xlim([-1,1])
+    ax.set_ylim([-1,1])
+    ax.set_zlim([-1,1])
+    ax.set_xlabel('r')
+    ax.set_ylabel('f')
+    ax.set_zlabel('u')
+    legends = []
+    for i in xrange(len(vecs)):
+        legends.append(mlines.Line2D([], [], color=colors[i*3], label=str(i+1)))
+    plt.legend(handles=legends)
+    plt.show()
 
 class engine(object):
     def __init__(self, pos, direction, spec_torque, min_thrust=0.0, max_thrust=100.0, maneuver=False, manual=False):
@@ -848,10 +878,6 @@ def sim_Rotation():
     plt.show()
 
 def drawVectors():
-    from mpl_toolkits.mplot3d import Axes3D
-    import matplotlib.lines as mlines
-
-
     x = (1,0,0); y = (0,1,0); z = (0,0,1)
 
     NoseUp = [
@@ -903,27 +929,6 @@ def drawVectors():
 (-0.0001221597, 0.9947699, -0.1021409),
 (0.3317407, 0.9377342, -0.1029695),
                     ]
-
-    def xzy(v): return v[0], v[2], v[1]
-
-    def draw_vectors(*vecs):
-        if not vecs: return;
-        X, Y, Z, U, V, W = zip(*(xzy(v)+xzy(v) for v in vecs))
-        colors = color_grad(len(vecs), 3)
-        fig = plt.figure()
-        ax = fig.gca(projection='3d')
-        ax.quiver(X,Y,Z,U,V,W, colors=colors, lw=2, arrow_length_ratio=0.1)
-        ax.set_xlim([-1,1])
-        ax.set_ylim([-1,1])
-        ax.set_zlim([-1,1])
-        ax.set_xlabel('r')
-        ax.set_ylabel('f')
-        ax.set_zlabel('u')
-        legends = []
-        for i in xrange(len(vecs)):
-            legends.append(mlines.Line2D([], [], color=colors[i*3], label=str(i+1)))
-        plt.legend(handles=legends)
-        plt.show()
 
 #     draw_vectors(*NoseUp)
     draw_vectors(*MunNoseHor)
@@ -1216,6 +1221,44 @@ def sim_PointNav():
 dt = 0.05
 
 if __name__ == '__main__':
+    np.random.seed(42)
+    
+    thrusters = [
+                vec(1,0,-0.2).norm,
+                vec(-0.3,1,0).norm,
+                vec(0.2,0.1,1).norm,
+                vec(-1,0,-0.2).norm,
+                vec(-0.3,-1,0).norm,
+                vec(0.2,0.4,-1).norm,
+                ]
+
+    angles = []
+    angles2 = []     
+    for _i in xrange(1000):
+        d = vec.rnd()
+        thrust = vec()
+        thrust1 = vec()
+        for t in thrusters:
+            c = t*d
+            if c > 0:
+                thrust += t*c
+                thrust1 += t*c*c
+        if thrust:
+            angles.append(d.angle(thrust))
+        if thrust1:
+            angles2.append(d.angle(thrust1))
+        
+    print np.mean(angles), np.mean(angles2)
+    print np.min(angles), np.min(angles2)
+    print np.max(angles), np.max(angles2)
+    print np.std(angles), np.std(angles2)
+    plt.plot(angles, '.')
+    plt.plot(angles2, 'r*')
+    plt.show()
+    
+    draw_vectors(*thrusters)
+    
+    
 #     sim_VSpeed()
 #     sim_VS_Stability()
 #     sim_Altitude()
@@ -1230,11 +1273,11 @@ if __name__ == '__main__':
 # #                ['AltAhead']
 #                 , (13,))
 
-    analyzeCSV('Debugging/MAN1.csv',
-               ('name',
-                'UT', 'dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
-               ('dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
-               x='UT')
+#    analyzeCSV('Debugging/MAN1.csv',
+#               ('name',
+#                'UT', 'dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
+#               ('dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
+#               x='UT')
 
 #     analyzeCSV('Debugging/vertical-overshooting-bug.csv',
 #                ('name',
