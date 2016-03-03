@@ -11,10 +11,6 @@ using System;
 using System.Reflection;
 using System.Collections.Generic;
 
-#if DEBUG
-using System.Diagnostics;
-#endif
-
 namespace ThrottleControlledAvionics
 {
 	public abstract class Multiplexer : ConfigNodeObject
@@ -93,7 +89,7 @@ namespace ThrottleControlledAvionics
 		public void On(T key) 
 		{ 
 			if(Paused) return;
-//			Utils.Log("\n{0}.On: {1}->{2}\n{3}", GetType(), state, key, new StackTrace(true));//debug
+//			DebugUtils.Log("\n{0}.On: {1}->{2}", GetType(), state, key);//debug
 			if(!key.Equals(state)) Off();
 			state = key;
 			Callback callback;
@@ -104,7 +100,7 @@ namespace ThrottleControlledAvionics
 		public override void Off() 
 		{ 
 			if(Paused || state.Equals(default(T))) return;
-//			Utils.Log("\n{0}.Off: {1}->None\n{2}", GetType(), state, new StackTrace(true));//debug
+//			DebugUtils.Log("\n{0}.Off: {1}->None", GetType(), state);//debug
 			var old_state = state; //prevents recursion
 			state = default(T);
 			Callback callback;

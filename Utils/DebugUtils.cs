@@ -11,6 +11,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -48,6 +49,28 @@ namespace ThrottleControlledAvionics
 			    name, b.center, b.extents, b.min, b.max,
 			          b.size.x*b.size.y*b.size.z);
 		}
+
+		public static string getStacktrace(int skip = 0) { return new StackTrace(skip+1, true).ToString(); }
+
+		public static void Log(string msg, params object[] args)
+		{ Utils.Log("{0}\n{1}", string.Format(msg, args), getStacktrace(1)); }
+
+		//does not work with monodevelop generated .mdb files =(
+//		public static void LogException(Action action)
+//		{
+//			try { action(); }
+//			catch(Exception ex)
+//			{
+//				// Get stack trace for the exception with source file information
+//				var st = new StackTrace(ex, true);
+//				// Get the top stack frame
+//				var frame = st.GetFrame(st.FrameCount-1);
+//				// Log exception coordinates and stacktrace
+//				Utils.Log("\nException in {0} at line {1}, column {2}\n{3}", 
+//				          frame.GetFileName(), frame.GetFileLineNumber(), frame.GetFileColumnNumber(), 
+//				          st.ToString());
+//			}
+//		}
 	}
 
 	//adapted from MechJeb
