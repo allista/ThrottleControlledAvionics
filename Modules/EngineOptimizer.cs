@@ -149,7 +149,7 @@ namespace ThrottleControlledAvionics
 			{
 				var e = engines[i];
 				e.limit_tmp = Vector3.Dot(e.thrustDirection, dir);
-				e.limit *= e.limit_tmp > 0? 1-e.limit_tmp : 1+e.limit_tmp;
+				e.limit *= 1-Mathf.Abs(e.limit_tmp);
 			}
 		}
 
