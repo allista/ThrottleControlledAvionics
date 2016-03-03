@@ -39,7 +39,8 @@ namespace ThrottleControlledAvionics
 		public OnPlanetProps		OnPlanetParams;
 		public TorqueProps          Torque;
 		public GeometryProps        Geometry;
-		static List<FieldInfo> AllProps = typeof(VesselWrapper)
+		List<VesselProps> AllPros = new List<VesselProps>();
+		static List<FieldInfo> AllPropFields = typeof(VesselWrapper)
 			.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Instance|BindingFlags.Public)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(VesselProps))).ToList();
 		
@@ -95,12 +96,15 @@ namespace ThrottleControlledAvionics
 
 		void create_props()
 		{
-			foreach(var fi in AllProps)
+			AllPros.Clear();
+			foreach(var fi in AllPropFields)
 			{
 				var constructor = fi.FieldType.GetConstructor(new [] {typeof(VesselWrapper)});
 				if(constructor == null)
 					throw new MissingMemberException(string.Format("No suitable constructor found for {0}", fi.FieldType.Name));
-				fi.SetValue(this, constructor.Invoke(new [] {this}));
+				var prop = constructor.Invoke(new [] {this}) as VesselProps;
+				if(prop != null) AllPros.Add(prop);
+				fi.SetValue(this, prop);
 			}
 		}
 
@@ -195,7 +199,7 @@ namespace ThrottleControlledAvionics
 		public void ClearFrameState()
 		{
 			TCA.ClearFrameState();
-			Info.ClearFrameState();
+			AllPros.ForEach(p => p.ClearFrameState());
 		}
 
 		public void UpdateOnPlanetStats()
