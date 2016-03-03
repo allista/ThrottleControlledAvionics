@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
 		public NavigationPanel(ModuleTCA tca) : base(tca) 
 		{ RenderingManager.AddToPostDrawQueue(1, WaypointOverlay); }
 
-		~NavigationPanel()
+		public override void Reset()
 		{ RenderingManager.RemoveFromPostDrawQueue(1, WaypointOverlay); }
 
 		AutoLander LND;
