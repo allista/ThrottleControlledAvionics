@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 		Anchor ANC;
 		AutoLander LND;
 		CruiseControl CC;
+		Radar RAD;
 
 		public OnPlanetPanel(ModuleTCA tca) : base(tca) {}
 
@@ -81,13 +82,16 @@ namespace ThrottleControlledAvionics
 				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(60)))
 					apply_cfg(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
-				if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
-				                      "Keep altitude above the ground", GUILayout.ExpandWidth(false)))
-						apply(tca => 
-					{
-						var alt = tca.GetModule<AltitudeControl>();
-						if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
-					});
+				if(RAD != null)
+				{
+					if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
+					                      "Keep altitude above the ground", GUILayout.ExpandWidth(false)))
+							apply(tca => 
+						{
+							var alt = tca.GetModule<AltitudeControl>();
+							if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
+						});
+				}
 			}
 			GUILayout.EndHorizontal();
 		}

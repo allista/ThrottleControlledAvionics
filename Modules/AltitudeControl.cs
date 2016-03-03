@@ -74,7 +74,8 @@ namespace ThrottleControlledAvionics
 
 		public void SetAltitudeAboveTerrain(bool enable = true)
 		{
-			if(enable == CFG.AltitudeAboveTerrain) return;
+			if(RAD == null || 
+			   enable == CFG.AltitudeAboveTerrain) return;
 			CFG.AltitudeAboveTerrain = enable;
 			VSL.Altitude.Update();
 			Falling.Reset();
@@ -94,7 +95,8 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.On:
 				VSL.Altitude.Update();
-				CFG.DesiredAltitude = VSL.LandedOrSplashed? -10f : VSL.Altitude;
+				CFG.DesiredAltitude = VSL.LandedOrSplashed? -10f : VSL.Altitude.Relative;
+				if(!CFG.AltitudeAboveTerrain) CFG.DesiredAltitude += VSL.Altitude.TerrainAltitude;
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
