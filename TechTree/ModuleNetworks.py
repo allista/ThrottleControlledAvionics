@@ -38,11 +38,12 @@ def all_successors(node, G):
         nbunch.update(all_successors(s, G))
     return nbunch
 
-def draw_graph(graph, name, prog='dot'):
+def draw_graph(graph, name, prog='dot', save_dot=False):
     ag = nx.nx_agraph.to_agraph(graph)
-    ag.layout(prog='dot')
-    filename = name+'.png' 
+    ag.layout(prog=prog)
+    filename = name+'.png'
     ag.draw(filename)
+    if save_dot: ag.write(name+'.dot')
     print 'Saved %s' % filename
     
 def draw_node_deps(n, G):
@@ -117,13 +118,15 @@ class TechTreeUpdater(object):
         #load the table
         wb = load_workbook(self._partfile, data_only=True)
         ws = wb.active
-        h  = ws.rows[0]
+        h  = [attr.value.strip() if attr.value else None for attr in ws.rows[0]]
         #parse part definitions
         self.partcosts = {}
         for row in ws.rows[1:]:
             part = {}
             for i, attr in enumerate(h):
-                part[attr.value] = row[i].value or ''
+                val = row[i].value or ''
+                if isinstance(val, str): val = val.strip(' \t\n\r')
+                part[attr] = val
             if not part['name']: continue
             if part['name'] in self.parts:
                 self.parts.node[part['name']]['data'] = part
@@ -156,6 +159,10 @@ class TechTreeUpdater(object):
                 paths = list(nx.all_simple_paths(G, p, p1))
                 if len(paths) < 2: continue
                 G.remove_edge(p, p1)
+                
+    @staticmethod
+    def _has_path(DiG, n1, n2):
+        return bool(list(nx.all_simple_paths(DiG, n1, n2)))
         
     @classmethod
     def _get_part_template(cls):
@@ -218,6 +225,11 @@ class TechTreeUpdater(object):
         treenode = ConfigNode.Load(techtree)
         #build tree graph
         self.tree = nx.DiGraph()
+        self.tree.graph.update(graph={
+                                      'splines':'ortho',
+                                      'rankdir':'LR',
+                                      'concentrate':'true',
+                                      })
         self.treedict = {}
         for n in treenode.subnodes:
             name = n['id']
@@ -225,13 +237,15 @@ class TechTreeUpdater(object):
             parts = [p for p, attrs in self.parts.nodes_iter(data=True)
                      if attrs['data']['node'] == name]
             self.tree.add_node(name, 
-                          shape='box',
-                          style='rounded'+(',filled' if parts else ''),
-                          fillcolor='#ddffdd' if parts else '',
-                          label='<<b>%s</b>:<br/>%s>' % (n['title'], '<br/>'.join(self.parts.node[p]['data']['title'] for p in parts)) if parts else n['title'],
-                          parts=parts)
+                               width=2.2,
+                               shape='box',
+                               style='rounded'+(',filled' if parts else ''),
+                               fillcolor='#ddffdd' if parts else '',
+                               label='<<b>%s</b>:<br/>%s>' % (n['title'], '<br/>'.join(self.parts.node[p]['data']['title'] for p in parts)) if parts else n['title'],
+                               parts=parts)
             for p in n.GetNodes('Parent'): 
-                self.tree.add_edge(p['parentID'], name)
+                self.tree.add_edge(p['parentID'], name, 
+                                   arrowhead='none')
         #dump tree nodes
         with open('TechTreeNodes.csv', 'w') as out:
             writer = csv.writer(out)
@@ -247,9 +261,11 @@ class TechTreeUpdater(object):
                     for n1 in self.tree:
                         found = False
                         for p1 in self.tree.node[n1].get('parts', []):
-                            if p1 == d and not self.tree.has_edge(n, n1):
-                                self.tree.add_edge(n, n1, 
+                            if p1 == d and not self._has_path(self.tree, n1, n):
+                                self.tree.add_edge(n, n1,
                                                    color='red',
+                                                   style='bold',
+                                                   arrowsize=0.6,
                                                    constraint='false')
                                 found = True
                                 break
