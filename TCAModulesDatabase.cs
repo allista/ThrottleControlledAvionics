@@ -56,14 +56,18 @@ namespace ThrottleControlledAvionics
 		
 		void Awake()
 		{
+			//register modules
 			foreach(var module in ValidModules)
 			{
 				var meta = new ModuleMeta(module);
 				if(!meta.Valid) continue;
 				RegisteredModules.Add(module, meta);
-				meta.Input.ForEach(inp => add_optional(module, inp));
 			}
+			//add inputs
+			RegisteredModules.ForEach(m => m.Value.Input.ForEach(inp => add_optional(m.Key, inp)));
+			//topo-sort modules
 			SortModules();
+			//register techtree parts
 			foreach(var module in RegisteredModules.Values)
 			{
 				if(string.IsNullOrEmpty(module.PartName)) continue;
