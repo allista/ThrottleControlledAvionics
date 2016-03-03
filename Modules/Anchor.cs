@@ -91,6 +91,7 @@ namespace ThrottleControlledAvionics
 			                                   VSL.HorizontalSpeed.Vector*ANC.LookAheadTime), 
 			                                  VSL.Physics.Up);
 			var distance = Mathf.Sqrt(vdir.magnitude);
+			VSL.Info.Destination = vdir;
 			vdir.Normalize();
 			//tune the pid and update needed velocity
 			AccelCorrection.Update(Mathf.Clamp(VSL.Engines.MaxThrustM*VSL.OnPlanetParams.MinVSFtwr/VSL.Physics.M/ANC.MaxAccelF, 0.01f, 1)*

@@ -59,7 +59,6 @@ namespace ThrottleControlledAvionics
 		static Config PN { get { return TCAScenario.Globals.PN; } }
 		public PointNavigator(ModuleTCA tca) : base(tca) {}
 
-		public Vector3 Destination;
 		public bool Maneuvering { get; private set; }
 		public List<FormationNode> Formation;
 
@@ -97,7 +96,6 @@ namespace ThrottleControlledAvionics
 		{ 
 			IsActive = CFG.Nav && VSL.OnPlanet; 
 			if(IsActive) return;
-			Destination = Vector3.zero;
 		}
 
 		public void GoToTargetCallback(Multiplexer.Command cmd)
@@ -156,7 +154,6 @@ namespace ThrottleControlledAvionics
 		void finish()
 		{
 			SetTarget(null);
-			Destination = Vector3d.zero;
 			CFG.Nav.Off();
 			CFG.HF.On(HFlight.Stop);
 			UnregisterFrom<Radar>();
@@ -206,8 +203,8 @@ namespace ThrottleControlledAvionics
 				var tca = ModuleTCA.EnabledTCA(v);
 				if(tca != null && 
 				   (tca.vessel == VSL.vessel || 
-				    tca.CFG.Nav[Navigation.FollowTarget] && 
-				    tca.CFG.Target.GetTarget() != null && 
+				    tca.CFG.Nav[Navigation.FollowTarget] &&
+				    tca.CFG.Target.GetTarget() != null &&
 				    tca.CFG.Target.GetTarget() == CFG.Target.GetTarget()))
 				{
 					var vPN = tca.GetModule<PointNavigator>();
@@ -268,8 +265,9 @@ namespace ThrottleControlledAvionics
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.Physics.wCoM, VSL.Physics.Up);
 			var distance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
 			//update destination
-			if(CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath)) Destination = vdir;
-			else if(tPN != null) Destination = tPN.Destination;
+			if(tPN != null && !tPN.VSL.Info.Destination.IsZero()) 
+				VSL.Info.Destination = tPN.VSL.Info.Destination;
+			else VSL.Info.Destination = vdir;
 			//handle flying in formation
 			var tvel = Vector3.zero;
 			var vel_is_set = false;

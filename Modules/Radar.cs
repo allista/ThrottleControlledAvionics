@@ -12,10 +12,11 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart(typeof(CollisionPreventionSystem))]
+	[CareerPart]
 	[OptionalModules(typeof(AltitudeControl),
-	                 typeof(HorizontalSpeedControl),
-	                 typeof(PointNavigator))]
+	                 typeof(HorizontalSpeedControl))]
+	[ModuleInputs(typeof(Anchor),
+	              typeof(PointNavigator))]
 	public class Radar : TCAService
 	{
 		public class Config : ModuleConfig
@@ -343,13 +344,12 @@ namespace ThrottleControlledAvionics
 			public static bool operator >(TerrainPoint p1, TerrainPoint p2)
 			{ return p1.Altitude > p2.Altitude;	}
 
-			public bool BeforeDestination(VesselWrapper VSL, PointNavigator PN, Vector3d vel)
+			public bool BeforeDestination(VesselWrapper VSL, Vector3d vel)
 			{ 
 				return Valid &&
-					(PN == null || 
-					 PN.Destination.IsZero() ||
-					 Vector3.Dot(RelPosition(VSL.Physics.wCoM+PN.Destination), PN.Destination) < 0 ||
-					 Vector3.Dot(vel, PN.Destination) < 0);
+					(VSL.Info.Destination.IsZero() ||
+					 Vector3.Dot(RelPosition(VSL.Physics.wCoM+VSL.Info.Destination), VSL.Info.Destination) < 0 ||
+					 Vector3.Dot(vel, VSL.Info.Destination) < 0);
 			}
 
 			public override string ToString()
@@ -432,7 +432,6 @@ namespace ThrottleControlledAvionics
 			public enum ManeuverType { None, Horizontal, Vertical }
 
 			VesselWrapper VSL;
-			PointNavigator PN;
 			Ray L, C, R;
 
 			public ManeuverType Maneuver { get; private set; }
@@ -441,15 +440,13 @@ namespace ThrottleControlledAvionics
 			public bool  Valid { get; private set; }
 
 			public bool BeforeDestination(Vector3d vel)
-			{ return Obstacle.BeforeDestination(VSL, PN, vel); }
+			{ return Obstacle.BeforeDestination(VSL, vel); }
 
-			public Sweep(VesselWrapper vsl)	
-			{ VSL = vsl; PN = vsl.TCA.GetModule<PointNavigator>(); }
+			public Sweep(VesselWrapper vsl) { VSL = vsl; }
 
 			public void Copy(Sweep s)
 			{
 				VSL = s.VSL;
-				PN = s.PN;
 				L = s.L; C = s.C; R = s.R;
 				Obstacle = s.Obstacle;
 				Altitude = s.Altitude;
@@ -513,7 +510,6 @@ namespace ThrottleControlledAvionics
 		public class PQS_Altimeter
 		{
 			readonly VesselWrapper VSL;
-			readonly PointNavigator PN;
 			float LookAheadTime = 1;
 			float LookAheadTimeDelta = 1;
 
@@ -522,8 +518,7 @@ namespace ThrottleControlledAvionics
 			public TerrainPoint Obstacle { get; private set; }
 			public float Altitude { get { return (float)Obstacle.Altitude; } }
 
-			public PQS_Altimeter(VesselWrapper vsl) 
-			{ VSL = vsl; PN = vsl.TCA.GetModule<PointNavigator>(); }
+			public PQS_Altimeter(VesselWrapper vsl) { VSL = vsl; }
 
 			void rewind()
 			{
@@ -533,7 +528,7 @@ namespace ThrottleControlledAvionics
 			}
 
 			public bool BeforeDestination(Vector3d vel)
-			{ return Obstacle.BeforeDestination(VSL, PN, vel); }
+			{ return Obstacle.BeforeDestination(VSL, vel); }
 
 			public void ProbeHeightAhead(Vector3 Dir)
 			{

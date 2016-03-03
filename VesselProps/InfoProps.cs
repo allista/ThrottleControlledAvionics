@@ -8,6 +8,8 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 
+using UnityEngine;
+
 namespace ThrottleControlledAvionics
 {
 	public class InfoProps : VesselProps
@@ -35,12 +37,14 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		public Vector3 Destination;
 		public float  ScanningProgress;
 		public double Countdown;
 		public float  TTB;
 
 		public override void ClearFrameState()
 		{
+			Destination = Vector3.zero;
 			Countdown = -1;
 			TTB = -1;
 		}
