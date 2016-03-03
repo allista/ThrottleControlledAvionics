@@ -14,6 +14,9 @@ namespace ThrottleControlledAvionics
 	{
 		protected ControlPanel(ModuleTCA tca) : base(tca) { InitModuleFields(); }
 
+		public virtual void Update() {}
+		public virtual void Reset() {}
+
 		protected void follow_me() { if(SQD != null) SQD.FollowMe(); }
 	}
 }

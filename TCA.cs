@@ -76,13 +76,30 @@ namespace ThrottleControlledAvionics
 
 		static void create_fields()
 		{
-			AllPanels.ForEach(fi => TCA.CreateComponent(null, fi));
+			AllPanels.Clear();
+			foreach(var fi in AllPanelFields)
+			{
+				var panel = TCA.CreateComponent(fi.FieldType) as ControlPanel;
+				if(panel != null) AllPanels.Add(panel);
+				fi.SetValue(null, panel);
+			}
 			ModuleFields.ForEach(fi => fi.SetValue(null, TCA.GetModule(fi.FieldType)));
+		}
+
+		static void clear_fields()
+		{
+			TCA = null;
+			parts = null;
+			AllPanels.ForEach(p => p.Reset());
+			AllPanelFields.ForEach(fi => fi.SetValue(null, null));
+			ModuleFields.ForEach(fi => fi.SetValue(null, null));
+			AllPanels.Clear();
 		}
 
 		static bool init()
 		{
-			TCA = null; TCAToolbarManager.AttachTCA(null); parts = null;
+			clear_fields();
+			TCAToolbarManager.AttachTCA(null);
 			TCA = ModuleTCA.AvailableTCA(vessel);
 			if(TCA == null) return false;
 			TCAToolbarManager.AttachTCA(TCA);
@@ -97,6 +114,7 @@ namespace ThrottleControlledAvionics
 			if(TCA == null) return;
 			if(!TCA.Available && !init()) return;
 			if(!TCA.Controllable) return;
+			AllPanels.ForEach(p => p.Update());
 			if(selecting_key)
 			{ 
 				var e = Event.current;

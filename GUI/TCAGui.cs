@@ -41,7 +41,8 @@ namespace ThrottleControlledAvionics
 		public static NavigationPanel NavigationControls;
 		public static MacrosPanel MacroControls;
 		public static SquadPanel SquadControls;
-		static List<FieldInfo> AllPanels = typeof(ThrottleControlledAvionics)
+		static List<ControlPanel> AllPanels = new List<ControlPanel>();
+		static List<FieldInfo> AllPanelFields = typeof(ThrottleControlledAvionics)
 			.GetFields(BindingFlags.Static|BindingFlags.Public)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(ControlPanel))).ToList();
 		#endregion
