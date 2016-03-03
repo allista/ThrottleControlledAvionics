@@ -74,8 +74,9 @@ namespace ThrottleControlledAvionics
 			Apply(tca => 
 			{
 				if(tca == TCA) return;
+				tca.CFG.Nav.XOff();
 				tca.vessel.targetObject = TCA.vessel;
-				tca.CFG.Nav.XOn(Navigation.FollowTarget);
+				tca.CFG.Nav.On(Navigation.FollowTarget);
 			});
 		}
 
