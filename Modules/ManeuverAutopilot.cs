@@ -29,10 +29,12 @@ namespace ThrottleControlledAvionics
 		protected ManeuverNode Node;
 		protected PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
 		protected Timer AlignedTimer = new Timer();
+		public float MinDeltaV = 1;
 
 		public override void Init()
 		{
 			base.Init();
+			MinDeltaV = GLB.THR.MinDeltaV;
 			CFG.AP1.AddHandler(this, Autopilot1.Maneuver);
 		}
 
@@ -73,6 +75,7 @@ namespace ThrottleControlledAvionics
 				CFG.AT.On(Attitude.KillRotation);
 			CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 			AlignedTimer.Reset();
+			MinDeltaV = GLB.THR.MinDeltaV;
 			VSL.Info.Countdown = 0;
 			VSL.Info.TTB = 0;
 			Working = false;
@@ -104,13 +107,11 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0])
-			{ reset(); return; }
+			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0]) { reset(); return; }
 			var dV = Node.GetBurnVector(VSL.orbit);
 			var dVrem = (float)dV.magnitude;
 			//end if below the minimum dV
-			if(dVrem < GLB.THR.MinDeltaV) 
-			{ Node.RemoveSelf(); reset(); return; }
+			if(dVrem < MinDeltaV) { Node.RemoveSelf(); reset(); return; }
 			//orient along the burning vector
 			CFG.AT.OnIfNot(Attitude.ManeuverNode);
 			//calculate remaining time to the full thrust burn
