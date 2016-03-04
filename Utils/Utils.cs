@@ -118,6 +118,26 @@ namespace ThrottleControlledAvionics
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
 		public static double CenterAngle(double a) { return a > 180? a-360 : a; }
 
+		public static float AngleDelta(float a, float b)
+		{
+			var d = Utils.CenterAngle(b)-Utils.CenterAngle(a);
+			return Mathf.Abs(d) > 180? -Mathf.Sign(d)*(360-Mathf.Abs(d)) : d;
+		}
+
+		public static double AngleDelta(double a, double b)
+		{
+			var d = Utils.CenterAngle(b)-Utils.CenterAngle(a);
+			return Math.Abs(d) > 180? -Math.Sign(d)*(360-Math.Abs(d)) : d;
+		}
+
+		public static double ClampRad(double a) { a = a%TwoPI; return a < 0? TwoPI+a : a; }
+		public static double CenterRad(double a) { return a > Math.PI? a-TwoPI : a; }
+		public static double RadDelta(double a, double b)
+		{
+			var d = Utils.CenterRad(b)-Utils.CenterRad(a);
+			return Math.Abs(d) > Math.PI? -Math.Sign(d)*(TwoPI-Math.Abs(d)) : d;
+		}
+
 		public static float EWA(float old, float cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
 
