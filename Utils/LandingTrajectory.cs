@@ -16,23 +16,25 @@ namespace ThrottleControlledAvionics
 	{
 		//for iterative search
 		public readonly VesselWrapper VSL;
+		public readonly CelestialBody Body;
 		public readonly Orbit OrigOrbit;
 		public readonly Vector3d ManeuverDeltaV;
-		public readonly double StartUT;
 		public readonly double TimeToStart;
 		public readonly double ManeuverDuration;
 		public readonly double TargetAlt;
 
 		public Orbit LandingOrbit { get; private set; }
+		public double StartUT { get; private set; }
 		public double FreeFallTime { get; private set; }
 		public double AtSurfaceUT { get; private set; }
 		public double TrueAnomaly { get; private set; }
 		public Quaternion CBRotation { get; private set; }
 		public WayPoint SurfacePoint { get; private set; }
+		public Vector3d RelSurfacePosition { get; private set; }
 
 		public double DistanceToTarget = -1;
 		public double DeltaLon { get; private set; }
-		public double LandingTargetInclination = 90;
+		public double DeltaLat = 90;
 
 		//for choosen trajectory
 		public Vector3d BrakeDeltaV { get; private set; }
@@ -48,42 +50,47 @@ namespace ThrottleControlledAvionics
 			ManeuverDuration = ManeuverAutopilot.TTB(VSL, (float)ManeuverDeltaV.magnitude, 1);
 			StartUT = startUT;
 			TimeToStart = startUT-VSL.Physics.UT;
+			Body = VSL.vessel.orbitDriver.orbit.referenceBody;
 			OrigOrbit = VSL.vessel.orbitDriver.orbit;
-			update_from_orbit(DeorbitAutopilot.NewOrbit(OrigOrbit, ManeuverDeltaV, StartUT), StartUT);
+			update_from_orbit(LandingTrajectoryCalculator.NewOrbit(OrigOrbit, ManeuverDeltaV, StartUT));
 		}
 
-		void update_from_orbit(Orbit orb, double UT)
+		void update_from_orbit(Orbit orb)
 		{
 			LandingOrbit = orb;
-			var tA0 = LandingOrbit.TrueAnomalyAtUT(UT);
-			TrueAnomaly = LandingOrbit.TrueAnomalyAtRadius(LandingOrbit.referenceBody.Radius+TargetAlt);
-			if(tA0 > TrueAnomaly) TrueAnomaly = Utils.TwoPI-TrueAnomaly;
+//			DebugUtils.logOrbit("Orig", OrigOrbit);//debug
+//			DebugUtils.logOrbit("Land", LandingOrbit);//debug
+			var tA0 = OrigOrbit.radius > Body.Radius+TargetAlt? 
+				LandingOrbit.trueAnomaly*Mathf.Deg2Rad : Math.PI;
+			TrueAnomaly = LandingOrbit.TrueAnomalyAtRadius(Body.Radius+TargetAlt);
+			if(Utils.RadDelta(tA0, TrueAnomaly) < 0) TrueAnomaly = Utils.TwoPI-TrueAnomaly;
 			FreeFallTime = LandingOrbit.GetDTforTrueAnomaly(TrueAnomaly, LandingOrbit.period/2);
-			AtSurfaceUT = UT+FreeFallTime;
-			CBRotation = Quaternion.AngleAxis((float)(TimeToSurface/orb.referenceBody.rotationPeriod*360), 
-			                                  orb.referenceBody.angularVelocity);
-			var pos = (CBRotation.Inverse()*orb.getRelativePositionAtUT(AtSurfaceUT).xzy)+orb.referenceBody.position;
-			SurfacePoint = new WayPoint(orb.referenceBody.GetLatitude(pos), orb.referenceBody.GetLongitude(pos));
+			AtSurfaceUT = StartUT+FreeFallTime;
+			CBRotation = Quaternion.AngleAxis((float)(TimeToSurface/Body.rotationPeriod*360), 
+			                                  Body.angularVelocity);
+			RelSurfacePosition = CBRotation.Inverse()*orb.getRelativePositionAtUT(AtSurfaceUT).xzy;
+			SurfacePoint = new WayPoint(RelSurfacePosition+Body.position, Body);
 		}
-
-		public Vector3d GetRelSurfacePosition()
-		{ return LandingOrbit.referenceBody.GetRelSurfacePosition(SurfacePoint.Lat, SurfacePoint.Lon, 0); }
 
 		public Vector3d GetOrbitVelocityAtSurface()
 		{ return LandingOrbit.getOrbitalVelocityAtUT(AtSurfaceUT); }
 
-		public void UpdateDeltaLon(double Lon)
-		{
-			var dLon = Utils.CenterAngle(Lon)-Utils.CenterAngle(SurfacePoint.Lon);
-			DeltaLon = Math.Abs(dLon) > 180? -Math.Sign(dLon)*(360-Math.Abs(dLon)) : dLon;
-		}
-
 		public void UpdateOrbit(Orbit current)
 		{
-			update_from_orbit(current, VSL.Physics.UT);
+			StartUT = VSL.Physics.UT;
+			update_from_orbit(current);
 			BrakeDeltaV = -LandingOrbit.getOrbitalVelocityAtUT(AtSurfaceUT);
 			BrakeDuration = ManeuverAutopilot.TTB(VSL, (float)BrakeDeltaV.magnitude, 1);
 			BrakeStartUT = AtSurfaceUT-BrakeDuration;
+		}
+
+		public void UpdateDistance(WayPoint target)
+		{
+			DistanceToTarget = target.AngleTo(SurfacePoint)*Body.Radius;
+			DeltaLon = Utils.AngleDelta(SurfacePoint.Lon, target.Lon)*
+				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VSL.vessel.longitude), SurfacePoint.Lon));
+			DeltaLat = 90-Vector3d.Angle(LandingOrbit.GetOrbitNormal().xzy, 
+			                             CBRotation * Body.GetRelSurfacePosition(target.Lat, target.Lon, 0));
 		}
 
 		public static bool operator <(LandingTrajectory s1, LandingTrajectory s2)
@@ -103,11 +110,11 @@ namespace ThrottleControlledAvionics
 			return string.Format("LandingSite:\nTrueAnomaly: {0} deg,\nCoordinates: {1},\n" +
 			                     "DeltaV: {2}\n"+
 			                     "Node in: {3} s, TTB: {4} s, FreeFallTime: {5} s\n" +
-			                     "Distance to Target: {6} m, Target Inclination: {7} deg, Delta Lon: {8} deg",
+			                     "Distance to Target: {6} m, Delta Lat: {7} deg, Delta Lon: {8} deg",
 			                     TrueAnomaly*Mathf.Rad2Deg, SurfacePoint, ManeuverDeltaV, 
 			                     TimeToStart, ManeuverDuration, FreeFallTime,
 			                     DistanceToTarget, 
-			                     LandingTargetInclination, DeltaLon);
+			                     DeltaLat, DeltaLon);
 		}
 	}
 }
