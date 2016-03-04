@@ -44,6 +44,7 @@ namespace ThrottleControlledAvionics
 		public WayPoint(Coordinates c) : this() { Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); go = new GameObject(); }
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
 		public WayPoint(double lat, double lon) : this(new Coordinates(lat,lon)) {}
+		public WayPoint(Vector3d worldPos, CelestialBody body) : this(new Coordinates(body.GetLatitude(worldPos), body.GetLongitude(worldPos))) {}
 
 		//using Haversine formula (see http://www.movable-type.co.uk/scripts/latlong.html)
 		public double AngleTo(double lat, double lon)
@@ -68,9 +69,16 @@ namespace ThrottleControlledAvionics
 			var x = Math.Cos(lat1)*Math.Sin(lat2) - Math.Sin(lat1)*cos_lat2*Math.Cos(dlon);
 			return Math.Atan2(y, x);
 		}
-		public double BearingFrom(Vessel vsl)
-		{ return BearingTo(vsl.latitude*Mathf.Deg2Rad, Lat*Mathf.Deg2Rad, (Lon-vsl.longitude)*Mathf.Deg2Rad);	}
 
+		public double BearingTo(WayPoint other)
+		{ return BearingTo(Lat*Mathf.Deg2Rad, other.Lat*Mathf.Deg2Rad, (Lon-other.Lon)*Mathf.Deg2Rad); }
+
+		public double BearingFrom(Vessel vsl)
+		{ 
+			return BearingTo(Utils.ClampAngle(vsl.latitude)*Mathf.Deg2Rad, 
+		                     Lat*Mathf.Deg2Rad, 
+		                     (Lon-Utils.ClampAngle(vsl.longitude))*Mathf.Deg2Rad);
+		}
 
 		public static Coordinates PointBetween(double lat1, double lon1, double lat2, double lon2, double dist)
 		{
