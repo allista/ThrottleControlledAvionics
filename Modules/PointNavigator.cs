@@ -137,7 +137,6 @@ namespace ThrottleControlledAvionics
 		{
 			VSL.UpdateOnPlanetStats();
 			wp.Update(VSL.mainBody);
-//			Log("Distance to target: {0}", wp.DistanceTo(VSL.vessel)-VSL.Geometry.R);//debug
 			if(CFG.Nav[Navigation.GoToTarget] &&
 			   wp.DistanceTo(VSL.vessel)-VSL.Geometry.R < wp.Distance)
 			{ 
