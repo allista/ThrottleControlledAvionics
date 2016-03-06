@@ -32,16 +32,11 @@ namespace ThrottleControlledAvionics
 			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
 		}
 
-		enum Stage { None, Deorbit, Waiting }
+		enum Stage { None, Compute, Deorbit, Correct, Wait }
 		Stage stage;
-		Vector3d dVn;
-		double CurrentPeR;
-		bool compute_node;
+		double current_PeR;
 
-		protected override void bootstrap_computation()
-		{ dVn = Vector3d.zero; }
-
-		protected override LandingTrajectory compute_next_trajectory(LandingTrajectory old)
+		protected LandingTrajectory fixed_PeR_step(LandingTrajectory old, ref Vector3d dVn, double PeR)
 		{
 			var StartUT = 0.0;
 			var targetAlt = 0.0;
@@ -64,14 +59,30 @@ namespace ThrottleControlledAvionics
 				StartUT = VSL.Physics.UT+DEO.StartOffset;
 				targetAlt = TargetAlt;
 			}
-			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*CurrentPeR, StartUT, dVn), StartUT, targetAlt);
+			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, dVn), StartUT, targetAlt);
+		}
+
+		void compute_landing_trajectory()
+		{
+			trajectory = null;
+			stage = Stage.Compute;
+			var dVn = Vector3d.zero;
+			next_trajectory = t => fixed_PeR_step(t, ref dVn, current_PeR);
+		}
+
+		void correct_trajectory()
+		{
+			trajectory = null;
+			stage = Stage.Correct;
+			setup_fixed_inclination_optimization(Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel).normalized,
+				0, TRJ.CorrectionOffset);
 		}
 
 		protected override void reset()
 		{
 			base.reset();
 			stage = Stage.None;
-			CurrentPeR = DEO.StartPeR;
+			current_PeR = DEO.StartPeR;
 			CFG.AP1.Off();
 		}
 
@@ -98,7 +109,7 @@ namespace ThrottleControlledAvionics
 				}
 				clear_nodes();
 				setup_target();
-				compute_node = true;
+				compute_landing_trajectory();
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
@@ -110,50 +121,55 @@ namespace ThrottleControlledAvionics
 		{
 			if(Target == null || VSL.orbit.referenceBody == null) return;
 			if(CFG.Target != Target) SetTarget(Target);
-			if(compute_node && trajectory_computed())
+			if(landing) { do_land(); return; }
+			switch(stage)
 			{
-				if(trajectory.DistanceToTarget < TRJ.Dtol || CurrentPeR >= 1)
+			case Stage.Compute:
+				if(!trajectory_computed()) break;
+				if(trajectory.DistanceToTarget < TRJ.Dtol || current_PeR >= 1)
 				{
-					Working = true;
-					compute_node = false;
-					ManeuverAutopilot.AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT);
+					add_node();
 					if(trajectory.DistanceToTarget < TRJ.Dtol) 
 					{ CFG.AP1.On(Autopilot1.Maneuver); stage = Stage.Deorbit; }
 					else 
 					{
 						ThrottleControlledAvionics.StatusMessage = "<color=red>Predicted landing site is too far from the target.\n" +
 							"<i>To proceed, activate maneuver execution manually.</i></color>";
-						stage = Stage.Waiting;
+						stage = Stage.Wait;
 					}
 				}
 				else 
 				{
-					CurrentPeR += 0.1;
-					if(CurrentPeR < 1) trajectory = null;
+					current_PeR += 0.1;
+					if(current_PeR < 1) compute_landing_trajectory();
 				}
-				return;
-			}
-			if(Working) 
-			{ 
-				if(landing) { do_land(); return; }
-				switch(stage)
-				{
-				case Stage.Waiting:
-					if(!CFG.AP1[Autopilot1.Maneuver]) break;
-					stage = Stage.Deorbit;
-					break;
-				case Stage.Deorbit:
-					if(CFG.AP1[Autopilot1.Maneuver]) break;
-					stage = Stage.None;
-					start_landing();
-					break;
-				}
+				break;
+			case Stage.Wait:
+				if(!CFG.AP1[Autopilot1.Maneuver]) break;
+				stage = Stage.Deorbit;
+				break;
+			case Stage.Deorbit:
+				if(CFG.AP1[Autopilot1.Maneuver]) break;
+				trajectory.UpdateOrbit(VesselOrbit);
+				trajectory.UpdateDistance(Target);
+				if(trajectory.DistanceToTarget >= TRJ.Dtol &&
+					trajectory.TimeToSurface-trajectory.BrakeDuration > DEO.StartOffset)
+				{ correct_trajectory(); break; }
+				stage = Stage.None;
+				start_landing();
+				break;
+			case Stage.Correct:
+				if(!trajectory_computed()) break;
+				add_node();
+				CFG.AP1.On(Autopilot1.Maneuver);
+				stage = Stage.Deorbit; 
+				break;
 			}
 		}
 
 		public override void Draw()
 		{
-			if(compute_node) GUILayout.Label("Computing...", Styles.grey_button, GUILayout.ExpandWidth(false));
+			if(computing) GUILayout.Label("Computing...", Styles.grey_button, GUILayout.ExpandWidth(false));
 			else if(Utils.ButtonSwitch("Land at Target", CFG.AP2[Autopilot2.Deorbit],
 			                           "Compute and perform a deorbit maneuver, then land at the target.", 
 			                           GUILayout.ExpandWidth(false)))

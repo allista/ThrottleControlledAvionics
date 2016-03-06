@@ -9,6 +9,7 @@
 //
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
@@ -21,6 +22,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float FlyOverAlt         = 1000;  //m
 			[Persistent] public float ApproachAlt        = 250;   //m
 			[Persistent] public float BrakeEndSpeed      = 100;   //m/s
+			[Persistent] public float CorrectionOffset   = 20f;   //s
 			[Persistent] public int   MaxIterations      = 1000;
 			[Persistent] public int   PerFrameIterations = 10;
 		}
@@ -39,6 +41,8 @@ namespace ThrottleControlledAvionics
 		protected WayPoint Target;
 		protected double TargetAlt { get { return Target.SurfaceAlt(Body)+TRJ.FlyOverAlt; } }
 
+		public delegate LandingTrajectory NextTrajectory(LandingTrajectory old);
+
 		public static Orbit NewOrbit(Orbit old, Vector3d dV, double UT)
 		{
 			var obt = new Orbit();
@@ -52,16 +56,6 @@ namespace ThrottleControlledAvionics
 		{
 			return new Orbit(o.inclination, o.eccentricity, o.semiMajorAxis, o.LAN, 
 			                 o.argumentOfPeriapsis, o.meanAnomalyAtEpoch, o.epoch, o.referenceBody);
-		}
-
-		public static Orbit LandedOrbit(VesselWrapper vsl)
-		{
-			var obt = new Orbit();
-			var pos = vsl.vessel.GetWorldPos3D();
-			obt.UpdateFromStateVectors(pos.xzy, 
-			                           vsl.mainBody.getRFrmVel(pos).xzy,
-			                           vsl.mainBody, vsl.Physics.UT);
-			return obt;
 		}
 
 		public static Vector3d dV4Pe(Orbit old, double PeR, double UT, Vector3d add_dV = default(Vector3d))
@@ -146,9 +140,6 @@ namespace ThrottleControlledAvionics
 			SetTarget(Target);
 		}
 
-		protected virtual void bootstrap_computation() {}
-		protected abstract LandingTrajectory compute_next_trajectory(LandingTrajectory old);
-
 		IEnumerator<LandingTrajectory> compute_landing_trajectory()
 		{
 //			Log("\nComputing trajectory for Target:\n{0}", Target);//debug
@@ -156,9 +147,8 @@ namespace ThrottleControlledAvionics
 			LandingTrajectory best = null;
 			var maxI = TRJ.MaxIterations;
 			var frameI = TRJ.PerFrameIterations;
-			bootstrap_computation();
 			do {
-				site = compute_next_trajectory(site);
+				site = next_trajectory(site);
 				site.UpdateDistance(Target);
 				if(best == null || site < best) best = site;
 				frameI--;
@@ -173,8 +163,29 @@ namespace ThrottleControlledAvionics
 			yield return best;
 		}
 
+		protected LandingTrajectory fixed_inclination_step(LandingTrajectory old, 
+			ref Vector3d dVdir, ref double dV, double start_offset)
+		{
+			if(old != null) 
+			{
+				if(Math.Abs(old.DeltaLat) < 1 && Math.Abs(old.DeltaLon) > Math.Abs(old.DeltaLat))
+					dV = Utils.ClampL(dV+old.DeltaLon, 0);
+				else
+					dVdir = Quaternion.AngleAxis((float)old.DeltaLat, VSL.Physics.Up.xzy) * dVdir;
+			}
+			return new LandingTrajectory(VSL, dVdir*dV, VSL.Physics.UT+start_offset, old == null? TargetAlt : old.TargetAlt);
+		}
+
+		protected void setup_fixed_inclination_optimization(Vector3d dVdir, double dV, double start_offset)
+		{
+			trajectory = null;
+			next_trajectory = t => fixed_inclination_step(t, ref dVdir, ref dV, start_offset);
+		}
+
 		protected LandingTrajectory trajectory;
+		protected NextTrajectory next_trajectory;
 		IEnumerator<LandingTrajectory> trajectory_calculator;
+		protected bool computing { get { return trajectory_calculator != null; } }
 		protected bool trajectory_computed()
 		{
 			if(trajectory != null) return true;
@@ -186,9 +197,11 @@ namespace ThrottleControlledAvionics
 			return trajectory != null;
 		}
 
+		protected void add_node()
+		{ ManeuverAutopilot.AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT); }
+
 		protected virtual void reset()
 		{
-			Working = false;
 			Target = null;
 			trajectory = null;
 			trajectory_calculator = null;
