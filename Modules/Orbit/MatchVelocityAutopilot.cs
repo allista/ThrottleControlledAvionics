@@ -25,15 +25,10 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "MVA";
 
 			[Persistent] public int OrbitSolverIterations  = 20;   //deg
-			[Persistent] public int OrbitSolverMinTTA      = 120;  //sec
-			public float OrbitSolverDPeriod;
-
 			[Persistent] public float TimeBeforeApproach   = 5f;   //sec
 			[Persistent] public float StartAttitudeError   = 0.5f; //deg
-			[Persistent] public float TranslationThreshold = 5f;   //m/s
-
-			public override void Init()
-			{ OrbitSolverDPeriod = 2f/OrbitSolverIterations; }
+			[Persistent] public float TranslationThreshold = 1f;   //m/s
+			[Persistent] public float LocalSpaceThreshold  = 500f; //m
 		}
 		static Config MVA { get { return TCAScenario.Globals.MVA; } }
 		public MatchVelocityAutopilot(ModuleTCA tca) : base(tca) {}
@@ -102,39 +97,28 @@ namespace ThrottleControlledAvionics
 			if(!Working && CFG.AP1[Autopilot1.MatchVelNear])
 			{
 				//calculate time to nearest approach
+				double ApprUT;
 				var tOrb   = VSL.Target.GetOrbit();
-				var ApprUT = VSL.Physics.UT;
-				int iters  = 0;
-				var min_dist = Orbit.SolveClosestApproach(VSL.orbit, tOrb, ref ApprUT, 
-				                           VSL.orbit.period*MVA.OrbitSolverDPeriod, 0.0, 
-				                           VSL.Physics.UT, VSL.Physics.UT + VSL.orbit.period, 0.01, 
-				                           MVA.OrbitSolverIterations, ref iters);
+				TrajectoryCalculator.ClosestApproach(VSL.orbit, tOrb, VSL.Physics.UT, out ApprUT);
 				TTA = (float)(ApprUT-VSL.Physics.UT);
 				//if near enough, use local-space calculation
 				var pos = VSL.Target.GetTransform().position-VSL.Physics.wCoM;
-				if(TimeWarp.CurrentRateIndex == 0 && 
-				   (TTA < MVA.OrbitSolverMinTTA ||
-				    pos.magnitude < min_dist*2))
+				if(pos.magnitude-VSL.Geometry.R < MVA.LocalSpaceThreshold)
 				{
-					TTA = Vector3.Dot(pos, dV) < 0? -1 : 
-						Vector3.Project(pos, dV).magnitude/dVm;
-					if(dVm > MVA.TranslationThreshold)
-						CFG.AT.OnIfNot(Attitude.AntiRelVel);
+					TTA = Vector3.Dot(pos, dV) < 0? 
+						-1 : (Vector3.Project(pos, dV).magnitude-VSL.Geometry.R)/dVm;
 				}
 				else //recalculate dV at nearest approach
 				{
 					dV = (VSL.orbit.getOrbitalVelocityAtUT(ApprUT) - tOrb.getOrbitalVelocityAtUT(ApprUT)).xzy;
 					dVm = (float)dV.magnitude;
-					if(dVm > MVA.TranslationThreshold)
-					{
-						CFG.AT.OnIfNot(Attitude.Custom);
-						ATC.AddCustomRotationW(dV, VSL.Engines.MaxThrust);
-					}
 				}
+				CFG.AT.OnIfNot(Attitude.Custom);
+				ATC.AddCustomRotationW(dV, VSL.Engines.MaxThrust);
 				if(TTA > 0)
 				{
 					VSL.Info.TTB = MAN.TTB(dVm, 1);
-					VSL.Info.Countdown = TTA-VSL.Info.TTB-MVA.TimeBeforeApproach;
+					VSL.Info.Countdown = TTA-VSL.Info.TTB/2-MVA.TimeBeforeApproach;
 					//warp to the nearest approach point if requested
 					if(CFG.WarpToNode && ATC.Aligned)
 						WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
@@ -149,7 +133,7 @@ namespace ThrottleControlledAvionics
 				return;
 			}
 			//use main engines if dV is big enough, or if there's no translation capabilities
-			if(MainThrust || dVm > MVA.TranslationThreshold || !VSL.Controls.TranslationAvailable)
+			if(MainThrust || dVm > 1 || !VSL.Controls.TranslationAvailable)
 			{
 				CFG.AT.OnIfNot(Attitude.AntiRelVel);
 				if(MainThrust || ATC.AttitudeError < MVA.StartAttitudeError)
@@ -163,8 +147,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(dVm <= MVA.TranslationThreshold)
 				{
-					if(!MainThrust)
-						CFG.AT.OnIfNot(Attitude.KillRotation);
+					if(!MainThrust) CFG.AT.OnIfNot(Attitude.KillRotation);
 					TRA.AddDeltaV(VSL.LocalDir(dV));
 				}
 			}
@@ -172,11 +155,11 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-			if(Utils.ButtonSwitch("Match Velocity", CFG.AP1[Autopilot1.MatchVel], 
-			                      "Match orbital velocity with the target", GUILayout.ExpandWidth(true)))
+			if(Utils.ButtonSwitch("Match V", CFG.AP1[Autopilot1.MatchVel], 
+			                      "Continuously match orbital velocity with the target", GUILayout.ExpandWidth(true)))
 				CFG.AP1.XToggle(Autopilot1.MatchVel);
-			if(Utils.ButtonSwitch("Brake Near Target", CFG.AP1[Autopilot1.MatchVelNear], 
-			                          "Match orbital velocity with the target at nearest point", GUILayout.ExpandWidth(true)))
+			if(Utils.ButtonSwitch("Brake Near", CFG.AP1[Autopilot1.MatchVelNear], 
+			                          "Match orbital velocity with the target at nearest approach", GUILayout.ExpandWidth(true)))
 				CFG.AP1.XToggle(Autopilot1.MatchVelNear);
 		}
 	}

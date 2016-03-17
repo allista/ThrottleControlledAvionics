@@ -15,7 +15,7 @@ namespace ThrottleControlledAvionics
 	[CareerPart]
 	[RequireModules(typeof(ManeuverAutopilot), 
 	                typeof(AutoLander))]
-	public class DeorbitAutopilot : LandingTrajectoryCalculator
+	public class DeorbitAutopilot : LandingTrajectoryAutopilot
 	{
 		public new class Config : TCAModule.ModuleConfig
 		{
@@ -36,46 +36,67 @@ namespace ThrottleControlledAvionics
 		Stage stage;
 		double current_PeR;
 
-		protected LandingTrajectory fixed_PeR_step(LandingTrajectory old, ref Vector3d dVn, double PeR)
+		protected LandingTrajectory fixed_PeR_orbit(LandingTrajectory old, ref double dVn, double PeR)
 		{
-			var StartUT = 0.0;
-			var targetAlt = 0.0;
+			double StartUT;
+			double targetAlt;
 			if(old != null) 
 			{
+				double dLatLon;
+				double dLonLat;
 				StartUT = old.StartUT;
-				targetAlt = old.TargetAlt;
-				if(Math.Abs(old.DeltaLon) > Math.Abs(old.DeltaLat))
-				{
-					StartUT = old.StartUT+old.DeltaLon/360*VesselOrbit.period;
-					if(StartUT-VSL.Physics.UT < DEO.StartOffset) StartUT += VesselOrbit.period;
-					if(old.ManeuverDuration > StartUT-VSL.Physics.UT) StartUT = VSL.Physics.UT+old.ManeuverDuration+DEO.StartOffset;
-				}
-				else dVn += VesselOrbit.GetOrbitNormal().normalized*
-						VesselOrbit.vel.magnitude*Math.Sin(old.DeltaLat*Mathf.Deg2Rad/2);
-//				Log("StartUT change: {0}\ndVn {1}", StartUT-old.StartUT, dVn);//debug
+				targetAlt = old.TargetAltitude;
+				if(Math.Abs(VesselOrbit.inclination) <= 45) 
+				{ dLonLat = old.DeltaLon; dLatLon = old.DeltaLat; }
+				else { dLonLat = old.DeltaLat; dLatLon = old.DeltaLon; }
+				if(Math.Abs(dLonLat) > Math.Abs(dLatLon))
+					StartUT = AngleDelta2StartUT(old, dLonLat, DEO.StartOffset, VesselOrbit.period, VesselOrbit.period);
+				else dVn += PlaneCorrection(old);
+				
+				Log("StartUT change: {0}\ndVn {1}", StartUT-old.StartUT, dVn);//debug
 			}
 			else 
 			{
 				StartUT = VSL.Physics.UT+DEO.StartOffset;
-				targetAlt = TargetAlt;
+				targetAlt = TargetAltitude;
 			}
-			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, dVn), StartUT, targetAlt);
+			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, DeltaV(StartUT, 0, dVn)), 
+			                             StartUT, Target, targetAlt);
+		}
+
+		protected LandingTrajectory horizontal_correction(LandingTrajectory old, 
+			ref double dVp, ref double dVn, double start_offset)
+		{
+			var StartUT = VSL.Physics.UT+start_offset;
+			if(old != null) 
+			{
+				if(Math.Abs(old.DeltaR) > Math.Abs(old.DeltaFi)) 
+					dVp += old.DeltaR;
+				else 
+					dVn += PlaneCorrection(old);
+				
+				Log("dVp: {0}\ndVn {1}", dVp, dVn);//debug
+			}
+			return new LandingTrajectory(VSL, DeltaV(StartUT, dVp, dVn), 
+			                             StartUT, Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
 		void compute_landing_trajectory()
 		{
 			trajectory = null;
 			stage = Stage.Compute;
-			var dVn = Vector3d.zero;
-			next_trajectory = t => fixed_PeR_step(t, ref dVn, current_PeR);
+			var dVn = 0.0;
+			setup_calculation(t => fixed_PeR_orbit(t, ref dVn, current_PeR));
 		}
 
 		void correct_trajectory()
 		{
 			trajectory = null;
 			stage = Stage.Correct;
-			setup_fixed_inclination_optimization(Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel).normalized,
-				0, TRJ.CorrectionOffset);
+			CorrectionTimer.Reset();
+			var dVn = 0.0;
+			var dVp = 0.0;
+			setup_calculation(t => horizontal_correction(t, ref dVp, ref dVn, LTRJ.CorrectionOffset));
 		}
 
 		protected override void reset()
@@ -95,21 +116,17 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.On:
-				if(VSL.Target == null) 
+				if(!setup()) 
 				{
 					CFG.AP2.Off();
 					return;
 				}
 				if(VesselOrbit.PeR < Body.Radius)
 				{
-					ThrottleControlledAvionics.StatusMessage = "Unable to perform the <b>Ballistic Jump</b> from orbit.\n" +
-						"Use <b>Land at Target</b> instead.";
-					CFG.AP2.Off();
-					return;
+					Status("<color=red>Already deorbiting.</color> Trying to correct course and land.");
+					correct_trajectory();
 				}
-				clear_nodes();
-				setup_target();
-				compute_landing_trajectory();
+				else compute_landing_trajectory();
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
@@ -126,15 +143,15 @@ namespace ThrottleControlledAvionics
 			{
 			case Stage.Compute:
 				if(!trajectory_computed()) break;
-				if(trajectory.DistanceToTarget < TRJ.Dtol || current_PeR >= 1)
+				if(trajectory.DistanceToTarget < LTRJ.Dtol || current_PeR >= 1)
 				{
-					add_node();
-					if(trajectory.DistanceToTarget < TRJ.Dtol) 
+					add_trajectory_node();
+					if(trajectory.DistanceToTarget < LTRJ.Dtol) 
 					{ CFG.AP1.On(Autopilot1.Maneuver); stage = Stage.Deorbit; }
 					else 
 					{
-						ThrottleControlledAvionics.StatusMessage = "<color=red>Predicted landing site is too far from the target.\n" +
-							"<i>To proceed, activate maneuver execution manually.</i></color>";
+						Status("<color=red>Predicted landing site is too far from the target.\n" +
+						       "<i>To proceed, activate maneuver execution manually.</i></color>");
 						stage = Stage.Wait;
 					}
 				}
@@ -150,17 +167,20 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Deorbit:
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				trajectory.UpdateOrbit(VesselOrbit);
-				trajectory.UpdateDistance(Target);
-				if(trajectory.DistanceToTarget >= TRJ.Dtol &&
-					trajectory.TimeToSurface-trajectory.BrakeDuration > DEO.StartOffset)
-				{ correct_trajectory(); break; }
+				if(trajectory.TimeToSurface-trajectory.BrakeDuration > DEO.StartOffset)
+				{
+					if(!CorrectionTimer.Check) break;
+					trajectory.UpdateOrbit(VesselOrbit);
+					if(trajectory.DistanceToTarget >= LTRJ.Dtol)
+					{ correct_trajectory(); break; }
+					if(Body.atmosphere) break;
+				}
 				stage = Stage.None;
 				start_landing();
 				break;
 			case Stage.Correct:
 				if(!trajectory_computed()) break;
-				add_node();
+				add_trajectory_node();
 				CFG.AP1.On(Autopilot1.Maneuver);
 				stage = Stage.Deorbit; 
 				break;

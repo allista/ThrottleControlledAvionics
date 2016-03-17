@@ -53,11 +53,14 @@ namespace ThrottleControlledAvionics
 		[Persistent] public ThrottleControl.Config           THR = new ThrottleControl.Config();
 		[Persistent] public TranslationControl.Config        TRA = new TranslationControl.Config();
 		[Persistent] public TimeWarpControl.Config           WRP = new TimeWarpControl.Config();
+		[Persistent] public ManeuverAutopilot.Config         MAN = new ManeuverAutopilot.Config();
 		[Persistent] public MatchVelocityAutopilot.Config    MVA = new MatchVelocityAutopilot.Config();
 
-		[Persistent] public LandingTrajectoryCalculator.Config TRJ = new LandingTrajectoryCalculator.Config();
+		[Persistent] public TrajectoryCalculator.Config      TRJ = new TrajectoryCalculator.Config();
+		[Persistent] public LandingTrajectoryAutopilot.Config LTRJ = new LandingTrajectoryAutopilot.Config();
 		[Persistent] public DeorbitAutopilot.Config          DEO = new DeorbitAutopilot.Config();
 		[Persistent] public BallisticJump.Config             BJ  = new BallisticJump.Config();
+		[Persistent] public RendezvouAutopilot.Config        REN = new RendezvouAutopilot.Config();
 
 		public MDSection Manual;
 
@@ -93,7 +96,7 @@ namespace ThrottleControlledAvionics
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
 	public enum Autopilot1 { None, Land, Maneuver, MatchVel, MatchVelNear }
-	public enum Autopilot2 { None, Deorbit, BallisticJump }
+	public enum Autopilot2 { None, Deorbit, BallisticJump, Rendezvou }
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{

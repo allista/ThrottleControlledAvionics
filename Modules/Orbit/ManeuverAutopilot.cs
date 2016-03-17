@@ -19,6 +19,12 @@ namespace ThrottleControlledAvionics
 	                typeof(TimeWarpControl))]
 	public class ManeuverAutopilot : TCAModule
 	{
+		public class Config : TCAModule.ModuleConfig
+		{
+			[Persistent] public float WrapThreshold = 600f; //s
+		}
+		static Config MAN { get { return TCAScenario.Globals.MAN; } }
+
 		public ManeuverAutopilot(ModuleTCA tca) : base(tca) {}
 
 		ThrottleControl THR;
@@ -29,6 +35,7 @@ namespace ThrottleControlledAvionics
 		protected ManeuverNode Node;
 		protected PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
 		protected Timer AlignedTimer = new Timer();
+		FuzzyThreshold<float> dVrem = new FuzzyThreshold<float>(1, 0.5f);
 		public float MinDeltaV = 1;
 
 		public override void Init()
@@ -109,25 +116,40 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0]) { reset(); return; }
 			var dV = Node.GetBurnVector(VSL.orbit);
-			var dVrem = (float)dV.magnitude;
+			dVrem.Value = (float)dV.magnitude;
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) { Node.RemoveSelf(); reset(); return; }
 			//orient along the burning vector
-			CFG.AT.OnIfNot(Attitude.ManeuverNode);
+			if(dVrem && VSL.Controls.TranslationAvailable) 
+				CFG.AT.OnIfNot(Attitude.KillRotation);
+			else CFG.AT.OnIfNot(Attitude.ManeuverNode);
 			//calculate remaining time to the full thrust burn
 			if(!Working)
 			{
-				VSL.Info.TTB = TTB(dVrem, THR.NextThrottle(dVrem, 1));
+				var ttb = TTB(dVrem, THR.NextThrottle(dVrem, 1));
+				if(float.IsNaN(ttb)) return;
+				VSL.Info.TTB = ttb;
 				var burn = Node.UT-VSL.Info.TTB/2f;
-				if(CFG.WarpToNode) AlignedTimer.RunIf(() => WRP.WarpToTime = burn-ATC.AttitudeError, ATC.Aligned);
+				if(CFG.WarpToNode && WRP.WarpToTime < 0) 
+				{
+					if((burn-VSL.Physics.UT)/dVrem > MAN.WrapThreshold) WRP.WarpToTime = burn-180;
+					else AlignedTimer.RunIf(() => WRP.WarpToTime = burn-ATC.AttitudeError, ATC.Aligned);
+				}
 				VSL.Info.Countdown = burn-VSL.Physics.UT;
-				if(VSL.Info.Countdown > 0) return;
+				if(TimeWarp.CurrentRate > 1 || VSL.Info.Countdown > 0) return;
+//				Log("TTB {0}, burn {1}, countdown {2}", VSL.Info.TTB, burn, VSL.Info.Countdown);//debug
 				VSL.Info.Countdown = 0;
 				Working = true;
 			}
-			THR.DeltaV = dVrem;
-			if(ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
-				TRA.AddDeltaV(-VSL.LocalDir(dV));
+			if(VSL.Controls.TranslationAvailable)
+			{
+			    if(dVrem || ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
+					TRA.AddDeltaV(-VSL.LocalDir(dV));
+				if(dVrem) THR.Throttle = 0;
+				else THR.DeltaV = dVrem;
+			}
+			else THR.DeltaV = dVrem;
+//			LogF("\ndVrem: {}\nAttitudeError {}, DeltaV: {}, Throttle {}", dVrem, ATC.AttitudeError, THR.DeltaV, THR.Throttle);//debug
 		}
 
 		public override void Draw()

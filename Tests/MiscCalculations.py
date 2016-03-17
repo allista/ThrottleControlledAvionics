@@ -1221,42 +1221,42 @@ def sim_PointNav():
 dt = 0.05
 
 if __name__ == '__main__':
-    np.random.seed(42)
-    
-    thrusters = [
-                vec(1,0,-0.2).norm,
-                vec(-0.3,1,0).norm,
-                vec(0.2,0.1,1).norm,
-                vec(-1,0,-0.2).norm,
-                vec(-0.3,-1,0).norm,
-                vec(0.2,0.4,-1).norm,
-                ]
-
-    angles = []
-    angles2 = []     
-    for _i in xrange(1000):
-        d = vec.rnd()
-        thrust = vec()
-        thrust1 = vec()
-        for t in thrusters:
-            c = t*d
-            if c > 0:
-                thrust += t*c
-                thrust1 += t*c*c
-        if thrust:
-            angles.append(d.angle(thrust))
-        if thrust1:
-            angles2.append(d.angle(thrust1))
-        
-    print np.mean(angles), np.mean(angles2)
-    print np.min(angles), np.min(angles2)
-    print np.max(angles), np.max(angles2)
-    print np.std(angles), np.std(angles2)
-    plt.plot(angles, '.')
-    plt.plot(angles2, 'r*')
-    plt.show()
-    
-    draw_vectors(*thrusters)
+#    np.random.seed(42)
+#    
+#    thrusters = [
+#                vec(1,0,-0.2).norm,
+#                vec(-0.3,1,0).norm,
+#                vec(0.2,0.1,1).norm,
+#                vec(-1,0,-0.2).norm,
+#                vec(-0.3,-1,0).norm,
+#                vec(0.2,0.4,-1).norm,
+#                ]
+#
+#    angles = []
+#    angles2 = []     
+#    for _i in xrange(1000):
+#        d = vec.rnd()
+#        thrust = vec()
+#        thrust1 = vec()
+#        for t in thrusters:
+#            c = t*d
+#            if c > 0:
+#                thrust += t*c
+#                thrust1 += t*c*c
+#        if thrust:
+#            angles.append(d.angle(thrust))
+#        if thrust1:
+#            angles2.append(d.angle(thrust1))
+#        
+#    print np.mean(angles), np.mean(angles2)
+#    print np.min(angles), np.min(angles2)
+#    print np.max(angles), np.max(angles2)
+#    print np.std(angles), np.std(angles2)
+#    plt.plot(angles, '.')
+#    plt.plot(angles2, 'r*')
+#    plt.show()
+#    
+#    draw_vectors(*thrusters)
     
     
 #     sim_VSpeed()
@@ -1288,6 +1288,9 @@ if __name__ == '__main__':
 #                 'VerticalCutoff', 'setpoint', 'setpoint_correction', 'VerticalAccel',
 #                 'K', 'VSP'))
     
+    analyzeCSV('Tests/Rendezvou.csv',
+               ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVn', 'dVp'),
+               region=[0])
 
 #     analyzeCSV('VS-filtering-39.csv',
 #                ('BestAlt', 'DetAlt', 'AltAhead')

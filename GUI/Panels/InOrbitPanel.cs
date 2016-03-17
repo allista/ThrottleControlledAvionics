@@ -20,6 +20,7 @@ namespace ThrottleControlledAvionics
 		MatchVelocityAutopilot MVA;
 		ManeuverAutopilot MAP;
 		DeorbitAutopilot DEO;
+		RendezvouAutopilot REN;
 		PointNavigator PN;
 
 		bool draw_MVA;
@@ -48,11 +49,14 @@ namespace ThrottleControlledAvionics
 			if(draw_MAP) MAP.Draw();
 			if(draw_PN) ThrottleControlledAvionics.NavigationControls.AddSingleWaypointInMapView();
 			if(draw_DEO) DEO.Draw();
+			if(REN != null) REN.Draw();
 			if(draw_MVA) MVA.Draw();
 			if(VSL.Info.Countdown >= 0)
-				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Info.Countdown), Styles.white, GUILayout.ExpandWidth(true));
+				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Info.Countdown), 
+				                Styles.white, GUILayout.ExpandWidth(true));
 			if(VSL.Info.TTB >= 0)
-				GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.Info.TTB), Styles.yellow, GUILayout.ExpandWidth(true));
+				GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.Info.TTB), 
+				                Styles.yellow, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 	}

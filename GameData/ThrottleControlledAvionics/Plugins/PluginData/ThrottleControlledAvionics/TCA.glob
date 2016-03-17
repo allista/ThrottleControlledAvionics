@@ -302,7 +302,7 @@ TRA
 
 WRP
 {
-	DewarpTime = 15  //sec
+	DewarpTime = 20 //sec
 	MaxWarp    = 10000
 }
 
@@ -310,7 +310,7 @@ MVA
 {
 	OrbitSolverIterations = 20  //deg
 	OrbitSolverMinTTA     = 120 //sec
-	TimeBeforeApproach    = 1
+	TimeBeforeApproach    = 5   //sec
 
 	StartAttitudeError    = 1   //deg
 	TranslationThreshold  = 5   //m/s
@@ -328,5 +328,22 @@ DEO
 	MaxIterations      = 500
 	PerFrameIterations = 10
 
+}
+
+REN
+{
+	Dtol             = 100   //m
+	StartOffset      = 60    //s
+	DeltaApThreshold = 1000  //m
+	MinPeA           = 10000 //m
+	dV4dRf           = 1e-4
+	PlaneCorrectionF = 0.01
+	StartResonance   = 3     //target periods
+	CorrectionStart  = 10000 //m
+	CorrectionOffset = 20    //s
+	CorrectionTimer  = 10    //s
+	MaxApproachV     = 20    //parts
+	ApproachVelF     = 0.01  //parts
+	MaxInclinationDelta = 45 //deg
 }
 //:mode=c#:
