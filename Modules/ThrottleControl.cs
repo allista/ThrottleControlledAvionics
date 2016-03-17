@@ -30,7 +30,7 @@ namespace ThrottleControlledAvionics
 		AttitudeControl ATC;
 
 		public float Throttle = -1;
-		public float DeltaV;
+		public float DeltaV = -1;
 
 		public float NextThrottle(float dV, float throttle)
 		{ 
@@ -49,16 +49,20 @@ namespace ThrottleControlledAvionics
 		void reset()
 		{
 			Throttle = -1;
-			DeltaV = 0;
+			DeltaV = -1;
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			if(!CFG.Enabled) return;
-			if(DeltaV >= THR.MinDeltaV)
+			if(DeltaV >= 0)
 			{
-				Throttle = NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) *
-					(ATC == null? 1f : ATC.AttitudeFactor);
+				if(DeltaV >= THR.MinDeltaV)
+				{
+					Throttle = NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) *
+						(ATC == null? 1f : ATC.AttitudeFactor);
+				}
+				else Throttle = 0;
 			}
 			if(Throttle >= 0) 
 			{ 
