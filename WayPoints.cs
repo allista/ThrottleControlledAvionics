@@ -50,10 +50,10 @@ namespace ThrottleControlledAvionics
 		public double AngleTo(double lat, double lon)
 		{
 			var lat1 = Lat*Mathf.Deg2Rad;
-			var lad2 = lat*Mathf.Deg2Rad;
-			var dlat = lad2-lat1;
+			var lat2 = lat*Mathf.Deg2Rad;
+			var dlat = lat2-lat1;
 			var dlon = (lon-Lon)*Mathf.Deg2Rad;
-			var a = (1-Math.Cos(dlat))/2 + Math.Cos(lat1)*Math.Cos(lad2)*(1-Math.Cos(dlon))/2;
+			var a = (1-Math.Cos(dlat))/2 + Math.Cos(lat1)*Math.Cos(lat2)*(1-Math.Cos(dlon))/2;
 			return 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1-a));
 		}
 		public double AngleTo(Coordinates c) { return AngleTo(c.Lat, c.Lon); }
