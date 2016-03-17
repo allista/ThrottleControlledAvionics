@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			IsActive = CFG.Enabled && VSL.Controls.TranslationAvailable;
 			if(IsActive) return;
-			pid.Reset();
+			Off();
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
