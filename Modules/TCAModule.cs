@@ -71,6 +71,7 @@ namespace ThrottleControlledAvionics
 		{ return string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg); }
 
 		protected void Log(string msg, params object[] args) { Utils.Log(LogTemplate(msg), args); }
+		protected void LogF(string msg, params object[] args) { Utils.LogF(LogTemplate(msg), args); }
 		protected void LogST(string msg, params object[] args) { DebugUtils.Log(LogTemplate(msg), args); }
 
 		protected void CSV(params object[] args)
@@ -105,7 +106,7 @@ namespace ThrottleControlledAvionics
 		public virtual void ProcessKeys() {}
 		public override void Draw() {}
 
-		protected void SetTarget(WayPoint wp)
+		protected void SetTarget(WayPoint wp = null)
 		{
 			CFG.Target = wp;
 			var t = wp == null? null : wp.GetTarget();
@@ -114,6 +115,7 @@ namespace ThrottleControlledAvionics
 				                                 5, ScreenMessageStyle.UPPER_CENTER);
 			VSL.Target = t;
 		}
+		protected void SetTarget(Vessel vsl) { SetTarget(new WayPoint(vsl)); }
 
 		protected WayPoint Target2WP()
 		{
@@ -121,6 +123,12 @@ namespace ThrottleControlledAvionics
 			return VSL.Target as WayPoint ?? 
 				new WayPoint(VSL.Target);
 		}
+
+		protected void Status(string msg, params object[] args) 
+		{ ThrottleControlledAvionics.StatusMessage = string.Format(msg, args); }
+
+		protected void Status(string color, string msg, params object[] args)
+		{ Status(string.Format("<color={0}>{1}</color>", color, msg), args); }
 
 		public bool RegisterTo<S>(Func<VesselWrapper,bool> predicate = null) 
 			where S : TCAService
