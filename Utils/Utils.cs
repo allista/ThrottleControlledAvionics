@@ -26,20 +26,54 @@ namespace ThrottleControlledAvionics
 		public static string ParseCamelCase(string s) { return CCR.Replace(s, "$1 "); }
 
 		#region Logging
+		public static string Format(string s, params object[] args)
+		{
+			if(args == null || args.Length == 0) return s;
+			convert_args(args);
+			for(int i = 0, argsLength = args.Length; i < argsLength; i++)
+			{
+				var ind = s.IndexOf("{}");
+				s = s.Substring(0, ind)+"{"+i+"}"+s.Substring(ind+2);
+			}
+			return string.Format(s, args);
+		}
+
 		public static string formatVector(Vector3 v)
 		{ return string.Format("({0}, {1}, {2}); |v| = {3}", v.x, v.y, v.z, v.magnitude); }
 
 		public static string formatVector(Vector3d v)
 		{ return string.Format("({0}, {1}, {2}); |v| = {3}", v.x, v.y, v.z, v.magnitude); }
 
+		public static string formatOrbit(Orbit o)
+		{
+			return string.Format(
+				"Body R: {0} m\n" +
+				"PeR:    {1} m\n" +
+				"ApR:    {2} m\n" +
+				"Ecc:    {3}\n" +
+				"Inc:    {4} deg\n" +
+				"Period: {5} s\n" +
+				"Vel: {6} m/s\n",
+				o.referenceBody.Radius, o.PeR, o.ApR, 
+				o.eccentricity, o.inclination, o.period, 
+				formatVector(o.vel));
+		}
+
+		static void convert_args(object[] args)
+		{
+			for(int i = 0, argsL = args.Length; i < argsL; i++) 
+			{
+				var arg = args[i];
+				if(arg is Vector3) args[i] = formatVector((Vector3)arg);
+				else if(arg is Vector3d) args[i] = formatVector((Vector3d)arg);
+				else if(arg is Orbit) args[i] = formatOrbit((Orbit)arg);
+				else if(arg == null) args[i] = "null";
+			}
+		}
+
 		public static void Log(string msg, params object[] args)
 		{ 
-			for(int i = 0; i < args.Length; i++) 
-			{
-				if(args[i] is Vector3) args[i] = formatVector((Vector3)args[i]);
-				else if(args[i] is Vector3d) args[i] = formatVector((Vector3d)args[i]);
-				else if(args[i] == null) args[i] = "null";
-			}
+			convert_args(args);
 			msg = string.Format("[TCA: {0:HH:mm:ss.fff}] {1}", DateTime.Now, msg);
 			Debug.Log(string.Format(msg, args)); 
 		}
@@ -55,6 +89,8 @@ namespace ThrottleControlledAvionics
 			var vn = pm.vessel == null? "_vessel" : (string.IsNullOrEmpty(pm.vessel.vesselName)? pm.vessel.id.ToString() : pm.vessel.vesselName);
 			Utils.Log(string.Format("{0}:{1}:{2}: {3}", vn, pm.part == null? "_part" : pm.part.Title(), pm.moduleName, msg), args); 
 		}
+
+		public static void LogF(string msg, params object[] args) { Log(Utils.Format(msg, args)); }
 		#endregion
 
 		#region Math
@@ -85,17 +121,27 @@ namespace ThrottleControlledAvionics
 		public static float EWA(float old, float cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
 
-		public static float Gauss(float old, float cur, float ratio = 0.7f, int poles = 2)
-		{ 
-			for(int i = 0; i < poles; i++) 
-				old = (1-ratio)*old + ratio*cur; 
-			return old;
-		}
-
 		public static Vector3 EWA(Vector3 old, Vector3 cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
 
 		public static double Haversine(double a) { return (1-Math.Cos(a))/2; }
+
+		/// <summary>
+		/// Returns the angle (in degrees) between a radial vector A and the projection 
+		/// of a radial vector B on a plane defined by A and tangetA.
+		/// The tangentA vector also defines the positive direction from A to B, so 
+		/// the returned angle lies in the [-180, 180] interval.
+		/// </summary>
+		/// <param name="A">Radial vector A.</param>
+		/// <param name="B">Radial vector B.</param>
+		/// <param name="tangentA">Tangent vector to A.</param>
+		public static double ProjectionAngle(Vector3d A, Vector3d B, Vector3d tangentA)
+		{
+			var Am = A.magnitude;
+			var Ba = Vector3d.Dot(B, A)/Am;
+			var Bt = Vector3d.Dot(B, Vector3d.Exclude(A, tangentA).normalized);
+			return Math.Atan2(Bt, Ba)*Mathf.Rad2Deg;
+		}
 		#endregion
 
 		#region GUI
@@ -303,6 +349,7 @@ namespace ThrottleControlledAvionics
 		public double Lat, Lon;
 		public Coordinates(double lat, double lon) 
 		{ Lat = Utils.ClampAngle(lat); Lon = Utils.ClampAngle(lon); }
+		public Coordinates(Vessel vsl) : this(vsl.latitude, vsl.longitude) {}
 
 		public static string AngleToDMS(double angle)
 		{

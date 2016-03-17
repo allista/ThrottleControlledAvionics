@@ -9,6 +9,7 @@
 
 #if DEBUG
 using System;
+using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -49,6 +50,9 @@ namespace ThrottleControlledAvionics
 			    name, b.center, b.extents, b.min, b.max,
 			          b.size.x*b.size.y*b.size.z);
 		}
+
+		public static void logOrbit(string name, Orbit o)
+		{ Utils.Log("Orbit: {0}\n{1}", name, Utils.formatOrbit(o)); }
 
 		public static string getStacktrace(int skip = 0) { return new StackTrace(skip+1, true).ToString(); }
 
@@ -322,6 +326,32 @@ namespace ThrottleControlledAvionics
 				         thrustForces.Aggregate("", (s, f) => s+f+", "));
 				this.Log("FX.Power:\n{0}",
 				         thrusterFX.Aggregate("", (s, f) => s+f.Power+", "+f.Active+"; "));
+			}
+		}
+	}
+
+	[KSPAddon(KSPAddon.Startup.MainMenu, false)]
+	public class LoadTestGame : MonoBehaviour
+	{
+//		const string save = "DEO Kerbin test";
+		const string save = "REN Mun StartOrbit";
+		const string game = "TCA-tests";
+		static readonly string gamedir = KSPUtil.ApplicationRootPath + "/saves/"+game;
+
+		void Awake()
+		{
+			var savefile = gamedir+"/"+save+".sfs";
+			if(!File.Exists(savefile)) 
+			{
+				Utils.LogF("No such file: {}", savefile);
+				return;
+			}
+			HighLogic.CurrentGame = GamePersistence.LoadGame(save, game, false, false);
+			if (HighLogic.CurrentGame != null)
+			{
+				GamePersistence.UpdateScenarioModules(HighLogic.CurrentGame);
+				HighLogic.SaveFolder = game;
+				HighLogic.CurrentGame.Start();
 			}
 		}
 	}
