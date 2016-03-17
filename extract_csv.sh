@@ -41,4 +41,4 @@ done
 echo "looking for '$tag' in $log" 
 echo "output: $out"
 
-grep "$tag" "$log" | cut -f 3- -d ' ' > "$out"
+grep "$tag" "$log" | cut -f 2- -d ',' > "$out"
