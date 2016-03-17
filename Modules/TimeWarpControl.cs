@@ -42,23 +42,25 @@ namespace ThrottleControlledAvionics
 			StopWarp();
 		}
 
+		//TimeWarp changes timescale from one rate the next in a second of a real time using Lerp: F+(T-F)*time
+		//so the time that will pass from rate F to rate T is: (F-T)/2
+		//and from rate F to rate 1: (F-1)/2
+		//but due to deltaTime steps it is safer to offset the dewarp time with just F+1
+		double TimeToDewarp(int rate_index)
+		{ return WarpToTime-(WRP.DewarpTime+TimeWarp.fetch.warpRates[rate_index]-1)-VSL.Physics.UT; }
+
 		protected override void Update()
 		{
 			if(WarpToTime < 0) return;
-			if(WarpToTime <= VSL.Physics.UT && 
-			   TimeWarp.CurrentRateIndex == 0) 
+			if(!CFG.WarpToNode && WarpToTime > 0) WarpToTime = 0;
+			if(WarpToTime <= VSL.Physics.UT && TimeWarp.CurrentRate.Equals(1))
 			{ WarpToTime = -1; return; }
-			//TimeWarp changes timescale from one rate the next in a second of a real time using Lerp: F+(T-F)*time
-			//so the time that will pass from rate F to rate T is: (F-T)/2
-			//and from rate F to rate 1: (F-1)/2
-			//but due to deltaTime steps it is safer to offset the dewarp time with just F+1
-			var DewarpTime = WarpToTime-(WRP.DewarpTime+TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex]+1)-VSL.Physics.UT;
-			if(TimeWarp.CurrentRateIndex > 0 && DewarpTime < 0)
+			if(TimeWarp.CurrentRateIndex > 0 && TimeToDewarp(TimeWarp.CurrentRateIndex) < 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex-1, false);
-			else if(DewarpTime > TimeWarp.CurrentRate && 
-			        TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
+			else if(TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
 			        TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= WRP.MaxWarp &&
-			        VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody))
+			        VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody) &&
+			        TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
 		}
 	}
