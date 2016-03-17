@@ -21,7 +21,6 @@ namespace ThrottleControlledAvionics
 		Anchor ANC;
 		AutoLander LND;
 		CruiseControl CC;
-		BallisticJump BJ;
 		Radar RAD;
 
 		public OnPlanetPanel(ModuleTCA tca) : base(tca) {}
@@ -94,7 +93,6 @@ namespace ThrottleControlledAvionics
 						});
 				}
 			}
-			if(BJ != null) BJ.Draw();
 			GUILayout.EndHorizontal();
 		}
 	}

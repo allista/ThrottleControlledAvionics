@@ -26,6 +26,7 @@ namespace ThrottleControlledAvionics
 
 		AutoLander LND;
 		PointNavigator PN;
+		BallisticJump BJ;
 
 		bool selecting_target;
 		bool select_single;
@@ -46,6 +47,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(PN == null || !VSL.OnPlanet) return;
 			GUILayout.BeginHorizontal();
+			if(BJ != null) BJ.Draw();
 			if(VSL.HasTarget && !CFG.Nav.Paused)
 			{
 				if(GUILayout.Button(new GUIContent("Go To", "Fly to current target"), 
