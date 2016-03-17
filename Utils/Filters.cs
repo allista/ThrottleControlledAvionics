@@ -7,6 +7,7 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using System;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -124,6 +125,32 @@ namespace ThrottleControlledAvionics
 			prev = output;
 			return output;
 		}
+	}
+
+	public class FuzzyThreshold<T> where T : IComparable
+	{
+		public T Upper, Lower;
+		T value;
+		public T Value 
+		{ 
+			get { return value; } 
+			set 
+			{ 
+				this.value = value; 
+				if(this.value.CompareTo(Lower) < 0) On = true;
+				else On &= this.value.CompareTo(Upper) < 0;
+			}
+		}
+		public bool On { get; protected set; } = false;
+
+		public FuzzyThreshold() { value = default(T); }
+		public FuzzyThreshold(T upper, T lower) { Upper = upper; Lower = lower; }
+
+		public static implicit operator bool(FuzzyThreshold<T> t) { return t.On; }
+		public static implicit operator T(FuzzyThreshold<T> t) { return t.value; }
+
+		public override string ToString()
+		{ return string.Format("[FuzzyThreshold: Value={0}, On={1}, Upper={2}, Lower={3}]", Value, On, Upper, Lower); }
 	}
 }
 
