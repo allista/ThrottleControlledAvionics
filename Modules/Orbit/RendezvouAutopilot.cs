@@ -9,7 +9,6 @@
 //
 using System;
 using UnityEngine;
-using KSP;
 
 namespace ThrottleControlledAvionics
 {
@@ -84,17 +83,17 @@ namespace ThrottleControlledAvionics
 			var tVSL = VSL.TargetVessel;
 			if(tVSL == null) 
 			{
-				Status("Target should be a vessel");
+				Status("yellow", "Target should be a vessel");
 				return false;
 			}
 			if(tVSL.LandedOrSplashed)
 			{
-				Status("Target vessel is landed");
+				Status("yellow", "Target vessel is landed");
 				return false;
 			}
 			if(Math.Abs(tVSL.orbit.inclination-VesselOrbit.inclination) > REN.MaxInclinationDelta)
 			{
-				Status("Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
+				Status("yellow", "Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
 				       "You need to change orbit plane before the rendezvou maneuver.", REN.MaxInclinationDelta);
 				return false;
 			}
@@ -132,9 +131,6 @@ namespace ThrottleControlledAvionics
 					             -start_offset, REN.StartOffset);
 				double AtTargetUT;
 				TrajectoryCalculator.ClosestApproach(VesselOrbit, Target.orbit, StartUT, out AtTargetUT, REN.StartOffset);
-//				var ini = new RendezvousTrajectory(VSL, Vector3d.zero, StartUT, Target, REN.StartOffset);
-//				NodeDeltaV += RadiusCorrection(ini);
-//				ini = new RendezvousTrajectory(VSL, Node2OrbitDeltaV(StartUT, NodeDeltaV), StartUT, Target, REN.StartOffset);
 				LogF("First Time TimeToStart: {}, Correction {}", StartUT-VSL.Physics.UT, AtTargetUT-start_offset-StartUT);//debug
 				StartUT = AtTargetUT-start_offset;
 			}
@@ -185,7 +181,7 @@ namespace ThrottleControlledAvionics
 				old = NewOrbit(old, dV, StartUT);
 			}
 			LogF("\nstart orbit\n{}", Utils.formatOrbit(old));//debug
-			dV += dV4MinTTR(old, Target.orbit, REN.MaxTTR, REN.MaxDeltaV, MinPeR, StartUT);
+			dV += dV4TTR(old, Target.orbit, REN.MaxTTR, REN.MaxDeltaV, MinPeR, StartUT);
 			if(!dV.IsZero())
 			{
 				add_node(dV, StartUT);
@@ -206,7 +202,7 @@ namespace ThrottleControlledAvionics
 			add_target_node();
 			CFG.AP1.On(Autopilot1.Maneuver);
 			stage = Stage.MatchOrbits;
-			MAN.MinDeltaV = 1;
+			MAN.MinDeltaV = 0.5f;
 		}
 
 		void approach()
@@ -253,7 +249,7 @@ namespace ThrottleControlledAvionics
 				var dApA = Math.Max(MinPeR, Target.orbit.PeR)-VesselOrbit.ApR;
 				if(dApA > 0)
 				{
-					Status("<color=red>Not Implemented</color>");
+					Status("red", "Not Implemented");
 					CFG.AT.OnIfNot(Attitude.Prograde);
 					if(ATC.AttitudeError > 1) break;
 					CFG.DisableVSC();
@@ -284,7 +280,7 @@ namespace ThrottleControlledAvionics
 				else if(trajectory.DistanceToTarget < REN.CorrectionStart) match_orbits();
 				else 
 				{
-					Status("<color=red>Failed to compute rendezvou trajectory.\nPlease, try again.</color>");
+					Status("red", "Failed to compute rendezvou trajectory.\nPlease, try again.");
 					CFG.AP2.Off();
 					return;
 				}
@@ -308,6 +304,8 @@ namespace ThrottleControlledAvionics
 				if(ATC.AttitudeError > 1) break;
 				var dP = Target.orbit.pos-VesselOrbit.pos;
 				var dPm = dP.magnitude;
+				if(dPm - VSL.Geometry.R < REN.Dtol) 
+				{ brake(); break; }
 				var dV = Vector3d.Dot(VesselOrbit.vel-Target.orbit.vel, dP/dPm);
 				var nV = Utils.Clamp(dPm*REN.ApproachVelF, 1, REN.MaxApproachV);
 				if(dV < nV) THR.DeltaV = (float)(nV-dV);

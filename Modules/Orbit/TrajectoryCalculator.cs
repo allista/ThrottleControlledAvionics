@@ -249,40 +249,22 @@ namespace ThrottleControlledAvionics
 		/// <param name="max_dV">maximum allowed dV.</param>
 		/// <param name="min_PeR">minimum allowed PeR.</param>
 		/// <param name="UT">Starting UT.</param>
-		public static Vector3d dV4MinTTR(Orbit old, Orbit target, double max_TTR, double max_dV, double min_PeR, double UT)
+		public static Vector3d dV4TTR(Orbit old, Orbit target, double max_TTR, double max_dV, double min_PeR, double UT)
 		{
 			double min_dV;
 			Vector3d dV, dVdir;
 			double alpha, resonance;
 			var TTR = TimeToResonance(old, target, UT, out resonance, out alpha);
 			Utils.LogF("\nTTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
-			//if too long to wait
-			if(TTR > max_TTR) 
-			{
-				dV = dV4Resonance(old, target, max_TTR, alpha, UT);
-				Utils.LogF("\ndV {}\nR {}, alpha {}", Vector3d.Dot(dV, old.vel.normalized), Math.Sign(alpha)*max_TTR, alpha);
-				min_dV = dV.magnitude;
-				dVdir  = dV/min_dV;
-				if(min_dV > max_dV || 
-				   NewOrbit(old, dVdir*max_dV, UT).PeR > min_PeR) 
-					return dVdir*max_dV;
-				if(NewOrbit(old, dV, UT).PeR < min_PeR)
-				{
-					max_dV = min_dV;
-					min_dV = 0;
-				}
-			}
+			if(TTR > max_TTR) dV = dV4Resonance(old, target, max_TTR*0.9, alpha, UT);
 			else if(TTR > 1/2) return Vector3d.zero;
-			else //if too little time left
-			{
-				dV = dV4Resonance(old, target, 3/4, alpha, UT);
-				min_dV = dV.magnitude;
-				dVdir  = dV/min_dV;
-				if(min_dV > max_dV) return dVdir*max_dV;
-			    if(NewOrbit(old, dV, UT).PeR > min_PeR) return dV;
-				max_dV = min_dV;
-				min_dV = 0;
-			}
+			else dV = dV4Resonance(old, target, 3/4, alpha, UT);
+			min_dV = dV.magnitude;
+			dVdir  = dV/min_dV;
+			if(min_dV > max_dV) return dVdir*max_dV;
+			if(NewOrbit(old, dV, UT).PeR > min_PeR) return dV;
+			max_dV = min_dV;
+			min_dV = 0;
 			Utils.LogF("\ndV {}", Utils.formatVector(dV));//debug
 			//tune orbit for maximum dV but PeR above the min_PeR
 			while(max_dV-min_dV > TRJ.dVtol)
@@ -514,7 +496,11 @@ namespace ThrottleControlledAvionics
 		{
 			var dV = trajectory.Target.GetOrbit().getOrbitalVelocityAtUT(trajectory.AtTargetUT) -
 				trajectory.NewOrbit.getOrbitalVelocityAtUT(trajectory.AtTargetUT);
-			ManeuverAutopilot.AddNode(VSL, dV, trajectory.AtTargetUT);
+			var dVm = (float)dV.magnitude;
+			var max = (float)Dtol/10;
+			var offset = dVm > max? ManeuverAutopilot.TTB(VSL, dVm-max, 1)-ManeuverAutopilot.TTB(VSL, dVm, 1)/2 : 0;
+			LogF("dVm {}, max {}, offset {}", dVm, max, offset);
+			ManeuverAutopilot.AddNode(VSL, dV, trajectory.AtTargetUT-offset);
 		}
 
 		protected void setup_calculation(NextTrajectory next)
@@ -537,7 +523,7 @@ namespace ThrottleControlledAvionics
 			if(orb == null) return false;
 			if(orb.referenceBody != VSL.mainBody)
 			{
-				Status("This autopilot requires a target to be\n" +
+				Status("yellow", "This autopilot requires a target to be\n" +
 				       "in the sphere of influence of the same planetary body.");
 				return false;
 			}
