@@ -309,9 +309,7 @@ WRP
 MVA
 {
 	OrbitSolverIterations = 20  //deg
-	OrbitSolverMinTTA     = 120 //sec
 	TimeBeforeApproach    = 5   //sec
-	StartAttitudeError    = 1   //deg
 	TranslationThreshold  = 5   //m/s
 }
 
@@ -352,7 +350,7 @@ REN
 	Dtol                = 100   //m
 	StartOffset         = 60    //s
 	DeltaApThreshold    = 1000  //m
-	MaxTTR              = 6     //orbit.periods
+	MaxTTR              = 3     //orbit.periods
 	MaxDeltaV           = 100
 	CorrectionStart     = 10000 //m
 	CorrectionOffset    = 20    //s
