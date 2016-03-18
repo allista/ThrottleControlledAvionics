@@ -22,19 +22,17 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : TCAModule.ModuleConfig
 		{
-			[Persistent] public float Dtol             = 100f;   //m
-			[Persistent] public float StartOffset      = 60f;    //s
-			[Persistent] public float DeltaApThreshold = 1000f;  //m
-			[Persistent] public float dV4dRf           = 1e-6f;
-			[Persistent] public float PlaneCorrectionF = 0.1f;
-			[Persistent] public float MaxTTR           = 3f;     //1/VesselOrbit.period
-			[Persistent] public float MaxDeltaV        = 100f;   //m/s
-			[Persistent] public float CorrectionStart  = 10000f; //m
-			[Persistent] public float CorrectionOffset = 20f;    //s
-			[Persistent] public float CorrectionTimer  = 10f;    //s
-			[Persistent] public float MaxApproachV     = 20f;    //parts
-			[Persistent] public float ApproachVelF     = 0.01f;  //parts
-			[Persistent] public float MaxInclinationDelta = 45;  //deg
+			[Persistent] public float Dtol                = 100f;   //m
+			[Persistent] public float StartOffset         = 60f;    //s
+			[Persistent] public float DeltaApThreshold    = 1000f;  //m
+			[Persistent] public float MaxTTR              = 3f;     //1/VesselOrbit.period
+			[Persistent] public float MaxDeltaV           = 100f;   //m/s
+			[Persistent] public float CorrectionStart     = 10000f; //m
+			[Persistent] public float CorrectionOffset    = 20f;    //s
+			[Persistent] public float CorrectionTimer     = 10f;    //s
+			[Persistent] public float MaxApproachV        = 20f;    //parts
+			[Persistent] public float ApproachVelF        = 0.01f;  //parts
+			[Persistent] public float MaxInclinationDelta = 30;  //deg
 		}
 		static Config REN { get { return TCAScenario.Globals.REN; } }
 
@@ -109,123 +107,53 @@ namespace ThrottleControlledAvionics
 			SetTarget(Target);
 		}
 
-		double RadiusCorrection(RendezvousTrajectory old)//, double add_dV = 0)
-		{
-//			var TwoG = 2*Body.gravParameter;
-//			var TwoE = old.AtTargetVel.sqrMagnitude-TwoG/(old.AtTargetPos.magnitude+old.DeltaR);
-//			var V2   = TwoG/old.StartPos.magnitude+TwoE;
-//			var aV2  = add_dV*add_dV;
-//
-//			LogF("2E: {}, V2 {}, dV {}", TwoE, V2,
-//			     V2 > aV2 ? 
-//			     (Math.Sqrt(V2-aV2) - old.StartVel.magnitude) * 
-//			     Math.Sin(old.TimeToTarget / old.NewOrbit.period * Math.PI) : 0);//debug
-//
-//			return V2 > aV2 ? 
-//				(Math.Sqrt(V2-aV2) - old.StartVel.magnitude) * 
-//				Math.Sin(old.TimeToTarget / old.NewOrbit.period * Math.PI) : 0;
-			LogF("Gee {}, dV {}, angular F {}", 
-			     Body.gMagnitudeAtCenter/old.AtTargetPos.sqrMagnitude, 
-			     old.DeltaR * Body.gMagnitudeAtCenter/old.AtTargetPos.sqrMagnitude * REN.dV4dRf,
-			     Math.Sin(old.TimeToTarget / old.NewOrbit.period * Math.PI));//debug
-
-			return old.DeltaR * Body.gMagnitudeAtCenter/old.AtTargetPos.sqrMagnitude * REN.dV4dRf *
-				Math.Sin(old.TimeToTarget / old.NewOrbit.period * Math.PI);
-		}
-
-		protected RendezvousTrajectory rendezvou_orbit(RendezvousTrajectory old, ref double dVp, ref double dVn, ref double dVr)
+		protected RendezvousTrajectory rendezvou_orbit(RendezvousTrajectory old, ref Vector3d NodeDeltaV)
 		{
 			double StartUT;
 			Vector3d dV = Vector3d.zero;
 			if(old != null) 
 			{
-//				StartUT = old.StartUT;
-//				if(!(dVp.Equals(0) && dVn.Equals(0)) &&
-//					(Math.Abs(old.DeltaTA) > Math.Abs(old.DeltaR/VesselOrbit.radius*Mathf.Rad2Deg) || 
-//				     Math.Abs(old.DeltaTA) > Math.Abs(old.DeltaFi)))
-//				StartUT = AngleDelta2StartUT(old, old.DeltaTA, REN.StartOffset, VesselOrbit.period, 
-//						                     Utils.ClampH(ResonanceS(VesselOrbit, Target.orbit)*0.9, 
-//						                                  VesselOrbit.period*REN.StartResonance));
-//				if(old.DistanceToTarget < REN.CorrectionStart) 
-//					StartUT = Utils.ClampH(StartUT, old.AtTargetUT-REN.StartOffset-old.ManeuverDuration);
-
-				var period = //old.DistanceToTarget > REN.CorrectionStart? 
-//					ResonanceS(VesselOrbit, Target.orbit)*
-//					;
-					VesselOrbit.period;
-//					*Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1);
-//					: 
-//					Utils.ClampL(old.TimeToTarget-REN.CorrectionOffset-old.ManeuverDuration, 1);
-
-//				var dUT = Utils.Clamp(old.DeltaTA/360*period, -VesselOrbit.period/2, VesselOrbit.period/2);
-//				StartUT = NextStartUT(old, dUT, REN.StartOffset, VesselOrbit.period/2);
-//				if(old.TimeToTarget < old.NewOrbit.period/4) StartUT = NextStartUT(old, -old.NewOrbit.period/4, REN.StartOffset, REN.StartOffset);
-//				else 
 				var distF = Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1);
-				StartUT = AngleDelta2StartUT(old, old.DeltaTA, REN.StartOffset, VesselOrbit.period/4, period*distF);
-//				if(Math.Abs(StartUT - old.StartUT) < 1) StartUT = old.StartUT;
-//				if(Math.Abs(old.DeltaFi) > Math.Abs(old.DeltaTA)) 
-				dVn += PlaneCorrection(old)*Math.Abs(VesselOrbit.inclination-Target.orbit.inclination)/360;
-//				dV = dV4R(VesselOrbit, old.TargetPos.magnitude, StartUT, old.AtTargetUT, VesselOrbit.GetOrbitNormal()*dVn*REN.PlaneCorrectionF);
-
-//				if((StartUT-old.AtTargetUT)/old.NewOrbit.period < 0.2) StartUT += old.NewOrbit.period/4;
-//				                             ResonanceS(VesselOrbit, Target.orbit)*0.9*
-//				                             Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1));
-//				if(old.DistanceToTarget < REN.CorrectionStart) 
-//					StartUT = Utils.ClampH(StartUT, old.AtTargetUT-REN.StartOffset-old.ManeuverDuration);
-//				else 
-				dVp += RadiusCorrection(old);
-				dVr += AoPCorrection(old, old.DeltaTA);
-				dV = DeltaV(StartUT, dVp, dVn, dVr);
-
-					//DeltaV(StartUT, dVp, dVn*REN.PlaneCorrectionF);
-//				LogF("\nRO: dV {}\ndUT {}s, dVn {}m/s, dVp {}m/s", Utils.formatVector(dV), StartUT-old.StartUT, dVn, dVp);//debug
-
-				LogF("\nRO: ddVp {}, dVp {}, ddVn {}, dVn {}, ddVr {}, dVr {}, dUT {}", 
-				     RadiusCorrection(old), dVp, PlaneCorrection(old), dVn, AoPCorrection(old, -old.DeltaTA), dVr, StartUT-old.StartUT);//debug
-
-				CSV(old.TimeToStart, old.TimeToTarget, old.DeltaTA, old.DeltaFi, old.DeltaR, old.DistanceToTarget, dVn, dVp);//debug
+				StartUT = AngleDelta2StartUT(old, old.DeltaTA, REN.StartOffset, VesselOrbit.period/4, 
+				                             VesselOrbit.period*distF);
+				NodeDeltaV += RadiusCorrection(old);
+				NodeDeltaV += PlaneCorrection(old)*(1-distF*0.99);
+				NodeDeltaV += AoPCorrection(old, -old.DeltaTA)*Math.Sign(Target.orbit.period-VesselOrbit.period);
+				dV = Node2OrbitDeltaV(StartUT, NodeDeltaV);
+				LogF("\nRO: dV {}, dUT {}", NodeDeltaV, StartUT-old.StartUT);//debug
+				CSV(old.TimeToStart, old.TimeToTarget, old.DeltaTA, old.DeltaFi, old.DeltaR, old.DistanceToTarget, NodeDeltaV.x, NodeDeltaV.y, NodeDeltaV.z);//debug
 			}
 			else 
 			{
+				var start_offset = VesselOrbit.period/3;
 				double alpha, resonanse;
 				StartUT = VSL.Physics.UT+
 					Utils.ClampL(TimeToResonance(VesselOrbit, Target.orbit, VSL.Physics.UT+REN.StartOffset, out resonanse, out alpha)*VesselOrbit.period
-					             -VesselOrbit.period/3, REN.StartOffset);
-				LogF("First Time StartUT: {}", StartUT-VSL.Physics.UT);//debug
+					             -start_offset, REN.StartOffset);
+				double AtTargetUT;
+				TrajectoryCalculator.ClosestApproach(VesselOrbit, Target.orbit, StartUT, out AtTargetUT, REN.StartOffset);
+//				var ini = new RendezvousTrajectory(VSL, Vector3d.zero, StartUT, Target, REN.StartOffset);
+//				NodeDeltaV += RadiusCorrection(ini);
+//				ini = new RendezvousTrajectory(VSL, Node2OrbitDeltaV(StartUT, NodeDeltaV), StartUT, Target, REN.StartOffset);
+				LogF("First Time TimeToStart: {}, Correction {}", StartUT-VSL.Physics.UT, AtTargetUT-start_offset-StartUT);//debug
+				StartUT = AtTargetUT-start_offset;
 			}
 			return new RendezvousTrajectory(VSL, dV, StartUT, Target, REN.StartOffset);
 		}
 
-		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, ref double dVp, ref double dVn, ref double dVr)
+		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, ref Vector3d NodeDeltaV)
 		{
 			double StartUT = VSL.Physics.UT+REN.CorrectionOffset;
 			Vector3d dV = Vector3d.zero;
 			if(old != null) 
 			{
-//				if(!(dVp.Equals(0) && dVn.Equals(0)) && 
-//				   (Math.Abs(old.DeltaTA) > REN.MaxDeltaTA || 
-//				    Math.Abs(old.DeltaTA) > Math.Abs(old.DeltaFi)))
-//				var period = VesselOrbit.period;
-//					(old.AtTargetUT-REN.CorrectionOffset-old.ManeuverDuration-VSL.Physics.UT)/10;
-//				StartUT = Utils.Clamp(AngleDelta2StartUT(old, old.DeltaTA, REN.CorrectionOffset, REN.CorrectionOffset*2, period),
-//				                      VSL.Physics.UT+REN.CorrectionOffset, VSL.Physics.UT+period);
-//				else 
-				dVp += RadiusCorrection(old);
-				dVn += PlaneCorrection(old);
-				dVr += AoPCorrection(old, old.DeltaTA);
-				dV = DeltaV(StartUT, dVp, dVn, dVr);
-//				dV = dV4R(VesselOrbit, old.TargetPos.magnitude, StartUT, old.AtTargetUT, VesselOrbit.GetOrbitNormal()*dVn*REN.PlaneCorrectionF);
-
-//				LogF("\nRO: dV {}\ndUT {}s, dVn {}m/s, dVp {}m/s", Utils.formatVector(dV), StartUT-old.StartUT, dVn, dVp);//debug
-
-				LogF("\nOC: ddVp {}, dVp {}, ddVn {}, dVn {}, ddVr {}, dVr {}, dUT {}", 
-				     RadiusCorrection(old), dVp, PlaneCorrection(old), dVn, AoPCorrection(old, -old.DeltaTA), dVr, StartUT-old.StartUT);//debug
-
-
-				CSV(old.TimeToStart, old.TimeToTarget, old.DeltaTA, old.DeltaFi, old.DeltaR, old.DistanceToTarget, dVn, dVp);//debug
+				NodeDeltaV += RadiusCorrection(old);
+				NodeDeltaV += PlaneCorrection(old);
+				NodeDeltaV += AoPCorrection(old, -old.DeltaTA);
+				dV = Node2OrbitDeltaV(StartUT, NodeDeltaV);
+				LogF("\nOC: dV {}, dUT {}", NodeDeltaV, StartUT-old.StartUT);//debug
+				CSV(old.TimeToStart, old.TimeToTarget, old.DeltaTA, old.DeltaFi, old.DeltaR, old.DistanceToTarget, NodeDeltaV.x, NodeDeltaV.y, NodeDeltaV.z);//debug
 			} 
-//			else StartUT = VSL.Physics.UT+REN.CorrectionOffset;
 			return new RendezvousTrajectory(VSL, dV, StartUT, Target);
 		}
 			
@@ -233,20 +161,16 @@ namespace ThrottleControlledAvionics
 		{
 			trajectory = null;
 			stage = Stage.ComputeRendezvou;
-			var dVn = 0.0;
-			var dVp = 0.0;
-			var dVr = 0.0;
-			setup_calculation(t => rendezvou_orbit(t, ref dVp, ref dVn, ref dVr));
+			Vector3d NodeDeltaV = Vector3d.zero;
+			setup_calculation(t => rendezvou_orbit(t, ref NodeDeltaV));
 		}
 
 		void correct_trajectory()
 		{
 			trajectory = null;
 			stage = Stage.ComputeRendezvou;
-			var dVn = 0.0;
-			var dVp = 0.0;
-			var dVr = 0.0;
-			setup_calculation(t => orbit_correction(t, ref dVp, ref dVn, ref dVr));
+			Vector3d NodeDeltaV = Vector3d.zero;
+			setup_calculation(t => orbit_correction(t, ref NodeDeltaV));
 		}
 
 		void start_orbit()

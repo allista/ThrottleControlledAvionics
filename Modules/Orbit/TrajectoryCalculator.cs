@@ -18,6 +18,7 @@ namespace ThrottleControlledAvionics
 		public class Config : TCAModule.ModuleConfig
 		{
 			[Persistent] public float dVtol              = 0.01f; //m/s
+			[Persistent] public float dV4dRf             = 1e-4f;
 			[Persistent] public float MinPeA             = 10000f; //m
 			[Persistent] public int   MaxIterations      = 1000;
 			[Persistent] public int   PerFrameIterations = 10;
@@ -179,6 +180,41 @@ namespace ThrottleControlledAvionics
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
 		}
 
+//		public static double TimeToResonance(Orbit a, Orbit b, double UT, out double resonance, out double delta)
+//		{
+//			var velA = a.getOrbitalVelocityAtUT(UT);
+//			var posA = a.getRelativePositionAtUT(UT);
+//			var posB = b.getRelativePositionAtUT(UT);
+//			var norA = a.GetOrbitNormal();
+//			var norB = b.GetOrbitNormal();
+//			var node = Vector3d.Cross(norA, norB);
+//			resonance = ResonanceA(a, b);
+//			if(node.sqrMagnitude < 0.01)
+//				delta = Utils.ProjectionAngle(posA, posB, velA)/360;
+//			else
+//			{
+//				var velB = b.getOrbitalVelocityAtUT(UT);
+//				var beta = Utils.ProjectionAngle(posB, node, velB);
+//				if(beta < 0) { node *= -1; beta = 180+beta; }
+//				delta = (Utils.ClampAngle(Utils.ProjectionAngle(posA, node, velA))-beta)/360;
+//				//debug
+//				var ttrDelta = delta*resonance;
+//				if(ttrDelta < 0) ttrDelta += Math.Abs(resonance);
+//				var ttrAB = Utils.ProjectionAngle(posA, posB, velA)/360*resonance;
+//				if(ttrAB < 0) ttrAB += Math.Abs(resonance);
+//				Utils.LogF("alpha {} - beta {} = delta {} : a->b {}\n" +
+//				           "TTR(delta) {}, TTR(a->b) {}", 
+//				           Utils.ClampAngle(Utils.ProjectionAngle(posA, node, velA)),
+//				           beta,
+//				           delta*360,
+//				           Utils.ProjectionAngle(posA, posB, velA),
+//				           ttrDelta, ttrAB);
+//				//debug
+//			}
+//			var TTR = delta*resonance;
+//			return TTR > 0? TTR : TTR+Math.Abs(resonance);
+//		}
+
 		public static Vector3d dV4T(Orbit old, double T, double UT)
 		{
 			var body = old.referenceBody;
@@ -309,30 +345,42 @@ namespace ThrottleControlledAvionics
 			ApproachUT = UT1; return Math.Sqrt(d1);
 		}
 
-		protected static double AoPCorrection(TargetedTrajectoryBase old, double amount)
+		protected Vector3d RadiusCorrection(RendezvousTrajectory old)
 		{
-			return amount*Math.Sign(old.NewOrbit.period/2-old.TimeToTarget);
+			return new Vector3d(0,0, old.DeltaR * Body.gMagnitudeAtCenter/old.AtTargetPos.sqrMagnitude * TRJ.dV4dRf *
+			                    Math.Sin(old.TimeToTarget / old.NewOrbit.period * Math.PI));
 		}
 
-		protected static double PlaneCorrection(TargetedTrajectoryBase old, double angle)
+		protected static Vector3d AoPCorrection(TargetedTrajectoryBase old, double amount)
+		{ return new Vector3d(amount, 0, 0); }
+
+		protected Vector3d PlaneCorrection(TargetedTrajectoryBase old, double angle)
 		{
-			return old.StartVel.magnitude*
-				Math.Sin(angle*Mathf.Deg2Rad/2)*
-				Math.Abs(Math.Sin(old.TimeToTarget/old.NewOrbit.period*2*Math.PI))*
+			angle *= Math.Abs(Math.Sin(old.TimeToTarget/old.NewOrbit.period*2*Math.PI))*
 				Math.Sign(old.NewOrbit.period/2-old.TimeToTarget);
+			var rot = QuaternionD.AngleAxis(-angle, old.AtTargetPos);
+			return Orbit2NodeDeltaV(old.StartUT, (rot*old.StartVel)-old.StartVel);
 		}
 
-		protected static double PlaneCorrection(TargetedTrajectoryBase old)
+		protected Vector3d PlaneCorrection(TargetedTrajectoryBase old)
 		{ return PlaneCorrection(old, old.DeltaFi); }
 
-		protected Vector3d DeltaV(double StartUT, double dVp, double dVn = 0, double dVr = 0)
+		protected Vector3d Orbit2NodeDeltaV(double StartUT, Vector3d OrbitDeltaV)
+		{
+			var norm = VesselOrbit.GetOrbitNormal().normalized;
+			var prograde = hV(StartUT).normalized;
+			var radial = Vector3d.Cross(prograde, norm).normalized;
+			return new Vector3d(Vector3d.Dot(OrbitDeltaV, radial),
+			                    Vector3d.Dot(OrbitDeltaV, norm),
+			                    Vector3d.Dot(OrbitDeltaV, prograde));
+		}
+
+		protected Vector3d Node2OrbitDeltaV(double StartUT, Vector3d NodeDeltaV)
 		{ 
-			var dV = Vector3d.zero;
-			if(!dVp.Equals(0)) dV += dVp*hV(StartUT).normalized; 
-			if(!dVn.Equals(0)) dV += dVn*VesselOrbit.GetOrbitNormal().normalized; 
-			if(!dVr.Equals(0)) dV += dVr*Vector3d.Exclude(VesselOrbit.getOrbitalVelocityAtUT(StartUT), 
-			                          	                  VesselOrbit.getRelativePositionAtUT(StartUT)).normalized; 
-			return dV;
+			var norm = VesselOrbit.GetOrbitNormal().normalized;
+			var prograde = hV(StartUT).normalized;
+			var radial = Vector3d.Cross(prograde, norm).normalized;
+			return radial*NodeDeltaV.x + norm*NodeDeltaV.y + prograde*NodeDeltaV.z;
 		}
 
 		protected double NextStartUT(BaseTrajectory old, double dUT, double offset, double forward_step)

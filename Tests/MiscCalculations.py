@@ -1289,7 +1289,7 @@ if __name__ == '__main__':
 #                 'K', 'VSP'))
     
     analyzeCSV('Tests/Rendezvou.csv',
-               ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVn', 'dVp'),
+               ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVr', 'dVn', 'dVp'),
                region=[0])
 
 #     analyzeCSV('VS-filtering-39.csv',

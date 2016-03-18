@@ -36,7 +36,7 @@ namespace ThrottleControlledAvionics
 		Stage stage;
 		double current_PeR;
 
-		protected LandingTrajectory fixed_PeR_orbit(LandingTrajectory old, ref double dVn, double PeR)
+		protected LandingTrajectory fixed_PeR_orbit(LandingTrajectory old, ref Vector3d NodeDeltaV, double PeR)
 		{
 			double StartUT;
 			double targetAlt;
@@ -51,33 +51,30 @@ namespace ThrottleControlledAvionics
 				else { dLonLat = old.DeltaLat; dLatLon = old.DeltaLon; }
 				if(Math.Abs(dLonLat) > Math.Abs(dLatLon))
 					StartUT = AngleDelta2StartUT(old, dLonLat, DEO.StartOffset, VesselOrbit.period, VesselOrbit.period);
-				else dVn += PlaneCorrection(old);
-				
-				Log("StartUT change: {0}\ndVn {1}", StartUT-old.StartUT, dVn);//debug
+				else NodeDeltaV += PlaneCorrection(old);
+				Log("StartUT change: {0}\ndV {1}", StartUT-old.StartUT, NodeDeltaV);//debug
 			}
 			else 
 			{
 				StartUT = VSL.Physics.UT+DEO.StartOffset;
 				targetAlt = TargetAltitude;
 			}
-			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, DeltaV(StartUT, 0, dVn)), 
+			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, Node2OrbitDeltaV(StartUT, NodeDeltaV)), 
 			                             StartUT, Target, targetAlt);
 		}
 
-		protected LandingTrajectory horizontal_correction(LandingTrajectory old, 
-			ref double dVp, ref double dVn, double start_offset)
+		protected LandingTrajectory horizontal_correction(LandingTrajectory old, ref Vector3d NodeDeltaV, double start_offset)
 		{
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
 			{
 				if(Math.Abs(old.DeltaR) > Math.Abs(old.DeltaFi)) 
-					dVp += old.DeltaR;
+					NodeDeltaV += new Vector3d(0,0,old.DeltaR);
 				else 
-					dVn += PlaneCorrection(old);
-				
-				Log("dVp: {0}\ndVn {1}", dVp, dVn);//debug
+					NodeDeltaV += PlaneCorrection(old);
+				Log("\ndV: {0}", NodeDeltaV);//debug
 			}
-			return new LandingTrajectory(VSL, DeltaV(StartUT, dVp, dVn), 
+			return new LandingTrajectory(VSL, Node2OrbitDeltaV(StartUT, NodeDeltaV), 
 			                             StartUT, Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
@@ -85,8 +82,8 @@ namespace ThrottleControlledAvionics
 		{
 			trajectory = null;
 			stage = Stage.Compute;
-			var dVn = 0.0;
-			setup_calculation(t => fixed_PeR_orbit(t, ref dVn, current_PeR));
+			var NodeDeltaV = Vector3d.zero;
+			setup_calculation(t => fixed_PeR_orbit(t, ref NodeDeltaV, current_PeR));
 		}
 
 		void correct_trajectory()
@@ -94,9 +91,8 @@ namespace ThrottleControlledAvionics
 			trajectory = null;
 			stage = Stage.Correct;
 			CorrectionTimer.Reset();
-			var dVn = 0.0;
-			var dVp = 0.0;
-			setup_calculation(t => horizontal_correction(t, ref dVp, ref dVn, LTRJ.CorrectionOffset));
+			var NodeDeltaV = Vector3d.zero;
+			setup_calculation(t => horizontal_correction(t, ref NodeDeltaV, LTRJ.CorrectionOffset));
 		}
 
 		protected override void reset()
