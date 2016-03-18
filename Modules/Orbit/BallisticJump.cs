@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
 			if(!base.check_target()) return false;
 			if(VesselOrbit.PeR > Body.Radius)
 			{
-				Status("Cannot to perform <b>Ballistic Jump</b> from orbit.\n" +
+				Status("yellow", "Cannot to perform <b>Ballistic Jump</b> from orbit.\n" +
 				       "Use <b>Land at Target</b> instead.");
 				return false;
 			}
@@ -154,8 +154,8 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
-					Status("Predicted landing site is too far from the target.\n" +
-					       "To proceed, activate maneuver execution manually.");
+					Status("red", "Predicted landing site is too far from the target.\n" +
+					       "<i>To proceed, activate maneuver execution manually.</i>");
 					stage = Stage.Waiting;
 				}
 				break;

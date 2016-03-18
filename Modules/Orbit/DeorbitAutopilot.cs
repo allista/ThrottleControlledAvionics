@@ -146,8 +146,8 @@ namespace ThrottleControlledAvionics
 					{ CFG.AP1.On(Autopilot1.Maneuver); stage = Stage.Deorbit; }
 					else 
 					{
-						Status("<color=red>Predicted landing site is too far from the target.\n" +
-						       "<i>To proceed, activate maneuver execution manually.</i></color>");
+						Status("red", "Predicted landing site is too far from the target.\n" +
+						       "<i>To proceed, activate maneuver execution manually.</i>");
 						stage = Stage.Wait;
 					}
 				}
