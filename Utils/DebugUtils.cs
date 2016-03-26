@@ -334,7 +334,8 @@ namespace ThrottleControlledAvionics
 	public class LoadTestGame : MonoBehaviour
 	{
 //		const string save = "DEO Kerbin test";
-		const string save = "REN Mun StartOrbit";
+//		const string save = "REN Mun StartOrbit";
+		const string save = "REN Mun OnPlanet";
 		const string game = "TCA-tests";
 		static readonly string gamedir = KSPUtil.ApplicationRootPath + "/saves/"+game;
 
