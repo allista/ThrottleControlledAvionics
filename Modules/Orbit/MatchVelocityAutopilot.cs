@@ -147,7 +147,7 @@ namespace ThrottleControlledAvionics
 			                      "Continuously match orbital velocity with the target", GUILayout.ExpandWidth(true)))
 				CFG.AP1.XToggle(Autopilot1.MatchVel);
 			if(Utils.ButtonSwitch("Brake Near", CFG.AP1[Autopilot1.MatchVelNear], 
-			                          "Match orbital velocity with the target at nearest approach", GUILayout.ExpandWidth(true)))
+			                          "Match orbital velocity with the target at closest approach", GUILayout.ExpandWidth(true)))
 				CFG.AP1.XToggle(Autopilot1.MatchVelNear);
 		}
 	}
