@@ -62,7 +62,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected Orbit CircularOrbit(double UT)
-		{ return NewOrbit(VesselOrbit, dV4C(VesselOrbit, VesselOrbit.getOrbitalVelocityAtUT(UT), UT), UT); }
+		{ return NewOrbit(VesselOrbit, dV4C(VesselOrbit, hV(UT), UT), UT); }
 
 		public static Vector3d dV4Pe(Orbit old, double R, double UT, Vector3d add_dV = default(Vector3d))
 		{
@@ -179,41 +179,6 @@ namespace ThrottleControlledAvionics
 			var TTR = alpha*resonance;
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
 		}
-
-//		public static double TimeToResonance(Orbit a, Orbit b, double UT, out double resonance, out double delta)
-//		{
-//			var velA = a.getOrbitalVelocityAtUT(UT);
-//			var posA = a.getRelativePositionAtUT(UT);
-//			var posB = b.getRelativePositionAtUT(UT);
-//			var norA = a.GetOrbitNormal();
-//			var norB = b.GetOrbitNormal();
-//			var node = Vector3d.Cross(norA, norB);
-//			resonance = ResonanceA(a, b);
-//			if(node.sqrMagnitude < 0.01)
-//				delta = Utils.ProjectionAngle(posA, posB, velA)/360;
-//			else
-//			{
-//				var velB = b.getOrbitalVelocityAtUT(UT);
-//				var beta = Utils.ProjectionAngle(posB, node, velB);
-//				if(beta < 0) { node *= -1; beta = 180+beta; }
-//				delta = (Utils.ClampAngle(Utils.ProjectionAngle(posA, node, velA))-beta)/360;
-//				//debug
-//				var ttrDelta = delta*resonance;
-//				if(ttrDelta < 0) ttrDelta += Math.Abs(resonance);
-//				var ttrAB = Utils.ProjectionAngle(posA, posB, velA)/360*resonance;
-//				if(ttrAB < 0) ttrAB += Math.Abs(resonance);
-//				Utils.LogF("alpha {} - beta {} = delta {} : a->b {}\n" +
-//				           "TTR(delta) {}, TTR(a->b) {}", 
-//				           Utils.ClampAngle(Utils.ProjectionAngle(posA, node, velA)),
-//				           beta,
-//				           delta*360,
-//				           Utils.ProjectionAngle(posA, posB, velA),
-//				           ttrDelta, ttrAB);
-//				//debug
-//			}
-//			var TTR = delta*resonance;
-//			return TTR > 0? TTR : TTR+Math.Abs(resonance);
-//		}
 
 		public static Vector3d dV4T(Orbit old, double T, double UT)
 		{
