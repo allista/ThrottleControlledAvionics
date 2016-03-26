@@ -153,7 +153,7 @@ namespace ThrottleControlledAvionics
 
 		void finish()
 		{
-			SetTarget(null);
+			SetTarget();
 			CFG.Nav.Off();
 			CFG.HF.On(HFlight.Stop);
 			UnregisterFrom<Radar>();
