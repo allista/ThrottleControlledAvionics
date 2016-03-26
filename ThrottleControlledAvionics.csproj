@@ -139,7 +139,6 @@
     <Compile Include="VesselProps\ControlProps.cs" />
     <Compile Include="VesselProps\InfoProps.cs" />
     <Compile Include="VesselProps\OnPlanetProps.cs" />
-    <Compile Include="OrbitDBG.cs" />
     <Compile Include="Modules\Orbit\TrajectoryCalculator.cs" />
     <Compile Include="Modules\Orbit\BallisticJump.cs" />
     <Compile Include="Modules\Orbit\DeorbitAutopilot.cs" />
@@ -162,6 +161,7 @@
     <Compile Include="Modules\Planet\Radar.cs" />
     <Compile Include="Modules\Planet\VerticalSpeedControl.cs" />
     <Compile Include="Modules\Planet\VTOLAssist.cs" />
+    <Compile Include="Utils\OrbitDBG.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
