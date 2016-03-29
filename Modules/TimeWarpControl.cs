@@ -48,7 +48,7 @@ namespace ThrottleControlledAvionics
 		//and from rate F to rate 1: (F-1)/2
 		//but due to deltaTime steps it is safer to offset the dewarp time with just F+1
 		double TimeToDewarp(int rate_index)
-		{ return WarpToTime-(WRP.DewarpTime+TimeWarp.fetch.warpRates[rate_index]-1)-VSL.Physics.UT; }
+		{ return WarpToTime-(WRP.DewarpTime/(VSL.LandedOrSplashed? 2 : 1)+TimeWarp.fetch.warpRates[rate_index]-1)-VSL.Physics.UT; }
 
 		protected override void Update()
 		{
@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex-1, false);
 			else if(TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
 			        TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= WRP.MaxWarp &&
-			        VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody) &&
+			        (VSL.LandedOrSplashed || VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody)) &&
 			        TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
 		}
