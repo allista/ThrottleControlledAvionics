@@ -436,11 +436,17 @@ namespace ThrottleControlledAvionics
 	public class SingleAction
 	{
 		bool done;
+		public Action action;
 
-		public void Run(Action action) 
+		public void Run() 
 		{ if(!done) { action(); done = true; } }
 
+		public void Run(Action act) 
+		{ if(!done) { act(); done = true; } }
+
 		public void Reset() { done = false; }
+
+		public static implicit operator bool(SingleAction a) { return a.done; }
 	}
 
 	public abstract class Extremum<T> where T : IComparable
