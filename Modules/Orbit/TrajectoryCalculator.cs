@@ -226,11 +226,11 @@ namespace ThrottleControlledAvionics
 			else dV = dV4Resonance(old, target, 3/4, alpha, UT);
 			min_dV = dV.magnitude;
 			dVdir  = dV/min_dV;
+			Utils.LogF("\ndV {}\n dV*velN {}", dV, Vector3d.Dot(dV, old.getOrbitalVelocityAtUT(UT).normalized));//debug
 			if(min_dV > max_dV) return dVdir*max_dV;
 			if(NewOrbit(old, dV, UT).PeR > min_PeR) return dV;
 			max_dV = min_dV;
 			min_dV = 0;
-			Utils.LogF("\ndV {}", Utils.formatVector(dV));//debug
 			//tune orbit for maximum dV but PeR above the min_PeR
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
@@ -299,7 +299,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected static Vector3d AoPCorrection(TargetedTrajectoryBase old, double amount)
-		{ return new Vector3d(amount, 0, 0); }
+		{ return new Vector3d(amount*Math.Sign(old.NewOrbit.period/2-old.TimeToTarget), 0, 0); }
 
 		protected Vector3d PlaneCorrection(TargetedTrajectoryBase old, double angle)
 		{
