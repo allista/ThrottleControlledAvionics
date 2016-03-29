@@ -63,6 +63,7 @@ namespace ThrottleControlledAvionics
 			landed = tookoff = false;
 			GearTimer.Period = TLA.GearTimer;
 			LandedTimer.Period = TLA.LandedTimer;
+			StopAction.action = () => CFG.HF.OnIfNot(HFlight.Stop);
 			working(false);
 		}
 
@@ -97,7 +98,7 @@ namespace ThrottleControlledAvionics
 			else if(tookoff)
 			{
 				working();
-				StopAction.Run(() => CFG.HF.OnIfNot(HFlight.Stop));
+				StopAction.Run();
 				GearTimer.RunIf(() =>
 				{ 
 					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
