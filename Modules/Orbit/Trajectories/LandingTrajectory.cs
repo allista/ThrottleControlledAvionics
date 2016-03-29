@@ -15,8 +15,8 @@ namespace ThrottleControlledAvionics
 	public class LandingTrajectory : TargetedTrajectory<WayPoint>
 	{
 		public readonly double TargetAltitude;
-		public Quaternion AtSurfaceRotation { get; private set; }
-		public Quaternion AtStartRotation { get; private set; }
+		public QuaternionD AtSurfaceRotation { get; private set; }
+		public QuaternionD AtStartRotation { get; private set; }
 		public double SurfacePointTA { get; private set; }
 		public WayPoint SurfacePoint { get; private set; }
 
@@ -45,8 +45,8 @@ namespace ThrottleControlledAvionics
 			update();
 		}
 
-		Quaternion body_rotation_at_dT(double dT)
-		{ return Quaternion.AngleAxis((float)(dT/Body.rotationPeriod*360), Body.angularVelocity); }
+		QuaternionD body_rotation_at_dT(double dT)
+		{ return QuaternionD.AngleAxis((dT/Body.rotationPeriod*360), Body.angularVelocity); }
 
 		void update()
 		{
@@ -61,7 +61,7 @@ namespace ThrottleControlledAvionics
 			AtStartRotation   = body_rotation_at_dT(TimeToStart);
 			AtTargetPos  = NewOrbit.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel  = NewOrbit.getOrbitalVelocityAtUT(AtTargetUT);
-			SurfacePoint = new WayPoint(AtSurfaceRotation.Inverse()*AtTargetPos.xzy+Body.position, Body);
+			SurfacePoint = new WayPoint(QuaternionD.Inverse(AtSurfaceRotation)*AtTargetPos.xzy+Body.position, Body);
 			//brake maneuver
 			BrakeDeltaV   = -AtTargetVel;
 			BrakeDuration = ManeuverAutopilot.TTB(VSL, (float)BrakeDeltaV.magnitude, 1);
@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				var start_pos = AtStartRotation.Inverse()*StartPos.xzy + Body.position;
+				var start_pos = QuaternionD.Inverse(AtStartRotation)*StartPos.xzy + Body.position;
 				VslStartLat = Utils.ClampAngle(Body.GetLatitude(start_pos));
 				VslStartLon = Utils.ClampAngle(Body.GetLongitude(start_pos));
 			}
