@@ -36,6 +36,10 @@ vclamp01 = np.vectorize(clamp01)
 class vec(object):
     def __init__(self, x=0, y=0, z=0):
         self.v = np.array([float(x), float(y), float(z)])
+        
+    @property
+    def xzy(self):
+        return vec(self[0], self[2], self[1])
 
     @property
     def norm(self):
@@ -105,7 +109,6 @@ class vec(object):
     @classmethod
     def rnd(cls, magnitude=1):
         return cls.from_array(np.random.rand(3)*2-1).norm*magnitude
-        
 #end class
 
 class vec6(object):
@@ -1288,12 +1291,16 @@ if __name__ == '__main__':
 #                 'VerticalCutoff', 'setpoint', 'setpoint_correction', 'VerticalAccel',
 #                 'K', 'VSP'))
     
-    analyzeCSV('Tests/Rendezvou.csv',
-               ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVr', 'dVn', 'dVp'),
-               region=[0])
+#    analyzeCSV('Tests/Rendezvou.csv',
+#               ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVr', 'dVn', 'dVp'),
+#               region=[0])
 
 #     analyzeCSV('VS-filtering-39.csv',
 #                ('BestAlt', 'DetAlt', 'AltAhead')
 #                )
 #     drawVectors()
 #     sim_PointNav()
+
+    print vec(0.73874086177374, 0.0402463344474615, 0.672786869453719).norm
+    print vec(1000.03347198867, 927.774507796912, 55.6943721048555).norm.xzy
+    print vec(1742.705, 122.1291, 973.6855).norm
