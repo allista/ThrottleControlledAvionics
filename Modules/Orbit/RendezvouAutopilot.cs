@@ -18,6 +18,7 @@ namespace ThrottleControlledAvionics
 	                typeof(AttitudeControl),
 	                typeof(ThrottleControl),
 	                typeof(TranslationControl),
+	                typeof(BearingControl),
 	                typeof(TimeWarpControl))]
 	public class RendezvouAutopilot : TargetedTrajectoryCalculator<RendezvousTrajectory, Vessel>
 	{
@@ -34,9 +35,10 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxApproachV        = 20f;    //parts
 			[Persistent] public float ApproachVelF        = 0.01f;  //parts
 			[Persistent] public float MaxInclinationDelta = 30;  //deg
-			[Persistent] public float LaunchAngle         = 45;  //deg
 			[Persistent] public float GTurnCurve          = 60;
 			[Persistent] public float LaunchDeltaVf       = 3;
+			[Persistent] public float LaunchTangentK      = 1f;
+			[Persistent] public float RendezvouCorrection = 0.8f;
 		}
 		static Config REN { get { return TCAScenario.Globals.REN; } }
 
@@ -45,18 +47,20 @@ namespace ThrottleControlledAvionics
 		AttitudeControl ATC;
 		ThrottleControl THR;
 		TranslationControl TRA;
+		BearingControl BRC;
 		TimeWarpControl WRP;
 
-		enum Stage { None, Start, ToOrbit, StartOrbit, ComputeRendezvou, Rendezvou, MatchOrbits, Approach, Brake }
+		enum Stage { None, Start, Launch, ToOrbit, StartOrbit, ComputeRendezvou, Rendezvou, MatchOrbits, Approach, Brake }
 		Stage stage;
 
 		double CurrentDistance = -1;
 		RendezvousTrajectory CurrentTrajectory 
 		{ get { return new RendezvousTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, Target, REN.StartOffset); } }
 
+		double ApAUT, TTA, MinAccelTime;
 		double LaunchUT  = -1;
 		double LaunchApR = -1;
-		Vector3d TargetApV;
+		Vector3d TargetApV, ApV;
 		FuzzyThreshold<float> ToOrbitDeltaV = new FuzzyThreshold<float>(5, 1);
 		SingleAction GearAction = new SingleAction();
 
@@ -67,7 +71,33 @@ namespace ThrottleControlledAvionics
 			CorrectionTimer.Period = REN.CorrectionTimer;
 			CFG.AP2.AddHandler(this, Autopilot2.Rendezvou);
 			GearAction.action = () => VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+			#if DEBUG
+			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+			#endif
 		}
+
+		#if DEBUG
+		public void RadarBeam()
+		{
+			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.AP2[Autopilot2.Rendezvou]) return;
+			if(stage == Stage.ToOrbit)
+			{
+				GLUtils.GLVec(VSL.Physics.wCoM, tNorm.normalized.xzy*12, Color.green);
+				GLUtils.GLVec(VSL.Physics.wCoM, norm.normalized.xzy*10, Color.yellow);
+				GLUtils.GLVec(VSL.Physics.wCoM, hVdir.normalized.xzy*10, Color.red);
+				GLUtils.GLVec(VSL.Physics.wCoM, VesselOrbit.pos.normalized.xzy*10, Color.blue);
+				GLUtils.GLVec(VSL.Physics.wCoM, velN.xzy*10, Color.cyan);
+				GLUtils.GLVec(VSL.Physics.wCoM, -Body.angularVelocity.normalized*10, Color.white);
+				GLUtils.GLVec(VSL.Physics.wCoM, TargetApV.normalized.xzy*10, Color.magenta);
+			}
+		}
+
+		public override void Reset()
+		{
+			base.Reset();
+			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+		}
+		#endif
 
 		public void RendezvouCallback(Multiplexer.Command cmd)
 		{
@@ -205,16 +235,20 @@ namespace ThrottleControlledAvionics
 			stage = Stage.StartOrbit;
 		}
 
-		double ApAUT, TTA;
+		Vector3d hVdir, tNorm, norm, velN; //debug
 		void to_orbit()
 		{
 			//compute trajectory to get the needed apoapsis at needed time
+			tNorm = Target.orbit.GetOrbitNormal();//test
 			LaunchApR = Math.Max(MinPeR, (Target.orbit.PeR+Target.orbit.ApR)/2);
-			var hVdir = Vector3d.Cross(Target.orbit.GetOrbitNormal(), VesselOrbit.pos).normalized;
-			var norm  = Vector3d.Cross(VesselOrbit.pos, hVdir).normalized;
-			var velN  = (QuaternionD.AngleAxis(-REN.LaunchAngle, norm) * hVdir).normalized;
-			var vel   = Math.Sqrt(2*VSL.Physics.StG*(LaunchApR-Body.Radius)) / Math.Sin(REN.LaunchAngle*Mathf.Rad2Deg);
-			var v     = 0.0;
+			hVdir = Vector3d.Cross(Target.orbit.GetOrbitNormal(), VesselOrbit.pos).normalized;
+			norm  = Vector3d.Cross(VesselOrbit.pos, hVdir).normalized;
+			var LaunchRad = Utils.ClampH(Math.Atan(1/(Body.Radius*REN.LaunchTangentK/(2*LaunchApR) - 
+			                                          Body.angularV/Math.Sqrt(2*VSL.Physics.StG*(LaunchApR-Body.Radius)))), 
+			                             Math.PI/2);
+			velN  = (Math.Sin(LaunchRad)*VesselOrbit.pos.normalized + Math.Cos(LaunchRad)*hVdir).normalized;
+			var vel = Math.Sqrt(2*VSL.Physics.G*(LaunchApR-Body.Radius)) / Math.Sin(LaunchRad);
+			var v   = 0.0;
 			while(vel-v > TRJ.dVtol)
 			{
 				var V = (v+vel)/2;
@@ -228,19 +262,25 @@ namespace ThrottleControlledAvionics
 			ApAUT = LaunchUT+TTA;
 			if(VSL.LandedOrSplashed)
 			{
-				var ApV = ascO.getRelativePositionAtUT(ApAUT);
+				ApV = ascO.getRelativePositionAtUT(ApAUT);
 				double TTR;
-				do {
-					TargetApV = QuaternionD.AngleAxis((LaunchUT-VSL.Physics.UT)/Body.rotationPeriod*360, Body.angularVelocity.xzy)*ApV;
-					TTR = update_LaunchUT();
-				} while(TTR < 0 || TTR > 1);
-				TargetApV = QuaternionD.AngleAxis((LaunchUT-VSL.Physics.UT)/Body.rotationPeriod*360, Body.angularVelocity.xzy)*ApV;
+				do { TTR = correct_launch(); } 
+				while(Math.Abs(TTR) > 1);
 			}
 			else TargetApV = ascO.getRelativePositionAtUT(ApAUT);
-			stage = Stage.ToOrbit;
+			MinAccelTime = 0;//Math.Sin(LaunchRad)*(ascO.vel-VesselOrbit.vel).magnitude/(VSL.Engines.MaxThrustM/VSL.Physics.M-VSL.Physics.G);
+			LogF("LaunchAngle {}, Omega0 {}, TTA {}, MinAccelTime {}", LaunchRad*Mathf.Rad2Deg, Body.angularV, TTA, MinAccelTime);//debug
+//			if(MinAccelTime <= 0)
+//			{
+//				Status("red", "TWR < 1, impossible to achive orbit");
+//				CFG.AP2.Off();
+//				return;
+//			}
+			CFG.DisableVSC();
+			stage = VSL.LandedOrSplashed? Stage.Launch : Stage.ToOrbit;
 		}
 
-		double update_LaunchUT()
+		double correct_launch()
 		{
 			var TTR = Utils.ProjectionAngle(Target.orbit.getRelativePositionAtUT(ApAUT), 
 			    	                        TargetApV, 
@@ -250,7 +290,27 @@ namespace ThrottleControlledAvionics
 			if(LaunchUT-VSL.Physics.UT <= 0) 
 				LaunchUT += Target.orbit.period;
 			ApAUT= LaunchUT+TTA;
+			TargetApV = QuaternionD.AngleAxis((VSL.Physics.UT-LaunchUT)/Body.rotationPeriod*360, Body.angularVelocity.xzy)*ApV;
+
+			var angle = Utils.ProjectionAngle(VesselOrbit.pos, TargetApV, VesselOrbit.vel);//debug
+			LogF("\nTTR {}, AngleToApV {}, DistToApV {}\n pos {}\nTargetApV {}", 
+			     TTR, angle, angle*Mathf.Deg2Rad*LaunchApR/(LaunchApR-Body.Radius),
+			     VesselOrbit.pos, TargetApV);//debug
+
 			return TTR;
+		}
+
+		void correct_rendezvou()
+		{
+			var angle = Utils.ProjectionAngle(Target.orbit.getRelativePositionAtUT(ApAUT), 
+			                                  TargetApV, 
+			                                  Target.orbit.getOrbitalVelocityAtUT(ApAUT));
+			TargetApV = QuaternionD.AngleAxis(angle, Body.angularVelocity.xzy)*TargetApV;
+
+			angle = Utils.ProjectionAngle(VesselOrbit.pos, TargetApV, VesselOrbit.vel);//debug
+			LogF("\nAngleToApV {}, DistToApV {}\n pos {}\nTargetApV {}", 
+			     angle, angle*Mathf.Deg2Rad*LaunchApR/(LaunchApR-Body.Radius),
+			     VesselOrbit.pos, TargetApV);//debug
 		}
 
 		void match_orbits()
@@ -302,52 +362,69 @@ namespace ThrottleControlledAvionics
 				   VesselOrbit.radius > MinPeR) start_orbit();
 				else to_orbit();
 				break;
-			case Stage.ToOrbit:
+			case Stage.Launch:
 				//correct launch time
-				if(LaunchUT > VSL.Physics.UT) 
+				if(LaunchUT-VSL.Physics.UT > MinAccelTime) 
 				{
-					update_LaunchUT();
-					VSL.Info.Countdown = LaunchUT-VSL.Physics.UT;
-					WRP.WarpToTime = LaunchUT;
+					correct_launch();
+					VSL.Info.Countdown = LaunchUT-VSL.Physics.UT-MinAccelTime;
+					WRP.WarpToTime = LaunchUT-MinAccelTime;
 					break;
 				}
-				//perform continious trajectory correction
-				CFG.DisableVSC();
-				CFG.HF.OffIfOn();
+				if(VSL.VerticalSpeed.Absolute/VSL.Physics.G < 5)
+				{ 
+					CFG.VTOLAssistON = true;
+					THR.Throttle = 1; 
+					break; 
+				}
 				CFG.VTOLAssistON = false;
-				if(VSL.LandedOrSplashed)
-				{ THR.Throttle = 1; break; }
+				CFG.StabilizeFlight = false;
+				CFG.HF.Off();
+				stage = Stage.ToOrbit;
+				break;
+			case Stage.ToOrbit:
 				ApAUT = VSL.Physics.UT+VesselOrbit.timeToAp;
+				var cApV   = VesselOrbit.getRelativePositionAtUT(ApAUT);
 				var in_atm = Body.atmosphere && VesselOrbit.radius < Body.Radius+Body.atmosphereDepth;
 				var h2ApA  = VesselOrbit.ApA-VSL.Altitude.Absolute;
-				var ApV    = VesselOrbit.getRelativePositionAtUT(ApAUT);
 				var dFi    = 90-Vector3d.Angle(VesselOrbit.GetOrbitNormal(), TargetApV);
 				var dApA   = LaunchApR-VesselOrbit.ApR;
-				var alpha  = Utils.ProjectionAngle(ApV, TargetApV, VesselOrbit.getOrbitalVelocityAtUT(ApAUT))/180*Body.Radius;
 				var vel    = Vector3d.zero;
-				var hv     = Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel);
-				if(dApA > 0)  
+				if(dApA > REN.Dtol)  
 					vel += VSL.Physics.Up.xzy*dApA/Utils.ClampL(VSL.VerticalSpeed.Absolute, 1);
-				if(alpha > 0) 
-					vel += hv.normalized*alpha/Utils.ClampL(dApA, REN.GTurnCurve)*Utils.Clamp(h2ApA/100, 0, 1)*REN.GTurnCurve;
+				if(VesselOrbit.ApA/(LaunchApR-Body.Radius) > REN.RendezvouCorrection) correct_rendezvou();
+				var hv     = Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel);
+				var alpha  = Utils.ProjectionAngle(cApV, TargetApV, VesselOrbit.getOrbitalVelocityAtUT(ApAUT))*Mathf.Deg2Rad*Body.Radius;
+				if(alpha > REN.Dtol)
+				{
+					var hvel = alpha/Utils.ClampL(dApA, REN.GTurnCurve)*Utils.Clamp(h2ApA/100, 0, 1)*REN.GTurnCurve;
+					if(Body.atmosphere) hvel *= Math.Sqrt(Utils.Clamp(VSL.Altitude.Absolute/Body.atmosphereDepth, 0, 1));
+					vel += hv.normalized*hvel;
+				}
 				vel *= VSL.Physics.StG/9.81;
 				if(!in_atm || dApA > 0 || alpha > 0)
 					vel += (QuaternionD.AngleAxis(dFi, VesselOrbit.pos) * hv) - hv;
+				
+				LogF("\nApV {}\ndApA {}, {}\nalpha {}, {}\ndFi {}, {}", cApV,
+				     dApA, VSL.Physics.Up.xzy*dApA/Utils.ClampL(VSL.VerticalSpeed.Absolute, 1)*VSL.Physics.StG/9.81,
+				     alpha, hv.normalized*alpha/Utils.ClampL(dApA, REN.GTurnCurve)*Utils.Clamp(h2ApA/100, 0, 1)*REN.GTurnCurve*VSL.Physics.StG/9.81,
+				     dFi, (!in_atm || dApA > 0 || alpha > 0)? (QuaternionD.AngleAxis(dFi, VesselOrbit.pos) * hv) - hv : Vector3d.zero);//debug
+				
 				ToOrbitDeltaV.Value = (float)vel.magnitude;
-				if(!GearAction && h2ApA > 100) GearAction.Run();
-				if(ToOrbitDeltaV.Value > 1)
+				if(ToOrbitDeltaV.Value > 1 && (dApA > REN.Dtol || VesselOrbit.timeToAp > 180))
 				{
-					
-					if(ToOrbitDeltaV && VSL.Controls.TranslationAvailable) 
+					if(ToOrbitDeltaV && VSL.Controls.RCSAvailable) 
 						CFG.AT.OnIfNot(Attitude.KillRotation);
 					else 
 					{
 						CFG.AT.OnIfNot(Attitude.Custom);
+						BRC.ForwardDirection = hV(VSL.Physics.UT).xzy;
 	//					var velW = VSL.IsActiveVessel? vel.xzy : (vel+Body.GetFrameVel()).xzy;
 	//					if(Body.inverseRotation) velW -= Body.getRFrmVel(VesselOrbit.pos.xzy + Body.position);
 						ATC.AddCustomRotationW(-vel.xzy, VSL.Engines.MaxThrust);
+						LogF("\nvel {}\nThrust {}\nvel*Thrust {}", -vel.xzy, VSL.Engines.MaxThrust, Vector3d.Dot(VSL.Engines.MaxThrust, -vel.normalized.xzy));//debug
 					}
-					if(VSL.Controls.TranslationAvailable)
+					if(VSL.Controls.RCSAvailable)
 					{
 						if(ToOrbitDeltaV || ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
 							TRA.AddDeltaV(-VSL.LocalDir(vel.xzy));
@@ -357,9 +434,9 @@ namespace ThrottleControlledAvionics
 					else THR.DeltaV = ToOrbitDeltaV;
 					break;
 				}
-				else CFG.AT.OnIfNot(Attitude.KillRotation);
-				if(in_atm) break;
+				CFG.AT.OnIfNot(Attitude.KillRotation);
 				THR.Throttle = 0;
+				if(in_atm) break;
 				LaunchUT = -1;
 				start_orbit();
 				break;
@@ -374,7 +451,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.ComputeRendezvou:
 				if(!trajectory_computed()) break;
-				if(trajectory.ManeuverDeltaV.magnitude > GLB.THR.MinDeltaV*2 &&
+				if(trajectory.ManeuverDeltaV.magnitude > GLB.THR.MinDeltaV*5 &&
 				   trajectory.DistanceToTarget < REN.CorrectionStart &&
 				   (CurrentDistance < 0 || trajectory.DistanceToTarget < CurrentDistance))
 				{
