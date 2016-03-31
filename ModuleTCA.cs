@@ -147,10 +147,10 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(VSL == null || !CFG.Enabled) return;
 			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines.All))
-				StartCoroutine(onStageUpdate());
+				StartCoroutine(activeProfileUpdate());
 		}
 
-		IEnumerator<YieldInstruction> onStageUpdate()
+		IEnumerator<YieldInstruction> activeProfileUpdate()
 		{
 			VSL.Engines.ProfileSyncAllowed = false;
 			yield return new WaitForSeconds(0.5f);
@@ -165,6 +165,9 @@ namespace ThrottleControlledAvionics
 			yield return new WaitForSeconds(0.5f);
 			if(VSL != null) VSL.SetUnpackDistance(GLB.UnpackDistance);
 		}
+
+		[KSPAction("Update TCA profile", actionGroup = (KSPActionGroup)0xff80)]
+		void onCustomActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
 
 		void check_priority()
 		{
