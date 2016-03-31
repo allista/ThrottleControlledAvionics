@@ -43,7 +43,7 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-			if(!draw) return;
+//			if(!draw) return;//test
 			GUILayout.BeginHorizontal();
 			if(draw_WRP) WRP.Draw();
 			if(draw_MAP) MAP.Draw();
