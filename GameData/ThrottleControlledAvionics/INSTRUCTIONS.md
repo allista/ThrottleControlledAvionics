@@ -321,11 +321,9 @@ In flight the main TCA window has the following buttons to manage and execute ma
 
 ##General Notes
 
-For safety reasons the VSC, HSC and On-Planet autopilots are disabled in orbit, but not on suborbital trajectories, so be carefull.
-
-If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
-
-Solid boosters have constant thrust and thus cannot be controlled by TCA. But they are still accounted for, if present.
+1. For safety reasons the VSC, HSC and On-Planet autopilots are disabled in orbit, but not on suborbital trajectories, so be carefull.
+2. If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
+3. Solid boosters have constant thrust and thus cannot be controlled by TCA. But they are still accounted for, if present.
 
 ##Appendix
 
