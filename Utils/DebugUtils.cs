@@ -134,6 +134,11 @@ namespace ThrottleControlledAvionics
 		{
 			float far;
 			var camera = GLBeginWorld(out far);
+			if(MapView.MapIsEnabled)
+			{
+				ori = ScaledSpace.LocalToScaledSpace(ori);
+				end = ScaledSpace.LocalToScaledSpace(end);
+			}
 			GL.Begin(GL.LINES);
 			GL.Color(c);
 			GL.Vertex(ori);
@@ -335,7 +340,8 @@ namespace ThrottleControlledAvionics
 	{
 //		const string save = "DEO Kerbin test";
 //		const string save = "REN Mun StartOrbit";
-		const string save = "REN Mun OnPlanet";
+//		const string save = "REN Mun OnPlanet";
+		const string save = "REN Kerbin";
 		const string game = "TCA-tests";
 		static readonly string gamedir = KSPUtil.ApplicationRootPath + "/saves/"+game;
 
