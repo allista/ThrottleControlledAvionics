@@ -37,7 +37,7 @@ namespace ThrottleControlledAvionics
 
 		AttitudeControl ATC;
 
-		enum Stage { None, Start, Compute, Accelerate, Coast, Waiting }
+		enum Stage { None, Start, Compute, Launch, Accelerate, Coast, Waiting }
 		Stage stage;
 		ManeuverNode Node;
 
@@ -148,9 +148,9 @@ namespace ThrottleControlledAvionics
 				Node = VSL.vessel.patchedConicSolver.maneuverNodes[0];
 				if(trajectory.DistanceToTarget < LTRJ.Dtol)
 				{ 
-					CFG.HF.Off();
+					CFG.HF.OffIfOn();
 					CFG.AT.OnIfNot(Attitude.ManeuverNode);
-					stage = Stage.Accelerate;
+					stage = VSL.LandedOrSplashed? Stage.Launch : Stage.Accelerate;
 				}
 				else 
 				{
@@ -163,18 +163,14 @@ namespace ThrottleControlledAvionics
 				if(!CFG.AP1[Autopilot1.Maneuver]) break;
 				stage = Stage.Accelerate;
 				break;
+			case Stage.Launch:
+				if(ATC.Aligned) compute_initial_trajectory(); 
+				break;
 			case Stage.Accelerate:
 				if(Node == null) { stage = Stage.Coast; break; }
-				if(CFG.VSCIsActive)
-				{ 
-					if(ATC.Aligned) 
-					{
-						CFG.DisableVSC();
-						compute_initial_trajectory();
-					}
-				}
-				else 
+				if(ATC.Aligned || CFG.AP1[Autopilot1.Maneuver]) 
 				{
+					CFG.DisableVSC();
 					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
 					if(!CFG.AP1[Autopilot1.Maneuver]) stage = Stage.Coast;
 				}
