@@ -41,8 +41,7 @@ namespace ThrottleControlledAvionics
 			CFG.HF.AddHandler(this, HFlight.NoseOnCourse);
 		}
 
-		protected override void UpdateState() 
-		{ IsActive = VSL.OnPlanet && CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl); }
+		protected override void UpdateState() { IsActive = VSL.OnPlanet; }
 
 		public void NoseOnCourseCallback(Multiplexer.Command cmd)
 		{
@@ -66,7 +65,6 @@ namespace ThrottleControlledAvionics
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && 
-			     CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl) && 
 			     VSL.OnPlanet && VSL.refT != null && 
 			     !ForwardDirection.IsZero())) return;
 			//allow user to intervene
@@ -84,6 +82,7 @@ namespace ThrottleControlledAvionics
 			var act = pid.Action*eff;
 			if(VSL.OnPlanetParams.NoseUp) s.roll = s.rollTrim = act;
 			else s.yaw = s.yawTrim = act;
+			ForwardDirection = Vector3d.zero;
 		}
 	}
 }
