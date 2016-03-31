@@ -18,6 +18,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
 		public bool    TranslationAvailable { get; private set; }
+		public bool    RCSAvailable;
 		public Vector3 ManualTranslation;
 		public Switch  ManualTranslationSwitch = new Switch();
 		public float   GimbalLimit = 100;

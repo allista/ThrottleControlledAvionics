@@ -95,6 +95,7 @@ namespace ThrottleControlledAvionics
 				RCS.Where(t => t.isOperational).ToList() : new List<RCSWrapper>();
 			NumActive = Active.Count;
 			NumActiveRCS = ActiveRCS.Count;
+			VSL.Controls.RCSAvailable = NumActiveRCS > 0;
 			NoActiveRCS = NumActiveRCS == 0 || 
 				VSL.Controls.Steering.sqrMagnitude < GLB.InputDeadZone && 
 				VSL.Controls.Translation.sqrMagnitude < GLB.InputDeadZone;
