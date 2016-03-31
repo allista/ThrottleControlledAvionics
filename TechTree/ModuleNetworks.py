@@ -31,25 +31,30 @@ from openpyxl import load_workbook
 from config import datapath
 from PyConfigNode import ConfigNode
 
+
 def all_successors(node, G):
-    nbunch = set([node])
+    nbunch = {node}
     for s in G.successors_iter(node):
         nbunch.add(s)
         nbunch.update(all_successors(s, G))
     return nbunch
+
 
 def draw_graph(graph, name, prog='dot', save_dot=False):
     ag = nx.nx_agraph.to_agraph(graph)
     ag.layout(prog=prog)
     filename = name+'.png'
     ag.draw(filename)
+    ag.draw(name+'.svg')
     if save_dot: ag.write(name+'.dot')
     print 'Saved %s' % filename
-    
+
+
 def draw_node_deps(n, G):
     deps = G.subgraph(all_successors(n, G))
     draw_graph(deps, n)
-    
+
+
 def draw_all_deps(G, outdir, allname='AllNodes'):
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
@@ -59,6 +64,7 @@ def draw_all_deps(G, outdir, allname='AllNodes'):
     draw_graph(G, allname)
     os.utime('.', None)
     os.chdir('..')
+
 
 class TechTreeUpdater(object):
     part_template = ''
