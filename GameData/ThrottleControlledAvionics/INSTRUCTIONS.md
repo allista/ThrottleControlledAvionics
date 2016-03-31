@@ -4,7 +4,7 @@
 
 TCA is a _software_ that can be installed onto any command module, cockpit or probe core. It is, however, modularized, with modules being distributed along the TechTree. So to have TCA in _career_ mode you should first purchase it in **R&D** building, while in sandbox it is installed by default. Whether TCA is installed on a particular part is indicated in part's info pane in Editor.
 
-When the core TCA subsystem or any of the modules is bought, all qualified parts in flight are upgraded using the OTA update. However, TCA interface and functionality only becomes available if a vessel has engines and/or RCS thrusters.
+When the core TCA subsystem or any of the modules is bought, all qualified parts in flight are upgraded using the OTA update. However, TCA interface and functionality only become available if a vessel has engines and/or RCS thrusters.
 
 ###What TCA can and cannot do
 
@@ -216,7 +216,7 @@ You can add waypoints directly in flight or in the Map View using mouse: first, 
 
 If you try to add a waypoint while another ship is targeted, it is saved as a waypoint. If it then moves, the waypoint will move with it. But if it is destroyed or recovered, the waypoint will remember its last seen position and become stationary.
 
-Waypoints are displayed (on the ground and in Map View) when the "Show Waypoints" button is pressed. Their color indicates their order: from red, the nearest, through yellow and green to cyan, the furthest.
+Waypoints are displayed (on the ground and in Map View) when the "Show Waypoints" button is pressed. Their color indicates their order: from <color=red>red</color>, the nearest, through <color=yellow>yellow</color> and <color=green>green</color> to <color=cyan>cyan</color>, the furthest.
 
 ###GoTo/Follow Target
 
@@ -256,11 +256,11 @@ Scans nearby vessels, measuring distance and relative speed. The predicts possib
 
 ###VTOL Assist
 
-This module helps with vertical landings and take-offs: it automatically retracts/deploys landing gear, enables-disables brakes and tries to prevent flipping over when dealing with inclined surfaces.
+This module helps with vertical landings and take-offs: it automatically retracts/deploys landing gear, enables-disables brakes and tries to prevent flipping over when dealing with inclined surfaces. It may be toggled in editor during ship construction or in the *Advanced* section.
 
 ###Flight Stabilizer
 
-This is a safeguard module that acts when nothing else does: it catches the ship in uncontrollable rotation in absence of SAS, user input or other TCA autopiloting; when it does, it first enables the Level program, and when it's safe, the stock SAS.
+This is a safeguard module that acts when nothing else does: it catches the ship in uncontrollable rotation in absence of SAS, user input or other TCA autopiloting; when it does, it first enables the Level program, and when it's safe, the stock SAS. It may be toggled in editor during ship construction or in the *Advanced* section.
 
 ##Squadron Mode
 
@@ -361,6 +361,8 @@ If you have already tuned these parameters for the ship, _save its configuration
 * **I** (*integral*) parameter controls the smoothing. It prevents rapid changes in thrust. If engines's trust jitters, increase it.
 
 ####Named Configurations
+
+This section allows to save the whole TCA configuration of the current ship under an arbitrary name; such configuration then becomes available to any other vessel within this savegame and may loaded, *replacing that ship's configuration*.
 
 ###TCA.glob :: the global TCA settings
 
