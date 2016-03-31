@@ -120,7 +120,7 @@ namespace ThrottleControlledAvionics
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) { Node.RemoveSelf(); reset(); return; }
 			//orient along the burning vector
-			if(dVrem && VSL.Controls.TranslationAvailable) 
+			if(dVrem && VSL.Controls.RCSAvailable) 
 				CFG.AT.OnIfNot(Attitude.KillRotation);
 			else CFG.AT.OnIfNot(Attitude.ManeuverNode);
 			//calculate remaining time to the full thrust burn
@@ -145,7 +145,7 @@ namespace ThrottleControlledAvionics
 			{
 			    if(dVrem || ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
 					TRA.AddDeltaV(-VSL.LocalDir(dV));
-				if(dVrem) THR.Throttle = 0;
+				if(dVrem && VSL.Controls.RCSAvailable) THR.Throttle = 0;
 				else THR.DeltaV = dVrem;
 			}
 			else THR.DeltaV = dVrem;

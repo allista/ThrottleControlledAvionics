@@ -121,7 +121,7 @@ namespace ThrottleControlledAvionics
 				return;
 			}
 			//use main engines if dV is big enough, or if there's no translation capabilities
-			if(MainThrust || dVm > 1 || !VSL.Controls.TranslationAvailable)
+			if(MainThrust || dVm > 1 || !VSL.Controls.RCSAvailable)
 			{
 				CFG.AT.OnIfNot(Attitude.AntiRelVel);
 				if(MainThrust || ATC.Aligned)
