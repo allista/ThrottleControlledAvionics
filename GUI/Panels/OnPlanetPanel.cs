@@ -82,7 +82,7 @@ namespace ThrottleControlledAvionics
 				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
 				                    GUILayout.Width(60)))
 					apply_cfg(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
-				if(RAD != null && VSL.HasTarget)
+				if(RAD != null)
 				{
 					if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
 					                      "Keep altitude above the ground", GUILayout.ExpandWidth(false)))
