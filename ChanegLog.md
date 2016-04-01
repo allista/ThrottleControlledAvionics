@@ -7,7 +7,7 @@ _**BUT** do not delete the TCA.conf and config.xml file to preserve your setting
     * TCA has **TONS** of new features. Please, read **[The Manual](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md)**.
     * These features are divided into modules and distributed along the TechTree in career mode. Even more, there are cross-module dependencies that do not follow the stock tree. Please, consult **[TCA Tech Tree](https://drive.google.com/file/d/0B3yiXDvgwkLMMWNHTUdwMkpRYUk/view)** graph to know more.
 
-**Acknowledgments**: I want to express extreme gratitude to **[smjjames](http://forum.kerbalspaceprogram.com/index.php?/profile/134004-smjjames/)**, who helped me so much with the testing and proposed countless improvements. Without **smjjames** this version would never have come to a release!
+**Acknowledgments**: I want to express extreme gratitude to **[smjjames](http://forum.kerbalspaceprogram.com/index.php?/profile/134004-smjjames/)**, who helped me so much with the testing and proposed countless improvements. Without it this version would never have come to a release!
 
 * v2.3.0.1
     * Fixed issues with engines' balancing when Vertical Speed Control is disabled.
