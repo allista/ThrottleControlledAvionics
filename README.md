@@ -31,7 +31,21 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
     * In-game configurable key binding.
     * Full career mode integration.
 
-##[Manual](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md)
+##[TCA Manual](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md)
+    
+##Downloads and Installation
+
+* **[SpaceDock](http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics)**
+* [GitHub](https://github.com/qfeys/ThrottleControlledAvionics/releases)
+* [Source code](https://github.com/qfeys/ThrottleControlledAvionics)
+
+**TCA requires [ModuleManager](http://forum.kerbalspaceprogram.com/index.php?/topic/50533-105-module-manager) to work.**
+
+If you're upgrading, **DELETE** the old version before installing a new one. **BUT** do not delete the **TCA.conf** and **config.xml** files to preserve your settings.
+
+If you like TCA you may [buy me a cup of coffee](https://www.paypal.me/Allista) to help the development.
+
+##[ChangeLog](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/ChangeLog.md)
 
 ##Acknowledgments:
 
