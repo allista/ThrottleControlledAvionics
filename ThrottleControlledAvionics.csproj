@@ -33,6 +33,10 @@
     <NoWarn>0649</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="System">
+      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
@@ -51,6 +55,10 @@
     </Reference>
     <Reference Include="Mono.Security">
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Mono.Security.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Xml">
+      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.Xml.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TDx.TDxInput">
