@@ -32,10 +32,11 @@ namespace ThrottleControlledAvionics
 			convert_args(args);
 			for(int i = 0, argsLength = args.Length; i < argsLength; i++)
 			{
-				var ind = s.IndexOf("{}");
-				s = s.Substring(0, ind)+"{"+i+"}"+s.Substring(ind+2);
+				var ind = s.IndexOf("{}"); 
+				if(ind >= 0) s = s.Substring(0, ind)+"{"+i+"}"+s.Substring(ind+2);
+				else s += string.Format(" arg{0}: {{{0}}}", i);
 			}
-			return string.Format(s, args);
+			return string.Format(s.Replace("{}", "[no arg]"), args);
 		}
 
 		public static string formatVector(Vector3 v)
@@ -68,14 +69,20 @@ namespace ThrottleControlledAvionics
 				else if(arg is Vector3d) args[i] = formatVector((Vector3d)arg);
 				else if(arg is Orbit) args[i] = formatOrbit((Orbit)arg);
 				else if(arg == null) args[i] = "null";
+				else args[i] = arg.ToString();
 			}
 		}
 
 		public static void Log(string msg, params object[] args)
 		{ 
-			convert_args(args);
+			
 			msg = string.Format("[TCA: {0:HH:mm:ss.fff}] {1}", DateTime.Now, msg);
-			Debug.Log(string.Format(msg, args)); 
+			if(args.Length > 0)
+			{
+				convert_args(args);
+				Debug.Log(string.Format(msg, args)); 
+			}
+			else Debug.Log(msg);
 		}
 
 		public static void Log(this MonoBehaviour mb, string msg, params object[] args)
