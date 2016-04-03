@@ -69,14 +69,6 @@
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="System">
-      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="System.Xml">
-      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.Xml.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
@@ -149,7 +141,6 @@
     <Compile Include="GUI\Elements\DropDownList.cs" />
     <Compile Include="GUI\Elements\Styles.cs" />
     <Compile Include="GUI\Elements\ToolbarWrapper.cs" />
-    <Compile Include="GUI\Elements\UI_IntRange.cs" />
     <Compile Include="GUI\Elements\ControlPanel.cs" />
     <Compile Include="VesselProps\PhysicalProps.cs" />
     <Compile Include="VesselProps\GeometryProps.cs" />
