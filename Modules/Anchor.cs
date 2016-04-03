@@ -42,9 +42,6 @@ namespace ThrottleControlledAvionics
 			pid.Max = ANC.MaxSpeed;
 			pid.Reset();
 			CFG.Nav.AddHandler(this, Navigation.Anchor, Navigation.AnchorHere);
-			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, AnchorPointer);
-			#endif
 		}
 
 		protected override void UpdateState() 
@@ -118,12 +115,6 @@ namespace ThrottleControlledAvionics
 		{
 			if(CFG.Anchor == null) return;
 			GLUtils.GLLine(VSL.Physics.wCoM, CFG.Anchor.GetTransform().position, Color.cyan);
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, AnchorPointer);
 		}
 		#endif
 	}

@@ -18,11 +18,7 @@ namespace ThrottleControlledAvionics
 	{
 		Vessel vessel { get { return TCA.vessel; } }
 
-		public NavigationPanel(ModuleTCA tca) : base(tca) 
-		{ RenderingManager.AddToPostDrawQueue(1, WaypointOverlay); }
-
-		public override void Reset()
-		{ RenderingManager.RemoveFromPostDrawQueue(1, WaypointOverlay); }
+		public NavigationPanel(ModuleTCA tca) : base(tca) {}
 
 		AutoLander LND;
 		PointNavigator PN;
@@ -204,7 +200,7 @@ namespace ThrottleControlledAvionics
 		//adapted from MechJeb
 		bool clicked;
 		DateTime clicked_time;
-		void WaypointOverlay()
+		public void WaypointOverlay()
 		{
 			if(TCA == null || !TCA.Available || !ThrottleControlledAvionics.showHUD) return;
 			if(selecting_target)

@@ -62,27 +62,7 @@ namespace ThrottleControlledAvionics
 			pid.setPID(ATC.PID);
 			reset();
 			CFG.AT.SetSingleCallback(Enable);
-			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-			#endif
 		}
-
-		#if DEBUG
-		public void RadarBeam()
-		{
-			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.AT) return;
-			if(!thrust.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, thrust.normalized*20, Color.red);
-			if(!needed_lthrust.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
-		}
-		#endif
 
 		protected override void UpdateState() { IsActive = CFG.AT; }
 
@@ -347,6 +327,13 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", AttitudeError) : "Err: N/A", 
 			            Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
+			#if DEBUG
+			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.AT) return;
+			if(!thrust.IsZero())
+			GLUtils.GLVec(VSL.Physics.wCoM, thrust.normalized*20, Color.red);
+			if(!needed_lthrust.IsZero())
+			GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
+			#endif
 		}
 	}
 }

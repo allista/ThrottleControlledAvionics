@@ -376,13 +376,14 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(TCA == null || !CFG.GUIVisible || !showHUD) 
+			if(TCA == null || AllPanels.Count == 0 || !CFG.GUIVisible || !showHUD) 
 			{
 				Utils.LockIfMouseOver(LockName, MainWindow, false);
 				return;
 			}
 			Styles.Init();
 			Utils.LockIfMouseOver(LockName, MainWindow);
+			NavigationControls.WaypointOverlay();
 			MainWindow = 
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 MainWindow, 

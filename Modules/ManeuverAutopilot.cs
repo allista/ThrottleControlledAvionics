@@ -81,7 +81,7 @@ namespace ThrottleControlledAvionics
 
 		public float TTB(float dV, float throttle)
 		{
-			return CheatOptions.InfiniteFuel?
+			return CheatOptions.InfinitePropellant?
 				VSL.Physics.M*dV/VSL.Engines.MaxThrustM/throttle : 
 				VSL.Physics.M*(1-Mathf.Exp(-dV/VSL.Engines.MaxThrustM*VSL.Engines.MaxMassFlow))
 				/(VSL.Engines.MaxMassFlow*throttle);

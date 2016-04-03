@@ -58,9 +58,6 @@ namespace ThrottleControlledAvionics
 		{
 			base.Init();
 			ManeuverTimer.Period = CPS.ManeuverTimer;
-			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-			#endif
 		}
 
 		#if DEBUG
@@ -92,12 +89,6 @@ namespace ThrottleControlledAvionics
 //					GLUtils.GLVec(t.position, t.forward * e.engine.exhaustDamageMaxRange, Color.yellow);
 //				}
 //			}
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 

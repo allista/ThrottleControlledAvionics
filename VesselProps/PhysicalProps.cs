@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 		static readonly Vector3[] unitVectors = { new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1) };
 		public void UpdateMoI()
 		{
-			if(vessel == null || vessel.rigidbody == null) return;
+			if(vessel == null || vessel.rootPart.Rigidbody == null) return;
 			var CoM = vessel.CurrentCoM;
 			InertiaTensor = new Matrix3x3f();
 			var vesselTransform = vessel.GetTransform();

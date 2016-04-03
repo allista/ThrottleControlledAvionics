@@ -78,9 +78,6 @@ namespace ThrottleControlledAvionics
 			CutoffTimer.Period = LND.CutoffTimer;
 			CFG.AP.AddHandler(this, Autopilot.Land);
 			TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
-			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-			#endif
 		}
 
 		protected override void UpdateState() 
@@ -481,12 +478,6 @@ namespace ThrottleControlledAvionics
 					if(n == null) continue;
 					GLUtils.GLLine(VSL.Physics.wCoM, n.position, Color.Lerp(Color.blue, Color.red, n.unevenness));
 				}
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 
 		void print_nodes()
