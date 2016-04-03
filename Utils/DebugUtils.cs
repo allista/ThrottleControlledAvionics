@@ -333,14 +333,14 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.MainMenu, false)]
 	public class LoadTestGame : MonoBehaviour
 	{
-//		const string save = "DEO Kerbin test";
-		const string save = "REN Mun StartOrbit";
-		const string game = "TCA-tests";
+		const string save = "Test";
+		const string game = "TCA-test";
 		static readonly string gamedir = KSPUtil.ApplicationRootPath + "/saves/"+game;
 
 		void Awake()
 		{
-			var savefile = gamedir+"/"+save+".sfs";
+			var s = string.IsNullOrEmpty(save)? "persistent" : save;
+			var savefile = gamedir+"/"+s+".sfs";
 			if(!File.Exists(savefile)) 
 			{
 				Utils.LogF("No such file: {}", savefile);
