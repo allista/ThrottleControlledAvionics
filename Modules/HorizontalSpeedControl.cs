@@ -159,7 +159,7 @@ namespace ThrottleControlledAvionics
 					e.forceThrustPercentage(0);
 				}
 			}
-			if(Changed && VSL.Engines.ProfileSyncAllowed) 
+			if(Changed && TCA.ProfileSyncAllowed) 
 				CFG.ActiveProfile.Update(VSL.Engines.Active);
 		}
 

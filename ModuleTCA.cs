@@ -40,6 +40,7 @@ namespace ThrottleControlledAvionics
 		public List<TCAModule> AllModules = new List<TCAModule>();
 		public List<TCAModule> ModulePipeline = new List<TCAModule>();
 		public List<TCAModule> AutopilotPipeline = new List<TCAModule>();
+		public bool ProfileSyncAllowed { get; private set; } = true;
 
 		public M GetModule<M>() where M : TCAModule 
 		{ 
@@ -133,33 +134,32 @@ namespace ThrottleControlledAvionics
 			
 			check_priority();
 			if(!enabled) reset();
-			else if(VSL == null || VSL.vessel == null ||
-			        vsl.id != VSL.vessel.id)
+			else if(VSL == null || VSL.vessel == null || vsl.id != VSL.vessel.id)
 			{ reset(); init(); }
 			else 
 			{
-				VSL.ForceUpdateParts = true;
-				StartCoroutine(onVesselModifiedUpdate());
+				VSL.Engines.ForceUpdateEngines = true;
+				StartCoroutine(updateUnpackDistance());
 			}
 		}
 
 		void onStageActive(int stage)
 		{ 
-			if(VSL == null || !CFG.Enabled) return;
+			if(VSL == null || !CFG.Enabled || !VSL.IsActiveVessel) return;
 			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines.All))
 				StartCoroutine(activeProfileUpdate());
 		}
 
 		IEnumerator<YieldInstruction> activeProfileUpdate()
 		{
-			VSL.Engines.ProfileSyncAllowed = false;
+			ProfileSyncAllowed = false;
 			yield return new WaitForSeconds(0.5f);
 			VSL.UpdateParts();
 			CFG.ActiveProfile.Update(VSL.Engines.All, true);
-			VSL.Engines.ProfileSyncAllowed = true;
+			ProfileSyncAllowed = true;
 		}
 
-		IEnumerator<YieldInstruction> onVesselModifiedUpdate()
+		IEnumerator<YieldInstruction> updateUnpackDistance()
 		{
 			if(!CFG.Enabled) yield break;
 			yield return new WaitForSeconds(0.5f);
@@ -260,7 +260,7 @@ namespace ThrottleControlledAvionics
 			TCAModulesDatabase.InitModules(this);
 			ThrottleControlledAvionics.AttachTCA(this);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
-			StartCoroutine(onVesselModifiedUpdate());
+			StartCoroutine(updateUnpackDistance());
 			CFG.Resume();
 		}
 
