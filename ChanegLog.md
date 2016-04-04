@@ -2,7 +2,13 @@
     
 _**BUT** do not delete the TCA.conf and config.xml file to preserve your settings_
 
-* **v3.0.0**
+* **v3.0.1**
+    * Fixed single-engine optimization bug.
+    * Fixed onStage profile update bug.
+    * Improved HSC behaviour at very low maximum TWR of slow engines by adding correction for negative vertical speed.
+    * TCA GUI now only shows when the active vessel is loaded and unpacked.
+
+* v3.0.0
     * TCA is now a Part Module running in a ship's cockpit/probe-core. This means **many ships may run TCA simultaneously**.
     * TCA has **TONS** of new features. Please, read **[The Manual](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md)**.
     * These features are divided into modules and distributed along the TechTree in career mode. Even more, there are cross-module dependencies that do not follow the stock tree. Please, consult **[TCA Tech Tree](https://drive.google.com/file/d/0B3yiXDvgwkLMMWNHTUdwMkpRYUk/view)** graph to know more.
