@@ -147,6 +147,7 @@ HSC
 	AccelerationFactor = 1
 	MinHvThreshold     = 10
 	TWRf               = 3
+	VSf                = 3
 	HVCurve            = 1.5
 	SlowTorqueF        = 1
 	LowPassF           = 0.1

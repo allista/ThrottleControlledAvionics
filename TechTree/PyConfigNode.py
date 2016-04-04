@@ -18,16 +18,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
 # THE SOFTWARE.
 
-'''
+"""
 Created on Feb 23, 2016
 
 @author: Allis Tauri <allista@gmail.com>
-'''
+"""
+
 
 class ConfigNode(object):
-    '''
+    """
     Simple KSP ConfigNode reader/writer
-    '''
+    """
     
     class Value(object):
         def __init__(self, name, value):
@@ -43,7 +44,7 @@ class ConfigNode(object):
         self.subnodes = []
         self._vindex  = {}
         self._nindex  = {}
-        
+
     def Clone(self, other):
         self.name = other.name
         self.values   = other.values
@@ -177,8 +178,8 @@ class ConfigNode(object):
     def __str__(self):
         s = '%s\n{\n' % self.name
         v = '\n'.join('    %s' % v for v in self.values)
-        n = '\n'.join('    %s' % l for n in self.subnodes 
-                    for l in str(n).splitlines())
+        n = '\n'.join('    %s' % l for n in self.subnodes
+                      for l in str(n).splitlines())
         if v and n: v += '\n'  
         return s+v+n+'\n}'
     

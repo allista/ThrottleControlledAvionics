@@ -58,6 +58,7 @@ namespace ThrottleControlledAvionics
 		public override void OnDestroy()
 		{
 			base.OnDestroy();
+			clear_fields();
 			TCAToolbarManager.AttachTCA(null);
 			GameEvents.onGameStateSave.Remove(SaveConfig);
 			GameEvents.onVesselChange.Remove(onVesselChange);
@@ -69,10 +70,23 @@ namespace ThrottleControlledAvionics
 		void onVesselChange(Vessel vsl)
 		{
 			if(vsl == null || vsl.parts == null) return;
-			vessel = vsl; init();
+			vessel = vsl; StartCoroutine(init_on_load());
 		}
 
-		public static void AttachTCA(ModuleTCA tca) { if(tca.vessel == vessel) init(); }
+		public static void AttachTCA(ModuleTCA tca) 
+		{ 
+			if(tca.vessel != vessel || instance == null) return;
+			instance.StartCoroutine(init_on_load()); 
+		}
+
+		static IEnumerator<YieldInstruction> init_on_load()
+		{
+			do {
+				if(vessel == null) yield break;
+				yield return null;
+			} while(!vessel.loaded || vessel.packed);	
+			init();
+		}
 
 		static void create_fields()
 		{

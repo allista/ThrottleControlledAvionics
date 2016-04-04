@@ -33,6 +33,10 @@
     <NoWarn>0649</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="System">
+      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
@@ -53,20 +57,16 @@
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Mono.Security.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="System.Xml">
+      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.Xml.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="TDx.TDxInput">
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\TDx.TDxInput.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
       <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="System">
-      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="System.Xml">
-      <HintPath>..\KSP-test\KSP_test_1.0.5\KSP_Data\Managed\System.Xml.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>

@@ -229,7 +229,7 @@ namespace ThrottleControlledAvionics
 
 		public void Update(IList<EngineWrapper> engines, bool with_On = false)
 		{
-//			Utils.Log("Updating {0}", Name);//debug
+//			DebugUtils.Log("Updating {0}", Name);//debug
 			var groups = new EngineConfigIntDB();
 			var single = new EngineConfigUintDB();
 			NumManual = 0;
@@ -262,7 +262,7 @@ namespace ThrottleControlledAvionics
 					c.Limit = e.thrustLimit;
 //					Utils.Log("Updating {0} with {1}, {2}", c, e.ID, e.part.flightID);//debug
 					if(with_On) c.On = e.engine.EngineIgnited;
-//					Utils.Log("Updated {0}", c);//debug
+//					Utils.Log("Updated {0}, engineEgnited {1}", c, e.engine.EngineIgnited);//debug
 					groups[e.Group] = c;
 				}
 				else 
@@ -271,7 +271,7 @@ namespace ThrottleControlledAvionics
 					Changed |= c.Differs(e);
 //					Utils.Log("Updating {0} with {1}, {2}", c, e.ID, e.part.flightID);//debug
 					c.Update(e, with_On);
-//					Utils.Log("Updated {0}", c);//debug
+//					Utils.Log("Updated {0}, engineEgnited {1}", c, e.engine.EngineIgnited);//debug
 					single[e.ID] = c;
 				}
 			}
@@ -289,7 +289,7 @@ namespace ThrottleControlledAvionics
 
 		public void Apply(IList<EngineWrapper> engines)
 		{
-//			Utils.Log("Applying {0}", Name);//debug
+//			DebugUtils.Log("Applying {0}", Name);//debug
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++) 
 			{
 				var e = engines[i];

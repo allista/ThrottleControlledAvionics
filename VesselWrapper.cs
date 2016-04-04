@@ -27,7 +27,6 @@ namespace ThrottleControlledAvionics
 
 		public Vessel vessel { get; private set; }
 		public Transform refT; //transform of the controller-part
-		public bool ForceUpdateParts;
 
 		public PhysicalProps        Physics;
 		public AltitudeProps        Altitude;
@@ -112,7 +111,7 @@ namespace ThrottleControlledAvionics
 		{
 			TCA = tca; 
 			CFG = tca.CFG;
-			vessel = tca.vessel;
+			vessel = TCA.vessel;
 			create_props();
 			OnPlanet = _OnPlanet();
 			InOrbit  = _InOrbit();
@@ -244,7 +243,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines.All);
-			else if(CFG.Enabled && Engines.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
+			else if(CFG.Enabled && TCA.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
 		}
 	}
 

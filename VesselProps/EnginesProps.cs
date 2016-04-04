@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 		public int  NumActive { get; private set; }
 		public int  NumActiveRCS { get; private set; }
 		public bool NoActiveRCS { get; private set; }
-		public bool ProfileSyncAllowed = true;
+		public bool ForceUpdateEngines = false;
 
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
@@ -53,21 +53,21 @@ namespace ThrottleControlledAvionics
 		{
 			//update engines' list if needed
 			var num_engines = All.Count;
-			if(!VSL.ForceUpdateParts)
+			if(!ForceUpdateEngines)
 			{
 				for(int i = 0; i < num_engines; i++)
-				{ VSL.ForceUpdateParts |= !All[i].Valid(VSL); if(VSL.ForceUpdateParts) break; }
-				if(!VSL.ForceUpdateParts)
+				{ ForceUpdateEngines |= !All[i].Valid(VSL); if(ForceUpdateEngines) break; }
+				if(!ForceUpdateEngines)
 				{
 					for(int i = 0; i < RCS.Count; i++)
-					{ VSL.ForceUpdateParts |= !RCS[i].Valid(VSL); if(VSL.ForceUpdateParts) break; }
+					{ ForceUpdateEngines |= !RCS[i].Valid(VSL); if(ForceUpdateEngines) break; }
 				}
 			}
-			if(VSL.ForceUpdateParts) 
+			if(ForceUpdateEngines) 
 			{ 
 				VSL.UpdateParts(); 
 				num_engines = All.Count;
-				VSL.ForceUpdateParts = false;
+				ForceUpdateEngines = false;
 			}
 			//unflameout engines
 			if(VSL.vessel.ctrlState.mainThrottle > 0)
@@ -82,17 +82,21 @@ namespace ThrottleControlledAvionics
 			}
 			//sync with active profile
 			if(CFG.ActiveProfile.Activated) CFG.ActiveProfile.OnActivated(VSL);
-			if(ProfileSyncAllowed)
+			if(VSL.TCA.ProfileSyncAllowed)
 			{
 				if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(All);
 				else CFG.ActiveProfile.Update(All);
 			}
-			//get active engines
+			//get active engines and RCS
 			Active.Clear(); Active.Capacity = All.Count;
 			for(int i = 0; i < num_engines; i++)
 			{ var e = All[i]; if(e.isOperational) Active.Add(e); }
-			ActiveRCS = vessel.ActionGroups[KSPActionGroup.RCS]? 
-				RCS.Where(t => t.isOperational).ToList() : new List<RCSWrapper>();
+			ActiveRCS.Clear();
+			if(vessel.ActionGroups[KSPActionGroup.RCS])
+			{
+				for(int i = 0; i < RCS.Count; i++)
+				{ var t = RCS[i]; if(t.isOperational) ActiveRCS.Add(t); }
+			}
 			NumActive = Active.Count;
 			NumActiveRCS = ActiveRCS.Count;
 			VSL.Controls.RCSAvailable = NumActiveRCS > 0;

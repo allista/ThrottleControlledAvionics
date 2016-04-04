@@ -1,14 +1,14 @@
 { 
     "NAME":"ThrottleControlledAvionics",
     "URL":"https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version",
-    "DOWNLOAD":"https://kerbalstuff.com/mod/510/Throttle%20Controlled%20Avionics%20-%20Continued",
+    "DOWNLOAD":"http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics",
     "CHANGE_LOG_URL":"https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/ChanegLog.md",
     "VERSION":
      {
-         "MAJOR":2,
-         "MINOR":3,
-         "PATCH":0,
-         "BUILD":39
+         "MAJOR":3,
+         "MINOR":0,
+         "PATCH":1,
+         "BUILD":0
      },
     "KSP_VERSION_MIN":
      {

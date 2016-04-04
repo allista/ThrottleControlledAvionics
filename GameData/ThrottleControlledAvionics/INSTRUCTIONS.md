@@ -1,10 +1,10 @@
-#TCA Reference Manual (WIP)
+#TCA Manual
 
 ##Overview
 
-TCA is a _software_ that can be installed onto any command module, cockpit or probe core. To do it in _career_ mode you should buy it in **Specialized Control**; in sandbox it is installed by default. Whether TCA is installed on a particular part is indicated in part's info pane in Editor.
+TCA is a _software_ that can be installed onto any command module, cockpit or probe core. It is, however, modularized, with modules being distributed along the TechTree. So to have TCA in _career_ mode you should first purchase it in **R&D** building, while in sandbox it is installed by default. Whether TCA is installed on a particular part is indicated in part's info pane in Editor.
 
-When TCA is bought in R&D, all qualified parts in flight are upgraded using the OTA update. However, TCA interface and functionality only becomes available if a vessel has engines and/or RCS thrusters.
+When the core TCA subsystem or any of the modules is bought, all qualified parts in flight are upgraded using the OTA update. However, TCA interface and functionality only become available if a vessel has engines and/or RCS thrusters.
 
 ###What TCA can and cannot do
 
@@ -69,11 +69,17 @@ A *group* of engines has a single configuration.
 
 An engine in a profile is identified by its name, position in a ship and thrust characteristics; so, in principle, a profile may be transferred to another ship of a similar design via *Named Configuration* (see *Appendix*).
 
-Only one profile can be active at any moment, and there is always an active profile. A profile may be designated as *Default*. A default profile cannot be deleted and is automatically switched to when no other profile is available in a given situation.
+Only one profile can be active at any moment, and *there is always an active profile*. A profile may be designated as *Default*; a default profile cannot be deleted and is automatically switched to when no other profile is available in a given situation.
 
-In-flight a profile may activated manually; or automatically on one of the following conditions: *on activation of a given stage*; or *on going into/out-of orbit*. The latter is defined by the current trajectory: if the ship is in orbit or on an escape trajectory, or not.
+In-flight a profile may be activated manually or automatically on one of the following conditions: *on activation of a given stage* or *on going into/out-of orbit*. The latter is defined by the current trajectory: if the ship is in orbit or on an escape trajectory, or not.
 
 Another option available for a profile is leveling of a ship on activation (the *Level *switch). If enabled, this option automatically enables the *Level* program of the *HSC*, causing the ship to point its thrust vector downwards. This is useful when you switch between, say, linear-rocket profile and a VTOL profile while deorbiting.
+
+###Staging and Action Groups
+
+In-flight the active profile overrides other engine controls (e.g. via Part Menu) except staging and *custom* action groups. So if an engine in a profile is Off, but you press the space to go to the next stage and  that engine is activated, its state in the profile is changed. Similarly, if you toggle an engine via Custom Action Groups (numeric keys), its state in the profile is changed accordingly.
+
+*But be careful* when staging/toggling an engine belonging to an engine group: remember that a group has a single profile, so changes to one of the engines are propagated to the rest of the group.
 
 ##Interface Basics
 
@@ -135,28 +141,28 @@ The controls of the T-SAS subsystem are located in the second row of the Main wi
     * **Kill** causes T-SAS to automatically kill any angular velocity the ship has. It is different from the stock SAS in that it does not try to hold any particular attitude; it just kills any rotation. But it does this much more quickly and efficiently, without oscillations.
     * **Hold** is analogous to the stock SAS.
     * **Maneuver** points the thrust vector along the maneuver vector, thus allowing to perform maneuvers with engines that are not aligned with the command module.
-    * **PG** and **RG** -- prograde and retrograde respectively.
-    * **R+** and **R-** -- along/against the radius-vector of the current curvature of the ship's trajectory.
-    * **N+** and **N-** -- along/against the orbit normal vector.
-    * **T+** and **T-** -- to/from the current target.
-    * **rV+** and **rV-** -- along/against the velocity relative to the target.
+    * **PG** and **RG**: prograde and retrograde respectively.
+    * **R+** and **R-**: along/against the radius-vector of the current curvature of the ship's trajectory.
+    * **N+** and **N-**: along/against the orbit normal vector.
+    * **T+** and **T-**: to/from the current target.
+    * **rV+** and **rV-**: along/against the velocity relative to the target.
 * *Auto* indicator/switch that is green when some other subsystem uses T-SAS to point the thrust in some custom direction, and is grayed out otherwise.
 * *Error* indicator that displays the angular error (in degrees) between the desired and actual attitudes. When T-SAS is inactive, this indicator shows "N/A".
 
-##Vertical Speed and Altitude Control (VCS)
+##Vertical Speed and Altitude Control
 
-If you're using TCA to control VTOL or during vertical landing of a rocket, it is more convenient to control the vertical speed or altitude of a ship 'directly', rather than the Main Throttle. The VSC allows you (or the autopilot program) to do just that. Its controls are located in the third row of the Main window.
+If you're using TCA to control VTOL or during vertical landing of a rocket, it is more convenient to control the vertical speed or altitude of a ship 'directly', rather than manually change the Main Throttle. The VSC and Hover modules allow you (or autopilot programs) to do just that. Their controls are located in the third row of the Main window:
 
-###Vertical Speed mode controls
+###Vertical Speed Control (VSC)
 
-This is the default mode of the VSC which has the following controls:
+When Altitude Control is disabled or not installed:
 
 * *Vertical Speed* indicator that shows current vertical speed.
 * **Set Point** slider that shows and allows to set the desired vertical speed. The limits of the set-point are defined in *TCA.glob::VSC* (see *Appendix*). *If the slider is set to its **maximum***, the VSC is <color=red>switched off</color> and the engines are controlled by Main Throttle only.
 
-###Altitude mode controls
+###Altitude Control (Hover)
 
-The mode itself is toggled with the *Hover* switch located in the row below. When it is enabled, it provides the following controls:
+When Altitude Control is installed and enabled by the "Hover" switch:
 
 * *Altitude* indicator that shows *current altitude +/- current vertical speed*. In the *Follow Terrain* mode both values are relative to the surface below and may change very rapidly if you're flying above a ragged terrain.
 * **Set Point** control that consists of several elements:
@@ -166,69 +172,158 @@ The mode itself is toggled with the *Hover* switch located in the row below. Whe
 
 ###Follow Terrain mode
 
-This option is controlled by a check-box to the right of the *Hover* switch.
+This option is controlled by a switch to the right of the *Hover* switch.
 
 When it is enabled, it changes the meaning of altitude and vertical speed within TCA: all systems start using *height from the ground* and *vertical speed of the **ground** relative to the ship* rather than altitude relative to the 'sea level' and vertical speed relative to the planet's center.
 
-It also enables the *Radar* that scans the relief on course. The, to avoid collisions with hillside, mountains or buildings, TCA temporarily either changes the course, or slows the ship down and increases the altitude to fly above the obstacle. This behavior is also indicated by corresponding status messages: "Ascending" and "Obstacle On Course".
+It also enables the *Radar* that scans the relief on course. Then, to avoid collisions with hillside, mountains or buildings, TCA temporarily either changes the course or slows the ship down and increases the altitude to fly above the obstacle. This behavior is also indicated by corresponding status messages: "Ascending" and "Obstacle On Course".
 
 ###AutoThrottle
 
-This option is controlled by a check-box at the end of the VSC controls row of the Main window.
+This option is controlled by a switch at the end of the VSC controls row of the Main window.
 
 When it is enabled, the Main Throttle is locked at 100% and the keyboard throttle controls (default: *Shift*/*Ctrl*, *Z* and *X*) are used to set desired vertical speed or altitude instead. If VSC itself is off (i.e. the *Hover* is off and the desired vertical speed is set to maximum) and *AutoThrottle* is enabled, it automatically enables VSC and sets the desired vertical speed to 0.
 
 ##Horizontal Speed Control (HSC)
 
-###Stop
+This is a very important TCA Module that provides services to almost all more complex modules. By itself it provides two simple autopilot programs:
 
-Enables an autopilot that tries to maneuver the craft so that the horizontal component of its velocity became zero. It includes flip-over prevention system, so whatever the speed, the autopilot decrease it carefully and steady.
+* **Stop**: tries to maneuver the craft so that the horizontal component of its velocity became zero. It includes flip-over prevention system, so whatever the speed, the autopilot decrease it carefully and steady.
 
-###Level Flight
+* **Level Flight**: directs total thrust vector down to the planet's center.
 
-###Cruise Control
+##Cruise Control
+
+This module tries to keep current horizontal speed and direction. When active, the speed may be changed either via slider below or using *pitch* controls; direction may be changed with *yaw* controls.
 
 ##On-Planet Autopilots
 
+This set of programs is available while a vessel is on planetary body (landed or in flight).
+
 ###Anchor
+
+This module allows a flying ship to be "pinned" to a point on the surface underneath it. When the Anchor is activated, TCA saves the location below; then constantly maneuvers the ship so that its center of mass was posed directly above the saved point.
 
 ###Land
 
+This is a complex autopilot program that uses many other TCA modules. As you would expect, it tries to land a ship; but not right away on whatever happens to be below it. Instead, it first scans the ground underneath, trying to find a flat surface big enough for the ship, then (if found) maneuvers towards it and carefully lands, avoiding lateral movements and flipping-over. It also handles brakes and landing gear and turns the engines off on the ground.
+
 ###Waypoint Navigation
+
+This module allows TCA to automatically fly along a path of the user-defined waypoints or other landed ships. At any waypoint you have three options to choose from: fly by it (default), pause the game or land near it (using the Land autopilot).
+
+You can add waypoints directly in flight or in the Map View using mouse: first, press the "Add Waypoint" button in TCA Main Window; then left-click anywhere on the ground to create a waypoint; left-click again to create another; to finish the process click the right mouse button. Note, that rotation with the right mouse button pressed works normally in this mode.
+
+If you try to add a waypoint while another ship is targeted, it is saved as a waypoint. If it then moves, the waypoint will move with it. But if it is destroyed or recovered, the waypoint will remember its last seen position and become stationary.
+
+Waypoints are displayed (on the ground and in Map View) when the "Show Waypoints" button is pressed. Their color indicates their order: from <color=red>red</color>, the nearest, through <color=yellow>yellow</color> and <color=green>green</color> to <color=cyan>cyan</color>, the furthest.
 
 ###GoTo/Follow Target
 
+In GoTo mode TCA will fly the ship to the currently selected target and then activate the Stop program upon arrival. In Follow mode the ship will constantly follow the target vessel.
+
+Simple. But what if you're trying to make several ships following the same target? In that case, to avoid collisions, TCA instances of the followers will negotiate and create a stable wedge formation with the target on its tip.
+
 ##In-Orbit Autopilots
+
+These programs are available when the ship is in orbit or on a suborbital trajectory, but out of the atmosphere.
+
+###Warp switch
+
+Enables automatic time-warping to the start of the burn, taking into account attitude error and burn duration.
 
 ###Execute Maneuver
 
+Does as it says; except it uses the T-SAS to control the attitude, so it's easily possible to perform orbital maneuvering with an unbalanced VTOL whose cockpit is rotated 90 degrees with respect to engines. Or to change orbit of a whole compound space station with engines pointing in different directions. I mean, controllably and predictably change orbit. Just assign engines' Roles properly.
+
 ###Match Velocity with Target
+
+Constantly corrects ships orbital velocity to match that of the target object, using main thrusters as well as RCS (if available). Don't try it from far away, though, as in that case it will considerable modify your current orbit.
 
 ###Brake near Target
 
+First waits for the nearest approach point with the target, then matches orbital velocities. No continuous orbit correction afterwards is made.
+
 ##Utility Modules
 
-###Radar and Collision Prevention System (CPS)
+###Radar
+
+Scans the surface before-underneath the ship to detect obstacles before the ship's nose does. By itself does not do anything, but is used by other modules to avoid collisions.
+
+###Collision Prevention System (CPS)
+
+Scans nearby vessels, measuring distance and relative speed. The predicts possible collisions and calculates an avoidance maneuver which is fed to the HSC and VSC to actuate.
 
 ###VTOL Assist
 
+This module helps with vertical landings and take-offs: it automatically retracts/deploys landing gear, enables-disables brakes and tries to prevent flipping over when dealing with inclined surfaces. It may be toggled in editor during ship construction or in the *Advanced* section.
+
 ###Flight Stabilizer
+
+This is a safeguard module that acts when nothing else does: it catches the ship in uncontrollable rotation in absence of SAS, user input or other TCA autopiloting; when it does, it first enables the Level program, and when it's safe, the stock SAS. It may be toggled in editor during ship construction or in the *Advanced* section.
 
 ##Squadron Mode
 
+This mode is enabled by a switch in the first row of the main window. When enabled, a squadron ID selector appears, allowing you to change the designation of the current ship.
+
+All ships assigned to the same squadron (with TCA enabled) will respond simultaneously on most of the commands you execute through the TCA window or keyboard. The exception being the Macros. When a command is executed in a squadron the on-screen message is displayed.
+
+An additional command-button appears in Squadron mode on the Navigation panel: the "Follow Me" button. When pressed, makes all other ships in the squadron to select the current ship as their target and execute the "Follow" program.
+
 ##Macros
+
+Macros are simple user-defined programs consisting of built-in TCA actions, some stock actions and other macros that are already defined. Note, that when another macro is referenced, it is actually copied to the current one, so no recursion is possible.
+
+Other elements necessary to make a program are also present: IF-THEN-ELSE statements, conditional expressions with boolean operators, FOR and WHILE loops.
+
+All of this is wrapped into a mostly-mouse-driven graphical interface, so no programming language knowledge is required (for that you have kOS).
 
 ###Macro Editor
 
+This is a separate window that may be summoned in-flight or in editor. It contains controls to create/edit TCA macros.
+
+The first row of controls allows you to:
+
+* **Load**: load a previously defined macro.
+* **New**: create a new macro from scratch.
+* **Apply**: if you editing the current macro in flight, this button will apply the changes in place.
+* **Save to Vessel DB**: save the macro to ship's computer.
+* **Save to Global DB**: save the macro globally; Global macros are accessible from other ships and from other savegames. They are stored in the *GameData/ThrottleControlledAvionics/TCA.macro* file, so you can share it with others.
+
+Then follows the editable name of the macro and its body. The body of a macro consists of nested blocks of actions, the outermost block being the macro itself and each inner block being an action.
+
+An action entry in a block looks as follows:
+
+[<color=red>X</color>] Action Button [^][<][>]
+
+* **[<color=red>X</color>]** button deletes the action.
+* **Action Button** displays the name and parameters of the action. If pressed, it enables editing mode to change action parameters, add sub actions and so on.
+* **[^]** button moves the action one position upward in a block.
+* **[<]** button moves the action out of the current block *to its parent* block, *if possible*.
+* **[>]** button moves the action *into the preceding* block, *if possible*.
+
+Below is the "Add Action" button which opens the pane with the choice of actions to add, including:
+
+* **Builtin**: elementary actions, including flow control and loops.
+* **Current Vessel**: macros saved in the ship's computer.
+* **Global Database** macros saved globally.
+
+And if an action is conditional, in edit mode you can push the "<color=green>**+**</color>" button to open the "Condition List" pane.
+
 ###In-Flight Macro Controls
+
+In flight the main TCA window has the following buttons to manage and execute macros:
+    
+* **Select Macro/Current Macro**: load a macro from local or global database.
+* **Execute/Pause**: start the selected macro or pause the execution of an already running macro.
+* **Stop**: stop execution and rewind the macro to the start.
+* **Edit/New**: open the Macro Editor. If a macro was selected, it is loaded to be edited; otherwise a new empty macro is created.
 
 ##General Notes
 
-For safety reasons the VSC, HSC and On-Planet autopilots are disabled in orbit, but not on suborbital trajectories, so be carefull.
-
-If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
-
-Solid boosters have constant thrust and thus cannot be controlled by TCA. But they are still accounted for, if present.
+1. For safety reasons the VSC, HSC and On-Planet autopilots are disabled in orbit, but not on suborbital trajectories, so be carefull.
+2. If your ship wobbles and oscillates with TCA and SAS enabled, rebuild it with more struts, or decrease appropriate Steering Gains.
+3. Solid boosters have constant thrust and thus cannot be controlled by TCA. But they are still accounted for, if present.
 
 ##Appendix
 
@@ -267,6 +362,8 @@ If you have already tuned these parameters for the ship, _save its configuration
 
 ####Named Configurations
 
+This section allows to save the whole TCA configuration of the current ship under an arbitrary name; such configuration then becomes available to any other vessel within this savegame and may loaded, *replacing that ship's configuration*.
+
 ###TCA.glob :: the global TCA settings
 
 Most of the user-related settings are available through the TCA GUI. There are, however, tons of internal parameters that are located in the _GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/**TCA.glob**_ file. Generally, it is not recommended to tamper with this file, but several of the settings there may be of interest to some users.
@@ -274,3 +371,7 @@ Most of the user-related settings are available through the TCA GUI. There are, 
 It is a plane text file which may be edited using any text editor. After saving, if the game is already running and a TCA-enabled vessel is in flight, you may apply the changes by going to the "Advanced" pane in the main window and pressing the "Reload TCA Settings" button.
 
 Its contents is divided into sections dedicated to TCA subsystems. To reference those in this Manual I use the special notation: **TCA.glob::SectionName**.
+
+###Requirements
+
+Currently TCA requires only one other mod which is, of course, the latest **[ModuleManager](http://forum.kerbalspaceprogram.com/index.php?/topic/50533-105-module-manager-2618-january-17th-with-even-more-sha-and-less-bug/)**.

@@ -18,38 +18,45 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
 # THE SOFTWARE.
 
-'''
+"""
 Created on Feb 22, 2016
 
 @author: Allis Tauri <allista@gmail.com>
-'''
+"""
 
-import os, csv
+import csv
+import os
+
 import networkx as nx
 from openpyxl import load_workbook
 
-from config import datapath
 from PyConfigNode import ConfigNode
+from config import datapath
+
 
 def all_successors(node, G):
-    nbunch = set([node])
+    nbunch = {node}
     for s in G.successors_iter(node):
         nbunch.add(s)
         nbunch.update(all_successors(s, G))
     return nbunch
+
 
 def draw_graph(graph, name, prog='dot', save_dot=False):
     ag = nx.nx_agraph.to_agraph(graph)
     ag.layout(prog=prog)
     filename = name+'.png'
     ag.draw(filename)
+    ag.draw(name+'.svg')
     if save_dot: ag.write(name+'.dot')
     print 'Saved %s' % filename
-    
+
+
 def draw_node_deps(n, G):
     deps = G.subgraph(all_successors(n, G))
     draw_graph(deps, n)
-    
+
+
 def draw_all_deps(G, outdir, allname='AllNodes'):
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
@@ -60,9 +67,10 @@ def draw_all_deps(G, outdir, allname='AllNodes'):
     os.utime('.', None)
     os.chdir('..')
 
+
 class TechTreeUpdater(object):
     part_template = ''
-    
+
     def __init__(self, modfile, partfile):
         self._modfile = modfile
         self._partfile = partfile
@@ -74,7 +82,7 @@ class TechTreeUpdater(object):
         self._parse_modules_db()
         self._parse_part_defs()
         self._get_part_template()
-        
+
     def _parse_modules_db(self):
         self.modules = nx.DiGraph()
         self.parts = nx.DiGraph()
@@ -91,9 +99,9 @@ class TechTreeUpdater(object):
                 else:
                     self.parts.add_node(part,
                                         shape='box',
-                                        style='rounded,filled', 
+                                        style='rounded,filled',
                                         fillcolor='#ddffdd',
-                                        modules=set([module]))
+                                        modules={module})
                 optional = False
                 for dep in row[2:]:
                     if not dep: continue
@@ -101,19 +109,19 @@ class TechTreeUpdater(object):
                         optional = True
                         continue
                     self.modules.add_edge(module, dep,
-                                          optional = optional,
-                                          style = 'dashed' if optional else 'solid',
-                                          color = 'darkgreen' if optional else 'blue')
-    
+                                          optional=optional,
+                                          style='dashed' if optional else 'solid',
+                                          color='darkgreen' if optional else 'blue')
+
     def _part_modules(self, part):
         return self.parts.node[part].get('modules', set())
-    
+
     @staticmethod
     def _set_or_add(dct, key, value):
         lst = dct.get(key, None)
         if lst: lst.append(value)
         else: dct[key] = [value]
-    
+
     def _parse_part_defs(self):
         #load the table
         wb = load_workbook(self._partfile, data_only=True)
@@ -131,9 +139,9 @@ class TechTreeUpdater(object):
             if part['name'] in self.parts:
                 self.parts.node[part['name']]['data'] = part
                 self.parts.node[part['name']]['label'] = part['title']
-            else: self.parts.add_node(part['name'], label=part['title'], 
+            else: self.parts.add_node(part['name'], label=part['title'],
                                       modules=set(), data=part)
-            if part['node']: self._set_or_add(self.partcosts, part['node'], 
+            if part['node']: self._set_or_add(self.partcosts, part['node'],
                                               (part['title'], part['cost']))
         #add dependency information
         for p in self.parts:
@@ -141,7 +149,7 @@ class TechTreeUpdater(object):
                 raise RuntimeError("%s has no definition in the Parts table" % p)
             modules = self.parts.node[p]['modules']
             for m in modules:
-                deps = [d for d in self.modules.successors_iter(m) 
+                deps = [d for d in self.modules.successors_iter(m)
                         if not self.modules.edge[m][d]['optional']]
                 for dep in deps:
                     for p1 in self.parts:
@@ -149,7 +157,7 @@ class TechTreeUpdater(object):
                         if dep in self._part_modules(p1):
                             self.parts.add_edge(p, p1)
         self._remove_redundant_edges(self.parts)
-                
+
     @staticmethod
     def _remove_redundant_edges(G):
         for p in G:
@@ -159,11 +167,11 @@ class TechTreeUpdater(object):
                 paths = list(nx.all_simple_paths(G, p, p1))
                 if len(paths) < 2: continue
                 G.remove_edge(p, p1)
-                
+
     @staticmethod
     def _has_path(DiG, n1, n2):
         return bool(list(nx.all_simple_paths(DiG, n1, n2)))
-        
+
     @classmethod
     def _get_part_template(cls):
         if not cls.part_template:
@@ -171,40 +179,38 @@ class TechTreeUpdater(object):
                 cls.part_template = inp.read()
 
     def draw_module_dependencies(self, outdir):
-        if not os.path.isdir(outdir) or \
-        os.stat(outdir).st_mtime < os.stat(self._modfile).st_mtime:
+        if not os.path.isdir(outdir) or os.stat(outdir).st_mtime < os.stat(self._modfile).st_mtime:
             draw_all_deps(self.modules, outdir, 'AllModules')
-            
+
     def draw_part_dependencies(self, outdir):
         do_draw = not os.path.isdir(outdir)
         if not do_draw:
             mtime = os.stat(outdir).st_mtime
             do_draw = mtime < os.stat(self._modfile).st_mtime or mtime < os.stat(self._partfile).st_mtime
         if do_draw: draw_all_deps(self.parts, outdir, 'AllParts')
-    
+
     _module_desc = 'Upgrades TCA (tm) with the {title}.'
     def _make_part(self, part):
         data = dict(self.parts.node[part]['data'].items())
         if self.parts.node[part]['modules']:
             add_description = data['description']
             data['description'] = self._module_desc.format(**data)
-            if add_description: data['description'] += ' '+add_description 
+            if add_description: data['description'] += ' '+add_description
         dep_str = ', '.join(self.parts.node[dep]['data']['title']
-                          for dep in self.parts.successors_iter(part))
+                            for dep in self.parts.successors_iter(part))
         if dep_str: data['description'] += ' Requires: %s.' % dep_str
-        return self.part_template.format(name=data.pop('name'), 
-                                         title=data.pop('title'), 
+        return self.part_template.format(name=data.pop('name'),
+                                         title=data.pop('title'),
                                          description=data.pop('description'),
                                          cost=int(data.pop('cost', 10000)),
                                          model=data.pop('model', 'Squad/Parts/Command/probeCoreOcto2/model'),
                                          node=data.pop('node', 'specializedControl'))
 
-
     def write_tree_parts(self, filename):
         with open(filename, 'w') as out:
             ttree = ''.join(self._make_part(p) for p in self.parts)
             out.write(ttree)
-            
+
     def get_part_costs(self, partsdir, outfile):
         for dirpath, _dirnames, filenames in os.walk(partsdir):
             for filename in filenames:
@@ -212,7 +218,7 @@ class TechTreeUpdater(object):
                 cfg = ConfigNode.Load(os.path.join(dirpath, filename))
                 if cfg.name != 'PART': continue
                 tech = cfg.GetValue('TechRequired')
-                if tech in self.partcosts: 
+                if tech in self.partcosts:
                     self.partcosts[tech].append((cfg['title'], cfg['entryCost']))
         with open(outfile, 'w') as out:
             writer = csv.writer(out)
@@ -220,13 +226,12 @@ class TechTreeUpdater(object):
                 for part, cost in self.partcosts[tech]:
                     writer.writerow([tech, part, cost])
                 writer.writerow(['','',''])
-            
-    def annotate_tree(self, filename):
+
+    def annotate_tree(self):
         treenode = ConfigNode.Load(techtree)
         #build tree graph
         self.tree = nx.DiGraph()
-        self.tree.graph.update(graph={
-                                      'splines':'ortho',
+        self.tree.graph.update(graph={'splines':'ortho',
                                       'rankdir':'LR',
                                       'concentrate':'true',
                                       })
@@ -236,15 +241,18 @@ class TechTreeUpdater(object):
             self.treedict[name] = n
             parts = [p for p, attrs in self.parts.nodes_iter(data=True)
                      if attrs['data']['node'] == name]
-            self.tree.add_node(name, 
+            self.tree.add_node(name,
                                width=2.2,
                                shape='box',
                                style='rounded'+(',filled' if parts else ''),
                                fillcolor='#ddffdd' if parts else '',
-                               label='<<b>%s</b>:<br/>%s>' % (n['title'], '<br/>'.join(self.parts.node[p]['data']['title'] for p in parts)) if parts else n['title'],
+                               label=('<<b>%s</b>:<br/>%s>' % (n['title'],
+                                                               '<br/>'.join(self.parts.node[p]['data']['title']
+                                                                            for p in parts))
+                                      if parts else n['title']),
                                parts=parts)
-            for p in n.GetNodes('Parent'): 
-                self.tree.add_edge(p['parentID'], name, 
+            for p in n.GetNodes('Parent'):
+                self.tree.add_edge(p['parentID'], name,
                                    arrowhead='none')
         #dump tree nodes
         with open('TechTreeNodes.csv', 'w') as out:
@@ -271,7 +279,7 @@ class TechTreeUpdater(object):
                                 break
                         if found: break
         draw_graph(self.tree, 'TechTreeGraph_PartDeps')
-        
+
 
 datadir       = 'data'
 modulesfile   = 'ModuleDatabase.csv'
@@ -284,7 +292,8 @@ techtree      = datapath('Squad', 'Resources', 'TechTree.cfg')
 squadparts    = datapath('Squad', 'Parts')
 partcosts     = 'PartCosts.csv'
 
-datafile = lambda f: os.path.join(datadir, f)
+
+def datafile(f): return os.path.join(datadir, f)
 
 if __name__ == '__main__':
     updater = TechTreeUpdater(datafile(modulesfile),
@@ -292,6 +301,6 @@ if __name__ == '__main__':
     updater.draw_module_dependencies(modulesdir)
     updater.draw_part_dependencies(partsdir)
     updater.write_tree_parts(techtreeparts)
-    updater.annotate_tree(techtree)
-    updater.get_part_costs(squadparts, partcosts)  
+    updater.annotate_tree()
+    updater.get_part_costs(squadparts, partcosts)
     print 'Done'

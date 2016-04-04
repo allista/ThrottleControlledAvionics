@@ -120,11 +120,11 @@ namespace ThrottleControlledAvionics
 			}
 			var optimized = TorqueError < ENG.OptimizationTorqueCutoff || 
 				(!zero_torque && TorqueAngle < ENG.OptimizationAngleCutoff);
-//			Log("optimized {0}, TorqueError {1}, TorqueAngle {2}\nneeded torque {3}\ncurrent turque {4}", 
-//			    optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance);//debug
+//			LogF("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}", 
+//			     num_engines, optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance);//debug
 			//treat single-engine crafts specially
 			if(num_engines == 1) 
-				engines[0].limit = optimized? 1f : 0f;
+				engines[0].limit = optimized? engines[0].best_limit : 0f;
 			else //restore the best state
 				for(int j = 0; j < num_engines; j++) 
 				{ var e = engines[j]; e.limit = e.best_limit; }
@@ -157,10 +157,6 @@ namespace ThrottleControlledAvionics
 		{
 			var num_engines = VSL.Engines.Steering.Count;
 			if(num_engines == 0) return;
-			if(num_engines == 1 && 
-			   (VSL.Torque.EnginesTorque.IsZero() || 
-			    VSL.Torque.AngularAcceleration(VSL.Torque.EnginesTorque).magnitude < ENG.OptimizationTorqueCutoff))
-			{ VSL.Engines.Steering[0].limit = 1; return; }
 			//calculate steering
 			if(CFG.AutoTune) tune_steering_params();
 			var needed_torque = Vector3.zero;
