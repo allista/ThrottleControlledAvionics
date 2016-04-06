@@ -221,7 +221,7 @@ namespace ThrottleControlledAvionics
 			double alpha, resonance;
 			var TTR = TimeToResonance(old, target, UT, out resonance, out alpha);
 			Utils.LogF("\nTTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
-			if(TTR > max_TTR) dV = dV4Resonance(old, target, max_TTR*0.9, alpha, UT);
+			if(TTR > max_TTR) dV = dV4Resonance(old, target, Math.Max(max_TTR/2, 0.75), alpha, UT);
 			else if(TTR > 1/2) return Vector3d.zero;
 			else dV = dV4Resonance(old, target, 3/4, alpha, UT);
 			min_dV = dV.magnitude;
@@ -290,6 +290,34 @@ namespace ThrottleControlledAvionics
 				dT /= 1.3333333333333333;
 			}
 			ApproachUT = UT1; return Math.Sqrt(d1);
+		}
+
+		double full_thrust_velocity(double t, double T2mflow)
+		{ return T2mflow*Math.Log(VSL.Physics.M/(VSL.Physics.M-VSL.Engines.MaxMassFlow*t))-VSL.Physics.G; }
+
+		double full_thrust_ApA(double t, double T2mflow)
+		{
+			var M1 = VSL.Physics.M-VSL.Engines.MaxMassFlow*t;
+			var v = T2mflow*Math.Log(VSL.Physics.M/M1)-VSL.Physics.G;
+			var h = T2mflow*(M1/VSL.Engines.MaxMassFlow*Math.Log(M1/VSL.Physics.M)+t)-VSL.Physics.G*t*t/2;
+			return v*v/2/VSL.Physics.G + h;
+		}
+
+		public double FromSurfaceTTA(double ApA, double throttle, out double TTB, double tol=0.1)
+		{
+			double t0 = 0;
+			double t1 = 1;
+			double T2mflow = VSL.Engines.MaxThrustM*throttle/VSL.Engines.MaxMassFlow;
+			while(full_thrust_ApA(t1, T2mflow) < ApA) t1 *= 2;
+			while(t1-t0 > tol)
+			{
+				var t = (t0+t1)/2;
+				var apa = full_thrust_ApA(t, T2mflow);
+				if(apa > ApA) t1 = t;
+				else t0 = t;
+			}
+			TTB = (t0+t1)/2;
+			return full_thrust_velocity(TTB, T2mflow)/VSL.Physics.G+TTB;
 		}
 
 		protected Vector3d RadiusCorrection(RendezvousTrajectory old)

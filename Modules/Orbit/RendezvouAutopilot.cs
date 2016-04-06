@@ -238,6 +238,12 @@ namespace ThrottleControlledAvionics
 		Vector3d hVdir, tNorm, norm, velN; //debug
 		void to_orbit()
 		{
+			if(VSL.OnPlanetParams.MaxTWR <= 1)
+			{
+				Status("red", "TWR < 1, impossible to achive orbit");
+				CFG.AP2.Off();
+				return;
+			}
 			//compute trajectory to get the needed apoapsis at needed time
 			tNorm = Target.orbit.GetOrbitNormal();//test
 			LaunchApR = Math.Max(MinPeR, (Target.orbit.PeR+Target.orbit.ApR)/2);
@@ -246,7 +252,8 @@ namespace ThrottleControlledAvionics
 			var LaunchRad = Utils.ClampH(Math.Atan(1/(Body.Radius*REN.LaunchTangentK/(2*LaunchApR) - 
 			                                          Body.angularV/Math.Sqrt(2*VSL.Physics.StG*(LaunchApR-Body.Radius)))), 
 			                             Math.PI/2);
-			velN  = (Math.Sin(LaunchRad)*VesselOrbit.pos.normalized + Math.Cos(LaunchRad)*hVdir).normalized;
+			var hF  = Math.Sin(LaunchRad);
+			velN    = (hF*VesselOrbit.pos.normalized + Math.Cos(LaunchRad)*hVdir).normalized;
 			var vel = Math.Sqrt(2*VSL.Physics.G*(LaunchApR-Body.Radius)) / Math.Sin(LaunchRad);
 			var v   = 0.0;
 			while(vel-v > TRJ.dVtol)
@@ -256,10 +263,18 @@ namespace ThrottleControlledAvionics
 				if(o.ApR > LaunchApR) vel = V;
 				else v = V;
 			} vel = (v+vel)/2;
-			var ascO = NewOrbit(VesselOrbit, velN*vel-VesselOrbit.vel, VSL.Physics.UT);
+			double TTB;
+			if(VSL.Engines.MaxThrustM*hF/VSL.Physics.M < VSL.Physics.G)
+			{
+				hF = VSL.Physics.G*VSL.Physics.M/VSL.Engines.MaxThrustM*1.1;
+				LogF("old hF {}, new hF {}", Math.Sin(LaunchRad), hF);//debug
+			}
+			TTA = FromSurfaceTTA(LaunchApR-Body.Radius, hF, out TTB);
+			LogF("LaunchAngle {}, Omega0 {}, TTA {}, TTB {}, hF {}", 
+			     LaunchRad*Mathf.Rad2Deg, Body.angularV, TTA, TTB, hF);//debug
 			LaunchUT = VSL.Physics.UT;
-			TTA = ascO.timeToAp;
 			ApAUT = LaunchUT+TTA;
+			var ascO = NewOrbit(VesselOrbit, velN*vel-VesselOrbit.vel, VSL.Physics.UT);
 			if(VSL.LandedOrSplashed)
 			{
 				ApV = ascO.getRelativePositionAtUT(ApAUT);
@@ -268,14 +283,6 @@ namespace ThrottleControlledAvionics
 				while(Math.Abs(TTR) > 1);
 			}
 			else TargetApV = ascO.getRelativePositionAtUT(ApAUT);
-			MinAccelTime = 0;//Math.Sin(LaunchRad)*(ascO.vel-VesselOrbit.vel).magnitude/(VSL.Engines.MaxThrustM/VSL.Physics.M-VSL.Physics.G);
-			LogF("LaunchAngle {}, Omega0 {}, TTA {}, MinAccelTime {}", LaunchRad*Mathf.Rad2Deg, Body.angularV, TTA, MinAccelTime);//debug
-//			if(MinAccelTime <= 0)
-//			{
-//				Status("red", "TWR < 1, impossible to achive orbit");
-//				CFG.AP2.Off();
-//				return;
-//			}
 			CFG.DisableVSC();
 			stage = VSL.LandedOrSplashed? Stage.Launch : Stage.ToOrbit;
 		}
@@ -364,13 +371,14 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Launch:
 				//correct launch time
-				if(LaunchUT-VSL.Physics.UT > MinAccelTime) 
+				if(LaunchUT > VSL.Physics.UT) 
 				{
 					correct_launch();
 					VSL.Info.Countdown = LaunchUT-VSL.Physics.UT-MinAccelTime;
-					WRP.WarpToTime = LaunchUT-MinAccelTime;
+					WRP.WarpToTime = LaunchUT;
 					break;
 				}
+				CSV(VSL.Physics.UT, VesselOrbit.radius-Body.Radius, VSL.VerticalSpeed.Absolute);//debug
 				if(VSL.VerticalSpeed.Absolute/VSL.Physics.G < 5)
 				{ 
 					CFG.VTOLAssistON = true;
@@ -381,8 +389,10 @@ namespace ThrottleControlledAvionics
 				CFG.StabilizeFlight = false;
 				CFG.HF.Off();
 				stage = Stage.ToOrbit;
+				LogF("T {}, M {}, mflow {}", VSL.Engines.MaxThrustM, VSL.Physics.M, VSL.Engines.MaxMassFlow);//debug
 				break;
 			case Stage.ToOrbit:
+				CSV(VSL.Physics.UT, VesselOrbit.radius-Body.Radius, VSL.VerticalSpeed.Absolute);//debug
 				ApAUT = VSL.Physics.UT+VesselOrbit.timeToAp;
 				var cApV   = VesselOrbit.getRelativePositionAtUT(ApAUT);
 				var in_atm = Body.atmosphere && VesselOrbit.radius < Body.Radius+Body.atmosphereDepth;
@@ -390,8 +400,8 @@ namespace ThrottleControlledAvionics
 				var dFi    = 90-Vector3d.Angle(VesselOrbit.GetOrbitNormal(), TargetApV);
 				var dApA   = LaunchApR-VesselOrbit.ApR;
 				var vel    = Vector3d.zero;
-				if(dApA > REN.Dtol)  
-					vel += VSL.Physics.Up.xzy*dApA/Utils.ClampL(VSL.VerticalSpeed.Absolute, 1);
+//				if(dApA > REN.Dtol)  
+				vel += VSL.Physics.Up.xzy*dApA/Utils.ClampL(VSL.VerticalSpeed.Absolute, 1);
 				if(VesselOrbit.ApA/(LaunchApR-Body.Radius) > REN.RendezvouCorrection) correct_rendezvou();
 				var hv     = Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel);
 				var alpha  = Utils.ProjectionAngle(cApV, TargetApV, VesselOrbit.getOrbitalVelocityAtUT(ApAUT))*Mathf.Deg2Rad*Body.Radius;
@@ -441,6 +451,7 @@ namespace ThrottleControlledAvionics
 				start_orbit();
 				break;
 			case Stage.StartOrbit:
+				CSV(VSL.Physics.UT, VesselOrbit.radius-Body.Radius, VSL.VerticalSpeed.Absolute);//debug
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
 				CurrentDistance = -1;
 				update_trajectory(false);

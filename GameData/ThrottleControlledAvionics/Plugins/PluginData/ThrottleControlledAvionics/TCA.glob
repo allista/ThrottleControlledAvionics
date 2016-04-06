@@ -351,7 +351,7 @@ REN
 	Dtol                = 100   //m
 	StartOffset         = 60    //s
 	DeltaApThreshold    = 1000  //m
-	MaxTTR              = 3     //orbit.periods
+	MaxTTR              = 1     //orbit.periods
 	MaxDeltaV           = 100
 	CorrectionStart     = 10000 //m
 	CorrectionOffset    = 20    //s
