@@ -15,7 +15,7 @@ namespace ThrottleControlledAvionics
 	{
 		#region GUI Parameters
 		const string LockName = "TCAGui";
-		public const int ControlsWidth = 600, ControlsHeight = 100, LineHeight = 35;
+		public const int ControlsWidth = 650, ControlsHeight = 100, LineHeight = 35;
 
 		static NamedConfig selected_config;
 		static string config_name = string.Empty;
