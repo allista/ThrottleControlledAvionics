@@ -18,12 +18,13 @@ namespace ThrottleControlledAvionics
 	{
 		public EnginesProps(VesselWrapper vsl) : base(vsl) {}
 
-		public List<EngineWrapper> All       = new List<EngineWrapper>();
-		public List<EngineWrapper> Active    = new List<EngineWrapper>();
-		public List<EngineWrapper> Balanced  = new List<EngineWrapper>();
-		public List<EngineWrapper> Maneuver  = new List<EngineWrapper>();
-		public List<EngineWrapper> Steering  = new List<EngineWrapper>();
-		public List<EngineWrapper> Manual    = new List<EngineWrapper>();
+		public List<EngineWrapper> All        = new List<EngineWrapper>();
+		public List<EngineWrapper> Active     = new List<EngineWrapper>();
+		public List<EngineWrapper> Balanced   = new List<EngineWrapper>();
+		public List<EngineWrapper> UnBalanced = new List<EngineWrapper>();
+		public List<EngineWrapper> Maneuver   = new List<EngineWrapper>();
+		public List<EngineWrapper> Steering   = new List<EngineWrapper>();
+		public List<EngineWrapper> Manual     = new List<EngineWrapper>();
 
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
@@ -108,6 +109,7 @@ namespace ThrottleControlledAvionics
 			Steering.Clear(); Steering.Capacity = NumActive;
 			Maneuver.Clear(); Maneuver.Capacity = NumActive;
 			Balanced.Clear(); Balanced.Capacity = NumActive;
+			UnBalanced.Clear(); UnBalanced.Capacity = NumActive;
 			Manual.Clear();   Manual.Capacity   = NumActive;
 			for(int i = 0; i < NumActive; i++)
 			{
@@ -123,6 +125,9 @@ namespace ThrottleControlledAvionics
 					break;
 				case TCARole.BALANCE:
 					Balanced.Add(e);
+					break;
+				case TCARole.UNBALANCE:
+					UnBalanced.Add(e);
 					break;
 				case TCARole.MANUAL:
 					Manual.Add(e);

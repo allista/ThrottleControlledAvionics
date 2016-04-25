@@ -343,10 +343,10 @@ namespace ThrottleControlledAvionics
 				//:balance-only engines
 				if(VSL.Engines.Balanced.Count > 0)
 				{
-					VSL.Torque.UpdateTorque(VSL.Engines.Manual);
+					VSL.Torque.UpdateTorque(VSL.Engines.Manual, VSL.Engines.UnBalanced);
 					ENG.OptimizeLimitsForTorque(VSL.Engines.Balanced, Vector3.zero);
 				}
-				VSL.Torque.UpdateTorque(VSL.Engines.Manual, VSL.Engines.Balanced);
+				VSL.Torque.UpdateTorque(VSL.Engines.Manual, VSL.Engines.UnBalanced, VSL.Engines.Balanced);
 				//:optimize limits for steering
 				ENG.PresetLimitsForTranslation(VSL.Engines.Maneuver, VSL.Controls.Translation);
 				ENG.Steer();

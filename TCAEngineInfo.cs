@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public enum TCARole { MAIN, MANEUVER, MANUAL, BALANCE }
+	public enum TCARole { MAIN, MANEUVER, MANUAL, BALANCE, UNBALANCE }
 
 	public class TCAEngineInfo : PartModule
 	{
@@ -22,9 +22,10 @@ namespace ThrottleControlledAvionics
 			"Maneuver Engine",
 			"Manual Control",
 			"Balanced Thrust",
+			"UnBalanced Thrust",
 		};
 
-		public static readonly TCARole[] RolesOrder = { TCARole.MAIN, TCARole.BALANCE, TCARole.MANEUVER, TCARole.MANUAL };
+		public static readonly TCARole[] RolesOrder = { TCARole.MAIN, TCARole.BALANCE, TCARole.MANEUVER, TCARole.UNBALANCE, TCARole.MANUAL };
 		public static readonly int NumRoles = Enum.GetValues(typeof(TCARole)).Length;
 
 		public static TCARole NextRole(TCARole cur)
