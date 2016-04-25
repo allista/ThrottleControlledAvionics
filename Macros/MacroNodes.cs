@@ -171,9 +171,9 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(title, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(title, Styles.active_button, GUILayout.ExpandWidth(false));
 				if(EditedCFG != null && GUILayout.Button("Copy waypoints from Vessel", 
-					Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				                                         Styles.active_button, GUILayout.ExpandWidth(false)))
 					Waypoints = new Queue<WayPoint>(EditedCFG.Waypoints);
 			}
 			else Edit |= GUILayout.Button(title, Styles.normal_button) && EditedCFG != null;
@@ -226,7 +226,7 @@ namespace ThrottleControlledAvionics
 					mode = (Mode)(((int)mode+1)%6);
 				if(mode == Mode.Bearing) Bearing.Draw("°", false, 10);
 				if(mode != Mode.Off) Value.Draw(Suffix, false);
-				if(GUILayout.Button("Done", Styles.green_button, GUILayout.ExpandWidth(false)))
+				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
 				{ 
 					Bearing.UpdateValue();
 					Value.UpdateValue();
@@ -304,7 +304,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(Name, Styles.active_button, GUILayout.ExpandWidth(false));
 				if(EditedCFG != null)
 				{
 					scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandWidth(true), GUILayout.Height(70));
@@ -312,7 +312,7 @@ namespace ThrottleControlledAvionics
 					for(int i = 0, CFGEnginesProfilesDBCount = EditedCFG.EnginesProfiles.DB.Count; i < CFGEnginesProfilesDBCount; i++)
 					{
 						var p = EditedCFG.EnginesProfiles.DB[i];
-						if(GUILayout.Button(p.Name, p.Name == Profile ? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true)))
+						if(GUILayout.Button(p.Name, p.Name == Profile ? Styles.enabled_button : Styles.normal_button, GUILayout.ExpandWidth(true)))
 							Profile = p.Name;
 					}
 					GUILayout.EndVertical();
@@ -340,7 +340,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(Name, Styles.active_button, GUILayout.ExpandWidth(false));
 				Group = Utils.IntSelector(Group, 0, tooltip: "Group ID");
 				if(EditedCFG != null && EditedCFG.ActiveProfile != null && EditedCFG.ActiveProfile.Single.Count > 0)
 				{
@@ -438,7 +438,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(Name, Styles.active_button, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(attitude.ToString(), Styles.normal_button, GUILayout.ExpandWidth(false)))
 					attitude = (Attitude)(((int)attitude+1)%10);
 			}

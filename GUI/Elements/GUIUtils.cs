@@ -35,8 +35,8 @@ namespace ThrottleControlledAvionics
 		public static bool ButtonSwitch(string name, bool current_value, string tooltip = "", params GUILayoutOption[] options)
 		{
 			return string.IsNullOrEmpty(tooltip)? 
-				GUILayout.Button(name, current_value ? Styles.green_button : Styles.yellow_button, options) : 
-				GUILayout.Button(new GUIContent(name, tooltip), current_value ? Styles.green_button : Styles.yellow_button, options);
+				GUILayout.Button(name, current_value ? Styles.enabled_button : Styles.active_button, options) : 
+				GUILayout.Button(new GUIContent(name, tooltip), current_value ? Styles.enabled_button : Styles.active_button, options);
 		}
 
 		public static bool ButtonSwitch(string name, ref bool current_value, string tooltip = "", params GUILayoutOption[] options)

@@ -63,7 +63,7 @@ namespace ThrottleControlledAvionics
 			reset();
 			CFG.AT.SetSingleCallback(Enable);
 			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
 		}
 
@@ -80,7 +80,7 @@ namespace ThrottleControlledAvionics
 		public override void Reset()
 		{
 			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 
@@ -305,44 +305,33 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
 			            CFG.AT? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false));
-			if(GUILayout.Button(new GUIContent("Kill", "Kill rotation"), CFG.AT[Attitude.KillRotation]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("Kill", CFG.AT[Attitude.KillRotation], "Kill rotation", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.KillRotation);
-			if(GUILayout.Button(new GUIContent("Hold", "Hold current attitude"), CFG.AT[Attitude.HoldAttitude]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("Hold", CFG.AT[Attitude.HoldAttitude], "Hold current attitude", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.HoldAttitude);
-			if(GUILayout.Button(new GUIContent("Maneuver", "Maneuver node"), CFG.AT[Attitude.ManeuverNode]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("Maneuver", CFG.AT[Attitude.ManeuverNode], "Maneuver node", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.ManeuverNode);
-			if(GUILayout.Button(new GUIContent("PG", "Prograde"), CFG.AT[Attitude.Prograde]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("PG", CFG.AT[Attitude.Prograde], "Prograde", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.Prograde);
-			if(GUILayout.Button(new GUIContent("RG", "Retrograde"), CFG.AT[Attitude.Retrograde]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("RG", CFG.AT[Attitude.Retrograde], "Retrograde", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.Retrograde);
-			if(GUILayout.Button(new GUIContent("R+", "Radial"), CFG.AT[Attitude.Radial]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("R+", CFG.AT[Attitude.Radial], "Radial", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.Radial);
-			if(GUILayout.Button(new GUIContent("R-", "AntiRadial"), CFG.AT[Attitude.AntiRadial]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("R-", CFG.AT[Attitude.AntiRadial], "AntiRadial", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.AntiRadial);
-			if(GUILayout.Button(new GUIContent("N+", "Normal"), CFG.AT[Attitude.Normal]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("N+", CFG.AT[Attitude.Normal], "Normal", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.Normal);
-			if(GUILayout.Button(new GUIContent("N-", "AntiNormal"), CFG.AT[Attitude.AntiNormal]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("N-", CFG.AT[Attitude.AntiNormal], "AntiNormal", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.AntiNormal);
-			if(GUILayout.Button(new GUIContent("T+", "Target"), CFG.AT[Attitude.Target]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("T+", CFG.AT[Attitude.Target], "Target", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.Target);
-			if(GUILayout.Button(new GUIContent("T-", "AntiTarget"), CFG.AT[Attitude.AntiTarget]? 
-			                Styles.green_button : Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(Utils.ButtonSwitch("T-", CFG.AT[Attitude.AntiTarget], "AntiTarget", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.AntiTarget);
 			if(Utils.ButtonSwitch("rV+", CFG.AT[Attitude.RelVel], "Relative Velocity", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.RelVel);
 			if(Utils.ButtonSwitch("rV-", CFG.AT[Attitude.AntiRelVel], "Against Relative Velocity", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.AntiRelVel);
-			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.green_button : Styles.grey, GUILayout.ExpandWidth(false)))
+			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.enabled_button : Styles.inactive_button, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
 			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", AttitudeError) : "Err: N/A", 
 			            Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));

@@ -7,6 +7,8 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -17,6 +19,14 @@ namespace ThrottleControlledAvionics
 		public static GUISkin skin;
 
 		public static GUIStyle normal_button;
+		public static GUIStyle active_button;
+		public static GUIStyle enabled_button;
+		public static GUIStyle inactive_button;
+		public static GUIStyle confirm_button;
+		public static GUIStyle add_button;
+		public static GUIStyle close_button;
+		public static GUIStyle danger_button;
+
 		public static GUIStyle grey_button;
 		public static GUIStyle red_button;
 		public static GUIStyle dark_red_button;
@@ -26,6 +36,7 @@ namespace ThrottleControlledAvionics
 		public static GUIStyle dark_yellow_button;
 		public static GUIStyle cyan_button;
 		public static GUIStyle magenta_button;
+
 		public static GUIStyle white;
 		public static GUIStyle white_on_black;
 		public static GUIStyle grey;
@@ -34,15 +45,23 @@ namespace ThrottleControlledAvionics
 		public static GUIStyle green;
 		public static GUIStyle blue;
 		public static GUIStyle cyan;
+		public static GUIStyle magenta;
+
 		public static GUIStyle label;
 		public static GUIStyle rich_label;
 		public static GUIStyle boxed_label;
+
 		public static GUIStyle tooltip;
+
 		public static GUIStyle slider;
 		public static GUIStyle slider_text;
 
 		public static GUIStyle list_item;
 		public static GUIStyle list_box;
+
+		public static FieldInfo[] StyleFields = typeof(Styles)
+			.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Public|BindingFlags.Static)
+			.Where(fi => fi.FieldType == typeof(GUIStyle)).ToArray();
 
 		static bool initialized;
 
@@ -51,6 +70,30 @@ namespace ThrottleControlledAvionics
 			if(skin != null) return;
 			GUI.skin = null;
 			skin = (GUISkin)UnityEngine.Object.Instantiate(GUI.skin);
+		}
+
+		static GUIStyle find_style(string name)
+		{
+			foreach(var fi in StyleFields)
+			{
+				if(fi.Name == name) 
+					return fi.GetValue(null) as GUIStyle;
+			}
+			return null;
+		}
+
+		static GUIStyle find_button_style(string color)
+		{ return find_style(color.Replace(" ", "_")+"_button");	}
+
+		public static void ConfigureButtons()
+		{
+			enabled_button  = find_button_style(TCAScenario.Globals.EnabledButtonColor)  ?? green_button;
+			active_button   = find_button_style(TCAScenario.Globals.ActiveButtonColor)   ?? yellow_button;
+			inactive_button = find_button_style(TCAScenario.Globals.InactiveButtonColor) ?? grey_button;
+			confirm_button  = find_button_style(TCAScenario.Globals.ConfirmButtonColor)  ?? green_button;
+			add_button      = find_button_style(TCAScenario.Globals.AddButtonColor)      ?? green_button;
+			close_button    = find_button_style(TCAScenario.Globals.CloseButtonColor)    ?? red_button;
+			danger_button   = find_button_style(TCAScenario.Globals.DangerButtonColor)   ?? red_button;
 		}
 
 		static GUIStyle OtherColor(this GUIStyle style, Color normal)
@@ -98,12 +141,13 @@ namespace ThrottleControlledAvionics
 			white_on_black = new GUIStyle(white);
 			white_on_black.normal.background = white_on_black.onNormal.background = white_on_black.hover.background = white_on_black.onHover.background = b_texture;
 
-			grey   = white.OtherColor(Color.grey);
-			red    = white.OtherColor(Color.red);
-			yellow = white.OtherColor(Color.yellow);
-			green  = white.OtherColor(Color.green);
-			blue   = white.OtherColor(new Color(0.6f, 0.6f, 1f, 1f));
-			cyan   = white.OtherColor(Color.cyan);
+			grey    = white.OtherColor(Color.grey);
+			red     = white.OtherColor(Color.red);
+			yellow  = white.OtherColor(Color.yellow);
+			green   = white.OtherColor(Color.green);
+			blue    = white.OtherColor(new Color(0.6f, 0.6f, 1f, 1f));
+			cyan    = white.OtherColor(Color.cyan);
+			magenta = white.OtherColor(Color.magenta);
 
 			//tooltip
 			tooltip  = white.OtherColor(Color.white);
@@ -145,6 +189,8 @@ namespace ThrottleControlledAvionics
 			list_box.hover.textColor = list_box.active.textColor = Color.green;
 			list_box.onNormal.textColor = list_box.onFocused.textColor = list_box.onHover.textColor = list_box.onActive.textColor = Color.green;
 			list_box.padding = new RectOffset (4, 4, 4, 4);
+
+			ConfigureButtons();
 		}
 
 		public static void Init()

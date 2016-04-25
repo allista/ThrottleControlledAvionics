@@ -92,7 +92,7 @@ namespace ThrottleControlledAvionics
 			if(Edit)
 			{
 				Name = GUILayout.TextField(Name, GUILayout.Width(150));
-				if(GUILayout.Button("Done", Styles.green_button, GUILayout.Width(50))) Edit = false;
+				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.Width(50))) Edit = false;
 			}
 			else Edit |= GUILayout.Button(Name+(comment ?? ""), 
 			                              Styles.normal_button, GUILayout.Width(200));
@@ -102,7 +102,7 @@ namespace ThrottleControlledAvionics
 		{
 			GUILayout.BeginHorizontal();
 			NameControl(comment);
-			if(GUILayout.Button(On? "On" : "Off", On? Styles.green_button : Styles.red_button, GUILayout.Width(30)))
+			if(GUILayout.Button(On? "On" : "Off", On? Styles.enabled_button : Styles.close_button, GUILayout.Width(30)))
 			{ On = !On; Changed = true; }
 			if(with_role) RoleControl();
 			if(Role == TCARole.MANUAL)
@@ -348,7 +348,7 @@ namespace ThrottleControlledAvionics
 		void LevelControl()
 		{
 			if(GUILayout.Button(new GUIContent("Level", "Level the craft when this profile is activated"),
-			                    Level? Styles.green_button : Styles.normal_button, GUILayout.Width(50)))
+			                    Level? Styles.enabled_button : Styles.normal_button, GUILayout.Width(50)))
 				Level = !Level;
 		}
 
@@ -369,11 +369,11 @@ namespace ThrottleControlledAvionics
 			else { Default = GUILayout.Toggle(Default, "Default", GUILayout.Width(60)); }
 			//edit button
 			if(GUILayout.Button(Edit? "Done" : "Edit", 
-				Edit? Styles.green_button : Styles.normal_button, GUILayout.Width(50)))
+				Edit? Styles.confirm_button : Styles.normal_button, GUILayout.Width(50)))
 				Edit = !Edit;
 			//delete button
 			var delete = !Default && 
-				!GUILayout.Button(new GUIContent("X", "Delete profile"), Styles.red_button, GUILayout.Width(20));
+				!GUILayout.Button(new GUIContent("X", "Delete profile"), Styles.close_button, GUILayout.Width(20));
 			GUILayout.EndHorizontal();
 			if(Edit)
 			{
@@ -543,7 +543,7 @@ namespace ThrottleControlledAvionics
 			if(del.Count > 0) foreach(var p in del) DB.Remove(p);
 			GUILayout.EndVertical();
 			GUILayout.EndScrollView();
-			if(GUILayout.Button("Add Profile", Styles.green_button, GUILayout.ExpandWidth(true)))
+			if(GUILayout.Button("Add Profile", Styles.add_button, GUILayout.ExpandWidth(true)))
 				CopyActive();
 			GUILayout.EndVertical();
 		}

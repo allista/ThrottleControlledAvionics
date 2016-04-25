@@ -110,7 +110,7 @@ namespace ThrottleControlledAvionics
 			if(TCAScenario.Macros.Selector(out sel)) { ret = true; macro = sel; }
 			GUILayout.EndVertical();
 			GUILayout.EndHorizontal();
-			ret |= GUILayout.Button("Cancel", Styles.red_button, GUILayout.ExpandWidth(true));
+			ret |= GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(true));
 			GUILayout.EndVertical();
 			return ret;
 		}
@@ -120,18 +120,18 @@ namespace ThrottleControlledAvionics
 			if(Macro == null) return;
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
-			LoadMacro |= GUILayout.Button("Load", Styles.green_button, GUILayout.ExpandWidth(false));
-			if(GUILayout.Button("New", Styles.yellow_button, GUILayout.ExpandWidth(false))) EditMacro(null);
+			LoadMacro |= GUILayout.Button("Load", Styles.active_button, GUILayout.ExpandWidth(false));
+			if(GUILayout.Button("New", Styles.add_button, GUILayout.ExpandWidth(false))) EditMacro(null);
 			GUILayout.Space(20);
 			if(GUILayout.Button(CFG.SelectedMacro != null && CFG.SelectedMacro.Name == Macro.Name? "Apply" : "Use", 
-			                    Styles.green_button, GUILayout.ExpandWidth(false)))
+			                    Styles.active_button, GUILayout.ExpandWidth(false)))
 				CFG.SelectedMacro = (TCAMacro)Macro.GetCopy();
-			if(GUILayout.Button("Save to Vessel DB", Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(GUILayout.Button("Save to Vessel DB", Styles.active_button, GUILayout.ExpandWidth(false)))
 				CFG.Macros.SaveMacro(Macro, true);
-			if(GUILayout.Button("Save to Global DB", Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			if(GUILayout.Button("Save to Global DB", Styles.active_button, GUILayout.ExpandWidth(false)))
 				TCAScenario.SaveMacro(Macro);
 			GUILayout.FlexibleSpace();
-			exit |= GUILayout.Button("Exit", Styles.red_button, GUILayout.ExpandWidth(false));
+			exit |= GUILayout.Button("Exit", Styles.close_button, GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
 			scroll = GUILayout.BeginScrollView(scroll, GUILayout.ExpandHeight(false));
 			Macro.Draw();
@@ -156,7 +156,7 @@ namespace ThrottleControlledAvionics
 				if(TCAScenario.Macros.Selector(out action)) select_action(action);
 				GUILayout.EndVertical();
 				GUILayout.EndHorizontal();
-				if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.ExpandWidth(true))) SelectAction(null);
+				if(GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(true))) SelectAction(null);
 				GUILayout.EndVertical();
 			}
 			if(SelectingCondition) 
@@ -171,7 +171,7 @@ namespace ThrottleControlledAvionics
 						condition_selected(cnd);
 					SelectCondition(null);
 				}
-				if(GUILayout.Button("Cancel", Styles.red_button, GUILayout.ExpandWidth(true))) SelectCondition(null);
+				if(GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(true))) SelectCondition(null);
 				GUILayout.EndVertical();
 			}
 			if(LoadMacro)
