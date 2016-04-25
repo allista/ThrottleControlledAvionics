@@ -21,14 +21,18 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "BRC";
 
+			[Persistent] public float YawFactor = 0.6f;
 			[Persistent] public float MinAAf = 0.001f;
 			[Persistent] public float MaxAAf = 2;
 			[Persistent] public PID_Controller DirectionPID = new PID_Controller(0.5f, 0f, 0.5f, -1, 1);
 		}
 		static Config BRC { get { return TCAScenario.Globals.BRC; } }
 
+		readonly Timer DirectionLineTimer = new Timer();
 		readonly PIDf_Controller pid = new PIDf_Controller();
+		public readonly FloatField Bearing = new FloatField(min:0, max:360, circle:true);
 
+		public Vector3d DirectionOverride;
 		public Vector3d ForwardDirection;
 
 		public BearingControl(ModuleTCA tca) : base(tca) {}
@@ -38,13 +42,12 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			pid.setPID(BRC.DirectionPID);
 			pid.Reset();
-			CFG.HF.AddHandler(this, HFlight.NoseOnCourse);
+			CFG.BR.AddSingleCallback(ControlCallback);
 		}
 
-		protected override void UpdateState() 
-		{ IsActive = VSL.OnPlanet && CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl); }
+		protected override void UpdateState() { IsActive = CFG.BR && VSL.OnPlanet; }
 
-		public void NoseOnCourseCallback(Multiplexer.Command cmd)
+		public void ControlCallback(Multiplexer.Command cmd)
 		{
 			pid.Reset();
 			switch(cmd)
@@ -53,6 +56,8 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.On:
 				RegisterTo<SASBlocker>();
 				RegisterTo<Radar>(vsl => vsl.HorizontalSpeed.MoovingFast);
+				ForwardDirection = VSL.OnPlanetParams.Fwd;
+				Bearing.Value = (float)VSL.Physics.Bearing(ForwardDirection);
 				break;
 
 			case Multiplexer.Command.Off:
@@ -62,19 +67,38 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		public void UpdateBearing(float bearing)
+		{
+			Bearing.Value = bearing;
+			ForwardDirection = VSL.Physics.Direction(Bearing);
+		}
+
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && 
-			     CFG.HF.Any(HFlight.Stop, HFlight.NoseOnCourse, HFlight.CruiseControl) && 
+			     (CFG.BR || !DirectionOverride.IsZero()) &&
 			     VSL.OnPlanet && VSL.refT != null && 
 			     !ForwardDirection.IsZero())) return;
 			//allow user to intervene
 			var cDir = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL).normalized;
-			if(VSL.AutopilotDisabled) pid.Reset();
+			if(VSL.AutopilotDisabled)
+			{
+				if(!s.yaw.Equals(0))
+				{
+					UpdateBearing(Bearing.Value + s.yaw*BRC.YawFactor);
+					if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
+						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
+					draw_forward_direction = GLB.DrawForwardDirection;
+					DirectionLineTimer.Reset();
+					VSL.AutopilotDisabled = false;
+					s.yaw = 0;
+					pid.Reset();
+				}
+			}
 			//turn ship's nose in the direction of needed velocity
 			var axis = VSL.OnPlanetParams.NoseUp? Vector3.up : Vector3.forward;
-			var nDir = VSL.LocalDir(ForwardDirection);
+			var nDir = VSL.LocalDir(DirectionOverride.IsZero()? ForwardDirection : DirectionOverride);
 			var angle = Vector3.Angle(cDir, nDir)/180*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
 			var AAf = Utils.Clamp(1/(Mathf.Abs(Vector3.Dot(axis, VSL.Torque.MaxAngularA))), BRC.MinAAf, BRC.MaxAAf);
 			var eff = Mathf.Abs(Vector3.Dot(VSL.Engines.MaxThrust.normalized, VSL.Physics.Up));
@@ -84,6 +108,35 @@ namespace ThrottleControlledAvionics
 			var act = pid.Action*eff;
 			if(VSL.OnPlanetParams.NoseUp) s.roll = s.rollTrim = act;
 			else s.yaw = s.yawTrim = act;
+			DirectionOverride = Vector3d.zero;
+		}
+
+		bool draw_forward_direction;
+		static readonly GUIContent X_cnt = new GUIContent("X", "Disable Bearing Control");
+		static readonly GUIContent Enable_cnt = new GUIContent("Bearing", "Enable Bearing Control");
+		public override void Draw ()
+		{
+			if(CFG.BR[BearingMode.Auto] || !DirectionOverride.IsZero())
+				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(false));
+			else if(CFG.BR[BearingMode.User])
+			{
+				if(draw_forward_direction)
+				{
+					GLUtils.GLVec(VSL.Physics.wCoM, ForwardDirection*2500, Color.green);
+					draw_forward_direction = !DirectionLineTimer.Check;
+				}
+				if(Bearing.Draw("°", increment:10))
+				{ 
+					ForwardDirection = VSL.Physics.Direction(Bearing);
+					if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
+						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
+					
+				}
+				if(GUILayout.Button(X_cnt, Styles.red_button, GUILayout.ExpandWidth(false)))
+					CFG.BR.Off();
+			}
+			else if(!CFG.BR && GUILayout.Button(Enable_cnt, Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				CFG.BR.XOn(BearingMode.User);
 		}
 	}
 }

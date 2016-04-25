@@ -118,7 +118,9 @@ namespace ThrottleControlledAvionics
 			}
 			else GUILayout.Label(new GUIContent("Follow Route", CFG.Nav.Paused? "Paused" : "Add some waypoints first"), 
 			                         Styles.grey, GUILayout.Width(90));
-			var max_nav_speed = Utils.FloatSlider("", CFG.MaxNavSpeed, GLB.PN.MinSpeed, GLB.PN.MaxSpeed, "0 m/s", 60, "Maximum horizontal speed on autopilot");
+			var max_nav_speed = Utils.FloatSlider("", CFG.MaxNavSpeed, 
+			                                      CFG.HF[HFlight.CruiseControl]? GLB.CC.MaxRevSpeed : GLB.PN.MinSpeed, GLB.PN.MaxSpeed, 
+			                                      "0.0 m/s", 60, "Maximum horizontal speed on autopilot");
 			if(Mathf.Abs(max_nav_speed-CFG.MaxNavSpeed) > 1e-5)
 				apply_cfg(cfg => cfg.MaxNavSpeed = max_nav_speed);
 			GUILayout.EndHorizontal();
