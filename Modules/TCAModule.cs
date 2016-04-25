@@ -72,7 +72,7 @@ namespace ThrottleControlledAvionics
 
 		protected void Log(string msg, params object[] args) { Utils.Log(LogTemplate(msg), args); }
 		protected void LogF(string msg, params object[] args) { Utils.LogF(LogTemplate(msg), args); }
-		protected void LogST(string msg, params object[] args) { DebugUtils.Log(LogTemplate(msg), args); }
+		protected void LogFST(string msg, params object[] args) { DebugUtils.LogF(LogTemplate(msg), args); }
 
 		protected void CSV(params object[] args)
 		{
