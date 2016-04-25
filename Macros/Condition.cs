@@ -74,11 +74,11 @@ namespace ThrottleControlledAvionics
 			if(Prev != null && GUILayout.Button(or? "OR" : "AND", Styles.white, GUILayout.Width(40))) or = !or;
 			if(negatable && GUILayout.Button(not? "NOT" : "", Styles.red, GUILayout.Width(40))) not = !not;
 			DrawThis();
-			if(Prev != null && GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) Delete();
+			if(Prev != null && GUILayout.Button("X", Styles.close_button, GUILayout.Width(20))) Delete();
 			if(Next != null) Next.Draw();
 			else
 			{
-				if(GUILayout.Button("+", Styles.green_button, GUILayout.Width(20))) 
+				if(GUILayout.Button("+", Styles.active_button, GUILayout.Width(20))) 
 				{ if(SelectCondition != null) SelectCondition(Add); }
 			}
 			GUILayout.EndHorizontal();
@@ -166,7 +166,7 @@ namespace ThrottleControlledAvionics
 				}
 				GUILayout.Label("Wait for:", Styles.white, GUILayout.ExpandWidth(false));
 				Period.Draw("s", false);
-				if(GUILayout.Button("Done", Styles.green_button, GUILayout.ExpandWidth(false)))
+				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
 				{
 					Value.UpdateValue();
 					Error.UpdateValue();

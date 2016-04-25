@@ -133,7 +133,7 @@ namespace ThrottleControlledAvionics
 		{
 			GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
 			if(GUILayout.Button(On? "On" : "Off", 
-			                    On? Styles.green_button : Styles.yellow_button, 
+			                    On? Styles.enabled_button : Styles.active_button, 
 			                    GUILayout.ExpandWidth(false)))
 				On = !On;
 		}

@@ -132,10 +132,10 @@ namespace ThrottleControlledAvionics
 						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
 					
 				}
-				if(GUILayout.Button(X_cnt, Styles.red_button, GUILayout.ExpandWidth(false)))
+				if(GUILayout.Button(X_cnt, Styles.close_button, GUILayout.ExpandWidth(false)))
 					CFG.BR.Off();
 			}
-			else if(!CFG.BR && GUILayout.Button(Enable_cnt, Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			else if(!CFG.BR && GUILayout.Button(Enable_cnt, Styles.active_button, GUILayout.ExpandWidth(false)))
 				CFG.BR.XOn(BearingMode.User);
 		}
 	}

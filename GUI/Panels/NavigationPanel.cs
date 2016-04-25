@@ -50,18 +50,12 @@ namespace ThrottleControlledAvionics
 			if(BJ != null) BJ.Draw();
 			if(VSL.HasTarget && !CFG.Nav.Paused)
 			{
-				if(GUILayout.Button(new GUIContent("Go To", "Fly to current target"), 
-				                        CFG.Nav[Navigation.GoToTarget]? Styles.green_button 
-				                        : Styles.yellow_button,
-				                        GUILayout.Width(50)))
+				if(Utils.ButtonSwitch("Go To", CFG.Nav[Navigation.GoToTarget], "Fly to current target", GUILayout.Width(50)))
 				{
 					CFG.Nav.XOn(Navigation.GoToTarget);
 					if(CFG.Nav[Navigation.GoToTarget]) follow_me();
 				}
-				if(GUILayout.Button(new GUIContent("Follow", "Follow current target"), 
-				                        CFG.Nav[Navigation.FollowTarget]? Styles.green_button 
-				                        : Styles.yellow_button,
-				                        GUILayout.Width(50)))
+				if(Utils.ButtonSwitch("Follow", CFG.Nav[Navigation.FollowTarget], "Follow current target", GUILayout.Width(50)))
 					apply(tca => 
 				{
 					if(TCA.vessel.targetObject as Vessel == tca.vessel) return;
@@ -82,34 +76,31 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label(new GUIContent("Follow Me", "Make the squadron follow"),  
 					                    Styles.grey, GUILayout.Width(75));
 				else if(GUILayout.Button(new GUIContent("Follow Me", "Make the squadron follow"), 
-				                             Styles.yellow_button, GUILayout.Width(75)))
+				                         Styles.active_button, GUILayout.Width(75)))
 					follow_me();
 			}
 			if(selecting_target)
-				selecting_target &= !GUILayout.Button("Cancel", Styles.red_button, GUILayout.Width(120));
+				selecting_target &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.Width(120));
 			else if(VSL.HasTarget && 
 			            !(VSL.Target is WayPoint) && 
 			            (CFG.Waypoints.Count == 0 || VSL.Target != CFG.Waypoints.Peek().GetTarget()))
 			{
 				if(GUILayout.Button(new GUIContent("Add As Waypoint", "Add current target as a waypoint"), 
-				                        Styles.yellow_button, GUILayout.Width(120)))
+				                    Styles.active_button, GUILayout.Width(120)))
 				{
 					CFG.Waypoints.Enqueue(new WayPoint(VSL.Target));
 					CFG.ShowWaypoints = true;
 				}
 			}
 			else if(GUILayout.Button(new GUIContent("Add Waypoint", "Select a new waypoint"), 
-			                             Styles.yellow_button, GUILayout.Width(120)))
+			                         Styles.active_button, GUILayout.Width(120)))
 			{
 				selecting_target = true;
 				CFG.ShowWaypoints = true;
 			}
 			if(CFG.Waypoints.Count > 0 && !CFG.Nav.Paused)
 			{
-				if(GUILayout.Button("Follow Route",
-				                        CFG.Nav[Navigation.FollowPath]? Styles.green_button 
-				                        : Styles.yellow_button,
-				                        GUILayout.Width(90)))
+				if(Utils.ButtonSwitch("Follow Route", CFG.Nav[Navigation.FollowPath], "", GUILayout.Width(90)))
 				{
 					CFG.Nav.XToggle(Navigation.FollowPath);
 					if(CFG.Nav[Navigation.FollowPath])
@@ -117,7 +108,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			else GUILayout.Label(new GUIContent("Follow Route", CFG.Nav.Paused? "Paused" : "Add some waypoints first"), 
-			                         Styles.grey, GUILayout.Width(90));
+			                     Styles.grey, GUILayout.Width(90));
 			var max_nav_speed = Utils.FloatSlider("", CFG.MaxNavSpeed, 
 			                                      CFG.HF[HFlight.CruiseControl]? GLB.CC.MaxRevSpeed : GLB.PN.MinSpeed, GLB.PN.MaxSpeed, 
 			                                      "0.0 m/s", 60, "Maximum horizontal speed on autopilot");
@@ -129,9 +120,9 @@ namespace ThrottleControlledAvionics
 		public void AddSingleWaypointInMapView()
 		{
 			if(selecting_target)
-				selecting_target &= !GUILayout.Button("Cancel", Styles.red_button, GUILayout.Width(120));
+				selecting_target &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.Width(120));
 			else if(GUILayout.Button(new GUIContent("Add Target", "Select target point"), 
-			                         Styles.yellow_button, GUILayout.ExpandWidth(false)))
+			                         Styles.active_button, GUILayout.ExpandWidth(false)))
 			{
 				select_single = true;
 				selecting_target = true;
@@ -146,7 +137,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.Waypoints.Count == 0) return;
 			GUILayout.BeginVertical();
 			if(GUILayout.Button(CFG.ShowWaypoints? "Hide Waypoints" : "Show Waypoints", 
-			                    Styles.yellow_button,
+			                    Styles.active_button,
 			                    GUILayout.ExpandWidth(true)))
 				CFG.ShowWaypoints = !CFG.ShowWaypoints;
 			if(CFG.ShowWaypoints)
@@ -178,22 +169,18 @@ namespace ThrottleControlledAvionics
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
 					if(LND != null && 
-					   GUILayout.Button(new GUIContent("Land", "Land on arrival"), 
-					                    wp.Land? Styles.green_button : Styles.yellow_button, 
-					                    GUILayout.Width(50))) 
+					   Utils.ButtonSwitch("Land", wp.Land, "Land on arrival", GUILayout.Width(50))) 
 						wp.Land = !wp.Land;
-					if(GUILayout.Button(new GUIContent("||", "Pause on arrival"), 
-					                    wp.Pause? Styles.green_button : Styles.yellow_button, 
-					                    GUILayout.Width(25))) 
+					if(Utils.ButtonSwitch("||", wp.Pause, "Pause on arrival", GUILayout.Width(25))) 
 						wp.Pause = !wp.Pause;
 					if(GUILayout.Button(new GUIContent("X", "Delete waypoint"), 
-					                    Styles.red_button, GUILayout.Width(25))) 
+					                    Styles.danger_button, GUILayout.Width(25))) 
 						del.Add(wp);
 					GUILayout.EndHorizontal();
 					i++;
 				}
 				GUI.contentColor = col;
-				if(GUILayout.Button("Clear", Styles.red_button, GUILayout.ExpandWidth(true)))
+				if(GUILayout.Button("Clear", Styles.danger_button, GUILayout.ExpandWidth(true)))
 					CFG.Waypoints.Clear();
 				else if(del.Count > 0)
 				{

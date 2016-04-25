@@ -47,13 +47,13 @@ namespace ThrottleControlledAvionics
 		{
 			if(Parent != null && Parent.Edit &&
 			   GUILayout.Button("X", 
-			                    Styles.red_button, 
+			                    Styles.close_button, 
 			                    GUILayout.Width(20)))
 				Parent.OnChildRemove(this);
 		}
 
 		protected virtual void DrawThis() 
-		{ GUILayout.Label(Name, Active? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true)); }
+		{ GUILayout.Label(Name, Active? Styles.enabled_button : Styles.normal_button, GUILayout.ExpandWidth(true)); }
 
 		protected virtual void CleanUp() {}
 

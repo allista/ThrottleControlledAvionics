@@ -99,13 +99,13 @@ namespace ThrottleControlledAvionics
 				//options button
 				if(GUI.Button(new Rect(2f, 2f, 70f, 18f), 
 				              new GUIContent("advanced", "Advanced configuration"), 
-				              adv_options? Styles.green_button : Styles.normal_button)) 
+				              adv_options? Styles.enabled_button : Styles.normal_button)) 
 					adv_options = !adv_options;
 				GUILayout.BeginVertical();
 				GUILayout.BeginHorizontal();
 				//tca toggle
 				if(GUILayout.Button("Enabled", 
-				                    CFG.Enabled? Styles.green_button : Styles.grey_button,
+				                    CFG.Enabled? Styles.enabled_button : Styles.inactive_button,
 				                    GUILayout.Width(70)))
 				{
 					if(SQD == null) TCA.ToggleTCA();
@@ -179,7 +179,7 @@ namespace ThrottleControlledAvionics
 				else if(TCA.State == TCAState.NoEC)
 				{ state = "No Electric Charge"; style = Styles.red; }
 				else //this should never happen
-				{ state = "Unknown State"; style = Styles.magenta_button; }
+				{ state = "Unknown State"; style = Styles.magenta; }
 			}
 			GUILayout.Label(state, style, GUILayout.ExpandWidth(false));
 		}
@@ -189,9 +189,10 @@ namespace ThrottleControlledAvionics
 			if(!adv_options) return;
 			GUILayout.BeginVertical(Styles.white);
 			GUILayout.Label(TCATitle, Styles.label, GUILayout.ExpandWidth(true));
-			if(GUILayout.Button("Reload TCA Settings", Styles.yellow_button, GUILayout.ExpandWidth(true))) 
+			if(GUILayout.Button("Reload TCA Settings", Styles.active_button, GUILayout.ExpandWidth(true))) 
 			{
 				TCAScenario.LoadGlobals();
+				Styles.ConfigureButtons();
 				TCA.OnReloadGlobals();
 			}
 			PartsInfo();
@@ -200,7 +201,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label("Press to change TCA hotkey:", GUILayout.ExpandWidth(false));
 			if(GUILayout.Button(selecting_key? new GUIContent("?", "Choose new TCA hotkey") : 
 			                    new GUIContent(TCA_Key.ToString(), "Select TCA Hotkey"), 
-			                    selecting_key? Styles.yellow_button : Styles.green_button, 
+			                    selecting_key? Styles.enabled_button : Styles.active_button, 
 			                    GUILayout.Width(40)))
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			GUILayout.EndHorizontal();
@@ -231,11 +232,11 @@ namespace ThrottleControlledAvionics
 			if(TCAScenario.NamedConfigs.ContainsKey(config_name))
 			{
 				if(GUILayout.Button(new GUIContent("Overwrite", "Overwrite selected configuration with the current one"), 
-				                    Styles.red_button, GUILayout.Width(70)))
+				                    Styles.danger_button, GUILayout.Width(70)))
 					TCAScenario.SaveNamedConfig(config_name, CFG, true);
 			}
 			else if(GUILayout.Button(new GUIContent("Add", "Save current configuration"), 
-			                         Styles.green_button, GUILayout.Width(50)) && config_name != string.Empty) 
+			                         Styles.add_button, GUILayout.Width(50)) && config_name != string.Empty) 
 			{
 				TCAScenario.SaveNamedConfig(config_name, CFG);
 				update_configs();
@@ -243,10 +244,10 @@ namespace ThrottleControlledAvionics
 			}
 			SelectConfig();
 			if(GUILayout.Button(new GUIContent("Load", "Load selected configuration"),
-			                    Styles.yellow_button, GUILayout.Width(50)) && selected_config != null) 
+			                    Styles.active_button, GUILayout.Width(50)) && selected_config != null) 
 				CFG.CopyFrom(selected_config);
 			if(GUILayout.Button(new GUIContent("Delete", "Delete selected configuration"), 
-			                    Styles.red_button, GUILayout.Width(50)) && selected_config != null)
+			                    Styles.danger_button, GUILayout.Width(50)) && selected_config != null)
 			{ 
 				TCAScenario.NamedConfigs.Remove(selected_config.Name);
 				named_configs.SelectItem(named_configs.SelectedIndex-1);
@@ -311,13 +312,13 @@ namespace ThrottleControlledAvionics
 			if(CFG.ActiveProfile.NumManual > 0)
 			{
 				if(GUILayout.Button(CFG.ShowManualLimits? "Hide Manual Engines" : "Show Manual Engines", 
-				                    Styles.yellow_button,
+				                    Styles.active_button,
 				                    GUILayout.ExpandWidth(true)))
 					CFG.ShowManualLimits = !CFG.ShowManualLimits;
 				if(CFG.ShowManualLimits) CFG.EnginesProfiles.DrawManual(Utils.ClampH(LineHeight*CFG.ActiveProfile.NumManual, ControlsHeight));
 			}
 			if(GUILayout.Button(CFG.ShowEnginesProfiles? "Hide Engines Profiles" : "Show Engines Profiles", 
-			                    Styles.yellow_button,
+			                    Styles.active_button,
 			                    GUILayout.ExpandWidth(true)))
 				CFG.ShowEnginesProfiles = !CFG.ShowEnginesProfiles;
 			if(CFG.ShowEnginesProfiles) CFG.EnginesProfiles.Draw(ControlsHeight*2);

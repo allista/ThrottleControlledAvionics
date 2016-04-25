@@ -36,6 +36,14 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float ExhaustSafeDist      = 1.1f;
 		[Persistent] public bool  DrawForwardDirection = true;
 
+		[Persistent] public string EnabledButtonColor  = "green";
+		[Persistent] public string ActiveButtonColor   = "yellow";
+		[Persistent] public string InactiveButtonColor = "grey";
+		[Persistent] public string ConfirmButtonColor  = "green";
+		[Persistent] public string AddButtonColor      = "green";
+		[Persistent] public string CloseButtonColor    = "red";
+		[Persistent] public string DangerButtonColor   = "red";
+
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
