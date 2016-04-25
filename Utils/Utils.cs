@@ -13,9 +13,10 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public static class Utils
+	public static partial class Utils
 	{
 		public const double TwoPI = 6.2831853;
+		public const float G0 = 9.80665f; //m/s2
 
 		/// <summary>
 		/// The camel case components matching regexp.
@@ -119,6 +120,11 @@ namespace ThrottleControlledAvionics
 		public static int ClampL(int x, int low)  { return x < low  ? low  : x; }
 		public static int ClampH(int x, int high) { return x > high ? high : x; }
 
+		public static float Circle(float a, float min, float max)
+		{ if(a > max) a = a%max+min; return a < min? max-min+a : a; }
+		public static double Circle(double a, double min, double max)
+		{ if(a > max) a = a%max+min; return a < min? max-min+a : a; }
+
 		public static float ClampAngle(float a) { a = a%360; return a < 0? 360+a : a; }
 		public static double ClampAngle(double a) { a = a%360; return a < 0? 360+a : a; }
 
@@ -148,40 +154,6 @@ namespace ThrottleControlledAvionics
 			var Ba = Vector3d.Dot(B, A)/Am;
 			var Bt = Vector3d.Dot(B, Vector3d.Exclude(A, tangentA).normalized);
 			return Math.Atan2(Bt, Ba)*Mathf.Rad2Deg;
-		}
-		#endregion
-
-		#region GUI
-		public static float FloatSlider(string name, float value, float min, float max, string format="F1", int label_width = -1, string tooltip = "")
-		{
-			var label = name.Length > 0? string.Format("{0}: {1}", name, value.ToString(format)) : value.ToString(format);
-			GUILayout.Label(new GUIContent(label, tooltip), label_width > 0? GUILayout.Width(label_width) : GUILayout.ExpandWidth(false));
-			return GUILayout.HorizontalSlider(value, min, max, GUILayout.ExpandWidth(true));
-		}
-
-		public static int IntSelector(int value, int min, int max=int.MaxValue, string format="D", string tooltip = "")
-		{
-			if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(15)))
-			{ if(value >= min) value--; }
-			GUILayout.Label(new GUIContent(value < min? "Off" : value.ToString(format), tooltip), 
-			                GUILayout.Width(20));
-			if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(15)))
-			{ if(value <= max) value++; }
-			return value;
-		}
-
-		public static bool ButtonSwitch(string name, bool current_value, string tooltip = "", params GUILayoutOption[] options)
-		{
-			return string.IsNullOrEmpty(tooltip)? 
-				GUILayout.Button(name, current_value ? Styles.green_button : Styles.yellow_button, options) : 
-				GUILayout.Button(new GUIContent(name, tooltip), current_value ? Styles.green_button : Styles.yellow_button, options);
-		}
-
-		public static bool ButtonSwitch(string name, ref bool current_value, string tooltip = "", params GUILayoutOption[] options)
-		{
-			var ret = ButtonSwitch(name, current_value, tooltip, options);
-			if(ret) current_value = !current_value;
-			return ret;
 		}
 		#endregion
 
@@ -292,62 +264,6 @@ namespace ThrottleControlledAvionics
 				SearchCoordinates(body, mouseRay);
 		}
 		#endregion
-
-		#region ControlLock
-		//modified from Kerbal Alarm Clock mod
-		public static void LockEditor(string LockName, bool Lock=true)
-		{
-			if(Lock && InputLockManager.GetControlLock(LockName) != ControlTypes.EDITOR_LOCK)
-			{
-				#if DEBUG
-				Log("AddingLock: {0}", LockName);
-				#endif
-				InputLockManager.SetControlLock(ControlTypes.EDITOR_LOCK, LockName);
-				return;
-			}
-			if(!Lock && InputLockManager.GetControlLock(LockName) == ControlTypes.EDITOR_LOCK) 
-			{
-				#if DEBUG
-				Log("RemovingLock: {0}", LockName);
-				#endif
-				InputLockManager.RemoveControlLock(LockName);
-			}
-		}
-
-		public static void LockIfMouseOver(string LockName, Rect WindowRect, bool Lock=true)
-		{
-			Lock &= WindowRect.Contains(Event.current.mousePosition);
-			LockEditor(LockName, Lock);
-		}
-		#endregion
-	}
-
-	public class FloatField
-	{
-		string svalue;
-		public float Value;
-
-		public bool UpdateValue(float cvalue)
-		{
-			if(float.TryParse(svalue, out Value)) return true;
-			Value = cvalue;
-			return false;
-		}
-
-		public bool Draw(float cvalue, string suffix = "", bool show_set_button = true)
-		{
-			if(string.IsNullOrEmpty(svalue) || !Value.Equals(cvalue))
-			{
-				Value = cvalue;
-				svalue = Value.ToString("F1");
-			}
-			svalue = GUILayout.TextField(svalue, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
-			if(!string.IsNullOrEmpty(suffix)) GUILayout.Label(suffix, Styles.label, GUILayout.ExpandWidth(false));
-			return 
-				show_set_button && 
-				GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50)) && 
-				UpdateValue(cvalue);
-		}
 	}
 
 	//adapted from MechJeb

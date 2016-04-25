@@ -56,8 +56,8 @@ namespace ThrottleControlledAvionics
 
 		public static string getStacktrace(int skip = 0) { return new StackTrace(skip+1, true).ToString(); }
 
-		public static void Log(string msg, params object[] args)
-		{ Utils.Log("{0}\n{1}", string.Format(msg, args), getStacktrace(1)); }
+		public static void LogF(string msg, params object[] args)
+		{ Utils.Log("{0}\n{1}", Utils.Format(msg, args), getStacktrace(1)); }
 
 		//does not work with monodevelop generated .mdb files =(
 //		public static void LogException(Action action)
@@ -75,105 +75,6 @@ namespace ThrottleControlledAvionics
 //				          st.ToString());
 //			}
 //		}
-	}
-
-	//adapted from MechJeb
-	public static class GLUtils
-	{
-		static Material _material;
-		static Material material
-		{
-			get
-			{
-				if(_material == null) _material = new Material(Shader.Find("Particles/Additive"));
-				return _material;
-			}
-		}
-
-		static Camera GLBeginWorld(out float far)
-		{
-			var camera = MapView.MapIsEnabled? PlanetariumCamera.Camera : FlightCamera.fetch.mainCamera;
-			far = camera.farClipPlane;
-			camera.farClipPlane = far*100;
-			GL.PushMatrix();
-			material.SetPass(0);
-			GL.LoadProjectionMatrix(camera.projectionMatrix);
-			GL.modelview = camera.worldToCameraMatrix;
-			return camera;
-		}
-
-		public static void GLTriangleMap(Vector3d[] worldVertices, Color c)
-		{
-			float far;
-			var camera = GLBeginWorld(out far);
-			GL.Begin(GL.TRIANGLES);
-			GL.Color(c);
-			GL.Vertex(worldVertices[0]);
-			GL.Vertex(worldVertices[1]);
-			GL.Vertex(worldVertices[2]);
-			GL.End();
-			GL.PopMatrix();
-			camera.farClipPlane = far;
-		}
-
-		public static void GLTriangleMap(Vector3[] worldVertices, Color c)
-		{
-			float far;
-			var camera = GLBeginWorld(out far);
-			GL.Begin(GL.TRIANGLES);
-			GL.Color(c);
-			GL.Vertex(worldVertices[0]);
-			GL.Vertex(worldVertices[1]);
-			GL.Vertex(worldVertices[2]);
-			GL.End();
-			GL.PopMatrix();
-			camera.farClipPlane = far;
-		}
-
-		public static void GLLine(Vector3 ori, Vector3 end, Color c)
-		{
-			float far;
-			var camera = GLBeginWorld(out far);
-			GL.Begin(GL.LINES);
-			GL.Color(c);
-			GL.Vertex(ori);
-			GL.Vertex(end);
-			GL.End();
-			GL.PopMatrix();
-			camera.farClipPlane = far;
-		}
-
-		public static void GLVec(Vector3 ori, Vector3 vec, Color c)
-		{ GLLine(ori, ori+vec, c); }
-
-//		edges[0] = new Vector3(min.x, min.y, min.z); //left-bottom-back
-//		edges[1] = new Vector3(min.x, min.y, max.z); //left-bottom-front
-//		edges[2] = new Vector3(min.x, max.y, min.z); //left-top-back
-//		edges[3] = new Vector3(min.x, max.y, max.z); //left-top-front
-//		edges[4] = new Vector3(max.x, min.y, min.z); //right-bottom-back
-//		edges[5] = new Vector3(max.x, min.y, max.z); //right-bottom-front
-//		edges[6] = new Vector3(max.x, max.y, min.z); //right-top-back
-//		edges[7] = new Vector3(max.x, max.y, max.z); //right-top-front
-
-		public static void GLBounds(Bounds b, Transform T, Color col)
-		{
-			var c = Utils.BoundCorners(b);
-			for(int i = 0; i < 8; i++) c[i] = T.TransformPoint(c[i]);
-			GLLine(c[0], c[1], col);
-			GLLine(c[1], c[5], col);
-			GLLine(c[5], c[4], col);
-			GLLine(c[4], c[0], col);
-
-			GLLine(c[2], c[3], col);
-			GLLine(c[3], c[7], col);
-			GLLine(c[7], c[6], col);
-			GLLine(c[6], c[2], col);
-
-			GLLine(c[2], c[0], col);
-			GLLine(c[3], c[1], col);
-			GLLine(c[7], c[5], col);
-			GLLine(c[6], c[4], col);
-		}
 	}
 
 	class NamedStopwatch
@@ -333,14 +234,23 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.MainMenu, false)]
 	public class LoadTestGame : MonoBehaviour
 	{
-//		const string save = "DEO Kerbin test";
-		const string save = "REN Mun StartOrbit";
-		const string game = "TCA-tests";
-		static readonly string gamedir = KSPUtil.ApplicationRootPath + "/saves/"+game;
+		static readonly string config   = TCAScenario.PluginFolder("LoadTestGame.conf");
+		static readonly string savesdir = KSPUtil.ApplicationRootPath+"saves";
 
 		void Awake()
 		{
-			var savefile = gamedir+"/"+save+".sfs";
+			var game = "default";
+			var save = "persistent";
+			if(File.Exists(config))
+			{
+				var cfg = ConfigNode.Load(config);
+				var val = cfg.GetValue("game");
+				if(val != null) game = val;
+				val = cfg.GetValue("save");
+				if(val != null) save = val;
+			}
+			else Utils.LogF("LoadTestGame: Configuration file not found: {}", config);
+			var savefile = savesdir+"/"+game+"/"+save+".sfs";
 			if(!File.Exists(savefile)) 
 			{
 				Utils.LogF("No such file: {}", savefile);

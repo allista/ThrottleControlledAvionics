@@ -153,6 +153,7 @@
     <Compile Include="VesselProps\ControlProps.cs" />
     <Compile Include="VesselProps\InfoProps.cs" />
     <Compile Include="VesselProps\OnPlanetProps.cs" />
+    <Compile Include="GUI\Elements\GUIUtils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
