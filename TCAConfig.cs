@@ -34,7 +34,6 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float ActionListHeight     = 110f;
 		[Persistent] public float MaxAAFilter          = 1f;
 		[Persistent] public float ExhaustSafeDist      = 1.1f;
-		[Persistent] public bool  DrawForwardDirection = true;
 
 		[Persistent] public string EnabledButtonColor  = "green";
 		[Persistent] public string ActiveButtonColor   = "yellow";
