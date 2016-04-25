@@ -147,7 +147,7 @@ namespace ThrottleControlledAvionics
 				vessel.situation == Vessel.Situations.SUB_ORBITAL;
 		}
 
-		public bool AutopilotDisabled { get; private set; }
+		public bool AutopilotDisabled;
 		public void UpdateAutopilotInfo(FlightCtrlState s)
 		{
 			if(!CFG.Enabled) return;

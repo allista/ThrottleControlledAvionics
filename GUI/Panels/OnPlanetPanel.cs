@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 		Anchor ANC;
 		AutoLander LND;
 		CruiseControl CC;
+		BearingControl BRC;
 		Radar RAD;
 
 		public OnPlanetPanel(ModuleTCA tca) : base(tca) {}
@@ -66,6 +67,23 @@ namespace ThrottleControlledAvionics
 					else apply_cfg(cfg => cfg.AP1.XOffIfOn(Autopilot1.Land));
 				}
 			}
+			if(ALT != null)
+			{
+				if(GUILayout.Button(new GUIContent("Hover", "Maintain altitude"), 
+					CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
+					GUILayout.Width(60)))
+					apply_cfg(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
+				if(RAD != null)
+				{
+					if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
+						"Keep altitude above the ground", GUILayout.ExpandWidth(false)))
+						apply(tca => 
+							{
+								var alt = tca.GetModule<AltitudeControl>();
+								if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
+							});
+				}
+			}
 			if(CC != null)
 			{
 				if(GUILayout.Button(new GUIContent("Cruise", "Maintain course and speed"), 
@@ -76,23 +94,7 @@ namespace ThrottleControlledAvionics
 					if(CFG.HF[HFlight.CruiseControl]) follow_me();
 				}
 			}
-			if(ALT != null)
-			{
-				if(GUILayout.Button(new GUIContent("Hover", "Maintain altitude"), 
-				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(60)))
-					apply_cfg(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
-				if(RAD != null)
-				{
-					if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
-					                      "Keep altitude above the ground", GUILayout.ExpandWidth(false)))
-							apply(tca => 
-						{
-							var alt = tca.GetModule<AltitudeControl>();
-							if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
-						});
-				}
-			}
+			if(BRC != null) BRC.Draw();
 			GUILayout.EndHorizontal();
 		}
 	}

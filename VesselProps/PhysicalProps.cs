@@ -7,6 +7,7 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
+using System;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -40,6 +41,20 @@ namespace ThrottleControlledAvionics
 			StG    = (float)(vessel.mainBody.gMagnitudeAtCenter/Radial.sqrMagnitude);
 			G      = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
 		}
+
+		public Vector3d NorthDirW { get { return Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-wCoM, Up).normalized; } }
+//		public Vector3d EastDirW { get { return (QuaternionD.AngleAxis(90, Up) * NorthDirW).normalized; } }
+
+		public double Bearing(Vector3d dir)
+		{
+			dir.Normalize();
+			var north = NorthDirW;
+			var east  = (QuaternionD.AngleAxis(90, Up) * north).normalized;
+			return Utils.ClampAngle(Math.Atan2(Vector3d.Dot(dir, east), Vector3d.Dot(dir, north))*Mathf.Rad2Deg);
+		}
+
+		public Vector3d Direction(double bearing)
+		{ return (QuaternionD.AngleAxis(bearing, Up) * NorthDirW).normalized; }
 
 		// From MechJeb2:
 		// KSP's calculation of the vessel's moment of inertia is broken.
