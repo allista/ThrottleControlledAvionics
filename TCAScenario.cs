@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
 	public class TCAScenario : ScenarioModule
 	{
 		public const string GLOBALSNAME = "TCA.glob";
+		public const string GLOBALS_OVERRIDE = "TCA.user";
 		public const string MACROSNAME  = "TCA.macro";
 		public const string VSL_NODE    = "VESSELS";
 		public const string NAMED_NODE  = "NAMED";
@@ -152,6 +153,8 @@ namespace ThrottleControlledAvionics
 		{
 			globals = new TCAGlobals();
 			var gnode = loadNode(PluginData(GLOBALSNAME));
+			if(gnode != null) Globals.Load(gnode);
+			gnode = loadNode(PluginFolder(GLOBALS_OVERRIDE));
 			if(gnode != null) Globals.Load(gnode);
 			Globals.Init();
 		}
