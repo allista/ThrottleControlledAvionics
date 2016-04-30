@@ -53,7 +53,7 @@ namespace ThrottleControlledAvionics
 				if(e.isVSC)
 				{
 					var dcomponent = -Vector3.Dot(e.wThrustDir, VSL.Physics.Up);
-					if(dcomponent <= 0) e.VSF = 0;
+					if(dcomponent <= 0) e.VSF = Utils.Clamp(Vector3.Dot(VSL.Controls.Steering, e.specificTorque), 0, 1);
 					else 
 					{
 						var dthrust = e.nominalCurrentThrust(e.best_limit)*dcomponent;
