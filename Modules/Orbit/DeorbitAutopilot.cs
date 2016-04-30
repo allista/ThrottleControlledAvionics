@@ -13,7 +13,10 @@ using UnityEngine;
 namespace ThrottleControlledAvionics
 {
 	[CareerPart]
-	[RequireModules(typeof(ManeuverAutopilot), 
+	[RequireModules(typeof(AttitudeControl),
+	                typeof(BearingControl), 
+	                typeof(ThrottleControl),
+	                typeof(ManeuverAutopilot), 
 	                typeof(AutoLander))]
 	public class DeorbitAutopilot : LandingTrajectoryAutopilot
 	{
@@ -32,7 +35,7 @@ namespace ThrottleControlledAvionics
 			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
 		}
 
-		enum Stage { None, Compute, Deorbit, Correct, Wait }
+		enum Stage { None, Compute, Deorbit, Correct, Coast, Wait }
 		Stage stage;
 		double current_PeR;
 
@@ -52,7 +55,7 @@ namespace ThrottleControlledAvionics
 				if(Math.Abs(dLonLat) > Math.Abs(dLatLon))
 					StartUT = AngleDelta2StartUT(old, dLonLat, DEO.StartOffset, VesselOrbit.period, VesselOrbit.period);
 				else NodeDeltaV += PlaneCorrection(old);
-				Log("StartUT change: {0}\ndV {1}", StartUT-old.StartUT, NodeDeltaV);//debug
+				Log("\nStartUT change: {0}\ndV {1}", StartUT-old.StartUT, NodeDeltaV);//debug
 			}
 			else 
 			{
@@ -86,7 +89,7 @@ namespace ThrottleControlledAvionics
 			setup_calculation(t => fixed_PeR_orbit(t, ref NodeDeltaV, current_PeR));
 		}
 
-		void correct_trajectory()
+		protected override void start_correction()
 		{
 			trajectory = null;
 			stage = Stage.Correct;
@@ -109,6 +112,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
+				RegisterTo<Radar>();
 				break;
 
 			case Multiplexer.Command.On:
@@ -120,19 +124,28 @@ namespace ThrottleControlledAvionics
 				if(VesselOrbit.PeR < Body.Radius)
 				{
 					Status("<color=red>Already deorbiting.</color> Trying to correct course and land.");
-					correct_trajectory();
+					start_correction();
 				}
 				else compute_landing_trajectory();
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
+				UnregisterFrom<Radar>();
 				break;
 			}
 		}
 
+		protected override void UpdateState()
+		{
+			base.UpdateState();
+			IsActive &= CFG.AP2[Autopilot2.Deorbit];
+			var tVSL = VSL.TargetVessel;
+			ControlsActive = IsActive || !VSL.LandedOrSplashed && (tVSL != null && tVSL.LandedOrSplashed || VSL.Target is WayPoint);
+		}
+
 		protected override void Update()
 		{
-			if(Target == null || VSL.orbit.referenceBody == null) return;
+			if(!IsActive) return;
 			if(CFG.Target != Target) SetTarget(Target);
 			if(landing) { do_land(); return; }
 			switch(stage)
@@ -141,7 +154,8 @@ namespace ThrottleControlledAvionics
 				if(!trajectory_computed()) break;
 				if(trajectory.DistanceToTarget < LTRJ.Dtol || current_PeR >= 1)
 				{
-					add_trajectory_node();
+					clear_nodes(); add_trajectory_node();
+					CorrectionTimer.Reset();
 					if(trajectory.DistanceToTarget < LTRJ.Dtol) 
 					{ CFG.AP1.On(Autopilot1.Maneuver); stage = Stage.Deorbit; }
 					else 
@@ -163,33 +177,36 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Deorbit:
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				if(trajectory.TimeToSurface-trajectory.BrakeDuration > DEO.StartOffset)
-				{
-					if(!CorrectionTimer.Check) break;
-					trajectory.UpdateOrbit(VesselOrbit);
-					if(trajectory.DistanceToTarget >= LTRJ.Dtol)
-					{ correct_trajectory(); break; }
-					if(Body.atmosphere) break;
-				}
-				stage = Stage.None;
-				start_landing();
+				start_correction();
 				break;
 			case Stage.Correct:
 				if(!trajectory_computed()) break;
-				add_trajectory_node();
-				CFG.AP1.On(Autopilot1.Maneuver);
-				stage = Stage.Deorbit; 
+				clear_nodes(); add_trajectory_node();
+				CFG.AP1.OnIfNot(Autopilot1.Maneuver);
+				stage = Stage.Coast; 
+				break;
+			case Stage.Coast:
+				if(CFG.AP1[Autopilot1.Maneuver]) break;
+				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-DEO.StartOffset;
+				if(VSL.Info.Countdown > 0 && !correct_trajectory()) break;
+				stage = Stage.None;
+				start_landing();
 				break;
 			}
 		}
 
 		public override void Draw()
 		{
-			if(computing) GUILayout.Label("Computing...", Styles.grey_button, GUILayout.ExpandWidth(false));
-			else if(Utils.ButtonSwitch("Land at Target", CFG.AP2[Autopilot2.Deorbit],
-			                           "Compute and perform a deorbit maneuver, then land at the target.", 
-			                           GUILayout.ExpandWidth(false)))
-				CFG.AP2.XToggle(Autopilot2.Deorbit);
+			if(ControlsActive)
+			{
+				if(computing) GUILayout.Label("Computing...", Styles.inactive_button, GUILayout.ExpandWidth(false));
+				else if(Utils.ButtonSwitch("Land", CFG.AP2[Autopilot2.Deorbit],
+				                           "Compute and perform a deorbit maneuver, then land near the target.", 
+				                           GUILayout.ExpandWidth(false)))
+					CFG.AP2.XToggle(Autopilot2.Deorbit);
+			}
+			else GUILayout.Label(new GUIContent("Land", "Compute and perform a deorbit maneuver, then land near the target."), 
+			                     Styles.inactive_button, GUILayout.ExpandWidth(false));
 		}
 	}
 }

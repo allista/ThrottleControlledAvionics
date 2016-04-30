@@ -24,7 +24,6 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "MVA";
 
-			[Persistent] public int OrbitSolverIterations  = 20;   //deg
 			[Persistent] public float TimeBeforeApproach   = 5f;   //sec
 			[Persistent] public float TranslationThreshold = 5f;   //m/s
 		}
@@ -37,6 +36,7 @@ namespace ThrottleControlledAvionics
 		TranslationControl TRA;
 		ManeuverAutopilot MAN;
 
+		Vessel Target;
 		bool MainThrust;
 		float TTA = -1;
 
@@ -48,9 +48,11 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState()
 		{ 
-			IsActive = CFG.Enabled && VSL.InOrbit && VSL.orbit != null && 
-				VSL.Engines.MaxThrustM > 0 && VSL.HasTarget && VSL.Target.GetOrbit() != null &&
-				CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
+			base.UpdateState();
+			IsActive = CFG.Enabled && VSL.InOrbit && VSL.orbit != null && Target != null && Target.GetOrbit() != null 
+				&& VSL.Engines.MaxThrustM > 0 && CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
+			var tVSL = VSL.TargetVessel;
+			ControlsActive = IsActive || tVSL != null && tVSL.situation == Vessel.Situations.ORBITING && tVSL.mainBody == VSL.mainBody;
 			if(IsActive) return;
 			reset();
 		}
@@ -64,6 +66,7 @@ namespace ThrottleControlledAvionics
 				Working = false;
 				MainThrust = false;
 				THR.Throttle = 0;
+				Target = VSL.TargetVessel;
 				CFG.AT.On(Attitude.KillRotation);
 				break;
 
@@ -72,7 +75,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void reset()
+		protected override void reset()
 		{
 			if(Working) 
 			{
@@ -83,12 +86,13 @@ namespace ThrottleControlledAvionics
 			CFG.AP1.OffIfOn(Autopilot1.MatchVelNear);
 			MainThrust = false;
 			Working = false;
+			Target = null;
 		}
 
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			var dV  = VSL.vessel.obt_velocity-VSL.Target.GetObtVelocity();
+			var dV  = VSL.vessel.obt_velocity-Target.GetObtVelocity();
 			var dVm = (float)dV.magnitude;
 			//if we're waiting for the nearest approach
 			THR.Throttle = 0;
@@ -96,7 +100,7 @@ namespace ThrottleControlledAvionics
 			{
 				//calculate time to nearest approach
 				double ApprUT;
-				var tOrb = VSL.Target.GetOrbit();
+				var tOrb = Target.GetOrbit();
 				TrajectoryCalculator.ClosestApproach(VSL.orbit, tOrb, VSL.Physics.UT, out ApprUT);
 				TTA = (float)(ApprUT-VSL.Physics.UT);
 				dV = (VSL.orbit.getOrbitalVelocityAtUT(ApprUT) - tOrb.getOrbitalVelocityAtUT(ApprUT)).xzy;
@@ -143,12 +147,22 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-			if(Utils.ButtonSwitch("Match V", CFG.AP1[Autopilot1.MatchVel], 
-			                      "Continuously match orbital velocity with the target", GUILayout.ExpandWidth(true)))
-				CFG.AP1.XToggle(Autopilot1.MatchVel);
-			if(Utils.ButtonSwitch("Brake Near", CFG.AP1[Autopilot1.MatchVelNear], 
-			                          "Match orbital velocity with the target at closest approach", GUILayout.ExpandWidth(true)))
-				CFG.AP1.XToggle(Autopilot1.MatchVelNear);
+			if(ControlsActive)
+			{
+				if(Utils.ButtonSwitch("Match V", CFG.AP1[Autopilot1.MatchVel], 
+				                      "Continuously match orbital velocity with the target", GUILayout.ExpandWidth(false)))
+					CFG.AP1.XToggle(Autopilot1.MatchVel);
+				if(Utils.ButtonSwitch("Brake Near", CFG.AP1[Autopilot1.MatchVelNear], 
+				                      "Match orbital velocity with the target at closest approach", GUILayout.ExpandWidth(false)))
+					CFG.AP1.XToggle(Autopilot1.MatchVelNear);
+			}
+			else
+			{
+				GUILayout.Label(new GUIContent("Match V", "Continuously match orbital velocity with the target"), 
+				                Styles.inactive_button, GUILayout.ExpandWidth(false));
+				GUILayout.Label(new GUIContent("Brake Near", "Match orbital velocity with the target at closest approach"), 
+				                Styles.inactive_button, GUILayout.ExpandWidth(false));
+			}
 		}
 	}
 }

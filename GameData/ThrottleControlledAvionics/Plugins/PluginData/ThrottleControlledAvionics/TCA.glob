@@ -324,7 +324,6 @@ WRP
 
 MVA
 {
-	OrbitSolverIterations = 20  //deg
 	TimeBeforeApproach    = 5   //sec
 	TranslationThreshold  = 5   //m/s
 }

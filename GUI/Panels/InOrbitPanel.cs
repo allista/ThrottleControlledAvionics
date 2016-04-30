@@ -23,40 +23,24 @@ namespace ThrottleControlledAvionics
 		RendezvouAutopilot REN;
 		PointNavigator PN;
 
-		bool draw_MVA;
-		bool draw_DEO;
-		bool draw_WRP;
-		bool draw_MAP;
-		bool draw_PN;
-		bool draw;
-
-		public override void Update()
-		{
-			var tVessel = VSL.TargetVessel;
-			draw_MVA = MVA != null && (CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear) || (VSL.InOrbit && tVessel != null && tVessel.situation == Vessel.Situations.ORBITING) && !CFG.AP1[Autopilot1.Maneuver]);
-			draw_DEO = DEO != null && (CFG.AP2[Autopilot2.Deorbit] || (VSL.InOrbit && tVessel != null && tVessel.LandedOrSplashed || VSL.Target is WayPoint) && !CFG.AP1[Autopilot1.Maneuver]);
-			draw_MAP = MAP != null && VSL.HasManeuverNode;
-			draw_WRP = WRP != null && (VSL.Info.Countdown > 0 || draw_MVA || draw_DEO || draw_MAP);
-			draw_PN  = PN  != null && !VSL.OnPlanet && !CFG.AP1[Autopilot1.Maneuver] && !CFG.AP2[Autopilot2.Deorbit];
-			draw = draw_MVA || draw_DEO || draw_MAP || draw_WRP || draw_PN;
-		}
-
 		public override void Draw()
 		{
-//			if(!draw) return;//test
 			GUILayout.BeginHorizontal();
-			if(draw_WRP) WRP.Draw();
-			if(draw_MAP) MAP.Draw();
-			if(draw_PN) ThrottleControlledAvionics.NavigationControls.AddSingleWaypointInMapView();
-			if(draw_DEO) DEO.Draw();
+			if(WRP != null) WRP.Draw();
+			if(MAP != null) MAP.Draw();
+			if(MVA != null) MVA.Draw();
 			if(REN != null) REN.Draw();
-			if(draw_MVA) MVA.Draw();
-			if(VSL.Info.Countdown >= 0)
-				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Info.Countdown), 
-				                Styles.white, GUILayout.ExpandWidth(true));
-			if(VSL.Info.TTB >= 0)
-				GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.Info.TTB), 
-				                Styles.yellow, GUILayout.ExpandWidth(true));
+			if(DEO != null) DEO.Draw();
+			if(PN  != null) ThrottleControlledAvionics.NavigationControls.AddSingleWaypointInMapView();
+			GUILayout.Label(new GUIContent(VSL.Info.Countdown >= 0? 
+			                               string.Format("-{0:F1}s", VSL.Info.Countdown) : "", 
+			                               "Countdown" ),
+			                VSL.Info.Countdown > 10? Styles.white : Styles.red, 
+			                GUILayout.ExpandWidth(true));
+			GUILayout.Label(new GUIContent(VSL.Info.TTB >= 0? 
+			                               string.Format("{0:F1}s", VSL.Info.TTB) : "",
+			                               "Full Thrust Duration"), 
+			                Styles.yellow, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 	}

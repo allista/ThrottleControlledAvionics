@@ -37,21 +37,23 @@ namespace ThrottleControlledAvionics
 		protected Timer AlignedTimer = new Timer();
 		FuzzyThreshold<float> dVrem = new FuzzyThreshold<float>(1, 0.5f);
 		public float MinDeltaV = 1;
+		public bool UntilMinimum;
 
 		public override void Init()
 		{
 			base.Init();
+			UntilMinimum = false;
 			MinDeltaV = GLB.THR.MinDeltaV;
 			CFG.AP1.AddHandler(this, Autopilot1.Maneuver);
 		}
 
 		protected override void UpdateState()
 		{ 
-			IsActive = 
-				CFG.AP1[Autopilot1.Maneuver] && 
-				Node != null && VSL.Engines.MaxThrustM > 0 &&
-				GameVariables.Instance
+			base.UpdateState();
+			var HasPatchedConics = GameVariables.Instance
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) == GameVariables.OrbitDisplayMode.PatchedConics;
+			IsActive = CFG.Enabled && CFG.AP1[Autopilot1.Maneuver] &&  Node != null && VSL.Engines.MaxThrustM > 0 && HasPatchedConics;
+			ControlsActive = IsActive || VSL.HasManeuverNode && HasPatchedConics;
 		}
 
 		public void ManeuverCallback(Multiplexer.Command cmd)
@@ -61,7 +63,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Resume:
 			case Multiplexer.Command.On:
 				if(!VSL.HasManeuverNode) 
-				{ CFG.AP1[Autopilot1.Maneuver] = false; return; }
+				{ CFG.AP1.Off(); return; }
 				CFG.AT.On(Attitude.ManeuverNode);
 				Node = Solver.maneuverNodes[0];
 				THR.Throttle = 0;
@@ -75,13 +77,14 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void reset()
+		protected override void reset()
 		{
 			if(Working) THR.Throttle = 0;
 			if(CFG.AT[Attitude.ManeuverNode])
 				CFG.AT.On(Attitude.KillRotation);
 			CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 			AlignedTimer.Reset();
+			UntilMinimum = false;
 			MinDeltaV = GLB.THR.MinDeltaV;
 			VSL.Info.Countdown = 0;
 			VSL.Info.TTB = 0;
@@ -116,9 +119,10 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0]) { reset(); return; }
 			var dV = Node.GetBurnVector(VSL.orbit);
-			dVrem.Value = (float)dV.magnitude;
+			var dVm = (float)dV.magnitude;
 			//end if below the minimum dV
-			if(dVrem < MinDeltaV) { Node.RemoveSelf(); reset(); return; }
+			if(dVm < MinDeltaV || UntilMinimum && dVm > dVrem.Value) { Node.RemoveSelf(); reset(); return; }
+			dVrem.Value = dVm;
 			//orient along the burning vector
 			if(dVrem && VSL.Controls.RCSAvailable) 
 				CFG.AT.OnIfNot(Attitude.KillRotation);
@@ -154,9 +158,14 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-			if(GUILayout.Button(CFG.AP1[Autopilot1.Maneuver]? "Abort Maneuver" : "Execute Maneuver", 
-			                    CFG.AP1[Autopilot1.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
-				CFG.AP1.XToggle(Autopilot1.Maneuver);
+			if(ControlsActive)
+			{
+				if(GUILayout.Button(CFG.AP1[Autopilot1.Maneuver]? "Abort Maneuver" : "Execute Node", 
+				                    CFG.AP1[Autopilot1.Maneuver]? Styles.danger_button : Styles.active_button, 
+				                    GUILayout.Width(110)))
+					CFG.AP1.XToggle(Autopilot1.Maneuver);
+			}
+			else GUILayout.Label("Execute Node", Styles.inactive_button, GUILayout.Width(110));
 		}
 	}
 }
