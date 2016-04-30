@@ -129,6 +129,7 @@ namespace ThrottleControlledAvionics
 			if(IsActive)
 			{
 				mode = Mode.Off;
+				VSL.HorizontalSpeed.Mooving = VSL.HorizontalSpeed > GLB.HSC.TranslationLowerThreshold;
 				VSL.HorizontalSpeed.MoovingFast = VSL.HorizontalSpeed > RAD.MinClosingSpeed;
 				if(CFG.HF && !CFG.HF[HFlight.Level])
 					mode |= Mode.Horizontal;
@@ -168,7 +169,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			var NeededHorVelocity = HSC == null? Vector3d.zero : VSL.HorizontalSpeed.NeededVector;
-			var zero_needed = NeededHorVelocity.IsZero();
+			var zero_needed = NeededHorVelocity.sqrMagnitude <= 0.01;
 //			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
 //			   (zero_needed && !CFG.Nav.Any(Navigation.FollowPath, Navigation.FollowTarget, Navigation.GoToTarget) ||
 //			    CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
