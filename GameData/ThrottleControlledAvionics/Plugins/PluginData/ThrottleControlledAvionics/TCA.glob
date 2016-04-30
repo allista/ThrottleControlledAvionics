@@ -89,9 +89,11 @@ VSC
 
 ALT
 {
-	MaxSpeed = 10
-	ErrF = 1 //altitude error coefficient
-	TWRd = 2  //twr denominator
+	MaxSpeedErrorF = 100
+	MaxSpeedLow    = 10
+	MaxSpeedHigh   = 300
+	ErrF           = 1 //altitude error coefficient
+	TWRd           = 2  //twr denominator
 	
 	RelAltitudeFactor = 50  //meters
 	RelVelocityErrF   = 1
@@ -316,7 +318,7 @@ TRA
 
 WRP
 {
-	DewarpTime = 15  //sec
+	DewarpTime = 20 //sec
 	MaxWarp    = 10000
 }
 
