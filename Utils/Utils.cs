@@ -220,6 +220,9 @@ namespace ThrottleControlledAvionics
 			return body.ocean && alt < 0? 0 : alt;
 		}
 
+		public static double TerrainAltitude(CelestialBody body, Vector3d wpos)
+		{ return TerrainAltitude(body, body.GetLatitude(wpos), body.GetLongitude(wpos)); }
+
 		public static Vector2 GetMousePosition(Rect window) 
 		{
 			var mouse_pos = Input.mousePosition;
