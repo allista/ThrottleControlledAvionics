@@ -201,7 +201,7 @@ namespace ThrottleControlledAvionics
 		public void Tune()
 		{
 			//calculate VSF correction
-			if(VSL.IsStateSet(TCAState.VerticalSpeedControl))
+			if(CFG.VSCIsActive)
 			{
 				//calculate min imbalance
 				var min_imbalance = Vector3.zero;
