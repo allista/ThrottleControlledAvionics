@@ -13,12 +13,11 @@ class Vessel(object):
     def StG(cls, h):
         return cls.cG/((cls.R+h)**2)
 
-    def __init__(self, M, T, mflow, Cd=1, R=2):
+    def __init__(self, M, T, mflow, Cd=1.0, S=2.0):
         self.M = M
         self.T = T
         self.Cd = Cd
-        self.R = R
-        self.S = np.pi*R*R
+        self.S = S
         self.mflow = mflow
         self._T2mflow = self.T/self.mflow
 
@@ -89,39 +88,51 @@ class Vessel(object):
         t = [0.0]
         v = [0.0]
         h = [0.0]
+        Tf = [1.0]
         m = self.M
         thrust = True
+        hmove = ApA
         while v[-1] >= 0:
             if thrust:
-                m -= self.mflow*dt
+                dm = self.mflow*dt
+                if m <= dm:
+                    thrust = False
+                    continue
+                m -= dm
                 apa = self.freefall(m, h[-1], v[-1], atm, dt * 4)
-                T = self.T*max(1-apa/ApA, 0)
+                dapa = ApA-apa
+                vv = dapa/max(v[-1],1)
+                hv = hmove/max(dapa, 60)*60*math.sqrt(min(max(h[-1]/70000, 0), 1))*min((apa-h[-1])/100, 1)
+                hmove -= hv*dt
+                Tf.append(math.sin(math.atan2(vv, hv)))
+                T = self.T*Tf[-1]
                 v1 = v[-1]+(T/m-self.StG(h[-1]))*dt
-                thrust = abs(apa-ApA) > 1
+                thrust = ApA-apa > 1
             else:
                 v1 = v[-1] - self.StG(h[-1]) * dt
+                Tf.append(0)
             if atm:
                 v1 -= (atm(h[-1]) * (v[-1] ** 2) * self.Cd * self.S) / 2 / m * dt
             v.append(v1)
             h.append(h[-1]+v1*dt)
             t.append(t[-1]+dt)
-        return t, h, v
+        return t, h, v, Tf
 
 if __name__ == '__main__':
     # TCA Test 6.RendezvouAutopilot: T 928.8749*0.919181502342862, M 67.045, mflow 0.2814892
     dt = 0.5
     ApA = 100000
 
-    vsl = Vessel(67.045, 928.8749*0.9, 0.2814892, 0.002, 2)
+    vsl = Vessel(67.045, 928.8749*0.9, 0.2814892, 0.0006, 44.19966)
 
-    ttb = vsl.ttb_for_ApA(ApA)
-    time = np.arange(0, vsl.tta(ApA)+dt, dt)
-    h = np.vectorize(lambda t: vsl.h(t, ttb))(time)
-    v = np.vectorize(lambda t: vsl.v(t, ttb))(time)
-    plt.subplot(211)
-    plt.plot(time, h)
-    plt.subplot(212)
-    plt.plot(time, v)
+    # ttb = vsl.ttb_for_ApA(ApA)
+    # time = np.arange(0, vsl.tta(ApA)+dt, dt)
+    # h = np.vectorize(lambda t: vsl.h(t, ttb))(time)
+    # v = np.vectorize(lambda t: vsl.v(t, ttb))(time)
+    # plt.subplot(311)
+    # plt.plot(time, h)
+    # plt.subplot(312)
+    # plt.plot(time, v)
 
     L = 0.0065
     P0 = 101325
@@ -134,18 +145,23 @@ if __name__ == '__main__':
         P = P0*((1-L*h/T0)**(9.81*M/R/L))
         return P*M/R/T
 
-    t, h, v = vsl.simulate(ApA, dt, atm=density)
-    plt.subplot(211)
+    t, h, v, Tf = vsl.simulate(ApA, dt, atm=density)
+    plt.subplot(311)
     plt.plot(t, h)
-    plt.subplot(212)
+    plt.subplot(312)
     plt.plot(t, v)
+    plt.subplot(313)
+    plt.plot(t, Tf)
 
-    df = pd.read_csv('REN.csv', names=['UT', 'ApA', 'v'])
+    df = pd.read_csv('REN.csv', names=['UT', 'ApA', 'v', 'angle'])
     df.UT -= df.UT[0]
     df = df.loc[df.UT > 0,:]
-    plt.subplot(211)
+    df.Tf = np.sin(df.angle/180*np.pi)
+    plt.subplot(311)
     plt.plot(df.UT, df.ApA)
-    plt.subplot(212)
+    plt.subplot(312)
     plt.plot(df.UT, df.v)
+    plt.subplot(313)
+    plt.plot(df.UT, df.Tf)
 
     plt.show()
