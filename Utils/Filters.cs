@@ -66,11 +66,24 @@ namespace ThrottleControlledAvionics
 		public T Value { get { return prev; } }
 		public abstract T Update(T cur);
 		public void Reset() { prev = default(T); }
+		public void Set(T val) { prev = val; }
+
+		public static implicit operator T(LowPassFilter<T> f) { return f.prev; }
+		public override string ToString() { return prev.ToString(); }
 	}
 
 	public class LowPassFilterF : LowPassFilter<float>
 	{
 		public override float Update(float cur)
+		{
+			prev = prev +  alpha * (cur-prev);
+			return prev;
+		}
+	}
+
+	public class LowPassFilterD : LowPassFilter<double>
+	{
+		public override double Update(double cur)
 		{
 			prev = prev +  alpha * (cur-prev);
 			return prev;
