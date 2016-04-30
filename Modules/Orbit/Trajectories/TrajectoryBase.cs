@@ -54,12 +54,12 @@ namespace ThrottleControlledAvionics
 
 		public override string ToString()
 		{
-			return string.Format("[{0}]\n" +
-			                     "OrigOrbit:\n{1}\n" +
-			                     "NewOrbit:\n{2}\n" +
-			                     "StartUT: {3} s, TimeToStart: {4} s, ManeuverDuration: {5} s\n" +
-			                     "ManeuverDeltaV: {6}", 
-			                     GetType().Name, Utils.formatOrbit(OrigOrbit), Utils.formatOrbit(NewOrbit), 
+			return Utils.Format("[{}]\n" +
+			                     "OrigOrbit:\n{}\n" +
+			                     "NewOrbit:\n{}\n" +
+			                     "StartUT: {} s, TimeToStart: {} s, ManeuverDuration: {} s\n" +
+			                     "ManeuverDeltaV: {}", 
+			                     GetType().Name, OrigOrbit, NewOrbit, 
 			                     StartUT, TimeToStart, ManeuverDuration, ManeuverDeltaV);
 		}
 	}
@@ -86,9 +86,10 @@ namespace ThrottleControlledAvionics
 		public override string ToString()
 		{ 
 			return base.ToString()+
-				string.Format("\nDistanceToTarget: {0} m\n" +
-				              "DeltaFi: {1} deg\n",
-				              DistanceToTarget, DeltaFi);
+				Utils.Format("\nDistanceToTarget: {} m\n" +
+				             "TimeToTarget: {}\n" +
+				             "DeltaFi: {} deg\n",
+				             DistanceToTarget, TimeToTarget, DeltaFi);
 		}
 	}
 
@@ -102,7 +103,7 @@ namespace ThrottleControlledAvionics
 		public override string ToString()
 		{ 
 			return base.ToString()+
-				string.Format("\nTarget: {0}", Target); 
+				string.Format("\nTarget: {0}\n", Target); 
 		}
 	}
 }
