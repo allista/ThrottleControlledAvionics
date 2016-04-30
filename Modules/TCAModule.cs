@@ -91,20 +91,23 @@ namespace ThrottleControlledAvionics
 			public virtual void Init() {}
 		}
 
+		public bool ControlsActive { get; protected set; }
 		public bool IsActive { get; protected set; }
 		public bool Working { get; protected set; }
 
 		protected TCAModule(ModuleTCA tca) : base(tca) {}
 
 		public virtual void Init() { InitModuleFields(); }
-		protected virtual void UpdateState() {}
-		protected virtual void Update() {}
 		public void OnFixedUpdate() { UpdateState(); Update(); }
 		public virtual void Reset() {}
 		public virtual void ClearFrameState() {}
 		public virtual void OnEnable(bool enabled) {}
 		public virtual void ProcessKeys() {}
 		public override void Draw() {}
+
+		protected virtual void UpdateState() {}
+		protected virtual void Update() {}
+		protected virtual void reset() {}
 
 		protected void SetTarget(WayPoint wp = null)
 		{
@@ -123,6 +126,8 @@ namespace ThrottleControlledAvionics
 			return VSL.Target as WayPoint ?? 
 				new WayPoint(VSL.Target);
 		}
+
+		protected void ClearStatus() { ThrottleControlledAvionics.StatusMessage = ""; }
 
 		protected void Status(string msg, params object[] args) 
 		{ ThrottleControlledAvionics.StatusMessage = string.Format(msg, args); }

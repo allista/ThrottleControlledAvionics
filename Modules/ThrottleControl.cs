@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 
-		void reset()
+		protected override void reset()
 		{
 			Throttle = -1;
 			DeltaV = -1;

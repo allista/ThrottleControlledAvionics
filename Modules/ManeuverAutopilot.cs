@@ -66,7 +66,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void reset()
+		protected override void reset()
 		{
 			if(Working) THR.Throttle = 0;
 			if(CFG.AT[Attitude.ManeuverNode])

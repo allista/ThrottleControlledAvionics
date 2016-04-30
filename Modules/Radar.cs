@@ -140,7 +140,7 @@ namespace ThrottleControlledAvionics
 			reset();
 		}
 
-		void reset()
+		protected override void reset()
 		{
 			rewind();
 			DetectedHit.Reset();
