@@ -36,7 +36,7 @@ vclamp01 = np.vectorize(clamp01)
 class vec(object):
     def __init__(self, x=0, y=0, z=0):
         self.v = np.array([float(x), float(y), float(z)])
-        
+
     @property
     def xzy(self):
         return vec(self[0], self[2], self[1])
@@ -105,7 +105,7 @@ class vec(object):
 
     @classmethod
     def sum(cls, vecs): return sum(vecs, vec())
-    
+
     @classmethod
     def rnd(cls, magnitude=1):
         return cls.from_array(np.random.rand(3)*2-1).norm*magnitude
@@ -1168,7 +1168,7 @@ def analyzeCSV(filename, header, cols=None, x=None, axes=(), region = None):
         df = df[(df.L > region[0]) & (df.L <= region[1])]
 #     describe(df)
 #     print df.iloc[500]
-    if cols is None: 
+    if cols is None:
         cols = list(df.keys())
         if 'L' in cols: cols.remove('L')
         if x in cols: cols.remove(x)
@@ -1225,7 +1225,7 @@ dt = 0.05
 
 if __name__ == '__main__':
 #    np.random.seed(42)
-#    
+#
 #    thrusters = [
 #                vec(1,0,-0.2).norm,
 #                vec(-0.3,1,0).norm,
@@ -1236,7 +1236,7 @@ if __name__ == '__main__':
 #                ]
 #
 #    angles = []
-#    angles2 = []     
+#    angles2 = []
 #    for _i in xrange(1000):
 #        d = vec.rnd()
 #        thrust = vec()
@@ -1250,7 +1250,7 @@ if __name__ == '__main__':
 #            angles.append(d.angle(thrust))
 #        if thrust1:
 #            angles2.append(d.angle(thrust1))
-#        
+#
 #    print np.mean(angles), np.mean(angles2)
 #    print np.min(angles), np.min(angles2)
 #    print np.max(angles), np.max(angles2)
@@ -1258,10 +1258,10 @@ if __name__ == '__main__':
 #    plt.plot(angles, '.')
 #    plt.plot(angles2, 'r*')
 #    plt.show()
-#    
+#
 #    draw_vectors(*thrusters)
-    
-    
+
+
 #     sim_VSpeed()
 #     sim_VS_Stability()
 #     sim_Altitude()
@@ -1290,10 +1290,15 @@ if __name__ == '__main__':
 #                ('TerrainAltitude', 'RelVerticalSpeed', 'VerticalSpeed',
 #                 'VerticalCutoff', 'setpoint', 'setpoint_correction', 'VerticalAccel',
 #                 'K', 'VSP'))
-    
-#    analyzeCSV('Tests/Rendezvou.csv',
-#               ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVr', 'dVn', 'dVp'),
-#               region=[0])
+
+   #analyzeCSV('Tests/REN.csv',
+   #           ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVr', 'dVn',
+   #            'dVp'),
+   #           region=[0])
+
+    analyzeCSV('Tests/BJ.csv',
+              ('last dist', 'dist', 'delta'),
+              region=[0])
 
 #     analyzeCSV('VS-filtering-39.csv',
 #                ('BestAlt', 'DetAlt', 'AltAhead')
@@ -1301,6 +1306,6 @@ if __name__ == '__main__':
 #     drawVectors()
 #     sim_PointNav()
 
-    print vec(0.73874086177374, 0.0402463344474615, 0.672786869453719).norm
-    print vec(1000.03347198867, 927.774507796912, 55.6943721048555).norm.xzy
-    print vec(1742.705, 122.1291, 973.6855).norm
+    # print vec(0.73874086177374, 0.0402463344474615, 0.672786869453719).norm
+    # print vec(1000.03347198867, 927.774507796912, 55.6943721048555).norm.xzy
+    # print vec(1742.705, 122.1291, 973.6855).norm
