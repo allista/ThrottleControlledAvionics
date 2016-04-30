@@ -89,9 +89,11 @@ VSC
 
 ALT
 {
-	MaxSpeed = 10
-	ErrF = 1 //altitude error coefficient
-	TWRd = 2  //twr denominator
+	MaxSpeedErrorF = 100
+	MaxSpeedLow    = 10
+	MaxSpeedHigh   = 300
+	ErrF           = 1 //altitude error coefficient
+	TWRd           = 2  //twr denominator
 	
 	RelAltitudeFactor = 50  //meters
 	RelVelocityErrF   = 1
@@ -338,10 +340,10 @@ TRJ
 
 LTRJ
 {
-	Dtol               = 1000 //m
+	Dtol               = 100  //m
 	FlyOverAlt         = 1000 //m
 	ApproachAlt        = 250  //m
-	BrakeEndSpeed      = 100  //m/s
+	BrakeEndSpeed      = 30   //m/s
 	CorrectionOffset   = 20   //s
 	CorrectionTimer    = 10   //s
 }
@@ -354,9 +356,10 @@ DEO
 
 BJ
 {
-	StartOffset      = 10  //s
+	StartOffset      = 15  //s
 	StartInclination = 30  //deg
 	StartAltitude    = 100 //m
+	InclinationF     = 3
 }
 
 REN

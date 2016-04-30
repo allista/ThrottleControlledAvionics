@@ -22,13 +22,13 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "ALT";
 
 			[Persistent] public float MaxSpeedErrorF = 100f;
-			[Persistent] public float MaxSpeedLow  = 10f;  //Maximum absolute vertical velocity
-			[Persistent] public float MaxSpeedHigh = 100f; //Maximum absolute vertical velocity
-			[Persistent] public float ErrF  = 1f;     //altitude error coefficient
-			[Persistent] public float TWRd  = 2f;     //twr denominator
+			[Persistent] public float MaxSpeedLow    = 10f; 
+			[Persistent] public float MaxSpeedHigh   = 300f;
+			[Persistent] public float ErrF           = 1f;   //altitude error coefficient
+			[Persistent] public float TWRd           = 2f;   //twr denominator
 
-			[Persistent] public float RelAltitudeFactor = 100f;
-			[Persistent] public float RelVelocityErrF   = 100f;
+			[Persistent] public float RelAltitudeFactor = 50;
+			[Persistent] public float RelVelocityErrF   = 1;
 
 			[Persistent] public float FallingTime       = 1f;
 			[Persistent] public float TimeAhead         = 5f;
