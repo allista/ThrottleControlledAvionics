@@ -116,7 +116,7 @@ namespace ThrottleControlledAvionics
 
 		public void ResetCustomRotation() { CustomRotation = Quaternion.identity; }
 
-		void reset()
+		protected override void reset()
 		{
 			pid.Reset();
 			AAf_filter.Reset();
@@ -331,7 +331,7 @@ namespace ThrottleControlledAvionics
 				CFG.AT.XToggle(Attitude.RelVel);
 			if(Utils.ButtonSwitch("rV-", CFG.AT[Attitude.AntiRelVel], "Against Relative Velocity", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.AntiRelVel);
-			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.enabled_button : Styles.inactive_button, GUILayout.ExpandWidth(false)))
+			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.enabled_button : Styles.grey, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
 			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", AttitudeError) : "Err: N/A", 
 			            Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));

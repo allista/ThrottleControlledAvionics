@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 				CFG.MacroIsActive &= !GUILayout.Button("Pause", Styles.enabled_button, GUILayout.Width(70));
 				if(GUILayout.Button("Stop", Styles.danger_button, GUILayout.ExpandWidth(false))) 
 					CFG.StopMacro();
-				GUILayout.Label("Edit", Styles.grey, GUILayout.ExpandWidth(false));
+				GUILayout.Label("Edit", Styles.inactive_button, GUILayout.ExpandWidth(false));
 			}
 			else if(CFG.SelectedMacro != null)
 			{
