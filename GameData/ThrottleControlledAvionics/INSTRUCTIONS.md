@@ -110,7 +110,24 @@ Autopilot programs, on the other hand, use underlying basic functionality throug
 
 To enable/disable TCA, use the **Enabled** switch at the top-left corner of the main window, **or** the hot-key (Y by default). The hot-key may be changed in the *Advanced* section (see *Appendix*).
 
-In flight the icon of the TCA toolbar button changes according to TCA state: "Disabled", "Enabled", "No Electric Charge". A more descriptive status is displayed in the top-right corner of the main window.
+In flight the icon of the TCA toolbar button changes according to TCA state: "Disabled", "Enabled", "No Electric Charge". A more descriptive status is displayed in the top-right corner of the main window:
+
+* *Obstacle On Course*: the ship is on a collision course with something
+* *Ground Collision Possible*: the same as above, but with the negative vertical velocity
+* *Loosing Altitude*: vertical velocity is negative and lower than the set-point
+* *Engines Unoptimized*: engines are unable to provide required torque, so they are set to give zero torque
+* *Ascending*: the ship is automatically gaining altitude to avoid a collision with an obstacle
+* *VTOL Assist On*: VTOL Assist autopilot is active at the moment
+* *Stabilizing Flight*: Stabilizing Flight autopilot is active at the moment
+* *Landing...*: the final stage of the Land program 
+* *Checking Landing Site*: TCA flies the ship to a potential landing site to determine its flatness
+* *Searching For Landing Site*: Land autopilot flies the ship to a nearby area to perform a surface scan
+* *Scanning Surface*: Land autopilot is scanning the surface to get the list of potential landing sites
+* *Altitude Control*: Altitude Control is active and is the main autopilot at the moment
+* *Vertical Speed Control*: Vertical Speed Control is active and is the main autopilot at the moment
+* *Systems Nominal*: all working well
+* *No Active Engines*: all engines are disabled or in a flameout; all RCS thrusters are disabled or give no thrust
+* *No Electric Charge*: no electric charge is left on the ship; TCA can't function
 
 ###In-Editor Configuration Window
 
@@ -366,11 +383,15 @@ This section allows to save the whole TCA configuration of the current ship unde
 
 ###TCA.glob :: the global TCA settings
 
-Most of the user-related settings are available through the TCA GUI. There are, however, tons of internal parameters that are located in the _GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/**TCA.glob**_ file. Generally, it is not recommended to tamper with this file, but several of the settings there may be of interest to some users.
+Most of the user-related settings are available through the TCA GUI. But under the hood there are tons of internal parameters that are located in the _GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/**TCA.glob**_ file.
 
-It is a plane text file which may be edited using any text editor. After saving, if the game is already running and a TCA-enabled vessel is in flight, you may apply the changes by going to the "Advanced" pane in the main window and pressing the "Reload TCA Settings" button.
+It is a plane text file which may be *viewed* in any text editor. Its content is divided into sections dedicated to various TCA modules. To reference those in this Manual I use the special notation: **TCA.glob::SectionName**.
 
-Its contents is divided into sections dedicated to TCA subsystems. To reference those in this Manual I use the special notation: **TCA.glob::SectionName**.
+It is *not recommended* to tamper with this file as it **should** be overwritten on each update. You can, however, override any of its settings in _GameData/ThrottleControlledAvionics/**TCA.user**_, which you should create yourself when you need it.
+
+To override a global setting from TCA.glob just copy it to the TCA.user and change its value there. To override a setting of some module, copy its NODE name along with curly brackets, then copy the setting of interest on a new line _inside_ the brackets and change its value.
+
+After saving, if the game is already running and a TCA-enabled vessel is in flight, you may apply the changes by going to the "Advanced" pane in the main window and pressing the "Reload TCA Settings" button.
 
 ###Requirements
 

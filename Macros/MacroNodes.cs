@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
 		{ Name = "Set Vertical Speed to"; Suffix = "m/s"; }
 
 		protected override void OnValueChanged ()
-		{ Value = Utils.Clamp(Value, -GLB.VSC.MaxSpeed, GLB.VSC.MaxSpeed); }
+		{ Value.Value = Utils.Clamp(Value, -GLB.VSC.MaxSpeed, GLB.VSC.MaxSpeed); }
 
 		protected override bool Action(VesselWrapper VSL)
 		{ 
@@ -49,10 +49,11 @@ namespace ThrottleControlledAvionics
 	[RequireModules(typeof(ThrottleControl))]
 	public class SetThrottleMacroNode : SetFloatMacroNode
 	{
-		public SetThrottleMacroNode() { Name += ":"; Suffix = "%"; }
-
-		protected override void OnValueChanged ()
-		{ Value = Utils.Clamp(Value, 0, 100); }
+		public SetThrottleMacroNode() 
+		{ 
+			Name += ":"; Suffix = "%";
+			Value.Min = 0; Value.Max = 100;
+		}
 
 		protected override bool Action(VesselWrapper VSL)
 		{ 
@@ -170,9 +171,9 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(title, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(title, Styles.active_button, GUILayout.ExpandWidth(false));
 				if(EditedCFG != null && GUILayout.Button("Copy waypoints from Vessel", 
-					Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				                                         Styles.active_button, GUILayout.ExpandWidth(false)))
 					Waypoints = new Queue<WayPoint>(EditedCFG.Waypoints);
 			}
 			else Edit |= GUILayout.Button(title, Styles.normal_button) && EditedCFG != null;
@@ -199,8 +200,19 @@ namespace ThrottleControlledAvionics
 		public enum Mode { Forward, Backward, Right, Left, Bearing, Off }
 
 		[Persistent] public Mode mode;
-		[Persistent] public float Bearing;
-		readonly FloatField BearingField = new FloatField();
+		[Persistent] public FloatField Bearing = new FloatField("F1", 0, 360);
+
+		[Obsolete("Only needed for legacy config conversion")]
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			if(node.HasValue("Bearing"))
+			{
+				float val;
+				if(float.TryParse(node.GetValue("Bearing"), out val))
+					Bearing.Value = val;
+			}
+		}
 
 		public FlyMacroNode() { Name += ":"; Suffix = "m/s"; }
 
@@ -212,12 +224,12 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(mode.ToString(), Styles.normal_button, GUILayout.ExpandWidth(false)))
 					mode = (Mode)(((int)mode+1)%6);
-				if(mode == Mode.Bearing) BearingField.Draw(Bearing, "°", false);
-				if(mode != Mode.Off) ValueField.Draw(Value, Suffix, false);
-				if(GUILayout.Button("Done", Styles.green_button, GUILayout.ExpandWidth(false)))
+				if(mode == Mode.Bearing) Bearing.Draw("°", false, 10);
+				if(mode != Mode.Off) Value.Draw(Suffix, false);
+				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
 				{ 
-					if(BearingField.UpdateValue(Bearing)) Bearing = BearingField.Value;
-					if(ValueField.UpdateValue(Value)) Value = ValueField.Value;
+					Bearing.UpdateValue();
+					Value.UpdateValue();
 					OnValueChanged();
 					Edit = false; 
 				}
@@ -226,7 +238,7 @@ namespace ThrottleControlledAvionics
 			{
 				var title = Name+" "+mode+" ";
 				if(mode == Mode.Bearing) title += Bearing+"°, ";
-				if(mode != Mode.Off) title += Value.ToString("F1")+Suffix;
+				if(mode != Mode.Off) title += Value+Suffix;
 				Edit |= GUILayout.Button(title, Styles.normal_button);
 			}
 			GUILayout.EndHorizontal();
@@ -250,8 +262,7 @@ namespace ThrottleControlledAvionics
 				nv = -Vector3.ProjectOnPlane(VSL.refT.right, VSL.Physics.Up).normalized;
 				break;
 			case Mode.Bearing:
-				nv = Quaternion.AngleAxis(Bearing, VSL.Physics.Up) * 
-					Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-VSL.Physics.wCoM, VSL.Physics.Up).normalized;
+				nv = VSL.Physics.Direction(Bearing);
 				break;
 			case Mode.Off:
 				VSL.CFG.HF.XOff();
@@ -268,7 +279,7 @@ namespace ThrottleControlledAvionics
 		protected readonly Timer T = new Timer();
 
 		public WaitMacroNode()
-		{ Name = "Wait for"; Suffix = "s"; Value = (float)T.Period; }
+		{ Name = "Wait for"; Suffix = "s"; Value.Value = (float)T.Period; }
 
 		public override void Load(ConfigNode node)
 		{ base.Load(node); T.Period = Value; T.Reset(); }
@@ -293,7 +304,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(Name, Styles.active_button, GUILayout.ExpandWidth(false));
 				if(EditedCFG != null)
 				{
 					scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandWidth(true), GUILayout.Height(70));
@@ -301,7 +312,7 @@ namespace ThrottleControlledAvionics
 					for(int i = 0, CFGEnginesProfilesDBCount = EditedCFG.EnginesProfiles.DB.Count; i < CFGEnginesProfilesDBCount; i++)
 					{
 						var p = EditedCFG.EnginesProfiles.DB[i];
-						if(GUILayout.Button(p.Name, p.Name == Profile ? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(true)))
+						if(GUILayout.Button(p.Name, p.Name == Profile ? Styles.enabled_button : Styles.normal_button, GUILayout.ExpandWidth(true)))
 							Profile = p.Name;
 					}
 					GUILayout.EndVertical();
@@ -329,7 +340,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(Name, Styles.active_button, GUILayout.ExpandWidth(false));
 				Group = Utils.IntSelector(Group, 0, tooltip: "Group ID");
 				if(EditedCFG != null && EditedCFG.ActiveProfile != null && EditedCFG.ActiveProfile.Single.Count > 0)
 				{
@@ -427,7 +438,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(Name, Styles.yellow_button, GUILayout.ExpandWidth(false));
+				Edit &= !GUILayout.Button(Name, Styles.active_button, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(attitude.ToString(), Styles.normal_button, GUILayout.ExpandWidth(false)))
 					attitude = (Attitude)(((int)attitude+1)%10);
 			}

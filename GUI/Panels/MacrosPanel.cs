@@ -26,10 +26,10 @@ namespace ThrottleControlledAvionics
 			{
 				GUILayout.Label(new GUIContent("Macro: "+CFG.SelectedMacro.Title, "The macro is executing..."), 
 				                Styles.yellow, GUILayout.ExpandWidth(true));
-				CFG.MacroIsActive &= !GUILayout.Button("Pause", Styles.green_button, GUILayout.Width(70));
-				if(GUILayout.Button("Stop", Styles.red_button, GUILayout.ExpandWidth(false))) 
+				CFG.MacroIsActive &= !GUILayout.Button("Pause", Styles.enabled_button, GUILayout.Width(70));
+				if(GUILayout.Button("Stop", Styles.danger_button, GUILayout.ExpandWidth(false))) 
 					CFG.StopMacro();
-				GUILayout.Label("Edit", Styles.grey, GUILayout.ExpandWidth(false));
+				GUILayout.Label("Edit", Styles.inactive_button, GUILayout.ExpandWidth(false));
 			}
 			else if(CFG.SelectedMacro != null)
 			{
@@ -37,18 +37,18 @@ namespace ThrottleControlledAvionics
 				                    Styles.normal_button, GUILayout.ExpandWidth(true))) 
 					selecting_macro = !selecting_macro;
 				CFG.MacroIsActive |= GUILayout.Button(CFG.SelectedMacro.Active? "Resume" : "Execute", 
-				                                      Styles.yellow_button, GUILayout.Width(70));
+				                                      Styles.active_button, GUILayout.Width(70));
 				if(GUILayout.Button("Stop", CFG.SelectedMacro.Active? 
-				                    Styles.red_button : Styles.grey, GUILayout.ExpandWidth(false))) 
+				                    Styles.danger_button : Styles.inactive_button, GUILayout.ExpandWidth(false))) 
 					CFG.SelectedMacro.Rewind();
-				if(GUILayout.Button("Edit", Styles.yellow_button, GUILayout.ExpandWidth(false)))
+				if(GUILayout.Button("Edit", Styles.active_button, GUILayout.ExpandWidth(false)))
 					TCAMacroEditor.Edit(CFG);
 			}
 			else 
 			{
 				if(GUILayout.Button("Select Macro", Styles.normal_button, GUILayout.ExpandWidth(true))) 
 					selecting_macro = !selecting_macro;
-				if(GUILayout.Button("New Macro", Styles.green_button, GUILayout.ExpandWidth(false)))
+				if(GUILayout.Button("New Macro", Styles.add_button, GUILayout.ExpandWidth(false)))
 					TCAMacroEditor.Edit(CFG);
 			}
 			GUILayout.EndHorizontal();

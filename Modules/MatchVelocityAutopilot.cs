@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void reset()
+		protected override void reset()
 		{
 			if(Working) 
 			{

@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 		Anchor ANC;
 		AutoLander LND;
 		CruiseControl CC;
+		BearingControl BRC;
 		Radar RAD;
 
 		public OnPlanetPanel(ModuleTCA tca) : base(tca) {}
@@ -36,63 +37,51 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(HSC != null)
 			{
-				if(GUILayout.Button(new GUIContent("Stop", "Kill horizontal velocity"), 
-				                    CFG.HF[HFlight.Stop]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(50)))
+				if(Utils.ButtonSwitch("Stop", CFG.HF[HFlight.Stop], "Kill horizontal velocity", GUILayout.Width(50)))
 				{
 					if(CFG.HF[HFlight.Stop]) apply_cfg(cfg => cfg.HF.OffIfOn(HFlight.Stop));
 					else apply_cfg(cfg => { cfg.HF.XOn(HFlight.Stop); cfg.StopMacro(); });
 				}
 				if(ANC != null && 
-				   GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
-				                    CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor)? 
-				                    Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(60)))
+				   Utils.ButtonSwitch("Anchor", CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor), 
+				                      "Hold current position", GUILayout.Width(60)))
 					apply_cfg(cfg => cfg.Nav.XToggle(Navigation.AnchorHere));
-				if(GUILayout.Button(new GUIContent("Level", "Point thrust vertically"), 
-				                    CFG.HF[HFlight.Level]? 
-				                    Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(50)))
+				if(Utils.ButtonSwitch("Level", CFG.HF[HFlight.Level], "Point thrust vertically", GUILayout.Width(50)))
 					apply_cfg(cfg => cfg.HF.XToggle(HFlight.Level));
 			}
 			if(LND != null)
 			{
-				if(GUILayout.Button(new GUIContent("Land", "Try to land on a nearest flat surface"), 
-				                    CFG.AP[Autopilot.Land]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(50)))
+				if(Utils.ButtonSwitch("Land", CFG.AP[Autopilot.Land], "Try to land on a nearest flat surface", GUILayout.Width(50)))
 				{
 					var state = !CFG.AP[Autopilot.Land];
 					if(state) { follow_me(); CFG.AP.XOn(Autopilot.Land); }
 					else apply_cfg(cfg => cfg.AP.XOffIfOn(Autopilot.Land));
 				}
 			}
+			if(ALT != null)
+			{
+				if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Maintain altitude", GUILayout.Width(60)))
+					apply_cfg(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
+				if(RAD != null)
+				{
+					if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
+						"Keep altitude above the ground", GUILayout.ExpandWidth(false)))
+						apply(tca => 
+							{
+								var alt = tca.GetModule<AltitudeControl>();
+								if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
+							});
+				}
+			}
 			if(CC != null)
 			{
-				if(GUILayout.Button(new GUIContent("Cruise", "Maintain course and speed"), 
-				                    CFG.HF[HFlight.CruiseControl]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(60)))
+				if(Utils.ButtonSwitch("Cruise", CFG.HF[HFlight.CruiseControl], "Maintain course and speed", GUILayout.Width(60)))
 				{
 					CFG.HF.XToggle(HFlight.CruiseControl);
 					if(CFG.HF[HFlight.CruiseControl]) follow_me();
 				}
 			}
-			if(ALT != null)
-			{
-				if(GUILayout.Button(new GUIContent("Hover", "Maintain altitude"), 
-				                    CFG.VF[VFlight.AltitudeControl]? Styles.green_button : Styles.yellow_button,
-				                    GUILayout.Width(60)))
-					apply_cfg(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
-				if(RAD != null)
-				{
-					if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
-					                      "Keep altitude above the ground", GUILayout.ExpandWidth(false)))
-							apply(tca => 
-						{
-							var alt = tca.GetModule<AltitudeControl>();
-							if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
-						});
-				}
-			}
+			if(BRC != null) BRC.Draw();
 			GUILayout.EndHorizontal();
 		}
 	}

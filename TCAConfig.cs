@@ -35,6 +35,14 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float MaxAAFilter          = 1f;
 		[Persistent] public float ExhaustSafeDist      = 1.1f;
 
+		[Persistent] public string EnabledButtonColor  = "green";
+		[Persistent] public string ActiveButtonColor   = "yellow";
+		[Persistent] public string InactiveButtonColor = "grey";
+		[Persistent] public string ConfirmButtonColor  = "green";
+		[Persistent] public string AddButtonColor      = "green";
+		[Persistent] public string CloseButtonColor    = "red";
+		[Persistent] public string DangerButtonColor   = "red";
+
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
@@ -85,6 +93,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, Target, AntiTarget, RelVel, AntiRelVel, ManeuverNode, Custom }
+	public enum BearingMode { None, User, Auto }
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
@@ -116,12 +125,13 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool    AutoTune         = true;        //if true, engine PI coefficients and steering modifier will be tuned automatically
 		//horizontal velocity
 		[Persistent] public Multiplexer<HFlight> HF = new Multiplexer<HFlight>();
-		[Persistent] public bool    SASIsControlled;
-		[Persistent] public bool    SASWasEnabled;
+		[Persistent] public bool     SASIsControlled;
+		[Persistent] public bool     SASWasEnabled;
 		[Persistent] public WayPoint Anchor;
 		//cruise control
 		[Persistent] public Vector3  SavedUp;
 		[Persistent] public Vector3  NeededHorVelocity;
+		[Persistent] public Multiplexer<BearingMode> BR = new Multiplexer<BearingMode>();
 		//waypoint navigation
 		[Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();
 		[Persistent] public float    MaxNavSpeed = 100;

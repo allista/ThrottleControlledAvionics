@@ -16,16 +16,15 @@ namespace ThrottleControlledAvionics
 {
 	public class EnginesProps : VesselProps
 	{
-		public const float G0 = 9.80665f; //m/s2
-
 		public EnginesProps(VesselWrapper vsl) : base(vsl) {}
 
-		public List<EngineWrapper> All       = new List<EngineWrapper>();
-		public List<EngineWrapper> Active    = new List<EngineWrapper>();
-		public List<EngineWrapper> Balanced  = new List<EngineWrapper>();
-		public List<EngineWrapper> Maneuver  = new List<EngineWrapper>();
-		public List<EngineWrapper> Steering  = new List<EngineWrapper>();
-		public List<EngineWrapper> Manual    = new List<EngineWrapper>();
+		public List<EngineWrapper> All        = new List<EngineWrapper>();
+		public List<EngineWrapper> Active     = new List<EngineWrapper>();
+		public List<EngineWrapper> Balanced   = new List<EngineWrapper>();
+		public List<EngineWrapper> UnBalanced = new List<EngineWrapper>();
+		public List<EngineWrapper> Maneuver   = new List<EngineWrapper>();
+		public List<EngineWrapper> Steering   = new List<EngineWrapper>();
+		public List<EngineWrapper> Manual     = new List<EngineWrapper>();
 
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
@@ -110,6 +109,7 @@ namespace ThrottleControlledAvionics
 			Steering.Clear(); Steering.Capacity = NumActive;
 			Maneuver.Clear(); Maneuver.Capacity = NumActive;
 			Balanced.Clear(); Balanced.Capacity = NumActive;
+			UnBalanced.Clear(); UnBalanced.Capacity = NumActive;
 			Manual.Clear();   Manual.Capacity   = NumActive;
 			for(int i = 0; i < NumActive; i++)
 			{
@@ -125,6 +125,9 @@ namespace ThrottleControlledAvionics
 					break;
 				case TCARole.BALANCE:
 					Balanced.Add(e);
+					break;
+				case TCARole.UNBALANCE:
+					UnBalanced.Add(e);
 					break;
 				case TCARole.MANUAL:
 					Manual.Add(e);
@@ -158,7 +161,7 @@ namespace ThrottleControlledAvionics
 				if(e.isVSC)
 				{
 					MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
-					MaxMassFlow += e.engine.maxThrust/e.engine.realIsp/G0;
+					MaxMassFlow += e.engine.maxThrust/e.engine.realIsp/Utils.G0;
 					if(e.useEngineResponseTime && e.finalThrust > 0)
 					{
 						var decelT = 1f/e.engineDecelerationSpeed;
@@ -197,7 +200,7 @@ namespace ThrottleControlledAvionics
 		public void Tune()
 		{
 			//calculate VSF correction
-			if(VSL.IsStateSet(TCAState.VerticalSpeedControl))
+			if(CFG.VSCIsActive)
 			{
 				//calculate min imbalance
 				var min_imbalance = Vector3.zero;

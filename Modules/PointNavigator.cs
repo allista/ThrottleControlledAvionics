@@ -26,8 +26,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinDistance          = 30;
 			[Persistent] public float MinTime              = 10;
 			[Persistent] public float OnPathMinDistance    = 300;
-			[Persistent] public float MinSpeed             = 10;
-			[Persistent] public float MaxSpeed             = 300;
+			[Persistent] public float MinSpeed             = 0;
+			[Persistent] public float MaxSpeed             = 500;
 			[Persistent] public float DistanceF            = 2;
 			[Persistent] public float DirectNavThreshold   = 1;
 			[Persistent] public float GCNavStep            = 0.1f;

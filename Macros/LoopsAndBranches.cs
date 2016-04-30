@@ -136,7 +136,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label("REPEAT", Styles.label, GUILayout.ExpandWidth(false));
 			Count = Utils.IntSelector(Count, 1);
 			GUILayout.FlexibleSpace();
-			if(GUILayout.Button("Edit Block", Edit? Styles.yellow_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
+			if(GUILayout.Button("Edit Block", Edit? Styles.active_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
 				Edit = !Edit;
 			GUILayout.EndHorizontal();
 			Block.Draw();

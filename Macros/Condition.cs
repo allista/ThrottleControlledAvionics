@@ -74,11 +74,11 @@ namespace ThrottleControlledAvionics
 			if(Prev != null && GUILayout.Button(or? "OR" : "AND", Styles.white, GUILayout.Width(40))) or = !or;
 			if(negatable && GUILayout.Button(not? "NOT" : "", Styles.red, GUILayout.Width(40))) not = !not;
 			DrawThis();
-			if(Prev != null && GUILayout.Button("X", Styles.red_button, GUILayout.Width(20))) Delete();
+			if(Prev != null && GUILayout.Button("X", Styles.close_button, GUILayout.Width(20))) Delete();
 			if(Next != null) Next.Draw();
 			else
 			{
-				if(GUILayout.Button("+", Styles.green_button, GUILayout.Width(20))) 
+				if(GUILayout.Button("+", Styles.active_button, GUILayout.Width(20))) 
 				{ if(SelectCondition != null) SelectCondition(Add); }
 			}
 			GUILayout.EndHorizontal();
@@ -109,23 +109,42 @@ namespace ThrottleControlledAvionics
 		protected static readonly Dictionary<CompareOperator,string> OperatorNames = new Dictionary<CompareOperator, string>
 		{ {CompareOperator.GT , ">"}, {CompareOperator.LS , "<"}, {CompareOperator.EQ , "="} };
 
-		[Persistent] public float Value;
 		[Persistent] public CompareOperator Operator;
-		[Persistent] public float Error = 0.1f;
-		[Persistent] public float Period;
+		[Persistent] public FloatField Value  = new FloatField();
+		[Persistent] public FloatField Error  = new FloatField();
+		[Persistent] public FloatField Period = new FloatField(min:0);
 
 		protected string Suffix;
-
-		protected readonly FloatField ValueField = new FloatField();
-		protected readonly FloatField ErrorField = new FloatField();
-		protected readonly FloatField TimerField = new FloatField();
 		protected readonly Timer WaitTimer = new Timer();
-
 		protected virtual float VesselValue(VesselWrapper VSL) { return 0; }
+
+		public FloatCondition() { Error.Value = 0.1f; }
 
 		public override void Load(ConfigNode node)
 		{
 			base.Load(node);
+
+			//FIXME: Only needed for legacy config conversion
+			if(node.HasValue("Value"))
+			{
+				float val;
+				if(float.TryParse(node.GetValue("Value"), out val))
+					Value.Value = val;
+			}
+			if(node.HasValue("Error"))
+			{
+				float val;
+				if(float.TryParse(node.GetValue("Error"), out val))
+					Error.Value = val;
+			}
+			if(node.HasValue("Period"))
+			{
+				float val;
+				if(float.TryParse(node.GetValue("Period"), out val))
+					Period.Value = val;
+			}
+			///////////////////////////////////////////////////////
+
 			negatable = Period.Equals(0);
 			not &= negatable;
 			WaitTimer.Period = Period;
@@ -139,21 +158,20 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(OperatorNames[Operator], Styles.yellow, GUILayout.ExpandWidth(false)))
 					Operator = (CompareOperator)(((int)Operator+1)%3);
-				ValueField.Draw(Value, Suffix, false);
+				Value.Draw(Suffix, false);
 				if(Operator == CompareOperator.EQ)
 				{
 					GUILayout.Label("Error", Styles.white, GUILayout.ExpandWidth(false));
-					ErrorField.Draw(Error, Suffix, false);
+					Error.Draw(Suffix, false);
 				}
 				GUILayout.Label("Wait for:", Styles.white, GUILayout.ExpandWidth(false));
-				TimerField.Draw(Period, "s", false);
-				if(GUILayout.Button("Done", Styles.green_button, GUILayout.ExpandWidth(false)))
+				Period.Draw("s", false);
+				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
 				{
-					if(ValueField.UpdateValue(Value)) Value = ValueField.Value;
-					if(ErrorField.UpdateValue(Error)) Error = ErrorField.Value;
-					if(TimerField.UpdateValue(Period))
+					Value.UpdateValue();
+					Error.UpdateValue();
+					if(Period.UpdateValue())
 					{
-						Period = Utils.ClampL(TimerField.Value, 0);
 						negatable = Period.Equals(0);
 						WaitTimer.Period = Period;
 						WaitTimer.Reset();

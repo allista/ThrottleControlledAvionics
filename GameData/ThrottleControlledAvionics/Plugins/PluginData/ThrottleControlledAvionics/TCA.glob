@@ -10,6 +10,15 @@ UnpackDistance       = 5000
 ActionListHeight     = 110
 MaxAAFilter          = 1
 
+//available colors: normal (meaning white), grey, red, dark_red, green, dark_green, yellow, dark_yellow, cyan, magenta
+EnabledButtonColor   = green
+ActiveButtonColor    = yellow
+InactiveButtonColor  = grey
+ConfirmButtonColor   = green
+AddButtonColor       = green
+CloseButtonColor     = red
+DangerButtonColor    = red
+
 RCS
 {
 	MaxIterations = 50
@@ -80,9 +89,11 @@ VSC
 
 ALT
 {
-	MaxSpeed = 10
-	ErrF = 1 //altitude error coefficient
-	TWRd = 2  //twr denominator
+	MaxSpeedErrorF = 100
+	MaxSpeedLow    = 10
+	MaxSpeedHigh   = 300
+	ErrF           = 1 //altitude error coefficient
+	TWRd           = 2  //twr denominator
 	
 	RelAltitudeFactor = 50  //meters
 	RelVelocityErrF   = 1
@@ -157,6 +168,8 @@ BRC
 {
 	MaxAAf = 2
 	MinAAf = 0.0001
+	YawFactor = 0.6
+	DrawForwardDirection = true
 	
 	DirectionPID
 	{
@@ -168,7 +181,9 @@ BRC
 
 CC
 {
-	UpdateDelay = 5
+	PitchFactor = 0.2
+	MaxRevSpeed = -4
+	UpdateDelay = 10
 }
 
 PN
@@ -303,7 +318,7 @@ TRA
 
 WRP
 {
-	DewarpTime = 15  //sec
+	DewarpTime = 20 //sec
 	MaxWarp    = 10000
 }
 

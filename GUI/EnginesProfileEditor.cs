@@ -161,7 +161,7 @@ namespace ThrottleControlledAvionics
 			if(HasMacroProcessor)
 			{
 				if(TCAMacroEditor.Editing)
-					GUILayout.Label("Edit Macros", Styles.grey, GUILayout.ExpandWidth(true));
+					GUILayout.Label("Edit Macros", Styles.inactive_button, GUILayout.ExpandWidth(true));
 				else if(GUILayout.Button("Edit Macros", Styles.normal_button, GUILayout.ExpandWidth(true)))
 					TCAMacroEditor.Edit(CFG);
 			}

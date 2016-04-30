@@ -180,6 +180,7 @@ namespace ThrottleControlledAvionics
 			{
 			case TCARole.MAIN:
 			case TCARole.BALANCE:
+			case TCARole.UNBALANCE:
 				limit = best_limit = 1f;
 				isVSC = true;
 				break;

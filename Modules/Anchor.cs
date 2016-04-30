@@ -103,10 +103,8 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-			if(GUILayout.Button(new GUIContent("Anchor", "Hold current position"), 
-			                    CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor)? 
-			                    Styles.green_button : Styles.yellow_button,
-			                    GUILayout.Width(60)))
+			if(Utils.ButtonSwitch("Anchor", CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor), 
+			                      "Hold current position", GUILayout.Width(60)))
 				apply_cfg(cfg => cfg.Nav.XToggle(Navigation.AnchorHere));
 		}
 

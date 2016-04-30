@@ -123,6 +123,8 @@ namespace ThrottleControlledAvionics
 					VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
 					CFG.Nav.Off(); //any kind of navigation conflicts with the Stop program; obviously.
 				}
+				else if(CFG.HF[HFlight.NoseOnCourse])
+					CFG.BR.OnIfNot(BearingMode.Auto);
 				CFG.AT.OnIfNot(Attitude.Custom);
 				goto case Multiplexer.Command.Resume;
 
@@ -130,6 +132,7 @@ namespace ThrottleControlledAvionics
 				UnregisterFrom<SASBlocker>();
 				UnregisterFrom<Radar>();
 				CFG.AT.OffIfOn(Attitude.Custom);
+				CFG.BR.OffIfOn(BearingMode.Auto);
 				EnableManualTranslation(false); 
 				break;
 			}
@@ -159,8 +162,6 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			if(VSL.AutopilotDisabled) { filter.Reset(); return; }
 			CFG.AT.OnIfNot(Attitude.Custom);
-			//set forward direction
-			BRC.ForwardDirection = VSL.HorizontalSpeed.NeededVector;
 			//calculate prerequisites
 			var thrust = VSL.Engines.Thrust;
 			needed_thrust_dir = -VSL.Physics.Up;
@@ -168,6 +169,9 @@ namespace ThrottleControlledAvionics
 			{
 				//if the vessel is not moving, nothing to do
 				if(VSL.LandedOrSplashed || VSL.Engines.Thrust.IsZero()) return;
+				//set forward direction
+				if(CFG.HF[HFlight.NoseOnCourse] && !VSL.HorizontalSpeed.NeededVector.IsZero())
+					BRC.ForwardDirection = VSL.HorizontalSpeed.NeededVector;
 				//calculate horizontal velocity
 				CourseCorrection = Vector3d.zero;
 				for(int i = 0, count = CourseCorrections.Count; i < count; i++)
@@ -243,8 +247,8 @@ namespace ThrottleControlledAvionics
 						{
 							var rot = Quaternion.AngleAxis(Vector3.Angle(max_MT, Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL)),
 							                               VSL.Physics.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
-							BRC.ForwardDirection = rot*pure_hV;
-							transF = Utils.ClampL(Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.ForwardDirection.normalized), 0);
+							BRC.DirectionOverride = rot*pure_hV;
+							transF = Utils.ClampL(Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized), 0);
 							transF *= transF*transF;
 						}
 					}

@@ -7,6 +7,7 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using System;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -132,7 +133,7 @@ namespace ThrottleControlledAvionics
 		{
 			GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
 			if(GUILayout.Button(On? "On" : "Off", 
-			                    On? Styles.green_button : Styles.yellow_button, 
+			                    On? Styles.enabled_button : Styles.active_button, 
 			                    GUILayout.ExpandWidth(false)))
 				On = !On;
 		}
@@ -141,10 +142,21 @@ namespace ThrottleControlledAvionics
 	[HiddenComponent]
 	public class SetFloatMacroNode : MacroNode
 	{
-		[Persistent] public float Value;
+		[Persistent] public FloatField Value = new FloatField();
 		protected string Suffix;
 
-		protected readonly FloatField ValueField = new FloatField();
+		[Obsolete("Only needed for legacy config conversion")]
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			if(node.HasValue("Value"))
+			{
+				float val;
+				if(float.TryParse(node.GetValue("Value"), out val))
+					Value.Value = val;
+			}
+		}
+
 		protected virtual void OnValueChanged() {}
 
 		protected override void DrawThis()
@@ -153,14 +165,13 @@ namespace ThrottleControlledAvionics
 			if(Edit)
 			{ 
 				GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
-				if(ValueField.Draw(Value, Suffix))
+				if(Value.Draw(Suffix))
 				{ 
-					Value = ValueField.Value; 
 					OnValueChanged();
 					Edit = false; 
 				}
 			}
-			else Edit |= GUILayout.Button(string.Format("{0} {1:F1}{2}", Name, Value, Suffix), Styles.normal_button);
+			else Edit |= GUILayout.Button(string.Format("{0} {1}{2}", Name, Value, Suffix), Styles.normal_button);
 			GUILayout.EndHorizontal();
 		}
 	}
