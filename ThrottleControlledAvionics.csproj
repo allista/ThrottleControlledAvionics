@@ -162,7 +162,6 @@
     <Compile Include="Modules\Planet\VerticalSpeedControl.cs" />
     <Compile Include="Modules\Planet\VTOLAssist.cs" />
     <Compile Include="Utils\OrbitDBG.cs" />
-    <Compile Include="GUI\Elements\GUIUtils.cs" />
     <Compile Include="Modules\Planet\VTOLControl.cs" />
     <Compile Include="Utils\Triggers.cs" />
     <Compile Include="Utils\LambertSolver.cs" />
