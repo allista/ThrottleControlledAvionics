@@ -115,7 +115,7 @@ ALT
 	}
 }
 
-ATC
+ATCB
 {
 	PID
 	{
@@ -129,13 +129,23 @@ ATC
 	AngularMf      = 0.001
 	InertiaFactor  = 10
 	MoIFactor      = 0.01
-	AngleThreshold = 10
 	MinEf          = 0.0001
 	MaxEf          = 2
 	SlowTorqueF    = 0.2
 	AALowPassF     = 1
 	MaxAttitudeError = 10  //deg
 	AttitudeErrorThreshold = 3
+}
+
+ATC
+{
+	AngleThreshold = 10	
+}
+
+TDC
+{
+	TWRf = 3
+	VSf  = 3
 }
 
 HSC
@@ -157,11 +167,14 @@ HSC
 
 	AccelerationFactor = 1
 	MinHvThreshold     = 10
-	TWRf               = 3
-	VSf                = 3
 	HVCurve            = 1.5
 	SlowTorqueF        = 1
 	LowPassF           = 0.1
+}
+
+VTOL
+{
+	MaxAngle = 45
 }
 
 BRC

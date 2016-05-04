@@ -209,7 +209,7 @@ namespace ThrottleControlledAvionics
 			setup_calculation(t => rendezvou_orbit(t, ref NodeDeltaV));
 		}
 
-		void start_correction()
+		protected override void start_correction()
 		{
 			trajectory = null;
 			stage = Stage.ComputeRendezvou;
@@ -512,7 +512,7 @@ namespace ThrottleControlledAvionics
 					}
 					if(VSL.Controls.RCSAvailable)
 					{
-						if(ToOrbitDeltaV || ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
+						if(ToOrbitDeltaV || ATC.AttitudeError > GLB.ATCB.AttitudeErrorThreshold)
 							TRA.AddDeltaV(-VSL.LocalDir(vel.xzy));
 						if(ToOrbitDeltaV) THR.Throttle = 0;
 						else THR.DeltaV = ToOrbitDeltaV;

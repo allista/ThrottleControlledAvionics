@@ -131,7 +131,7 @@ namespace ThrottleControlledAvionics
 				if(MainThrust || ATC.Aligned)
 				{
 					THR.DeltaV = dVm;
-					MainThrust = ATC.AttitudeError < GLB.ATC.AttitudeErrorThreshold;
+					MainThrust = ATC.AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
 				}
 			}
 			//if translation is available, use it as necessary

@@ -147,7 +147,7 @@ namespace ThrottleControlledAvionics
 			}
 			if(VSL.Controls.TranslationAvailable)
 			{
-			    if(dVrem || ATC.AttitudeError > GLB.ATC.AttitudeErrorThreshold)
+			    if(dVrem || ATC.AttitudeError > GLB.ATCB.AttitudeErrorThreshold)
 					TRA.AddDeltaV(-VSL.LocalDir(dV));
 				if(dVrem && VSL.Controls.RCSAvailable) THR.Throttle = 0;
 				else THR.DeltaV = dVrem;

@@ -46,8 +46,10 @@ namespace ThrottleControlledAvionics
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
+		[Persistent] public AttitudeControlBase.Config       ATCB = new AttitudeControlBase.Config();
 		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
 		[Persistent] public BearingControl.Config            BRC = new BearingControl.Config();
+		[Persistent] public ThrustDirectionControl.Config    TDC = new ThrustDirectionControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config    HSC = new HorizontalSpeedControl.Config();
 		[Persistent] public RCSOptimizer.Config              RCS = new RCSOptimizer.Config();
 		[Persistent] public CruiseControl.Config             CC  = new CruiseControl.Config();
@@ -56,6 +58,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Radar.Config                     RAD = new Radar.Config();
 		[Persistent] public AutoLander.Config                LND = new AutoLander.Config();
 		[Persistent] public VTOLAssist.Config                TLA = new VTOLAssist.Config();
+		[Persistent] public VTOLControl.Config               VTOL = new VTOLControl.Config();
 		[Persistent] public CollisionPreventionSystem.Config CPS = new CollisionPreventionSystem.Config();
 		[Persistent] public FlightStabilizer.Config          STB = new FlightStabilizer.Config();
 		[Persistent] public ThrottleControl.Config           THR = new ThrottleControl.Config();
@@ -101,6 +104,7 @@ namespace ThrottleControlledAvionics
 
 	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, Target, AntiTarget, RelVel, AntiRelVel, ManeuverNode, Custom }
 	public enum BearingMode { None, User, Auto }
+	public enum ControlMode { None, VTOL }
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
@@ -127,6 +131,7 @@ namespace ThrottleControlledAvionics
 		public bool VSCIsActive { get { return VF || VerticalCutoff < TCAScenario.Globals.VSC.MaxSpeed; } }
 		public void DisableVSC() { VF.Off(); VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed; BlockThrottle = false; }
 		//steering
+		[Persistent] public Multiplexer<ControlMode> CTRL = new Multiplexer<ControlMode>();
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
 		[Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked

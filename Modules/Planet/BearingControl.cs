@@ -14,7 +14,7 @@ namespace ThrottleControlledAvionics
 {
 	[CareerPart(typeof(AttitudeControl))]
 	[RequireModules(typeof(SASBlocker))]
-    [OverrideModules(typeof(AttitudeControl))]
+	[OverrideModules(typeof(AttitudeControl))]
 	public class BearingControl : AutopilotModule
 	{
 		public class Config : ModuleConfig
@@ -83,7 +83,7 @@ namespace ThrottleControlledAvionics
 			     !ForwardDirection.IsZero())) return;
 			//allow user to intervene
 			var cDir = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL).normalized;
-			if(VSL.AutopilotDisabled)
+			if(VSL.HasUserInput)
 			{
 				if(!s.yaw.Equals(0))
 				{
@@ -91,10 +91,10 @@ namespace ThrottleControlledAvionics
 					if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
 						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
 					draw_forward_direction = BRC.DrawForwardDirection;
-					DirectionLineTimer.Reset();
 					VSL.AutopilotDisabled = false;
-					s.yaw = 0;
+					DirectionLineTimer.Reset();
 					pid.Reset();
+					s.yaw = 0;
 				}
 			}
 			//turn ship's nose in the direction of needed velocity
@@ -107,8 +107,8 @@ namespace ThrottleControlledAvionics
 			pid.D = BRC.DirectionPID.D*AAf*AAf;
 			pid.Update(angle);
 			var act = pid.Action*eff;
-			if(VSL.OnPlanetParams.NoseUp) s.roll = s.rollTrim = act;
-			else s.yaw = s.yawTrim = act;
+			if(VSL.OnPlanetParams.NoseUp) s.roll = act;
+			else s.yaw = act;
 			DirectionOverride = Vector3d.zero;
 		}
 

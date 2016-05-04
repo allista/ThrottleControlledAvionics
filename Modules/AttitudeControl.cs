@@ -12,21 +12,15 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart]
-	[RequireModules(typeof(SASBlocker))]
-	[OptionalModules(typeof(TimeWarpControl))]
-	public class AttitudeControl : AutopilotModule
+	public abstract class AttitudeControlBase : ThrustDirectionControl
 	{
-		public class Config : ModuleConfig
+		public new class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "ATC";
-
 			[Persistent] public PID_Controller PID = new PID_Controller(10f, 0.02f, 0.5f, -1, 1);
 
 			[Persistent] public float MinAAf = 0.1f, MaxAAf  = 1f;
 			[Persistent] public float InertiaFactor = 10f, AngularMf = 0.002f;
 			[Persistent] public float MoIFactor              = 0.01f;
-			[Persistent] public float AngleThreshold         = 25f;
 			[Persistent] public float MinEf = 0.001f, MaxEf  = 5f;
 			[Persistent] public float SlowTorqueF            = 2;
 			[Persistent] public float AALowPassF             = 1f;
@@ -34,23 +28,116 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxAttitudeError       = 10f;  //deg
 			[Persistent] public float AttitudeErrorThreshold = 3f;   //deg
 		}
-		static Config ATC { get { return TCAScenario.Globals.ATC; } }
+		static Config ATCB { get { return TCAScenario.Globals.ATCB; } }
 
-		Transform  vesselTransform { get { return VSL.vessel.transform; } }
-		readonly PIDv_Controller2 pid = new PIDv_Controller2();
-		readonly FloatMinimum omega_min = new FloatMinimum();
-		readonly LowPassFilterF AAf_filter = new LowPassFilterF();
-		Transform refT;
-		Quaternion attitude_error, locked_attitude;
-		bool attitude_locked;
-		Vector3 thrust, lthrust, needed_lthrust, steering;
-		Vector3 angularV { get { return VSL.vessel.angularVelocity; } }
-		Vector3 angularM;
-		float AAf, Ef, PIf;
+		protected AttitudeControlBase(ModuleTCA tca) : base(tca) {}
+
+		protected Vector3 steering;
+		protected readonly PIDv_Controller2 pid = new PIDv_Controller2();
+		protected readonly LowPassFilterF AAf_filter = new LowPassFilterF();
+		protected Vector3 angularV { get { return VSL.vessel.angularVelocity; } }
+		protected Vector3 angularM;
+		protected float AAf, Ef, PIf;
 
 		public float AttitudeError { get; private set; }
 		public bool Aligned { get; private set; }
-		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/ATC.MaxAttitudeError, 0); } }
+		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/ATCB.MaxAttitudeError, 0); } }
+
+		public override void Init() 
+		{ 
+			base.Init();
+			pid.setPID(ATCB.PID);
+			reset();
+		}
+
+		protected override void reset()
+		{
+			pid.Reset();
+			AAf_filter.Reset();
+			AAf_filter.Tau = 0;
+			VSL.Controls.GimbalLimit = 100;
+			AttitudeError = 180;
+			Aligned = false;
+		}
+
+		protected static Vector3 rotation2steering(Quaternion rotation)
+		{
+			var euler = rotation.eulerAngles;
+			return new Vector3(Utils.CenterAngle(euler.x)*Mathf.Deg2Rad,
+			          	       Utils.CenterAngle(euler.y)*Mathf.Deg2Rad,
+			                   Utils.CenterAngle(euler.z)*Mathf.Deg2Rad);
+		}
+
+		protected Quaternion world2local_rotation(Quaternion world_rotation)
+		{ return VSL.refT.rotation.Inverse() * world_rotation * VSL.refT.rotation; }
+
+		protected void Steer(FlightCtrlState s)
+		{
+			//calculate attitude error and Aligned state
+			var steering_m = steering.magnitude;
+			AttitudeError = steering_m*Mathf.Rad2Deg;
+			Aligned &= AttitudeError < ATCB.MaxAttitudeError;
+			Aligned |= AttitudeError < ATCB.AttitudeErrorThreshold;
+			Ef = Utils.Clamp(steering_m/Mathf.PI, ATCB.MinEf, 1);
+			//tune lowpass filter
+			AAf_filter.Tau = (1-Mathf.Sqrt(Ef))*ATCB.AALowPassF;
+			//tune PID parameters
+			angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
+			AAf = AAf_filter.Update(Mathf.Clamp(1/VSL.Torque.MaxAngularA_m, ATCB.MinAAf, ATCB.MaxAAf));
+			var slow = VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ATCB.SlowTorqueF : 1;
+			PIf = AAf*Utils.ClampL(1-Ef, 0.5f)*ATCB.MaxEf/slow;
+			pid.P = ATCB.PID.P*PIf;
+			pid.I = ATCB.PID.I*PIf;
+			pid.D = ATCB.PID.D*Utils.ClampH(Utils.ClampL(1-Ef*2, 0)+angularM.magnitude*ATCB.AngularMf, 1)*AAf*AAf*slow*slow;
+			//set gimbal limit
+			VSL.Controls.GimbalLimit = Ef*100;
+			//tune steering
+			var control = new Vector3(steering.x.Equals(0)? 0 : 1,
+			                          steering.y.Equals(0)? 0 : 1,
+			                          steering.z.Equals(0)? 0 : 1);
+			steering.Scale(Vector3.Scale(VSL.Torque.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).CubeNorm());
+			//add inertia
+			steering += Vector3.Scale(angularM.Sign(),
+			                          Vector3.Scale(Vector3.Scale(angularM, angularM),
+			                                        Vector3.Scale(VSL.Torque.MaxTorque, VSL.Physics.MoI).Inverse(0)))
+				.ClampComponents(-Mathf.PI, Mathf.PI)/
+				Mathf.Lerp(ATCB.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATCB.MoIFactor);
+			//update PID and set steering
+			pid.Update(steering, angularV);
+			SetRot(pid.Action, s);
+
+			#if DEBUG
+			//			CSV(VSL.Physics.UT,
+			//			    AttitudeError, 
+			//			    steering.x, steering.y, steering.z, 
+			//			    angularV.x, angularV.y, angularV.z, 
+			//			    pid.Action.x, pid.Action.y, pid.Action.x
+			//			    );//debug
+			if(VSL.IsActiveVessel)
+				ThrottleControlledAvionics.DebugMessage = 
+					string.Format("pid: {0}\nsteering: {1}%\ngimbal limit: {2}",
+					              pid, pid.Action*100, VSL.Controls.GimbalLimit);
+			#endif
+		}
+	}
+
+	[CareerPart]
+	[RequireModules(typeof(SASBlocker))]
+	[OptionalModules(typeof(TimeWarpControl))]
+	public class AttitudeControl : AttitudeControlBase
+	{
+		public new class Config : ModuleConfig
+		{
+			[Persistent] public float AngleThreshold = 25f;
+		}
+		static Config ATC { get { return TCAScenario.Globals.ATC; } }
+
+		Transform  vesselTransform { get { return VSL.vessel.transform; } }
+		readonly FloatMinimum omega_min = new FloatMinimum();
+		Transform refT;
+		Quaternion attitude_error, locked_attitude;
+		bool attitude_locked;
+		Vector3 thrust, lthrust, needed_lthrust;
 
 		TimeWarpControl TWR;
 
@@ -59,30 +146,8 @@ namespace ThrottleControlledAvionics
 		public override void Init() 
 		{ 
 			base.Init();
-			pid.setPID(ATC.PID);
-			reset();
 			CFG.AT.SetSingleCallback(Enable);
-			#if DEBUG
-//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-			#endif
 		}
-
-		#if DEBUG
-		public void RadarBeam()
-		{
-			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.AT) return;
-			if(!thrust.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, thrust.normalized*20, Color.red);
-			if(!needed_lthrust.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
-		}
-		#endif
 
 		protected override void UpdateState() { IsActive = CFG.AT; }
 
@@ -112,19 +177,14 @@ namespace ThrottleControlledAvionics
 		{ CustomRotation = Quaternion.FromToRotation(from, to) * CustomRotation; }
 
 		public void AddCustomRotationW(Vector3 from, Vector3 to)
-		{ CustomRotation = VSL.refT.rotation.Inverse() * Quaternion.FromToRotation(from, to) * VSL.refT.rotation * CustomRotation; }
+		{ CustomRotation = world2local_rotation(Quaternion.FromToRotation(from, to)) * CustomRotation; }
 
 		public void ResetCustomRotation() { CustomRotation = Quaternion.identity; }
 
 		protected override void reset()
 		{
-			pid.Reset();
-			AAf_filter.Reset();
-			AAf_filter.Tau = 0;
+			base.reset();
 			refT = null;
-			VSL.Controls.GimbalLimit = 100;
-			AttitudeError = 180;
-			Aligned = false;
 			omega_min.Reset();
 			attitude_locked = false;
 		}
@@ -231,10 +291,7 @@ namespace ThrottleControlledAvionics
 			}
 			if(attitude_error != Quaternion.identity)
 			{
-				var euler = attitude_error.eulerAngles;
-				steering = new Vector3(Utils.CenterAngle(euler.x),
-				                       Utils.CenterAngle(euler.y),
-				                       Utils.CenterAngle(euler.z))*Mathf.Deg2Rad;
+				steering = rotation2steering(attitude_error);
 					
 				#if DEBUG
 				thrust = VSL.Engines.Thrust.IsZero()? VSL.Engines.MaxThrust : VSL.Engines.Thrust;
@@ -251,57 +308,26 @@ namespace ThrottleControlledAvionics
 			if(!(CFG.Enabled && CFG.AT && VSL.refT != null && VSL.orbit != null)) return;
 			VSL.Controls.GimbalLimit = 100;
 			if(VSL.AutopilotDisabled) { reset(); return; }
-			//calculate needed steering
 			CalculateSteering();
-			//calculate attitude error and Aligned state
-			var steering_m = steering.magnitude;
-			AttitudeError = steering_m*Mathf.Rad2Deg;
-			Aligned &= AttitudeError < ATC.MaxAttitudeError;
-			Aligned |= AttitudeError < ATC.AttitudeErrorThreshold;
-			Ef = Utils.Clamp(steering_m/Mathf.PI, ATC.MinEf, 1);
-			//tune lowpass filter
-			AAf_filter.Tau = (1-Mathf.Sqrt(Ef))*ATC.AALowPassF;
-			//tune PID parameters
-			angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
-			AAf = AAf_filter.Update(Mathf.Clamp(1/VSL.Torque.MaxAngularA_m, ATC.MinAAf, ATC.MaxAAf));
-			var slow = VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ATC.SlowTorqueF : 1;
-			PIf = AAf*Utils.ClampL(1-Ef, 0.5f)*ATC.MaxEf/slow;
-			pid.P = ATC.PID.P*PIf;
-			pid.I = ATC.PID.I*PIf;
-			pid.D = ATC.PID.D*Utils.ClampH(Utils.ClampL(1-Ef*2, 0)+angularM.magnitude*ATC.AngularMf, 1)*AAf*AAf*slow*slow;
-			//set gimbal limit
-			VSL.Controls.GimbalLimit = Ef*100;
-			//tune steering
-			var control = new Vector3(steering.x.Equals(0)? 0 : 1,
-			                          steering.y.Equals(0)? 0 : 1,
-			                          steering.z.Equals(0)? 0 : 1);
-			steering.Scale(Vector3.Scale(VSL.Torque.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).CubeNorm());
-			//add inertia
-			steering += Vector3.Scale(angularM.Sign(),
-			                          Vector3.Scale(Vector3.Scale(angularM, angularM),
-			                                        Vector3.Scale(VSL.Torque.MaxTorque, VSL.Physics.MoI).Inverse(0)))
-				.ClampComponents(-Mathf.PI, Mathf.PI)/
-				Mathf.Lerp(ATC.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATC.MoIFactor);
-			//update PID and set steering
-			pid.Update(steering, angularV);
-			SetRot(pid.Action, s);
-
-			#if DEBUG
-//			CSV(VSL.Physics.UT,
-//			    AttitudeError, 
-//			    steering.x, steering.y, steering.z, 
-//			    angularV.x, angularV.y, angularV.z, 
-//			    pid.Action.x, pid.Action.y, pid.Action.x
-//			    );//debug
-			if(VSL.IsActiveVessel)
-				ThrottleControlledAvionics.DebugMessage = 
-					string.Format("pid: {0}\nsteering: {1}%\ngimbal limit: {2}",
-					              pid, pid.Action*100, VSL.Controls.GimbalLimit);
-			#endif
+			Steer(s);
 		}
+
+		#if DEBUG
+		public void RadarBeam()
+		{
+			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.AT) return;
+			if(!thrust.IsZero())
+				GLUtils.GLVec(VSL.Physics.wCoM, thrust.normalized*20, Color.red);
+			if(!needed_lthrust.IsZero())
+				GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
+		}
+		#endif
 
 		public override void Draw()
 		{
+			#if DEBUG
+//			RadarBeam();
+			#endif
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
 			            CFG.AT? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false));

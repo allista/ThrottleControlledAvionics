@@ -108,7 +108,7 @@ namespace ThrottleControlledAvionics
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && VSL.OnPlanet && VSL.refT != null &&
 			     CFG.HF[HFlight.CruiseControl])) return;
-			if(VSL.AutopilotDisabled) 
+			if(VSL.HasUserInput) 
 			{ 
 				if(!s.pitch.Equals(0))
 				{

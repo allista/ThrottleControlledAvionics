@@ -148,13 +148,15 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool AutopilotDisabled;
+		public bool HasUserInput { get; private set; }
 		public void UpdateAutopilotInfo(FlightCtrlState s)
 		{
 			if(!CFG.Enabled) return;
-			AutopilotDisabled = 
+			HasUserInput = 
 				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
 				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
+			AutopilotDisabled = HasUserInput;
 		}
 
 		public void UpdateState()

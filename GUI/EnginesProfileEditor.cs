@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public static bool Available { get; private set; }
-		static bool HasMacroProcessor, HasVTOLAssist, HasFlightStabilizer, HasAltitudeControl;
+		static bool HasMacroProcessor, HasVTOLAssist, HasFlightStabilizer, HasAltitudeControl, HasVTOLControls;
 
 		public override void Awake()
 		{
@@ -43,6 +43,7 @@ namespace ThrottleControlledAvionics
 			//module availability
 			HasMacroProcessor = TCAModulesDatabase.ModuleAvailable(typeof(MacroProcessor));
 			HasVTOLAssist = TCAModulesDatabase.ModuleAvailable(typeof(VTOLAssist));
+			HasVTOLControls = TCAModulesDatabase.ModuleAvailable(typeof(VTOLControl));
 			HasFlightStabilizer = TCAModulesDatabase.ModuleAvailable(typeof(FlightStabilizer));
 			HasAltitudeControl = TCAModulesDatabase.ModuleAvailable(typeof(AltitudeControl));
 			//update TCA part infos
@@ -173,6 +174,11 @@ namespace ThrottleControlledAvionics
 					CFG.VF.Toggle(VFlight.AltitudeControl);
 				Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false));
 				Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
+			}
+			if(HasVTOLControls)
+			{
+				if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL], "Keyboard controls thrust direction instead of torque", GUILayout.ExpandWidth(true)))
+					CFG.CTRL.XToggle(ControlMode.VTOL);
 			}
 			if(HasVTOLAssist)
 				Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));

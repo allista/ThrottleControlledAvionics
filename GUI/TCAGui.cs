@@ -206,6 +206,12 @@ namespace ThrottleControlledAvionics
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
+			if(VTOL != null) 
+			{
+				if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL], 
+			                          "Keyboard controls thrust direction instead of torque", GUILayout.ExpandWidth(true)))
+					CFG.CTRL.XToggle(ControlMode.VTOL);
+			}
 			if(VLA != null) Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, 
 			                                   "Assist with vertical takeoff and landing", GUILayout.ExpandWidth(true));
 			if(STB != null) Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
