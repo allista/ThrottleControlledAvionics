@@ -34,6 +34,8 @@ namespace ThrottleControlledAvionics
 		public bool NoActiveRCS { get; private set; }
 		public bool ForceUpdateEngines = false;
 
+		public KSPActionGroup ActionGroups  { get; private set; } = KSPActionGroup.None;
+
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
 		public float    MaxThrustM { get; private set; }
@@ -87,9 +89,17 @@ namespace ThrottleControlledAvionics
 				else CFG.ActiveProfile.Update(All);
 			}
 			//get active engines and RCS
+			var groups = KSPActionGroup.None;
 			Active.Clear(); Active.Capacity = All.Count;
 			for(int i = 0; i < num_engines; i++)
-			{ var e = All[i]; if(e.isOperational) Active.Add(e); }
+			{ 
+				var e = All[i]; 
+				if(e.isOperational) Active.Add(e);
+				//check action groups
+				for(int j = 0; j < e.engine.Actions.Count; j++)
+					groups |= e.engine.Actions[j].actionGroup;
+			}
+			ActionGroups = groups;
 			ActiveRCS.Clear();
 			if(vessel.ActionGroups[KSPActionGroup.RCS])
 			{

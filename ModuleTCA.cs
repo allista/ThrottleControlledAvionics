@@ -122,16 +122,20 @@ namespace ThrottleControlledAvionics
 		public override void OnStart(StartState state)
 		{
 			base.OnStart(state);
-			if(state == StartState.Editor || state == StartState.None)
-			{ enabled = isEnabled = false; return; }
-			check_priority();
+			if(state == StartState.None) 
+			{ 
+				enabled = isEnabled = false; 
+				return; 
+			}
 			check_career_part();
+			Actions["onActionUpdate"].active = false;
+			if(state == StartState.Editor) return;
+			check_priority();
 			init();
 		}
 
 		void onVesselModify(Vessel vsl)
 		{ 
-			
 			check_priority();
 			if(!enabled) reset();
 			else if(VSL == null || VSL.vessel == null || vsl.id != VSL.vessel.id)
@@ -166,8 +170,8 @@ namespace ThrottleControlledAvionics
 			if(VSL != null) VSL.SetUnpackDistance(GLB.UnpackDistance);
 		}
 
-		[KSPAction("Update TCA profile", actionGroup = (KSPActionGroup)0xff80)]
-		void onCustomActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
+		[KSPAction("Update TCA Profile")]
+		void onActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
 
 		void check_priority()
 		{
@@ -261,6 +265,7 @@ namespace ThrottleControlledAvionics
 			ThrottleControlledAvionics.AttachTCA(this);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
 			StartCoroutine(updateUnpackDistance());
+			Actions["onActionUpdate"].active = true;
 			CFG.Resume();
 		}
 
@@ -278,7 +283,8 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Controls
-		public void ToggleTCA()
+		[KSPAction("Toggle TCA")]
+		public void ToggleTCA(KSPActionParam param = null)
 		{
 			CFG.Enabled = !CFG.Enabled;
 			if(CFG.Enabled) //test
@@ -302,6 +308,7 @@ namespace ThrottleControlledAvionics
 
 		public override void OnUpdate()
 		{
+			if(HighLogic.LoadedSceneIsEditor) return;
 			//update vessel config if needed
 			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) updateCFG();
 			if(CFG.Enabled)
@@ -314,6 +321,7 @@ namespace ThrottleControlledAvionics
 
 		public override void OnFixedUpdate() 
 		{
+			if(HighLogic.LoadedSceneIsEditor) return;
 			//initialize systems
 			VSL.UpdateState();
 			if(!CFG.Enabled) return;
@@ -322,8 +330,8 @@ namespace ThrottleControlledAvionics
 			//update vessel info
 			SetState(TCAState.HaveEC);
 			VSL.UpdatePhysics();
-			if(VSL.Engines.Check()) 
-				SetState(TCAState.HaveActiveEngines);
+			if(VSL.Engines.Check()) SetState(TCAState.HaveActiveEngines);
+			Actions["onActionUpdate"].actionGroup = VSL.Engines.ActionGroups;
 			VSL.UpdateCommons();
 			VSL.ClearFrameState();
 			VSL.UpdateOnPlanetStats();
