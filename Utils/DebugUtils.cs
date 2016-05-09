@@ -54,6 +54,12 @@ namespace ThrottleControlledAvionics
 		public static void logOrbit(string name, Orbit o)
 		{ Utils.Log("Orbit: {0}\n{1}", name, Utils.formatOrbit(o)); }
 
+		public static string FormatActions(BaseActionList actions)
+		{
+			return actions.Aggregate("", (s, a) => s + string.Format("{0} ({1}, active: {2}); ", 
+			                                                         a.guiName, a.actionGroup, a.active));
+		}
+
 		public static string getStacktrace(int skip = 0) { return new StackTrace(skip+1, true).ToString(); }
 
 		public static void LogF(string msg, params object[] args)
