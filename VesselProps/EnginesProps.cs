@@ -86,7 +86,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.TCA.ProfileSyncAllowed)
 			{
 				if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(All);
-				else CFG.ActiveProfile.Update(All);
+				else CFG.ActiveProfile.Update(All, true);
 			}
 			//get active engines and RCS
 			var groups = KSPActionGroup.None;

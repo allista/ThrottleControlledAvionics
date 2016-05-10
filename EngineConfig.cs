@@ -25,6 +25,17 @@ namespace ThrottleControlledAvionics
 		public TCARole Role;
 		public bool Changed, Edit;
 
+//		bool changed; //debug
+//		public bool Changed
+//		{ 
+//			get { return changed; } 
+//			set { 
+//				if(value != changed) DebugUtils.LogF("{}.Changed: {}->{}", Name, changed, value);
+//				changed = value; 
+//			} 
+//		}
+//		public bool Edit;
+
 		public EngineConfig() {}
 		public EngineConfig(EngineWrapper e) 
 		{ Name = e.Group > 0? ("Group "+e.Group) : e.name; Update(e, true); }
@@ -92,7 +103,7 @@ namespace ThrottleControlledAvionics
 			if(Edit)
 			{
 				Name = GUILayout.TextField(Name, GUILayout.Width(150));
-				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.Width(50))) Edit = false;
+				Edit &= !GUILayout.Button("Done", Styles.confirm_button, GUILayout.Width(50));
 			}
 			else Edit |= GUILayout.Button(Name+(comment ?? ""), 
 			                              Styles.normal_button, GUILayout.Width(200));
@@ -108,8 +119,8 @@ namespace ThrottleControlledAvionics
 			if(Role == TCARole.MANUAL)
 			{
 				var lim = Utils.FloatSlider("", Limit, 0f, 1f, "P1", 50, "Throttle");
-				if(lim <= lim_eps) { Limit = 0; Changed = true; }
-				else if(Mathf.Abs(lim-Limit) > lim_eps) { Limit = lim; Changed = true; }
+				if(lim <= lim_eps) lim = 0;
+				if(Mathf.Abs(lim-Limit) > lim_eps) { Limit = lim; Changed = true; }
 			}
 			GUILayout.EndHorizontal();
 			return Changed;
@@ -258,10 +269,10 @@ namespace ThrottleControlledAvionics
 				else if(e.Group > 0) 
 				{ 
 					if(e.Role == TCARole.MANUAL && !groups.ContainsKey(e.Group)) NumManual++;
-					Changed |= c.Differs(e);
-					c.Limit = e.thrustLimit;
+//					Changed |= c.Differs(e);
+//					c.Limit = e.thrustLimit;
 //					Utils.Log("Updating {0} with {1}, {2}", c, e.ID, e.part.flightID);//debug
-					if(with_On) c.On = e.engine.EngineIgnited;
+//					if(with_On) c.On = e.engine.EngineIgnited;
 //					Utils.Log("Updated {0}, engineEgnited {1}", c, e.engine.EngineIgnited);//debug
 					groups[e.Group] = c;
 				}
@@ -289,7 +300,7 @@ namespace ThrottleControlledAvionics
 
 		public void Apply(IList<EngineWrapper> engines)
 		{
-//			DebugUtils.Log("Applying {0}", Name);//debug
+//			DebugUtils.LogF("Applying {}", Name);//debug
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++) 
 			{
 				var e = engines[i];
