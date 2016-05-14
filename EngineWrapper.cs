@@ -188,7 +188,7 @@ namespace ThrottleControlledAvionics
 				limit = best_limit = 0f;
 				break;
 			case TCARole.MANUAL:
-				limit = best_limit = thrustLimit/100;
+				limit = best_limit = thrustLimit;
 				break;
 			}
 		}
