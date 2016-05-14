@@ -1224,6 +1224,7 @@ def sim_PointNav():
 dt = 0.05
 
 if __name__ == '__main__':
+
 #    np.random.seed(42)
 #
 #    thrusters = [
@@ -1291,14 +1292,14 @@ if __name__ == '__main__':
 #                 'VerticalCutoff', 'setpoint', 'setpoint_correction', 'VerticalAccel',
 #                 'K', 'VSP'))
 
-   #analyzeCSV('Tests/REN.csv',
-   #           ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVr', 'dVn',
-   #            'dVp'),
-   #           region=[0])
+#analyzeCSV('Tests/REN.csv',
+#           ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVr', 'dVn',
+#            'dVp'),
+#           region=[0])
 
-    analyzeCSV('Tests/BJ.csv',
-              ('last dist', 'dist', 'delta'),
-              region=[0])
+# analyzeCSV('Tests/BJ.csv',
+#           ('last dist', 'dist', 'delta'),
+#           region=[0])
 
 #     analyzeCSV('VS-filtering-39.csv',
 #                ('BestAlt', 'DetAlt', 'AltAhead')
@@ -1309,3 +1310,20 @@ if __name__ == '__main__':
     # print vec(0.73874086177374, 0.0402463344474615, 0.672786869453719).norm
     # print vec(1000.03347198867, 927.774507796912, 55.6943721048555).norm.xzy
     # print vec(1742.705, 122.1291, 973.6855).norm
+
+    V0 = 123.0
+    M = 1.
+    T = 1.
+    mv = 0.001
+
+    def s(t):
+        return V0*t + T/mv*((t-M/mv)*np.log((M-mv*t)/M)-t)
+
+    def TTB(dV):
+        return M/mv*(1-np.exp(-dV*mv/T))
+
+    t1 = TTB(V0)
+    print t1, s(t1), s(t1)/V0-t1/2
+    time = np.linspace(0, t1, 1000)
+    plt.plot(time, s(time))
+    plt.show()
