@@ -157,7 +157,7 @@ namespace ThrottleControlledAvionics
 					GUILayout.BeginHorizontal();
 					GUI.contentColor = marker_color(i, num);
 					var label = string.Format("{0}) {1}", 1+i, wp.GetName());
-					if(CFG.Nav[Navigation.FollowPath] && i == 0)
+					if(CFG.Target == wp)
 					{
 						var d = wp.DistanceTo(vessel);
 						label += string.Format(" <= {0}", Utils.DistanceToStr(d)); 
