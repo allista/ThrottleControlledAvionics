@@ -94,7 +94,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			MoI = new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]);
-			MoI = refT.InverseTransformDirection(vessel.transform.TransformDirection(MoI));
+			MoI = refT.InverseTransformDirection(vessel.transform.TransformDirection(MoI)).AbsComponents();
 		}
 	}
 }
