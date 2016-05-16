@@ -100,6 +100,9 @@ namespace ThrottleControlledAvionics
 		protected TargetedTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, T target) 
 			: base(vsl, dV, startUT) { Target = target; }
 
+		public Vector3d BreakDeltaV
+		{ get { return Target.GetOrbit().getOrbitalVelocityAtUT(AtTargetUT)-NewOrbit.getOrbitalVelocityAtUT(AtTargetUT); } }
+
 		public override string ToString()
 		{ 
 			return base.ToString()+

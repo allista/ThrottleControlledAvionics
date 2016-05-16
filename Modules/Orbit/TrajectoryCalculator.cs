@@ -171,13 +171,17 @@ namespace ThrottleControlledAvionics
 
 		public static double TimeToResonance(Orbit a, Orbit b, double UT, out double resonance, out double alpha)
 		{
-			var velA = a.getOrbitalVelocityAtUT(UT);
 			var posA = a.getRelativePositionAtUT(UT);
 			var posB = b.getRelativePositionAtUT(UT);
-			alpha = Utils.ProjectionAngle(posA, posB, velA)/360;
-//			Utils.LogF("UT {}\nvelA {}\nposA {}\nposB {}\nalpha {}",
-//			           UT, velA, posA, posB, alpha);//debug
+			var tanA = Vector3d.Cross(a.GetOrbitNormal(), posA);
+			alpha = Utils.ProjectionAngle(posA, posB, tanA)/360;
 			resonance = ResonanceA(a, b);
+			if(double.IsNaN(alpha))//debug
+			{
+				Status("red", "DEBUG: Unable to calculate TTR. See the log.");
+				Utils.LogF("UT {}\ntanA {}\nposA {}\nposB {}\nalpha {}\nresonance {}",
+				           UT, tanA, posA, posB, alpha, resonance);//debug
+			}
 			var TTR = alpha*resonance;
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
 		}
@@ -256,27 +260,28 @@ namespace ThrottleControlledAvionics
 
 		public static double ClosestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT, double offset = 0)
 		{
-			double dT  = a.period/3;
+			double UT = StartUT;
 			double StopUT = StartUT+a.period;
-			double MidUT  = StartUT+a.period/2;
-			double UT1 = StartUT;
-			double UT2 = StopUT;
-			double d1 = double.MaxValue;
-			double d2 = double.MaxValue;
-			while(dT > 0.01)
+			double dist = double.MaxValue;
+			double dT = a.period/10;
+			double minUT = UT;
+			while(UT < StopUT) //rough linear scan
 			{
-				var d1p = UT1+dT > MidUT?   double.MaxValue : SqrDistAtUT(a, t, UT1+dT);
-				var d1m = UT1-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT1-dT);
-				var d2p = UT2+dT > StopUT?  double.MaxValue : SqrDistAtUT(a, t, UT2+dT);
-				var d2m = UT2-dT < MidUT?   double.MaxValue : SqrDistAtUT(a, t, UT2-dT);
-				if(d1p < d1m) { if(d1p < d1) { d1 = d1p; UT1 += dT; } }
-				else { if(d1m < d1) { d1 = d1m; UT1 -= dT; } }
-				if(d2p < d2m) { if(d2p < d2) { d2 = d2p; UT2 += dT; } }
-				else { if(d2m < d2) { d2 = d2m; UT2 -= dT; } }
+				var d = SqrDistAtUT(a, t, UT);
+				if(d < dist) { dist = d; minUT = UT; }
+				UT += dT;
+			}
+			UT = minUT; dT /= 2;
+			while(dT > 0.01) //fine binary search
+			{
+				var dp = UT+dT > StopUT?  double.MaxValue : SqrDistAtUT(a, t, UT+dT);
+				var dm = UT-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT-dT);
+				if(dp < dist) { dist = dp; UT += dT; }
+				else if(dm < dist) { dist = dm; UT -= dT; }
+				Utils.LogF("T {} : dist {}; dT {}", UT-StartUT, dist, dT);//debug
 				dT /= 2;
 			}
-			if(d1 < d2 && UT1-StartUT > offset) { ApproachUT = UT1; return Math.Sqrt(d1); }
-			ApproachUT = UT2; return Math.Sqrt(d2);
+			ApproachUT = UT; return Math.Sqrt(dist);
 		}
 
 		public static double NearestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT)
@@ -299,7 +304,12 @@ namespace ThrottleControlledAvionics
 		public static double NearestRadiusUT(Orbit orb, double radius, double StartUT)
 		{
 			radius *= radius;
-			double StopUT = StartUT+orb.period;
+			double StopUT = StartUT;
+			while(StopUT-StartUT < orb.period) 
+			{ 
+				StopUT += orb.period/10; 
+				if(orb.getRelativePositionAtUT(StopUT).sqrMagnitude < radius) break;
+			}
 			while(StopUT-StartUT > 0.01)
 			{
 				var UT = StartUT+(StopUT-StartUT)/2;
@@ -470,14 +480,14 @@ namespace ThrottleControlledAvionics
 				if(best == null || current.IsBetter(best)) 
 					best = current;
 				frameI--; maxI--;
-//				//debug
-				add_node(current.ManeuverDeltaV, current.StartUT);
-//				add_node((current as LandingTrajectory).BrakeDeltaV, (current as LandingTrajectory).BrakeNodeUT);
-//				CFG.Waypoints.Enqueue((current as LandingTrajectory).SurfacePoint);
-//				Status("Push to continue");
-//				//debug
 				if(frameI < 0)
 				{
+					//				//debug
+					add_node(current.ManeuverDeltaV, current.StartUT);
+					//				add_node((current as LandingTrajectory).BrakeDeltaV, (current as LandingTrajectory).BrakeNodeUT);
+					//				CFG.Waypoints.Enqueue((current as LandingTrajectory).SurfacePoint);
+					//				Status("Push to continue");
+					//				//debug
 					yield return null;
 					frameI = TRJ.PerFrameIterations;
 				}
@@ -524,13 +534,10 @@ namespace ThrottleControlledAvionics
 
 		protected void add_target_node()
 		{
-			var dV = trajectory.Target.GetOrbit().getOrbitalVelocityAtUT(trajectory.AtTargetUT) -
-				trajectory.NewOrbit.getOrbitalVelocityAtUT(trajectory.AtTargetUT);
-			var dVm = (float)dV.magnitude;
-			var max = (float)Dtol/10;
-			var offset = dVm > max? ManeuverAutopilot.TTB(VSL, dVm-max, 1)-ManeuverAutopilot.TTB(VSL, dVm, 1)/2 : 0;
-			LogF("dVm {}, max {}, offset {}", dVm, max, offset);
-			ManeuverAutopilot.AddNode(VSL, dV, trajectory.AtTargetUT-offset);
+			var dV = trajectory.BreakDeltaV;
+			ManeuverAutopilot.AddNode(VSL, dV, 
+			                          trajectory.AtTargetUT
+			                          -MatchVelocityAutopilot.BrakingOffset(dV.magnitude, VSL));
 		}
 
 		protected void setup_calculation(NextTrajectory next)
