@@ -57,7 +57,7 @@ namespace ThrottleControlledAvionics
 				SetState(TCAState.StabilizeFlight);
 				CFG.HF.OnIfNot(HFlight.Level);
 			}
-			var omega = Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.Physics.Up);
+			var omega = Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.Physics.UpL);
 			if(omega.sqrMagnitude > STB.MinAngularVelocity)
 			{ 
 				OffTimer.Reset();
