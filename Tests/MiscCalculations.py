@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.lines as mlines
-import pandas as pa
+import pandas as pd
 import sys
 import os
 
@@ -1080,7 +1080,7 @@ def simGC():
 
 def loadCSV(filename, columns=None, header=None):
     os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics'))
-    df = pa.read_csv(filename, header=header, names=columns)
+    df = pd.read_csv(filename, header=header, names=columns)
     return df
 
 def drawDF(df, x, columns, colors=None, axes=None):
@@ -1145,7 +1145,7 @@ def addL(df):
             L.append(L[-1]+hv*dt)
     else:
         L = np.arange(0, df.shape[0], 1)
-    df['L'] = pa.Series(L, index=df.index)
+    df['L'] = pd.Series(L, index=df.index)
 
 def analyzeCSV(filename, header, cols=None, x=None, axes=(), region = None):
     df = loadCSV(filename, header)
@@ -1219,6 +1219,25 @@ def sim_PointNav():
         plt.ylabel("real accel"); plt.xlabel("distance")
     plt.legend()
     plt_show_maxed()
+
+
+def brake_sim():
+    V0 = 123.0
+    M = 1.
+    T = 1.
+    mv = 0.001
+
+    def s(t):
+        return V0 * t + T / mv * ((t - M / mv) * np.log((M - mv * t) / M) - t)
+
+    def TTB(dV):
+        return M / mv * (1 - np.exp(-dV * mv / T))
+
+    t1 = TTB(V0)
+    print t1, s(t1), s(t1) / V0 - t1 / 2
+    time = np.linspace(0, t1, 1000)
+    plt.plot(time, s(time))
+    plt.show()
 #==================================================================#
 
 dt = 0.05
@@ -1307,23 +1326,24 @@ if __name__ == '__main__':
 #     drawVectors()
 #     sim_PointNav()
 
+
+    df = pd.read_csv('../Tests/ATC.csv', names=('error',
+                     'error_x', 'error_y', 'error_z',
+                     'steer_x', 'steer_y', 'steer_z',
+                     'pid_x', 'pid_y', 'pid_z',
+                     'vel_x', 'vel_y', 'vel_z'))
+
+    plt.plot(df.error_x, df.steer_x, '-')
+    plt.show()
+
+    # analyzeCSV('Tests/ATC.csv',
+    #           ('error',
+    #            'error.x', 'error.y', 'error.z',
+    #            'steer.x', 'steer.y', 'steer.z',
+    #            'pid.x', 'pid.y', 'pid.z',
+    #            'vel.x', 'vel.y', 'vel.z'),
+    #            region=[0])
+
     # print vec(0.73874086177374, 0.0402463344474615, 0.672786869453719).norm
     # print vec(1000.03347198867, 927.774507796912, 55.6943721048555).norm.xzy
     # print vec(1742.705, 122.1291, 973.6855).norm
-
-    V0 = 123.0
-    M = 1.
-    T = 1.
-    mv = 0.001
-
-    def s(t):
-        return V0*t + T/mv*((t-M/mv)*np.log((M-mv*t)/M)-t)
-
-    def TTB(dV):
-        return M/mv*(1-np.exp(-dV*mv/T))
-
-    t1 = TTB(V0)
-    print t1, s(t1), s(t1)/V0-t1/2
-    time = np.linspace(0, t1, 1000)
-    plt.plot(time, s(time))
-    plt.show()
