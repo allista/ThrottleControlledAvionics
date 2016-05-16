@@ -164,6 +164,7 @@
     <Compile Include="Utils\OrbitDBG.cs" />
     <Compile Include="GUI\Elements\GUIUtils.cs" />
     <Compile Include="Modules\Planet\VTOLControl.cs" />
+    <Compile Include="Utils\Triggers.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

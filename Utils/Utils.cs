@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
@@ -309,104 +310,16 @@ namespace ThrottleControlledAvionics
 		{ return string.Format("Lat: {0} Lon: {1}", AngleToDMS(Lat), AngleToDMS(Lon)); }
 	}
 
-	#region Timers
-	public class TimerBase
+	public class ListDict<K,V> : Dictionary<K, List<V>>
 	{
-		protected DateTime next_time;
-		public double Period;
-
-		public TimerBase(double period) { Period = period; next_time = DateTime.MinValue; }
-		public void Reset() { next_time = DateTime.MinValue; }
-
-		public override string ToString()
+		public void Add(K key, V value)
 		{
-			var time = DateTime.Now;
-			return string.Format("time: {0} < next time {1}: {2}", 
-			                     time, next_time, time < next_time);
+			List<V> lst;
+			if(TryGetValue(key, out lst))
+				lst.Add(value);
+			else this[key] = new List<V>{value};
 		}
 	}
-
-	public class ActionDamper : TimerBase
-	{
-		public ActionDamper(double period = 0.1) : base(period) {}
-
-		public void Run(Action action)
-		{
-			var time = DateTime.Now;
-			if(next_time > time) return;
-			next_time = time.AddSeconds(Period);
-			action();
-		}
-	}
-
-	public class Timer : TimerBase
-	{
-		public Timer(double period = 1) : base(period) {}
-
-		public bool Check
-		{
-			get 
-			{
-				var time = DateTime.Now;
-				if(next_time == DateTime.MinValue)
-				{
-					next_time = time.AddSeconds(Period); 
-					return false;
-				}
-				return next_time < time;
-			}
-		}
-
-		public void RunIf(Action action, bool predicate)
-		{
-			if(predicate) { if(Check) { action(); Reset(); } }
-			else Reset();
-		}
-	}
-	#endregion
-
-	public class Switch
-	{
-		bool state, prev_state;
-
-		public void Set(bool s)
-		{ prev_state = state; state = s; }
-
-		public bool WasSet { get { return state != prev_state; } }
-		public bool On { get { return state; } }
-		public void Checked() { prev_state = state; }
-
-		public static implicit operator bool(Switch s) { return s.state; }
-	}
-
-	public class SingleAction
-	{
-		bool done;
-		public Action action;
-
-		public void Run() 
-		{ if(!done) { action(); done = true; } }
-
-		public void Run(Action act) 
-		{ if(!done) { act(); done = true; } }
-
-		public void Reset() { done = false; }
-
-		public static implicit operator bool(SingleAction a) { return a.done; }
-	}
-
-	public abstract class Extremum<T> where T : IComparable
-	{
-		protected T v2, v1, v0;
-		protected int i;
-
-		public void Update(T cur) { v2 = v1; v1 = v0; v0 = cur; if(i < 3) i++; }
-		public abstract bool True { get; }
-		public void Reset() { v2 = v1 = v0 = default(T); i = 0; }
-	}
-
-	public class FloatMinimum: Extremum<float>
-	{ public override bool True { get { return i > 2 && v2 >= v1 && v1 < v0; } } }
 
 	//from MechJeb2
 	public class Matrix3x3f

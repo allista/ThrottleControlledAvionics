@@ -165,5 +165,18 @@ namespace ThrottleControlledAvionics
 		public override string ToString()
 		{ return string.Format("[FuzzyThreshold: Value={0}, On={1}, Upper={2}, Lower={3}]", Value, On, Upper, Lower); }
 	}
+
+	public abstract class Extremum<T> where T : IComparable
+	{
+		protected T v2, v1, v0;
+		protected int i;
+
+		public void Update(T cur) { v2 = v1; v1 = v0; v0 = cur; if(i < 3) i++; }
+		public abstract bool True { get; }
+		public void Reset() { v2 = v1 = v0 = default(T); i = 0; }
+	}
+
+	public class FloatMinimum: Extremum<float>
+	{ public override bool True { get { return i > 2 && v2 >= v1 && v1 < v0; } } }
 }
 
