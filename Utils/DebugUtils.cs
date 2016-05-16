@@ -54,6 +54,9 @@ namespace ThrottleControlledAvionics
 		public static void logOrbit(string name, Orbit o)
 		{ Utils.Log("Orbit: {0}\n{1}", name, Utils.formatOrbit(o)); }
 
+		public static string FormatSteering(Vector3 steering)
+		{ return Utils.Format("[pitch {}, roll {}, yaw {}]", steering.x, steering.y, steering.z); }
+
 		public static string FormatActions(BaseActionList actions)
 		{
 			return actions.Aggregate("", (s, a) => s + string.Format("{0} ({1}, active: {2}); ", 
