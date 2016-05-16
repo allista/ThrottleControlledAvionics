@@ -303,7 +303,7 @@ namespace ThrottleControlledAvionics
 			DesiredAltitude += delta_alt;
 			if(DesiredAltitude > LND.MaxWideCheckAltitude)
 			{
-				ThrottleControlledAvionics.StatusMessage = "Unable to find suitale place for landing.";
+				Status("red", "Unable to find suitale place for landing.");
 				CFG.AP1.Off();
 			}
 			else stage = Stage.WideCheck;
@@ -370,12 +370,13 @@ namespace ThrottleControlledAvionics
 				if(stopped && VSL.Altitude < LND.MaxStartAltitude+10) 
 				{
 					DesiredAltitude = VSL.Altitude;
+					CFG.DesiredAltitude = DesiredAltitude;
 					stage = Stage.PointCheck;	
 				}
 				break;
 			case Stage.PointCheck:
 				SetState(TCAState.CheckingSite);
-				if(!fully_stopped) break;
+				if(!stopped) break;
 				if(scan(1, null, VSL.Geometry.R*2)) break;
 				if(Nodes == null || center_node == null) 
 				{ wide_check(); break; }
@@ -384,7 +385,7 @@ namespace ThrottleControlledAvionics
 				else land();
 				break;
 			case Stage.FlatCheck:
-				if(!fully_stopped) break;
+				if(!stopped) break;
 				if(FlatNodes.Count > 0)
 				{
 					if(scan(1, FlatNodes[0], VSL.Geometry.R*2)) break;
