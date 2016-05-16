@@ -104,7 +104,7 @@ namespace ThrottleControlledAvionics
 			VSL.vessel.patchedConicSolver.UpdateFlightPlan();
 		}
 
-		public static float TTB(VesselWrapper VSL, float dV, float throttle)
+		public static float TTB(VesselWrapper VSL, float dV, float throttle = 1)
 		{
 			return CheatOptions.InfiniteFuel?
 				VSL.Physics.M*dV/VSL.Engines.MaxThrustM/throttle : 
@@ -112,7 +112,7 @@ namespace ThrottleControlledAvionics
 				/(VSL.Engines.MaxMassFlow*throttle);
 		}
 
-		public float TTB(float dV, float throttle) { return TTB(VSL, dV, throttle); }
+		public float TTB(float dV, float throttle = 1) { return TTB(VSL, dV, throttle); }
 
 		protected override void Update()
 		{
