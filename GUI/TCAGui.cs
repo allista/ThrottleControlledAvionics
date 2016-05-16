@@ -27,6 +27,7 @@ namespace ThrottleControlledAvionics
 		static VTOLControl VTOL;
 		static VTOLAssist VLA;
 		static FlightStabilizer STB;
+		static ManeuverAutopilot MAN;
 
 		static List<FieldInfo> ModuleFields = typeof(TCAGui)
 			.GetFields(BindingFlags.Static|BindingFlags.NonPublic)
@@ -324,6 +325,8 @@ namespace ThrottleControlledAvionics
 			                                   "Assist with vertical takeoff and landing", GUILayout.ExpandWidth(true));
 			if(STB != null) Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
 			                                   "Try to stabilize flight if spinning uncontrollably", GUILayout.ExpandWidth(true));
+			if(MAN != null) Utils.ButtonSwitch("AutoStaging", ref CFG.AutoStage, 
+			                                   "Automatically activate next stage when previous falmeouted", GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 			if(THR != null)
 			{

@@ -247,6 +247,35 @@ namespace ThrottleControlledAvionics
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines.All);
 			else if(CFG.Enabled && TCA.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
 		}
+
+		void activate_next_stage()
+		{
+			if(vessel.currentStage <= 0) return;
+			if(IsActiveVessel)
+			{
+				Staging.ActivateNextStage();
+				vessel.ActionGroups.ToggleGroup(KSPActionGroup.Stage);
+				ResourceDisplay.Instance.Refresh();
+			}
+			else
+			{
+				int next_stage = vessel.currentStage-1;
+				GameEvents.onStageActivate.Fire(next_stage);
+				vessel.parts.ForEach(p => p.activate(next_stage, vessel));
+				vessel.currentStage = next_stage;
+				vessel.ActionGroups.ToggleGroup(KSPActionGroup.Stage);
+			}
+		}
+		readonly ActionDamper stage_cooldown = new ActionDamper(0.5);
+
+		public void ActivateNextStage() { stage_cooldown.Run(activate_next_stage); }
+		public void ActivateNextStageOnFlameout()
+		{
+			if(CFG.AutoStage &&
+			   Engines.All.Count(e => e.engine.flameout && 
+			                     e.part.inverseStage == vessel.currentStage) > 0)
+				ActivateNextStage();
+		}
 	}
 
 	/// <summary>

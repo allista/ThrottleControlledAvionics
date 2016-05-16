@@ -162,6 +162,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public EnginesProfileDB EnginesProfiles = new EnginesProfileDB();
 		[Persistent] public bool ShowEnginesProfiles;
 		[Persistent] public bool ShowManualLimits;
+		[Persistent] public bool AutoStage = true;
 		public EnginesProfile ActiveProfile { get { return EnginesProfiles.Active; } }
 		//squad
 		[Persistent] public int Squad;

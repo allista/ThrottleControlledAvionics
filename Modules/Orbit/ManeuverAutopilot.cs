@@ -123,6 +123,7 @@ namespace ThrottleControlledAvionics
 			//end if below the minimum dV
 			if(dVm < MinDeltaV || UntilMinimum && dVm > dVrem.Value) { Node.RemoveSelf(); reset(); return; }
 			dVrem.Value = dVm;
+			VSL.ActivateNextStageOnFlameout();
 			//orient along the burning vector
 			if(dVrem && VSL.Controls.RCSAvailable) 
 				CFG.AT.OnIfNot(Attitude.KillRotation);
