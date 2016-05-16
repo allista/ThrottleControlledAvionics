@@ -24,7 +24,6 @@ namespace ThrottleControlledAvionics
 		{
 			new public const string NODE_NAME = "MVA";
 
-			[Persistent] public float TimeBeforeApproach   = 5f;   //sec
 			[Persistent] public float TranslationThreshold = 5f;   //m/s
 		}
 		static Config MVA { get { return TCAScenario.Globals.MVA; } }
@@ -89,6 +88,20 @@ namespace ThrottleControlledAvionics
 			Target = null;
 		}
 
+		public static double BrakingDistance(double V0, double t, VesselWrapper VSL)
+		{
+			return V0*t + 
+				VSL.Engines.MaxThrustM/VSL.Engines.MaxMassFlow * 
+				((t-VSL.Physics.M/VSL.Engines.MaxMassFlow) * 
+				 Math.Log((VSL.Physics.M-VSL.Engines.MaxMassFlow*t)/VSL.Physics.M) - t);
+		}
+
+		public static double BrakingOffset(double V0, double ttb, VesselWrapper VSL)
+		{ return BrakingDistance(V0, ttb*1.1, VSL)/V0-ttb/2; }
+
+		public static double BrakingOffset(double V0, VesselWrapper VSL)
+		{ return BrakingOffset(V0, ManeuverAutopilot.TTB(VSL, (float)V0, 1), VSL); }
+
 		protected override void Update()
 		{
 			if(!IsActive) return;
@@ -110,7 +123,7 @@ namespace ThrottleControlledAvionics
 				if(TTA > 0)
 				{
 					VSL.Info.TTB = MAN.TTB(dVm, 1);
-					VSL.Info.Countdown = TTA-VSL.Info.TTB/2-MVA.TimeBeforeApproach;
+					VSL.Info.Countdown = TTA-BrakingOffset(dVm, VSL.Info.TTB, VSL);
 					//warp to the nearest approach point if requested
 					if(CFG.WarpToNode && ATC.Aligned)
 						WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
