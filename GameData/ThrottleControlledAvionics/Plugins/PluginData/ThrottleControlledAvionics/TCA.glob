@@ -133,13 +133,10 @@ ATCB
 	MaxEf          = 2
 	SlowTorqueF    = 0.2
 	AALowPassF     = 1
+	
+	AngleThreshold = 60
 	MaxAttitudeError = 10  //deg
 	AttitudeErrorThreshold = 3
-}
-
-ATC
-{
-	AngleThreshold = 10	
 }
 
 TDC
@@ -337,7 +334,6 @@ WRP
 
 MVA
 {
-	TimeBeforeApproach    = 5   //sec
 	TranslationThreshold  = 5   //m/s
 }
 
@@ -346,7 +342,7 @@ TRJ
 	dVtol              = 0.01  //m/s
 	dV4dRf             = 1e-4
 	MinPeA             = 10000 //m
-	MaxIterations      = 1000
+	MaxIterations      = 2000
 	PerFrameIterations = 10
 }
 
@@ -370,8 +366,8 @@ BJ
 {
 	StartOffset      = 15  //s
 	StartInclination = 30  //deg
-	StartAltitude    = 100 //m
-	InclinationF     = 3
+	StartAltitude    = 50  //m
+	InclinationF     = 2.2
 }
 
 REN
@@ -379,11 +375,12 @@ REN
 	Dtol                = 100   //m
 	StartOffset         = 60    //s
 	DeltaApThreshold    = 1000  //m
-	MaxTTR              = 1     //orbit.periods
-	MaxDeltaV           = 100
+	MaxTTR              = 3     //orbit.periods
+	MaxDeltaV           = 100   //m/s
 	CorrectionStart     = 10000 //m
 	CorrectionOffset    = 20    //s
 	CorrectionTimer     = 10    //s
+	ApproachThreshold   = 500   //m
 	MaxApproachV        = 20    //parts
 	ApproachVelF        = 0.01  //parts
 	MaxInclinationDelta = 30    //deg
