@@ -266,5 +266,15 @@ namespace ThrottleControlledAvionics
 
 		public override bool isOperational { get { return engine.isOperational; } }
 		#endregion
+
+		public override string ToString()
+		{
+			return Utils.Format("[EngineWrapper: name={}, ID={}, flightID={}, Stage={}, Role={}, Group={},\n" + 
+			                    "useEngineResponseTime={}, engineAccelerationSpeed={}, engineDecelerationSpeed={},\n" + 
+			                    "finalThrust={}, thrustLimit={}, isOperational={}]", 
+			                    name, ID, flightID, part.inverseStage, Role, Group, 
+			                    useEngineResponseTime, engineAccelerationSpeed, engineDecelerationSpeed, 
+			                    finalThrust, thrustLimit, isOperational);
+		}
 	}
 }
