@@ -145,8 +145,8 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical(Styles.white);
 				waypointsScroll = GUILayout
 					.BeginScrollView(waypointsScroll, 
-					                 GUILayout.Height(Utils.ClampH(ThrottleControlledAvionics.LineHeight*(CFG.Waypoints.Count+1), 
-					                                               ThrottleControlledAvionics.ControlsHeight)));
+					                 GUILayout.Height(Utils.ClampH(TCAGui.LineHeight*(CFG.Waypoints.Count+1), 
+					                                               TCAGui.ControlsHeight)));
 				GUILayout.BeginVertical();
 				int i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
@@ -210,7 +210,7 @@ namespace ThrottleControlledAvionics
 		DateTime clicked_time;
 		void WaypointOverlay()
 		{
-			if(TCA == null || !TCA.Available || !ThrottleControlledAvionics.showHUD) return;
+			if(TCA == null || !TCA.Available || !TCAGui.showHUD) return;
 			if(selecting_target)
 			{
 				var coords = MapView.MapIsEnabled? 

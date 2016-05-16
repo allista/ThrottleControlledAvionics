@@ -13,6 +13,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	[CareerPart]
 	[RequireModules(typeof(SASBlocker))]
 	[OverrideModules(typeof(BearingControl),
 	                 typeof(CruiseControl))]
@@ -67,7 +68,7 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 			needed_thrust = -VSL.Physics.Up;
 			#endif
-			steering = rotation2steering(world2local_rotation(Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.MaxThrust))); 
+			compute_steering(Rotation.Local(VSL.Engines.MaxThrust, -VSL.Physics.Up, VSL)); 
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)

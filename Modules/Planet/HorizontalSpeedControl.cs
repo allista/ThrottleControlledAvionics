@@ -76,10 +76,6 @@ namespace ThrottleControlledAvionics
 		}
 		static Config HSC { get { return TCAScenario.Globals.HSC; } }
 
-		double   srfSpeed { get { return VSL.vessel.srfSpeed; } }
-		Vector3d acceleration { get { return VSL.vessel.acceleration; } }
-		Vector3  angularVelocity { get { return VSL.vessel.angularVelocity; } }
-
 		readonly PIDf_Controller translation_pid = new PIDf_Controller();
 		readonly LowPassFilterVd filter = new LowPassFilterVd();
 		Vector3d needed_thrust_dir;
@@ -218,7 +214,7 @@ namespace ThrottleControlledAvionics
 				var with_manual_thrust = VSL.Engines.Manual.Count > 0 && (nVm >= HSC.TranslationUpperThreshold ||
 				                                                          hVm >= HSC.TranslationUpperThreshold ||
 				                                                          CourseCorrection.magnitude >= HSC.TranslationUpperThreshold);
-				var manual_thrust = Vector3.ProjectOnPlane(VSL.OnPlanetParams.ManualThrust, VSL.Physics.Up);//test
+				var manual_thrust = Vector3.ProjectOnPlane(VSL.OnPlanetParams.ManualThrust, VSL.Physics.Up);
 				var zero_manual_thrust = manual_thrust.IsZero();
 				if(with_manual_thrust &&
 				   !zero_manual_thrust &&
@@ -233,10 +229,10 @@ namespace ThrottleControlledAvionics
 				//calculate needed thrust direction
 				if(!(with_manual_thrust && zero_manual_thrust &&
 				     VSL.HorizontalSpeed.Absolute <= HSC.TranslationLowerThreshold) &&
-				   Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)//test
+				   Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)
 				{
 					//correction for low TWR
-					var MaxHv = Utils.ClampL(Vector3d.Project(acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
+					var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
 					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), 1) * Utils.ClampL(fVm/rVm, 1) / TWR_factor;
 					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
 				}
@@ -294,7 +290,7 @@ namespace ThrottleControlledAvionics
 			filter.Tau = VSL.Engines.SlowTorque ? 
 				HSC.LowPassF / (1 + VSL.Engines.TorqueResponseTime * HSC.SlowTorqueF) : 
 				HSC.LowPassF;
-			ATC.AddCustomRotationW(filter.Update(needed_thrust_dir), thrust);
+			ATC.SetCustomRotationW(thrust, filter.Update(needed_thrust_dir));
 
 			#if DEBUG
 //			CSV(VSL.Physics.UT, 

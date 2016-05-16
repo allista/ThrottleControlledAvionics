@@ -86,7 +86,6 @@
     <Compile Include="GUI\TCAGui.cs" />
     <Compile Include="GUI\EnginesProfileEditor.cs" />
     <Compile Include="GUI\TCAToolbarManager.cs" />
-    <Compile Include="TCA.cs" />
     <Compile Include="Macros\TCAMacro.cs" />
     <Compile Include="Utils\Utils.cs" />
     <Compile Include="Utils\PID_Controllers.cs" />

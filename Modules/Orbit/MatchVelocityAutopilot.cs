@@ -106,7 +106,7 @@ namespace ThrottleControlledAvionics
 				dV = (VSL.orbit.getOrbitalVelocityAtUT(ApprUT) - tOrb.getOrbitalVelocityAtUT(ApprUT)).xzy;
 				dVm = (float)dV.magnitude;
 				CFG.AT.OnIfNot(Attitude.Custom);
-				ATC.AddCustomRotationW(dV, VSL.Engines.MaxThrust);
+				ATC.SetCustomRotationW(VSL.Engines.MaxThrust, dV);
 				if(TTA > 0)
 				{
 					VSL.Info.TTB = MAN.TTB(dVm, 1);

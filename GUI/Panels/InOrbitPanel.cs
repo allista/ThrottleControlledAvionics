@@ -31,7 +31,7 @@ namespace ThrottleControlledAvionics
 			if(MVA != null) MVA.Draw();
 			if(REN != null) REN.Draw();
 			if(DEO != null) DEO.Draw();
-			if(PN  != null) ThrottleControlledAvionics.NavigationControls.AddSingleWaypointInMapView();
+			if(PN  != null) TCAGui.NavigationControls.AddSingleWaypointInMapView();
 			GUILayout.Label(new GUIContent(VSL.Info.Countdown >= 0? 
 			                               string.Format("-{0:F1}s", VSL.Info.Countdown) : "", 
 			                               "Countdown" ),

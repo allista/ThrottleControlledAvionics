@@ -127,12 +127,12 @@ namespace ThrottleControlledAvionics
 				new WayPoint(VSL.Target);
 		}
 
-		protected void ClearStatus() { ThrottleControlledAvionics.StatusMessage = ""; }
+		protected static void ClearStatus() { TCAGui.StatusMessage = ""; }
 
-		protected void Status(string msg, params object[] args) 
-		{ ThrottleControlledAvionics.StatusMessage = string.Format(msg, args); }
+		protected static void Status(string msg, params object[] args) 
+		{ TCAGui.StatusMessage = string.Format(msg, args); }
 
-		protected void Status(string color, string msg, params object[] args)
+		protected static void Status(string color, string msg, params object[] args)
 		{ Status(string.Format("<color={0}>{1}</color>", color, msg), args); }
 
 		public bool RegisterTo<S>(Func<VesselWrapper,bool> predicate = null) 

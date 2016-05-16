@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
 		[Persistent] public AttitudeControlBase.Config       ATCB = new AttitudeControlBase.Config();
-		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
+//		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
 		[Persistent] public BearingControl.Config            BRC = new BearingControl.Config();
 		[Persistent] public ThrustDirectionControl.Config    TDC = new ThrustDirectionControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config    HSC = new HorizontalSpeedControl.Config();
@@ -118,6 +118,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Guid    VesselID;
 		[Persistent] public bool    Enabled;
 		[Persistent] public bool    GUIVisible;
+		[Persistent] public KSPActionGroup ActionGroup = KSPActionGroup.None;
 		//attitude control
 		[Persistent] public Multiplexer<Attitude> AT = new Multiplexer<Attitude>();
 		[Persistent] public bool WarpToNode;
