@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-//	[CareerPart]
+	[CareerPart]
 	[RequireModules(typeof(AttitudeControl),
 	                typeof(BearingControl), 
 	                typeof(ThrottleControl), 
@@ -26,6 +26,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float StartInclination = 30f;  //deg
 			[Persistent] public float StartAltitude    = 100f; //m
 			[Persistent] public float InclinationF     = 2f;
+			[Persistent] public float ObstacleOffset   = 50f;
 			public float StartTangent = 1;
 
 			public override void Init()
@@ -110,7 +111,7 @@ namespace ThrottleControlledAvionics
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
 			{
-				V += old.DeltaR;
+				V += old.DeltaR*(1-Target.AngleTo(VSL.vessel)/Utils.TwoPI*0.9);
 				angle += old.DeltaFi;
 			}
 			var vel = VesselOrbit.getOrbitalVelocityAtUT(StartUT);
@@ -172,7 +173,7 @@ namespace ThrottleControlledAvionics
 					var obst = obstacle_ahead(trajectory);
 					if(obst > 0)
 					{
-						StartAltitude += (float)obst;
+						StartAltitude += (float)obst+BJ.ObstacleOffset;
 						stage = Stage.Start;
 					}
 					else

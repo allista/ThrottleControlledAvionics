@@ -21,7 +21,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float BrakeEndSpeed      = 100;   //m/s
 			[Persistent] public float CorrectionOffset   = 20f;   //s
 			[Persistent] public float CorrectionTimer    = 10f;   //s
-			[Persistent] public float LowPassF           = 1f;   //s
+			[Persistent] public float LowPassF           = 1f;    //s
+			[Persistent] public float ObstacleBrakeF     = 1.2f;  //s
 		}
 		protected static Config LTRJ { get { return TCAScenario.Globals.LTRJ; } }
 
@@ -32,6 +33,7 @@ namespace ThrottleControlledAvionics
 
 		protected LowPassFilterD DistanceFilter = new LowPassFilterD();
 		protected Timer DecelerationTimer = new Timer();
+		protected bool FullStop;
 
 		protected AttitudeControl ATC;
 		protected ThrottleControl THR;
@@ -54,6 +56,7 @@ namespace ThrottleControlledAvionics
 			landing_stage = LandingStage.None;
 			DistanceFilter.Reset();
 			DecelerationTimer.Reset();
+			FullStop = false;
 		}
 
 		protected override void setup_target()
@@ -101,9 +104,9 @@ namespace ThrottleControlledAvionics
 			if(trj == null) return -1;
 			var start = trj.StartUT;
 			var stop = start + (trj.NewOrbit.timeToAp < trj.NewOrbit.period/2? 
-			                    trj.NewOrbit.timeToAp : trj.BrakeDuration);
+			                    trj.NewOrbit.timeToAp : trj.BrakeDuration*LTRJ.ObstacleBrakeF);
 			var UT = start;
-			var dT = (stop-start)/2;
+			var dT = (stop-start);
 			double dist;
 			while(dT > 0.01)
 			{
@@ -111,7 +114,7 @@ namespace ThrottleControlledAvionics
 				var d1m = UT-dT < start? double.MaxValue : distance_from_ground(trj.NewOrbit, UT-dT);
 				if(d1p < d1m) { dist = d1p; UT += dT; }
 				else { dist = d1m; UT -= dT; }
-				LogF("dist {}, dT {}", dist, dT);//debug
+//				LogF("dist {}, T {}", dist, UT-VSL.Physics.UT);//debug
 				if(dist < 0) return -dist;
 				dT /= 2;
 			}
@@ -124,7 +127,8 @@ namespace ThrottleControlledAvionics
 			CFG.AltitudeAboveTerrain = true;
 			CFG.BlockThrottle = true;
 			CFG.VF.On(VFlight.AltitudeControl);
-			CFG.DesiredAltitude = LTRJ.ApproachAlt < VSL.Altitude.Relative? LTRJ.ApproachAlt : VSL.Altitude.Relative;
+			CFG.DesiredAltitude = LTRJ.ApproachAlt < VSL.Altitude.Relative? 
+				LTRJ.ApproachAlt : Utils.ClampL(VSL.Altitude.Relative/2, VSL.Geometry.H*2);
 			landing_stage = LandingStage.Approach;
 		}
 
@@ -143,11 +147,11 @@ namespace ThrottleControlledAvionics
 			{
 			case LandingStage.Wait:
 				trajectory.UpdateOrbit(VesselOrbit, false);
-				if(obstacle_ahead(trajectory) > 0) { decelerate(); break; }
+				if(obstacle_ahead(trajectory) > 0) { FullStop = true; decelerate(); break; }
 				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-1;
 				VSL.Info.TTB = (float)trajectory.BrakeDuration;
 				CFG.AT.OnIfNot(Attitude.Custom);
-				ATC.AddCustomRotationW(trajectory.AtTargetVel.xzy, VSL.Engines.MaxThrust);
+				ATC.SetCustomRotationW(VSL.Engines.MaxThrust, trajectory.AtTargetVel.xzy);
 				if(ATC.Aligned) WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else WRP.StopWarp();
 				if(VSL.Info.Countdown <= 0) decelerate();
@@ -163,15 +167,15 @@ namespace ThrottleControlledAvionics
 				   Vector3d.Dot(VSL.HorizontalSpeed.Vector, 
 				                VSL.Physics.wCoM-TargetPos) < 0) 
 					DecelerationTimer.Reset();
-				if(!DecelerationTimer.Check && 
-				   trajectory.DistanceToTarget > LTRJ.Dtol &&
+				if((FullStop || !DecelerationTimer.Check && 
+				    trajectory.DistanceToTarget > LTRJ.Dtol) &&
 				   VSL.HorizontalSpeed.Absolute > LTRJ.BrakeEndSpeed &&
 				   Vector3d.Angle(VSL.Engines.MaxThrust, -VSL.Physics.Up) > 10)
 				{
 					CFG.AT.OnIfNot(Attitude.Custom);
-					ATC.AddCustomRotationW(VesselOrbit.vel.xzy-
-					                       Vector3d.Exclude(VSL.Physics.Up, TargetPos-trajectory.AtTargetPos.xzy)/100,
-					                       VSL.Engines.MaxThrust);
+					ATC.SetCustomRotationW(VSL.Engines.MaxThrust,
+					                       VesselOrbit.vel.xzy-
+					                       Vector3d.Exclude(VSL.Physics.Up, TargetPos-trajectory.AtTargetPos.xzy)/100);
 					if(ATC.Aligned) THR.DeltaV = Utils.ClampL((float)VSL.vessel.srfSpeed-LTRJ.BrakeEndSpeed+1, 0);
 					break;
 				}
