@@ -173,10 +173,17 @@ namespace ThrottleControlledAvionics
 
 		public void Update(T cur) { v2 = v1; v1 = v0; v0 = cur; if(i < 3) i++; }
 		public abstract bool True { get; }
+		public T Value { get { return v1; } }
 		public void Reset() { v2 = v1 = v0 = default(T); i = 0; }
+
+		public static implicit operator bool(Extremum<T> e) { return e.True; }
+		public static implicit operator T(Extremum<T> e) { return e.Value; }
 	}
 
-	public class FloatMinimum: Extremum<float>
+	public class MinimumF: Extremum<float>
+	{ public override bool True { get { return i > 2 && v2 >= v1 && v1 < v0; } } }
+
+	public class MinimumD: Extremum<double>
 	{ public override bool True { get { return i > 2 && v2 >= v1 && v1 < v0; } } }
 }
 

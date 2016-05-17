@@ -154,7 +154,7 @@ namespace ThrottleControlledAvionics
 	[OptionalModules(typeof(TimeWarpControl))]
 	public class AttitudeControl : AttitudeControlBase
 	{
-		readonly FloatMinimum omega_min = new FloatMinimum();
+		readonly MinimumF omega_min = new MinimumF();
 		Transform refT;
 		Quaternion locked_attitude;
 		bool attitude_locked;
