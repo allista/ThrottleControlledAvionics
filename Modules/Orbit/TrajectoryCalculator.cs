@@ -258,7 +258,7 @@ namespace ThrottleControlledAvionics
 		public static double SqrDistAtUT(Orbit a, Orbit b, double UT)
 		{ return (a.getRelativePositionAtUT(UT)-b.getRelativePositionAtUT(UT)).sqrMagnitude; }
 
-		public static double ClosestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT, double offset = 0)
+		public static double ClosestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT)
 		{
 			double UT = StartUT;
 			double StopUT = StartUT+a.period;
@@ -278,7 +278,7 @@ namespace ThrottleControlledAvionics
 				var dm = UT-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT-dT);
 				if(dp < dist) { dist = dp; UT += dT; }
 				else if(dm < dist) { dist = dm; UT -= dT; }
-				Utils.LogF("T {} : dist {}; dT {}", UT-StartUT, dist, dT);//debug
+//				Utils.LogF("T {} : dist {}; dT {}", UT-StartUT, dist, dT);//debug
 				dT /= 2;
 			}
 			ApproachUT = UT; return Math.Sqrt(dist);
@@ -286,29 +286,40 @@ namespace ThrottleControlledAvionics
 
 		public static double NearestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT)
 		{
-			double dT  = a.period/4;
+			double UT = StartUT;
 			double StopUT = StartUT+a.period;
-			double UT1 = StartUT;
-			double d1 = -1;
-			while(dT > 0.01)
+			double dT = a.period/10;
+			double minUT = UT;
+			var min = new MinimumD();
+			while(UT < StopUT) //rough linear scan
 			{
-				var d1p = UT1+dT > StopUT?  double.MaxValue : SqrDistAtUT(a, t, UT1+dT);
-				var d1m = UT1-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT1-dT);
-				if(d1p < d1m) { d1 = d1p; UT1 += dT; }
-				else { d1 = d1m; UT1 -= dT; }
-				dT /= 1.3333333333333333;
+				min.Update(SqrDistAtUT(a, t, UT));
+				if(min) { minUT = UT-dT; break; }
+				UT += dT;
 			}
-			ApproachUT = UT1; return Math.Sqrt(d1);
+			double dist = min;
+			UT = minUT; dT /= 2;
+			while(dT > 0.01) //fine binary search
+			{
+				var dp = UT+dT > StopUT?  double.MaxValue : SqrDistAtUT(a, t, UT+dT);
+				var dm = UT-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT-dT);
+				if(dp < dist) { dist = dp; UT += dT; }
+				else if(dm < dist) { dist = dm; UT -= dT; }
+				Utils.LogF("T {} : dist {}; dT {}", UT-StartUT, dist, dT);//debug
+				dT /= 2;
+			}
+			ApproachUT = UT; return Math.Sqrt(dist);
 		}
 
 		public static double NearestRadiusUT(Orbit orb, double radius, double StartUT)
 		{
 			radius *= radius;
-			double StopUT = StartUT;
+			var StopUT = StartUT;
+			var dT = orb.period/10; 
 			while(StopUT-StartUT < orb.period) 
 			{ 
-				StopUT += orb.period/10; 
 				if(orb.getRelativePositionAtUT(StopUT).sqrMagnitude < radius) break;
+				StopUT += dT;
 			}
 			while(StopUT-StartUT > 0.01)
 			{
@@ -319,32 +330,57 @@ namespace ThrottleControlledAvionics
 			return StartUT+(StopUT-StartUT)/2;
 		}
 
-		double full_thrust_velocity(double t, double T2mflow)
-		{ return T2mflow*Math.Log(VSL.Physics.M/(VSL.Physics.M-VSL.Engines.MaxMassFlow*t))-VSL.Physics.G; }
-
-		double full_thrust_ApA(double t, double T2mflow)
+		/// <summary>
+		/// Calculates the ME transfer orbit from the given orbit and UT to the destination radius-vector.
+		/// The calculation procedure is derived form the "The Superior Lambert Algorithm" paper by Gim J. Der.
+		/// It uses Sun's analytical solution to the general Lambert problem, not the iterative solver for arbitrary transfer time itself.
+		/// </summary>
+		/// <returns>The DeltaVee for the maneuver.</returns>
+		/// <param name="orb">Starting orbit</param>
+		/// <param name="r2">Destination radius-vector relative to the CelectialBody position.</param>
+		/// <param name="StartUT">Start UT.</param>
+		/// <param name="TransferTime">Returned value of the transfer time in seconds.</param>
+		/// <param name="direct">If set to <c>true</c> the direct transfer orbit is computed, retrograde otherwise.</param>
+		public static Vector3d dV4Transfer(Orbit orb, Vector3d r2, double StartUT, out double TransferTime, bool direct = true)
 		{
-			var M1 = VSL.Physics.M-VSL.Engines.MaxMassFlow*t;
-			var v = T2mflow*Math.Log(VSL.Physics.M/M1)-VSL.Physics.G;
-			var h = T2mflow*(M1/VSL.Engines.MaxMassFlow*Math.Log(M1/VSL.Physics.M)+t)-VSL.Physics.G*t*t/2;
-			return v*v/2/VSL.Physics.G + h;
-		}
+			var mu = orb.referenceBody.gravParameter;
+			var r1 = orb.getRelativePositionAtUT(StartUT);
+			var cv = r2-r1;
+			var c  = cv.magnitude;
+			var r1m = r1.magnitude;
+			var r2m = r2.magnitude;
+			var rr = r1m+r2m;
+			var m  = rr+c;
+			var n  = rr-c;
+			var h  = Vector3d.Cross(r1, r2);
+			if(h.sqrMagnitude < 0.01) h = orb.GetOrbitNormal();
+			var psi = Vector3d.Angle(r1, r2)*Mathf.Deg2Rad;
+			if(direct && h.z < 0 || !direct && h.z > 0)
+				psi = Utils.TwoPI-psi;
+			var cos_psi_2 = Math.Cos(psi/2);
+			var sigma = 4*r1m*r2m/(m*m)*cos_psi_2*cos_psi_2;
+			if(psi > Math.PI) sigma *= -1;
+			var sqrt_one_sigma2 = Math.Sqrt(1-sigma*sigma);
+			var tauME = Math.Acos(sigma)+sigma*sqrt_one_sigma2;
+			var y = Math.Sign(sigma)*sqrt_one_sigma2;
+			var v = Math.Sqrt(mu)*y/Math.Sqrt(n);
+			TransferTime = tauME/4/Math.Sqrt(mu/(m*m*m));
 
-		public double FromSurfaceTTA(double ApA, double throttle, out double TTB, double tol=0.1)
-		{
-			double t0 = 0;
-			double t1 = 1;
-			double T2mflow = VSL.Engines.MaxThrustM*throttle/VSL.Engines.MaxMassFlow;
-			while(full_thrust_ApA(t1, T2mflow) < ApA) t1 *= 2;
-			while(t1-t0 > tol)
-			{
-				var t = (t0+t1)/2;
-				var apa = full_thrust_ApA(t, T2mflow);
-				if(apa > ApA) t1 = t;
-				else t0 = t;
-			}
-			TTB = (t0+t1)/2;
-			return full_thrust_velocity(TTB, T2mflow)/VSL.Physics.G+TTB;
+			Utils.LogF("\nr1: {}\n" +
+			           "r2: {}\n" +
+			           "cv: {}\n" +
+			           "h.z: {}\n" +
+			           "h * Norm: {}\n" +
+			           "psi: {} deg\n" +
+			           "sigma: {}\n" +
+			           "tauME: {}\n" +
+			           "transfer time: {}",
+			           r1, r2, cv, h.z,
+			           Math.Sign(Vector3d.Dot(h, orb.GetOrbitNormal())),
+			           psi*Mathf.Rad2Deg, sigma, tauME, TransferTime
+			          );//debug
+
+			return (r1.normalized + cv/c)*v - orb.getOrbitalVelocityAtUT(StartUT);
 		}
 
 		//Node: radial, normal, prograde
@@ -460,34 +496,33 @@ namespace ThrottleControlledAvionics
 			Status("");//debug
 			do {
 //				//debug
-//				if(best != null && 
-//				   !string.IsNullOrEmpty(ThrottleControlledAvionics.StatusMessage)) 
+//				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) 
 //				{
 //					yield return null;
 //					continue;
 //				}
-//				else 
-//				yield return null;//debug
+//				else yield return null;
+				//debug
 				clear_nodes();
-				if(CFG.Waypoints.Count > 1)
-				{
-					var wp = CFG.Waypoints.Peek();
-					CFG.Waypoints.Clear();
-					CFG.Waypoints.Enqueue(wp);
-				}
+//				if(CFG.Waypoints.Count > 1)
+//				{
+//					var wp = CFG.Waypoints.Peek();
+//					CFG.Waypoints.Clear();
+//					CFG.Waypoints.Enqueue(wp);
+//				}
 //				//debug
 				current = next_trajectory(current);
 				if(best == null || current.IsBetter(best)) 
 					best = current;
 				frameI--; maxI--;
-				if(frameI < 0)
+				if(frameI <= 0)
 				{
-					//				//debug
-					add_node(current.ManeuverDeltaV, current.StartUT);
-					//				add_node((current as LandingTrajectory).BrakeDeltaV, (current as LandingTrajectory).BrakeNodeUT);
-					//				CFG.Waypoints.Enqueue((current as LandingTrajectory).SurfacePoint);
-					//				Status("Push to continue");
-					//				//debug
+					//debug
+//					add_node(current.ManeuverDeltaV, current.StartUT);
+	//				add_node((current as LandingTrajectory).BrakeDeltaV, (current as LandingTrajectory).BrakeNodeUT);
+	//				CFG.Waypoints.Enqueue((current as LandingTrajectory).SurfacePoint);
+//					Status("Push to continue");
+					//debug
 					yield return null;
 					frameI = TRJ.PerFrameIterations;
 				}
@@ -537,7 +572,7 @@ namespace ThrottleControlledAvionics
 			var dV = trajectory.BreakDeltaV;
 			ManeuverAutopilot.AddNode(VSL, dV, 
 			                          trajectory.AtTargetUT
-			                          -MatchVelocityAutopilot.BrakingOffset(dV.magnitude, VSL));
+			                          -MatchVelocityAutopilot.BrakingNodeCorrection(dV.magnitude, VSL));
 		}
 
 		protected void setup_calculation(NextTrajectory next)

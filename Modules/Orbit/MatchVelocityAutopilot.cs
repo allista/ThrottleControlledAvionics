@@ -97,10 +97,13 @@ namespace ThrottleControlledAvionics
 		}
 
 		public static double BrakingOffset(double V0, double ttb, VesselWrapper VSL)
-		{ return BrakingDistance(V0, ttb*1.1, VSL)/V0-ttb/2; }
+		{ return BrakingDistance(V0, ttb*1.1, VSL)/V0; }
 
-		public static double BrakingOffset(double V0, VesselWrapper VSL)
-		{ return BrakingOffset(V0, ManeuverAutopilot.TTB(VSL, (float)V0, 1), VSL); }
+		public static double BrakingNodeCorrection(double V0, VesselWrapper VSL)
+		{ 
+			var ttb = ManeuverAutopilot.TTB(VSL, (float)V0, 1);
+			return BrakingOffset(V0, ttb, VSL)-ttb/2; 
+		}
 
 		protected override void Update()
 		{

@@ -152,53 +152,64 @@ namespace ThrottleControlledAvionics
 		protected RendezvousTrajectory rendezvou_orbit(RendezvousTrajectory old, ref Vector3d NodeDeltaV)
 		{
 			double StartUT;
+			double transfer_time;
 			Vector3d dV = Vector3d.zero;
 			if(old != null) 
 			{
-				var distF = Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1);
-				StartUT = AngleDelta2StartUT(old, old.DeltaTA, REN.StartOffset, VesselOrbit.period/4, 
-				                             VesselOrbit.period*distF);
-				NodeDeltaV += RadiusCorrection(old);
-				NodeDeltaV += PlaneCorrection(old)*(1-distF*0.99);
-				dV = Node2OrbitDeltaV(StartUT, NodeDeltaV);
-				LogF("\nRO: dV {}, dUT {}", NodeDeltaV, StartUT-old.StartUT);//debug
+				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1)*0.99);
+				dV = dV4Transfer(VesselOrbit, old.TargetPos, old.StartUT, out transfer_time);
+				StartUT = old.AtTargetUT-transfer_time+old.DeltaTA/360*VesselOrbit.period*distF;
+				if(StartUT < VSL.Physics.UT+REN.StartOffset) StartUT = VSL.Physics.UT+REN.StartOffset;
+
+//				NodeDeltaV += RadiusCorrection(old);
+//				NodeDeltaV += PlaneCorrection(old)*(1-distF*0.99);
+//				dV = Node2OrbitDeltaV(StartUT, NodeDeltaV);
+				LogF("\nRO: dV {}, dUT {}, Transfer Time {}", Orbit2NodeDeltaV(StartUT, dV), StartUT-old.StartUT, transfer_time);//debug
 //				CSV(old.TimeToStart, old.TimeToTarget, old.DeltaTA, old.DeltaFi, old.DeltaR, old.DistanceToTarget, NodeDeltaV.x, NodeDeltaV.y, NodeDeltaV.z);//debug
 			}
 			else 
 			{
-				var start_offset = VesselOrbit.period/3;
+				transfer_time = VesselOrbit.period/3;
 				double alpha, resonanse;
 				StartUT = VSL.Physics.UT+
-					Utils.ClampL(TimeToResonance(VesselOrbit, Target.orbit, VSL.Physics.UT+REN.StartOffset, out resonanse, out alpha)*VesselOrbit.period
-					             -start_offset, REN.StartOffset);
+					Utils.ClampL(TimeToResonance(VesselOrbit, Target.orbit, VSL.Physics.UT+REN.StartOffset, out resonanse, out alpha)
+					             *VesselOrbit.period-transfer_time, REN.StartOffset);
 				double AtTargetUT;
-				TrajectoryCalculator.ClosestApproach(VesselOrbit, Target.orbit, StartUT, out AtTargetUT, REN.StartOffset);
-				LogF("First Time TimeToStart: {}, Correction {}", StartUT-VSL.Physics.UT, AtTargetUT-start_offset-StartUT);//debug
-				StartUT = AtTargetUT-start_offset;
+				TrajectoryCalculator.ClosestApproach(VesselOrbit, Target.orbit, StartUT+REN.StartOffset, out AtTargetUT);
+				LogF("First Time TimeToStart: {}, Correction {}", StartUT-VSL.Physics.UT, AtTargetUT-transfer_time-StartUT);//debug
+				StartUT = AtTargetUT-transfer_time;
 			}
-			return new RendezvousTrajectory(VSL, dV, StartUT, Target, REN.StartOffset);
+			return new RendezvousTrajectory(VSL, dV, StartUT, Target, transfer_time);
 		}
 
 		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, ref Vector3d NodeDeltaV)
 		{
 			double StartUT = VSL.Physics.UT+REN.CorrectionOffset;
+			double transfer_time = 0;
 			Vector3d dV = Vector3d.zero;
 			if(old != null) 
 			{
-				var UT = old.AtTargetUT - old.NewOrbit.period/3;
-				if(UT > VSL.Physics.UT+REN.CorrectionOffset) StartUT = UT;
-				if(Math.Abs(old.DeltaR) > old.DistanceToTarget) NodeDeltaV += RadiusCorrection(old);
-				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.Dtol*2, 1)*0.99);
-				NodeDeltaV += AoPCorrection(old, -old.DeltaTA)*distF;
-				NodeDeltaV += PlaneCorrection(old)*distF;
-				dV = Node2OrbitDeltaV(StartUT, NodeDeltaV);
-				LogF("\nOC: dV {}", NodeDeltaV);//debug
+//				var distF = Utils.ClampH(old.DistanceToTarget/REN.Dtol*2, 1);
+//				StartUT = AngleDelta2StartUT(old, old.DeltaTA, REN.CorrectionOffset, REN.CorrectionOffset, REN.CorrectionOffset*distF);
+
+				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1)*0.99);
+				dV = dV4Transfer(VesselOrbit, old.TargetPos, old.StartUT, out transfer_time);
+				StartUT = old.AtTargetUT-transfer_time+old.DeltaTA/360*VesselOrbit.period*distF;
+				if(StartUT < VSL.Physics.UT+REN.StartOffset) StartUT = VSL.Physics.UT+REN.StartOffset;
+
+//				var UT = old.AtTargetUT - old.NewOrbit.period/3;
+//				if(UT > VSL.Physics.UT+REN.CorrectionOffset) StartUT = UT;
+//				if(Math.Abs(old.DeltaR) > old.DistanceToTarget) NodeDeltaV += RadiusCorrection(old);
+//				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.Dtol*2, 1)*0.99);
+//				NodeDeltaV += AoPCorrection(old, -old.DeltaTA)*distF;
+//				NodeDeltaV += PlaneCorrection(old)*distF;
+//				dV = Node2OrbitDeltaV(StartUT, NodeDeltaV);
+				LogF("\nCO: dV {}, dUT {}, Transfer Time {}", Orbit2NodeDeltaV(StartUT, dV), StartUT-old.StartUT, transfer_time);//debug
 //				CSV(old.TimeToStart, old.TimeToTarget, old.DeltaTA, old.DeltaFi, old.DeltaR, old.DistanceToTarget, 
 //				    NodeDeltaV.x, NodeDeltaV.y, NodeDeltaV.z,
 //				    TimeToResonance(old.NewOrbit, Target.orbit, StartUT)*old.NewOrbit.period);//debug
 			} 
-			return new RendezvousTrajectory(VSL, dV, StartUT, Target, REN.CorrectionOffset, 
-			                                VSL.Physics.UT+REN.CorrectionOffset, nearest_approach:true);
+			return new RendezvousTrajectory(VSL, dV, StartUT, Target, transfer_time);
 		}
 			
 		void compute_rendezvou_trajectory()
@@ -311,7 +322,7 @@ namespace ThrottleControlledAvionics
 					var T = mTm*Math.Sin(Math.Atan2(vv, hv));
 					v += (T/m-StG(h))*dt;
 					thrust = ApA-apa > 1;
-					LogF("Sim: apa {}, ApA {}, T/m {}", apa, ApA, T/m);
+					LogF("Sim: apa {}, ApA {}, T/m {}", apa, ApA, T/m);//debug
 				}
 				else v -= StG(h)*dt;
 				v -= drag(s, h, v)/m*dt;
@@ -643,6 +654,8 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label("Computing...", Styles.inactive_button, GUILayout.ExpandWidth(false));
 					GLUtils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);//debug
 					GLUtils.GLVec(Body.position, current.TargetPos.xzy, Color.magenta);//debug
+					GLUtils.GLVec(Body.position+current.StartPos.xzy, current.ManeuverDeltaV.normalized.xzy*Body.Radius/4, Color.yellow);//debug
+					GLUtils.GLLine(Body.position+current.StartPos.xzy, Body.position+current.TargetPos.xzy, Color.cyan);//debug
 				}
 				else if(Utils.ButtonSwitch("Rendezvou", CFG.AP2[Autopilot2.Rendezvou],
 				                           "Compute and perform a rendezvou maneuver, then brake near the target.", 
