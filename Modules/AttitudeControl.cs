@@ -303,13 +303,13 @@ namespace ThrottleControlledAvionics
 			Steer(s);
 
 			#if DEBUG
-			var error = Quaternion.FromToRotation(needed_lthrust, lthrust).eulerAngles;
-			CSV(AttitudeError, 
-			    error.x, error.y, error.z,
-			    steering.x, steering.y, steering.z, 
-			    pid.Action.x, pid.Action.y, pid.Action.z,
-			    angularV.x, angularV.y, angularV.z 
-			   );//debug
+//			var error = Quaternion.FromToRotation(needed_lthrust, lthrust).eulerAngles;
+//			CSV(AttitudeError, 
+//			    error.x, error.y, error.z,
+//			    steering.x, steering.y, steering.z, 
+//			    pid.Action.x, pid.Action.y, pid.Action.z,
+//			    angularV.x, angularV.y, angularV.z 
+//			   );//debug
 			if(VSL.IsActiveVessel)
 				TCAGui.DebugMessage = 
 					string.Format("pid: {0}\nsteering: {1}%\ngimbal limit: {2}",
@@ -338,7 +338,7 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			#if DEBUG
-			RadarBeam();
+//			RadarBeam();
 			#endif
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
