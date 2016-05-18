@@ -93,7 +93,10 @@ class vec(object):
         return onto * (self*onto/m2)
 
     def angle(self, other):
-        return np.rad2deg(np.arccos(self*other/(abs(self)*abs(other))))
+        """
+        :rtype float: radians
+        """
+        return np.arccos(self*other/(abs(self)*abs(other)))
 
     def cube_norm(self):
         return self/max(abs(x) for x in self)
@@ -1238,6 +1241,128 @@ def brake_sim():
     time = np.linspace(0, t1, 1000)
     plt.plot(time, s(time))
     plt.show()
+
+
+
+class lambert_solver(object):
+
+    G = 6.674e-11
+    Emu = 3.9860044189e14
+
+    def __init__(self, r1, r2, t=None, direct=True, mu=Emu):
+        """
+        :param r1:
+        :type r1: vec
+        :param r2:
+        :type r2: vec
+        :param t: transfer time; if None, ME transfer time is used
+        :type t: float
+        :param direct: if the computed orbit should be direct or retrograde
+        :param mu: standard gravitational parameter
+        """
+        self.mu = mu
+        self.r1 = r1
+        self.r2 = r2
+        self.cv = r2-r1
+        self.c = abs(self.cv)
+        self.m = abs(r1)+abs(r2)+self.c
+        self.n = abs(r1)+abs(r2)-self.c
+        self.h = r1.cross(r2)
+
+        self.psi = r1.angle(r2)
+        if direct and self.h[2] < 0 or not direct and self.h[2] > 0:
+            self.psi = 2*np.pi-self.psi
+
+        self.sigma = self._sigma()
+        self.sigma2 = self.sigma**2
+        self.sigma3 = self.sigma**3
+        self.sigma5 = self.sigma**5
+
+        self.tauME = self._tauME()
+        self.tau = self.tauME if t is None else self._tau(t)
+        self.transfer_time = self.invtau(self.tau)
+
+    @staticmethod
+    def acot(x): return np.pi/2-np.arctan(x)
+
+    def F(self, x, y):
+        one_x2 = np.sqrt(1 - x * x)
+        one_y2 = np.sqrt(1 - y * y)
+        return (((self.acot(x / one_x2)-x*one_x2) -
+                 (self.acot(y / one_y2)-y*one_y2))
+                /(one_x2 * one_x2 * one_x2)
+                -self.tau)
+
+    def F1(self, x, y):
+        one_x2 = np.sqrt(1 - x * x)
+        one_y2 = np.sqrt(1 - y * y)
+        return (3*x*self.acot(x/one_x2)+(-x**2-2)*one_x2+(3*y*one_y2-3*self.acot(y/one_y2))*x)/(one_x2**5)
+
+    def F2(self, x, y, f1):
+        return -(3*np.sqrt(-(x-1)*(x+1))*(4*x**2+1)*(self.acot((x*np.sqrt(-(x-1)*(x+1)))/((x-1)*(x+1)))-
+                                                     self.acot((y*np.sqrt(-(y-1)*(y+1)))/((y-1)*(y+1)))-
+                                                     y*np.sqrt(-(y-1)*(y+1)))-(x-1)*x*(x+1)*(2*x**2+13))/((x-1)**4*(x+1)**4)
+
+    def y(self, x):
+        return np.copysign(np.sqrt(1 - self.sigma2 * (1 - x * x)), self.sigma)
+
+    def next_x(self, x, n):
+        y = self.y(x)
+        f = self.F(x, y)
+        f1 = self.F1(x, y)
+        f2 = self.F2(x, y, f1)
+        G  = f1/f
+        G2 = G*G
+        H  = G2 - f2/f
+        s  = np.sqrt((n-1)*(n*H-G2))
+        a  = n/(G+s if abs(G+s) > abs(G-s) else G-s)
+        print 'y %f, f %f, f1 %f, f2 %f, G %f, H %f, s %f, a %f' % (y, f, f1, f2, G, H, s, a)
+        return x - a
+
+    def _tau(self, t): return 4 * t * np.sqrt(self.mu / self.m ** 3)
+    def invtau(self, tau): return tau/4/np.sqrt(self.mu / self.m ** 3)
+
+    def _sigma(self):
+        return np.sqrt(self.n/self.m)*(1 if self.psi < np.pi else -1)
+
+    def _tauME(self):
+        return np.arccos(self.sigma)+self.sigma*np.sqrt(1-self.sigma**2)
+
+    def solve(self):
+        if self.tau == self.tauME:
+            v = np.sqrt(self.mu) * self.y(0) / np.sqrt(self.n)
+            self.V = (r1.norm + self.cv / self.c) * v
+        else:
+            x0 = 0
+            x1 = 0.1 if self.tau < self.tauME else -0.1
+            while abs(x1-x0) > 1e-6:
+                x0 = x1
+                x1 = self.next_x(x1, 2)
+                print 'x0 %f, x1 %f, F(x1) %f' % (x0, x1, self.F(x1, self.y(x1)))
+            vr = np.sqrt(self.mu) * (self.y(x1) / np.sqrt(self.n) - x1 / np.sqrt(self.m))
+            vc = np.sqrt(self.mu) * (self.y(x1) / np.sqrt(self.n) + x1 / np.sqrt(self.m))
+            self.V = r1.norm*vr + self.cv/self.c*vc
+        return self.V, self.transfer_time
+
+    def __str__(self):
+        return '\n'.join([
+            'psi:   %f deg' % np.rad2deg(self.psi),
+            'sigma: %f'     % self.sigma,
+            't:     %f s'   % self.transfer_time,
+            't ME:  %f s'   % self.invtau(self.tauME),
+            'vel:   %s m/s' % self.V])
+
+    def simulate(self, dt=0.01):
+        t = [0]
+        r = [self.r1]
+        v = self.V
+        while t[-1] <= self.transfer_time:
+            cr = r[-1]
+            r.append(cr+v*dt)
+            v -= cr*self.mu/abs(cr)**3*dt
+            t.append(t[-1]+dt)
+        return t, r
+
 #==================================================================#
 
 dt = 0.05
@@ -1327,14 +1452,14 @@ if __name__ == '__main__':
 #     sim_PointNav()
 
 
-    df = pd.read_csv('../Tests/ATC.csv', names=('error',
-                     'error_x', 'error_y', 'error_z',
-                     'steer_x', 'steer_y', 'steer_z',
-                     'pid_x', 'pid_y', 'pid_z',
-                     'vel_x', 'vel_y', 'vel_z'))
-
-    plt.plot(df.error_x, df.steer_x, '-')
-    plt.show()
+    # df = pd.read_csv('../Tests/ATC.csv', names=('error',
+    #                  'error_x', 'error_y', 'error_z',
+    #                  'steer_x', 'steer_y', 'steer_z',
+    #                  'pid_x', 'pid_y', 'pid_z',
+    #                  'vel_x', 'vel_y', 'vel_z'))
+    #
+    # plt.plot(df.error_x, df.steer_x, '-')
+    # plt.show()
 
     # analyzeCSV('Tests/ATC.csv',
     #           ('error',
@@ -1347,3 +1472,13 @@ if __name__ == '__main__':
     # print vec(0.73874086177374, 0.0402463344474615, 0.672786869453719).norm
     # print vec(1000.03347198867, 927.774507796912, 55.6943721048555).norm.xzy
     # print vec(1742.705, 122.1291, 973.6855).norm
+
+
+    r1 = vec(7000000,0,0)
+    r2 = vec(-3000000,7000000,30000)
+    s = lambert_solver(r1, r2, 2401)
+    s.solve()
+    print s
+    t, r = s.simulate()
+    print r[-1]
+    print r[-1]-r2

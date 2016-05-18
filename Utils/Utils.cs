@@ -16,8 +16,9 @@ namespace ThrottleControlledAvionics
 {
 	public static partial class Utils
 	{
-		public const double TwoPI = 6.2831853;
-		public const float G0 = 9.80665f; //m/s2
+		public const double TwoPI  = Math.PI*2;
+		public const double HalfPI = Math.PI/2;
+		public const float  G0 = 9.80665f; //m/s2
 
 		/// <summary>
 		/// The camel case components matching regexp.
@@ -152,11 +153,7 @@ namespace ThrottleControlledAvionics
 			return Math.Abs(d) > Math.PI? -Math.Sign(d)*(TwoPI-Math.Abs(d)) : d;
 		}
 
-		public static float EWA(float old, float cur, float ratio = 0.7f)
-		{ return (1-ratio)*old + ratio*cur; }
-
-		public static Vector3 EWA(Vector3 old, Vector3 cur, float ratio = 0.7f)
-		{ return (1-ratio)*old + ratio*cur; }
+		public static double Acot(double x) { return HalfPI - Math.Atan(x); }
 
 		public static double Haversine(double a) { return (1-Math.Cos(a))/2; }
 
@@ -176,6 +173,12 @@ namespace ThrottleControlledAvionics
 			var Bt = Vector3d.Dot(B, Vector3d.Exclude(A, tangentA).normalized);
 			return Math.Atan2(Bt, Ba)*Mathf.Rad2Deg;
 		}
+
+		public static float EWA(float old, float cur, float ratio = 0.7f)
+		{ return (1-ratio)*old + ratio*cur; }
+
+		public static Vector3 EWA(Vector3 old, Vector3 cur, float ratio = 0.7f)
+		{ return (1-ratio)*old + ratio*cur; }
 		#endregion
 
 		//from http://stackoverflow.com/questions/716399/c-sharp-how-do-you-get-a-variables-name-as-it-was-physically-typed-in-its-dec

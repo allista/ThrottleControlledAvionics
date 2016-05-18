@@ -330,59 +330,6 @@ namespace ThrottleControlledAvionics
 			return StartUT+(StopUT-StartUT)/2;
 		}
 
-		/// <summary>
-		/// Calculates the ME transfer orbit from the given orbit and UT to the destination radius-vector.
-		/// The calculation procedure is derived form the "The Superior Lambert Algorithm" paper by Gim J. Der.
-		/// It uses Sun's analytical solution to the general Lambert problem, not the iterative solver for arbitrary transfer time itself.
-		/// </summary>
-		/// <returns>The DeltaVee for the maneuver.</returns>
-		/// <param name="orb">Starting orbit</param>
-		/// <param name="r2">Destination radius-vector relative to the CelectialBody position.</param>
-		/// <param name="StartUT">Start UT.</param>
-		/// <param name="TransferTime">Returned value of the transfer time in seconds.</param>
-		/// <param name="direct">If set to <c>true</c> the direct transfer orbit is computed, retrograde otherwise.</param>
-		public static Vector3d dV4Transfer(Orbit orb, Vector3d r2, double StartUT, out double TransferTime, bool direct = true)
-		{
-			var mu = orb.referenceBody.gravParameter;
-			var r1 = orb.getRelativePositionAtUT(StartUT);
-			var cv = r2-r1;
-			var c  = cv.magnitude;
-			var r1m = r1.magnitude;
-			var r2m = r2.magnitude;
-			var rr = r1m+r2m;
-			var m  = rr+c;
-			var n  = rr-c;
-			var h  = Vector3d.Cross(r1, r2);
-			if(h.sqrMagnitude < 0.01) h = orb.GetOrbitNormal();
-			var psi = Vector3d.Angle(r1, r2)*Mathf.Deg2Rad;
-			if(direct && h.z < 0 || !direct && h.z > 0)
-				psi = Utils.TwoPI-psi;
-			var cos_psi_2 = Math.Cos(psi/2);
-			var sigma = 4*r1m*r2m/(m*m)*cos_psi_2*cos_psi_2;
-			if(psi > Math.PI) sigma *= -1;
-			var sqrt_one_sigma2 = Math.Sqrt(1-sigma*sigma);
-			var tauME = Math.Acos(sigma)+sigma*sqrt_one_sigma2;
-			var y = Math.Sign(sigma)*sqrt_one_sigma2;
-			var v = Math.Sqrt(mu)*y/Math.Sqrt(n);
-			TransferTime = tauME/4/Math.Sqrt(mu/(m*m*m));
-
-			Utils.LogF("\nr1: {}\n" +
-			           "r2: {}\n" +
-			           "cv: {}\n" +
-			           "h.z: {}\n" +
-			           "h * Norm: {}\n" +
-			           "psi: {} deg\n" +
-			           "sigma: {}\n" +
-			           "tauME: {}\n" +
-			           "transfer time: {}",
-			           r1, r2, cv, h.z,
-			           Math.Sign(Vector3d.Dot(h, orb.GetOrbitNormal())),
-			           psi*Mathf.Rad2Deg, sigma, tauME, TransferTime
-			          );//debug
-
-			return (r1.normalized + cv/c)*v - orb.getOrbitalVelocityAtUT(StartUT);
-		}
-
 		//Node: radial, normal, prograde
 		protected Vector3d RadiusCorrection(RendezvousTrajectory old, double amount)
 		{
@@ -496,11 +443,11 @@ namespace ThrottleControlledAvionics
 			Status("");//debug
 			do {
 //				//debug
-//				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) 
-//				{
-//					yield return null;
-//					continue;
-//				}
+				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) 
+				{
+					yield return null;
+					continue;
+				}
 //				else yield return null;
 				//debug
 				clear_nodes();
@@ -518,10 +465,10 @@ namespace ThrottleControlledAvionics
 				if(frameI <= 0)
 				{
 					//debug
-//					add_node(current.ManeuverDeltaV, current.StartUT);
+					add_node(current.ManeuverDeltaV, current.StartUT);
 	//				add_node((current as LandingTrajectory).BrakeDeltaV, (current as LandingTrajectory).BrakeNodeUT);
 	//				CFG.Waypoints.Enqueue((current as LandingTrajectory).SurfacePoint);
-//					Status("Push to continue");
+					Status("Push to continue");
 					//debug
 					yield return null;
 					frameI = TRJ.PerFrameIterations;

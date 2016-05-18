@@ -157,7 +157,8 @@ namespace ThrottleControlledAvionics
 			if(old != null) 
 			{
 				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1)*0.99);
-				dV = dV4Transfer(VesselOrbit, old.TargetPos, old.StartUT, out transfer_time);
+				var solver = new LambertSolver(VesselOrbit, old.TargetPos, old.StartUT);
+				dV = solver.dV4TransferME(out transfer_time);
 				StartUT = old.AtTargetUT-transfer_time+old.DeltaTA/360*VesselOrbit.period*distF;
 				if(StartUT < VSL.Physics.UT+REN.StartOffset) StartUT = VSL.Physics.UT+REN.StartOffset;
 
@@ -184,8 +185,8 @@ namespace ThrottleControlledAvionics
 
 		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, ref Vector3d NodeDeltaV)
 		{
-			double StartUT = VSL.Physics.UT+REN.CorrectionOffset;
-			double transfer_time = 0;
+			double StartUT;
+			double transfer_time;
 			Vector3d dV = Vector3d.zero;
 			if(old != null) 
 			{
@@ -193,7 +194,8 @@ namespace ThrottleControlledAvionics
 //				StartUT = AngleDelta2StartUT(old, old.DeltaTA, REN.CorrectionOffset, REN.CorrectionOffset, REN.CorrectionOffset*distF);
 
 				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1)*0.99);
-				dV = dV4Transfer(VesselOrbit, old.TargetPos, old.StartUT, out transfer_time);
+				var solver = new LambertSolver(VesselOrbit, old.TargetPos, old.StartUT);
+				dV = solver.dV4TransferME(out transfer_time);
 				StartUT = old.AtTargetUT-transfer_time+old.DeltaTA/360*VesselOrbit.period*distF;
 				if(StartUT < VSL.Physics.UT+REN.StartOffset) StartUT = VSL.Physics.UT+REN.StartOffset;
 
@@ -209,6 +211,12 @@ namespace ThrottleControlledAvionics
 //				    NodeDeltaV.x, NodeDeltaV.y, NodeDeltaV.z,
 //				    TimeToResonance(old.NewOrbit, Target.orbit, StartUT)*old.NewOrbit.period);//debug
 			} 
+			else 
+			{
+				StartUT = VSL.Physics.UT+REN.CorrectionOffset;
+				NearestApproach(VesselOrbit, Target.orbit, StartUT, out transfer_time);
+				transfer_time -= StartUT;
+			}
 			return new RendezvousTrajectory(VSL, dV, StartUT, Target, transfer_time);
 		}
 			
@@ -351,7 +359,7 @@ namespace ThrottleControlledAvionics
 			norm  = Vector3d.Cross(VesselOrbit.pos, hVdir).normalized;
 			var LaunchRad = Utils.ClampH(Math.Atan(1/(Body.Radius*REN.LaunchTangentK/(2*LaunchApR) - 
 			                                          Body.angularV/Math.Sqrt(2*VSL.Physics.StG*(LaunchApR-Body.Radius)))), 
-			                             Math.PI/2);
+			                             Utils.HalfPI);
 			velN    = (Math.Sin(LaunchRad)*VesselOrbit.pos.normalized + Math.Cos(LaunchRad)*hVdir).normalized;
 			var vel = Math.Sqrt(2*VSL.Physics.G*(LaunchApR-Body.Radius)) / Math.Sin(LaunchRad);
 			var v   = 0.0;
