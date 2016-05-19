@@ -54,7 +54,7 @@ namespace ThrottleControlledAvionics
 
 		double CurrentDistance = -1;
 		RendezvousTrajectory CurrentTrajectory 
-		{ get { return new RendezvousTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, Target, REN.StartOffset); } }
+		{ get { return new RendezvousTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, Target); } }
 
 		double ApAUT, TTA, MinAccelTime;
 		double LaunchUT  = -1;
@@ -149,91 +149,96 @@ namespace ThrottleControlledAvionics
 			SetTarget(Target);
 		}
 
-		protected RendezvousTrajectory rendezvou_orbit(RendezvousTrajectory old, ref Vector3d NodeDeltaV)
+		RendezvousTrajectory new_trajectory(double StartUT, double transfer_time)
+		{
+			var solver = new LambertSolver(VesselOrbit, Target.orbit.getRelativePositionAtUT(StartUT+transfer_time), StartUT);
+			var dV = solver.dV4Transfer(transfer_time);
+			if(dV.IsZero()) transfer_time = -1;
+			LogF("\nnew_trajectory: dV {}, Transfer Time {}", Orbit2NodeDeltaV(StartUT, dV), transfer_time);//debug
+			return new RendezvousTrajectory(VSL, dV, StartUT, Target, transfer_time);
+		}
+
+		void next_params(RendezvousTrajectory old, RendezvousTrajectory best, 
+		                 out double StartUT, out double transfer_time, ref double dT)
+		{
+			if(old.TimeToTarget <= dT || old.StartUT <= VSL.Physics.UT+REN.StartOffset ||
+			   old.ManeuverDeltaV.sqrMagnitude > best.ManeuverDeltaV.sqrMagnitude)
+			{
+				LogF("***************************\n" +
+				         "old {}\nbest {}\n" +
+				         "ddV {}", old, best,
+				         Math.Abs(old.ManeuverDeltaV.sqrMagnitude-best.ManeuverDeltaV.sqrMagnitude));//debug
+				dT /= -2;
+				transfer_time = best.TimeToTarget-dT;
+				StartUT = best.StartUT+dT;
+			}
+			else
+			{
+				transfer_time = old.TimeToTarget-dT;
+				StartUT = old.StartUT+dT;
+			}
+		}
+
+		protected RendezvousTrajectory rendezvou_orbit(RendezvousTrajectory old, RendezvousTrajectory best, ref double dT)
 		{
 			double StartUT;
 			double transfer_time;
-			Vector3d dV = Vector3d.zero;
-			if(old != null) 
+			if(old != null) next_params(old, best, out StartUT, out transfer_time, ref dT);
+			else
 			{
-				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1)*0.99);
-				var solver = new LambertSolver(VesselOrbit, old.TargetPos, old.StartUT);
-				dV = solver.dV4TransferME(out transfer_time);
-				StartUT = old.AtTargetUT-transfer_time+old.DeltaTA/360*VesselOrbit.period*distF;
-				if(StartUT < VSL.Physics.UT+REN.StartOffset) StartUT = VSL.Physics.UT+REN.StartOffset;
-
-//				NodeDeltaV += RadiusCorrection(old);
-//				NodeDeltaV += PlaneCorrection(old)*(1-distF*0.99);
-//				dV = Node2OrbitDeltaV(StartUT, NodeDeltaV);
-				LogF("\nRO: dV {}, dUT {}, Transfer Time {}", Orbit2NodeDeltaV(StartUT, dV), StartUT-old.StartUT, transfer_time);//debug
-//				CSV(old.TimeToStart, old.TimeToTarget, old.DeltaTA, old.DeltaFi, old.DeltaR, old.DistanceToTarget, NodeDeltaV.x, NodeDeltaV.y, NodeDeltaV.z);//debug
-			}
-			else 
-			{
-				transfer_time = VesselOrbit.period/3;
-				double alpha, resonanse;
+				transfer_time = VesselOrbit.period*0.9;
 				StartUT = VSL.Physics.UT+
-					Utils.ClampL(TimeToResonance(VesselOrbit, Target.orbit, VSL.Physics.UT+REN.StartOffset, out resonanse, out alpha)
+					Utils.ClampL(TimeToResonance(VesselOrbit, Target.orbit, VSL.Physics.UT+REN.StartOffset)
 					             *VesselOrbit.period-transfer_time, REN.StartOffset);
 				double AtTargetUT;
 				TrajectoryCalculator.ClosestApproach(VesselOrbit, Target.orbit, StartUT+REN.StartOffset, out AtTargetUT);
 				LogF("First Time TimeToStart: {}, Correction {}", StartUT-VSL.Physics.UT, AtTargetUT-transfer_time-StartUT);//debug
 				StartUT = AtTargetUT-transfer_time;
 			}
-			return new RendezvousTrajectory(VSL, dV, StartUT, Target, transfer_time);
+			return new_trajectory(StartUT, transfer_time);
 		}
 
-		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, ref Vector3d NodeDeltaV)
+		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, ref double dT)
 		{
 			double StartUT;
 			double transfer_time;
-			Vector3d dV = Vector3d.zero;
-			if(old != null) 
-			{
-//				var distF = Utils.ClampH(old.DistanceToTarget/REN.Dtol*2, 1);
-//				StartUT = AngleDelta2StartUT(old, old.DeltaTA, REN.CorrectionOffset, REN.CorrectionOffset, REN.CorrectionOffset*distF);
-
-				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.CorrectionStart, 1)*0.99);
-				var solver = new LambertSolver(VesselOrbit, old.TargetPos, old.StartUT);
-				dV = solver.dV4TransferME(out transfer_time);
-				StartUT = old.AtTargetUT-transfer_time+old.DeltaTA/360*VesselOrbit.period*distF;
-				if(StartUT < VSL.Physics.UT+REN.StartOffset) StartUT = VSL.Physics.UT+REN.StartOffset;
-
-//				var UT = old.AtTargetUT - old.NewOrbit.period/3;
-//				if(UT > VSL.Physics.UT+REN.CorrectionOffset) StartUT = UT;
-//				if(Math.Abs(old.DeltaR) > old.DistanceToTarget) NodeDeltaV += RadiusCorrection(old);
-//				var distF = (1-Utils.ClampH(old.DistanceToTarget/REN.Dtol*2, 1)*0.99);
-//				NodeDeltaV += AoPCorrection(old, -old.DeltaTA)*distF;
-//				NodeDeltaV += PlaneCorrection(old)*distF;
-//				dV = Node2OrbitDeltaV(StartUT, NodeDeltaV);
-				LogF("\nCO: dV {}, dUT {}, Transfer Time {}", Orbit2NodeDeltaV(StartUT, dV), StartUT-old.StartUT, transfer_time);//debug
-//				CSV(old.TimeToStart, old.TimeToTarget, old.DeltaTA, old.DeltaFi, old.DeltaR, old.DistanceToTarget, 
-//				    NodeDeltaV.x, NodeDeltaV.y, NodeDeltaV.z,
-//				    TimeToResonance(old.NewOrbit, Target.orbit, StartUT)*old.NewOrbit.period);//debug
-			} 
-			else 
+			if(old != null) next_params(old, best, out StartUT, out transfer_time, ref dT);
+			else
 			{
 				StartUT = VSL.Physics.UT+REN.CorrectionOffset;
 				NearestApproach(VesselOrbit, Target.orbit, StartUT, out transfer_time);
 				transfer_time -= StartUT;
 			}
-			return new RendezvousTrajectory(VSL, dV, StartUT, Target, transfer_time);
+			return new_trajectory(StartUT, transfer_time);
+		}
+
+		bool trajectories_converging(RendezvousTrajectory cur, RendezvousTrajectory best)
+		{
+			return cur == best ||
+				target_is_far(cur, best) || 
+				Math.Abs(cur.BreakDeltaV.sqrMagnitude-best.BreakDeltaV.sqrMagnitude) > 1;
+		}
+
+		protected override void setup_calculation(NextTrajectory next)
+		{
+			next_trajectory = next;
+			predicate = trajectories_converging;
 		}
 			
 		void compute_rendezvou_trajectory()
 		{
 			trajectory = null;
 			stage = Stage.ComputeRendezvou;
-			Vector3d NodeDeltaV = Vector3d.zero;
-			setup_calculation(t => rendezvou_orbit(t, ref NodeDeltaV));
+			double dT = VesselOrbit.period/10;
+			setup_calculation((o, b) => rendezvou_orbit(o, b, ref dT));
 		}
 
 		protected override void start_correction()
 		{
 			trajectory = null;
 			stage = Stage.ComputeRendezvou;
-			Vector3d NodeDeltaV = Vector3d.zero;
-			setup_calculation(t => orbit_correction(t, ref NodeDeltaV));
+			double dT = REN.CorrectionOffset;
+			setup_calculation((o, b) => orbit_correction(o, b, ref dT));
 		}
 
 		void start_orbit()
@@ -660,10 +665,13 @@ namespace ThrottleControlledAvionics
 				if(computing) 
 				{
 					GUILayout.Label("Computing...", Styles.inactive_button, GUILayout.ExpandWidth(false));
-					GLUtils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);//debug
-					GLUtils.GLVec(Body.position, current.TargetPos.xzy, Color.magenta);//debug
-					GLUtils.GLVec(Body.position+current.StartPos.xzy, current.ManeuverDeltaV.normalized.xzy*Body.Radius/4, Color.yellow);//debug
-					GLUtils.GLLine(Body.position+current.StartPos.xzy, Body.position+current.TargetPos.xzy, Color.cyan);//debug
+					if(current != null)
+					{
+						GLUtils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);//debug
+						GLUtils.GLVec(Body.position, current.TargetPos.xzy, Color.magenta);//debug
+						GLUtils.GLVec(Body.position+current.StartPos.xzy, current.ManeuverDeltaV.normalized.xzy*Body.Radius/4, Color.yellow);//debug
+						GLUtils.GLLine(Body.position+current.StartPos.xzy, Body.position+current.TargetPos.xzy, Color.cyan);//debug
+					}
 				}
 				else if(Utils.ButtonSwitch("Rendezvou", CFG.AP2[Autopilot2.Rendezvou],
 				                           "Compute and perform a rendezvou maneuver, then brake near the target.", 

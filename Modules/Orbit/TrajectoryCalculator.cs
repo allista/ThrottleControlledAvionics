@@ -177,11 +177,9 @@ namespace ThrottleControlledAvionics
 			alpha = Utils.ProjectionAngle(posA, posB, tanA)/360;
 			resonance = ResonanceA(a, b);
 			if(double.IsNaN(alpha))//debug
-			{
 				Status("red", "DEBUG: Unable to calculate TTR. See the log.");
-				Utils.LogF("UT {}\ntanA {}\nposA {}\nposB {}\nalpha {}\nresonance {}",
-				           UT, tanA, posA, posB, alpha, resonance);//debug
-			}
+			Utils.LogF("UT {}\ntanA {}\nposA {}\nposB {}\nalpha {}\nresonance {}",
+			           UT, tanA, posA, posB, alpha, resonance);//debug
 			var TTR = alpha*resonance;
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
 		}
@@ -413,8 +411,8 @@ namespace ThrottleControlledAvionics
 	{
 		protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
-		public delegate T NextTrajectory(T old);
-		public delegate bool TrajectoryPredicate(T trj);
+		public delegate T NextTrajectory(T old, T best);
+		public delegate bool TrajectoryPredicate(T cur, T best);
 
 		protected TimeWarpControl WRP;
 
@@ -443,11 +441,11 @@ namespace ThrottleControlledAvionics
 			Status("");//debug
 			do {
 //				//debug
-				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) 
-				{
-					yield return null;
-					continue;
-				}
+//				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) 
+//				{
+//					yield return null;
+//					continue;
+//				}
 //				else yield return null;
 				//debug
 				clear_nodes();
@@ -458,7 +456,7 @@ namespace ThrottleControlledAvionics
 //					CFG.Waypoints.Enqueue(wp);
 //				}
 //				//debug
-				current = next_trajectory(current);
+				current = next_trajectory(current, best);
 				if(best == null || current.IsBetter(best)) 
 					best = current;
 				frameI--; maxI--;
@@ -468,12 +466,12 @@ namespace ThrottleControlledAvionics
 					add_node(current.ManeuverDeltaV, current.StartUT);
 	//				add_node((current as LandingTrajectory).BrakeDeltaV, (current as LandingTrajectory).BrakeNodeUT);
 	//				CFG.Waypoints.Enqueue((current as LandingTrajectory).SurfacePoint);
-					Status("Push to continue");
+//					Status("Push to continue");
 					//debug
 					yield return null;
 					frameI = TRJ.PerFrameIterations;
 				}
-			} while(predicate(best) && maxI > 0);
+			} while(predicate(current, best) && maxI > 0);
 			Log("Best trajectory:\n{0}", best);//debug
 			clear_nodes();//debug
 			yield return best;
@@ -511,8 +509,8 @@ namespace ThrottleControlledAvionics
 		protected TT Target;
 		protected Timer CorrectionTimer = new Timer();
 
-		protected bool target_is_far(T trj)
-		{ return trj.DistanceToTarget > Dtol; }
+		protected bool target_is_far(T cur, T best)
+		{ return best.DistanceToTarget > Dtol; }
 
 		protected void add_target_node()
 		{
@@ -522,7 +520,7 @@ namespace ThrottleControlledAvionics
 			                          -MatchVelocityAutopilot.BrakingNodeCorrection(dV.magnitude, VSL));
 		}
 
-		protected void setup_calculation(NextTrajectory next)
+		protected virtual void setup_calculation(NextTrajectory next)
 		{
 			next_trajectory = next;
 			predicate = target_is_far;

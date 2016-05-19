@@ -18,22 +18,28 @@ namespace ThrottleControlledAvionics
 		public double DeltaTA { get; private set; }
 		public double DeltaR { get; private set; }
 
-		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, Vessel target, double transfer_time) 
+		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, Vessel target, double transfer_time = -1) 
 			: base(vsl, dV, startUT, target) 
 		{ 
 			TimeToTarget = transfer_time;
-			AtTargetUT = StartUT+TimeToTarget;
 			update(); 
 		}
 
 		public override void UpdateOrbit(Orbit current)
 		{
 			base.UpdateOrbit(current);
+			TimeToTarget = -1;
 			update();
 		}
 
 		void update()
 		{
+			if(TimeToTarget < 0)
+			{
+				TrajectoryCalculator.ClosestApproach(NewOrbit, Target.orbit, StartUT, out AtTargetUT);
+				TimeToTarget = AtTargetUT-StartUT;
+			}
+			else AtTargetUT = StartUT+TimeToTarget;
 			AtTargetPos = NewOrbit.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = NewOrbit.getOrbitalVelocityAtUT(AtTargetUT);
 			TargetPos = Target.orbit.getRelativePositionAtUT(AtTargetUT);

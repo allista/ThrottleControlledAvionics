@@ -93,7 +93,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		protected LandingTrajectory fixed_inclination_orbit(LandingTrajectory old, 
+		protected LandingTrajectory fixed_inclination_orbit(LandingTrajectory old, LandingTrajectory best, 
 			ref Vector3d dir, ref double V, float start_offset)
 		{
 			var StartUT = VSL.Physics.UT+start_offset;
@@ -106,7 +106,7 @@ namespace ThrottleControlledAvionics
 			                             Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
-		protected LandingTrajectory orbit_correction(LandingTrajectory old, ref double angle, ref double V, float start_offset)
+		protected LandingTrajectory orbit_correction(LandingTrajectory old, LandingTrajectory best, ref double angle, ref double V, float start_offset)
 		{
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
@@ -129,7 +129,7 @@ namespace ThrottleControlledAvionics
 			           Vector3d.Exclude(VSL.Physics.Up, VSL.refT.right).normalized *
 			           BJ.StartTangent*(1+Target.AngleTo(VSL.vessel)/Utils.TwoPI)*BJ.InclinationF).normalized.xzy;
 			var V = Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)/2;
-			setup_calculation(t => fixed_inclination_orbit(t, ref dir, ref V, BJ.StartOffset));
+			setup_calculation((o, b) => fixed_inclination_orbit(o, b, ref dir, ref V, BJ.StartOffset));
 		}
 
 		protected override void start_correction()
@@ -138,7 +138,7 @@ namespace ThrottleControlledAvionics
 			stage = Stage.CorrectTrajectory;
 			double angle = 0;
 			double V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+LTRJ.CorrectionOffset).magnitude;
-			setup_calculation(t => orbit_correction(t, ref angle, ref V, LTRJ.CorrectionOffset));
+			setup_calculation((o, b) => orbit_correction(o, b, ref angle, ref V, LTRJ.CorrectionOffset));
 		}
 
 		protected override void UpdateState()

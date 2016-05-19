@@ -1249,7 +1249,7 @@ class lambert_solver(object):
     G = 6.674e-11
     Emu = 3.9860044189e14
 
-    def __init__(self, r1, r2, t=None, direct=True, mu=Emu):
+    def __init__(self, r1, r2, t, mu=Emu):
         """
         :param r1:
         :type r1: vec
@@ -1270,17 +1270,17 @@ class lambert_solver(object):
         self.h = r1.cross(r2)
 
         self.psi = r1.angle(r2)
-        if direct and self.h[2] < 0 or not direct and self.h[2] > 0:
-            self.psi = 2*np.pi-self.psi
+        if self.h[2] < 0: self.psi = 2*np.pi-self.psi
 
         self.sigma = self._sigma()
         self.sigma2 = self.sigma**2
         self.sigma3 = self.sigma**3
-        self.sigma5 = self.sigma**5
 
+        self.tau = self._tau(t)
         self.tauME = self._tauME()
-        self.tau = self.tauME if t is None else self._tau(t)
         self.transfer_time = self.invtau(self.tau)
+
+        self.V = None
 
     @staticmethod
     def acot(x): return np.pi/2-np.arctan(x)
@@ -1288,20 +1288,18 @@ class lambert_solver(object):
     def F(self, x, y):
         one_x2 = np.sqrt(1 - x * x)
         one_y2 = np.sqrt(1 - y * y)
-        return (((self.acot(x / one_x2)-x*one_x2) -
-                 (self.acot(y / one_y2)-y*one_y2))
+        return (((np.arccos(x)-x*one_x2) -
+                 (np.arctan(one_y2/y)-y*one_y2))
                 /(one_x2 * one_x2 * one_x2)
                 -self.tau)
 
-    def F1(self, x, y):
-        one_x2 = np.sqrt(1 - x * x)
-        one_y2 = np.sqrt(1 - y * y)
-        return (3*x*self.acot(x/one_x2)+(-x**2-2)*one_x2+(3*y*one_y2-3*self.acot(y/one_y2))*x)/(one_x2**5)
+    def F1(self, x, y, f):
+        return (1/(1-x*x) *
+                (3*x*(f+self.tau) - 2*(1-self.sigma**3*x/abs(y))))
 
     def F2(self, x, y, f1):
-        return -(3*np.sqrt(-(x-1)*(x+1))*(4*x**2+1)*(self.acot((x*np.sqrt(-(x-1)*(x+1)))/((x-1)*(x+1)))-
-                                                     self.acot((y*np.sqrt(-(y-1)*(y+1)))/((y-1)*(y+1)))-
-                                                     y*np.sqrt(-(y-1)*(y+1)))-(x-1)*x*(x+1)*(2*x**2+13))/((x-1)**4*(x+1)**4)
+        return (1/(x*(1-x*x)) *
+                ((1+4*x*x)*f1 + 2*(1-self.sigma**5*x**3/abs(y)**3)))
 
     def y(self, x):
         return np.copysign(np.sqrt(1 - self.sigma2 * (1 - x * x)), self.sigma)
@@ -1309,17 +1307,20 @@ class lambert_solver(object):
     def next_x(self, x, n):
         y = self.y(x)
         f = self.F(x, y)
-        f1 = self.F1(x, y)
+        f1 = self.F1(x, y, f)
         f2 = self.F2(x, y, f1)
         G  = f1/f
         G2 = G*G
         H  = G2 - f2/f
-        s  = np.sqrt((n-1)*(n*H-G2))
+        s2 = (n-1)*(n*H-G2)
+        s  = np.sqrt(s2)
         a  = n/(G+s if abs(G+s) > abs(G-s) else G-s)
-        print 'y %f, f %f, f1 %f, f2 %f, G %f, H %f, s %f, a %f' % (y, f, f1, f2, G, H, s, a)
-        return x - a
+        while abs(x-a) > 1: a /= 2
+        x1 = x-a
+        print 'n %d, x0 %f, x1 %f, f %f, f1 %f, f2 %f, G %f, H %f, s %f, a %f' % (n, x, x1, f, f1, f2, G, H, s, a)
+        return x1
 
-    def _tau(self, t): return 4 * t * np.sqrt(self.mu / self.m ** 3)
+    def _tau(self, t): return 4 * t * np.sqrt(self.mu / (self.m ** 3))
     def invtau(self, tau): return tau/4/np.sqrt(self.mu / self.m ** 3)
 
     def _sigma(self):
@@ -1329,16 +1330,26 @@ class lambert_solver(object):
         return np.arccos(self.sigma)+self.sigma*np.sqrt(1-self.sigma**2)
 
     def solve(self):
-        if self.tau == self.tauME:
+        if abs(self.tau-self.tauME) < 1e-6:
             v = np.sqrt(self.mu) * self.y(0) / np.sqrt(self.n)
             self.V = (r1.norm + self.cv / self.c) * v
+        elif self.tau <= 2.0/3*(1-self.sigma3):
+            print 'Only parabolic transfer is possible'
+            self.V = vec()
+            self.transfer_time = 0
         else:
-            x0 = 0
-            x1 = 0.1 if self.tau < self.tauME else -0.1
-            while abs(x1-x0) > 1e-6:
-                x0 = x1
-                x1 = self.next_x(x1, 2)
-                print 'x0 %f, x1 %f, F(x1) %f' % (x0, x1, self.F(x1, self.y(x1)))
+            n = 1
+            x1 = np.nan
+            while np.isnan(x1) and n <= 2**10:
+                x0 = 0
+                if np.isnan(x1):
+                    x1 = 0.5 if self.tau < self.tauME else -0.5
+                while abs(x1-x0) > 1e-6:
+                    x0 = x1
+                    x1 = self.next_x(x1, n)
+                # if n == 1: break
+                n *= 2
+                # if n > 2**10 and np.isnan(x1): n = 1
             vr = np.sqrt(self.mu) * (self.y(x1) / np.sqrt(self.n) - x1 / np.sqrt(self.m))
             vc = np.sqrt(self.mu) * (self.y(x1) / np.sqrt(self.n) + x1 / np.sqrt(self.m))
             self.V = r1.norm*vr + self.cv/self.c*vc
@@ -1346,21 +1357,26 @@ class lambert_solver(object):
 
     def __str__(self):
         return '\n'.join([
-            'psi:   %f deg' % np.rad2deg(self.psi),
-            'sigma: %f'     % self.sigma,
-            't:     %f s'   % self.transfer_time,
-            't ME:  %f s'   % self.invtau(self.tauME),
-            'vel:   %s m/s' % self.V])
+            'psi:    %f deg' % np.rad2deg(self.psi),
+            'sigma:  %f'     % self.sigma,
+            'tau:    %f'     % self.tau,
+            'tau/pi: %f'     % (self.tau/np.pi),
+            't:      %f s'   % self.transfer_time,
+            't ME:   %f s'   % self.invtau(self.tauME),
+            'vel:    %s m/s' % self.V])
 
     def simulate(self, dt=0.01):
+        return self.simulate_generic(self.r1, self.V, self.transfer_time, dt)
+
+    def simulate_generic(self, r0, v0, end, dt=0.01):
         t = [0]
-        r = [self.r1]
-        v = self.V
-        while t[-1] <= self.transfer_time:
+        r = [r0]
+        v = v0
+        while t[-1] <= end:
             cr = r[-1]
-            r.append(cr+v*dt)
-            v -= cr*self.mu/abs(cr)**3*dt
-            t.append(t[-1]+dt)
+            r.append(cr + v * dt)
+            v -= cr * self.mu / abs(cr) ** 3 * dt
+            t.append(t[-1] + dt)
         return t, r
 
 #==================================================================#
@@ -1368,6 +1384,52 @@ class lambert_solver(object):
 dt = 0.05
 
 if __name__ == '__main__':
+    def vecs2scatter(vecs):
+        return np.array([v.v[:2] for v in vecs], dtype=float).transpose()
+
+    r0 = vec(314495.948447142, 650730.150160414, 0)
+    v0 = vec(-1800.99971342087, 1379.68533771485, 0)
+
+    r1 = vec(718769.545506154, -132550.748648111, -28890.2078384472)
+    r1 = vec(404539.613450263, 596305.96712629, 0)
+
+    r2 = vec(-740210.657622815, 34401.4910256949, 32487.4799807486)
+
+    s = lambert_solver(r1, r2, 1000, mu=3531600000000.0)
+    t, orb = s.simulate_generic(r0, v0, 2200, 0.1)
+    ori = vecs2scatter((r1, r2, vec(0, 0, 0), orb[0], orb[-1]))
+    orb = vecs2scatter(orb)
+
+    def analyze_solution(tt):
+        s = lambert_solver(r1, r2, tt, mu=3531600000000.0)
+        s.solve()
+        print
+        x = np.linspace(-0.99, 0.99, 1000)
+        y = s.y(x)
+        f = s.F(x, y)
+        f1 = s.F1(x, y, f)
+        f2 = s.F2(x, y, f1)
+
+        # plt.plot(x, y, label='y')
+        plt.plot(x, f, label='f')
+        # plt.plot(x, f1, label='f1')
+        # plt.plot(x, f2, label='f2')
+        plt.legend()
+        plt.show()
+        t, r = s.simulate(tt / 10000.0)
+        path = vecs2scatter(r)
+        print s
+        print 'TT: %f; Err: %s, dR*V %f' % (tt, r[-1] - r2, (r2 - r1).norm * s.V)
+        plt.scatter(ori[0], ori[1], color=['b', 'r', 'g', 'y', 'c'])
+        plt.plot(orb[0], orb[1], 'grey')
+        plt.plot(path[0], path[1])
+        plt.show()
+
+    # analyze_solution(1106.96240719769)
+
+    for tt in xrange(700, 3600, 100): analyze_solution(tt)
+
+
 
 #    np.random.seed(42)
 #
@@ -1474,11 +1536,3 @@ if __name__ == '__main__':
     # print vec(1742.705, 122.1291, 973.6855).norm
 
 
-    r1 = vec(7000000,0,0)
-    r2 = vec(-3000000,7000000,30000)
-    s = lambert_solver(r1, r2, 2401)
-    s.solve()
-    print s
-    t, r = s.simulate()
-    print r[-1]
-    print r[-1]-r2

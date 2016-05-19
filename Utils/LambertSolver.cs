@@ -12,6 +12,14 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
+	/// <summary>
+	/// Lambert solver.
+	/// Uses Sun's analytical solution to the Lambert problem with zero revolutions 
+	/// and the Laguerre iterative root finder as described in:
+	/// Wagner, Samuel Arthur, "Automated trajectory design for impulsive and low thrust interplanetary mission analysis" (2014). 
+	/// Graduate Theses and Dissertations. Paper 14238.
+	/// Because I can't get the fucking original paper by Sun anywhere =/
+	/// </summary>
 	public class LambertSolver
 	{
 		Orbit orbit;
@@ -28,9 +36,10 @@ namespace ThrottleControlledAvionics
 		//transfer parameters
 		double   sigma; //angle parameter
 		double   tau;   //normalized transfer time
+		double   tauP;  //normalized parabolic transfer time
 		double   tauME; //normalized Minimum Energy transfer time
 		//utility
-		double sigma2;
+		double sigma2, sigma3, sigma5;
 		double m3;
 
 		public LambertSolver(Orbit orb, Vector3d destination, double UT)
@@ -58,12 +67,130 @@ namespace ThrottleControlledAvionics
 			sigma = Math.Sqrt(n/m);
 			if(transfer_angle > Math.PI) sigma = -sigma;
 			sigma2 = sigma*sigma;
+			sigma3 = sigma2*sigma;
+			sigma5 = sigma2*sigma3;
 
+			tauP = 2/3.0*(1-sigma3);
 			tauME = Math.Acos(sigma)+sigma*Math.Sqrt(1-sigma2);
+
+			Utils.LogF("\n" +
+			           "r1: {}\n" +
+			           "r2: {}\n" +
+			           "c:  {}\n" +
+			           "mu: {}\n" +
+			           "sigma: {}\n" +
+			           "tauME: {}\n",
+			           r1, destination, c, mu,
+			           sigma, tauME
+			          );//debug
+		}
+
+		/// <summary>
+		/// Calculates the ME transfer orbit from a given orbit and UT to the destination radius-vector.
+		/// </summary>
+		/// <returns>The DeltaVee for the maneuver.</returns>
+		/// <param name="transfer_time">Returned value of the transfer time in seconds.</param>
+		public Vector3d dV4TransferME(out double transfer_time)
+		{
+			var v = Math.Sqrt(mu)*Math.Sign(sigma)*Math.Sqrt(1-sigma2)/Math.Sqrt(n);
+			transfer_time = invtau(tauME);
+			return (r1.normalized + c/cm)*v - orbit.getOrbitalVelocityAtUT(StartUT);
+		}
+
+		/// <summary>
+		/// Calculates the parabolic transfer orbit from a given orbit and UT to the destination radius-vector.
+		/// </summary>
+		/// <returns>The DeltaVee for the maneuver.</returns>
+		/// <param name="transfer_time">Returned value of the transfer time in seconds.</param>
+		public Vector3d dV4TransferP(out double transfer_time)
+		{
+			transfer_time = invtau(tauP);
+			return dV(1, Math.Sign(sigma));
+		}
+
+		/// <summary>
+		/// Calculates a transfer orbit from a given orbit and UT to the destination radius-vector in a given transfer time.
+		/// </summary>
+		/// <returns>The DeltaVee for the maneuver.</returns>
+		/// <param name="transfer_time">Transfer time.</param>
+		/// <param name="tol">Error tolerance.</param>
+		public Vector3d dV4Transfer(double transfer_time, double tol = 1e-6)
+		{
+			tau = 4 * transfer_time * Math.Sqrt(mu/(m*m*m));
+			Utils.LogF("tau: {}, tau/pi: {}, tauP {}", tau, tau/Math.PI, tauP);//debug
+			if(Math.Abs(tau-tauME) < tol) return dV4TransferME(out transfer_time);
+			if(tau <= tauP)
+			{
+				if(Math.Abs(tau-tauP) < tol) return dV4TransferP(out transfer_time);
+				else //TODO: implement hyperbolic transfers
+				{
+					Utils.LogF("dV4Transfer: hyperbolic transfer orbits are not yet supported.");
+					return Vector3d.zero;
+				}
+			}
+			var N = 1;
+			var x1 = double.NaN;
+			while(double.IsNaN(x1) && N <= 1024)
+			{
+				var x0 = 0.0;
+				if(double.IsNaN(x1))
+					x1 = tau < tauME? 0.5 : -0.5;
+				while(Math.Abs(x1-x0) > tol)
+				{
+					x0 = x1;
+					x1 = next_elliptic(x1, N);
+					if(double.IsNaN(x1)) break;
+				}
+				N *= 2;
+			}
+			if(double.IsNaN(x1))
+			{
+				Utils.Log("Unable to solve transfer orbit: {0}", transfer_time);
+				return Vector3d.zero;
+			}
+			return dV(x1, _y(x1));
+		}
+
+		double _y(double x) { return Math.Sign(sigma)*Math.Sqrt(1-sigma2*(1-x*x)); }
+
+		double invtau(double _tau) { return _tau/4/Math.Sqrt(mu/m3); }
+
+		Vector3d dV(double x, double y)
+		{
+			var sqrt_mu = Math.Sqrt(mu);
+			var sqrt_m  = Math.Sqrt(m);
+			var sqrt_n  = Math.Sqrt(n);
+			var vr = sqrt_mu * (y/sqrt_n - x/sqrt_m);
+			var vc = sqrt_mu * (y/sqrt_n + x/sqrt_m);
+			return r1.normalized*vr + c/cm*vc - orbit.getOrbitalVelocityAtUT(StartUT);
+		}
+
+		double next_elliptic(double x, int N)
+		{
+			var y = _y(x);
+			var x2 = x*x;
+			var x3 = x*x2;
+			var y2 = y*y;
+			var y3 = y*y2;
+			var sqrt_one_x2 = Math.Sqrt(1 - x2);
+			var sqrt_one_y2 = Math.Sqrt(1 - y2);
+
+			var f = (((Math.Acos(x)-x*sqrt_one_x2) -
+			          (Math.Atan(sqrt_one_y2/y)-y*sqrt_one_y2))
+					 /(sqrt_one_x2 * sqrt_one_x2 * sqrt_one_x2) -tau);
+
+			var f1 = (1/(1-x2) *
+			          (3*x*(f+tau) - 2*(1-sigma3*x/Math.Abs(y))));
+				
+			var f2 = (1/(x-x3) *
+			          ((1+4*x2)*f1 + 2*(1-sigma5*x3/Math.Abs(y3))));
+
+			return Laguerre_next(x, f, f1, f2, N);
 		}
 
 		/// <summary>
 		/// Computes the next approximation of the polynomial root using Laguerre method.
+		/// The root is bounded in the [-1, 1] interval.
 		/// </summary>
 		/// <returns>Aapproximation of the root x of the polynomial f.</returns>
 		/// <param name="x">The previous x approximation.</param>
@@ -81,105 +208,10 @@ namespace ThrottleControlledAvionics
 			var s  = Math.Sqrt(s2);
 			var Gs = G+s;
 			var G_s = G-s;
-			return x - N/(Math.Abs(Gs) > Math.Abs(G_s)? Gs : G_s);
-		}
-
-		/// <summary>
-		/// Calculates the ME transfer orbit from a given orbit and UT to the destination radius-vector.
-		/// The calculation procedure is derived form the "The Superior Lambert Algorithm" paper by Gim J. Der.
-		/// It uses Sun's analytical solution to the general Lambert problem, not the iterative solver for arbitrary transfer time itself.
-		/// </summary>
-		/// <returns>The DeltaVee for the maneuver.</returns>
-		/// <param name="transfer_time">Returned value of the transfer time in seconds.</param>
-		public Vector3d dV4TransferME(out double transfer_time)
-		{
-			var y = Math.Sign(sigma)*Math.Sqrt(1-sigma2);
-			var v = Math.Sqrt(mu)*y/Math.Sqrt(n);
-			transfer_time = tauME/4/Math.Sqrt(mu/m3);
-			return (r1.normalized + c/cm)*v - orbit.getOrbitalVelocityAtUT(StartUT);
-		}
-
-		/// <summary>
-		/// Calculates a transfer orbit from a given orbit and UT to the destination radius-vector in a given transfer time.
-		/// The calculation procedure is derived form the "The Superior Lambert Algorithm" paper by Gim J. Der.
-		/// It uses Sun's analytical solution to the general Lambert problem and the Laguerre iterative root finder.
-		/// </summary>
-		/// <returns>The DeltaVee for the maneuver.</returns>
-		/// <param name="transfer_time">Transfer time.</param>
-		/// <param name="tol">Error tolerance.</param>
-		public Vector3d dV4Transfer(double transfer_time, double tol = 1e-6)
-		{
-			tau = 4 * transfer_time * Math.Sqrt(mu/(m*m*m));
-			if(Math.Abs(tau-tauME) < tol) return dV4TransferME(out transfer_time);
-			var tauP = 2/3*(1-sigma2*sigma);
-			if(tau <= tauP) //TODO: implement parabolic and hyperbolic transfers
-			{
-				Utils.LogF("dV4Transfer: PANIC! Non-elliptic transfer orbit detected!");
-				return Vector3d.zero;
-			}
-			var x0 = 0.0;
-			var x1 = tau < tauME? 0.1 : -0.1;
-			while(Math.Abs(x1-x0) > tol)
-			{
-				x0 = x1;
-				x1 = next_elliptic(x1, 2);
-			}
-			var sqrt_mu = Math.Sqrt(mu);
-			var sqrt_m  = Math.Sqrt(m);
-			var sqrt_n  = Math.Sqrt(n);
-			var y1 = _y(x1);
-			var vr = sqrt_mu * (y1/sqrt_n - x1/sqrt_m);
-			var vc = sqrt_mu * (y1/sqrt_n + x1/sqrt_m);
-
-			Utils.LogF("\nr1: {}\n" +
-			           "c: {}\n" +
-			           "sigma: {}\n" +
-			           "tau: {}\n" +
-			           "tauME: {}\n" +
-			           "x {}, y {}\n" +
-			           "vc {}, vr {}\n" +
-			           "v: {}",
-			           r1, c,
-			           sigma, tau, tauME,
-			           x1, y1,
-			           vc, vr,
-			           r1.normalized*vr + c/cm*vc
-			          );//debug
-
-			return r1.normalized*vr + c/cm*vc - orbit.getOrbitalVelocityAtUT(StartUT);
-		}
-
-		double _y(double x) { return Math.Sign(sigma)*Math.Sqrt(1-sigma2*(1-x*x)); }
-
-		double next_elliptic(double x, int N)
-		{
-			var y = _y(x);
-			var x2 = x*x;
-			var y2 = y*y;
-			var sqrt_one_x2 = Math.Sqrt(1 - x2);
-			var sqrt_one_y2 = Math.Sqrt(1 - y2);
-			var acot_x = Utils.Acot(x / sqrt_one_x2);
-			var acot_y = Utils.Acot(y / sqrt_one_y2);
-			var x2_one = x2-1;
-			var y2_one = y2-1;
-
-			var f = (((acot_x-x*sqrt_one_x2) -
-			          (acot_y-y*sqrt_one_y2))
-					 /(sqrt_one_x2 * sqrt_one_x2 * sqrt_one_x2) -tau);
-
-			var f1 = ((3*x*acot_x+
-			           (-x2-2)*sqrt_one_x2+
-			           3*(y*sqrt_one_y2-acot_y)*x)
-			          /Math.Pow(sqrt_one_x2, 5));
-
-			var f2 = (-(3*Math.Sqrt(-x2_one)*(4*x2+1)*
-			            (Utils.Acot(x*Math.Sqrt(-x2_one)/x2_one)-
-			             Utils.Acot(y*Math.Sqrt(-y2_one)/y2_one)-
-			             y*Math.Sqrt(-y2_one))-
-			            x*x2_one*(2*x2+13))
-			          /Math.Pow(x2_one, 4));
-
-			return Laguerre_next(x, f, f1, f2, N);
+			var a = N/(Math.Abs(Gs) > Math.Abs(G_s)? Gs : G_s);
+			while(Math.Abs(x-a) > 1) a /= 2;
+			Utils.LogF("N {}, x0 {}, x1 {}, f {}, f1 {}, f2 {}, G {}, H {}, s {}, a {}", N, x, x-a, f, f1, f2, G, H, s, a);//debug
+			return x - a;
 		}
 	}
 }

@@ -39,7 +39,7 @@ namespace ThrottleControlledAvionics
 		Stage stage;
 		double current_PeR;
 
-		protected LandingTrajectory fixed_PeR_orbit(LandingTrajectory old, ref Vector3d NodeDeltaV, double PeR)
+		protected LandingTrajectory fixed_PeR_orbit(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double PeR)
 		{
 			double StartUT;
 			double targetAlt;
@@ -66,7 +66,7 @@ namespace ThrottleControlledAvionics
 			                             StartUT, Target, targetAlt);
 		}
 
-		protected LandingTrajectory horizontal_correction(LandingTrajectory old, ref Vector3d NodeDeltaV, double start_offset)
+		protected LandingTrajectory horizontal_correction(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double start_offset)
 		{
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
@@ -86,7 +86,7 @@ namespace ThrottleControlledAvionics
 			trajectory = null;
 			stage = Stage.Compute;
 			var NodeDeltaV = Vector3d.zero;
-			setup_calculation(t => fixed_PeR_orbit(t, ref NodeDeltaV, current_PeR));
+			setup_calculation((o, b) => fixed_PeR_orbit(o, b, ref NodeDeltaV, current_PeR));
 		}
 
 		protected override void start_correction()
@@ -95,7 +95,7 @@ namespace ThrottleControlledAvionics
 			stage = Stage.Correct;
 			CorrectionTimer.Reset();
 			var NodeDeltaV = Vector3d.zero;
-			setup_calculation(t => horizontal_correction(t, ref NodeDeltaV, LTRJ.CorrectionOffset));
+			setup_calculation((o, b) => horizontal_correction(o, b, ref NodeDeltaV, LTRJ.CorrectionOffset));
 		}
 
 		protected override void reset()

@@ -79,8 +79,12 @@ namespace ThrottleControlledAvionics
 		public override bool IsBetter(BaseTrajectory other)
 		{
 			var _other = other as TargetedTrajectoryBase;
+			Utils.LogF("\nthis {}\nother {}\nthis is better: {}", 
+			           this, _other,
+			           DistanceToTarget+ManeuverDeltaV.magnitude < _other.DistanceToTarget+_other.ManeuverDeltaV.magnitude);//debug
 			return _other == null || _other.DistanceToTarget < 0 || 
-				DistanceToTarget > 0 && DistanceToTarget < _other.DistanceToTarget;
+				DistanceToTarget >= 0 && 
+				DistanceToTarget+ManeuverDeltaV.magnitude < _other.DistanceToTarget+_other.ManeuverDeltaV.magnitude;
 		}
 
 		public override string ToString()
