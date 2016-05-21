@@ -176,10 +176,12 @@ namespace ThrottleControlledAvionics
 				stage = Stage.Deorbit;
 				break;
 			case Stage.Deorbit:
+				Status("Executing deorbit burn...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
 				start_correction();
 				break;
 			case Stage.Correct:
+				Status("Correcting trajectory...");
 				if(!trajectory_computed()) break;
 				clear_nodes(); add_trajectory_node();
 				CFG.AP1.OnIfNot(Autopilot1.Maneuver);
@@ -187,6 +189,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Coast:
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
+				Status("Coasting to final deceleration burn...");
 				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-DEO.StartOffset;
 				if(VSL.Info.Countdown > 0 && !correct_trajectory()) break;
 				stage = Stage.None;

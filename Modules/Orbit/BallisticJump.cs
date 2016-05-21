@@ -164,6 +164,7 @@ namespace ThrottleControlledAvionics
 				else CFG.DesiredAltitude = VSL.Altitude.Relative;
 				if(VSL.Altitude.Relative > StartAltitude-5)
 					compute_initial_trajectory();
+				else Status("Gaining initial altitude...");
 				break;
 			case Stage.Compute:
 				if(!trajectory_computed()) break;
@@ -215,6 +216,7 @@ namespace ThrottleControlledAvionics
 				stage = Stage.Coast;
 				break;
 			case Stage.Coast:
+				Status("Coasting...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
 				if(VesselOrbit.trueAnomaly < 180 && !correct_trajectory()) break;
 				stage = Stage.None;
