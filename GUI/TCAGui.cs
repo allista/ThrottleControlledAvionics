@@ -102,7 +102,9 @@ namespace ThrottleControlledAvionics
 		void onVesselChange(Vessel vsl)
 		{
 			if(vsl == null || vsl.parts == null) return;
-			vessel = vsl; StartCoroutine(init_on_load());
+			vessel = vsl;
+			StatusMessage = "";
+			StartCoroutine(init_on_load());
 		}
 
 		public static void AttachTCA(ModuleTCA tca) 
