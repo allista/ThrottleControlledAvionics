@@ -17,13 +17,19 @@ namespace ThrottleControlledAvionics
 		public Vector3d TargetPos { get; private set; }
 		public double DeltaTA { get; private set; }
 		public double DeltaR { get; private set; }
+		public double MinPeR { get; private set; }
+		public bool KillerOrbit { get; private set; }
 
-		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, Vessel target, double transfer_time = -1) 
+		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, Vessel target, double min_PeR, double transfer_time = -1) 
 			: base(vsl, dV, startUT, target) 
 		{ 
+			MinPeR = min_PeR;
 			TimeToTarget = transfer_time;
 			update(); 
 		}
+
+		public override bool IsBetter(BaseTrajectory other)
+		{ return !KillerOrbit && base.IsBetter(other); }
 
 		public override void UpdateOrbit(Orbit current)
 		{
@@ -49,7 +55,7 @@ namespace ThrottleControlledAvionics
 				Math.Sign(Target.orbit.period-OrigOrbit.period);
 			DeltaFi = 90-Vector3d.Angle(NewOrbit.GetOrbitNormal(), TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
-
+			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TimeToTarget;
 			Utils.Log("{0}", this);//debug
 		}
 
@@ -59,11 +65,13 @@ namespace ThrottleControlledAvionics
 				Utils.Format("\n\nTargetOrbit:\n{}\n" +
 				             "DeltaTA: {} deg\n" +
 				             "TimeToTarget: {} s\n" +
-				             "DeltaR: {} m\n",
+				             "DeltaR: {} m\n" +
+				             "MinPeR: {} m\n" +
+				             "Killer: {}\n",
 				             Target.orbit,
 				             DeltaTA, 
 				             TimeToTarget, 
-				             DeltaR);
+				             DeltaR, MinPeR, KillerOrbit);
 		}
 	}
 }

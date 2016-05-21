@@ -28,6 +28,7 @@ namespace ThrottleControlledAvionics
 
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
+		public Vector6 MaxThrustRCS = new Vector6();
 
 		public int  NumActive { get; private set; }
 		public int  NumActiveRCS { get; private set; }
@@ -129,7 +130,6 @@ namespace ThrottleControlledAvionics
 			}
 			NumActive = Active.Count;
 			NumActiveRCS = ActiveRCS.Count;
-			VSL.Controls.RCSAvailable = NumActiveRCS > 0;
 			NoActiveRCS = NumActiveRCS == 0 || 
 				VSL.Controls.Steering.sqrMagnitude < GLB.InputDeadZone && 
 				VSL.Controls.Translation.sqrMagnitude < GLB.InputDeadZone;
@@ -217,19 +217,19 @@ namespace ThrottleControlledAvionics
 			SlowTorque = TorqueResponseTime > 0;
 			MaxThrustM = MaxThrust.magnitude;
 			//init RCS wrappers if needed
-			if(!NoActiveRCS)
+			MaxThrustRCS = new Vector6();
+			for(int i = 0; i < NumActiveRCS; i++)
 			{
-				for(int i = 0; i < NumActiveRCS; i++)
-				{
-					var t = ActiveRCS[i];
-					t.InitState();
-					t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
-					t.wThrustLever = t.wThrustPos-VSL.Physics.wCoM;
-					t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.wThrustLever, t.wThrustDir));
-					t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(t.wThrustLever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
-					t.currentTorque = t.Torque(1);
-					t.currentTorque_m = t.currentTorque.magnitude;
-				}
+				var t = ActiveRCS[i];
+				t.InitState();
+				t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
+				t.rcs.thrusterTransforms.ForEach(T => MaxThrustRCS.Add(refT.InverseTransformDirection((t.rcs.useZaxis? T.forward : T.up)*t.maxThrust)));
+				if(NoActiveRCS) continue;
+				t.wThrustLever = t.wThrustPos-VSL.Physics.wCoM;
+				t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.wThrustLever, t.wThrustDir));
+				t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(t.wThrustLever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
+				t.currentTorque = t.Torque(1);
+				t.currentTorque_m = t.currentTorque.magnitude;
 			}
 		}
 

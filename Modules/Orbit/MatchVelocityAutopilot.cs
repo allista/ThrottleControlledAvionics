@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "MVA";
 
 			[Persistent] public float TranslationThreshold = 5f;   //m/s
+			[Persistent] public float BrakingOffsetF       = 1.2f;
 		}
 		static Config MVA { get { return TCAScenario.Globals.MVA; } }
 		public MatchVelocityAutopilot(ModuleTCA tca) : base(tca) {}
@@ -32,16 +33,16 @@ namespace ThrottleControlledAvionics
 		ThrottleControl THR;
 		TimeWarpControl WRP;
 		AttitudeControl ATC;
-		TranslationControl TRA;
 		ManeuverAutopilot MAN;
 
 		Vessel Target;
-		bool MainThrust;
+		ManeuverExecutor Executor;
 		float TTA = -1;
 
 		public override void Init()
 		{
 			base.Init();
+			Executor = new ManeuverExecutor(TCA);
 			CFG.AP1.AddCallback(MatchVelCallback, Autopilot1.MatchVel, Autopilot1.MatchVelNear);
 		}
 
@@ -63,7 +64,6 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Resume:
 			case Multiplexer.Command.On:
 				Working = false;
-				MainThrust = false;
 				THR.Throttle = 0;
 				Target = VSL.TargetVessel;
 				CFG.AT.On(Attitude.KillRotation);
@@ -83,7 +83,6 @@ namespace ThrottleControlledAvionics
 			}
 			CFG.AP1.OffIfOn(Autopilot1.MatchVel);
 			CFG.AP1.OffIfOn(Autopilot1.MatchVelNear);
-			MainThrust = false;
 			Working = false;
 			Target = null;
 		}
@@ -97,7 +96,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public static double BrakingOffset(double V0, double ttb, VesselWrapper VSL)
-		{ return BrakingDistance(V0, ttb, VSL)/V0*1.1; }
+		{ return BrakingDistance(V0, ttb, VSL)/V0*MVA.BrakingOffsetF; }
 
 		public static double BrakingNodeCorrection(double V0, VesselWrapper VSL)
 		{ 
@@ -105,60 +104,38 @@ namespace ThrottleControlledAvionics
 			return BrakingOffset(V0, ttb, VSL) - ttb/2;
 		}
 
+		bool StartCondition(float dV)
+		{
+			if(Working) return true;
+			if(!CFG.AP1[Autopilot1.MatchVelNear]) return true;
+			//calculate time to nearest approach
+			double ApprUT;
+			var tOrb = Target.GetOrbit();
+			TrajectoryCalculator.ClosestApproach(VSL.orbit, tOrb, VSL.Physics.UT, out ApprUT);
+			TTA = (float)(ApprUT-VSL.Physics.UT);
+			var ApprdV = (VSL.orbit.getOrbitalVelocityAtUT(ApprUT) - tOrb.getOrbitalVelocityAtUT(ApprUT)).xzy;
+			dV = (float)ApprdV.magnitude;
+			CFG.AT.OnIfNot(Attitude.Custom);
+			ATC.SetCustomRotationW(VSL.Engines.MaxThrust, ApprdV);
+			if(TTA > 0)
+			{
+				VSL.Info.TTB = MAN.TTB(dV, 1);
+				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL.Info.TTB, VSL);
+				if(CFG.WarpToNode && ATC.Aligned)
+					WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
+				if(VSL.Info.Countdown > 0) return false;
+			}
+			VSL.Info.Countdown = 0;
+			Working = true;
+			return true;
+		}
+
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			var dV  = VSL.vessel.obt_velocity-Target.GetObtVelocity();
-			var dVm = (float)dV.magnitude;
-			//if we're waiting for the nearest approach
-			THR.Throttle = 0;
-			if(!Working && CFG.AP1[Autopilot1.MatchVelNear])
-			{
-				//calculate time to nearest approach
-				double ApprUT;
-				var tOrb = Target.GetOrbit();
-				TrajectoryCalculator.ClosestApproach(VSL.orbit, tOrb, VSL.Physics.UT, out ApprUT);
-				TTA = (float)(ApprUT-VSL.Physics.UT);
-				dV = (VSL.orbit.getOrbitalVelocityAtUT(ApprUT) - tOrb.getOrbitalVelocityAtUT(ApprUT)).xzy;
-				dVm = (float)dV.magnitude;
-				CFG.AT.OnIfNot(Attitude.Custom);
-				ATC.SetCustomRotationW(VSL.Engines.MaxThrust, dV);
-				if(TTA > 0)
-				{
-					VSL.Info.TTB = MAN.TTB(dVm, 1);
-					VSL.Info.Countdown = TTA-BrakingOffset(dVm, VSL.Info.TTB, VSL);
-					//warp to the nearest approach point if requested
-					if(CFG.WarpToNode && ATC.Aligned)
-						WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
-					if(VSL.Info.Countdown > 0) return;
-				}
-				Working = true;
-			}
-			//if dV is too small, don't do anything
-			if(dVm < GLB.THR.MinDeltaV) 
-			{
-				if(CFG.AP1[Autopilot1.MatchVelNear]) reset();
-				return;
-			}
-			//use main engines if dV is big enough, or if there's no translation capabilities
-			if(MainThrust || dVm > 1 || !VSL.Controls.RCSAvailable)
-			{
-				CFG.AT.OnIfNot(Attitude.AntiRelVel);
-				if(MainThrust || ATC.Aligned)
-				{
-					THR.DeltaV = dVm;
-					MainThrust = ATC.AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
-				}
-			}
-			//if translation is available, use it as necessary
-			if(VSL.Controls.TranslationAvailable)
-			{
-				if(dVm <= MVA.TranslationThreshold)
-				{
-					if(!MainThrust) CFG.AT.OnIfNot(Attitude.KillRotation);
-					TRA.AddDeltaV(VSL.LocalDir(dV));
-				}
-			}
+			var dV  = Target.GetObtVelocity()-VSL.vessel.obt_velocity;
+			if(Executor.Execute(dV, GLB.THR.MinDeltaV, StartCondition)) return;
+			if(CFG.AP1[Autopilot1.MatchVelNear]) reset();
 		}
 
 		public override void Draw()

@@ -1371,44 +1371,74 @@ class lambert_solver(object):
     def simulate_generic(self, r0, v0, end, dt=0.01):
         t = [0]
         r = [r0]
-        v = v0
+        v = [v0]
         while t[-1] <= end:
             cr = r[-1]
-            r.append(cr + v * dt)
-            v -= cr * self.mu / abs(cr) ** 3 * dt
+            r.append(cr + v[-1] * dt)
+            v.append(v[-1]- cr * self.mu / abs(cr) ** 3 * dt)
             t.append(t[-1] + dt)
-        return t, r
+        return t, r, v
 
 #==================================================================#
 
-dt = 0.05
+def throttle_sim():
+    ThrustDecelerationTime = 0.5
+    MaxThrust = 100
+    M = 1
+
+    def NextThrottle(dV, prev):
+        dt = clamp(dV/10, 0.5, 2)
+        return clamp((dV / MaxThrust * M - prev * ThrustDecelerationTime) / dt, 0, 1)
+
+    V0 = 100.0
+    v = [V0]
+    vf = [V0]
+    t = [1.0]
+    T = [MaxThrust]
+    time = [0.0]
+    while v[-1] > 0.1:
+        v.append(v[-1]-T[-1]/M*dt)
+        t.append(NextThrottle(v[-1], t[-1]))
+        T.append(MaxThrust*t[-1])
+        time.append(time[-1]+dt)
+        if vf[-1] > 0.1: vf.append(vf[-1]-MaxThrust/M*dt)
+        else: vf.append(vf[-1])
+
+    plt.plot(time, v, label='V')
+    plt.plot(time, vf, label='Vf')
+    plt.plot(time, t, label='throttle')
+    plt.legend()
+    plt.show()
+
+dt = 0.01
 
 if __name__ == '__main__':
+    # throttle_sim()
+
     def vecs2scatter(vecs):
         return np.array([v.v[:2] for v in vecs], dtype=float).transpose()
 
     r0 = vec(314495.948447142, 650730.150160414, 0)
     v0 = vec(-1800.99971342087, 1379.68533771485, 0)
 
-    r1 = vec(718769.545506154, -132550.748648111, -28890.2078384472)
-    r1 = vec(404539.613450263, 596305.96712629, 0)
+    r1 = vec(314495.948447142, 650730.150160414, 0)
+    # r1 = vec(404539.613450263, 596305.96712629, 0)
 
-    r2 = vec(-740210.657622815, 34401.4910256949, 32487.4799807486)
+    r2 = vec(+454949.7854, +515180.6808, +0.0000)*0.9
 
     s = lambert_solver(r1, r2, 1000, mu=3531600000000.0)
-    t, orb = s.simulate_generic(r0, v0, 2200, 0.1)
+    t, orb, vel = s.simulate_generic(r0, v0, 2200, 0.1)
+    start = 3500
+    r1 = orb[start]; v0 = vel[start]
     ori = vecs2scatter((r1, r2, vec(0, 0, 0), orb[0], orb[-1]))
     orb = vecs2scatter(orb)
 
-    def analyze_solution(tt):
-        s = lambert_solver(r1, r2, tt, mu=3531600000000.0)
-        s.solve()
-        print
+    def plot_solver(s):
         x = np.linspace(-0.99, 0.99, 1000)
         y = s.y(x)
         f = s.F(x, y)
-        f1 = s.F1(x, y, f)
-        f2 = s.F2(x, y, f1)
+        # f1 = s.F1(x, y, f)
+        # f2 = s.F2(x, y, f1)
 
         # plt.plot(x, y, label='y')
         plt.plot(x, f, label='f')
@@ -1416,7 +1446,14 @@ if __name__ == '__main__':
         # plt.plot(x, f2, label='f2')
         plt.legend()
         plt.show()
-        t, r = s.simulate(tt / 10000.0)
+
+    def analyze_solution(tt):
+        s = lambert_solver(r1, r2, tt, mu=3531600000000.0)
+        s.solve()
+        #plot_solver(s)
+        print
+        print 'dV: %s' % (s.V-v0)
+        t, r, v = s.simulate(tt / 10000.0)
         path = vecs2scatter(r)
         print s
         print 'TT: %f; Err: %s, dR*V %f' % (tt, r[-1] - r2, (r2 - r1).norm * s.V)

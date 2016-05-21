@@ -384,5 +384,9 @@ REN
 	MaxApproachV        = 20    //parts
 	ApproachVelF        = 0.01  //parts
 	MaxInclinationDelta = 30    //deg
+	GTurnCurve          = 60
+	LaunchDeltaVf       = 3
+	LaunchTangentK      = 1
+	RendezvouCorrection = 0.8
 }
 //:mode=c#:
