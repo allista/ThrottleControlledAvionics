@@ -17,7 +17,17 @@ namespace ThrottleControlledAvionics
 
 		AttitudeControl ATC;
 
-		public override void Draw() { if(ATC != null) ATC.Draw(); }
+		#if DEBUG
+		VTOLControl VTOL;
+		#endif
+
+		public override void Draw() 
+		{ 
+			if(ATC != null) ATC.Draw();
+			#if DEBUG
+			if(VTOL != null) VTOL.Draw();
+			#endif
+		}
 	}
 }
 
