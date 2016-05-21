@@ -76,7 +76,7 @@ namespace ThrottleControlledAvionics
 				var sthrust = rcs.thrustForces[i];
 				var T = rcs.thrusterTransforms[i];
 				if(T == null) continue;
-				avg_thrust_dir += T.up*sthrust;
+				avg_thrust_dir += (rcs.useZaxis? T.forward : T.up)*sthrust;
 				avg_thrust_pos += T.position*sthrust;
 				total_sthrust += sthrust;
 			}
@@ -95,8 +95,9 @@ namespace ThrottleControlledAvionics
 		public override Vector3 wThrustDir { get { return avg_thrust_dir; } }
 		public override Vector3 wThrustPos { get { return avg_thrust_pos; } }
 
-		public float maxThrust { get { return current_max_thrust; } }
+		public float currentMaxThrust { get { return current_max_thrust; } }
 		public override float finalThrust { get { return current_thrust; } }
+		public float maxThrust { get { return rcs.thrusterPower*thrustMod; } }
 
 		public override Vector3 Thrust (float throttle)
 		{ return thrustDirection*current_max_thrust*throttle; }
