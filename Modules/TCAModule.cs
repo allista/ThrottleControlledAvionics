@@ -170,10 +170,16 @@ namespace ThrottleControlledAvionics
 		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
 
 		protected void SetRot(Vector3 rot, FlightCtrlState s)
+		{ VSL.Controls.AutopilotSteering = rot.ClampComponents(-1, 1); }
+
+		protected void SetGraterRot(Vector3 rot, FlightCtrlState s)
 		{
-			s.pitch = Utils.Clamp(rot.x, -1, 1);
-			s.roll  = Utils.Clamp(rot.y, -1, 1);
-			s.yaw   = Utils.Clamp(rot.z, -1, 1);
+			if(Math.Abs(rot.x) > Math.Abs(VSL.Controls.AutopilotSteering.x)) 
+				VSL.Controls.AutopilotSteering.x = Utils.Clamp(rot.x, -1, 1);
+			if(Math.Abs(rot.y) > Math.Abs(VSL.Controls.AutopilotSteering.y)) 
+				VSL.Controls.AutopilotSteering.y = Utils.Clamp(rot.y, -1, 1);
+			if(Math.Abs(rot.z) > Math.Abs(VSL.Controls.AutopilotSteering.z)) 
+				VSL.Controls.AutopilotSteering.z = Utils.Clamp(rot.z, -1, 1);
 		}
 	}
 

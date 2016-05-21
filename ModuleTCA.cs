@@ -273,6 +273,7 @@ namespace ThrottleControlledAvionics
 			if(!enabled) { VSL = null; return; }
 			VSL.Init();
 			TCAModulesDatabase.InitModules(this);
+			VSL.ConnectAutopilotOutput();//should follow module initialization
 			TCAGui.AttachTCA(this);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
 			StartCoroutine(updateUnpackDistance());
@@ -299,7 +300,7 @@ namespace ThrottleControlledAvionics
 		public void ToggleTCA(KSPActionParam param = null)
 		{
 			CFG.Enabled = !CFG.Enabled;
-			if(CFG.Enabled) //test
+			if(CFG.Enabled)
 			{
 				CFG.ActiveProfile.Update(VSL.Engines.All, true);
 				VSL.SetUnpackDistance(GLB.UnpackDistance);

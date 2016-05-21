@@ -15,9 +15,9 @@ namespace ThrottleControlledAvionics
 	[CareerPart(typeof(AttitudeControl))]
 	[RequireModules(typeof(SASBlocker))]
 	[OverrideModules(typeof(AttitudeControl))]
-	public class BearingControl : AutopilotModule
+	public class BearingControl : AttitudeControlBase
 	{
-		public class Config : ModuleConfig
+		public new class Config : ModuleConfig
 		{
 			new public const string NODE_NAME = "BRC";
 
@@ -30,7 +30,7 @@ namespace ThrottleControlledAvionics
 		static Config BRC { get { return TCAScenario.Globals.BRC; } }
 
 		readonly Timer DirectionLineTimer = new Timer();
-		readonly PIDf_Controller pid = new PIDf_Controller();
+		readonly PIDf_Controller bearing_pid = new PIDf_Controller();
 		public readonly FloatField Bearing = new FloatField(min:0, max:360, circle:true);
 
 		public Vector3d DirectionOverride;
@@ -41,8 +41,8 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			pid.setPID(BRC.DirectionPID);
-			pid.Reset();
+			bearing_pid.setPID(BRC.DirectionPID);
+			bearing_pid.Reset();
 			CFG.BR.AddSingleCallback(ControlCallback);
 		}
 
@@ -50,7 +50,7 @@ namespace ThrottleControlledAvionics
 
 		public void ControlCallback(Multiplexer.Command cmd)
 		{
-			pid.Reset();
+			bearing_pid.Reset();
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
@@ -77,12 +77,12 @@ namespace ThrottleControlledAvionics
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
+			var dir_override = !DirectionOverride.IsZero();
 			if(!(CFG.Enabled && 
-			     (CFG.BR || !DirectionOverride.IsZero()) &&
+			     (CFG.BR || dir_override) &&
 			     VSL.OnPlanet && VSL.refT != null && 
-			     !ForwardDirection.IsZero())) return;
+			     (!ForwardDirection.IsZero() || dir_override))) return;
 			//allow user to intervene
-			var cDir = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL).normalized;
 			if(VSL.HasUserInput)
 			{
 				if(!s.yaw.Equals(0))
@@ -91,24 +91,24 @@ namespace ThrottleControlledAvionics
 					if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
 						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
 					draw_forward_direction = BRC.DrawForwardDirection;
+					VSL.HasUserInput = !(s.pitch.Equals(0) && s.roll.Equals(0));
 					VSL.AutopilotDisabled = false;
 					DirectionLineTimer.Reset();
-					pid.Reset();
+					bearing_pid.Reset();
 					s.yaw = 0;
 				}
 			}
 			//turn ship's nose in the direction of needed velocity
-			var axis = VSL.OnPlanetParams.NoseUp? Vector3.up : Vector3.forward;
-			var nDir = VSL.LocalDir(DirectionOverride.IsZero()? ForwardDirection : DirectionOverride);
+			var axis = up_axis;
+			var cDir = Vector3.ProjectOnPlane(VSL.OnPlanetParams.Fwd, VSL.Physics.Up).normalized;
+			var nDir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
 			var angle = Vector3.Angle(cDir, nDir)/180*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
-			var AAf = Utils.Clamp(1/(Mathf.Abs(Vector3.Dot(axis, VSL.Torque.MaxAngularA))), BRC.MinAAf, BRC.MaxAAf);
 			var eff = Mathf.Abs(Vector3.Dot(VSL.Engines.MaxThrust.normalized, VSL.Physics.Up));
-			pid.P = BRC.DirectionPID.P*AAf;
-			pid.D = BRC.DirectionPID.D*AAf*AAf;
-			pid.Update(angle);
-			var act = pid.Action*eff;
-			if(VSL.OnPlanetParams.NoseUp) s.roll = act;
-			else s.yaw = act;
+			AAf = Utils.Clamp(1/(Mathf.Abs(Vector3.Dot(axis, VSL.Torque.MaxAngularA))), BRC.MinAAf, BRC.MaxAAf);
+			bearing_pid.P = BRC.DirectionPID.P*AAf;
+			bearing_pid.D = BRC.DirectionPID.D*AAf*AAf;
+			bearing_pid.Update(angle);
+			SetGraterRot(rotation2steering(world2local_rotation(Quaternion.AngleAxis(bearing_pid.Action*eff*175, axis))), s);
 			DirectionOverride = Vector3d.zero;
 		}
 

@@ -128,9 +128,13 @@ namespace ThrottleControlledAvionics
 			vessel.OnAutopilotUpdate += UpdateAutopilotInfo;
 		}
 
+		public void ConnectAutopilotOutput()
+		{ vessel.OnAutopilotUpdate += ApplyAutopilotSteering; }
+
 		public void Reset()
 		{
 			vessel.OnAutopilotUpdate -= UpdateAutopilotInfo;
+			vessel.OnAutopilotUpdate -= ApplyAutopilotSteering;
 			RestoreUnpackDistance();
 		}
 
@@ -148,7 +152,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool AutopilotDisabled;
-		public bool HasUserInput { get; private set; }
+		public bool HasUserInput;
 		public void UpdateAutopilotInfo(FlightCtrlState s)
 		{
 			if(!CFG.Enabled) return;
@@ -157,6 +161,14 @@ namespace ThrottleControlledAvionics
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
 				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
 			AutopilotDisabled = HasUserInput;
+		}
+
+		public void ApplyAutopilotSteering(FlightCtrlState s)
+		{
+			s.pitch = Utils.Clamp(Controls.AutopilotSteering.x, -1, 1);
+			s.roll  = Utils.Clamp(Controls.AutopilotSteering.y, -1, 1);
+			s.yaw   = Utils.Clamp(Controls.AutopilotSteering.z, -1, 1);
+			Controls.AutopilotSteering = Vector3.zero;
 		}
 
 		public void UpdateState()

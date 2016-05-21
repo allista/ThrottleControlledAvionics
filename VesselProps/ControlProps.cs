@@ -17,6 +17,7 @@ namespace ThrottleControlledAvionics
 
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
+		public Vector3 AutopilotSteering;
 		public bool    TranslationAvailable { get; private set; }
 		public Vector3 ManualTranslation;
 		public Switch  ManualTranslationSwitch = new Switch();
@@ -39,7 +40,7 @@ namespace ThrottleControlledAvionics
 			var thrust = VSL.Engines.MaxThrustRCS.Project(lDir);
 //			Utils.LogF("\nMaxThrustRCS:\n{}\nRCS dir: {}\nRCS thrust: {}\nRCS accel: {}\nActive RCS: {}\n",
 //			           VSL.Engines.MaxThrustRCS, lDir, thrust, thrust.magnitude/VSL.Physics.M, VSL.Engines.NumActiveRCS);//debug
-			return thrust.magnitude/VSL.Physics.M > GLB.TRA.MinDeltaV/2;//test
+			return thrust.magnitude/VSL.Physics.M > GLB.TRA.MinDeltaV/2;
 		}
 	}
 }

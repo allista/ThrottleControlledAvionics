@@ -114,6 +114,7 @@ namespace ThrottleControlledAvionics
 				{
 					CFG.MaxNavSpeed = Utils.Clamp(CFG.MaxNavSpeed-s.pitch*CC.PitchFactor, CC.MaxRevSpeed, GLB.PN.MaxSpeed);
 					SetNeededVelocity(VSL.HorizontalSpeed.NeededVector);
+					VSL.HasUserInput = !(s.yaw.Equals(0) && s.roll.Equals(0));
 					VSL.AutopilotDisabled = false;
 					s.pitch = 0;
 				}

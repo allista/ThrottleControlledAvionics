@@ -56,11 +56,11 @@ namespace ThrottleControlledAvionics
 
 		void set_steering(Quaternion rot)
 		{ 
-			rot *= world2local_rotation(Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.MaxThrust));
+			rot *= Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.MaxThrust);
 			#if DEBUG
-			needed_thrust = VSL.WorldDir(rot.Inverse() * VSL.LocalDir(VSL.Engines.MaxThrust));
+			needed_thrust = rot.Inverse() * VSL.Engines.MaxThrust;
 			#endif
-			steering = rotation2steering(rot); 
+			steering = rotation2steering(world2local_rotation(rot)); 
 		}
 
 		void level()
@@ -82,26 +82,24 @@ namespace ThrottleControlledAvionics
 				var angle = VTOL.MaxAngle*TWR_factor;
 				if(!s.yaw.Equals(0))
 				{
-					rot = Quaternion.AngleAxis(s.yaw*90, VSL.OnPlanetParams.NoseUp? Vector3.up : Vector3.forward) * rot;
-					if(s.roll.Equals(0) && !s.pitch.Equals(0))
-						rot = Quaternion.AngleAxis(s.yaw*90, VSL.OnPlanetParams.NoseUp? Vector3.forward : Vector3.up) * rot;
+					rot = Quaternion.AngleAxis(s.yaw*90, up_axis) * rot;
 					s.yaw = 0;
 				}
 				if(!s.pitch.Equals(0)) 
 				{
-					rot = Quaternion.AngleAxis(s.pitch*angle, Vector3.right) * rot;
+					rot = Quaternion.AngleAxis(s.pitch*angle, VSL.vessel.transform.right) * rot;
 					s.pitch = 0;
 				}
 				if(!s.roll.Equals(0)) 
 				{
-					rot = Quaternion.AngleAxis(s.roll*angle, VSL.OnPlanetParams.NoseUp? Vector3.forward : Vector3.up) * rot;
+					rot = Quaternion.AngleAxis(s.roll*angle, fwd_axis) * rot;
 					s.roll = 0;
 				}
 				VSL.AutopilotDisabled = true;
 				set_steering(rot);
 				Steer(s);
 			}
-			else if(!VSL.LandedOrSplashed && !CFG.AT) { level(); Steer(s); }
+			else if(!VSL.LandedOrSplashed && !CFG.AT) { level(); Steer(s, true); }
 		}
 
 		#if DEBUG
@@ -115,6 +113,12 @@ namespace ThrottleControlledAvionics
 				GLUtils.GLVec(VSL.Physics.wCoM, VSL.Engines.MaxThrust.normalized*20, Color.red);
 			if(!needed_thrust.IsZero())
 				GLUtils.GLVec(VSL.Physics.wCoM, needed_thrust.normalized*20, Color.yellow);
+			if(!steering.IsZero())
+				GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(steering.normalized*20), Color.cyan);
+			
+			GLUtils.GLVec(VSL.Physics.wCoM, VSL.vessel.transform.up*3, Color.green);
+			GLUtils.GLVec(VSL.Physics.wCoM, VSL.vessel.transform.forward*3, Color.blue);
+			GLUtils.GLVec(VSL.Physics.wCoM, VSL.vessel.transform.right*3, Color.red);
 		}
 		#endif
 	}

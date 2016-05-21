@@ -89,9 +89,9 @@ namespace ThrottleControlledAvionics
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/VSL.Physics.M/VSL.Physics.G, 0.1f);
 			if(refT != null)
 			{
-				Fwd = Vector3.Cross(refT.right, -VSL.Engines.MaxThrust).normalized;
+				Fwd = Vector3.Cross(vessel.transform.right, -VSL.Engines.MaxThrust).normalized;
 				FwdL = refT.InverseTransformDirection(Fwd);
-				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
+				NoseUp = Vector3.Dot(Fwd, vessel.transform.forward) >= 0.9;
 				Bearing = Vector3.ProjectOnPlane(Fwd, VSL.Physics.Up).normalized;
 			}
 			var controllable_thrust = slow_thrust+fast_thrust;
