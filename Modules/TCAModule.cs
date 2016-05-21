@@ -64,7 +64,13 @@ namespace ThrottleControlledAvionics
 			else SQD.ApplyCFG(action);
 		}
 
-		public abstract void Draw();
+		protected static void ClearStatus() { TCAGui.StatusMessage = ""; }
+
+		protected static void Status(string msg, params object[] args) 
+		{ TCAGui.StatusMessage = string.Format(msg, args); }
+
+		protected static void Status(string color, string msg, params object[] args)
+		{ Status(string.Format("<color={0}>{1}</color>", color, msg), args); }
 
 		#if DEBUG
 		protected string LogTemplate(string msg)
@@ -84,7 +90,13 @@ namespace ThrottleControlledAvionics
 		#endif
 	}
 
-	public class TCAModule : TCAComponent
+	public abstract class DrawableComponent : TCAComponent
+	{
+		protected DrawableComponent(ModuleTCA tca) : base(tca) {}
+		public abstract void Draw();
+	}
+
+	public class TCAModule : DrawableComponent
 	{
 		public class ModuleConfig : ConfigNodeObject
 		{
@@ -126,14 +138,6 @@ namespace ThrottleControlledAvionics
 			return VSL.Target as WayPoint ?? 
 				new WayPoint(VSL.Target);
 		}
-
-		protected static void ClearStatus() { TCAGui.StatusMessage = ""; }
-
-		protected static void Status(string msg, params object[] args) 
-		{ TCAGui.StatusMessage = string.Format(msg, args); }
-
-		protected static void Status(string color, string msg, params object[] args)
-		{ Status(string.Format("<color={0}>{1}</color>", color, msg), args); }
 
 		public bool RegisterTo<S>(Func<VesselWrapper,bool> predicate = null) 
 			where S : TCAService
