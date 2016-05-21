@@ -46,6 +46,33 @@ namespace ThrottleControlledAvionics
 			var pos = old.getRelativePositionAtUT(UT);
 			var vel = old.getOrbitalVelocityAtUT(UT)+dV;
 			obt.UpdateFromStateVectors(pos, vel, old.referenceBody, UT);
+			if(obt.eccentricity < 0.01) 
+			{
+				Func<double,double> dist = t => (vel-obt.getOrbitalVelocityAtUT(t)).sqrMagnitude;
+				var T  = obt.ObT;
+				var dT = obt.period/10;
+				var D  = dist(T);
+				while(D > 1e-5)
+				{
+					T += dT;
+					if(T < 0) T += obt.period;
+					else if(T > obt.period) T -= obt.period;
+					var d = dist(T);
+					if(d > D) dT /= -2.1;
+					D = d;
+				}
+				if(!T.Equals(obt.ObT))
+				{
+					var dP = (T-obt.ObT)/obt.period;
+					obt.argumentOfPeriapsis = (obt.argumentOfPeriapsis-dP*360)%360;
+					obt.meanAnomaly = (obt.meanAnomaly+dP*Utils.TwoPI)%Utils.TwoPI;
+					obt.meanAnomalyAtEpoch = obt.meanAnomaly;
+					obt.orbitPercent = obt.meanAnomaly/Utils.TwoPI;
+					obt.eccentricAnomaly = obt.solveEccentricAnomaly(obt.meanAnomaly, obt.eccentricity, 1e-7, 8);
+					obt.trueAnomaly = obt.getTrueAnomaly(obt.eccentricAnomaly)/Math.PI*180;
+					obt.ObT = obt.ObTAtEpoch = T;
+				}
+			}
 			return obt;
 		}
 
@@ -178,7 +205,7 @@ namespace ThrottleControlledAvionics
 			resonance = ResonanceA(a, b);
 			if(double.IsNaN(alpha))//debug
 				Status("red", "DEBUG: Unable to calculate TTR. See the log.");
-			Utils.LogF("UT {}\ntanA {}\nposA {}\nposB {}\nalpha {}\nresonance {}",
+			Utils.LogF("\nUT {}\ntanA {}\nposA {}\nposB {}\nalpha {}\nresonance {}",
 			           UT, tanA, posA, posB, alpha, resonance);//debug
 			var TTR = alpha*resonance;
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
@@ -438,15 +465,10 @@ namespace ThrottleControlledAvionics
 			T best = null;
 			var maxI = TRJ.MaxIterations;
 			var frameI = TRJ.PerFrameIterations;
-			Status("");//debug
 			do {
-//				//debug
+				//debug
 //				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) 
-//				{
-//					yield return null;
-//					continue;
-//				}
-//				else yield return null;
+//				{ yield return null; continue; }
 				//debug
 				clear_nodes();
 //				if(CFG.Waypoints.Count > 1)
