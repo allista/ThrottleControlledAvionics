@@ -94,14 +94,11 @@ namespace ThrottleControlledAvionics
 					var T = mTm*Math.Sin(Math.Atan2(vv, hv));
 					v += (T/m-StG(h))*dt;
 					thrust = ApA-apa > 1;
-					Utils.LogF("Sim: apa {}, ApA {}, T/m {}", apa, ApA, T/m);//debug
 				}
 				else v -= StG(h)*dt;
 				v -= drag(s, h, v)/m*dt;
 				h += v*dt;
 				t += dt;
-				Utils.LogF("Sim: m {}, s {}, v {}, h {}, t {} drag/m {}", 
-				     m, s, v, h , t, drag(s, h, v)/m);//debug
 			}
 			return t-dt/2;
 		}

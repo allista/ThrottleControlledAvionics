@@ -72,17 +72,6 @@ namespace ThrottleControlledAvionics
 
 			tauP = 2/3.0*(1-sigma3);
 			tauME = Math.Acos(sigma)+sigma*Math.Sqrt(1-sigma2);
-
-			Utils.LogF("\n" +
-			           "r1: {}\n" +
-			           "r2: {}\n" +
-			           "c:  {}\n" +
-			           "mu: {}\n" +
-			           "sigma: {}\n" +
-			           "tauME: {}\n",
-			           r1, destination, c, mu,
-			           sigma, tauME
-			          );//debug
 		}
 
 		/// <summary>
@@ -117,7 +106,6 @@ namespace ThrottleControlledAvionics
 		public Vector3d dV4Transfer(double transfer_time, double tol = 1e-6)
 		{
 			tau = 4 * transfer_time * Math.Sqrt(mu/(m*m*m));
-			Utils.LogF("tau: {}, tau/pi: {}, tauP {}", tau, tau/Math.PI, tauP);//debug
 			if(Math.Abs(tau-tauME) < tol) return dV4TransferME(out transfer_time);
 			if(tau <= tauP)
 			{
@@ -210,7 +198,6 @@ namespace ThrottleControlledAvionics
 			var G_s = G-s;
 			var a = N/(Math.Abs(Gs) > Math.Abs(G_s)? Gs : G_s);
 			while(Math.Abs(x-a) > 1) a /= 2;
-			Utils.LogF("N {}, x0 {}, x1 {}, f {}, f1 {}, f2 {}, G {}, H {}, s {}, a {}", N, x, x-a, f, f1, f2, G, H, s, a);//debug
 			return x - a;
 		}
 	}

@@ -55,7 +55,6 @@ namespace ThrottleControlledAvionics
 				if(Math.Abs(dLonLat) > Math.Abs(dLatLon))
 					StartUT = AngleDelta2StartUT(old, dLonLat, DEO.StartOffset, VesselOrbit.period, VesselOrbit.period);
 				else NodeDeltaV += PlaneCorrection(old);
-				Log("\nStartUT change: {0}\ndV {1}", StartUT-old.StartUT, NodeDeltaV);//debug
 			}
 			else 
 			{
@@ -75,7 +74,6 @@ namespace ThrottleControlledAvionics
 					NodeDeltaV += new Vector3d(0,0,old.DeltaR);
 				else 
 					NodeDeltaV += PlaneCorrection(old);
-				Log("\ndV: {0}", NodeDeltaV);//debug
 			}
 			return new LandingTrajectory(VSL, Node2OrbitDeltaV(StartUT, NodeDeltaV), 
 			                             StartUT, Target, old == null? TargetAltitude : old.TargetAltitude);

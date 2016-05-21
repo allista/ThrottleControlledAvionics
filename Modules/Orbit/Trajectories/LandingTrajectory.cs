@@ -106,11 +106,7 @@ namespace ThrottleControlledAvionics
 			                            AtSurfaceRotation * Body.GetRelSurfacePosition(Target.Lat, Target.Lon, TargetAltitude));
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 
-//			Utils.LogF("Vessel: {}\nAngleTo Target: {}, AngleTo SurfacePoint: {}", 
-//			          new Coordinates(VslStartLat, VslStartLon),
-//			          Target.AngleTo(VslStartLat, VslStartLon)*Mathf.Rad2Deg, 
-//			          SurfacePoint.AngleTo(VslStartLat, VslStartLon)*Mathf.Rad2Deg);//debug
-			Utils.Log("{0}", this);//debug
+//			Utils.Log("{0}", this);//debug
 		}
 
 		public Vector3d GetOrbitVelocityAtSurface()

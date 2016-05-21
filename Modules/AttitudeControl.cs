@@ -174,7 +174,6 @@ namespace ThrottleControlledAvionics
 		Transform refT;
 		Quaternion locked_attitude;
 		bool attitude_locked;
-		Vector3 thrust, lthrust, needed_lthrust;//debug
 
 		Vector3 current_thrust 
 		{
@@ -243,9 +242,9 @@ namespace ThrottleControlledAvionics
 		{
 			Vector3 v;
 			omega_min.Update(VSL.vessel.angularVelocity.sqrMagnitude);
-			thrust = current_thrust;
-			lthrust = VSL.LocalDir(thrust).normalized;
-			needed_lthrust = Vector3.zero;
+			var thrust = current_thrust;
+			var lthrust = VSL.LocalDir(thrust).normalized;
+			var needed_lthrust = Vector3.zero;
 			steering = Vector3.zero;
 			switch(CFG.AT.state)
 			{

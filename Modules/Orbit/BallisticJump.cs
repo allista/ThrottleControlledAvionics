@@ -115,7 +115,6 @@ namespace ThrottleControlledAvionics
 				angle += old.DeltaFi;
 			}
 			var vel = VesselOrbit.getOrbitalVelocityAtUT(StartUT);
-			LogF("V {}, angle {}, vel {}", V, angle, vel);//debug
 			return new LandingTrajectory(VSL, QuaternionD.AngleAxis(angle, VSL.Physics.Up.xzy)*vel.normalized*V - vel, StartUT, 
 			                             Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
@@ -228,11 +227,11 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			#if DEBUG
-			if(current != null)//debug
-			{
-				GLUtils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);
-				GLUtils.GLLine(Body.position, current.SurfacePoint.WorldPos(Body), Color.yellow);
-			}
+//			if(current != null)//debug
+//			{
+//				GLUtils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);
+//				GLUtils.GLLine(Body.position, current.SurfacePoint.WorldPos(Body), Color.yellow);
+//			}
 			#endif
 			if(ControlsActive) 
 			{	

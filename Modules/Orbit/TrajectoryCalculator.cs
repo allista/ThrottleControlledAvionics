@@ -114,7 +114,6 @@ namespace ThrottleControlledAvionics
 				var nR = NewOrbit(old, dVdir*dV+add_dV, UT).PeR;
 				if(up && nR > R || !up && nR < R) max_dV = dV;
 				else min_dV = dV;
-//				Utils.Log("R: {0}, nR {1}, dV [{2}-{3}]", R, nR, min_dV, max_dV);//debug
 			}
 			return (max_dV+min_dV)/2*dVdir+add_dV;
 		}
@@ -144,7 +143,6 @@ namespace ThrottleControlledAvionics
 				var nR = NewOrbit(old, dVdir*dV+add_dV, UT).ApR;
 				if(up && nR > R || !up && nR < R) max_dV = dV;
 				else min_dV = dV;
-				Utils.Log("R: {0}, nR {1}, dV [{2}-{3}]", R, nR, min_dV, max_dV);//debug
 			}
 			return (max_dV+min_dV)/2*dVdir+add_dV;
 		}
@@ -173,7 +171,6 @@ namespace ThrottleControlledAvionics
 					.magnitude;
 				if(up && nR > R || !up && nR < R) max_dV = dV;
 				else min_dV = dV;
-				Utils.LogF("dUT: {}, R: {}, dR {}, dV [{}-{}]", TargetUT-UT, R, nR-R, min_dV, max_dV);//debug
 			}
 			return (max_dV+min_dV)/2*dVdir+add_dV;
 		}
@@ -205,8 +202,8 @@ namespace ThrottleControlledAvionics
 			resonance = ResonanceA(a, b);
 			if(double.IsNaN(alpha))//debug
 				Status("red", "DEBUG: Unable to calculate TTR. See the log.");
-			Utils.LogF("\nUT {}\ntanA {}\nposA {}\nposB {}\nalpha {}\nresonance {}",
-			           UT, tanA, posA, posB, alpha, resonance);//debug
+//			Utils.LogF("\nUT {}\ntanA {}\nposA {}\nposB {}\nalpha {}\nresonance {}",
+//			           UT, tanA, posA, posB, alpha, resonance);//debug
 			var TTR = alpha*resonance;
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
 		}
@@ -221,9 +218,6 @@ namespace ThrottleControlledAvionics
 			var pos = old.getRelativePositionAtUT(UT);
 			var R   = pos.magnitude;
 			var sma = Math.Pow(body.gravParameter*T*T/Utils.TwoPI/Utils.TwoPI, 1/3.0);
-			Utils.Log("\n{0}",
-			    Utils.Format("vel {}\nR {}\nsma {}\nnew vel {}",
-			                 vel, R, sma, Math.Sqrt((2/R - 1/sma)*body.gravParameter)));
 			return sma <= R/2? -vel : 
 				Vector3d.Exclude(pos, vel).normalized * 
 				Math.Sqrt((2/R - 1/sma)*body.gravParameter) - vel;
@@ -254,14 +248,12 @@ namespace ThrottleControlledAvionics
 			Vector3d dV, dVdir;
 			double alpha, resonance;
 			var TTR = TimeToResonance(old, target, UT, out resonance, out alpha);
-			Utils.LogF("\nTTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
+//			Utils.LogF("\nTTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
 			if(TTR > max_TTR) dV = dV4Resonance(old, target, Math.Max(max_TTR/2, 0.75), alpha, UT);
-			else //if(TTR > 1/2) 
-				return Vector3d.zero;
-//			else dV = dV4Resonance(old, target, 3/4, alpha, UT);
+			else return Vector3d.zero;
 			min_dV = dV.magnitude;
 			dVdir  = dV/min_dV;
-			Utils.LogF("\ndV {}\n dV*velN {}", dV, Vector3d.Dot(dV, old.getOrbitalVelocityAtUT(UT).normalized));//debug
+//			Utils.LogF("\ndV {}\n dV*velN {}", dV, Vector3d.Dot(dV, old.getOrbitalVelocityAtUT(UT).normalized));//debug
 			if(min_dV > max_dV) return dVdir*max_dV;
 			if(NewOrbit(old, dV, UT).PeR > min_PeR) return dV;
 			max_dV = min_dV;
@@ -271,9 +263,6 @@ namespace ThrottleControlledAvionics
 			{
 				var dVm  = (max_dV+min_dV)/2;
 				var orb  = NewOrbit(old, dVdir*dVm, UT);
-				var nTTR = TimeToResonance(orb, target, UT, out resonance, out alpha);//debug
-				Utils.LogF("\nPeR {}, minPeR {}\ndVm {} [{} : {}], TTR: {}", 
-				               orb.PeR, min_PeR, dVm, min_dV, max_dV, nTTR);//debug
 				if(orb.PeR > min_PeR) min_dV = dVm;
 				else max_dV = dVm;
 			}
@@ -303,7 +292,6 @@ namespace ThrottleControlledAvionics
 				var dm = UT-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT-dT);
 				if(dp < dist) { dist = dp; UT += dT; }
 				else if(dm < dist) { dist = dm; UT -= dT; }
-//				Utils.LogF("T {} : dist {}; dT {}", UT-StartUT, dist, dT);//debug
 				dT /= 2;
 			}
 			ApproachUT = UT; return Math.Sqrt(dist);
@@ -330,7 +318,6 @@ namespace ThrottleControlledAvionics
 				var dm = UT-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT-dT);
 				if(dp < dist) { dist = dp; UT += dT; }
 				else if(dm < dist) { dist = dm; UT -= dT; }
-				Utils.LogF("T {} : dist {}; dT {}", UT-StartUT, dist, dT);//debug
 				dT /= 2;
 			}
 			ApproachUT = UT; return Math.Sqrt(dist);
@@ -455,47 +442,31 @@ namespace ThrottleControlledAvionics
 			trajectory_calculator = null;
 		}
 
-		protected T current; //debug
 		IEnumerator<T> compute_trajectory()
 		{
-			Log("========= Computing trajectory =========");//debug
-			//T //debug
 			WRP.StopWarp();
-			current = null;
+			T current = null;
 			T best = null;
 			var maxI = TRJ.MaxIterations;
 			var frameI = TRJ.PerFrameIterations;
 			do {
-				//debug
-//				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) 
+//				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) //debug
 //				{ yield return null; continue; }
-				//debug
-				clear_nodes();
-//				if(CFG.Waypoints.Count > 1)
-//				{
-//					var wp = CFG.Waypoints.Peek();
-//					CFG.Waypoints.Clear();
-//					CFG.Waypoints.Enqueue(wp);
-//				}
-//				//debug
+//				clear_nodes(); //debug
 				current = next_trajectory(current, best);
 				if(best == null || current.IsBetter(best)) 
 					best = current;
 				frameI--; maxI--;
 				if(frameI <= 0)
 				{
-					//debug
-					add_node(current.ManeuverDeltaV, current.StartUT);
-	//				add_node((current as LandingTrajectory).BrakeDeltaV, (current as LandingTrajectory).BrakeNodeUT);
-	//				CFG.Waypoints.Enqueue((current as LandingTrajectory).SurfacePoint);
-//					Status("Push to continue");
-					//debug
+//					add_node(current.ManeuverDeltaV, current.StartUT);//debug
+//					Status("Push to continue");//debug
 					yield return null;
 					frameI = TRJ.PerFrameIterations;
 				}
 			} while(predicate(current, best) && maxI > 0);
-			Log("Best trajectory:\n{0}", best);//debug
-			clear_nodes();//debug
+//			Log("Best trajectory:\n{0}", best);//debug
+//			clear_nodes();//debug
 			yield return best;
 		}
 

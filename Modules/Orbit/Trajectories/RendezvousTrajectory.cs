@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
 			DeltaFi = 90-Vector3d.Angle(NewOrbit.GetOrbitNormal(), TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
 			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TimeToTarget;
-			Utils.Log("{0}", this);//debug
+//			Utils.Log("{0}", this);//debug
 		}
 
 		public override string ToString()

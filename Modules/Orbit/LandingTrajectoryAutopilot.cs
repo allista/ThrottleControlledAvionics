@@ -161,7 +161,6 @@ namespace ThrottleControlledAvionics
 				trajectory.UpdateOrbit(VesselOrbit, false);
 				DistanceFilter.Update(trajectory.DistanceToTarget);
 				Status("Decelerating. Landing site error: {0:F1}m", trajectory.DistanceToTarget);
-				CSV(last_distance, DistanceFilter, last_distance-DistanceFilter);//debug
 				var TargetPos = Target.WorldPos(Body);
 				if(last_distance-DistanceFilter > 0.01 || 
 				   Vector3d.Dot(VSL.HorizontalSpeed.Vector, 
