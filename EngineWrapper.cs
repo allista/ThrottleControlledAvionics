@@ -112,7 +112,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override bool isOperational 
-		{ get { return rcs.rcsEnabled && rcs.thrusterTransforms.Count > 0; } }
+		{ get { return rcs.rcsEnabled && rcs.thrusterTransforms.Count > 0 && rcs.thrusterTransforms.Count == rcs.thrustForces.Length; } }
 	}
 
 	public class EngineID
