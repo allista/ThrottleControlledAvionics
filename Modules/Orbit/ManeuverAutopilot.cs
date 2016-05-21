@@ -51,7 +51,7 @@ namespace ThrottleControlledAvionics
 			base.UpdateState();
 			var HasPatchedConics = GameVariables.Instance
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) == GameVariables.OrbitDisplayMode.PatchedConics;
-			IsActive = CFG.Enabled && CFG.AP1[Autopilot1.Maneuver] &&  Node != null && VSL.Engines.MaxThrustM > 0 && HasPatchedConics;
+			IsActive = CFG.Enabled && CFG.AP1[Autopilot1.Maneuver] && Node != null && HasPatchedConics;
 			ControlsActive = IsActive || VSL.HasManeuverNode && HasPatchedConics;
 		}
 
@@ -175,8 +175,8 @@ namespace ThrottleControlledAvionics
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) return false;
 			THR.Throttle = 0;
-			VSL.ActivateEnginesIfNeeded();
 			VSL.ActivateNextStageOnFlameout();
+			VSL.ActivateEnginesIfNeeded();
 			//orient along the burning vector
 			var may_use_RCS = VSL.Controls.RCSAvailableInDirection(-dV);
 			if(dVrem && may_use_RCS) 
@@ -184,7 +184,7 @@ namespace ThrottleControlledAvionics
 			else 
 			{
 				CFG.AT.OnIfNot(Attitude.Custom);
-				ATC.SetCustomRotationW(VSL.Engines.MaxThrust, -dV);
+				ATC.SetThrustDirW(-dV);
 			}
 			//check the condition
 			if(condition != null && !condition((float)dVrem)) return true;
@@ -196,8 +196,8 @@ namespace ThrottleControlledAvionics
 				else THR.DeltaV = (float)dVrem;
 			}
 			else THR.DeltaV = (float)dVrem;
-			LogF("\ndVrem: {}\nAttitudeError {}, DeltaV: {}, Throttle {}, RCS {}", 
-			     dVrem, ATC.AttitudeError, THR.DeltaV, THR.Throttle, may_use_RCS);//debug
+//			LogF("\ndVrem: {}\nAttitudeError {}, DeltaV: {}, Throttle {}, RCS {}", 
+//			     dVrem, ATC.AttitudeError, THR.DeltaV, THR.Throttle, may_use_RCS);//debug
 			return true;
 		}
 	}

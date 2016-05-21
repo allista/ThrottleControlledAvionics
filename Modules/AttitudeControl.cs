@@ -103,6 +103,8 @@ namespace ThrottleControlledAvionics
 				            axis2.normalized * angle2) * Mathf.Deg2Rad;
 			}
 			else steering = rotation2steering(Quaternion.FromToRotation(needed, current));
+//			LogF("\nneeded {}\ncurrent {}\nangle {}, steering {}",
+//			     needed, current, Vector3.Angle(needed, current), steering);//debug
 		}
 
 		protected void compute_steering(Quaternion rotation)
@@ -160,6 +162,16 @@ namespace ThrottleControlledAvionics
 		bool attitude_locked;
 		Vector3 thrust, lthrust, needed_lthrust;//debug
 
+		Vector3 current_thrust 
+		{
+			get
+			{
+				var thrust = VSL.Engines.Thrust;
+				if(thrust.IsZero()) thrust = VSL.Engines.MaxThrust;
+				return thrust;
+			}
+		}
+
 		TimeWarpControl TWR;
 
 		public AttitudeControl(ModuleTCA tca) : base(tca) {}
@@ -200,6 +212,9 @@ namespace ThrottleControlledAvionics
 		public void SetCustomRotationW(Vector3 current, Vector3 needed)
 		{ CustomRotation = Rotation.Local(current, needed, VSL); }
 
+		public void SetThrustDirW(Vector3 needed)
+		{ CustomRotation = Rotation.Local(current_thrust, needed, VSL); }
+
 		public void ResetCustomRotation() { CustomRotation = default(Rotation); }
 
 		protected override void reset()
@@ -214,9 +229,7 @@ namespace ThrottleControlledAvionics
 		{
 			Vector3 v;
 			omega_min.Update(VSL.vessel.angularVelocity.sqrMagnitude);
-			thrust = VSL.Engines.Thrust;
-			if(thrust.IsZero()) thrust = VSL.Engines.MaxThrust;
-			if(thrust.IsZero()) thrust = -VSL.refT.up;
+			thrust = current_thrust;
 			lthrust = VSL.LocalDir(thrust).normalized;
 			needed_lthrust = Vector3.zero;
 			steering = Vector3.zero;
@@ -234,7 +247,7 @@ namespace ThrottleControlledAvionics
 					attitude_locked = true;
 				}
 				if(refT != null)
-					needed_lthrust = refT.rotation.Inverse()*locked_attitude*lthrust;
+					needed_lthrust = refT.rotation.Inverse()*locked_attitude*refT.up;
 				break;
 			case Attitude.KillRotation:
 				if(refT != VSL.refT || omega_min.True)
@@ -243,7 +256,7 @@ namespace ThrottleControlledAvionics
 					locked_attitude = refT.rotation;
 				}
 				if(refT != null)
-					needed_lthrust = refT.rotation.Inverse()*locked_attitude*lthrust;
+					needed_lthrust = refT.rotation.Inverse()*locked_attitude*refT.up;
 				break;
 			case Attitude.Prograde:
 			case Attitude.Retrograde:
@@ -289,7 +302,8 @@ namespace ThrottleControlledAvionics
 				needed_lthrust = VSL.LocalDir(-solver.maneuverNodes[0].GetBurnVector(VSL.orbit).normalized);
 				break;
 			}
-			if(!needed_lthrust.IsZero()) compute_steering(lthrust, needed_lthrust);
+			if(!(lthrust.IsZero() || needed_lthrust.IsZero())) 
+				compute_steering(lthrust, needed_lthrust);
 			ResetCustomRotation();
 		}
 
@@ -303,13 +317,13 @@ namespace ThrottleControlledAvionics
 			Steer(s);
 
 			#if DEBUG
-//			var error = Quaternion.FromToRotation(needed_lthrust, lthrust).eulerAngles;
-//			CSV(AttitudeError, 
-//			    error.x, error.y, error.z,
-//			    steering.x, steering.y, steering.z, 
-//			    pid.Action.x, pid.Action.y, pid.Action.z,
-//			    angularV.x, angularV.y, angularV.z 
-//			   );//debug
+			var error = Quaternion.FromToRotation(needed_lthrust, lthrust).eulerAngles;
+			CSV(AttitudeError, 
+			    error.x, error.y, error.z,
+			    steering.x, steering.y, steering.z, 
+			    pid.Action.x, pid.Action.y, pid.Action.z,
+			    angularV.x, angularV.y, angularV.z 
+			   );//debug
 			if(VSL.IsActiveVessel)
 				TCAGui.DebugMessage = 
 					string.Format("pid: {0}\nsteering: {1}%\ngimbal limit: {2}",
@@ -371,7 +385,7 @@ namespace ThrottleControlledAvionics
 				CFG.AT.XToggle(Attitude.AntiRelVel);
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.enabled_button : Styles.grey, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
-			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", AttitudeError) : "Err: N/A", 
+			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", AttitudeError) : "", 
 			            Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}

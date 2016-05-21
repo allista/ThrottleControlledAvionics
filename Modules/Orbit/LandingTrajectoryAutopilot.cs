@@ -151,7 +151,7 @@ namespace ThrottleControlledAvionics
 				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-1;
 				VSL.Info.TTB = (float)trajectory.BrakeDuration;
 				CFG.AT.OnIfNot(Attitude.Custom);
-				ATC.SetCustomRotationW(VSL.Engines.MaxThrust, trajectory.AtTargetVel.xzy);
+				ATC.SetThrustDirW(trajectory.AtTargetVel.xzy);
 				if(ATC.Aligned) WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else WRP.StopWarp();
 				if(VSL.Info.Countdown <= 0) decelerate();
@@ -173,9 +173,8 @@ namespace ThrottleControlledAvionics
 				   Vector3d.Angle(VSL.Engines.MaxThrust, -VSL.Physics.Up) > 10)
 				{
 					CFG.AT.OnIfNot(Attitude.Custom);
-					ATC.SetCustomRotationW(VSL.Engines.MaxThrust,
-					                       VesselOrbit.vel.xzy-
-					                       Vector3d.Exclude(VSL.Physics.Up, TargetPos-trajectory.AtTargetPos.xzy)/100);
+					ATC.SetThrustDirW(VesselOrbit.vel.xzy-
+					                  Vector3d.Exclude(VSL.Physics.Up, TargetPos-trajectory.AtTargetPos.xzy)/100);
 					if(ATC.Aligned) THR.DeltaV = Utils.ClampL((float)VSL.vessel.srfSpeed-LTRJ.BrakeEndSpeed+1, 0);
 					break;
 				}
