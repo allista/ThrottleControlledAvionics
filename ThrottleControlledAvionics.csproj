@@ -165,6 +165,7 @@
     <Compile Include="Modules\Planet\VTOLControl.cs" />
     <Compile Include="Utils\Triggers.cs" />
     <Compile Include="Utils\LambertSolver.cs" />
+    <Compile Include="Utils\ToOrbitSim.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
