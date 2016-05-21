@@ -19,6 +19,7 @@ namespace ThrottleControlledAvionics
 		public Vector3d normalized { get { return Vector.normalized; } }
 		public float    Absolute { get; private set; }
 		public bool     MoovingFast;
+		public bool     Mooving;
 
 		public static implicit operator float(HorizontalSpeedProps hsp) { return hsp.Absolute; }
 

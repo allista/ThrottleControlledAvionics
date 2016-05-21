@@ -187,7 +187,7 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(Macro == null || CFG == null || !CFG.GUIVisible || !showHUD) 
+			if(Macro == null || CFG == null || !do_show) 
 			{
 				Utils.LockIfMouseOver(LockName, MainWindow, false);
 				return;

@@ -54,6 +54,15 @@ namespace ThrottleControlledAvionics
 		public static void logOrbit(string name, Orbit o)
 		{ Utils.Log("Orbit: {0}\n{1}", name, Utils.formatOrbit(o)); }
 
+		public static string FormatSteering(Vector3 steering)
+		{ return Utils.Format("[pitch {}, roll {}, yaw {}]", steering.x, steering.y, steering.z); }
+
+		public static string FormatActions(BaseActionList actions)
+		{
+			return actions.Aggregate("", (s, a) => s + string.Format("{0} ({1}, active: {2}); ", 
+			                                                         a.guiName, a.actionGroup, a.active));
+		}
+
 		public static string getStacktrace(int skip = 0) { return new StackTrace(skip+1, true).ToString(); }
 
 		public static void LogF(string msg, params object[] args)
@@ -239,17 +248,29 @@ namespace ThrottleControlledAvionics
 
 		void Awake()
 		{
-			var game = "default";
-			var save = "persistent";
+			var game = "";
+			var save = "";
 			if(File.Exists(config))
 			{
 				var cfg = ConfigNode.Load(config);
-				var val = cfg.GetValue("game");
-				if(val != null) game = val;
-				val = cfg.GetValue("save");
-				if(val != null) save = val;
+				if(cfg != null)
+				{
+					var val = cfg.GetValue("game");
+					if(val != null) game = val;
+					val = cfg.GetValue("save");
+					if(val != null) save = val;
+				}
+				else 
+				{
+					Utils.LogF("LoadTestGame: Configuration file is empty: {}", config);
+					return;
+				}
 			}
-			else Utils.LogF("LoadTestGame: Configuration file not found: {}", config);
+			else 
+			{
+				Utils.LogF("LoadTestGame: Configuration file not found: {}", config);
+				return;
+			}
 			var savefile = savesdir+"/"+game+"/"+save+".sfs";
 			if(!File.Exists(savefile)) 
 			{

@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
@@ -62,6 +63,15 @@ namespace ThrottleControlledAvionics
 			        (VSL.LandedOrSplashed || VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody)) &&
 			        TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
+		}
+
+		public override void Draw()
+		{
+			if(Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
+			{
+				CFG.WarpToNode = !CFG.WarpToNode;
+				if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
+			}
 		}
 	}
 }

@@ -76,7 +76,7 @@ namespace ThrottleControlledAvionics
 				var sthrust = rcs.thrustForces[i];
 				var T = rcs.thrusterTransforms[i];
 				if(T == null) continue;
-				avg_thrust_dir += T.up*sthrust;
+				avg_thrust_dir += (rcs.useZaxis? T.forward : T.up)*sthrust;
 				avg_thrust_pos += T.position*sthrust;
 				total_sthrust += sthrust;
 			}
@@ -95,8 +95,9 @@ namespace ThrottleControlledAvionics
 		public override Vector3 wThrustDir { get { return avg_thrust_dir; } }
 		public override Vector3 wThrustPos { get { return avg_thrust_pos; } }
 
-		public float maxThrust { get { return current_max_thrust; } }
+		public float currentMaxThrust { get { return current_max_thrust; } }
 		public override float finalThrust { get { return current_thrust; } }
+		public float maxThrust { get { return rcs.thrusterPower*thrustMod; } }
 
 		public override Vector3 Thrust (float throttle)
 		{ return thrustDirection*current_max_thrust*throttle; }
@@ -118,7 +119,7 @@ namespace ThrottleControlledAvionics
 	{
 		uint id;
 
-		public EngineID(EngineWrapper e)
+		public EngineID(EngineWrapper e) //FIXME: generates Number overflow on flight scene load
 		{
 			if(e.part == null || e.engine == null) return;
 			var rT  = e.part.localRoot == null? e.part.transform : e.part.localRoot.transform;
@@ -188,7 +189,7 @@ namespace ThrottleControlledAvionics
 				limit = best_limit = 0f;
 				break;
 			case TCARole.MANUAL:
-				limit = best_limit = thrustLimit/100;
+				limit = best_limit = thrustLimit;
 				break;
 			}
 		}
@@ -266,5 +267,15 @@ namespace ThrottleControlledAvionics
 
 		public override bool isOperational { get { return engine.isOperational; } }
 		#endregion
+
+		public override string ToString()
+		{
+			return Utils.Format("[EngineWrapper: name={}, ID={}, flightID={}, Stage={}, Role={}, Group={},\n" + 
+			                    "useEngineResponseTime={}, engineAccelerationSpeed={}, engineDecelerationSpeed={},\n" + 
+			                    "finalThrust={}, thrustLimit={}, isOperational={}]", 
+			                    name, ID, flightID, part.inverseStage, Role, Group, 
+			                    useEngineResponseTime, engineAccelerationSpeed, engineDecelerationSpeed, 
+			                    finalThrust, thrustLimit, isOperational);
+		}
 	}
 }

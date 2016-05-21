@@ -41,7 +41,7 @@ namespace ThrottleControlledAvionics
 				VSL.OnPlanet && 
 				CFG.StabilizeFlight && 
 				!VSL.LandedOrSplashed && 
-				(Working || !CFG.HF && !CFG.AT && !VSL.vessel.ActionGroups[KSPActionGroup.SAS] && !VSL.AutopilotDisabled);
+				(Working || !CFG.HF && !CFG.AT && !CFG.CTRL[ControlMode.VTOL] && !VSL.vessel.ActionGroups[KSPActionGroup.SAS] && !VSL.HasUserInput);
 			if(IsActive) return;
 			if(Working) CFG.HF.OffIfOn(HFlight.Level);
 			Working = false;
@@ -57,7 +57,7 @@ namespace ThrottleControlledAvionics
 				SetState(TCAState.StabilizeFlight);
 				CFG.HF.OnIfNot(HFlight.Level);
 			}
-			var omega = Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.Physics.Up);
+			var omega = Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.Physics.UpL);
 			if(omega.sqrMagnitude > STB.MinAngularVelocity)
 			{ 
 				OffTimer.Reset();

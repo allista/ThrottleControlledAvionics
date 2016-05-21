@@ -210,9 +210,9 @@ namespace ThrottleControlledAvionics
 //		public void RadarBeam()
 //		{
 //			if(VSL == null || VSL.vessel == null) return;
-//			for(int i = 0, VSLEnginesCount = VSL.Engines.Count; i < VSLEnginesCount; i++)
+//			for(int i = 0; i < VSL.Engines.NumActive; i++)
 //			{
-//				var e = VSL.Engines[i];
+//				var e = VSL.Engines.Active[i];
 //				if(e.thrustInfo == null) continue;
 //				GLUtils.GLVec(e.wThrustPos, e.wThrustDir * 0.5f, Color.yellow);
 //			}

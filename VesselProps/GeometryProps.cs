@@ -68,6 +68,26 @@ namespace ThrottleControlledAvionics
 			}
 			B = b;
 		}
+
+		public Vector3 BoundsSideAreas
+		{
+			get
+			{
+				return new Vector3(
+					B.extents.y*B.extents.z, //right
+					B.extents.x*B.extents.z, //up
+					B.extents.x*B.extents.y);//forward
+			}
+		}
+
+		public float AreaInDirection(Vector3 wdir)
+		{
+			wdir.Normalize();
+			return Vector3.Dot(BoundsSideAreas, new Vector3(
+				Mathf.Abs(Vector3.Dot(wdir, VSL.refT.right)), 
+				Mathf.Abs(Vector3.Dot(wdir, VSL.refT.up)),
+				Mathf.Abs(Vector3.Dot(wdir, VSL.refT.forward))));
+		}
 	}
 }
 

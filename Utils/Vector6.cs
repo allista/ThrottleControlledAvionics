@@ -89,7 +89,6 @@ namespace ThrottleControlledAvionics
 			var cvec = Vector3.zero;
 			for(int i = 0; i < 3; i++)
 			{
-				cvec.Zero();
 				cvec[i] = positive[i];
 				cvec = Vector3.ProjectOnPlane(cvec, normal);
 				var cvecm = cvec.sqrMagnitude;
@@ -98,25 +97,26 @@ namespace ThrottleControlledAvionics
 				cvec = Vector3.ProjectOnPlane(cvec, normal);
 				cvecm = cvec.sqrMagnitude;
 				if(cvecm > maxm) { max = cvec; maxm = cvecm; }
+				cvec[i] = 0;
 			}
 			return max;
 		}
 
 		public Vector3 Project(Vector3 normal)
 		{
-			var proj = Vector3.zero;
+			var proj = 0f;
 			var cvec = Vector3.zero;
 			for(int i = 0; i < 3; i++)
 			{
-				cvec.Zero();
 				cvec[i] = positive[i];
 				var projm = Vector3.Dot(cvec, normal);
-				if(projm > 0) proj += normal*projm;
+				if(projm > 0) proj += projm;
 				cvec[i] = negative[i];
 				projm = Vector3.Dot(cvec, normal);
-				if(projm > 0) proj += normal*projm;
+				if(projm > 0) proj += projm;
+				cvec[i] = 0;
 			}
-			return proj;
+			return proj*normal;
 		}
 
 		public Vector6 Transform(Transform T)
@@ -126,6 +126,17 @@ namespace ThrottleControlledAvionics
 			{
 				tV.Add(T.TransformDirection(negative.Component(i)));
 				tV.Add(T.TransformDirection(positive.Component(i)));
+			}
+			return tV;
+		}
+
+		public Vector6 InverseTransform(Transform T)
+		{
+			var tV = new Vector6();
+			for(int i = 0; i < 3; i++)
+			{
+				tV.Add(T.InverseTransformDirection(negative.Component(i)));
+				tV.Add(T.InverseTransformDirection(positive.Component(i)));
 			}
 			return tV;
 		}

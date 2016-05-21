@@ -19,36 +19,28 @@ namespace ThrottleControlledAvionics
 		TimeWarpControl WRP;
 		MatchVelocityAutopilot MVA;
 		ManeuverAutopilot MAP;
+		DeorbitAutopilot DEO;
+		RendezvouAutopilot REN;
+		PointNavigator PN;
 
 		public override void Draw()
 		{
-			if(!VSL.InOrbit || (MVA == null && MAP == null)) return;
 			GUILayout.BeginHorizontal();
-			if(WRP != null && VSL.Info.Countdown > 0 && 
-			   Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
-			{
-				CFG.WarpToNode = !CFG.WarpToNode;
-				if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
-			}
-			if(MAP != null && VSL.HasManeuverNode) 
-			{
-				if(GUILayout.Button(CFG.AP[Autopilot.Maneuver]? "Abort Maneuver" : "Execute Maneuver", 
-				                    CFG.AP[Autopilot.Maneuver]? Styles.red_button : Styles.green_button, GUILayout.ExpandWidth(true)))
-					CFG.AP.XToggle(Autopilot.Maneuver);
-			}
-			if(MVA != null && VSL.HasTarget && !CFG.AP[Autopilot.Maneuver])
-			{
-				if(Utils.ButtonSwitch("Match Velocity", CFG.AP[Autopilot.MatchVel], 
-				                      "Match orbital velocity with the target", GUILayout.ExpandWidth(true)))
-					CFG.AP.XToggle(Autopilot.MatchVel);
-				if(Utils.ButtonSwitch("Brake Near Target", CFG.AP[Autopilot.MatchVelNear], 
-				                      "Match orbital velocity with the target at nearest point", GUILayout.ExpandWidth(true)))
-					CFG.AP.XToggle(Autopilot.MatchVelNear);
-			}
-			if(VSL.Info.Countdown >= 0)
-				GUILayout.Label(string.Format("Countdown: {0:F1}s", VSL.Info.Countdown), Styles.white, GUILayout.ExpandWidth(true));
-			if(VSL.Info.TTB >= 0)
-				GUILayout.Label(string.Format("Full Thrust: {0:F1}s", VSL.Info.TTB), Styles.yellow, GUILayout.ExpandWidth(true));
+			if(WRP != null) WRP.Draw();
+			if(MAP != null) MAP.Draw();
+			if(MVA != null) MVA.Draw();
+			if(REN != null) REN.Draw();
+			if(DEO != null) DEO.Draw();
+			if(PN  != null) TCAGui.NavigationControls.AddSingleWaypointInMapView();
+			GUILayout.Label(new GUIContent(VSL.Info.Countdown >= 0? 
+			                               string.Format("-{0:F1}s", VSL.Info.Countdown) : "", 
+			                               "Countdown" ),
+			                VSL.Info.Countdown > 10? Styles.white : Styles.red, 
+			                GUILayout.ExpandWidth(true));
+			GUILayout.Label(new GUIContent(VSL.Info.TTB >= 0? 
+			                               string.Format("{0:F1}s", VSL.Info.TTB) : "",
+			                               "Full Thrust Duration"), 
+			                Styles.yellow, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 	}

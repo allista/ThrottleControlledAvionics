@@ -128,9 +128,13 @@ namespace ThrottleControlledAvionics
 			vessel.OnAutopilotUpdate += UpdateAutopilotInfo;
 		}
 
+		public void ConnectAutopilotOutput()
+		{ vessel.OnAutopilotUpdate += ApplyAutopilotSteering; }
+
 		public void Reset()
 		{
 			vessel.OnAutopilotUpdate -= UpdateAutopilotInfo;
+			vessel.OnAutopilotUpdate -= ApplyAutopilotSteering;
 			RestoreUnpackDistance();
 		}
 
@@ -148,13 +152,23 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool AutopilotDisabled;
+		public bool HasUserInput;
 		public void UpdateAutopilotInfo(FlightCtrlState s)
 		{
 			if(!CFG.Enabled) return;
-			AutopilotDisabled = 
+			HasUserInput = 
 				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
 				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
+			AutopilotDisabled = HasUserInput;
+		}
+
+		public void ApplyAutopilotSteering(FlightCtrlState s)
+		{
+			s.pitch = Utils.Clamp(Controls.AutopilotSteering.x, -1, 1);
+			s.roll  = Utils.Clamp(Controls.AutopilotSteering.y, -1, 1);
+			s.yaw   = Utils.Clamp(Controls.AutopilotSteering.z, -1, 1);
+			Controls.AutopilotSteering = Vector3.zero;
 		}
 
 		public void UpdateState()
@@ -244,6 +258,40 @@ namespace ThrottleControlledAvionics
 			}
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines.All);
 			else if(CFG.Enabled && TCA.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
+		}
+
+		void activate_next_stage()
+		{
+			if(vessel.currentStage <= 0) return;
+			if(IsActiveVessel)
+			{
+				Staging.ActivateNextStage();
+				vessel.ActionGroups.ToggleGroup(KSPActionGroup.Stage);
+				ResourceDisplay.Instance.Refresh();
+			}
+			else
+			{
+				int next_stage = vessel.currentStage-1;
+				GameEvents.onStageActivate.Fire(next_stage);
+				vessel.parts.ForEach(p => p.activate(next_stage, vessel));
+				vessel.currentStage = next_stage;
+				vessel.ActionGroups.ToggleGroup(KSPActionGroup.Stage);
+			}
+		}
+		readonly ActionDamper stage_cooldown = new ActionDamper(0.5);
+
+		public void ActivateNextStage() 
+		{ stage_cooldown.Run(activate_next_stage); }
+
+		public void ActivateEnginesIfNeeded() 
+		{ if(CFG.AutoStage && Engines.Active.Count == 0) ActivateNextStage(); }
+
+		public void ActivateNextStageOnFlameout()
+		{
+			if(CFG.AutoStage &&
+			   Engines.All.Count(e => e.engine.flameout && 
+			                     e.part.inverseStage == vessel.currentStage) > 0)
+				ActivateNextStage();
 		}
 	}
 

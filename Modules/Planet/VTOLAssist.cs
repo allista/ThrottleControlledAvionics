@@ -125,7 +125,7 @@ namespace ThrottleControlledAvionics
 			{
 				working(false);
 				//if the gear is on, nothing to do; and autopilot takes precedence
-				if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear] && !CFG.AP[Autopilot.Land])
+				if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear] && !CFG.AP1[Autopilot1.Land])
 				{
 					//check boundary conditions
 					GearTimer.RunIf(() => 

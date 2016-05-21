@@ -10,7 +10,7 @@
 
 namespace ThrottleControlledAvionics
 {
-	public abstract class ControlPanel : TCAComponent
+	public abstract class ControlPanel : DrawableComponent
 	{
 		protected ControlPanel(ModuleTCA tca) : base(tca) { InitModuleFields(); }
 

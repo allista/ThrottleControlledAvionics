@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
@@ -15,8 +16,9 @@ namespace ThrottleControlledAvionics
 {
 	public static partial class Utils
 	{
-		public const double TwoPI = 6.2831853;
-		public const float G0 = 9.80665f; //m/s2
+		public const double TwoPI  = Math.PI*2;
+		public const double HalfPI = Math.PI/2;
+		public const float  G0 = 9.80665f; //m/s2
 
 		/// <summary>
 		/// The camel case components matching regexp.
@@ -48,17 +50,26 @@ namespace ThrottleControlledAvionics
 
 		public static string formatOrbit(Orbit o)
 		{
-			return string.Format(
-				"Body R: {0} m\n" +
-				"PeR:    {1} m\n" +
-				"ApR:    {2} m\n" +
-				"Ecc:    {3}\n" +
-				"Inc:    {4} deg\n" +
-				"Period: {5} s\n" +
-				"Vel: {6} m/s\n",
+			return Utils.Format(
+				"Body R: {} m\n" +
+				"PeR:    {} m\n" +
+				"ApR:    {} m\n" +
+				"Ecc:    {}\n" +
+				"Inc:    {} deg\n" +
+				"LAN:    {} deg\n" +
+				"MA:     {} rad\n" +
+				"TA:     {} deg\n" +
+				"AoP:    {} deg\n" +
+				"Period: {} s\n" +
+				"epoch:   {}\n" +
+				"T@epoch: {} s\n" +
+				"T:       {} s\n" +
+				"Vel: {} m/s\n" +
+				"Pos: {} m\n",
 				o.referenceBody.Radius, o.PeR, o.ApR, 
-				o.eccentricity, o.inclination, o.period, 
-				formatVector(o.vel));
+				o.eccentricity, o.inclination, o.LAN, o.meanAnomaly, o.trueAnomaly, o.argumentOfPeriapsis,
+				o.period, o.epoch, o.ObTAtEpoch, o.ObT,
+				formatVector(o.vel), formatVector(o.pos));
 		}
 
 		static void convert_args(object[] args)
@@ -131,11 +142,27 @@ namespace ThrottleControlledAvionics
 		public static float CenterAngle(float a) { return a > 180? a-360 : a; }
 		public static double CenterAngle(double a) { return a > 180? a-360 : a; }
 
-		public static float EWA(float old, float cur, float ratio = 0.7f)
-		{ return (1-ratio)*old + ratio*cur; }
+		public static float AngleDelta(float a, float b)
+		{
+			var d = Utils.CenterAngle(b)-Utils.CenterAngle(a);
+			return Mathf.Abs(d) > 180? -Mathf.Sign(d)*(360-Mathf.Abs(d)) : d;
+		}
 
-		public static Vector3 EWA(Vector3 old, Vector3 cur, float ratio = 0.7f)
-		{ return (1-ratio)*old + ratio*cur; }
+		public static double AngleDelta(double a, double b)
+		{
+			var d = Utils.CenterAngle(b)-Utils.CenterAngle(a);
+			return Math.Abs(d) > 180? -Math.Sign(d)*(360-Math.Abs(d)) : d;
+		}
+
+		public static double ClampRad(double a) { a = a%TwoPI; return a < 0? TwoPI+a : a; }
+		public static double CenterRad(double a) { return a > Math.PI? a-TwoPI : a; }
+		public static double RadDelta(double a, double b)
+		{
+			var d = Utils.CenterRad(b)-Utils.CenterRad(a);
+			return Math.Abs(d) > Math.PI? -Math.Sign(d)*(TwoPI-Math.Abs(d)) : d;
+		}
+
+		public static double Acot(double x) { return HalfPI - Math.Atan(x); }
 
 		public static double Haversine(double a) { return (1-Math.Cos(a))/2; }
 
@@ -155,6 +182,12 @@ namespace ThrottleControlledAvionics
 			var Bt = Vector3d.Dot(B, Vector3d.Exclude(A, tangentA).normalized);
 			return Math.Atan2(Bt, Ba)*Mathf.Rad2Deg;
 		}
+
+		public static float EWA(float old, float cur, float ratio = 0.7f)
+		{ return (1-ratio)*old + ratio*cur; }
+
+		public static Vector3 EWA(Vector3 old, Vector3 cur, float ratio = 0.7f)
+		{ return (1-ratio)*old + ratio*cur; }
 		#endregion
 
 		//from http://stackoverflow.com/questions/716399/c-sharp-how-do-you-get-a-variables-name-as-it-was-physically-typed-in-its-dec
@@ -199,6 +232,9 @@ namespace ThrottleControlledAvionics
 			var alt = body.pqsController.GetSurfaceHeight(body.GetRelSurfaceNVector(Lat, Lon)) - body.pqsController.radius;
 			return body.ocean && alt < 0? 0 : alt;
 		}
+
+		public static double TerrainAltitude(CelestialBody body, Vector3d wpos)
+		{ return TerrainAltitude(body, body.GetLatitude(wpos), body.GetLongitude(wpos)); }
 
 		public static Vector2 GetMousePosition(Rect window) 
 		{
@@ -286,104 +322,16 @@ namespace ThrottleControlledAvionics
 		{ return string.Format("Lat: {0} Lon: {1}", AngleToDMS(Lat), AngleToDMS(Lon)); }
 	}
 
-	#region Timers
-	public class TimerBase
+	public class ListDict<K,V> : Dictionary<K, List<V>>
 	{
-		protected DateTime next_time;
-		public double Period;
-
-		public TimerBase(double period) { Period = period; next_time = DateTime.MinValue; }
-		public void Reset() { next_time = DateTime.MinValue; }
-
-		public override string ToString()
+		public void Add(K key, V value)
 		{
-			var time = DateTime.Now;
-			return string.Format("time: {0} < next time {1}: {2}", 
-			                     time, next_time, time < next_time);
+			List<V> lst;
+			if(TryGetValue(key, out lst))
+				lst.Add(value);
+			else this[key] = new List<V>{value};
 		}
 	}
-
-	public class ActionDamper : TimerBase
-	{
-		public ActionDamper(double period = 0.1) : base(period) {}
-
-		public void Run(Action action)
-		{
-			var time = DateTime.Now;
-			if(next_time > time) return;
-			next_time = time.AddSeconds(Period);
-			action();
-		}
-	}
-
-	public class Timer : TimerBase
-	{
-		public Timer(double period = 1) : base(period) {}
-
-		public bool Check
-		{
-			get 
-			{
-				var time = DateTime.Now;
-				if(next_time == DateTime.MinValue)
-				{
-					next_time = time.AddSeconds(Period); 
-					return false;
-				}
-				return next_time < time;
-			}
-		}
-
-		public void RunIf(Action action, bool predicate)
-		{
-			if(predicate) { if(Check) { action(); Reset(); } }
-			else Reset();
-		}
-	}
-	#endregion
-
-	public class Switch
-	{
-		bool state, prev_state;
-
-		public void Set(bool s)
-		{ prev_state = state; state = s; }
-
-		public bool WasSet { get { return state != prev_state; } }
-		public bool On { get { return state; } }
-		public void Checked() { prev_state = state; }
-
-		public static implicit operator bool(Switch s) { return s.state; }
-	}
-
-	public class SingleAction
-	{
-		bool done;
-		public Action action;
-
-		public void Run() 
-		{ if(!done) { action(); done = true; } }
-
-		public void Run(Action act) 
-		{ if(!done) { act(); done = true; } }
-
-		public void Reset() { done = false; }
-
-		public static implicit operator bool(SingleAction a) { return a.done; }
-	}
-
-	public abstract class Extremum<T> where T : IComparable
-	{
-		protected T v2, v1, v0;
-		protected int i;
-
-		public void Update(T cur) { v2 = v1; v1 = v0; v0 = cur; if(i < 3) i++; }
-		public abstract bool True { get; }
-		public void Reset() { v2 = v1 = v0 = default(T); i = 0; }
-	}
-
-	public class FloatMinimum: Extremum<float>
-	{ public override bool True { get { return i > 2 && v2 >= v1 && v1 < v0; } } }
 
 	//from MechJeb2
 	public class Matrix3x3f

@@ -28,11 +28,14 @@ namespace ThrottleControlledAvionics
 
 		public List<RCSWrapper> RCS = new List<RCSWrapper>();
 		public List<RCSWrapper> ActiveRCS = new List<RCSWrapper>();
+		public Vector6 MaxThrustRCS = new Vector6();
 
 		public int  NumActive { get; private set; }
 		public int  NumActiveRCS { get; private set; }
 		public bool NoActiveRCS { get; private set; }
 		public bool ForceUpdateEngines = false;
+
+		public KSPActionGroup ActionGroups  { get; private set; } = KSPActionGroup.None;
 
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
@@ -47,6 +50,27 @@ namespace ThrottleControlledAvionics
 
 		public void Clear() { All.Clear(); RCS.Clear(); }
 		public void Add(EngineWrapper e) { All.Add(e); }
+
+		public Vector3 NextStageMaxThrust(out float max_mass_flow)
+		{
+			max_mass_flow  = 0;
+			var max_thrust = Vector3.zero;
+			int last_stage = Staging.RecalculateVesselStaging(VSL.vessel)-1;
+			int next_stage = Utils.ClampL(Math.Min(VSL.vessel.currentStage, last_stage)-1, 0);
+			for(int i = 0, AllCount = All.Count; i < AllCount; i++)
+			{
+				var e = All[i];
+				if(e.part.inverseStage != next_stage) continue;
+				e.InitState();
+				var throttle = e.Role == TCARole.MANUAL ? e.thrustLimit : 1;
+				if(throttle > 0)
+				{
+					max_thrust += e.wThrustDir * e.nominalCurrentThrust(throttle);
+					max_mass_flow += e.engine.maxThrust*throttle/e.engine.atmosphereCurve.Evaluate((float)(e.part.staticPressureAtm))/Utils.G0;
+				}
+			}
+			return max_thrust;
+		}
 
 		public bool Check()
 		{
@@ -84,12 +108,20 @@ namespace ThrottleControlledAvionics
 			if(VSL.TCA.ProfileSyncAllowed)
 			{
 				if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(All);
-				else CFG.ActiveProfile.Update(All);
+				else CFG.ActiveProfile.Update(All, true);
 			}
 			//get active engines and RCS
+			var groups = KSPActionGroup.None;
 			Active.Clear(); Active.Capacity = All.Count;
 			for(int i = 0; i < num_engines; i++)
-			{ var e = All[i]; if(e.isOperational) Active.Add(e); }
+			{ 
+				var e = All[i]; 
+				if(e.isOperational) Active.Add(e);
+				//check action groups
+				for(int j = 0; j < e.engine.Actions.Count; j++)
+					groups |= e.engine.Actions[j].actionGroup;
+			}
+			ActionGroups = groups;
 			ActiveRCS.Clear();
 			if(vessel.ActionGroups[KSPActionGroup.RCS])
 			{
@@ -158,14 +190,18 @@ namespace ThrottleControlledAvionics
 				                          GLB.ENG.TorqueRatioFactor);
 				//do not include maneuver engines' thrust into the total to break the feedback loop with HSC
 				if(e.Role != TCARole.MANEUVER) Thrust += e.wThrustDir*e.finalThrust;
-				if(e.isVSC)
+				if(e.isVSC || e.Role == TCARole.MANUAL)
 				{
-					MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
-					MaxMassFlow += e.engine.maxThrust/e.engine.realIsp/Utils.G0;
-					if(e.useEngineResponseTime && e.finalThrust > 0)
+					var throttle = e.Role == TCARole.MANUAL? e.thrustLimit : 1;
+					if(throttle > 0)
 					{
-						var decelT = 1f/e.engineDecelerationSpeed;
-						if(decelT > ThrustDecelerationTime) ThrustDecelerationTime = decelT;
+						MaxThrust += e.wThrustDir*e.nominalCurrentThrust(throttle);
+						MaxMassFlow += e.engine.maxThrust*throttle/e.engine.realIsp/Utils.G0;
+						if(e.useEngineResponseTime && e.finalThrust > 0)
+						{
+							var decelT = 1f/e.engineDecelerationSpeed;
+							if(decelT > ThrustDecelerationTime) ThrustDecelerationTime = decelT;
+						}
 					}
 				}
 				if(e.useEngineResponseTime && (e.Role == TCARole.MAIN || e.Role == TCARole.MANEUVER))
@@ -181,19 +217,19 @@ namespace ThrottleControlledAvionics
 			SlowTorque = TorqueResponseTime > 0;
 			MaxThrustM = MaxThrust.magnitude;
 			//init RCS wrappers if needed
-			if(!NoActiveRCS)
+			MaxThrustRCS = new Vector6();
+			for(int i = 0; i < NumActiveRCS; i++)
 			{
-				for(int i = 0; i < NumActiveRCS; i++)
-				{
-					var t = ActiveRCS[i];
-					t.InitState();
-					t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
-					t.wThrustLever = t.wThrustPos-VSL.Physics.wCoM;
-					t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.wThrustLever, t.wThrustDir));
-					t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(t.wThrustLever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
-					t.currentTorque = t.Torque(1);
-					t.currentTorque_m = t.currentTorque.magnitude;
-				}
+				var t = ActiveRCS[i];
+				t.InitState();
+				t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
+				t.rcs.thrusterTransforms.ForEach(T => MaxThrustRCS.Add(refT.InverseTransformDirection((t.rcs.useZaxis? T.forward : T.up)*t.maxThrust)));
+				if(NoActiveRCS) continue;
+				t.wThrustLever = t.wThrustPos-VSL.Physics.wCoM;
+				t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.wThrustLever, t.wThrustDir));
+				t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(t.wThrustLever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
+				t.currentTorque = t.Torque(1);
+				t.currentTorque_m = t.currentTorque.magnitude;
 			}
 		}
 
@@ -225,13 +261,13 @@ namespace ThrottleControlledAvionics
 					var e = Active[i];
 					if(e.isVSC)
 					{
-						e.VSF = e.VSF > 0 ? VSL.OnPlanetParams.VSF : VSL.OnPlanetParams.MinVSF;
+						e.VSF *= VSL.OnPlanetParams.VSF;
 						e.throttle = e.VSF * vessel.ctrlState.mainThrottle;
 					}
 					else 
 					{
-						e.throttle = vessel.ctrlState.mainThrottle;
 						e.VSF = 1f;
+						e.throttle = vessel.ctrlState.mainThrottle;
 					}
 					e.currentTorque = e.Torque(e.throttle);
 					e.currentTorque_m = e.currentTorque.magnitude;

@@ -11,8 +11,29 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public partial class ThrottleControlledAvionics
+	[KSPAddon(KSPAddon.Startup.Flight, false)]
+	public class TCAGui : AddonWindowBase<TCAGui>
 	{
+		static Vessel vessel;
+		public static ModuleTCA TCA { get; private set; }
+		public static VesselWrapper VSL { get { return TCA.VSL; } }
+		public static VesselConfig CFG { get { return TCA.CFG; } }
+
+		#region modules
+		static SquadControl SQD;
+		static AltitudeControl ALT;
+		static VerticalSpeedControl VSC;
+		static ThrottleControl THR;
+		static VTOLControl VTOL;
+		static VTOLAssist VLA;
+		static FlightStabilizer STB;
+		static ManeuverAutopilot MAN;
+
+		static List<FieldInfo> ModuleFields = typeof(TCAGui)
+			.GetFields(BindingFlags.Static|BindingFlags.NonPublic)
+			.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToList();
+		#endregion
+
 		#region GUI Parameters
 		const string LockName = "TCAGui";
 		public const int ControlsWidth = 650, ControlsHeight = 100, LineHeight = 35;
@@ -30,10 +51,6 @@ namespace ThrottleControlledAvionics
 		public static string StatusMessage;
 		#endregion
 
-		#if DEBUG
-		public static string DebugMessage;
-		#endif
-
 		#region ControlPanels
 		public static AttitudePanel AttitudeControls;
 		public static InOrbitPanel InOrbitControls;
@@ -42,9 +59,103 @@ namespace ThrottleControlledAvionics
 		public static MacrosPanel MacroControls;
 		public static SquadPanel SquadControls;
 		static List<ControlPanel> AllPanels = new List<ControlPanel>();
-		static List<FieldInfo> AllPanelFields = typeof(ThrottleControlledAvionics)
+		static List<FieldInfo> AllPanelFields = typeof(TCAGui)
 			.GetFields(BindingFlags.Static|BindingFlags.Public)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(ControlPanel))).ToList();
+		#endregion
+
+		#region Initialization
+		public override void LoadConfig()
+		{
+			base.LoadConfig ();
+			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
+			update_configs();
+		}
+
+		public override void SaveConfig(ConfigNode node = null)
+		{
+			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);
+			base.SaveConfig(node);
+		}
+
+		public override void Awake()
+		{
+			base.Awake();
+			GameEvents.onGameStateSave.Add(SaveConfig);
+			GameEvents.onVesselChange.Add(onVesselChange);
+			NavigationPanel.OnAwake();
+			#if DEBUG
+//			CheatOptions.InfiniteRCS  = true;
+//			CheatOptions.InfiniteFuel = true;
+			#endif
+		}
+
+		public override void OnDestroy()
+		{
+			base.OnDestroy();
+			clear_fields();
+			TCAToolbarManager.AttachTCA(null);
+			GameEvents.onGameStateSave.Remove(SaveConfig);
+			GameEvents.onVesselChange.Remove(onVesselChange);
+		}
+
+		void onVesselChange(Vessel vsl)
+		{
+			if(vsl == null || vsl.parts == null) return;
+			vessel = vsl;
+			StatusMessage = "";
+			StartCoroutine(init_on_load());
+		}
+
+		public static void AttachTCA(ModuleTCA tca) 
+		{ 
+			if(tca.vessel != vessel || instance == null) return;
+			instance.StartCoroutine(init_on_load()); 
+		}
+
+		static IEnumerator<YieldInstruction> init_on_load()
+		{
+			do {
+				if(vessel == null) yield break;
+				yield return null;
+			} while(!vessel.loaded || vessel.packed);	
+			init();
+		}
+
+		static void create_fields()
+		{
+			AllPanels.Clear();
+			foreach(var fi in AllPanelFields)
+			{
+				var panel = TCA.CreateComponent(fi.FieldType) as ControlPanel;
+				if(panel != null) AllPanels.Add(panel);
+				fi.SetValue(null, panel);
+			}
+			ModuleFields.ForEach(fi => fi.SetValue(null, TCA.GetModule(fi.FieldType)));
+		}
+
+		static void clear_fields()
+		{
+			TCA = null;
+			parts = null;
+			AllPanels.ForEach(p => p.Reset());
+			AllPanelFields.ForEach(fi => fi.SetValue(null, null));
+			ModuleFields.ForEach(fi => fi.SetValue(null, null));
+			AllPanels.Clear();
+		}
+
+		static bool init()
+		{
+			clear_fields();
+			TCAToolbarManager.AttachTCA(null);
+			TCA = ModuleTCA.AvailableTCA(vessel);
+			if(TCA == null) return false;
+			TCAToolbarManager.AttachTCA(TCA);
+			create_fields();
+			update_configs();
+			parts = TCAModulesDatabase.GetPurchasedParts();
+			return true;
+		}
 		#endregion
 
 		#region Configs Selector
@@ -206,10 +317,18 @@ namespace ThrottleControlledAvionics
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
+			if(VTOL != null) 
+			{
+				if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL], 
+			                          "Keyboard controls thrust direction instead of torque", GUILayout.ExpandWidth(true)))
+					CFG.CTRL.XToggle(ControlMode.VTOL);
+			}
 			if(VLA != null) Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, 
 			                                   "Assist with vertical takeoff and landing", GUILayout.ExpandWidth(true));
 			if(STB != null) Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
 			                                   "Try to stabilize flight if spinning uncontrollably", GUILayout.ExpandWidth(true));
+			if(MAN != null) Utils.ButtonSwitch("AutoStaging", ref CFG.AutoStage, 
+			                                   "Automatically activate next stage when previous falmeouted", GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 			if(THR != null)
 			{
@@ -326,6 +445,8 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
+		public static string DebugMessage;
+
 		static Vector2 eInfoScroll;
 		static void EnginesInfo()
 		{
@@ -368,7 +489,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("TWR: {0:0.0}", VSL.OnPlanetParams.DTWR), GUILayout.Width(80));
 			if(VSL.Altitude.Ahead.Equals(float.MinValue)) GUILayout.Label("Obst: N/A", GUILayout.Width(120));
 			else GUILayout.Label(string.Format("Obst: {0:0.0}m", VSL.Altitude.Ahead), GUILayout.Width(120));
-			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*(VSL.Physics.wCoM-VSL.mainBody.position).magnitude)), GUILayout.Width(100));
+			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			if(!string.IsNullOrEmpty(DebugMessage))
 				GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));
@@ -377,7 +498,7 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(TCA == null || !CFG.GUIVisible || !showHUD) 
+			if(TCA == null || !CFG.GUIVisible || !HUD_enabled) 
 			{
 				Utils.LockIfMouseOver(LockName, MainWindow, false);
 				return;
@@ -392,6 +513,45 @@ namespace ThrottleControlledAvionics
 				                 GUILayout.Width(ControlsWidth),
 				                 GUILayout.Height(ControlsHeight));
 			MainWindow.clampToScreen();
+		}
+
+		public void Update()
+		{
+			if(TCA == null) return;
+			if(!TCA.Available && !init()) return;
+			if(!TCA.Controllable) return;
+			AllPanels.ForEach(p => p.Update());
+			if(selecting_key)
+			{ 
+				var e = Event.current;
+				if(e.isKey)
+				{
+					if(e.keyCode != KeyCode.Escape)
+					{
+						//try to get the keycode if the Unity provided us only with the character
+						if(e.keyCode == KeyCode.None && e.character >= 'a' && e.character <= 'z')
+						{
+							var ec = new string(e.character, 1).ToUpper();
+							try { e.keyCode = (KeyCode)Enum.Parse(typeof(KeyCode), ec); }
+							catch(Exception ex) { Utils.Log("TCA GUI: exception caught while trying to set hotkey:\n{0}", ex); }
+						}
+						if(e.keyCode == KeyCode.None) 
+							ScreenMessages
+								.PostScreenMessage(string.Format("Unable to convert '{0}' to keycode.\nPlease, try an alphabet character.", e.character), 
+								                   5, ScreenMessageStyle.UPPER_CENTER);
+						else TCA_Key = e.keyCode;
+						Utils.Log("TCA: new key slected: {0}", TCA_Key);
+					}
+					selecting_key = false;
+				}
+			}
+			else if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
+			if(CFG.Enabled && CFG.BlockThrottle && THR != null)
+			{
+				if(CFG.VF[VFlight.AltitudeControl]) 
+				{ if(ALT != null) ALT.ProcessKeys(); }
+				else if(VSC != null) VSC.ProcessKeys();
+			}
 		}
 	}
 }

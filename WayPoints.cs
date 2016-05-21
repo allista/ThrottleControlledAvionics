@@ -61,6 +61,7 @@ namespace ThrottleControlledAvionics
 		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
 		public double SurfaceAlt(CelestialBody body) { return Utils.TerrainAltitude(body, Lat, Lon); }
+		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Lat, Lon, SurfaceAlt(body)); }
 
 		public static double BearingTo(double lat1, double lat2, double dlon)
 		{

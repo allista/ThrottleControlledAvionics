@@ -35,7 +35,7 @@ namespace ThrottleControlledAvionics
 		public float NextThrottle(float dV, float throttle)
 		{ 
 			var dt = Utils.Clamp(dV/THR.DeltaVThreshold, 0.5f, 2f);
-			return Utils.Clamp((dV/dt/VSL.Engines.MaxThrustM*VSL.Physics.M-throttle*VSL.Engines.ThrustDecelerationTime/dt), 0f, 1f); 
+			return Utils.Clamp((dV/VSL.Engines.MaxThrustM*VSL.Physics.M-throttle*VSL.Engines.ThrustDecelerationTime)/dt, 0f, 1f); 
 		}
 
 		public void BlockThrottle(bool state)

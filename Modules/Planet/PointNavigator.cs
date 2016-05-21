@@ -94,7 +94,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState() 
 		{ 
-			IsActive = CFG.Nav && VSL.OnPlanet; 
+			IsActive = CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath, Navigation.FollowTarget) && VSL.OnPlanet; 
 			if(IsActive) return;
 		}
 
@@ -136,6 +136,13 @@ namespace ThrottleControlledAvionics
 		void start_to(WayPoint wp)
 		{
 			VSL.UpdateOnPlanetStats();
+			wp.Update(VSL.mainBody);
+			if(CFG.Nav[Navigation.GoToTarget] &&
+			   wp.DistanceTo(VSL.vessel)-VSL.Geometry.R < wp.Distance)
+			{ 
+				CFG.Nav.Off(); 
+				return; 
+			}
 			if(VSL.LandedOrSplashed) 
 			{
 				CFG.AltitudeAboveTerrain = true;
@@ -155,7 +162,7 @@ namespace ThrottleControlledAvionics
 		{
 			SetTarget();
 			CFG.Nav.Off();
-			CFG.HF.On(HFlight.Stop);
+			CFG.HF.OnIfNot(HFlight.Stop);
 			UnregisterFrom<Radar>();
 			reset_formation();
 		}
@@ -164,7 +171,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(CFG.Target == null) return false;
 			if(CFG.Target.Pause) { PauseMenu.Display(); CFG.Target.Pause = false; }
-			if(CFG.Target.Land)	{ CFG.AP.XOn(Autopilot.Land); return true; }
+			if(CFG.Target.Land)	{ CFG.AP1.XOn(Autopilot1.Land); return true; }
 			return false;
 		}
 

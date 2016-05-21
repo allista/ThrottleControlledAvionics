@@ -46,8 +46,10 @@ namespace ThrottleControlledAvionics
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
-		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
+		[Persistent] public AttitudeControlBase.Config       ATCB = new AttitudeControlBase.Config();
+//		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
 		[Persistent] public BearingControl.Config            BRC = new BearingControl.Config();
+		[Persistent] public ThrustDirectionControl.Config    TDC = new ThrustDirectionControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config    HSC = new HorizontalSpeedControl.Config();
 		[Persistent] public RCSOptimizer.Config              RCS = new RCSOptimizer.Config();
 		[Persistent] public CruiseControl.Config             CC  = new CruiseControl.Config();
@@ -56,12 +58,20 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Radar.Config                     RAD = new Radar.Config();
 		[Persistent] public AutoLander.Config                LND = new AutoLander.Config();
 		[Persistent] public VTOLAssist.Config                TLA = new VTOLAssist.Config();
+		[Persistent] public VTOLControl.Config               VTOL = new VTOLControl.Config();
 		[Persistent] public CollisionPreventionSystem.Config CPS = new CollisionPreventionSystem.Config();
 		[Persistent] public FlightStabilizer.Config          STB = new FlightStabilizer.Config();
 		[Persistent] public ThrottleControl.Config           THR = new ThrottleControl.Config();
 		[Persistent] public TranslationControl.Config        TRA = new TranslationControl.Config();
 		[Persistent] public TimeWarpControl.Config           WRP = new TimeWarpControl.Config();
+		[Persistent] public ManeuverAutopilot.Config         MAN = new ManeuverAutopilot.Config();
 		[Persistent] public MatchVelocityAutopilot.Config    MVA = new MatchVelocityAutopilot.Config();
+
+		[Persistent] public TrajectoryCalculator.Config      TRJ = new TrajectoryCalculator.Config();
+		[Persistent] public LandingTrajectoryAutopilot.Config LTRJ = new LandingTrajectoryAutopilot.Config();
+		[Persistent] public DeorbitAutopilot.Config          DEO = new DeorbitAutopilot.Config();
+		[Persistent] public BallisticJump.Config             BJ  = new BallisticJump.Config();
+		[Persistent] public RendezvouAutopilot.Config        REN = new RendezvouAutopilot.Config();
 
 		public MDSection Manual;
 
@@ -94,10 +104,12 @@ namespace ThrottleControlledAvionics
 
 	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, Target, AntiTarget, RelVel, AntiRelVel, ManeuverNode, Custom }
 	public enum BearingMode { None, User, Auto }
+	public enum ControlMode { None, VTOL }
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
-	public enum Autopilot { None, Land, Maneuver, MatchVel, MatchVelNear }
+	public enum Autopilot1 { None, Land, Maneuver, MatchVel, MatchVelNear }
+	public enum Autopilot2 { None, Deorbit, BallisticJump, Rendezvou }
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{
@@ -106,9 +118,10 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Guid    VesselID;
 		[Persistent] public bool    Enabled;
 		[Persistent] public bool    GUIVisible;
+		[Persistent] public KSPActionGroup ActionGroup = KSPActionGroup.None;
 		//attitude control
 		[Persistent] public Multiplexer<Attitude> AT = new Multiplexer<Attitude>();
-		[Persistent] public bool WarpToNode;
+		[Persistent] public bool WarpToNode = true;
 		//vertical speed and altitude
 		[Persistent] public Multiplexer<VFlight> VF = new Multiplexer<VFlight>();
 		[Persistent] public bool    AltitudeAboveTerrain;
@@ -119,6 +132,7 @@ namespace ThrottleControlledAvionics
 		public bool VSCIsActive { get { return VF || VerticalCutoff < TCAScenario.Globals.VSC.MaxSpeed; } }
 		public void DisableVSC() { VF.Off(); VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed; BlockThrottle = false; }
 		//steering
+		[Persistent] public Multiplexer<ControlMode> CTRL = new Multiplexer<ControlMode>();
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
 		[Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked
@@ -139,7 +153,8 @@ namespace ThrottleControlledAvionics
 		public Queue<WayPoint>       Waypoints = new Queue<WayPoint>();
 		[Persistent] public WayPoint Target;
 		//autopilot
-		[Persistent] public Multiplexer<Autopilot> AP = new Multiplexer<Autopilot>();
+		[Persistent] public Multiplexer<Autopilot1> AP1 = new Multiplexer<Autopilot1>();
+		[Persistent] public Multiplexer<Autopilot2> AP2 = new Multiplexer<Autopilot2>();
 		[Persistent] public bool VTOLAssistON = true;
 		[Persistent] public bool StabilizeFlight = true;
 		//engines
@@ -147,6 +162,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public EnginesProfileDB EnginesProfiles = new EnginesProfileDB();
 		[Persistent] public bool ShowEnginesProfiles;
 		[Persistent] public bool ShowManualLimits;
+		[Persistent] public bool AutoStage = true;
 		public EnginesProfile ActiveProfile { get { return EnginesProfiles.Active; } }
 		//squad
 		[Persistent] public int Squad;
@@ -176,10 +192,11 @@ namespace ThrottleControlledAvionics
 			VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed;
 			Engines.setPI(TCAScenario.Globals.ENG.EnginesPI);
 			//explicitly set multiplexer conflicts
-			AT.AddConflicts(HF, Nav, AP);
-			HF.AddConflicts(AT, Nav, AP);
-			Nav.AddConflicts(AT, HF, AP);
-			AP.AddConflicts(AT, Nav, HF);
+			AT.AddConflicts(HF, Nav, AP1, AP2);
+			HF.AddConflicts(AT, Nav, AP1, AP2);
+			Nav.AddConflicts(AT, HF, AP1, AP2);
+			AP1.AddConflicts(AT, Nav, HF, AP2);
+			AP2.AddConflicts(AT, Nav, HF, AP1);
 			//get all multiplexers
 			multiplexer_fields.ForEach(fi => multiplexers.Add((Multiplexer)fi.GetValue(this)));
 		}

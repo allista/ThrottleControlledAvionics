@@ -82,10 +82,8 @@ namespace ThrottleControlledAvionics
 				Active = true;
 				if(Parent != null) 
 					Parent.OnChildActivate(this);
-				VSL.vessel.Log("{0} activated", Name);//debug
 			}
 			Done = !Action(VSL);
-			if(Done) VSL.vessel.Log("{0} done", Name);//debug
 			Active &= !Done;
 			return !Done;
 		}

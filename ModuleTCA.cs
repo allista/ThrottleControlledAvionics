@@ -42,6 +42,9 @@ namespace ThrottleControlledAvionics
 		public List<TCAModule> AutopilotPipeline = new List<TCAModule>();
 		public bool ProfileSyncAllowed { get; private set; } = true;
 
+		[KSPField(guiActive = true, guiActiveEditor = true, guiName = "TCA Active")]
+		public bool TCA_Active;
+
 		public M GetModule<M>() where M : TCAModule 
 		{ 
 			TCAModule module = null;
@@ -122,17 +125,20 @@ namespace ThrottleControlledAvionics
 		public override void OnStart(StartState state)
 		{
 			base.OnStart(state);
-			if(state == StartState.Editor || state == StartState.None)
-			{ enabled = isEnabled = false; return; }
+			Actions["onActionUpdate"].active = false;
+			if(state == StartState.None || !TCAScenario.HasTCA) 
+			{ enable_module(false); return; }
 			check_priority();
-			check_career_part();
+			if(state == StartState.Editor) return;
+			enable_module(TCA_Active);
 			init();
 		}
 
 		void onVesselModify(Vessel vsl)
 		{ 
-			
+			if(vsl != vessel) return;
 			check_priority();
+			enable_module(TCA_Active);
 			if(!enabled) reset();
 			else if(VSL == null || VSL.vessel == null || vsl.id != VSL.vessel.id)
 			{ reset(); init(); }
@@ -166,23 +172,32 @@ namespace ThrottleControlledAvionics
 			if(VSL != null) VSL.SetUnpackDistance(GLB.UnpackDistance);
 		}
 
-		[KSPAction("Update TCA profile", actionGroup = (KSPActionGroup)0xff80)]
-		void onCustomActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
+		[KSPAction("Update TCA Profile")]
+		void onActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
 
 		void check_priority()
 		{
-			if(vessel == null || vessel.parts == null) goto disable;
-			var TCA_part = vessel.parts.FirstOrDefault(p => p.HasModule<ModuleTCA>());
-			if(TCA_part != part) goto disable;
-			var TCA = TCA_part.Modules.OfType<ModuleTCA>().FirstOrDefault();
-			if(TCA != this) goto disable;
-			enabled = isEnabled = true;
-			return;
-			disable: enabled = isEnabled = false;
+			if(HighLogic.LoadedSceneIsEditor) 
+				check_priority(EditorLogic.fetch.ship);
+			else check_priority(vessel);
 		}
 
-		void check_career_part()
-		{ if(enabled) enabled = isEnabled = TCAScenario.HasTCA; }
+		void check_priority(IShipconstruct ship)
+		{
+			TCA_Active = 
+				ship != null && ship.Parts != null &&
+				part == ship.Parts.FirstOrDefault(p => p.HasModule<ModuleTCA>()) &&
+				this == part.Modules.OfType<ModuleTCA>().FirstOrDefault();
+			Actions["ToggleTCA"].active = TCA_Active;
+		}
+
+		void enable_module(bool enable = true)
+		{
+			TCA_Active &= enable;
+			enabled = isEnabled = enable;
+			Fields["TCA_Active"].guiActive = enable;
+			Fields["TCA_Active"].guiActiveEditor = enable;
+		}
 
 		public void DeleteModules()
 		{
@@ -254,13 +269,16 @@ namespace ThrottleControlledAvionics
 			if(!enabled) return;
 			updateCFG();
 			VSL = new VesselWrapper(this);
-			enabled = isEnabled = VSL.Engines.All.Count > 0 || VSL.Engines.RCS.Count > 0;
+			enable_module(VSL.Engines.All.Count > 0 || VSL.Engines.RCS.Count > 0);
 			if(!enabled) { VSL = null; return; }
 			VSL.Init();
 			TCAModulesDatabase.InitModules(this);
-			ThrottleControlledAvionics.AttachTCA(this);
+			VSL.ConnectAutopilotOutput();//should follow module initialization
+			TCAGui.AttachTCA(this);
 			part.force_activate(); //need to activate the part for OnFixedUpdate to work
 			StartCoroutine(updateUnpackDistance());
+			Actions["onActionUpdate"].active = true;
+			Actions["ToggleTCA"].actionGroup = CFG.ActionGroup;
 			CFG.Resume();
 		}
 
@@ -278,10 +296,11 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Controls
-		public void ToggleTCA()
+		[KSPAction("Toggle TCA")]
+		public void ToggleTCA(KSPActionParam param = null)
 		{
 			CFG.Enabled = !CFG.Enabled;
-			if(CFG.Enabled) //test
+			if(CFG.Enabled)
 			{
 				CFG.ActiveProfile.Update(VSL.Engines.All, true);
 				VSL.SetUnpackDistance(GLB.UnpackDistance);
@@ -299,6 +318,12 @@ namespace ThrottleControlledAvionics
 
 		public void ClearFrameState()
 		{ AllModules.ForEach(m => m.ClearFrameState()); }
+
+		void Update() //works both in Editor and in flight
+		{
+			if(!TCA_Active) return;
+			if(CFG != null) CFG.ActionGroup = Actions["ToggleTCA"].actionGroup;
+		}
 
 		public override void OnUpdate()
 		{
@@ -322,8 +347,8 @@ namespace ThrottleControlledAvionics
 			//update vessel info
 			SetState(TCAState.HaveEC);
 			VSL.UpdatePhysics();
-			if(VSL.Engines.Check()) 
-				SetState(TCAState.HaveActiveEngines);
+			if(VSL.Engines.Check()) SetState(TCAState.HaveActiveEngines);
+			Actions["onActionUpdate"].actionGroup = VSL.Engines.ActionGroups;
 			VSL.UpdateCommons();
 			VSL.ClearFrameState();
 			VSL.UpdateOnPlanetStats();

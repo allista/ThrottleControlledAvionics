@@ -17,6 +17,7 @@ namespace ThrottleControlledAvionics
 
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
+		public Vector3 AutopilotSteering;
 		public bool    TranslationAvailable { get; private set; }
 		public Vector3 ManualTranslation;
 		public Switch  ManualTranslationSwitch = new Switch();
@@ -29,7 +30,17 @@ namespace ThrottleControlledAvionics
 			if(!Steering.IsZero()) //tune steering if MaxAA has changed drastically
 				Steering = Steering*Utils.ClampH(VSL.Torque.MaxAAMod, 1)/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
-			TranslationAvailable = VSL.Engines.Maneuver.Count > 0 || VSL.Engines.RCS.Count > 0 && VSL.vessel.ActionGroups[KSPActionGroup.RCS];
+			TranslationAvailable = VSL.Engines.Maneuver.Count > 0 || VSL.Engines.NumActiveRCS > 0;
+		}
+
+		public bool RCSAvailableInDirection(Vector3 wDir)
+		{
+			if(VSL.Engines.NumActiveRCS.Equals(0)) return false;
+			var lDir = VSL.LocalDir(wDir).normalized;
+			var thrust = VSL.Engines.MaxThrustRCS.Project(lDir);
+//			Utils.LogF("\nMaxThrustRCS:\n{}\nRCS dir: {}\nRCS thrust: {}\nRCS accel: {}\nActive RCS: {}\n",
+//			           VSL.Engines.MaxThrustRCS, lDir, thrust, thrust.magnitude/VSL.Physics.M, VSL.Engines.NumActiveRCS);//debug
+			return thrust.magnitude/VSL.Physics.M > GLB.TRA.MinDeltaV/2;
 		}
 	}
 }

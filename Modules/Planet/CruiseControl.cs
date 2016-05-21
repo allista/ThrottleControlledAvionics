@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 				RegisterTo<SASBlocker>();
-				RegisterTo<Radar>();
+				RegisterTo<Radar>(vsl => vsl.HorizontalSpeed.Mooving);
 				break;
 
 			case Multiplexer.Command.On:
@@ -108,12 +108,13 @@ namespace ThrottleControlledAvionics
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && VSL.OnPlanet && VSL.refT != null &&
 			     CFG.HF[HFlight.CruiseControl])) return;
-			if(VSL.AutopilotDisabled) 
+			if(VSL.HasUserInput) 
 			{ 
 				if(!s.pitch.Equals(0))
 				{
 					CFG.MaxNavSpeed = Utils.Clamp(CFG.MaxNavSpeed-s.pitch*CC.PitchFactor, CC.MaxRevSpeed, GLB.PN.MaxSpeed);
 					SetNeededVelocity(VSL.HorizontalSpeed.NeededVector);
+					VSL.HasUserInput = !(s.yaw.Equals(0) && s.roll.Equals(0));
 					VSL.AutopilotDisabled = false;
 					s.pitch = 0;
 				}

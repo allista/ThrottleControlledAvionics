@@ -112,13 +112,6 @@ namespace ThrottleControlledAvionics
 			return ret;
 		}
 
-		public static Vector3 Axis(this Vector3 v, int i)
-		{
-			var ret = Vector3.zero;
-			ret[i] = 1;
-			return ret;
-		}
-
 		public static Vector3 Exclude(this Vector3 v, int i)
 		{
 			var ret = v;

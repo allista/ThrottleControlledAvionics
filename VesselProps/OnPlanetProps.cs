@@ -42,9 +42,17 @@ namespace ThrottleControlledAvionics
 			//calculate total downward thrust and slow engines' corrections
 			ManualThrust = Vector3.zero;
 			ManualThrustLimits = Vector6.zero;
+			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.M/VSL.Physics.G;
+			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
+				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.M/VSL.Physics.G : 0f;
+			MinVSFtwr = 1/Utils.ClampL(MaxTWR, 1);
+			var mVSFtor = (VSL.Torque.MaxPitchRollAA_m > 0)? 
+				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRollAA_m, GLB.VSC.MaxVSFtwr*MinVSFtwr) : 0;
+			MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
+			var rotation_factor = Utils.ClampL(Vector3.Dot(VSL.Controls.Steering, VSL.vessel.angularVelocity), 0);
 			for(int i = 0; i < VSL.Engines.NumActive; i++)
 			{
 				var e = VSL.Engines.Active[i];
@@ -53,7 +61,12 @@ namespace ThrottleControlledAvionics
 				if(e.isVSC)
 				{
 					var dcomponent = -Vector3.Dot(e.wThrustDir, VSL.Physics.Up);
-					if(dcomponent <= 0) e.VSF = 0;
+					if(dcomponent <= 0) 
+					{
+						e.VSF = Utils.ClampH(Utils.ClampL(Vector3.Dot(VSL.Controls.Steering, e.specificTorque), 0)*
+						                     rotation_factor,
+						                     MinVSFtwr);
+					}
 					else 
 					{
 						var dthrust = e.nominalCurrentThrust(e.best_limit)*dcomponent;
@@ -73,21 +86,14 @@ namespace ThrottleControlledAvionics
 					ManualThrust += e.wThrustDir*e.finalThrust;
 				}
 			}
-			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.M/VSL.Physics.G;
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/VSL.Physics.M/VSL.Physics.G, 0.1f);
-			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
-				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.M/VSL.Physics.G : 0f;
 			if(refT != null)
 			{
-				Fwd = Vector3.Cross(refT.right, -VSL.Engines.MaxThrust).normalized;
+				Fwd = Vector3.Cross(vessel.transform.right, -VSL.Engines.MaxThrust).normalized;
 				FwdL = refT.InverseTransformDirection(Fwd);
-				NoseUp = Vector3.Dot(Fwd, refT.forward) >= 0.9;
+				NoseUp = Vector3.Dot(Fwd, vessel.transform.forward) >= 0.9;
 				Bearing = Vector3.ProjectOnPlane(Fwd, VSL.Physics.Up).normalized;
 			}
-			MinVSFtwr = 1/Utils.ClampL(MaxTWR, 1);
-			var mVSFtor = (VSL.Torque.MaxPitchRollAA_m > 0)? 
-				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRollAA_m, GLB.VSC.MaxVSFtwr*MinVSFtwr) : 0;
-			MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust.Equals(0)) return;
 			//correct setpoint for current TWR and slow engines

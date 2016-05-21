@@ -22,13 +22,17 @@ namespace ThrottleControlledAvionics
 		protected static Rect drag_handle = new Rect(0,0, 10000, 20);
 		protected static int  width = 550, height = 100;
 		protected static Rect MainWindow = new Rect();
-		public static bool showHUD { get; protected set; } = true;
+		public static bool HUD_enabled { get; protected set; } = true;
+		public static bool window_enabled { get; protected set; } = false;
+		public static bool do_show { get { return window_enabled && HUD_enabled; } }
 
 		static protected string TCATitle;
 
+		public static void Show(bool show) { window_enabled = show; }
+		public static void Toggle() { window_enabled = !window_enabled; }
 
-		void onShowUI() { showHUD = true; }
-		void onHideUI() { showHUD = false; }
+		void onShowUI() { HUD_enabled = true; }
+		void onHideUI() { HUD_enabled = false; }
 
 		public virtual void Awake()
 		{

@@ -115,7 +115,7 @@ ALT
 	}
 }
 
-ATC
+ATCB
 {
 	PID
 	{
@@ -129,13 +129,20 @@ ATC
 	AngularMf      = 0.001
 	InertiaFactor  = 10
 	MoIFactor      = 0.01
-	AngleThreshold = 10
 	MinEf          = 0.0001
 	MaxEf          = 2
 	SlowTorqueF    = 0.2
 	AALowPassF     = 1
+	
+	AngleThreshold = 60
 	MaxAttitudeError = 10  //deg
 	AttitudeErrorThreshold = 3
+}
+
+TDC
+{
+	TWRf = 3
+	VSf  = 3
 }
 
 HSC
@@ -157,11 +164,14 @@ HSC
 
 	AccelerationFactor = 1
 	MinHvThreshold     = 10
-	TWRf               = 3
-	VSf                = 3
 	HVCurve            = 1.5
 	SlowTorqueF        = 1
 	LowPassF           = 0.1
+}
+
+VTOL
+{
+	MaxAngle = 45
 }
 
 BRC
@@ -324,11 +334,59 @@ WRP
 
 MVA
 {
-	OrbitSolverIterations = 20  //deg
-	OrbitSolverMinTTA     = 120 //sec
-	TimeBeforeApproach    = 1
-
-	StartAttitudeError    = 1   //deg
 	TranslationThreshold  = 5   //m/s
+}
+
+TRJ
+{
+	dVtol              = 0.01  //m/s
+	dV4dRf             = 1e-4
+	MinPeA             = 10000 //m
+	MaxIterations      = 2000
+	PerFrameIterations = 10
+}
+
+LTRJ
+{
+	Dtol               = 100  //m
+	FlyOverAlt         = 1000 //m
+	ApproachAlt        = 250  //m
+	BrakeEndSpeed      = 30   //m/s
+	CorrectionOffset   = 20   //s
+	CorrectionTimer    = 10   //s
+}
+
+DEO
+{
+	StartOffset        = 60   //s
+	StartPeR           = 0.49 //of planet radius
+}
+
+BJ
+{
+	StartOffset      = 15  //s
+	StartInclination = 30  //deg
+	StartAltitude    = 50  //m
+	InclinationF     = 2.2
+}
+
+REN
+{
+	Dtol                = 100   //m
+	StartOffset         = 60    //s
+	DeltaApThreshold    = 1000  //m
+	MaxTTR              = 3     //orbit.periods
+	MaxDeltaV           = 100   //m/s
+	CorrectionStart     = 10000 //m
+	CorrectionOffset    = 20    //s
+	CorrectionTimer     = 10    //s
+	ApproachThreshold   = 500   //m
+	MaxApproachV        = 20    //parts
+	ApproachVelF        = 0.01  //parts
+	MaxInclinationDelta = 30    //deg
+	GTurnCurve          = 60
+	LaunchDeltaVf       = 3
+	LaunchTangentK      = 1
+	RendezvouCorrection = 0.8
 }
 //:mode=c#:

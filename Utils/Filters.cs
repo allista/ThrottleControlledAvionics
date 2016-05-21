@@ -66,11 +66,24 @@ namespace ThrottleControlledAvionics
 		public T Value { get { return prev; } }
 		public abstract T Update(T cur);
 		public void Reset() { prev = default(T); }
+		public void Set(T val) { prev = val; }
+
+		public static implicit operator T(LowPassFilter<T> f) { return f.prev; }
+		public override string ToString() { return prev.ToString(); }
 	}
 
 	public class LowPassFilterF : LowPassFilter<float>
 	{
 		public override float Update(float cur)
+		{
+			prev = prev +  alpha * (cur-prev);
+			return prev;
+		}
+	}
+
+	public class LowPassFilterD : LowPassFilter<double>
+	{
+		public override double Update(double cur)
 		{
 			prev = prev +  alpha * (cur-prev);
 			return prev;
@@ -152,5 +165,25 @@ namespace ThrottleControlledAvionics
 		public override string ToString()
 		{ return string.Format("[FuzzyThreshold: Value={0}, On={1}, Upper={2}, Lower={3}]", Value, On, Upper, Lower); }
 	}
+
+	public abstract class Extremum<T> where T : IComparable
+	{
+		protected T v2, v1, v0;
+		protected int i;
+
+		public void Update(T cur) { v2 = v1; v1 = v0; v0 = cur; if(i < 3) i++; }
+		public abstract bool True { get; }
+		public T Value { get { return v1; } }
+		public void Reset() { v2 = v1 = v0 = default(T); i = 0; }
+
+		public static implicit operator bool(Extremum<T> e) { return e.True; }
+		public static implicit operator T(Extremum<T> e) { return e.Value; }
+	}
+
+	public class MinimumF: Extremum<float>
+	{ public override bool True { get { return i > 2 && v2 >= v1 && v1 < v0; } } }
+
+	public class MinimumD: Extremum<double>
+	{ public override bool True { get { return i > 2 && v2 >= v1 && v1 < v0; } } }
 }
 

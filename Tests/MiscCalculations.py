@@ -6,7 +6,9 @@ Created on Jan 8, 2015
 
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pa
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.lines as mlines
+import pandas as pd
 import sys
 import os
 
@@ -36,6 +38,10 @@ class vec(object):
         self.v = np.array([float(x), float(y), float(z)])
 
     @property
+    def xzy(self):
+        return vec(self[0], self[2], self[1])
+
+    @property
     def norm(self):
         return vec.from_array(np.array(self.v)/np.linalg.norm(self.v))
 
@@ -46,6 +52,8 @@ class vec(object):
 
     def __getitem__(self, index): return self.v[index]
     def __setitem__(self, index, value): self.v[index] = value
+
+    def __nonzero__(self): return bool(np.any(self.v))
 
     def __abs__(self):
         return np.linalg.norm(self.v)
@@ -85,7 +93,10 @@ class vec(object):
         return onto * (self*onto/m2)
 
     def angle(self, other):
-        return np.rad2deg(np.arccos(self*other/(abs(self)*abs(other))))
+        """
+        :rtype float: radians
+        """
+        return np.arccos(self*other/(abs(self)*abs(other)))
 
     def cube_norm(self):
         return self/max(abs(x) for x in self)
@@ -97,6 +108,10 @@ class vec(object):
 
     @classmethod
     def sum(cls, vecs): return sum(vecs, vec())
+
+    @classmethod
+    def rnd(cls, magnitude=1):
+        return cls.from_array(np.random.rand(3)*2-1).norm*magnitude
 #end class
 
 class vec6(object):
@@ -126,6 +141,27 @@ class vec6(object):
 #end class
 
 def lerp(f, t, time): return f+(t-f)*clamp01(time)
+
+def xzy(v): return [v[0], v[2], v[1]]
+
+def draw_vectors(*vecs):
+    if not vecs: return;
+    X, Y, Z, U, V, W = zip(*(xzy(v)+xzy(v) for v in vecs))
+    colors = color_grad(len(vecs), 3)
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.quiver(X,Y,Z,U,V,W, colors=colors, lw=2, arrow_length_ratio=0.1)
+    ax.set_xlim([-1,1])
+    ax.set_ylim([-1,1])
+    ax.set_zlim([-1,1])
+    ax.set_xlabel('r')
+    ax.set_ylabel('f')
+    ax.set_zlabel('u')
+    legends = []
+    for i in xrange(len(vecs)):
+        legends.append(mlines.Line2D([], [], color=colors[i*3], label=str(i+1)))
+    plt.legend(handles=legends)
+    plt.show()
 
 class engine(object):
     def __init__(self, pos, direction, spec_torque, min_thrust=0.0, max_thrust=100.0, maneuver=False, manual=False):
@@ -848,10 +884,6 @@ def sim_Rotation():
     plt.show()
 
 def drawVectors():
-    from mpl_toolkits.mplot3d import Axes3D
-    import matplotlib.lines as mlines
-
-
     x = (1,0,0); y = (0,1,0); z = (0,0,1)
 
     NoseUp = [
@@ -903,27 +935,6 @@ def drawVectors():
 (-0.0001221597, 0.9947699, -0.1021409),
 (0.3317407, 0.9377342, -0.1029695),
                     ]
-
-    def xzy(v): return v[0], v[2], v[1]
-
-    def draw_vectors(*vecs):
-        if not vecs: return;
-        X, Y, Z, U, V, W = zip(*(xzy(v)+xzy(v) for v in vecs))
-        colors = color_grad(len(vecs), 3)
-        fig = plt.figure()
-        ax = fig.gca(projection='3d')
-        ax.quiver(X,Y,Z,U,V,W, colors=colors, lw=2, arrow_length_ratio=0.1)
-        ax.set_xlim([-1,1])
-        ax.set_ylim([-1,1])
-        ax.set_zlim([-1,1])
-        ax.set_xlabel('r')
-        ax.set_ylabel('f')
-        ax.set_zlabel('u')
-        legends = []
-        for i in xrange(len(vecs)):
-            legends.append(mlines.Line2D([], [], color=colors[i*3], label=str(i+1)))
-        plt.legend(handles=legends)
-        plt.show()
 
 #     draw_vectors(*NoseUp)
     draw_vectors(*MunNoseHor)
@@ -1072,7 +1083,7 @@ def simGC():
 
 def loadCSV(filename, columns=None, header=None):
     os.chdir(os.path.join(os.environ['HOME'], 'ThrottleControlledAvionics'))
-    df = pa.read_csv(filename, header=header, names=columns)
+    df = pd.read_csv(filename, header=header, names=columns)
     return df
 
 def drawDF(df, x, columns, colors=None, axes=None):
@@ -1137,7 +1148,7 @@ def addL(df):
             L.append(L[-1]+hv*dt)
     else:
         L = np.arange(0, df.shape[0], 1)
-    df['L'] = pa.Series(L, index=df.index)
+    df['L'] = pd.Series(L, index=df.index)
 
 def analyzeCSV(filename, header, cols=None, x=None, axes=(), region = None):
     df = loadCSV(filename, header)
@@ -1160,7 +1171,7 @@ def analyzeCSV(filename, header, cols=None, x=None, axes=(), region = None):
         df = df[(df.L > region[0]) & (df.L <= region[1])]
 #     describe(df)
 #     print df.iloc[500]
-    if cols is None: 
+    if cols is None:
         cols = list(df.keys())
         if 'L' in cols: cols.remove('L')
         if x in cols: cols.remove(x)
@@ -1211,11 +1222,290 @@ def sim_PointNav():
         plt.ylabel("real accel"); plt.xlabel("distance")
     plt.legend()
     plt_show_maxed()
+
+
+def brake_sim():
+    V0 = 123.0
+    M = 1.
+    T = 1.
+    mv = 0.001
+
+    def s(t):
+        return V0 * t + T / mv * ((t - M / mv) * np.log((M - mv * t) / M) - t)
+
+    def TTB(dV):
+        return M / mv * (1 - np.exp(-dV * mv / T))
+
+    t1 = TTB(V0)
+    print t1, s(t1), s(t1) / V0 - t1 / 2
+    time = np.linspace(0, t1, 1000)
+    plt.plot(time, s(time))
+    plt.show()
+
+
+
+class lambert_solver(object):
+
+    G = 6.674e-11
+    Emu = 3.9860044189e14
+
+    def __init__(self, r1, r2, t, mu=Emu):
+        """
+        :param r1:
+        :type r1: vec
+        :param r2:
+        :type r2: vec
+        :param t: transfer time; if None, ME transfer time is used
+        :type t: float
+        :param direct: if the computed orbit should be direct or retrograde
+        :param mu: standard gravitational parameter
+        """
+        self.mu = mu
+        self.r1 = r1
+        self.r2 = r2
+        self.cv = r2-r1
+        self.c = abs(self.cv)
+        self.m = abs(r1)+abs(r2)+self.c
+        self.n = abs(r1)+abs(r2)-self.c
+        self.h = r1.cross(r2)
+
+        self.psi = r1.angle(r2)
+        if self.h[2] < 0: self.psi = 2*np.pi-self.psi
+
+        self.sigma = self._sigma()
+        self.sigma2 = self.sigma**2
+        self.sigma3 = self.sigma**3
+
+        self.tau = self._tau(t)
+        self.tauME = self._tauME()
+        self.transfer_time = self.invtau(self.tau)
+
+        self.V = None
+
+    @staticmethod
+    def acot(x): return np.pi/2-np.arctan(x)
+
+    def F(self, x, y):
+        one_x2 = np.sqrt(1 - x * x)
+        one_y2 = np.sqrt(1 - y * y)
+        return (((np.arccos(x)-x*one_x2) -
+                 (np.arctan(one_y2/y)-y*one_y2))
+                /(one_x2 * one_x2 * one_x2)
+                -self.tau)
+
+    def F1(self, x, y, f):
+        return (1/(1-x*x) *
+                (3*x*(f+self.tau) - 2*(1-self.sigma**3*x/abs(y))))
+
+    def F2(self, x, y, f1):
+        return (1/(x*(1-x*x)) *
+                ((1+4*x*x)*f1 + 2*(1-self.sigma**5*x**3/abs(y)**3)))
+
+    def y(self, x):
+        return np.copysign(np.sqrt(1 - self.sigma2 * (1 - x * x)), self.sigma)
+
+    def next_x(self, x, n):
+        y = self.y(x)
+        f = self.F(x, y)
+        f1 = self.F1(x, y, f)
+        f2 = self.F2(x, y, f1)
+        G  = f1/f
+        G2 = G*G
+        H  = G2 - f2/f
+        s2 = (n-1)*(n*H-G2)
+        s  = np.sqrt(s2)
+        a  = n/(G+s if abs(G+s) > abs(G-s) else G-s)
+        while abs(x-a) > 1: a /= 2
+        x1 = x-a
+        print 'n %d, x0 %f, x1 %f, f %f, f1 %f, f2 %f, G %f, H %f, s %f, a %f' % (n, x, x1, f, f1, f2, G, H, s, a)
+        return x1
+
+    def _tau(self, t): return 4 * t * np.sqrt(self.mu / (self.m ** 3))
+    def invtau(self, tau): return tau/4/np.sqrt(self.mu / self.m ** 3)
+
+    def _sigma(self):
+        return np.sqrt(self.n/self.m)*(1 if self.psi < np.pi else -1)
+
+    def _tauME(self):
+        return np.arccos(self.sigma)+self.sigma*np.sqrt(1-self.sigma**2)
+
+    def solve(self):
+        if abs(self.tau-self.tauME) < 1e-6:
+            v = np.sqrt(self.mu) * self.y(0) / np.sqrt(self.n)
+            self.V = (r1.norm + self.cv / self.c) * v
+        elif self.tau <= 2.0/3*(1-self.sigma3):
+            print 'Only parabolic transfer is possible'
+            self.V = vec()
+            self.transfer_time = 0
+        else:
+            n = 1
+            x1 = np.nan
+            while np.isnan(x1) and n <= 2**10:
+                x0 = 0
+                if np.isnan(x1):
+                    x1 = 0.5 if self.tau < self.tauME else -0.5
+                while abs(x1-x0) > 1e-6:
+                    x0 = x1
+                    x1 = self.next_x(x1, n)
+                # if n == 1: break
+                n *= 2
+                # if n > 2**10 and np.isnan(x1): n = 1
+            vr = np.sqrt(self.mu) * (self.y(x1) / np.sqrt(self.n) - x1 / np.sqrt(self.m))
+            vc = np.sqrt(self.mu) * (self.y(x1) / np.sqrt(self.n) + x1 / np.sqrt(self.m))
+            self.V = r1.norm*vr + self.cv/self.c*vc
+        return self.V, self.transfer_time
+
+    def __str__(self):
+        return '\n'.join([
+            'psi:    %f deg' % np.rad2deg(self.psi),
+            'sigma:  %f'     % self.sigma,
+            'tau:    %f'     % self.tau,
+            'tau/pi: %f'     % (self.tau/np.pi),
+            't:      %f s'   % self.transfer_time,
+            't ME:   %f s'   % self.invtau(self.tauME),
+            'vel:    %s m/s' % self.V])
+
+    def simulate(self, dt=0.01):
+        return self.simulate_generic(self.r1, self.V, self.transfer_time, dt)
+
+    def simulate_generic(self, r0, v0, end, dt=0.01):
+        t = [0]
+        r = [r0]
+        v = [v0]
+        while t[-1] <= end:
+            cr = r[-1]
+            r.append(cr + v[-1] * dt)
+            v.append(v[-1]- cr * self.mu / abs(cr) ** 3 * dt)
+            t.append(t[-1] + dt)
+        return t, r, v
+
 #==================================================================#
 
-dt = 0.05
+def throttle_sim():
+    ThrustDecelerationTime = 0.5
+    MaxThrust = 100
+    M = 1
+
+    def NextThrottle(dV, prev):
+        dt = clamp(dV/10, 0.5, 2)
+        return clamp((dV / MaxThrust * M - prev * ThrustDecelerationTime) / dt, 0, 1)
+
+    V0 = 100.0
+    v = [V0]
+    vf = [V0]
+    t = [1.0]
+    T = [MaxThrust]
+    time = [0.0]
+    while v[-1] > 0.1:
+        v.append(v[-1]-T[-1]/M*dt)
+        t.append(NextThrottle(v[-1], t[-1]))
+        T.append(MaxThrust*t[-1])
+        time.append(time[-1]+dt)
+        if vf[-1] > 0.1: vf.append(vf[-1]-MaxThrust/M*dt)
+        else: vf.append(vf[-1])
+
+    plt.plot(time, v, label='V')
+    plt.plot(time, vf, label='Vf')
+    plt.plot(time, t, label='throttle')
+    plt.legend()
+    plt.show()
+
+dt = 0.01
 
 if __name__ == '__main__':
+    # throttle_sim()
+
+    def vecs2scatter(vecs):
+        return np.array([v.v[:2] for v in vecs], dtype=float).transpose()
+
+    r0 = vec(314495.948447142, 650730.150160414, 0)
+    v0 = vec(-1800.99971342087, 1379.68533771485, 0)
+
+    r1 = vec(314495.948447142, 650730.150160414, 0)
+    # r1 = vec(404539.613450263, 596305.96712629, 0)
+
+    r2 = vec(+454949.7854, +515180.6808, +0.0000)*0.9
+
+    s = lambert_solver(r1, r2, 1000, mu=3531600000000.0)
+    t, orb, vel = s.simulate_generic(r0, v0, 2200, 0.1)
+    start = 3500
+    r1 = orb[start]; v0 = vel[start]
+    ori = vecs2scatter((r1, r2, vec(0, 0, 0), orb[0], orb[-1]))
+    orb = vecs2scatter(orb)
+
+    def plot_solver(s):
+        x = np.linspace(-0.99, 0.99, 1000)
+        y = s.y(x)
+        f = s.F(x, y)
+        # f1 = s.F1(x, y, f)
+        # f2 = s.F2(x, y, f1)
+
+        # plt.plot(x, y, label='y')
+        plt.plot(x, f, label='f')
+        # plt.plot(x, f1, label='f1')
+        # plt.plot(x, f2, label='f2')
+        plt.legend()
+        plt.show()
+
+    def analyze_solution(tt):
+        s = lambert_solver(r1, r2, tt, mu=3531600000000.0)
+        s.solve()
+        #plot_solver(s)
+        print
+        print 'dV: %s' % (s.V-v0)
+        t, r, v = s.simulate(tt / 10000.0)
+        path = vecs2scatter(r)
+        print s
+        print 'TT: %f; Err: %s, dR*V %f' % (tt, r[-1] - r2, (r2 - r1).norm * s.V)
+        plt.scatter(ori[0], ori[1], color=['b', 'r', 'g', 'y', 'c'])
+        plt.plot(orb[0], orb[1], 'grey')
+        plt.plot(path[0], path[1])
+        plt.show()
+
+    # analyze_solution(1106.96240719769)
+
+    for tt in xrange(700, 3600, 100): analyze_solution(tt)
+
+
+
+#    np.random.seed(42)
+#
+#    thrusters = [
+#                vec(1,0,-0.2).norm,
+#                vec(-0.3,1,0).norm,
+#                vec(0.2,0.1,1).norm,
+#                vec(-1,0,-0.2).norm,
+#                vec(-0.3,-1,0).norm,
+#                vec(0.2,0.4,-1).norm,
+#                ]
+#
+#    angles = []
+#    angles2 = []
+#    for _i in xrange(1000):
+#        d = vec.rnd()
+#        thrust = vec()
+#        thrust1 = vec()
+#        for t in thrusters:
+#            c = t*d
+#            if c > 0:
+#                thrust += t*c
+#                thrust1 += t*c*c
+#        if thrust:
+#            angles.append(d.angle(thrust))
+#        if thrust1:
+#            angles2.append(d.angle(thrust1))
+#
+#    print np.mean(angles), np.mean(angles2)
+#    print np.min(angles), np.min(angles2)
+#    print np.max(angles), np.max(angles2)
+#    print np.std(angles), np.std(angles2)
+#    plt.plot(angles, '.')
+#    plt.plot(angles2, 'r*')
+#    plt.show()
+#
+#    draw_vectors(*thrusters)
+
+
 #     sim_VSpeed()
 #     sim_VS_Stability()
 #     sim_Altitude()
@@ -1230,11 +1520,11 @@ if __name__ == '__main__':
 # #                ['AltAhead']
 #                 , (13,))
 
-    analyzeCSV('Debugging/MAN1.csv',
-               ('name',
-                'UT', 'dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
-               ('dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
-               x='UT')
+#    analyzeCSV('Debugging/MAN1.csv',
+#               ('name',
+#                'UT', 'dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
+#               ('dV', 'angMod', 'nextThrottle', 'Throttle', 'TTB'),
+#               x='UT')
 
 #     analyzeCSV('Debugging/vertical-overshooting-bug.csv',
 #                ('name',
@@ -1244,10 +1534,42 @@ if __name__ == '__main__':
 #                ('TerrainAltitude', 'RelVerticalSpeed', 'VerticalSpeed',
 #                 'VerticalCutoff', 'setpoint', 'setpoint_correction', 'VerticalAccel',
 #                 'K', 'VSP'))
-    
+
+#analyzeCSV('Tests/REN.csv',
+#           ('TimeToStart', 'TimeToTarget', 'DeltaTA', 'DeltaFi', 'DeltaR', 'DistanceToTarget', 'dVr', 'dVn',
+#            'dVp'),
+#           region=[0])
+
+# analyzeCSV('Tests/BJ.csv',
+#           ('last dist', 'dist', 'delta'),
+#           region=[0])
 
 #     analyzeCSV('VS-filtering-39.csv',
 #                ('BestAlt', 'DetAlt', 'AltAhead')
 #                )
 #     drawVectors()
 #     sim_PointNav()
+
+
+    # df = pd.read_csv('../Tests/ATC.csv', names=('error',
+    #                  'error_x', 'error_y', 'error_z',
+    #                  'steer_x', 'steer_y', 'steer_z',
+    #                  'pid_x', 'pid_y', 'pid_z',
+    #                  'vel_x', 'vel_y', 'vel_z'))
+    #
+    # plt.plot(df.error_x, df.steer_x, '-')
+    # plt.show()
+
+    # analyzeCSV('Tests/ATC.csv',
+    #           ('error',
+    #            'error.x', 'error.y', 'error.z',
+    #            'steer.x', 'steer.y', 'steer.z',
+    #            'pid.x', 'pid.y', 'pid.z',
+    #            'vel.x', 'vel.y', 'vel.z'),
+    #            region=[0])
+
+    # print vec(0.73874086177374, 0.0402463344474615, 0.672786869453719).norm
+    # print vec(1000.03347198867, 927.774507796912, 55.6943721048555).norm.xzy
+    # print vec(1742.705, 122.1291, 973.6855).norm
+
+

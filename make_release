@@ -11,6 +11,8 @@ import sys, os, re
 import fnmatch
 import argparse
 import zipfile
+import datetime
+from collections import deque
 
 from git import Repo
 from os.path import join
@@ -38,6 +40,27 @@ def parse_assembly_info(dirname):
                 if _modname and _version: break
     return _modname, _version
 #end def
+
+def sort_by_commit_date(lst):
+    return sorted(lst, key=lambda c: c.committed_date, reverse=True)
+
+def bfs_find_tag(head, tags):
+    q = deque()
+    def add_parents(c): q.extend(sorted(c.parents, key=lambda c: c.committed_date))
+    add_parents(head)
+    visited = set([head])
+    while q:
+        c = q.pop()
+        if c in visited: continue
+        if c.hexsha in tags: break
+        add_parents(c)
+        visited.add(c)
+    return sort_by_commit_date(visited)
+
+def list_branch_only_commits(repo, branch, reference):
+    ref_commits = set(repo.iter_commits(rev=reference))
+    branch_commits = [c for c in repo.iter_commits(rev=branch) if c not in ref_commits]
+    return sorted(branch_commits, key=lambda c: c.committed_date, reverse=True)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Creates a KSP mod distribution and changelog file')
@@ -95,16 +118,22 @@ if __name__ == '__main__':
                 print 'Adding: %s' % to_add
                 zipf.write(to_add)
     #get commit history
-    changelog = ''
-    for c in repo.iter_commits('HEAD'):
-        if c.message.startswith('v'):
-            if c.message.startswith(version): continue
-            break
-        else: changelog += '* %s' % c.message
+    tags = dict((t.commit.hexsha, t.name) for t in repo.tags if t.commit.hexsha != repo.head.commit.hexsha)
+    if repo.head != repo.heads.master:
+        branch = list_branch_only_commits(repo, repo.head, repo.heads.master)
+    else: branch = repo.iter_commits()
+    commits = []
+    for c in branch:
+        if c.hexsha in tags: break
+        commits.append(c)
+    changelog = ['[%s] %s' % (datetime.datetime.fromtimestamp(c.committed_date),
+                              c.message.replace('\n', ' ')) for c in sort_by_commit_date(commits)]
     #write changelog
     if changelog:
+        print
+        print '\n'.join(changelog)
         chlog_file = join(releases, current+'.log') 
         with open(chlog_file, 'w') as log:
-            log.write(changelog)
+            log.write(u'\n'.join(changelog).encode('utf-8').strip())
         print '\nChangeLog:', chlog_file
     print 'Done'

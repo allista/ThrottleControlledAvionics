@@ -103,7 +103,6 @@ namespace ThrottleControlledAvionics
 
 		public static VesselConfig GetConfig(Vessel vessel)
 		{
-			if(!ConfigsLoaded) return null;
 			if(!Configs.ContainsKey(vessel.id)) 
 				Configs.Add(vessel.id, new VesselConfig(vessel));
 			return Configs[vessel.id];
