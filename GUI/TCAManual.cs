@@ -21,17 +21,13 @@ namespace ThrottleControlledAvionics
 		static string current_text = "";
 		static Vector2 sections_scroll;
 		static Vector2 content_scroll;
-		static bool summoned;
 
 		public TCAManual() { width = 800; height = 600; }
-
-		public static void Show(bool show) { summoned = show; }
-		public static void Toggle() { summoned = !summoned; }
 
 		void Update()
 		{
 			if(Manual == null) return;
-			if(summoned)
+			if(window_enabled)
 			{
 				if(current_section == null)
 					change_section(Manual.NoText && Manual.Subsections.Count > 0? 
@@ -73,7 +69,7 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(!summoned || !showHUD || Manual == null) 
+			if(Manual == null || !do_show) 
 			{
 				Utils.LockIfMouseOver(LockName, MainWindow, false);
 				return;

@@ -210,7 +210,7 @@ namespace ThrottleControlledAvionics
 		DateTime clicked_time;
 		void WaypointOverlay()
 		{
-			if(TCA == null || !TCA.Available || !TCAGui.showHUD) return;
+			if(TCA == null || !TCA.Available || !TCAGui.HUD_enabled) return;
 			if(selecting_target)
 			{
 				var coords = MapView.MapIsEnabled? 

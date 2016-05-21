@@ -22,12 +22,6 @@ namespace ThrottleControlledAvionics
 		NamedConfig CFG;
 		readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
 
-		public static bool GUIVisible 
-		{ 
-			get { return instance != null && instance.CFG != null && instance.CFG.GUIVisible; } 
-			set { if(instance != null && instance.CFG != null) instance.CFG.GUIVisible = value; }
-		}
-
 		public static bool Available { get; private set; }
 		static bool HasMacroProcessor, HasVTOLAssist, HasFlightStabilizer, HasAltitudeControl, HasVTOLControls;
 
@@ -150,6 +144,7 @@ namespace ThrottleControlledAvionics
 				update_engines = false;
 			}
 			Available |= CFG != null && Engines.Count > 0;
+			if(Available) CFG.GUIVisible = CFG.Enabled;
 		}
 
 		protected override void DrawMainWindow(int windowID)
@@ -200,7 +195,7 @@ namespace ThrottleControlledAvionics
 
 		public void OnGUI()
 		{
-			if(Engines.Count == 0 || CFG == null || !CFG.GUIVisible || !showHUD) 
+			if(Engines.Count == 0 || CFG == null || !do_show) 
 			{
 				Utils.LockIfMouseOver(LockName, MainWindow, false);
 				return;
