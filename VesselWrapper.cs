@@ -268,8 +268,12 @@ namespace ThrottleControlledAvionics
 		}
 		readonly ActionDamper stage_cooldown = new ActionDamper(0.5);
 
-		public void ActivateNextStage() { stage_cooldown.Run(activate_next_stage); }
-		public void ActivateEnginesIfNeeded() { if(Engines.Active.Count == 0) ActivateNextStage();}
+		public void ActivateNextStage() 
+		{ stage_cooldown.Run(activate_next_stage); }
+
+		public void ActivateEnginesIfNeeded() 
+		{ if(CFG.AutoStage && Engines.Active.Count == 0) ActivateNextStage(); }
+
 		public void ActivateNextStageOnFlameout()
 		{
 			if(CFG.AutoStage &&
