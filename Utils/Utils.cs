@@ -50,17 +50,26 @@ namespace ThrottleControlledAvionics
 
 		public static string formatOrbit(Orbit o)
 		{
-			return string.Format(
-				"Body R: {0} m\n" +
-				"PeR:    {1} m\n" +
-				"ApR:    {2} m\n" +
-				"Ecc:    {3}\n" +
-				"Inc:    {4} deg\n" +
-				"Period: {5} s\n" +
-				"Vel: {6} m/s\n",
+			return Utils.Format(
+				"Body R: {} m\n" +
+				"PeR:    {} m\n" +
+				"ApR:    {} m\n" +
+				"Ecc:    {}\n" +
+				"Inc:    {} deg\n" +
+				"LAN:    {} deg\n" +
+				"MA:     {} rad\n" +
+				"TA:     {} deg\n" +
+				"AoP:    {} deg\n" +
+				"Period: {} s\n" +
+				"epoch:   {}\n" +
+				"T@epoch: {} s\n" +
+				"T:       {} s\n" +
+				"Vel: {} m/s\n" +
+				"Pos: {} m\n",
 				o.referenceBody.Radius, o.PeR, o.ApR, 
-				o.eccentricity, o.inclination, o.period, 
-				formatVector(o.vel));
+				o.eccentricity, o.inclination, o.LAN, o.meanAnomaly, o.trueAnomaly, o.argumentOfPeriapsis,
+				o.period, o.epoch, o.ObTAtEpoch, o.ObT,
+				formatVector(o.vel), formatVector(o.pos));
 		}
 
 		static void convert_args(object[] args)
