@@ -178,7 +178,7 @@ BRC
 {
 	MaxAAf = 2
 	MinAAf = 0.0001
-	YawFactor = 0.6
+	YawFactor = 60
 	DrawForwardDirection = true
 	
 	DirectionPID

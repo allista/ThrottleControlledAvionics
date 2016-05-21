@@ -333,7 +333,7 @@ namespace ThrottleControlledAvionics
 			if(THR != null)
 			{
 				GUILayout.BeginHorizontal();
-				CFG.VSControlSensitivity = Utils.FloatSlider("Sensitivity of throttle controls", CFG.VSControlSensitivity, 0.001f, 0.05f, "P2");
+				CFG.ControlSensitivity = Utils.FloatSlider("Keyboard controls sensitivity", CFG.ControlSensitivity, 0.001f, 0.05f, "P2");
 				GUILayout.EndHorizontal();
 			}
 			ControllerProperties();

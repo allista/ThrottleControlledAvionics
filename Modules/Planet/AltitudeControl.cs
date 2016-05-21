@@ -220,11 +220,11 @@ namespace ThrottleControlledAvionics
 			if(GameSettings.THROTTLE_UP.GetKey())
 				altitude = Mathf.Lerp(CFG.DesiredAltitude, 
 				                      CFG.DesiredAltitude+10, 
-				                      CFG.VSControlSensitivity);
+				                      CFG.ControlSensitivity);
 			else if(GameSettings.THROTTLE_DOWN.GetKey())
 				altitude = Mathf.Lerp(CFG.DesiredAltitude,
 				                      CFG.DesiredAltitude-10, 
-				                      CFG.VSControlSensitivity);
+				                      CFG.ControlSensitivity);
 			else if(GameSettings.THROTTLE_FULL.GetKey())
 				UpDamper.Run(() => altitude = altitude+10);
 			else if(GameSettings.THROTTLE_CUTOFF.GetKey())

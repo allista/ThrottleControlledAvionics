@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
 			new public const string NODE_NAME = "BRC";
 
 			[Persistent] public bool  DrawForwardDirection = true;
-			[Persistent] public float YawFactor = 0.6f;
+			[Persistent] public float YawFactor = 60f;
 			[Persistent] public float MinAAf = 0.001f;
 			[Persistent] public float MaxAAf = 2;
 			[Persistent] public PID_Controller DirectionPID = new PID_Controller(0.5f, 0f, 0.5f, -1, 1);
@@ -87,7 +87,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(!s.yaw.Equals(0))
 				{
-					UpdateBearing(Bearing.Value + s.yaw*BRC.YawFactor);
+					UpdateBearing(Bearing.Value + s.yaw*BRC.YawFactor*CFG.ControlSensitivity);
 					if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
 						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
 					draw_forward_direction = BRC.DrawForwardDirection;

@@ -106,11 +106,11 @@ namespace ThrottleControlledAvionics
 			if(GameSettings.THROTTLE_UP.GetKey())
 				cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
 				                        GLB.VSC.MaxSpeed, 
-				                        CFG.VSControlSensitivity);
+				                        CFG.ControlSensitivity);
 			else if(GameSettings.THROTTLE_DOWN.GetKey())
 				cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
 				                        -GLB.VSC.MaxSpeed, 
-				                        CFG.VSControlSensitivity);
+				                        CFG.ControlSensitivity);
 			else if(GameSettings.THROTTLE_FULL.GetKeyDown())
 				cutoff = GLB.VSC.MaxSpeed;
 			else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())

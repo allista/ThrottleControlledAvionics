@@ -128,7 +128,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float   DesiredAltitude; //desired altitude m (configurable)
 		[Persistent] public float   VerticalCutoff; //desired positive vertical speed m/s (configurable)
 		[Persistent] public bool    BlockThrottle;
-		[Persistent] public float   VSControlSensitivity = 0.01f;
+		[Persistent] public float   ControlSensitivity = 0.01f;
 		public bool VSCIsActive { get { return VF || VerticalCutoff < TCAScenario.Globals.VSC.MaxSpeed; } }
 		public void DisableVSC() { VF.Off(); VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed; BlockThrottle = false; }
 		//steering
@@ -216,6 +216,13 @@ namespace ThrottleControlledAvionics
 				Target = null;
 			if(SelectedMacro != null && !SelectedMacro.Block.HasSubnodes)
 				SelectedMacro = null;
+			
+			val = node.GetValue("VSControlSensitivity"); //deprecated conversion
+			if(!string.IsNullOrEmpty(val))
+			{
+				if(!float.TryParse(val, out ControlSensitivity))
+					ControlSensitivity = 0.01f;
+			}
 		}
 
 		public override void Save(ConfigNode node)
