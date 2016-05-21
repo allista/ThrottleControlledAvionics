@@ -172,6 +172,7 @@ namespace ThrottleControlledAvionics
 								Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false));
 								Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
 							}
+							Utils.ButtonSwitch("AutoStage", ref CFG.AutoStage, "Automatically activate next stage when needed", GUILayout.ExpandWidth(false));
 						GUILayout.EndHorizontal();
 						GUILayout.BeginHorizontal();
 							if(HasVTOLControls)
