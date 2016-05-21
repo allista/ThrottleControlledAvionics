@@ -165,6 +165,7 @@ namespace ThrottleControlledAvionics
 
 		public void ApplyAutopilotSteering(FlightCtrlState s)
 		{
+			if(!CFG.Enabled || Controls.AutopilotSteering.IsZero()) return;
 			s.pitch = Utils.Clamp(Controls.AutopilotSteering.x, -1, 1);
 			s.roll  = Utils.Clamp(Controls.AutopilotSteering.y, -1, 1);
 			s.yaw   = Utils.Clamp(Controls.AutopilotSteering.z, -1, 1);
