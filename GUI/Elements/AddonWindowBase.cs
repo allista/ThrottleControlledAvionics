@@ -23,7 +23,7 @@ namespace ThrottleControlledAvionics
 		protected static int  width = 550, height = 100;
 		protected static Rect MainWindow = new Rect();
 		public static bool HUD_enabled { get; protected set; } = true;
-		public static bool window_enabled { get; protected set; } = true;
+		public static bool window_enabled { get; protected set; } = false;
 		public static bool do_show { get { return window_enabled && HUD_enabled; } }
 
 		static protected string TCATitle;
