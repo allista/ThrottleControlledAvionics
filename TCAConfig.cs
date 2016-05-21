@@ -121,7 +121,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public KSPActionGroup ActionGroup = KSPActionGroup.None;
 		//attitude control
 		[Persistent] public Multiplexer<Attitude> AT = new Multiplexer<Attitude>();
-		[Persistent] public bool WarpToNode;
+		[Persistent] public bool WarpToNode = true;
 		//vertical speed and altitude
 		[Persistent] public Multiplexer<VFlight> VF = new Multiplexer<VFlight>();
 		[Persistent] public bool    AltitudeAboveTerrain;
