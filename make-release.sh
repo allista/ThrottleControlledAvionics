@@ -2,4 +2,4 @@
 
 cd $(dirname "$0")
 
-./make_release -e '*/config.xml' '*/TCA.conf' '*/TCA.macro' '*/TCA.user' '*/LoadTestGame.conf'
+./make_release -e '*/config.xml' '*/TCA.conf' '*/TCA.macro' '*/TCA.user' '*/LoadTestGame.conf' '*.orig'
