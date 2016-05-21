@@ -248,17 +248,29 @@ namespace ThrottleControlledAvionics
 
 		void Awake()
 		{
-			var game = "default";
-			var save = "persistent";
+			var game = "";
+			var save = "";
 			if(File.Exists(config))
 			{
 				var cfg = ConfigNode.Load(config);
-				var val = cfg.GetValue("game");
-				if(val != null) game = val;
-				val = cfg.GetValue("save");
-				if(val != null) save = val;
+				if(cfg != null)
+				{
+					var val = cfg.GetValue("game");
+					if(val != null) game = val;
+					val = cfg.GetValue("save");
+					if(val != null) save = val;
+				}
+				else 
+				{
+					Utils.LogF("LoadTestGame: Configuration file is empty: {}", config);
+					return;
+				}
 			}
-			else Utils.LogF("LoadTestGame: Configuration file not found: {}", config);
+			else 
+			{
+				Utils.LogF("LoadTestGame: Configuration file not found: {}", config);
+				return;
+			}
 			var savefile = savesdir+"/"+game+"/"+save+".sfs";
 			if(!File.Exists(savefile)) 
 			{
