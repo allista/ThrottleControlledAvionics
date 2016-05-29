@@ -20,12 +20,35 @@ namespace ThrottleControlledAvionics
 
 		public Vector3 positive, negative;
 
+		public Vector6() {}
+
+		public Vector6(Vector3 pos, Vector3 neg) { positive = pos; negative = neg; }
+
+		public Vector6(Vector6 other)
+			: this(other.positive, other.negative) {}
+
+		public Vector6(float xp, float yp, float zp,
+		               float xn, float yn, float zn)
+			: this(new Vector3(xp, yp, zp), new Vector3(xn, yn, zn)) {}
+
 		public static Vector6 operator+(Vector6 first, Vector6 second)
 		{ 
 			var sum = new Vector6();
 			sum.positive = first.positive+second.positive; 
 			sum.negative = first.negative+second.negative; 
 			return sum;
+		}
+
+		public bool IsZero() { return positive.IsZero() && negative.IsZero(); }
+
+		public float this[int i]
+		{
+			get { return i<3? positive[i] : negative[i-3]; }
+			set 
+			{ 
+				if(i<3) positive[i] = value;
+				else negative[i-3] = value; 
+			}
 		}
 
 		public void Add(Vector6 vec)
@@ -71,6 +94,19 @@ namespace ThrottleControlledAvionics
 			return svec;
 		}
 
+		public void Scale(Vector6 other)
+		{
+			positive.Scale( other.positive);
+			negative.Scale(-other.negative);
+		}
+
+		public Vector6 Scaled(Vector6 other)
+		{
+			var s = new Vector6(this);
+			s.Scale(other);
+			return s;
+		}
+
 		public Vector3 Max
 		{
 			get
@@ -100,6 +136,21 @@ namespace ThrottleControlledAvionics
 				cvec[i] = 0;
 			}
 			return max;
+		}
+
+		public Vector3 SumInPlane(Vector3 normal)
+		{
+			var sum = Vector3.zero;
+			var cvec = Vector3.zero;
+			for(int i = 0; i < 3; i++)
+			{
+				cvec[i] = positive[i];
+				sum += Vector3.ProjectOnPlane(cvec, normal);
+				cvec[i] = negative[i];
+				sum += Vector3.ProjectOnPlane(cvec, normal);
+				cvec[i] = 0;
+			}
+			return sum;
 		}
 
 		public Vector3 Project(Vector3 normal)
@@ -153,7 +204,10 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override string ToString()
-		{ return string.Format("Vector6:\nMax {0}\n+ {1}\n- {2}", Max, positive, negative); }
+		{ 
+			return string.Format("Vector6:\nMax {0}\n+ {1}\n- {2}", 
+		                         Max, Utils.formatVector(positive), Utils.formatVector(negative)); 
+		}
 	}
 }
 
