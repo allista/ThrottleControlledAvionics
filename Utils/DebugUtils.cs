@@ -57,6 +57,9 @@ namespace ThrottleControlledAvionics
 		public static string FormatSteering(Vector3 steering)
 		{ return Utils.Format("[pitch {}, roll {}, yaw {}]", steering.x, steering.y, steering.z); }
 
+		public static string FormatSteering(FlightCtrlState s)
+		{ return Utils.Format("[pitch {}, roll {}, yaw {}]", s.pitch, s.roll, s.yaw); }
+
 		public static string FormatActions(BaseActionList actions)
 		{
 			return actions.Aggregate("", (s, a) => s + string.Format("{0} ({1}, active: {2}); ", 
