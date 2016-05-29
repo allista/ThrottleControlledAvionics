@@ -23,6 +23,8 @@ namespace ThrottleControlledAvionics
 
 		public virtual void ClearFrameState() {}
 		public abstract void Update();
+
+		protected void Log(string msg, params object[] args) { VSL.Log(msg, args); }
 	}
 }
 
