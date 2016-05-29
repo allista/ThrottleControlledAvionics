@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 
 		public List<ModuleReactionWheel> Wheels = new List<ModuleReactionWheel>();
 
+		public Vector3  MaxTorquePossible { get; private set; } //theoretical maximum torque from active engines, wheels and RCS
 		public Vector3  EnginesTorque { get; private set; } //current torque applied to the vessel by engines
 		public Vector3  MaxTorque { get; private set; } //current maximum torque
 		public Vector3  MaxAngularA { get; private set; } //current maximum angular acceleration
@@ -42,12 +43,20 @@ namespace ThrottleControlledAvionics
 				 VSL.Physics.MoI.z.Equals(0)? float.MaxValue : torque.z/VSL.Physics.MoI.z);
 		}
 
+		public float AngularAccelerationInDirection(Vector3 dir)
+		{ return Mathf.Abs(Vector3.Dot(VSL.Torque.MaxAngularA, dir)); }
+
 		public override void Update()
 		{
 			//engines
 			EnginesLimits = Vector6.zero;
+			var MaxEnginesLimits = Vector6.zero;
 			for(int i = 0, count = VSL.Engines.Steering.Count; i < count; i++)
-				EnginesLimits.Add(VSL.Engines.Steering[i].currentTorque);
+			{
+				var e = VSL.Engines.Steering[i];
+				EnginesLimits.Add(e.currentTorque);
+				MaxEnginesLimits.Add(e.specificTorque*e.nominalCurrentThrust(1));
+			}
 			//wheels
 			WheelsLimits = Vector6.zero;
 			for(int i = 0, count = Wheels.Count; i < count; i++)
@@ -71,7 +80,9 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			//torque angular acceleration
-			MaxTorque = EnginesLimits.Max+RCSLimits.Max+WheelsLimits.Max;
+			MaxTorque = RCSLimits.Max+WheelsLimits.Max;
+			MaxTorquePossible = MaxEnginesLimits.Max+MaxTorque;
+			MaxTorque += EnginesLimits.Max;
 			MaxAngularA = AngularAcceleration(MaxTorque);
 			wMaxAngularA = refT.TransformDirection(MaxAngularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
