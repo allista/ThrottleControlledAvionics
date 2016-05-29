@@ -224,8 +224,8 @@ namespace ThrottleControlledAvionics
 		{
 			var k = d/1000;
 			return k < 1? string.Format("{0:F0}m", d) : string.Format("{0:F1}km", k);
-		}
-		#region From MechJeb
+		}			
+
 		public static double TerrainAltitude(CelestialBody body, double Lat, double Lon)
 		{
 			if(body.pqsController == null) return 0;
@@ -241,8 +241,29 @@ namespace ThrottleControlledAvionics
 			var mouse_pos = Input.mousePosition;
 			return new Vector2(mouse_pos.x-window.x, Screen.height-mouse_pos.y-window.y).clampToScreen();
 		}
+	}
 
-		static Coordinates SearchCoordinates(CelestialBody body, Ray mouseRay)
+	//adapted from MechJeb
+	public class Coordinates
+	{
+		public double Lat, Lon;
+		public Coordinates(double lat, double lon) 
+		{ Lat = Utils.ClampAngle(lat); Lon = Utils.ClampAngle(lon); }
+		public Coordinates(Vessel vsl) : this(vsl.latitude, vsl.longitude) {}
+
+		public static string AngleToDMS(double angle)
+		{
+			var d = (int)Math.Floor(Math.Abs(angle));
+			var m = (int)Math.Floor(60 * (Math.Abs(angle) - d));
+			var s = (int)Math.Floor(3600 * (Math.Abs(angle) - d - m / 60.0));
+			return String.Format("{0:0}°{1:00}'{2:00}\"", Math.Sign(angle)*d, m, s);
+		}
+
+		public double Alt(CelestialBody body) { return Utils.TerrainAltitude(body, Lat, Lon); }
+		public string Biome(CelestialBody body) { return ScienceUtil.GetExperimentBiome(body, Lat, Lon); }
+
+		//adopted from MechJeb
+		static Coordinates Search(CelestialBody body, Ray mouseRay)
 		{
 			Vector3d relSurfacePosition;
 			Vector3d relOrigin = mouseRay.origin - body.position;
@@ -283,43 +304,30 @@ namespace ThrottleControlledAvionics
 			return null;
 		}
 
-		public static Coordinates GetMouseCoordinates(CelestialBody body)
+		public static Coordinates GetAtPointer(CelestialBody body)
 		{
 			var mouseRay = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
 			mouseRay.origin = ScaledSpace.ScaledToLocalSpace(mouseRay.origin);
-			return SearchCoordinates(body, mouseRay);
+			return Search(body, mouseRay);
 		}
 
-		public static Coordinates GetMouseFlightCoordinates()
+		public static Coordinates GetAtPointerInFlight()
 		{
 			var body = FlightGlobals.currentMainBody;
 			var mouseRay = FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition);
 			RaycastHit raycast;
 			return Physics.Raycast(mouseRay, out raycast, (float)body.Radius * 4f, 1 << 15)? 
-				new Coordinates(body.GetLatitude(raycast.point), CenterAngle(body.GetLongitude(raycast.point))) : 
-				SearchCoordinates(body, mouseRay);
-		}
-		#endregion
-	}
-
-	//adapted from MechJeb
-	public class Coordinates
-	{
-		public double Lat, Lon;
-		public Coordinates(double lat, double lon) 
-		{ Lat = Utils.ClampAngle(lat); Lon = Utils.ClampAngle(lon); }
-		public Coordinates(Vessel vsl) : this(vsl.latitude, vsl.longitude) {}
-
-		public static string AngleToDMS(double angle)
-		{
-			var d = (int)Math.Floor(Math.Abs(angle));
-			var m = (int)Math.Floor(60 * (Math.Abs(angle) - d));
-			var s = (int)Math.Floor(3600 * (Math.Abs(angle) - d - m / 60.0));
-			return String.Format("{0:0}°{1:00}'{2:00}\"", Math.Sign(angle)*d, m, s);
+				new Coordinates(body.GetLatitude(raycast.point), Utils.CenterAngle(body.GetLongitude(raycast.point))) : 
+				Search(body, mouseRay);
 		}
 
 		public override string ToString()
 		{ return string.Format("Lat: {0} Lon: {1}", AngleToDMS(Lat), AngleToDMS(Lon)); }
+
+		public string FullDescription(CelestialBody body)
+		{ return string.Format("{0}\nAlt: {1:F0}m {2}", this, Alt(body), Biome(body)); }
+
+		public string FullDescription(Vessel vsl) { return FullDescription(vsl.mainBody);}
 	}
 
 	public class ListDict<K,V> : Dictionary<K, List<V>>
