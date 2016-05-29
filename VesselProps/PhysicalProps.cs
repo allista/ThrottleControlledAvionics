@@ -28,6 +28,7 @@ namespace ThrottleControlledAvionics
 		public Vector3    wCoM { get; private set; } //center of mass in world space
 		public Vector3    MoI { get; private set; } = Vector3.one; //main diagonal of inertia tensor
 		public Matrix3x3f InertiaTensor { get; private set; }
+		public float      AngularDrag;
 
 		public override void Update()
 		{
