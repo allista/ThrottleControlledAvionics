@@ -167,23 +167,36 @@ namespace ThrottleControlledAvionics
 							Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false));
 							if(HasAltitudeControl)
 							{
-								if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Enable Altitude Control", GUILayout.ExpandWidth(false)))
+								if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], 
+				                                      "Enable Altitude Control", GUILayout.ExpandWidth(false)))
 									CFG.VF.Toggle(VFlight.AltitudeControl);
-								Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, "Enable follow terrain mode", GUILayout.ExpandWidth(false));
-								Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
+								Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
+				                                   "Enable follow terrain mode", GUILayout.ExpandWidth(false));
+								Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
+				                                   "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
 							}
-							Utils.ButtonSwitch("AutoStage", ref CFG.AutoStage, "Automatically activate next stage when needed", GUILayout.ExpandWidth(false));
-						GUILayout.EndHorizontal();
-						GUILayout.BeginHorizontal();
 							if(HasVTOLControls)
 							{
-								if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL], "Keyboard controls thrust direction instead of torque", GUILayout.ExpandWidth(false)))
+								if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL], 
+				                                      "Keyboard controls thrust direction instead of torque", GUILayout.ExpandWidth(false)))
 									CFG.CTRL.XToggle(ControlMode.VTOL);
 							}
 							if(HasVTOLAssist)
-								Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
+								Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, 
+				                                   "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
 							if(HasFlightStabilizer)
-								Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
+								Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
+				                                   "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
+						GUILayout.EndHorizontal();
+						GUILayout.BeginHorizontal();
+							Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear, 
+			                                   "Automatically deploy/retract landing gear when needed", GUILayout.ExpandWidth(true));
+							Utils.ButtonSwitch("AutoBrakes", ref CFG.AutoBrakes, 
+							                   "Automatically ebable/disable brakes when needed", GUILayout.ExpandWidth(true));
+							Utils.ButtonSwitch("AutoStage", ref CFG.AutoStage, 
+							                   "Automatically activate next stage when previous falmeouted", GUILayout.ExpandWidth(true));
+							Utils.ButtonSwitch("AutoChute", ref CFG.AutoParachutes, 
+							                   "Automatically activate parachutes when needed", GUILayout.ExpandWidth(true));
 						GUILayout.EndHorizontal();
 					GUILayout.EndVertical();
 				GUILayout.EndHorizontal();

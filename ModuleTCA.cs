@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class ModuleTCA : PartModule, ITCAModule, IModuleInfo
+	public class ModuleTCA : PartModule, ITCAComponent, IModuleInfo
 	{
 		#if DEBUG
 		internal static Profiler prof = new Profiler();
@@ -77,7 +77,13 @@ namespace ThrottleControlledAvionics
 
 		#region Initialization
 		public void OnReloadGlobals() 
-		{ AllModules.ForEach(m => m.Init()); }
+		{ 
+			AllModules.ForEach(m => m.Reset()); 
+			VSL.Reset();
+			VSL.Init();
+			AllModules.ForEach(m => m.Init()); 
+			VSL.ConnectAutopilotOutput();
+		}
 
 		public override string GetInfo() 
 		{ return "Software can be installed"; }
@@ -131,7 +137,7 @@ namespace ThrottleControlledAvionics
 			check_priority();
 			if(state == StartState.Editor) return;
 			enable_module(TCA_Active);
-			init();
+			StartCoroutine(delayed_init());
 		}
 
 		void onVesselModify(Vessel vsl)
@@ -154,6 +160,13 @@ namespace ThrottleControlledAvionics
 			if(VSL == null || !CFG.Enabled || !VSL.IsActiveVessel) return;
 			if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines.All))
 				StartCoroutine(activeProfileUpdate());
+		}
+
+		IEnumerator<YieldInstruction> delayed_init()
+		{
+			if(!vessel.loaded) yield return null;
+			yield return new WaitForSeconds(0.5f);
+			init();
 		}
 
 		IEnumerator<YieldInstruction> activeProfileUpdate()
@@ -327,6 +340,7 @@ namespace ThrottleControlledAvionics
 
 		public override void OnUpdate()
 		{
+			if(VSL == null) return;
 			//update vessel config if needed
 			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) updateCFG();
 			if(CFG.Enabled)
@@ -339,6 +353,7 @@ namespace ThrottleControlledAvionics
 
 		public override void OnFixedUpdate() 
 		{
+			if(VSL == null) return;
 			//initialize systems
 			VSL.UpdateState();
 			if(!CFG.Enabled) return;

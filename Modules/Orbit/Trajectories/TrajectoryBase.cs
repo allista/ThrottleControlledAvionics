@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 		{
 			VSL = vsl;
 			ManeuverDeltaV = dV;
-			ManeuverDuration = ManeuverAutopilot.TTB(VSL, (float)ManeuverDeltaV.magnitude, 1);
+			ManeuverDuration = VSL.Engines.TTB((float)ManeuverDeltaV.magnitude, 1);
 			StartUT = startUT;
 			TimeToStart = startUT-VSL.Physics.UT;
 			Body = VSL.vessel.orbitDriver.orbit.referenceBody;
@@ -76,12 +76,15 @@ namespace ThrottleControlledAvionics
 		protected TargetedTrajectoryBase(VesselWrapper vsl, Vector3d dV, double startUT) 
 			: base(vsl, dV, startUT) {}
 
+		public abstract Vector3d BrakeDeltaV { get; }
+
 		public override bool IsBetter(BaseTrajectory other)
 		{
 			var _other = other as TargetedTrajectoryBase;
 			return _other == null || _other.DistanceToTarget < 0 || 
 				DistanceToTarget >= 0 && 
-				DistanceToTarget+ManeuverDeltaV.magnitude < _other.DistanceToTarget+_other.ManeuverDeltaV.magnitude;
+				(DistanceToTarget+ManeuverDeltaV.magnitude+BrakeDeltaV.magnitude < 
+				 _other.DistanceToTarget+_other.ManeuverDeltaV.magnitude+_other.BrakeDeltaV.magnitude);
 		}
 
 		public override string ToString()
@@ -101,7 +104,7 @@ namespace ThrottleControlledAvionics
 		protected TargetedTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, T target) 
 			: base(vsl, dV, startUT) { Target = target; }
 
-		public Vector3d BreakDeltaV
+		public override Vector3d BrakeDeltaV
 		{ get { return Target.GetOrbit().getOrbitalVelocityAtUT(AtTargetUT)-NewOrbit.getOrbitalVelocityAtUT(AtTargetUT); } }
 
 		public override string ToString()

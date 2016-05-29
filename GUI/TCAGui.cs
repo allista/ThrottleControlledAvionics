@@ -24,10 +24,7 @@ namespace ThrottleControlledAvionics
 		static AltitudeControl ALT;
 		static VerticalSpeedControl VSC;
 		static ThrottleControl THR;
-		static VTOLControl VTOL;
-		static VTOLAssist VLA;
-		static FlightStabilizer STB;
-		static ManeuverAutopilot MAN;
+		static TogglesPanel TGL;
 
 		static List<FieldInfo> ModuleFields = typeof(TCAGui)
 			.GetFields(BindingFlags.Static|BindingFlags.NonPublic)
@@ -263,6 +260,8 @@ namespace ThrottleControlledAvionics
 				{ state = "Ground Collision Possible"; style = Styles.red; }
 				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
 				{ state = "Loosing Altitude"; style = Styles.red; }
+				else if(!VSL.Controls.HaveControlAuthority)
+				{ state = "Low Control Authority"; style = Styles.red; }
                 else if(TCA.IsStateSet(TCAState.Unoptimized))
 				{ state = "Engines Unoptimized"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.Ascending))
@@ -271,14 +270,6 @@ namespace ThrottleControlledAvionics
 				{ state = "VTOL Assist On"; style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.StabilizeFlight))
 				{ state = "Stabilizing Flight"; style = Styles.yellow; }
-				else if(TCA.IsStateSet(TCAState.Landing))
-				{ state = "Landing..."; style = Styles.green; }
-				else if(TCA.IsStateSet(TCAState.CheckingSite))
-				{ state = "Checking Landing Site"; style = Styles.yellow; }
-				else if(TCA.IsStateSet(TCAState.Searching))
-				{ state = "Searching For Landing Site"; style = Styles.yellow; }
-				else if(TCA.IsStateSet(TCAState.Scanning))
-				{ state = string.Format("Scanning Surface {0:P0}", VSL.Info.ScanningProgress); style = Styles.yellow; }
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
 				{ state = "Altitude Control"; style = Styles.green; }
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
@@ -300,36 +291,21 @@ namespace ThrottleControlledAvionics
 			if(!adv_options) return;
 			GUILayout.BeginVertical(Styles.white);
 			GUILayout.Label(TCATitle, Styles.label, GUILayout.ExpandWidth(true));
+			GUILayout.BeginHorizontal();
 			if(GUILayout.Button("Reload TCA Settings", Styles.active_button, GUILayout.ExpandWidth(true))) 
 			{
 				TCAScenario.LoadGlobals();
 				Styles.ConfigureButtons();
 				TCA.OnReloadGlobals();
 			}
-			PartsInfo();
 			//change key binding
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Press to change TCA hotkey:", GUILayout.ExpandWidth(false));
-			if(GUILayout.Button(selecting_key? new GUIContent("?", "Choose new TCA hotkey") : 
-			                    new GUIContent(TCA_Key.ToString(), "Select TCA Hotkey"), 
+			if(GUILayout.Button(selecting_key? new GUIContent("Change TCA hotkey: ?", "Choose new TCA hotkey") : 
+			                    new GUIContent(string.Format("Change TCA hotkey: {0}", TCA_Key), "Select TCA Hotkey"), 
 			                    selecting_key? Styles.enabled_button : Styles.active_button, 
-			                    GUILayout.Width(40)))
-			{ selecting_key = true; ScreenMessages.PostScreenMessage("Enter new key to toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
+			                    GUILayout.ExpandWidth(true)))
+			{ selecting_key = true; ScreenMessages.PostScreenMessage("Press a key that will toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			if(VTOL != null) 
-			{
-				if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL], 
-			                          "Keyboard controls thrust direction instead of torque", GUILayout.ExpandWidth(true)))
-					CFG.CTRL.XToggle(ControlMode.VTOL);
-			}
-			if(VLA != null) Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, 
-			                                   "Assist with vertical takeoff and landing", GUILayout.ExpandWidth(true));
-			if(STB != null) Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
-			                                   "Try to stabilize flight if spinning uncontrollably", GUILayout.ExpandWidth(true));
-			if(MAN != null) Utils.ButtonSwitch("AutoStaging", ref CFG.AutoStage, 
-			                                   "Automatically activate next stage when previous falmeouted", GUILayout.ExpandWidth(true));
-			GUILayout.EndHorizontal();
+			TGL.Draw();
 			if(THR != null)
 			{
 				GUILayout.BeginHorizontal();
@@ -338,6 +314,7 @@ namespace ThrottleControlledAvionics
 			}
 			ControllerProperties();
 			ConfigsGUI();
+			PartsInfo();
 			GUILayout.EndVertical();
 		}
 

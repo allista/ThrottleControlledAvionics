@@ -247,7 +247,7 @@ namespace ThrottleControlledAvionics
 		public override void OnLoad(ConfigNode node)
 		{ 
 			LoadConfigs(node);
-			//deprecated
+			//deprecated: Old config conversion
 			if(Configs.Count == 0 && NamedConfigs.Count == 0)
 			{
 				var cnode = loadNode(PluginData("TCA.conf"));

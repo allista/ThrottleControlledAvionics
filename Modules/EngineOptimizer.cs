@@ -114,6 +114,23 @@ namespace ThrottleControlledAvionics
 				   last_error > 0 && Mathf.Abs(error-last_error) < ENG.OptimizationPrecision*last_error)
 					break;
 				last_error = error;
+				//normalize limits of main and balanced engines before optimization
+				var limit_norm = 0f;
+				for(int j = 0; j < num_engines; j++) 
+				{ 
+					var e = engines[j];
+					if(e.Role == TCARole.MANEUVER) continue;
+					if(limit_norm < e.limit) limit_norm = e.limit; 
+				}
+				if(limit_norm > 0)
+				{
+					for(int j = 0; j < num_engines; j++) 
+					{ 
+						var e = engines[j]; 
+						if(e.Role == TCARole.MANEUVER) continue;
+						e.limit = Mathf.Clamp01(e.limit / limit_norm); 
+					}
+				}
 				//optimize limits
 				if(!optimization_for_torque_pass(engines, num_engines, target, error, ENG.OptimizationPrecision)) 
 					break;

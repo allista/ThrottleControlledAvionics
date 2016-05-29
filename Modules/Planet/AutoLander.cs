@@ -217,16 +217,19 @@ namespace ThrottleControlledAvionics
 		SurfaceNode center_node
 		{ get { return Nodes == null ? null : Nodes[center, center]; } }
 
+		void set_initial_altitude()
+		{
+			VSL.Altitude.Update();
+			DesiredAltitude = Mathf.Max(VSL.Altitude+VSL.VerticalSpeed.Absolute, 
+			                            VSL.Altitude.TerrainAltitude+VSL.Geometry.H*2);
+		}
+
 		bool altitude_changed
 		{
 			get
 			{
 				CFG.AltitudeAboveTerrain = true;
-				if(DesiredAltitude <= 0) 
-				{
-					VSL.Altitude.Update();
-					DesiredAltitude = VSL.Altitude;
-				}
+				if(DesiredAltitude <= 0) set_initial_altitude();
 				CFG.DesiredAltitude = DesiredAltitude;
 				var err = Mathf.Abs(VSL.Altitude-DesiredAltitude);
 				if(err > 10)
@@ -346,36 +349,25 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		void gear_on()
-		{
-			if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear])
-				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
-		}
-
 		protected override void Update()
 		{
 			if(!IsActive || CFG.AP1.Paused) return;
-			VSL.Info.ScanningProgress = Progress;
 			switch(stage)
 			{
 			case Stage.None:
 				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
-				if(DesiredAltitude <= 0) 
-				{   //here we just need the altitude control to prevent smashing into something while stopping
-					VSL.Altitude.Update();
-					DesiredAltitude = VSL.Altitude > LND.MaxStartAltitude? LND.MaxStartAltitude : VSL.Altitude;
-					CFG.DesiredAltitude = DesiredAltitude;
-				}
+				//here we just need the altitude control to prevent smashing into something while stopping
+				if(DesiredAltitude <= 0) set_initial_altitude();
 				if(stopped && VSL.Altitude < LND.MaxStartAltitude+10) 
 				{
-					DesiredAltitude = VSL.Altitude;
+					set_initial_altitude();
 					CFG.DesiredAltitude = DesiredAltitude;
 					stage = Stage.PointCheck;	
 				}
 				break;
 			case Stage.PointCheck:
-				SetState(TCAState.CheckingSite);
+				Status("Checking landing site...");
 				if(!stopped) break;
 				if(scan(1, null, VSL.Geometry.R*2)) break;
 				if(Nodes == null || center_node == null) 
@@ -385,6 +377,7 @@ namespace ThrottleControlledAvionics
 				else land();
 				break;
 			case Stage.FlatCheck:
+				Status("Searching for landing site...");
 				if(!stopped) break;
 				if(FlatNodes.Count > 0)
 				{
@@ -399,9 +392,8 @@ namespace ThrottleControlledAvionics
 				else try_move_to_flattest();
 				break;
 			case Stage.WideCheck:
-				if(!fully_stopped) 
-				{ SetState(TCAState.Searching); break; }
-				SetState(TCAState.Scanning);
+				if(!fully_stopped) { Status("Searching for landing site..."); break; }
+				Status("yellow", "Scanning Surface: {0:P0}", Progress);
 				if(scan(LND.WideCheckLevel)) break;
 				FlattestNode = flattest_node;
 				if(FlatNodes.Count > 0) 
@@ -409,14 +401,15 @@ namespace ThrottleControlledAvionics
 				else try_move_to_flattest();
 				break;
 			case Stage.MoveNext:
-				SetState(NextNode.flat? TCAState.CheckingSite : TCAState.Searching);
+				if(NextNode.flat) Status("Checking landing site...");
+				else Status("Searching for landing site...");
 				if(!moved_to_next_node) break;
 				DesiredAltitude = VSL.Altitude;
 				if(NextNode.flat) stage = Stage.PointCheck;
 				else wide_check();
 				break;
 			case Stage.Land:
-				SetState(TCAState.Landing);
+				Status("lime", "Landing...");
 				if(!landing_started)
 				{
 					landing_started = true;
@@ -426,12 +419,14 @@ namespace ThrottleControlledAvionics
 				{
 					CFG.Nav.OnIfNot(Navigation.Anchor);
 					DesiredAltitude = VSL.Geometry.H*LND.GearOnAtH;
-					if(VSL.Altitude > DesiredAltitude &&
-					   !altitude_changed) break;
+					CFG.DesiredAltitude = DesiredAltitude;
+					CFG.VF.OnIfNot(VFlight.AltitudeControl);
+					if(VSL.Altitude-DesiredAltitude > 5 &&
+					   VSL.VerticalSpeed.Absolute < -1) break;
+					CFG.VTOLAssistON = true;
 					CFG.VerticalCutoff = -0.5f;
 					DesiredAltitude = -10;
 				}
-				gear_on();
 				CFG.VF.Off();
 				if(VSL.LandedOrSplashed) 
 				{ 

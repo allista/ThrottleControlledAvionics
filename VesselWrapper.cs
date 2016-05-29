@@ -56,6 +56,10 @@ namespace ThrottleControlledAvionics
 		public bool HasManeuverNode { get { return vessel.patchedConicSolver != null && vessel.patchedConicSolver.maneuverNodes.Count > 0; } }
 		public Vessel.Situations Situation { get { return vessel.situation; } }
 
+		#if DEBUG
+		public void LogFST(string msg, params object[] args) 
+		{ vessel.Log("{0}\n{1}", Utils.Format(msg, args), DebugUtils.getStacktrace(1)); }
+		#endif
 
 		#region Utils
 		public void Log(string msg, params object[] args) { vessel.Log(msg, args); }
@@ -122,6 +126,7 @@ namespace ThrottleControlledAvionics
 
 		public void Init()
 		{
+			Controls.UpdateRefTransform();
 			UpdateCommons();
 			OnPlanetParams.Update();
 			Geometry.Update();
@@ -224,39 +229,37 @@ namespace ThrottleControlledAvionics
 			OnPlanetParams.Update();
 		}
 
+		public static bool AddModule<M>(PartModule m, List<M> db)  
+			where M : PartModule
+		{
+			var module = m as M;
+			if(module == null) return false;
+			db.Add(module);
+			return true;
+		}
+
 		public void UpdateParts()
 		{
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
 			Engines.Clear(); Torque.Wheels.Clear();
-			for(int i = 0, vesselPartsCount = vessel.Parts.Count; i < vesselPartsCount; i++)
+			OnPlanetParams.Parachutes.Clear();
+			Physics.AngularDrag = 0;
+			var drag_parts = 0;
+			var parts_count = vessel.Parts.Count;
+			for(int i = 0; i < parts_count; i++)
 			{
 				Part p = vessel.Parts[i];
+				if(p.angularDragByFI) { Physics.AngularDrag += p.angularDrag; drag_parts += 1; }
 				for(int j = 0, pModulesCount = p.Modules.Count; j < pModulesCount; j++)
 				{
-					//engines
 					var module = p.Modules[j];
-					var engine = module as ModuleEngines;
-					if(engine != null)
-					{
-						Engines.Add(new EngineWrapper(engine));
-						continue;
-					}
-					//reaction wheels
-					var rwheel = module as ModuleReactionWheel;
-					if(rwheel != null)
-					{
-						Torque.Wheels.Add(rwheel);
-						continue;
-					}
-					//rcs
-					var rcs = module as ModuleRCS;
-					if(rcs != null)
-					{
-						Engines.RCS.Add(new RCSWrapper(rcs));
-						continue;
-					}
+					if(Engines.Add(module as ModuleEngines)) continue;
+					if(Engines.Add(module as ModuleRCS)) continue;
+					if(AddModule(module, Torque.Wheels)) continue;
+					if(AddModule(module, OnPlanetParams.Parachutes)) continue;
 				}
 			}
+			Physics.AngularDrag /= drag_parts;
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines.All);
 			else if(CFG.Enabled && TCA.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
 		}
@@ -279,20 +282,21 @@ namespace ThrottleControlledAvionics
 				vessel.ActionGroups.ToggleGroup(KSPActionGroup.Stage);
 			}
 		}
-		readonly ActionDamper stage_cooldown = new ActionDamper(0.5);
+		readonly ActionDamper next_cooldown = new ActionDamper(0.5);
+		public void ActivateNextStage() { next_cooldown.Run(activate_next_stage); }
 
-		public void ActivateNextStage() 
-		{ stage_cooldown.Run(activate_next_stage); }
-
-		public void ActivateEnginesIfNeeded() 
-		{ if(CFG.AutoStage && Engines.Active.Count == 0) ActivateNextStage(); }
-
-		public void ActivateNextStageOnFlameout()
+		public void GearOn(bool enable = true)
 		{
-			if(CFG.AutoStage &&
-			   Engines.All.Count(e => e.engine.flameout && 
-			                     e.part.inverseStage == vessel.currentStage) > 0)
-				ActivateNextStage();
+			if(!CFG.AutoGear) return;
+			if(vessel.ActionGroups[KSPActionGroup.Gear] != enable)
+				vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, enable);
+		}
+
+		public void BrakesOn(bool enable = true)
+		{
+			if(!CFG.AutoBrakes) return;
+			if(vessel.ActionGroups[KSPActionGroup.Brakes] != enable)
+				vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, enable);
 		}
 	}
 
@@ -318,12 +322,8 @@ namespace ThrottleControlledAvionics
 		GroundCollision	 	   = 1 << 8,
 		Ascending		 	   = 1 << 9,
 		//autopilot
-		Scanning               = 1 << 10,
-		Searching              = 1 << 11,
-		CheckingSite           = 1 << 12,
-		Landing                = 1 << 13,
-		VTOLAssist             = 1 << 14,
-		StabilizeFlight        = 1 << 15,
+		VTOLAssist             = 1 << 10,
+		StabilizeFlight        = 1 << 11,
 		//composite
 		Nominal				   = Enabled | HaveEC | HaveActiveEngines,
 		NoActiveEngines        = Enabled | HaveEC,

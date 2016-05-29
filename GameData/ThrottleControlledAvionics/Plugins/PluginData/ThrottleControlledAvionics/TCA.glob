@@ -33,7 +33,7 @@ ENG
 	MaxIterations = 50
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 45
-	OptimizationTorqueCutoff = 0.002 //rad/s2
+	OptimizationTorqueCutoff = 0.01 //rad/s2
 	ThrustOptimizationPrecision = 0.001
 	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 0.1
@@ -176,16 +176,19 @@ VTOL
 
 BRC
 {
-	MaxAAf = 2
-	MinAAf = 0.0001
+	MaxAAf = 6
+	MinAAf = 0.2
+	ADf    = 0.02
 	YawFactor = 60
 	DrawForwardDirection = true
 	
 	DirectionPID
 	{
-		P = 4.0
+		P = 2
 		I = 0.0
-		D = 6.0
+		D = 1.8
+		Min = -175 //deg
+		Max =  175
 	}
 }
 
@@ -201,7 +204,7 @@ PN
 	MinDistance          = 50
 	MinTime              = 5
 	OnPathMinDistance    = 300
-	DistanceF            = 0.1
+	DistanceF            = 0.12
 	MinSpeed             = 10
 	MaxSpeed             = 500
 	DirectNavThreshold   = 1
@@ -213,16 +216,12 @@ PN
 	FormationBreakTime   = 10
 	FormationUpdateTimer = 60
 	TakeoffAltitude      = 100
-	BrakeOffset          = 1.5
+	BrakeOffset          = 0.9
 	PitchRollAAf         = 100
 	FollowerMaxAwaySpeed = 15
 	
-	DistancePID
-	{
-		P = 1.5
-		I = 0.0
-		D = 2.0
-	}
+	SpeedFilterF         = 5
+	SpeedFilterR         = 1
 }
 
 LND
@@ -354,12 +353,15 @@ LTRJ
 	BrakeEndSpeed      = 30   //m/s
 	CorrectionOffset   = 20   //s
 	CorrectionTimer    = 10   //s
+	LowPassF           = 1 //s
+	ObstacleBrakeF     = 1.1
 }
 
 DEO
 {
 	StartOffset        = 60   //s
 	StartPeR           = 0.49 //of planet radius
+	AtmosphereF        = 0.5  //kg/m3
 }
 
 BJ
@@ -384,9 +386,10 @@ REN
 	MaxApproachV        = 20    //parts
 	ApproachVelF        = 0.01  //parts
 	MaxInclinationDelta = 30    //deg
-	GTurnCurve          = 60
+	GTurnCurve          = 0.6
 	LaunchDeltaVf       = 3
 	LaunchTangentK      = 1
 	RendezvouCorrection = 0.8
+	Dist2VelF           = 0.1
 }
 //:mode=c#:

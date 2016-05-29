@@ -20,6 +20,8 @@ namespace ThrottleControlledAvionics
 		public Vector3 C { get; private set; } //center
 		public float   H { get; private set; } //height
 		public float   R { get; private set; } //radius
+		public float Area { get; private set; }
+		public Vector3 BoundsSideAreas { get; private set; }
 
 		public float DistToBounds(Vector3 world_point)
 		{ return Mathf.Sqrt(B.SqrDistance(refT.InverseTransformPoint(world_point))); }
@@ -51,8 +53,12 @@ namespace ThrottleControlledAvionics
 			}
 			C = refT.TransformPoint(b.center);
 			H = Mathf.Abs(Vector3.Dot(refT.TransformDirection(b.extents), VSL.Physics.Up))+
-				Vector3.Dot(C-vessel.CurrentCoM, VSL.Physics.Up);
+				Vector3.Dot(vessel.CurrentCoM-C, VSL.Physics.Up);
 			R = b.extents.magnitude;
+			BoundsSideAreas = new Vector3(B.extents.y*B.extents.z, //right
+										  B.extents.x*B.extents.z, //up
+										  B.extents.x*B.extents.y);//forward
+			Area = (BoundsSideAreas.x+BoundsSideAreas.y+BoundsSideAreas.z)*2;
 			//update exhaust bounds
 			foreach(var e in VSL.Engines.All)
 			{
@@ -67,17 +73,6 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			B = b;
-		}
-
-		public Vector3 BoundsSideAreas
-		{
-			get
-			{
-				return new Vector3(
-					B.extents.y*B.extents.z, //right
-					B.extents.x*B.extents.z, //up
-					B.extents.x*B.extents.y);//forward
-			}
 		}
 
 		public float AreaInDirection(Vector3 wdir)

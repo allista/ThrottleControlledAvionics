@@ -124,7 +124,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.Load(node);
 
-			//FIXME: Only needed for legacy config conversion
+			//deprecated: Only needed for legacy config conversion
 			if(node.HasValue("Value"))
 			{
 				float val;

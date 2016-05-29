@@ -250,10 +250,10 @@ namespace ThrottleControlledAvionics
 			switch(mode)
 			{
 			case Mode.Forward:
-				nv = VSL.OnPlanetParams.Bearing;
+				nv = VSL.OnPlanetParams.Heading;
 				break;
 			case Mode.Backward:
-				nv = -VSL.OnPlanetParams.Bearing;
+				nv = -VSL.OnPlanetParams.Heading;
 				break;
 			case Mode.Right:
 				nv = Vector3.ProjectOnPlane(VSL.refT.right, VSL.Physics.Up).normalized;

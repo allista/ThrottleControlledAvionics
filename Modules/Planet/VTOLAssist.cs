@@ -90,7 +90,7 @@ namespace ThrottleControlledAvionics
 			{
 				working();
 				CFG.HF.OnIfNot(HFlight.Level);
-				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
+				VSL.BrakesOn();
 				LandedTimer.RunIf(() => landed = false,
 				                  VSL.HorizontalSpeed < TLA.MinHSpeed);
 			}
@@ -101,8 +101,8 @@ namespace ThrottleControlledAvionics
 				StopAction.Run();
 				GearTimer.RunIf(() =>
 				{ 
-					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
-					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+					VSL.BrakesOn(false);
+					VSL.GearOn(false);
 					tookoff = false;
 				}, VSL.Altitude.Relative > TLA.GearOnAtH+VSL.Geometry.H);
 			}
@@ -115,8 +115,9 @@ namespace ThrottleControlledAvionics
 				{
 					working();
 					CFG.HF.OnIfNot(HFlight.Level);
-					if(avSqr > TLA.GearOffAngularVelocity && VSL.OnPlanetParams.DTWR > TLA.MinDTWR)
-						VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+					if(avSqr > TLA.GearOffAngularVelocity && 
+					   VSL.OnPlanetParams.DTWR > TLA.MinDTWR)
+						VSL.GearOn(false);
 				}
 				else working(false);
 			}
@@ -125,13 +126,13 @@ namespace ThrottleControlledAvionics
 			{
 				working(false);
 				//if the gear is on, nothing to do; and autopilot takes precedence
-				if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear] && !CFG.AP1[Autopilot1.Land])
+				if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear])
 				{
 					//check boundary conditions
 					GearTimer.RunIf(() => 
 					{
-						VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
-						VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, true);
+						VSL.GearOn(); 
+						VSL.BrakesOn();
 					},
 					                VSL.VerticalSpeed.Relative < 0 &&
 					                VSL.HorizontalSpeed < TLA.GearOnMaxHSpeed &&
@@ -139,8 +140,8 @@ namespace ThrottleControlledAvionics
 				}
 				else GearTimer.RunIf(() => 
 				{
-					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
-					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, false);
+					VSL.GearOn(false); 
+					VSL.BrakesOn(false);
 				},
 				                     VSL.VerticalSpeed.Relative > 0 ||
 				                     VSL.HorizontalSpeed > TLA.GearOnMaxHSpeed);

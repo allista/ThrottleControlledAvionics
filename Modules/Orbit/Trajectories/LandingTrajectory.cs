@@ -31,7 +31,8 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		public double DeltaR { get; private set; } = 180;
 
-		public Vector3d BrakeDeltaV { get; private set; }
+		Vector3d brake_delta_v;
+		public override Vector3d BrakeDeltaV { get { return brake_delta_v; } }
 		public double BrakeDuration { get; private set; }
 		public double BrakeStartUT { get; private set; }
 		public double BrakeNodeUT { get; private set; }
@@ -66,19 +67,19 @@ namespace ThrottleControlledAvionics
 			//correct for brake maneuver
 			if(with_brake)
 			{
-				BrakeDuration = ManeuverAutopilot.TTB(VSL, (float)AtTargetVel.magnitude, 1);
+				BrakeDuration = VSL.Engines.TTB((float)AtTargetVel.magnitude, 1);
 				BrakeStartUT  = AtTargetUT-BrakeDuration;
 				BrakeNodeUT   = AtTargetUT-BrakeDuration/2;
-				BrakeDeltaV   = -(Vector3d.Exclude(NewOrbit.getRelativePositionAtUT(BrakeNodeUT),
+				brake_delta_v = -(Vector3d.Exclude(NewOrbit.getRelativePositionAtUT(BrakeNodeUT),
 				                                   NewOrbit.getOrbitalVelocityAtUT(BrakeNodeUT))*0.9+
 				                  Vector3d.Cross(Body.angularVelocity.xzy, AtTargetPos));
 				update_from_orbit(TrajectoryCalculator.NewOrbit(NewOrbit, BrakeDeltaV, BrakeNodeUT), BrakeNodeUT);
 			}
 			else
 			{
-				BrakeDeltaV   = -(AtTargetVel+
+				brake_delta_v = -(AtTargetVel+
 				                  Vector3d.Cross(Body.angularVelocity.xzy, AtTargetPos));
-				BrakeDuration = ManeuverAutopilot.TTB(VSL, (float)BrakeDeltaV.magnitude, 1);
+				BrakeDuration = VSL.Engines.TTB((float)BrakeDeltaV.magnitude, 1);
 				BrakeStartUT  = AtTargetUT-BrakeDuration;
 				BrakeNodeUT   = AtTargetUT-BrakeDuration/2;
 			}

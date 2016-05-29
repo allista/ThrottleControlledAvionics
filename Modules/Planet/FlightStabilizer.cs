@@ -41,7 +41,8 @@ namespace ThrottleControlledAvionics
 				VSL.OnPlanet && 
 				CFG.StabilizeFlight && 
 				!VSL.LandedOrSplashed && 
-				(Working || !CFG.HF && !CFG.AT && !CFG.CTRL[ControlMode.VTOL] && !VSL.vessel.ActionGroups[KSPActionGroup.SAS] && !VSL.HasUserInput);
+				(Working || !VSL.HasUserInput && !CFG.HF && !CFG.AT && 
+				 !CFG.CTRL[ControlMode.VTOL] && !VSL.vessel.ActionGroups[KSPActionGroup.SAS]);
 			if(IsActive) return;
 			if(Working) CFG.HF.OffIfOn(HFlight.Level);
 			Working = false;

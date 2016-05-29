@@ -76,7 +76,6 @@
     <Compile Include="TCAEngineInfo.cs" />
     <Compile Include="EngineWrapper.cs" />
     <Compile Include="VesselWrapper.cs" />
-    <Compile Include="Modules\TCAModule.cs" />
     <Compile Include="Modules\RCSOptimizer.cs" />
     <Compile Include="Modules\EngineOptimizer.cs" />
     <Compile Include="ModuleTCA.cs" />
@@ -90,7 +89,6 @@
     <Compile Include="Utils\Utils.cs" />
     <Compile Include="Utils\PID_Controllers.cs" />
     <Compile Include="Utils\DebugUtils.cs" />
-    <Compile Include="Utils\Extensions.cs" />
     <Compile Include="Utils\ConfigNodeObjects.cs" />
     <Compile Include="Utils\Multiplexer.cs" />
     <Compile Include="Macros\Conditions.cs" />
@@ -165,7 +163,10 @@
     <Compile Include="Modules\Planet\VTOLControl.cs" />
     <Compile Include="Utils\Triggers.cs" />
     <Compile Include="Utils\LambertSolver.cs" />
-    <Compile Include="Utils\ToOrbitSim.cs" />
+    <Compile Include="Utils\AtmoSim.cs" />
+    <Compile Include="TCAComponent.cs" />
+    <Compile Include="Utils\Extensions.cs" />
+    <Compile Include="GUI\Panels\TogglesPanel.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

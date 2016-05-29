@@ -133,6 +133,7 @@ namespace ThrottleControlledAvionics
 		public void DisableVSC() { VF.Off(); VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed; BlockThrottle = false; }
 		//steering
 		[Persistent] public Multiplexer<ControlMode> CTRL = new Multiplexer<ControlMode>();
+		[Persistent] public uint    ControlTransform = 0;
 		[Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
 		[Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
 		[Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked
@@ -156,6 +157,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Multiplexer<Autopilot1> AP1 = new Multiplexer<Autopilot1>();
 		[Persistent] public Multiplexer<Autopilot2> AP2 = new Multiplexer<Autopilot2>();
 		[Persistent] public bool VTOLAssistON = true;
+		[Persistent] public bool AutoGear = true;
+		[Persistent] public bool AutoBrakes = true;
 		[Persistent] public bool StabilizeFlight = true;
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
@@ -163,6 +166,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool ShowEnginesProfiles;
 		[Persistent] public bool ShowManualLimits;
 		[Persistent] public bool AutoStage = true;
+		[Persistent] public bool AutoParachutes = true;
 		public EnginesProfile ActiveProfile { get { return EnginesProfiles.Active; } }
 		//squad
 		[Persistent] public int Squad;
@@ -216,8 +220,8 @@ namespace ThrottleControlledAvionics
 				Target = null;
 			if(SelectedMacro != null && !SelectedMacro.Block.HasSubnodes)
 				SelectedMacro = null;
-			
-			val = node.GetValue("VSControlSensitivity"); //deprecated conversion
+			//deprecated: Old config conversion
+			val = node.GetValue("VSControlSensitivity"); 
 			if(!string.IsNullOrEmpty(val))
 			{
 				if(!float.TryParse(val, out ControlSensitivity))

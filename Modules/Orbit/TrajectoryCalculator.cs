@@ -39,6 +39,19 @@ namespace ThrottleControlledAvionics
 		protected Vector3d hV(double UT) { return hV(VesselOrbit, UT); }
 		protected double MinPeR { get { return Body.atmosphere? Body.Radius+Body.atmosphereDepth+1000 : Body.Radius+TRJ.MinPeA; } }
 		protected bool ApAhead { get { return VesselOrbit.timeToAp < VesselOrbit.timeToPe; } }
+		protected bool LiftoffPossible
+		{
+			get
+			{
+				if(VSL.Engines.NumActive > 0 && VSL.OnPlanet && VSL.OnPlanetParams.MaxTWR <= 1)
+				{
+					Status("red", "TWR < 1, impossible to achive orbit");
+					CFG.AP2.Off();
+					return false;
+				}
+				return true;
+			}
+		}
 
 		public static Orbit NewOrbit(Orbit old, Vector3d dV, double UT)
 		{
@@ -175,6 +188,24 @@ namespace ThrottleControlledAvionics
 			return (max_dV+min_dV)/2*dVdir+add_dV;
 		}
 
+		protected Orbit AscendingOrbit(double ApR, Vector3d hVdir, double slope)
+		{
+			var LaunchRad = Utils.ClampH(Math.Atan(1/(Body.Radius*slope/(2*ApR) - 
+			                                          Body.angularV/Math.Sqrt(2*VSL.Physics.StG*(ApR-Body.Radius)))), 
+			                             Utils.HalfPI);
+			var velN = (Math.Sin(LaunchRad)*VesselOrbit.pos.normalized + Math.Cos(LaunchRad)*hVdir).normalized;
+			var vel = Math.Sqrt(2*VSL.Physics.G*(ApR-Body.Radius)) / Math.Sin(LaunchRad);
+			var v   = 0.0;
+			while(vel-v > TRJ.dVtol)
+			{
+				var V = (v+vel)/2;
+				var o = NewOrbit(VesselOrbit, velN*V-VesselOrbit.vel, VSL.Physics.UT);
+				if(o.ApR > ApR) vel = V;
+				else v = V;
+			} vel = (v+vel)/2;
+			return NewOrbit(VesselOrbit, velN*vel-VesselOrbit.vel, VSL.Physics.UT);
+		}
+
 		/// <summary>
 		/// Resonances of two orbits in seconds
 		/// </summary>
@@ -193,12 +224,19 @@ namespace ThrottleControlledAvionics
 		public static double ResonanceB(Orbit a, Orbit b)
 		{ return a.period/(b.period - a.period); }
 
-		public static double TimeToResonance(Orbit a, Orbit b, double UT, out double resonance, out double alpha)
+		public static double AngleDelta(Orbit a, Vector3d posB, double UT)
 		{
 			var posA = a.getRelativePositionAtUT(UT);
-			var posB = b.getRelativePositionAtUT(UT);
 			var tanA = Vector3d.Cross(a.GetOrbitNormal(), posA);
-			alpha = Utils.ProjectionAngle(posA, posB, tanA)/360;
+			return Utils.ProjectionAngle(posA, posB, tanA);
+		}
+
+		public static double AngleDelta(Orbit a, Orbit b, double UT)
+		{ return AngleDelta(a, b.getRelativePositionAtUT(UT), UT); }
+
+		public static double TimeToResonance(Orbit a, Orbit b, double UT, out double resonance, out double alpha)
+		{
+			alpha = AngleDelta(a, b, UT)/360;
 			resonance = ResonanceA(a, b);
 			if(double.IsNaN(alpha))//debug
 				Status("red", "DEBUG: Unable to calculate TTR. See the log.");
@@ -274,53 +312,39 @@ namespace ThrottleControlledAvionics
 
 		public static double ClosestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT)
 		{
-			double UT = StartUT;
-			double StopUT = StartUT+a.period;
-			double dist = double.MaxValue;
-			double dT = a.period/10;
-			double minUT = UT;
-			while(UT < StopUT) //rough linear scan
-			{
-				var d = SqrDistAtUT(a, t, UT);
-				if(d < dist) { dist = d; minUT = UT; }
-				UT += dT;
-			}
-			UT = minUT; dT /= 2;
-			while(dT > 0.01) //fine binary search
-			{
-				var dp = UT+dT > StopUT?  double.MaxValue : SqrDistAtUT(a, t, UT+dT);
-				var dm = UT-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT-dT);
-				if(dp < dist) { dist = dp; UT += dT; }
-				else if(dm < dist) { dist = dm; UT -= dT; }
-				dT /= 2;
-			}
-			ApproachUT = UT; return Math.Sqrt(dist);
+			double UT1;
+			double D1 = NearestApproach(a, t, StartUT, StartUT+a.period, out UT1);
+			double UT2;
+			double D2 = NearestApproach(a, t, StartUT+a.period, StartUT, out UT2);
+			if(D1 <= D2 || Math.Abs(D1-D2) < GLB.REN.Dtol) { ApproachUT = UT1; return D1; }
+			ApproachUT = UT2; return D2;
 		}
 
 		public static double NearestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT)
+		{ return NearestApproach(a, t, StartUT, StartUT+a.period, out ApproachUT); }
+
+		public static double NearestApproach(Orbit a, Orbit t, double StartUT, double StopUT, out double ApproachUT)
 		{
 			double UT = StartUT;
-			double StopUT = StartUT+a.period;
-			double dT = a.period/10;
+			double dT = (StopUT-StartUT)/10;
+			bool dir = dT > 0;
+			double lastD = double.MaxValue;
+			double minD  = double.MaxValue;
 			double minUT = UT;
-			var min = new MinimumD();
-			while(UT < StopUT) //rough linear scan
+			while(Math.Abs(dT) > 0.01)
 			{
-				min.Update(SqrDistAtUT(a, t, UT));
-				if(min) { minUT = UT-dT; break; }
+				var d = SqrDistAtUT(a, t, UT);
+				if(d < minD) { minD = d; minUT = UT; }
+				if(d > lastD || 
+				   (dir? UT+dT < StartUT : UT+dT > StartUT) ||
+				   (dir? UT+dT > StopUT  : UT+dT < StopUT))
+					dT /= -2.1;
+//				Utils.LogF("d {}, lastD {}, minD {}, T {}, dT {}",
+//				           d, lastD, minD, UT-StartUT, dT);//debug
+				lastD = d;
 				UT += dT;
 			}
-			double dist = min;
-			UT = minUT; dT /= 2;
-			while(dT > 0.01) //fine binary search
-			{
-				var dp = UT+dT > StopUT?  double.MaxValue : SqrDistAtUT(a, t, UT+dT);
-				var dm = UT-dT < StartUT? double.MaxValue : SqrDistAtUT(a, t, UT-dT);
-				if(dp < dist) { dist = dp; UT += dT; }
-				else if(dm < dist) { dist = dm; UT -= dT; }
-				dT /= 2;
-			}
-			ApproachUT = UT; return Math.Sqrt(dist);
+			ApproachUT = minUT; return Math.Sqrt(minD);
 		}
 
 		public static double NearestRadiusUT(Orbit orb, double radius, double StartUT)
@@ -407,7 +431,7 @@ namespace ThrottleControlledAvionics
 				if(TimeToStart > 0 && TimeToStart < offset)
 					StartUT += offset-TimeToStart+1;
 				dV = next_dV(StartUT);
-				TTB = ManeuverAutopilot.TTB(VSL, (float)dV.magnitude, 1);
+				TTB = VSL.Engines.TTB((float)dV.magnitude, 1);
 				TimeToStart = StartUT-VSL.Physics.UT-TTB/2;
 			} while(maxI-- > 0 && TimeToStart < offset);
 			return dV;
@@ -440,6 +464,7 @@ namespace ThrottleControlledAvionics
 		{
 			trajectory = null;
 			trajectory_calculator = null;
+			ClearStatus();
 		}
 
 		IEnumerator<T> compute_trajectory()
@@ -507,7 +532,7 @@ namespace ThrottleControlledAvionics
 
 		protected void add_target_node()
 		{
-			var dV = trajectory.BreakDeltaV;
+			var dV = trajectory.BrakeDeltaV;
 			ManeuverAutopilot.AddNode(VSL, dV, 
 			                          trajectory.AtTargetUT
 			                          -MatchVelocityAutopilot.BrakingNodeCorrection(dV.magnitude, VSL));
@@ -553,7 +578,7 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		protected virtual void start_correction() {}
+		protected virtual void fine_tune_approach() {}
 
 		protected override void UpdateState()
 		{

@@ -75,17 +75,15 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				RegisterTo<Radar>();
-				break;
-
 			case Multiplexer.Command.On:
+				RegisterTo<Radar>();
 				if(!setup())
 				{
 					CFG.AP2.Off();
 					return;
 				}
 				stage = Stage.Start;
-				goto case Multiplexer.Command.Resume;
+				break;
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
@@ -131,7 +129,7 @@ namespace ThrottleControlledAvionics
 			setup_calculation((o, b) => fixed_inclination_orbit(o, b, ref dir, ref V, BJ.StartOffset));
 		}
 
-		protected override void start_correction()
+		protected override void fine_tune_approach()
 		{
 			trajectory = null;
 			stage = Stage.CorrectTrajectory;
@@ -201,11 +199,12 @@ namespace ThrottleControlledAvionics
 				{
 					CFG.DisableVSC();
 					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
-					if(!CFG.AP1[Autopilot1.Maneuver]) start_correction();
+					if(!CFG.AP1[Autopilot1.Maneuver]) fine_tune_approach();
 					Status("Accelerating...");
 				}
 				break;
 			case Stage.CorrectTrajectory:
+				Status("Correcting trajectory...");
 				if(!trajectory_computed()) break;
 				if(trajectory.ManeuverDeltaV.magnitude > GLB.THR.MinDeltaV*2)
 				{
@@ -215,8 +214,8 @@ namespace ThrottleControlledAvionics
 				stage = Stage.Coast;
 				break;
 			case Stage.Coast:
-				Status("Coasting...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
+				Status("Coasting...");
 				if(VesselOrbit.trueAnomaly < 180 && !correct_trajectory()) break;
 				stage = Stage.None;
 				start_landing();

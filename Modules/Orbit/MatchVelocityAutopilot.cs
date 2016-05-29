@@ -33,7 +33,6 @@ namespace ThrottleControlledAvionics
 		ThrottleControl THR;
 		TimeWarpControl WRP;
 		AttitudeControl ATC;
-		ManeuverAutopilot MAN;
 
 		Vessel Target;
 		ManeuverExecutor Executor;
@@ -100,7 +99,7 @@ namespace ThrottleControlledAvionics
 
 		public static double BrakingNodeCorrection(double V0, VesselWrapper VSL)
 		{ 
-			var ttb = ManeuverAutopilot.TTB(VSL, (float)V0, 1);
+			var ttb = VSL.Engines.TTB((float)V0, 1);
 			return BrakingOffset(V0, ttb, VSL) - ttb/2;
 		}
 
@@ -119,7 +118,7 @@ namespace ThrottleControlledAvionics
 			ATC.SetThrustDirW(ApprdV);
 			if(TTA > 0)
 			{
-				VSL.Info.TTB = MAN.TTB(dV, 1);
+				VSL.Info.TTB = VSL.Engines.TTB(dV, 1);
 				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL.Info.TTB, VSL);
 				if(CFG.WarpToNode && ATC.Aligned)
 					WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;

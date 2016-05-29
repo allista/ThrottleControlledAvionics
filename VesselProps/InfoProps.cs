@@ -38,7 +38,6 @@ namespace ThrottleControlledAvionics
 		}
 
 		public Vector3 Destination;
-		public float  ScanningProgress;
 		public double Countdown;
 		public float  TTB;
 

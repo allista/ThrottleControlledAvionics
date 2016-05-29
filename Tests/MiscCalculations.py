@@ -1410,11 +1410,7 @@ def throttle_sim():
     plt.legend()
     plt.show()
 
-dt = 0.01
-
-if __name__ == '__main__':
-    # throttle_sim()
-
+def solver_sim():
     def vecs2scatter(vecs):
         return np.array([v.v[:2] for v in vecs], dtype=float).transpose()
 
@@ -1424,12 +1420,13 @@ if __name__ == '__main__':
     r1 = vec(314495.948447142, 650730.150160414, 0)
     # r1 = vec(404539.613450263, 596305.96712629, 0)
 
-    r2 = vec(+454949.7854, +515180.6808, +0.0000)*0.9
+    r2 = vec(+454949.7854, +515180.6808, +0.0000) * 0.9
 
     s = lambert_solver(r1, r2, 1000, mu=3531600000000.0)
     t, orb, vel = s.simulate_generic(r0, v0, 2200, 0.1)
     start = 3500
-    r1 = orb[start]; v0 = vel[start]
+    r1 = orb[start];
+    v0 = vel[start]
     ori = vecs2scatter((r1, r2, vec(0, 0, 0), orb[0], orb[-1]))
     orb = vecs2scatter(orb)
 
@@ -1450,9 +1447,9 @@ if __name__ == '__main__':
     def analyze_solution(tt):
         s = lambert_solver(r1, r2, tt, mu=3531600000000.0)
         s.solve()
-        #plot_solver(s)
+        # plot_solver(s)
         print
-        print 'dV: %s' % (s.V-v0)
+        print 'dV: %s' % (s.V - v0)
         t, r, v = s.simulate(tt / 10000.0)
         path = vecs2scatter(r)
         print s
@@ -1463,8 +1460,15 @@ if __name__ == '__main__':
         plt.show()
 
     # analyze_solution(1106.96240719769)
-
     for tt in xrange(700, 3600, 100): analyze_solution(tt)
+
+dt = 0.01
+
+if __name__ == '__main__':
+    pass
+    # throttle_sim()
+
+
 
 
 

@@ -210,11 +210,11 @@ namespace ThrottleControlledAvionics
 				var HVn = VSL.HorizontalSpeed.normalized;
 				//if the manual translation can and should be used
 				var rV  = hV; //velocity that is needed to be handled by attitude control of the total thrust
-				var fV  = hV; //forward-backward velocity with respect to the manual thrust vector
+				var fV  = Vector3d.zero; //forward-backward velocity with respect to the manual thrust vector
 				var with_manual_thrust = VSL.Engines.Manual.Count > 0 && (nVm >= HSC.TranslationUpperThreshold ||
 				                                                          hVm >= HSC.TranslationUpperThreshold ||
 				                                                          CourseCorrection.magnitude >= HSC.TranslationUpperThreshold);
-				var manual_thrust = Vector3.ProjectOnPlane(VSL.OnPlanetParams.ManualThrust, VSL.Physics.Up);
+				var manual_thrust = Vector3.ProjectOnPlane(VSL.Engines.ManualThrust, VSL.Physics.Up);
 				var zero_manual_thrust = manual_thrust.IsZero();
 				if(with_manual_thrust &&
 				   !zero_manual_thrust &&
@@ -225,7 +225,7 @@ namespace ThrottleControlledAvionics
 					fV = hV-rV;
 				}
 				var rVm = rV.magnitude;
-				var fVm = fV.magnitude;
+				var fVm = Utils.ClampL(fV.magnitude, 1e-5);
 				//calculate needed thrust direction
 				if(!(with_manual_thrust && zero_manual_thrust &&
 				     VSL.HorizontalSpeed.Absolute <= HSC.TranslationLowerThreshold) &&
@@ -262,14 +262,14 @@ namespace ThrottleControlledAvionics
 					   (NVm < HSC.TranslationLowerThreshold || 
 					    Vector3.Dot(HVn, VSL.HorizontalSpeed.NeededVector/NVm) < HSC.RotationMaxCos))
 					{
-						var max_MT = VSL.OnPlanetParams.ManualThrustLimits.MaxInPlane(VSL.Physics.UpL);
+						var max_MT = VSL.Engines.ManualThrustLimits.MaxInPlane(VSL.Physics.UpL);
 						if(!max_MT.IsZero())
 						{
 							var rot = Quaternion.AngleAxis(Vector3.Angle(max_MT, Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL)),
 							                               VSL.Physics.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
 							BRC.DirectionOverride = rot*pure_hV;
 							transF = Utils.ClampL(Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized), 0);
-							transF *= transF*transF;
+							transF *= transF*transF*transF;
 						}
 					}
 					translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslationIMinSpeed && 
@@ -277,6 +277,7 @@ namespace ThrottleControlledAvionics
 						HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
 					translation_pid.Update((float)fVm);
 					VSL.Controls.ManualTranslation = translation_pid.Action*hVl.CubeNorm()*transF;
+					LogF("\nPID: {}\nManualTranslation: {}", translation_pid, VSL.Controls.ManualTranslation);
 					EnableManualTranslation(translation_pid.Action > 0);
 				}
 				else EnableManualTranslation(false);

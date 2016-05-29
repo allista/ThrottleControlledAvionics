@@ -150,7 +150,7 @@ namespace ThrottleControlledAvionics
 				CFG.DesiredAltitude = PN.TakeoffAltitude+VSL.Geometry.H;
 			}				
 			else if(CFG.VTOLAssistON) 
-				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, false);
+				VSL.GearOn(false);
 			reset_formation();
 			SetTarget(wp);
 			pid.Reset();
@@ -422,7 +422,7 @@ namespace ThrottleControlledAvionics
 			pid.Max = CFG.MaxNavSpeed;
 			if(cur_vel > 0)
 			{
-				var lateral_thrust = VSL.OnPlanetParams.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
+				var lateral_thrust = VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
 				var down_thrust = VSL.Engines.MaxThrustM*VSL.OnPlanetParams.MinVSFtwr*0.707f;
 				var brake_thrust = lateral_thrust >= down_thrust? lateral_thrust : down_thrust;
 				var eta = distance/cur_vel;

@@ -35,10 +35,15 @@ namespace ThrottleControlledAvionics
 		public bool NoActiveRCS { get; private set; }
 		public bool ForceUpdateEngines = false;
 
+		public bool HaveNextStageEngines { get; private set; }
+		public int  NearestEnginedStage { get; private set; }
+
 		public KSPActionGroup ActionGroups  { get; private set; } = KSPActionGroup.None;
 
 		public Vector3  Thrust { get; private set; } //current total thrust
 		public Vector3  MaxThrust { get; private set; }
+		public Vector3  ManualThrust { get; private set; }
+		public Vector6  ManualThrustLimits { get; private set; } = Vector6.zero;
 		public float    MaxThrustM { get; private set; }
 		public float    ThrustDecelerationTime { get; private set; }
 
@@ -46,21 +51,51 @@ namespace ThrottleControlledAvionics
 		public bool     SlowTorque { get; private set; }
 
 		public float    MassFlow { get; private set; }
+		public float    ManualMassFlow { get; private set; }
 		public float    MaxMassFlow { get; private set; }
+		public float    MaxVe { get; private set; } //Specific impulse in m/s, aka effective exhaust velocity
+		public float    FuelMass { get; private set; }
 
 		public void Clear() { All.Clear(); RCS.Clear(); }
-		public void Add(EngineWrapper e) { All.Add(e); }
+		public bool Add(ModuleEngines m) 
+		{ 
+			if(m == null) return false;
+			All.Add(new EngineWrapper(m));
+			return true;
+		}
+		public bool Add(ModuleRCS m)
+		{ 
+			if(m == null) return false;
+			RCS.Add(new RCSWrapper(m));
+			return true;
+		}
 
-		public Vector3 NextStageMaxThrust(out float max_mass_flow)
+		public float TTB(float dV, float throttle = 1)
+		{
+			if(MaxThrustM.Equals(0)) return float.MaxValue;
+			return CheatOptions.InfiniteFuel?
+				VSL.Physics.M*dV/MaxThrustM/throttle : 
+				PropellantNeeded(dV)/MaxMassFlow/throttle;
+		}
+
+		public float PropellantNeeded(float dV) { return VSL.Physics.M*(1-Mathf.Exp(-dV/MaxVe)); }
+
+		public float MaxDeltaV
+		{ get { return MaxVe*Mathf.Log(VSL.Physics.M/(VSL.Physics.M-FuelMass)); } }
+
+		public float SuicidalBurnTime { get { return TTB(MaxDeltaV); } }
+
+		public Vector3 NearestEnginedStageMaxThrust
+		{ get { float mf; return GetNearestEnginedStageMaxThrust(out mf); } }
+
+		public Vector3 GetNearestEnginedStageMaxThrust(out float max_mass_flow)
 		{
 			max_mass_flow  = 0;
 			var max_thrust = Vector3.zero;
-			int last_stage = Staging.RecalculateVesselStaging(VSL.vessel)-1;
-			int next_stage = Utils.ClampL(Math.Min(VSL.vessel.currentStage, last_stage)-1, 0);
 			for(int i = 0, AllCount = All.Count; i < AllCount; i++)
 			{
 				var e = All[i];
-				if(e.part.inverseStage != next_stage) continue;
+				if(!e.isOperational || e.part.inverseStage != NearestEnginedStage) continue;
 				e.InitState();
 				var throttle = e.Role == TCARole.MANUAL ? e.thrustLimit : 1;
 				if(throttle > 0)
@@ -111,6 +146,8 @@ namespace ThrottleControlledAvionics
 				else CFG.ActiveProfile.Update(All, true);
 			}
 			//get active engines and RCS
+			NearestEnginedStage = 0;
+			HaveNextStageEngines = false;
 			var groups = KSPActionGroup.None;
 			Active.Clear(); Active.Capacity = All.Count;
 			for(int i = 0; i < num_engines; i++)
@@ -120,6 +157,10 @@ namespace ThrottleControlledAvionics
 				//check action groups
 				for(int j = 0; j < e.engine.Actions.Count; j++)
 					groups |= e.engine.Actions[j].actionGroup;
+				//update staging information
+				if(e.part.inverseStage > NearestEnginedStage) 
+					NearestEnginedStage = e.part.inverseStage;
+				HaveNextStageEngines |= e.part.inverseStage >= 0 && e.part.inverseStage < VSL.vessel.currentStage;
 			}
 			ActionGroups = groups;
 			ActiveRCS.Clear();
@@ -173,12 +214,18 @@ namespace ThrottleControlledAvionics
 			//init engine wrappers, thrust and torque information
 			Thrust = Vector3.zero;
 			MaxThrust = Vector3.zero;
+			ManualThrust = Vector3.zero;
+			ManualThrustLimits = Vector6.zero;
 			MassFlow = 0f;
 			MaxMassFlow = 0f;
+			ManualMassFlow = 0f;
 			ThrustDecelerationTime = 0f;
 			SlowTorque = false;
 			TorqueResponseTime = 0f;
 			var total_torque = 0f;
+			var active_resources = VSL.vessel.GetActiveResources().ToDictionary(r => r.info.id, r => r.amount);
+			var used_resources = new HashSet<int>();
+			FuelMass = 0f;
 			for(int i = 0; i < NumActive; i++) 
 			{
 				var e = Active[i];
@@ -189,19 +236,22 @@ namespace ThrottleControlledAvionics
 				e.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(e.wThrustLever.normalized, e.wThrustDir))), 
 				                          GLB.ENG.TorqueRatioFactor);
 				//do not include maneuver engines' thrust into the total to break the feedback loop with HSC
-				if(e.Role != TCARole.MANEUVER) Thrust += e.wThrustDir*e.finalThrust;
-				if(e.isVSC || e.Role == TCARole.MANUAL)
+				if(e.Role != TCARole.MANEUVER) 
+					Thrust += e.wThrustDir*e.finalThrust;
+				if(e.Role == TCARole.MANUAL)
 				{
-					var throttle = e.Role == TCARole.MANUAL? e.thrustLimit : 1;
-					if(throttle > 0)
+					ManualThrust += e.wThrustDir*e.finalThrust;
+					ManualMassFlow += e.finalThrust/e.engine.realIsp/Utils.G0;
+					ManualThrustLimits.Add(e.thrustDirection*e.nominalCurrentThrust(1));
+				}
+				if(e.isVSC)
+				{
+					MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
+					MaxMassFlow += e.engine.maxThrust/e.engine.realIsp/Utils.G0;
+					if(e.useEngineResponseTime && e.finalThrust > 0)
 					{
-						MaxThrust += e.wThrustDir*e.nominalCurrentThrust(throttle);
-						MaxMassFlow += e.engine.maxThrust*throttle/e.engine.realIsp/Utils.G0;
-						if(e.useEngineResponseTime && e.finalThrust > 0)
-						{
-							var decelT = 1f/e.engineDecelerationSpeed;
-							if(decelT > ThrustDecelerationTime) ThrustDecelerationTime = decelT;
-						}
+						var decelT = 1f/e.engineDecelerationSpeed;
+						if(decelT > ThrustDecelerationTime) ThrustDecelerationTime = decelT;
 					}
 				}
 				if(e.useEngineResponseTime && (e.Role == TCARole.MAIN || e.Role == TCARole.MANEUVER))
@@ -211,26 +261,58 @@ namespace ThrottleControlledAvionics
 					TorqueResponseTime += torque*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed);
 				}
 				MassFlow += e.engine.requestedMassFlow*e.engine.propellantReqMet/100;
+				//resources
+				foreach(var r in e.engine.GetConsumedResources())
+				{
+					double amount;
+					if(used_resources.Add(r.id) && 
+					   active_resources.TryGetValue(r.id, out amount)) 
+						FuelMass += (float)(amount*r.density);
+				}
 			}
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
 			if(TorqueResponseTime > 0) TorqueResponseTime = total_torque/TorqueResponseTime;
+			MaxVe = MaxThrustM/MaxMassFlow;
 			SlowTorque = TorqueResponseTime > 0;
 			MaxThrustM = MaxThrust.magnitude;
-			//init RCS wrappers if needed
+			//init RCS wrappers and calculate MaxThrust taking torque imbalance into account
 			MaxThrustRCS = new Vector6();
+			var RCSThrusImbalance = new Vector3[6];
 			for(int i = 0; i < NumActiveRCS; i++)
 			{
 				var t = ActiveRCS[i];
 				t.InitState();
-				t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
-				t.rcs.thrusterTransforms.ForEach(T => MaxThrustRCS.Add(refT.InverseTransformDirection((t.rcs.useZaxis? T.forward : T.up)*t.maxThrust)));
+				for(int j = 0, tCount = t.rcs.thrusterTransforms.Count; j < tCount; j++)
+				{
+					var T = t.rcs.thrusterTransforms[j];
+					var thrust = refT.InverseTransformDirection((t.rcs.useZaxis ? T.forward : T.up) * t.maxThrust);
+					MaxThrustRCS.Add(thrust);
+					var pos = refT.InverseTransformDirection(T.position - VSL.Physics.wCoM);
+					var athrust = Vector3.zero;
+					for(int k = 0; k < 3; k++)
+					{
+						athrust[k] = thrust[k];
+						var p = pos; p[k] = 0;
+						RCSThrusImbalance[thrust[k] > 0 ? k : k + 3] += Vector3.Cross(p, athrust);
+						athrust[k] = 0;
+					}
+				}
 				if(NoActiveRCS) continue;
 				t.wThrustLever = t.wThrustPos-VSL.Physics.wCoM;
+				t.thrustDirection = refT.InverseTransformDirection(t.wThrustDir);
 				t.specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.wThrustLever, t.wThrustDir));
 				t.torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(t.wThrustLever.normalized, t.wThrustDir))), GLB.RCS.TorqueRatioFactor);
 				t.currentTorque = t.Torque(1);
 				t.currentTorque_m = t.currentTorque.magnitude;
 			}
+			if(!MaxThrustRCS.IsZero())
+				MaxThrustRCS.Scale(new Vector6(
+					1/Utils.ClampL(RCSThrusImbalance[0].sqrMagnitude, 1),
+					1/Utils.ClampL(RCSThrusImbalance[1].sqrMagnitude, 1),
+					1/Utils.ClampL(RCSThrusImbalance[2].sqrMagnitude, 1),
+					1/Utils.ClampL(RCSThrusImbalance[3].sqrMagnitude, 1),
+					1/Utils.ClampL(RCSThrusImbalance[4].sqrMagnitude, 1),
+					1/Utils.ClampL(RCSThrusImbalance[5].sqrMagnitude, 1)));
 		}
 
 		public void Tune()
@@ -308,6 +390,23 @@ namespace ThrottleControlledAvionics
 				t.thrustLimit = Mathf.Clamp01(t.limit);
 			}
 		}
+
+		public bool ActivateEnginesIfNeeded() 
+		{ 
+			if(CFG.AutoStage && Active.Count == 0 && HaveNextStageEngines)
+			{ VSL.ActivateNextStage(); return true; }
+			return false;
+		}
+
+		public bool ActivateNextStageOnFlameout()
+		{
+			if(!CFG.AutoStage || !HaveNextStageEngines) return false;
+			var next_engines = All.Where(e => e.part.inverseStage == vessel.currentStage).ToList();
+			return stage_cooldown.RunIf(VSL.ActivateNextStage,
+			                            next_engines.Count > 0 && 
+			                            next_engines.All(e => e.engine.flameout));
+		}
+		readonly Timer stage_cooldown = new Timer(0.5);
 	}
 }
 

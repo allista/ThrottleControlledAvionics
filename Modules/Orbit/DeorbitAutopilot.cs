@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 		{
 			[Persistent] public float StartOffset = 60f;   //s
 			[Persistent] public float StartPeR    = 0.49f; //of planet radius
+			[Persistent] public float AtmosphereF = 0.2f;  //kg/m3
 		}
 		static Config DEO { get { return TCAScenario.Globals.DEO; } }
 
@@ -87,7 +88,7 @@ namespace ThrottleControlledAvionics
 			setup_calculation((o, b) => fixed_PeR_orbit(o, b, ref NodeDeltaV, current_PeR));
 		}
 
-		protected override void start_correction()
+		protected override void fine_tune_approach()
 		{
 			trajectory = null;
 			stage = Stage.Correct;
@@ -110,10 +111,8 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				RegisterTo<Radar>();
-				break;
-
 			case Multiplexer.Command.On:
+				RegisterTo<Radar>();
 				if(!setup()) 
 				{
 					CFG.AP2.Off();
@@ -121,11 +120,18 @@ namespace ThrottleControlledAvionics
 				}
 				if(VesselOrbit.PeR < Body.Radius)
 				{
-					Status("<color=red>Already deorbiting.</color> Trying to correct course and land.");
-					start_correction();
+					Status("red", "Already deorbiting. Trying to correct course and land.");
+					fine_tune_approach();
 				}
-				else compute_landing_trajectory();
-				goto case Multiplexer.Command.Resume;
+				else 
+				{
+					current_PeR = DEO.StartPeR * 
+						Utils.ClampH(DEO.AtmosphereF/Body.atmDensityASL, 1) *
+						Utils.ClampH(VSL.Engines.MaxThrustM/VSL.Physics.M/Body.GeeASL/Utils.G0, 1);
+					LogF("GeeASL: {}, TWR: {}", Body.GeeASL, VSL.Engines.MaxThrustM/VSL.Physics.M/Body.GeeASL/Utils.G0);
+					compute_landing_trajectory();
+				}
+				break;
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
@@ -176,7 +182,7 @@ namespace ThrottleControlledAvionics
 			case Stage.Deorbit:
 				Status("Executing deorbit burn...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				start_correction();
+				fine_tune_approach();
 				break;
 			case Stage.Correct:
 				Status("Correcting trajectory...");
@@ -200,7 +206,11 @@ namespace ThrottleControlledAvionics
 		{
 			if(ControlsActive)
 			{
-				if(computing) GUILayout.Label("Computing...", Styles.inactive_button, GUILayout.ExpandWidth(false));
+				if(computing) 
+				{
+					if(GUILayout.Button("Computing...", Styles.inactive_button, GUILayout.ExpandWidth(false)))
+						CFG.AP2.XOff();
+				}
 				else if(Utils.ButtonSwitch("Land", CFG.AP2[Autopilot2.Deorbit],
 				                           "Compute and perform a deorbit maneuver, then land near the target.", 
 				                           GUILayout.ExpandWidth(false)))

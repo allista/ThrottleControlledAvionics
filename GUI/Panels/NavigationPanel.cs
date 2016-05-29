@@ -214,15 +214,14 @@ namespace ThrottleControlledAvionics
 			if(selecting_target)
 			{
 				var coords = MapView.MapIsEnabled? 
-					Utils.GetMouseCoordinates(vessel.mainBody) :
-					Utils.GetMouseFlightCoordinates();
+					Coordinates.GetAtPointer(vessel.mainBody) :
+					Coordinates.GetAtPointerInFlight();
 				if(coords != null)
 				{
 					var t = new WayPoint(coords);
 					DrawGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f));
-					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 200, 50), 
-					          string.Format("{0} {1}\n{2}", coords, Utils.DistanceToStr(t.DistanceTo(vessel)), 
-					                        ScienceUtil.GetExperimentBiome(vessel.mainBody, coords.Lat, coords.Lon)));
+					GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 300, 200), 
+					          string.Format("{0}\nDistance: {1}", coords.FullDescription(vessel), Utils.DistanceToStr(t.DistanceTo(vessel))));
 					if(!clicked)
 					{ 
 						if(Input.GetMouseButtonDown(0)) clicked = true;
@@ -248,7 +247,7 @@ namespace ThrottleControlledAvionics
 						}
 						if(Input.GetMouseButtonUp(1))
 						{ 
-							selecting_target &= (DateTime.Now - clicked_time).TotalSeconds >= 0.5;
+							selecting_target &= (DateTime.Now - clicked_time).TotalSeconds >= 0.1;
 							clicked = false; 
 						}
 					}

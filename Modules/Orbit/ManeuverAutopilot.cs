@@ -65,6 +65,8 @@ namespace ThrottleControlledAvionics
 				{ CFG.AP1.Off(); return; }
 				CFG.AT.On(Attitude.ManeuverNode);
 				Node = Solver.maneuverNodes[0];
+				if(VSL.Engines.MaxDeltaV < (float)Node.DeltaV.magnitude)
+					Status("yellow", "WARNING: there may be not enough propellant for the maneuver");
 				THR.Throttle = 0;
 				CFG.DisableVSC();
 				break;
@@ -103,20 +105,10 @@ namespace ThrottleControlledAvionics
 			VSL.vessel.patchedConicSolver.UpdateFlightPlan();
 		}
 
-		public static float TTB(VesselWrapper VSL, float dV, float throttle = 1)
-		{
-			return CheatOptions.InfiniteFuel?
-				VSL.Physics.M*dV/VSL.Engines.MaxThrustM/throttle : 
-				VSL.Physics.M*(1-Mathf.Exp(-dV/VSL.Engines.MaxThrustM*VSL.Engines.MaxMassFlow))
-				/(VSL.Engines.MaxMassFlow*throttle);
-		}
-
-		public float TTB(float dV, float throttle = 1) { return TTB(VSL, dV, throttle); }
-
 		bool StartCondition(float dV)
 		{
 			if(Working) return true;
-			var ttb = TTB(dV, THR.NextThrottle(dV, 1));
+			var ttb = VSL.Engines.TTB(dV, THR.NextThrottle(dV, 1));
 			if(float.IsNaN(ttb)) return false;
 			VSL.Info.TTB = ttb;
 			var burn = Node.UT-VSL.Info.TTB/2f;
@@ -175,11 +167,10 @@ namespace ThrottleControlledAvionics
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) return false;
 			THR.Throttle = 0;
-			VSL.ActivateNextStageOnFlameout();
-			VSL.ActivateEnginesIfNeeded();
+			VSL.Engines.ActivateEnginesIfNeeded();
+			VSL.Engines.ActivateNextStageOnFlameout();
 			//orient along the burning vector
-			var may_use_RCS = VSL.Controls.RCSAvailableInDirection(-dV);
-			if(dVrem && may_use_RCS) 
+			if(dVrem && VSL.Controls.RCSAvailableInDirection(-dV)) 
 				CFG.AT.OnIfNot(Attitude.KillRotation);
 			else 
 			{
@@ -192,7 +183,11 @@ namespace ThrottleControlledAvionics
 			{
 				if(dVrem || ATC.AttitudeError > GLB.ATCB.AttitudeErrorThreshold)
 					TRA.AddDeltaV(-VSL.LocalDir(dV));
-				if(dVrem && may_use_RCS) THR.Throttle = 0;
+				if(dVrem && CFG.AT[Attitude.KillRotation]) 
+				{
+					var errorF = Utils.ClampL(Vector3.Dot(VSL.Engines.Thrust.normalized, -dV.normalized), 0);
+					THR.DeltaV = (float)dVrem * errorF*errorF;
+				}
 				else THR.DeltaV = (float)dVrem;
 			}
 			else THR.DeltaV = (float)dVrem;

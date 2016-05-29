@@ -200,16 +200,29 @@ namespace ThrottleControlledAvionics
 			thrustInfo = new CenterOfThrustQuery();
 			engine.OnCenterOfThrustQuery(thrustInfo);
 			thrustInfo.dir.Normalize();
-			//compute velocity and atmosphere thrust modifier
-			thrustMod = engine.atmosphereCurve.Evaluate((float)(engine.part.staticPressureAtm))/zeroISP;
+			//compute velocity and atmosphere thrust modifier (from KSP code)
+			//too bad these functions arn't made public =/
+			var realIsp = engine.atmosphereCurve.Evaluate((float)(engine.part.staticPressureAtm));
+			if(engine.useAtmCurveIsp)
+				realIsp *= engine.atmCurveIsp.Evaluate((float)(part.atmDensity / 1.225));
+			if(engine.useVelCurveIsp)
+				realIsp *= engine.velCurveIsp.Evaluate((float)part.machNumber);
+			var flow_mod = 1f;
 			if(engine.atmChangeFlow)
 			{
-				thrustMod = (float)(engine.part.atmDensity / 1.225);
-				if(engine.useAtmCurve)
-					thrustMod = engine.atmCurve.Evaluate(thrustMod);
+				flow_mod = (float)(part.atmDensity / 1.225);
+				if (engine.useAtmCurve)
+					flow_mod = engine.atmCurve.Evaluate(flow_mod);
 			}
 			if(engine.useVelCurve)
-				thrustMod *= engine.velCurve.Evaluate((float)engine.part.machNumber);
+				flow_mod *= engine.velCurve.Evaluate((float)part.machNumber);
+			if(flow_mod > engine.flowMultCap)
+			{
+				float to_cap = flow_mod - engine.flowMultCap;
+				flow_mod = engine.flowMultCap + to_cap / (engine.flowMultCapSharpness + to_cap / engine.flowMultCap);
+			}
+			if(flow_mod < engine.CLAMP) flow_mod = engine.CLAMP;
+			thrustMod = realIsp*flow_mod/zeroISP;
 			//update Role
 			if(engine.throttleLocked && info.Role != TCARole.MANUAL) 
 				info.SetRole(TCARole.MANUAL);
