@@ -23,8 +23,8 @@ namespace ThrottleControlledAvionics
 		public override string ToString()
 		{
 			var time = DateTime.Now;
-			return string.Format("time: {0} < next time {1}: {2}", 
-			                     time, next_time, time < next_time);
+			return string.Format("time: {0} < next time {1}: {2}; remaining: {3}", 
+			                     time, next_time, time < next_time, next_time-time);
 		}
 	}
 
@@ -61,10 +61,11 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public void RunIf(Action action, bool predicate)
+		public bool RunIf(Action action, bool predicate)
 		{
-			if(predicate) { if(Check) { action(); Reset(); } }
-			else Reset();
+			if(predicate) { if(Check) { action(); Reset(); return true; } }
+			else Reset(); 
+			return false;
 		}
 	}
 	#endregion
