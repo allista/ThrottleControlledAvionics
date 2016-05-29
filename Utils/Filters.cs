@@ -8,6 +8,8 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -23,6 +25,7 @@ namespace ThrottleControlledAvionics
 
 		public bool Update(float v)
 		{
+			if(float.IsNaN(v)) return false;
 			val += v;
 			t += TimeWarp.fixedDeltaTime;
 			n += 1;
@@ -40,6 +43,9 @@ namespace ThrottleControlledAvionics
 		public override string ToString() { return string.Format("Value: {0}, Speed: {1}", Value, Speed); }
 	}
 
+	/// <summary>
+	/// Exponentially weighted average.
+	/// </summary>
 	public class EWA
 	{
 		float old, value;
@@ -48,6 +54,7 @@ namespace ThrottleControlledAvionics
 
 		public float Update(float v, float ratio = 0.1f)
 		{
+			if(float.IsNaN(v)) return value;
 			value = Utils.EWA(old, v, ratio);
 			old = value;
 			return value;
@@ -57,27 +64,84 @@ namespace ThrottleControlledAvionics
 		public string ToString(string F) { return value.ToString(F); }
 	}
 
-	public abstract class LowPassFilter<T>
+
+	public abstract class LowPassFilter
 	{
-		protected T prev;
-		public float Tau = 1;
-		protected float alpha { get { return (TimeWarp.fixedDeltaTime/(Tau+TimeWarp.fixedDeltaTime)); } }
-
-		public T Value { get { return prev; } }
-		public abstract T Update(T cur);
-		public void Reset() { prev = default(T); }
-		public void Set(T val) { prev = val; }
-
-		public static implicit operator T(LowPassFilter<T> f) { return f.prev; }
-		public override string ToString() { return prev.ToString(); }
+		public static float alpha(float tau) { return TimeWarp.fixedDeltaTime/(tau+TimeWarp.fixedDeltaTime);}
+		public static float tau(float alpha) { return TimeWarp.fixedDeltaTime*(1-alpha)/alpha; }
 	}
+
+	public abstract class LowPassFilterBase<T>
+	{
+		protected T value;
+
+		public T Value { get { return value; } }
+		public abstract T Update(T cur);
+		public void Reset() { value = default(T); }
+		public void Set(T val) { value = val; }
+
+		public static implicit operator T(LowPassFilterBase<T> f) { return f.value; }
+		public override string ToString() { return value.ToString(); }
+	}
+
+	/// <summary>
+	/// Low-pass filter.
+	/// A more convenient form of exponentially weighted average.
+	/// </summary>
+	public abstract class LowPassFilter<T> : LowPassFilterBase<T>
+	{
+		protected float alpha;
+		public float Tau 
+		{ 
+			get { return LowPassFilter.tau(alpha); } 
+			set { alpha = LowPassFilter.alpha(value); } 
+		}
+
+		#if DEBUG
+		public string DebugInfo
+		{ get { return string.Format("LowPassFilter: [Tau {0}, Value {2}]", Tau, value); } }
+		#endif
+	}
+
+	/// <summary>
+	/// Asymmetric low-pass filter with different Tau parameter
+	/// for values that are less then and grater than average.
+	/// </summary>
+	public abstract class AsymmetricFilter<T> : LowPassFilterBase<T> where T : IComparable
+	{
+		protected float alphaF, alphaR;
+		public float TauF 
+		{ 
+			get { return LowPassFilter.tau(alphaF); } 
+			set { alphaF = LowPassFilter.alpha(value); } 
+		}
+		public float TauR
+		{ 
+			get { return LowPassFilter.tau(alphaR); } 
+			set { alphaR = LowPassFilter.alpha(value); } 
+		}
+
+		protected float _alpha(T cur) 
+		{ return cur.CompareTo(value) > 0? alphaF : alphaR; }
+
+
+		#if DEBUG
+		public string DebugInfo
+		{ get { return string.Format("AsymmetricFilter: [TauF {0}, TauR {1}, Value {2}]", TauF, TauR, value); } }
+		#endif
+	}
+
+	public abstract class ClampedAsymmetricFilter<T> : AsymmetricFilter<T>
+		where T : IComparable
+	{ public T Min, Max; }
 
 	public class LowPassFilterF : LowPassFilter<float>
 	{
 		public override float Update(float cur)
 		{
-			prev = prev +  alpha * (cur-prev);
-			return prev;
+			if(float.IsNaN(cur)) return value;
+			value = value +  alpha * (cur-value);
+			return value;
 		}
 	}
 
@@ -85,8 +149,9 @@ namespace ThrottleControlledAvionics
 	{
 		public override double Update(double cur)
 		{
-			prev = prev +  alpha * (cur-prev);
-			return prev;
+			if(double.IsNaN(cur)) return value;
+			value = value +  alpha * (cur-value);
+			return value;
 		}
 	}
 
@@ -94,8 +159,8 @@ namespace ThrottleControlledAvionics
 	{
 		public override Vector3 Update(Vector3 cur)
 		{
-			prev = prev + alpha * (cur-prev);
-			return prev;
+			value = value + alpha * (cur-value);
+			return value;
 		}
 	}
 
@@ -103,8 +168,8 @@ namespace ThrottleControlledAvionics
 	{
 		public override Vector3d Update(Vector3d cur)
 		{
-			prev = prev + alpha * (cur-prev);
-			return prev;
+			value = value + alpha * (cur-value);
+			return value;
 		}
 	}
 
@@ -126,17 +191,57 @@ namespace ThrottleControlledAvionics
 
 	public class LowPassFilterVVd
 	{
-		Vector3d prev;
-		public Vector3d Value { get { return prev; } }
+		Vector3d value;
+		public Vector3d Value { get { return value; } }
 
 		public Vector3d Update(Vector3d cur, Vector3d tau)
 		{
 			var output = Vector3d.zero;
-			output.x = prev.x + (TimeWarp.fixedDeltaTime/(tau.x+TimeWarp.fixedDeltaTime)) * (cur.x-prev.x);
-			output.y = prev.y + (TimeWarp.fixedDeltaTime/(tau.y+TimeWarp.fixedDeltaTime)) * (cur.y-prev.y);
-			output.z = prev.z + (TimeWarp.fixedDeltaTime/(tau.z+TimeWarp.fixedDeltaTime)) * (cur.z-prev.z);
-			prev = output;
+			output.x = value.x + (TimeWarp.fixedDeltaTime/(tau.x+TimeWarp.fixedDeltaTime)) * (cur.x-value.x);
+			output.y = value.y + (TimeWarp.fixedDeltaTime/(tau.y+TimeWarp.fixedDeltaTime)) * (cur.y-value.y);
+			output.z = value.z + (TimeWarp.fixedDeltaTime/(tau.z+TimeWarp.fixedDeltaTime)) * (cur.z-value.z);
+			value = output;
 			return output;
+		}
+	}
+
+	public class AsymmetricFiterF : AsymmetricFilter<float>
+	{
+		public override float Update(float cur)
+		{
+			if(float.IsNaN(cur)) return value;
+			value = value + (cur > value? alphaF : alphaR) * (cur-value);
+			return value;
+		}
+	}
+
+	public class ClampedAssymetricFilterF : ClampedAsymmetricFilter<float>
+	{
+		public override float Update(float cur)
+		{
+			if(float.IsNaN(cur)) return value;
+			value = Utils.Clamp(value + (cur > value? alphaF : alphaR) * (cur-value), Min, Max);
+			return value;
+		}
+	}
+
+	public class AsymmetricFiterD : AsymmetricFilter<double>
+	{
+		public override double Update(double cur)
+		{
+			if(double.IsNaN(cur)) return value;
+			value = value + (cur > value? alphaF : alphaR) * (cur-value);
+			return value;
+		}
+	}
+
+	public class ClampedAssymetricFilterD : ClampedAsymmetricFilter<double>
+	{
+		public override double Update(double cur)
+		{
+			if(double.IsNaN(cur)) return value;
+			value = Utils.Clamp(value + (cur > value? alphaF : alphaR) * (cur-value), Min, Max);
+			return value;
 		}
 	}
 
@@ -185,5 +290,87 @@ namespace ThrottleControlledAvionics
 
 	public class MinimumD: Extremum<double>
 	{ public override bool True { get { return i > 2 && v2 >= v1 && v1 < v0; } } }
+
+	public abstract class StateMap<T>
+	{
+		readonly protected int order;
+		readonly protected Queue<T> states;
+		readonly protected T[] values;
+
+		protected StateMap(int order)
+		{
+			this.order = order+1;
+			states = new Queue<T>(this.order);
+			values = new T[this.order];
+		}
+
+		public T this[int i] { get { return values[i]; } }
+
+		public int MaxOrder { get { return order-1; } }
+
+		public int Count { get { return states.Count; } }
+
+		public static implicit operator bool(StateMap<T> m) { return m.states.Count == m.order; }
+
+		public void Update(T cur)
+		{
+			states.Enqueue(cur);
+			if(states.Count > order)
+				states.Dequeue();
+			update_values();
+		}
+
+		protected abstract void update_values();
+
+		public override string ToString()
+		{
+			return string.Format("[StateMap: MaxOrder={0}, Available={1}, Values=({2})]", 
+			                     MaxOrder, Count-1, values.Aggregate("", (s, v) => s+(string.IsNullOrEmpty(s)? "" : ", ")+v));
+		}
+	}
+
+	public class DifferentialF: StateMap<float>
+	{
+		public DifferentialF(int order = 1) : base(order) {}
+
+		protected override void update_values()
+		{
+			var  i = 0;
+			var  d = 0.0f;
+			foreach(var s in states)
+			{
+				if(i == 0) values[i] = s;
+				else 
+				{
+					var n = i == 1? s-values[0] : values[i - 1] - d;
+					d = values[i];
+					values[i] = n;
+				}
+				i++;
+			}
+		}
+	}
+
+	public class DifferentialD: StateMap<double>
+	{
+		public DifferentialD(int order = 1) : base(order) {}
+
+		protected override void update_values()
+		{
+			var  i = 0;
+			var  d = 0.0;
+			foreach(var s in states)
+			{
+				if(i == 0) values[i] = s;
+				else 
+				{
+					var n = i == 1? s-values[0] : values[i - 1] - d;
+					d = values[i];
+					values[i] = n;
+				}
+				i++;
+			}
+		}
+	}
 }
 
