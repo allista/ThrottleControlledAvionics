@@ -57,16 +57,6 @@ namespace ThrottleControlledAvionics
 		public static implicit operator T(PI_Controller<T> c) { return c.action; }
 	}
 
-	public class PIv_Controller : PI_Controller<Vector3>
-	{
-		public override void Update(Vector3 error)
-		{
-			integral_error += error * TimeWarp.fixedDeltaTime;
-			action = error * P + integral_error * I;
-		}
-	}
-
-	//I hate strongly-typed languages! =(
 	public class PIf_Controller : PI_Controller<float>
 	{
 		public override void Update(float error)
@@ -110,6 +100,17 @@ namespace ThrottleControlledAvionics
 		//access
 		public T Action { get { return action; } }
 		public static implicit operator T(PID_Controller<T> c) { return c.action; }
+
+		public override string ToString()
+		{
+			return base.ToString()+
+				string.Format("\nLast Error:     {0}" +
+				              "\nIntegral Error: {1}" +
+				              "\nAction:         {2}\n",
+				              last_error, 
+				              integral_error, 
+				              action);
+		}
 	}
 
 	//separate implementation of the strange PID controller from MechJeb2
@@ -151,8 +152,12 @@ namespace ThrottleControlledAvionics
 			if(act.IsZero()) action = act;
 			else
 			{
-				var actm = act.magnitude;
-				action = act/actm*Utils.Clamp(actm, Min, Max);
+				action = new Vector3d
+					(
+						double.IsNaN(act.x)? 0f : Utils.Clamp(act.x, Min, Max),
+						double.IsNaN(act.y)? 0f : Utils.Clamp(act.y, Min, Max),
+						double.IsNaN(act.z)? 0f : Utils.Clamp(act.z, Min, Max)
+					);
 				if(!act.Equals(action)) integral_error = old_ierror;
 			}
 			//			Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; error {4}, action {5}", 
@@ -173,6 +178,7 @@ namespace ThrottleControlledAvionics
 		                   #endif
 		                  )
 		{
+			if(float.IsNaN(error)) return;
 			if(last_error.Equals(0)) last_error = error;
 			var old_ierror = integral_error;
 			integral_error += error*TimeWarp.fixedDeltaTime;
@@ -194,13 +200,15 @@ namespace ThrottleControlledAvionics
 		public PIDf_Controller2(float p, float i, float d, float min, float max)
 		{ P = p; I = i; D = d; Min = min; Max = max; }
 
-		public void Update(float error)
+		public void Update(float error, float speed = float.NaN)
 		{
+			if(float.IsNaN(error)) return;
 			if(last_error.Equals(0)) last_error = error;
-			var derivative = D*(error-last_error)/TimeWarp.fixedDeltaTime;
+			var derivative = D * (float.IsNaN(speed)? (error-last_error)/TimeWarp.fixedDeltaTime : speed);
 			integral_error = Mathf.Clamp((Math.Abs(derivative) < 0.6f * Max) ? integral_error + (error * I * TimeWarp.fixedDeltaTime) : 0.9f * integral_error, Min, Max);
-			action = Mathf.Clamp(error * P + integral_error + derivative, Min, Max);
-//			Utils.Log("Pe {0}; Ie {1}; De {2}; action {3}", P*error, integral_error, derivative, action);//debug
+			var act = error * P + integral_error + derivative;
+			if(!float.IsNaN(act)) action = Mathf.Clamp(act, Min, Max);
+//			Utils.LogF("error {}; Pe {}; Ie {}; De {}; action {}", error, P*error, integral_error, derivative, action);//debug
 			last_error = error;
 		}
 	}
