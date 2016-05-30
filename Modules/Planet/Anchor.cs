@@ -48,7 +48,10 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected override void UpdateState() 
-		{ IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed && CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere); }
+		{ 
+			base.UpdateState();
+			IsActive &= VSL.OnPlanet && !VSL.LandedOrSplashed && CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere); 
+		}
 
 		public void AnchorCallback(Multiplexer.Command cmd)
 		{

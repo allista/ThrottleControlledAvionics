@@ -167,6 +167,7 @@
     <Compile Include="TCAComponent.cs" />
     <Compile Include="Utils\Extensions.cs" />
     <Compile Include="GUI\Panels\TogglesPanel.cs" />
+    <Compile Include="Modules\Orbit\ToOrbitAutopilot.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

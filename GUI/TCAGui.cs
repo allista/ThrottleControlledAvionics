@@ -490,6 +490,7 @@ namespace ThrottleControlledAvionics
 				                 GUILayout.Width(ControlsWidth),
 				                 GUILayout.Height(ControlsHeight));
 			MainWindow.clampToScreen();
+			InOrbitControls.OrbitEditorWindow();
 		}
 
 		public void Update()

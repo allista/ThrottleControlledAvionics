@@ -51,7 +51,7 @@ namespace ThrottleControlledAvionics
 			base.UpdateState();
 			var HasPatchedConics = GameVariables.Instance
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) == GameVariables.OrbitDisplayMode.PatchedConics;
-			IsActive = CFG.Enabled && CFG.AP1[Autopilot1.Maneuver] && Node != null && HasPatchedConics;
+			IsActive &= CFG.AP1[Autopilot1.Maneuver] && Node != null && HasPatchedConics;
 			ControlsActive = IsActive || VSL.HasManeuverNode && HasPatchedConics;
 		}
 
@@ -80,6 +80,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void reset()
 		{
+			base.reset();
 			if(Working) THR.Throttle = 0;
 			if(CFG.AT[Attitude.ManeuverNode])
 				CFG.AT.On(Attitude.KillRotation);

@@ -23,7 +23,7 @@ namespace ThrottleControlledAvionics
 		bool IsStateSet(TCAState state);
 	}
 
-	public abstract class TCAComponent : ITCAComponent
+	public abstract class TCAComponent : ConfigNodeObject, ITCAComponent
 	{
 		public readonly ModuleTCA TCA;
 		public VesselWrapper VSL { get { return TCA.VSL; } }
@@ -64,12 +64,13 @@ namespace ThrottleControlledAvionics
 			else SQD.ApplyCFG(action);
 		}
 
-		protected static void ClearStatus() { TCAGui.StatusMessage = ""; }
+		protected void ClearStatus() 
+		{ if(VSL.IsActiveVessel) TCAGui.StatusMessage = ""; }
 
-		protected static void Status(string msg, params object[] args) 
-		{ TCAGui.StatusMessage = string.Format(msg, args); }
+		protected void Status(string msg, params object[] args) 
+		{ if(VSL.IsActiveVessel) TCAGui.StatusMessage = string.Format(msg, args); }
 
-		protected static void Status(string color, string msg, params object[] args)
+		protected void Status(string color, string msg, params object[] args)
 		{ Status(string.Format("<color={0}>{1}</color>", color, msg), args); }
 
 		#if DEBUG
@@ -117,7 +118,7 @@ namespace ThrottleControlledAvionics
 		public virtual void ProcessKeys() {}
 		public override void Draw() {}
 
-		protected virtual void UpdateState() {}
+		protected virtual void UpdateState() { IsActive = CFG.Enabled; }
 		protected virtual void Update() {}
 		protected virtual void reset() {}
 

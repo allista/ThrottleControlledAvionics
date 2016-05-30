@@ -238,10 +238,7 @@ namespace ThrottleControlledAvionics
 		{
 			alpha = AngleDelta(a, b, UT)/360;
 			resonance = ResonanceA(a, b);
-			if(double.IsNaN(alpha))//debug
-				Status("red", "DEBUG: Unable to calculate TTR. See the log.");
-//			Utils.LogF("\nUT {}\ntanA {}\nposA {}\nposB {}\nalpha {}\nresonance {}",
-//			           UT, tanA, posA, posB, alpha, resonance);//debug
+			if(double.IsNaN(alpha)) Utils.LogF("\nUT {}\nalpha {}\nresonance {}", UT, alpha, resonance);//debug
 			var TTR = alpha*resonance;
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
 		}
@@ -462,9 +459,9 @@ namespace ThrottleControlledAvionics
 
 		protected override void reset()
 		{
+			base.reset();
 			trajectory = null;
 			trajectory_calculator = null;
-			ClearStatus();
 		}
 
 		IEnumerator<T> compute_trajectory()
@@ -583,7 +580,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{
 			base.UpdateState();
-			IsActive = CFG.Enabled && Target != null && VSL.orbit != null && VSL.orbit.referenceBody != null;
+			IsActive &= Target != null && VSL.orbit != null && VSL.orbit.referenceBody != null;
 		}
 	}
 }

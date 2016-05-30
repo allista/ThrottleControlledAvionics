@@ -94,8 +94,8 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState() 
 		{ 
-			IsActive = CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath, Navigation.FollowTarget) && VSL.OnPlanet; 
-			if(IsActive) return;
+			base.UpdateState();
+			IsActive &= CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath, Navigation.FollowTarget) && VSL.OnPlanet; 
 		}
 
 		public void GoToTargetCallback(Multiplexer.Command cmd)
@@ -129,7 +129,8 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.Off:
-				finish(); break;
+				finish(); 
+				break;
 			}
 		}
 

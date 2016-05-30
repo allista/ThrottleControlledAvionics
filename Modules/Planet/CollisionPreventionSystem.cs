@@ -41,7 +41,8 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState() 
 		{ 
-			IsActive = CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null; 
+			base.UpdateState();
+			IsActive &= CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null; 
 			if(IsActive) return;
 			Correction = Vector3.zero;
 		}

@@ -14,13 +14,25 @@ namespace ThrottleControlledAvionics
 {
 	public class InOrbitPanel : ControlPanel
 	{
-		public InOrbitPanel(ModuleTCA tca) : base(tca) {}
+		const int orb_width = 250;
+		const int orb_height = 100;
+		static Rect orbit_editor = new Rect((Screen.width-orb_width)/2, 
+		                               		(Screen.height-orb_height)/2, 
+		                                	orb_width, orb_width);
+		readonly int orb_editor_ID;
+
+		public InOrbitPanel(ModuleTCA tca) : base(tca) 
+		{
+			var rnd = new System.Random();
+			orb_editor_ID = rnd.Next();
+		}
 
 		TimeWarpControl WRP;
 		MatchVelocityAutopilot MVA;
 		ManeuverAutopilot MAP;
 		DeorbitAutopilot DEO;
 		RendezvouAutopilot REN;
+		ToOrbitAutopilot ORB;
 		PointNavigator PN;
 
 		public override void Draw()
@@ -29,6 +41,7 @@ namespace ThrottleControlledAvionics
 			if(WRP != null) WRP.Draw();
 			if(MAP != null) MAP.Draw();
 			if(MVA != null) MVA.Draw();
+			if(ORB != null) ORB.Draw();
 			if(REN != null) REN.Draw();
 			if(DEO != null) DEO.Draw();
 			if(PN  != null) TCAGui.NavigationControls.AddSingleWaypointInMapView();
@@ -42,6 +55,30 @@ namespace ThrottleControlledAvionics
 			                               "Full Thrust Duration"), 
 			                Styles.yellow, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
+		}
+
+		void draw_orbit_editor(int windowID)
+		{
+			ORB.DrawOrbitEditor();
+			AddonWindowBase.TooltipAndDrag(orbit_editor);
+		}
+
+		public void OrbitEditorWindow()
+		{
+			if(ORB == null || !ORB.ShowEditor) 
+			{
+				Utils.LockIfMouseOver("TCAOrbitEditor", orbit_editor, false);
+				return;
+			}
+			Utils.LockIfMouseOver("TCAOrbitEditor", orbit_editor);
+			orbit_editor = 
+				GUILayout.Window(orb_editor_ID, 
+				                 orbit_editor, 
+				                 draw_orbit_editor, 
+				                 "Target Orbit Editor",
+				                 GUILayout.Width(orb_width),
+				                 GUILayout.Height(orb_height));
+			orbit_editor.clampToScreen();
 		}
 	}
 }

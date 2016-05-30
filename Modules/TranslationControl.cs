@@ -45,7 +45,8 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState()
 		{ 
-			IsActive = CFG.Enabled && VSL.Controls.TranslationAvailable;
+			base.UpdateState();
+			IsActive &= VSL.Controls.TranslationAvailable;
 			if(IsActive) return;
 			Off();
 		}

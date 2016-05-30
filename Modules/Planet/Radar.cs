@@ -125,7 +125,8 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState() 
 		{ 
-			IsActive = VSL.OnPlanet && !VSL.LandedOrSplashed;
+			base.UpdateState();
+			IsActive &= VSL.OnPlanet && !VSL.LandedOrSplashed;
 			if(IsActive)
 			{
 				mode = Mode.Off;
@@ -143,6 +144,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void reset()
 		{
+			base.reset();
 			rewind();
 			DetectedHit.Reset();
 			CollisionSpeed = -1;

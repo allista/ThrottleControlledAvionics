@@ -70,7 +70,10 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected override void UpdateState()
-		{ IsActive = VSL.OnPlanet && CFG.VF[VFlight.AltitudeControl]; }
+		{ 
+			base.UpdateState();
+			IsActive &= VSL.OnPlanet && CFG.VF[VFlight.AltitudeControl]; 
+		}
 
 		public void SetAltitudeAboveTerrain(bool enable = true)
 		{

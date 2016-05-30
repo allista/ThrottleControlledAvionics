@@ -54,7 +54,10 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected override void UpdateState() 
-		{ IsActive = CFG.Enabled && VSL.OnPlanet && CFG.CTRL[ControlMode.VTOL] && VSL.refT != null; }
+		{ 
+			base.UpdateState();
+			IsActive &= VSL.OnPlanet && CFG.CTRL[ControlMode.VTOL] && VSL.refT != null; 
+		}
 
 		protected override void correct_steering()
 		{

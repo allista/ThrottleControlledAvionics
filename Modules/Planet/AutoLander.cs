@@ -84,7 +84,10 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected override void UpdateState() 
-		{ IsActive = VSL.OnPlanet && CFG.AP1[Autopilot1.Land]; }
+		{ 
+			base.UpdateState();
+			IsActive &= VSL.OnPlanet && CFG.AP1[Autopilot1.Land]; 
+		}
 
 		public void LandCallback(Multiplexer.Command cmd)
 		{
@@ -109,6 +112,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Off:
 				CFG.VF.On(VFlight.AltitudeControl);
 				DesiredAltitude = VSL.Altitude;
+				ClearStatus();
 				break;
 			}
 		}

@@ -372,6 +372,15 @@ BJ
 	InclinationF     = 2.2
 }
 
+ORB
+{
+	Dtol                = 100   //m
+	GTurnCurve          = 0.6	
+	Dist2VelF           = 0.01	
+	RadiusOffset        = 10000 //m
+	LaunchTangentK      = 1
+}
+
 REN
 {
 	Dtol                = 100   //m
@@ -386,10 +395,5 @@ REN
 	MaxApproachV        = 20    //parts
 	ApproachVelF        = 0.01  //parts
 	MaxInclinationDelta = 30    //deg
-	GTurnCurve          = 0.6
-	LaunchDeltaVf       = 3
-	LaunchTangentK      = 1
-	RendezvouCorrection = 0.8
-	Dist2VelF           = 0.1
 }
 //:mode=c#:

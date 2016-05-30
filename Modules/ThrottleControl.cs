@@ -48,6 +48,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void reset()
 		{
+			base.reset();
 			Throttle = -1;
 			DeltaV = -1;
 		}

@@ -48,7 +48,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
-			IsActive = CFG.Enabled && VSL.InOrbit && VSL.orbit != null && Target != null && Target.GetOrbit() != null 
+			IsActive &= VSL.InOrbit && VSL.orbit != null && Target != null && Target.GetOrbit() != null 
 				&& VSL.Engines.MaxThrustM > 0 && CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
 			var tVSL = VSL.TargetVessel;
 			ControlsActive = IsActive || tVSL != null && tVSL.situation == Vessel.Situations.ORBITING && tVSL.mainBody == VSL.mainBody;
@@ -75,6 +75,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void reset()
 		{
+			base.reset();
 			if(Working) 
 			{
 				THR.Throttle = 0;

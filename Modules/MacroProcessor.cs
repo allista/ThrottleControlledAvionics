@@ -16,7 +16,10 @@ namespace ThrottleControlledAvionics
 		public MacroProcessor(ModuleTCA tca) : base(tca) {}
 
 		protected override void UpdateState()
-		{ IsActive = CFG.MacroIsActive && CFG.SelectedMacro != null; }
+		{ 
+			base.UpdateState();
+			IsActive &= CFG.MacroIsActive && CFG.SelectedMacro != null; 
+		}
 
 		protected override void Update()
 		{

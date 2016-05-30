@@ -72,6 +72,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public DeorbitAutopilot.Config          DEO = new DeorbitAutopilot.Config();
 		[Persistent] public BallisticJump.Config             BJ  = new BallisticJump.Config();
 		[Persistent] public RendezvouAutopilot.Config        REN = new RendezvouAutopilot.Config();
+		[Persistent] public ToOrbitAutopilot.Config          ORB = new ToOrbitAutopilot.Config();
 
 		public MDSection Manual;
 
@@ -109,7 +110,7 @@ namespace ThrottleControlledAvionics
 	public enum VFlight { None, AltitudeControl }
 	public enum Navigation { None, GoToTarget, FollowTarget, FollowPath, Anchor, AnchorHere }
 	public enum Autopilot1 { None, Land, Maneuver, MatchVel, MatchVelNear }
-	public enum Autopilot2 { None, Deorbit, BallisticJump, Rendezvou }
+	public enum Autopilot2 { None, Deorbit, BallisticJump, Rendezvou, ToOrbit }
 
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{

@@ -255,6 +255,7 @@ namespace ThrottleControlledAvionics
 			case LandingStage.Land:
 				Status("Landing on the nearest flat surface...");
 				if(CFG.AP1[Autopilot1.Land]) break;
+				ClearStatus();
 				break;
 			}
 			return false;

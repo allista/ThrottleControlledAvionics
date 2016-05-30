@@ -41,7 +41,8 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState()
 		{ 
-			IsActive = VSL.OnPlanet && (!DirectionOverride.IsZero() || CFG.BR && !ForwardDirection.IsZero());
+			base.UpdateState();
+			IsActive &= VSL.OnPlanet && (!DirectionOverride.IsZero() || CFG.BR && !ForwardDirection.IsZero());
 		}
 
 		public override void Init()

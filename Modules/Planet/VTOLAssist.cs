@@ -69,7 +69,8 @@ namespace ThrottleControlledAvionics
 
 		protected override void UpdateState()
 		{ 
-			IsActive = VSL.OnPlanet && CFG.VTOLAssistON; 
+			base.UpdateState();
+			IsActive &= VSL.OnPlanet && CFG.VTOLAssistON; 
 			if(IsActive) return;
 			last_state = VSL.LandedOrSplashed;
 			landed = tookoff = false;

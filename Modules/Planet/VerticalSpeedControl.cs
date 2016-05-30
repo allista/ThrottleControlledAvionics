@@ -50,7 +50,10 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected override void UpdateState()
-		{ IsActive = VSL.OnPlanet && CFG.VSCIsActive; }
+		{ 
+			base.UpdateState();
+			IsActive &= VSL.OnPlanet && CFG.VSCIsActive; 
+		}
 
 		public override void Init()
 		{

@@ -88,6 +88,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void reset()
 		{
+			base.reset();
 			steering_pid.Reset();
 			AAf_filter.Reset();
 			AAf_filter.Tau = 0;
@@ -234,7 +235,11 @@ namespace ThrottleControlledAvionics
 			CFG.AT.SetSingleCallback(Enable);
 		}
 
-		protected override void UpdateState() { IsActive = CFG.AT; }
+		protected override void UpdateState() 
+		{ 
+			base.UpdateState();
+			IsActive &= CFG.AT; 
+		}
 
 		public void Enable(Multiplexer.Command cmd)
 		{
