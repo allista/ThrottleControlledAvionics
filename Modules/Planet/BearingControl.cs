@@ -136,7 +136,7 @@ namespace ThrottleControlledAvionics
 			{
 				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(false));
 				#if DEBUG
-				GLUtils.GLVec(VSL.Physics.wCoM, ForwardDirection*2500, Color.green);
+				GLUtils.GLVec(VSL.Controls.Transform.position, ForwardDirection.normalized*2500, Color.green);
 				#endif
 			}
 			else if(CFG.BR[BearingMode.User])
