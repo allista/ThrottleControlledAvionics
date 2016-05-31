@@ -115,7 +115,11 @@ namespace ThrottleControlledAvionics
 	public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
 	{
 		new public const string NODE_NAME = "VSLCONFIG";
+		public ConfigNode LoadedConfig { get; private set; }
 
+		//modules
+		public SortedList<string,ConfigNode> ModuleConfigs = new SortedList<string, ConfigNode>();
+		//common
 		[Persistent] public Guid    VesselID;
 		[Persistent] public bool    Enabled;
 		[Persistent] public bool    GUIVisible;
@@ -210,17 +214,32 @@ namespace ThrottleControlledAvionics
 
 		public override void Load(ConfigNode node)
 		{
+			LoadedConfig = node;
 			base.Load(node);
 			var val = node.GetValue(Utils.PropertyName(new {VesselID}));
 			if(!string.IsNullOrEmpty(val)) VesselID = new Guid(val);
-			foreach(var n in node.GetNodes(WayPoint.NODE_NAME))
+
+			var mcn = node.GetNode("ModuleConfigs");
+			if(mcn != null)
+			{
+				ModuleConfigs.Clear();
+				foreach(var n in mcn.GetNodes())
+					ModuleConfigs.Add(n.name, n);
+			}
+
+			Waypoints.Clear();
+			var wpn = node.GetNode("Waypoints");
+			if(wpn == null) wpn = node; //deprecated: Old config conversion
+			foreach(var n in wpn.GetNodes(WayPoint.NODE_NAME))
 				Waypoints.Enqueue(ConfigNodeObject.FromConfig<WayPoint>(n));
+
 			if(Anchor != null && string.IsNullOrEmpty(Anchor.Name))
 				Anchor = null;
 			if(Target != null && string.IsNullOrEmpty(Target.Name))
 				Target = null;
 			if(SelectedMacro != null && !SelectedMacro.Block.HasSubnodes)
 				SelectedMacro = null;
+
 			//deprecated: Old config conversion
 			val = node.GetValue("VSControlSensitivity"); 
 			if(!string.IsNullOrEmpty(val))
@@ -233,8 +252,18 @@ namespace ThrottleControlledAvionics
 		public override void Save(ConfigNode node)
 		{
 			node.AddValue(Utils.PropertyName(new {VesselID}), VesselID.ToString());
-			foreach(var wp in Waypoints)
-				wp.Save(node.AddNode(WayPoint.NODE_NAME));
+			if(ModuleConfigs.Count > 0)
+			{
+				var mcn = node.AddNode("ModuleConfigs");
+				foreach(var mc in ModuleConfigs)
+					mcn.AddNode(mc.Key, mc.Value);
+			}
+			if(Waypoints.Count > 0)
+			{
+				var wpn = node.AddNode("Waypoints");
+				foreach(var wp in Waypoints)
+					wp.Save(wpn.AddNode(WayPoint.NODE_NAME));
+			}
 			base.Save(node);
 		}
 

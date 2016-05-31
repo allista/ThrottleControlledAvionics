@@ -113,7 +113,10 @@ namespace ThrottleControlledAvionics
 		public override void OnSave(ConfigNode node)
 		{
 			if((enabled || HighLogic.LoadedSceneIsEditor) && CFG != null)
+			{
+				AllModules.ForEach(m => m.SaveToConfig());
 				CFG.Save(node.AddNode(VesselConfig.NODE_NAME));
+			}
 			base.OnSave(node);
 		}
 

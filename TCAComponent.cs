@@ -110,7 +110,7 @@ namespace ThrottleControlledAvionics
 
 		protected TCAModule(ModuleTCA tca) : base(tca) {}
 
-		public virtual void Init() { InitModuleFields(); }
+		public virtual void Init() { InitModuleFields(); LoadFromConfig(); }
 		public void OnFixedUpdate() { UpdateState(); Update(); }
 		public virtual void Reset() {}
 		public virtual void ClearFrameState() {}
@@ -152,6 +152,23 @@ namespace ThrottleControlledAvionics
 		{
 			var srv = TCA.GetModule<S>();
 			return srv != null && srv.Unregister(this);
+		}
+
+		public void SaveToConfig()
+		{
+			var node = new ConfigNode(GetType().Name);
+			Save(node);
+			CFG.ModuleConfigs[node.name] = node;
+		}
+
+		public void LoadFromConfig()
+		{
+			ConfigNode node;
+			var name = GetType().Name;
+			if(CFG.ModuleConfigs.TryGetValue(name, out node))
+				Load(node);
+			//deprecated: old configuration conversion
+			else Load(CFG.LoadedConfig);
 		}
 	}
 
