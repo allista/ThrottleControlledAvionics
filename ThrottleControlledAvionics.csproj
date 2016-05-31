@@ -168,6 +168,8 @@
     <Compile Include="Utils\Extensions.cs" />
     <Compile Include="GUI\Panels\TogglesPanel.cs" />
     <Compile Include="Modules\Orbit\ToOrbitAutopilot.cs" />
+    <Compile Include="Modules\Orbit\Components\ToOrbitExecutor.cs" />
+    <Compile Include="Modules\Orbit\Components\ManeuverExecutor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -181,5 +183,6 @@
     <Folder Include="Modules\Planet\" />
     <Folder Include="Modules\Orbit\" />
     <Folder Include="Modules\Orbit\Trajectories\" />
+    <Folder Include="Modules\Orbit\Components\" />
   </ItemGroup>
 </Project>
