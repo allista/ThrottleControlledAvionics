@@ -188,6 +188,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float  Max;
 		[Persistent] public bool   Circle;
 
+		public float Range { get { return Max-Min; } }
+
 		public float Value 
 		{ 
 			get { return fvalue; } 
@@ -196,6 +198,12 @@ namespace ThrottleControlledAvionics
 				fvalue = Circle? Utils.Circle(value, Min, Max) : Utils.Clamp(value, Min, Max);
 				svalue = fvalue.ToString(format);	
 			}
+		}
+
+		public void Invert()
+		{
+			Min = -Max; Max = -Min;
+			Value = -Value;
 		}
 
 		public override void Load(ConfigNode node)
@@ -233,7 +241,8 @@ namespace ThrottleControlledAvionics
 				if(GUILayout.Button(string.Format("+{0}", increment), Styles.normal_button, GUILayout.ExpandWidth(false)))
 				{ Value = fvalue+increment; updated = true; }
 			}
-			svalue = GUILayout.TextField(svalue, GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
+			svalue = GUILayout.TextField(svalue, svalue.Equals(fvalue.ToString(format))? Styles.green : Styles.white,
+			                             GUILayout.ExpandWidth(true), GUILayout.MinWidth(70));
 			if(!string.IsNullOrEmpty(suffix)) GUILayout.Label(suffix, Styles.label, GUILayout.ExpandWidth(false));
 			updated |= 
 				show_set_button && 
