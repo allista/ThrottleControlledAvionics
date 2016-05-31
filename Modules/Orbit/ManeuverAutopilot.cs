@@ -141,10 +141,10 @@ namespace ThrottleControlledAvionics
 			{
 				if(GUILayout.Button(CFG.AP1[Autopilot1.Maneuver]? "Abort Maneuver" : "Execute Node", 
 				                    CFG.AP1[Autopilot1.Maneuver]? Styles.danger_button : Styles.active_button, 
-				                    GUILayout.Width(110)))
+				                    GUILayout.ExpandWidth(false)))
 					CFG.AP1.XToggle(Autopilot1.Maneuver);
 			}
-			else GUILayout.Label("Execute Node", Styles.inactive_button, GUILayout.Width(110));
+			else GUILayout.Label("Execute Node", Styles.inactive_button, GUILayout.ExpandWidth(false));
 		}
 	}
 
@@ -168,8 +168,8 @@ namespace ThrottleControlledAvionics
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) return false;
 			THR.Throttle = 0;
-			VSL.Engines.ActivateEnginesIfNeeded();
 			VSL.Engines.ActivateNextStageOnFlameout();
+			VSL.Engines.ActivateEnginesIfNeeded();
 			//orient along the burning vector
 			if(dVrem && VSL.Controls.RCSAvailableInDirection(-dV)) 
 				CFG.AT.OnIfNot(Attitude.KillRotation);

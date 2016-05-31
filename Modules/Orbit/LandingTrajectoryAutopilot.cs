@@ -151,8 +151,8 @@ namespace ThrottleControlledAvionics
 		protected bool do_land()
 		{
 			if(VSL.LandedOrSplashed) { CFG.AP2.Off(); return true; }
-			VSL.Engines.ActivateEnginesIfNeeded();
 			VSL.Engines.ActivateNextStageOnFlameout();
+			VSL.Engines.ActivateEnginesIfNeeded();
 			if(VSL.Engines.MaxThrustM.Equals(0) && !VSL.Engines.HaveNextStageEngines) 
 				landing_stage = LandingStage.HardLanding;
 			double terminal_velocity;
