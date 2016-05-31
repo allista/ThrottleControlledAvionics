@@ -24,7 +24,6 @@ namespace ThrottleControlledAvionics
 		static AltitudeControl ALT;
 		static VerticalSpeedControl VSC;
 		static ThrottleControl THR;
-		static TogglesPanel TGL;
 
 		static List<FieldInfo> ModuleFields = typeof(TCAGui)
 			.GetFields(BindingFlags.Static|BindingFlags.NonPublic)
@@ -55,6 +54,7 @@ namespace ThrottleControlledAvionics
 		public static NavigationPanel NavigationControls;
 		public static MacrosPanel MacroControls;
 		public static SquadPanel SquadControls;
+		public static TogglesPanel Toggles;
 		static List<ControlPanel> AllPanels = new List<ControlPanel>();
 		static List<FieldInfo> AllPanelFields = typeof(TCAGui)
 			.GetFields(BindingFlags.Static|BindingFlags.Public)
@@ -305,7 +305,7 @@ namespace ThrottleControlledAvionics
 			                    GUILayout.ExpandWidth(true)))
 			{ selecting_key = true; ScreenMessages.PostScreenMessage("Press a key that will toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
 			GUILayout.EndHorizontal();
-			TGL.Draw();
+			Toggles.Draw();
 			if(THR != null)
 			{
 				GUILayout.BeginHorizontal();
