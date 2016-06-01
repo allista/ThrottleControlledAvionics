@@ -115,6 +115,74 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+	[RequireModules(typeof(BallisticJump))]
+	public class JumpToTargetMacroNode : MacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(!VSL.HasTarget) { Message("No Target"); return false; }
+			VSL.CFG.AP2.XOnIfNot(Autopilot2.BallisticJump);
+			return VSL.CFG.AP2[Autopilot2.BallisticJump];
+		}
+	}
+
+	[RequireModules(typeof(ToOrbitAutopilot))]
+	public class ToOrbitNode : MacroNode
+	{
+		[Persistent] public TargetOrbitInfo OrbitInfo = new TargetOrbitInfo();
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginHorizontal();
+			if(Edit)
+			{ 
+				GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false));
+				OrbitInfo.Draw(false);
+				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
+				{ 
+					OrbitInfo.UpdateValues();
+					Edit = false; 
+				}
+			}
+			else Edit |= GUILayout.Button(Name, Styles.normal_button);
+			GUILayout.EndHorizontal();
+		}
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			var ToOrbit = VSL.TCA.GetModule<ToOrbitAutopilot>();
+			if(ToOrbit == null) return false;
+			if(!VSL.CFG.AP2[Autopilot2.ToOrbit])
+			{
+				ToOrbit.TargetOrbit.Copy(OrbitInfo);
+				VSL.CFG.AP2.XOnIfNot(Autopilot2.ToOrbit);
+			}
+			return VSL.CFG.AP2[Autopilot2.ToOrbit];
+		}
+	}
+
+	[RequireModules(typeof(DeorbitAutopilot))]
+	public class DeorbitMacroNode : MacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(!VSL.HasTarget) { Message("No Target"); return false; }
+			VSL.CFG.AP2.XOnIfNot(Autopilot2.Deorbit);
+			return VSL.CFG.AP2[Autopilot2.Deorbit];
+		}
+	}
+
+	[RequireModules(typeof(RendezvousAutopilot))]
+	public class RendezvousMacroNode : MacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(!VSL.HasTarget) { Message("No Target"); return false; }
+			VSL.CFG.AP2.XOnIfNot(Autopilot2.Rendezvous);
+			return VSL.CFG.AP2[Autopilot2.Rendezvous];
+		}
+	}
+
 	[RequireModules(typeof(PointNavigator))]
 	public class GoToTargetMacroNode : MacroNode
 	{
@@ -292,6 +360,26 @@ namespace ThrottleControlledAvionics
 
 		protected override bool Action(VesselWrapper VSL)
 		{ return !T.Check; }
+	}
+
+	[RequireModules(typeof(TimeWarpControl))]
+	public class TimeWarpMacroNode : SetFloatMacroNode
+	{
+		[Persistent] public double StopUT = -1;
+
+		public TimeWarpMacroNode()
+		{ Name = "Warp for"; Suffix = "s"; }
+
+		public override void Rewind()
+		{ base.Rewind(); StopUT = -1; }
+
+		protected override bool Action(VesselWrapper VSL)
+		{
+			if(StopUT < 0) StopUT = VSL.Physics.UT+Value;
+			else if(VSL.Physics.UT >= StopUT) return false;
+			VSL.Controls.WarpToTime = StopUT;
+			return true;
+		}
 	}
 
 	public class ActivateProfileMacroNode : MacroNode
@@ -477,10 +565,10 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-//	public class StageMacroNode : MacroNode
-//	{
-//		protected override bool Action(VesselWrapper VSL)
-//		{ VSL.vessel.stag; return false; }
-//	}
+	public class StageMacroNode : MacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{ VSL.ActivateNextStage(); return false; }
+	}
 }
 
