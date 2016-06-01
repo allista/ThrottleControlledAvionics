@@ -27,6 +27,9 @@ namespace ThrottleControlledAvionics
 		public Switch  ManualTranslationSwitch = new Switch();
 		public float   GimbalLimit = 100;
 		public bool HaveControlAuthority = true;
+		public double WarpToTime = -1;
+
+		public void StopWarp() { WarpToTime = 0; }
 
 		public override void Update()
 		{

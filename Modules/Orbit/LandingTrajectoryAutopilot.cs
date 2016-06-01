@@ -82,15 +82,15 @@ namespace ThrottleControlledAvionics
 			if(!CorrectionTimer.Check) 
 			{
 				if(TimeWarp.WarpMode == TimeWarp.Modes.HIGH)
-					WRP.WarpToTime = VSL.Physics.UT+60;
-				else WRP.StopWarp();
+					VSL.Controls.WarpToTime = VSL.Physics.UT+60;
+				else VSL.Controls.StopWarp();
 				return false;
 			}
 			CorrectionTimer.Reset();
 			trajectory.UpdateOrbit(VesselOrbit);
 			if(trajectory.DistanceToTarget >= LTRJ.Dtol)
 			{ 
-				WRP.StopWarp(); 
+				VSL.Controls.StopWarp(); 
 				fine_tune_approach(); 
 				return false; 
 			}
@@ -138,7 +138,7 @@ namespace ThrottleControlledAvionics
 
 		void decelerate()
 		{
-			WRP.StopWarp();
+			VSL.Controls.StopWarp();
 			DistanceFilter.Set(trajectory.DistanceToTarget);
 			DecelerationTimer.Reset();
 			landing_stage = LandingStage.Decelerate; 
@@ -167,8 +167,8 @@ namespace ThrottleControlledAvionics
 				CFG.AT.OnIfNot(Attitude.Custom);
 				ATC.SetThrustDirW(BrakeDirection(VesselOrbit.vel.xzy, Target.WorldPos(Body), 
 				                                 Utils.ClampL(VSL.Info.Countdown*5, 100)));
-				if(ATC.Aligned) WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
-				else WRP.StopWarp();
+				if(ATC.Aligned) VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
+				else VSL.Controls.StopWarp();
 				break;
 			case LandingStage.Decelerate:
 				var last_distance = DistanceFilter.Value;

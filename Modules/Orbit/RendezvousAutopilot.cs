@@ -334,7 +334,7 @@ namespace ThrottleControlledAvionics
 					Status("Waiting for launch window...");
 					correct_launch();
 					VSL.Info.Countdown = ToOrbit.LaunchUT-VSL.Physics.UT;
-					WRP.WarpToTime = ToOrbit.LaunchUT;
+					VSL.Controls.WarpToTime = ToOrbit.LaunchUT;
 					break;
 				}
 				if(ToOrbit.Liftoff()) break;

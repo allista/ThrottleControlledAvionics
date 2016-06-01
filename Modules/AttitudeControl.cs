@@ -223,7 +223,6 @@ namespace ThrottleControlledAvionics
 		Quaternion locked_attitude;
 		bool attitude_locked;
 
-		TimeWarpControl TWR;
 		BearingControl BRC;
 		Vector3 lthrust, needed_lthrust;
 
@@ -247,7 +246,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				if(TWR != null) TWR.StopWarp();
+				VSL.Controls.StopWarp();
 				RegisterTo<SASBlocker>();
 				break;
 

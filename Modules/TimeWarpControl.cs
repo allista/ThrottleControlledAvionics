@@ -26,10 +26,6 @@ namespace ThrottleControlledAvionics
 
 		public TimeWarpControl(ModuleTCA tca) : base(tca) {}
 
-		public double WarpToTime = -1;
-
-		public void StopWarp() { WarpToTime = 0; }
-
 		public override void Init()
 		{
 			base.Init();
@@ -40,7 +36,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCA == null || action.host != VSL.vessel) return;
 			CFG.WarpToNode = false;
-			StopWarp();
+			VSL.Controls.StopWarp();
 		}
 
 		//TimeWarp changes timescale from one rate the next in a second of a real time using Lerp: F+(T-F)*time
@@ -48,14 +44,14 @@ namespace ThrottleControlledAvionics
 		//and from rate F to rate 1: (F-1)/2
 		//but due to deltaTime steps it is safer to offset the dewarp time with just F+1
 		double TimeToDewarp(int rate_index)
-		{ return WarpToTime-(WRP.DewarpTime/(VSL.LandedOrSplashed? 2 : 1)+TimeWarp.fetch.warpRates[rate_index]-1)-VSL.Physics.UT; }
+		{ return VSL.Controls.WarpToTime-(WRP.DewarpTime/(VSL.LandedOrSplashed? 2 : 1)+TimeWarp.fetch.warpRates[rate_index]-1)-VSL.Physics.UT; }
 
 		protected override void Update()
 		{
-			if(WarpToTime < 0) return;
-			if(!CFG.WarpToNode && WarpToTime > 0) WarpToTime = 0;
-			if(WarpToTime <= VSL.Physics.UT && TimeWarp.CurrentRate.Equals(1))
-			{ WarpToTime = -1; return; }
+			if(VSL.Controls.WarpToTime < 0) return;
+			if(!CFG.WarpToNode && VSL.Controls.WarpToTime > 0) VSL.Controls.WarpToTime = 0;
+			if(VSL.Controls.WarpToTime <= VSL.Physics.UT && TimeWarp.CurrentRate.Equals(1))
+			{ VSL.Controls.WarpToTime = -1; return; }
 			if(TimeWarp.CurrentRateIndex > 0 && TimeToDewarp(TimeWarp.CurrentRateIndex) < 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex-1, false);
 			else if(TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 

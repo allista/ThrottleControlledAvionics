@@ -466,7 +466,7 @@ namespace ThrottleControlledAvionics
 
 		IEnumerator<T> compute_trajectory()
 		{
-			WRP.StopWarp();
+			VSL.Controls.StopWarp();
 			T current = null;
 			T best = null;
 			var maxI = TRJ.MaxIterations;

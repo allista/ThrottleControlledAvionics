@@ -31,7 +31,6 @@ namespace ThrottleControlledAvionics
 		public MatchVelocityAutopilot(ModuleTCA tca) : base(tca) {}
 
 		ThrottleControl THR;
-		TimeWarpControl WRP;
 		AttitudeControl ATC;
 
 		Vessel Target;
@@ -122,7 +121,7 @@ namespace ThrottleControlledAvionics
 				VSL.Info.TTB = VSL.Engines.TTB(dV, 1);
 				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL.Info.TTB, VSL);
 				if(CFG.WarpToNode && ATC.Aligned)
-					WRP.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
+					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
 				if(VSL.Info.Countdown > 0) return false;
 			}
 			VSL.Info.Countdown = 0;

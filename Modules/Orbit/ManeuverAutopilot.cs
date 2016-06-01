@@ -28,7 +28,6 @@ namespace ThrottleControlledAvionics
 		public ManeuverAutopilot(ModuleTCA tca) : base(tca) {}
 
 		ThrottleControl THR;
-		TimeWarpControl WRP;
 		AttitudeControl ATC;
 
 		ManeuverNode Node;
@@ -113,10 +112,10 @@ namespace ThrottleControlledAvionics
 			if(float.IsNaN(ttb)) return false;
 			VSL.Info.TTB = ttb;
 			var burn = Node.UT-VSL.Info.TTB/2f;
-			if(CFG.WarpToNode && WRP.WarpToTime < 0) 
+			if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
 			{
-				if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold) WRP.WarpToTime = burn-180;
-				else AlignedTimer.RunIf(() => WRP.WarpToTime = burn-ATC.AttitudeError, ATC.Aligned);
+				if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold) VSL.Controls.WarpToTime = burn-180;
+				else AlignedTimer.RunIf(() => VSL.Controls.WarpToTime = burn-ATC.AttitudeError, ATC.Aligned);
 			}
 			VSL.Info.Countdown = burn-VSL.Physics.UT;
 			if(TimeWarp.CurrentRate > 1 || VSL.Info.Countdown > 0) return false;
