@@ -57,6 +57,21 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		virtual public void Copy(ConfigNodeObject other)
+		{
+			var node = new ConfigNode();
+			other.Save(node);
+			Load(node);
+		}
+
+		virtual public CNO Clone<CNO>()
+			where CNO : ConfigNodeObject, new()
+		{
+			var node = new ConfigNode(NODE_NAME);
+			Save(node);
+			return ConfigNodeObject.FromConfig<CNO>(node);
+		}
+
 		public static CNO FromConfig<CNO>(ConfigNode node)
 			where CNO : ConfigNodeObject, new()
 		{
