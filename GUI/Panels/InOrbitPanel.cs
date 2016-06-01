@@ -31,7 +31,7 @@ namespace ThrottleControlledAvionics
 		MatchVelocityAutopilot MVA;
 		ManeuverAutopilot MAP;
 		DeorbitAutopilot DEO;
-		RendezvouAutopilot REN;
+		RendezvousAutopilot REN;
 		ToOrbitAutopilot ORB;
 		PointNavigator PN;
 

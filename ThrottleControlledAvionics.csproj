@@ -144,7 +144,6 @@
     <Compile Include="Modules\Orbit\Trajectories\TrajectoryBase.cs" />
     <Compile Include="Modules\Orbit\Trajectories\LandingTrajectory.cs" />
     <Compile Include="Modules\Orbit\LandingTrajectoryAutopilot.cs" />
-    <Compile Include="Modules\Orbit\RendezvouAutopilot.cs" />
     <Compile Include="Modules\Orbit\MatchVelocityAutopilot.cs" />
     <Compile Include="Modules\Orbit\ManeuverAutopilot.cs" />
     <Compile Include="Modules\Planet\AltitudeControl.cs" />
@@ -170,6 +169,7 @@
     <Compile Include="Modules\Orbit\ToOrbitAutopilot.cs" />
     <Compile Include="Modules\Orbit\Components\ToOrbitExecutor.cs" />
     <Compile Include="Modules\Orbit\Components\ManeuverExecutor.cs" />
+    <Compile Include="Modules\Orbit\RendezvousAutopilot.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
 	                typeof(TranslationControl),
 	                typeof(BearingControl),
 	                typeof(TimeWarpControl))]
-	public class RendezvouAutopilot : TargetedTrajectoryCalculator<RendezvousTrajectory, Vessel>
+	public class RendezvousAutopilot : TargetedTrajectoryCalculator<RendezvousTrajectory, Vessel>
 	{
 		public new class Config : TCAModule.ModuleConfig
 		{
@@ -38,7 +38,7 @@ namespace ThrottleControlledAvionics
 		}
 		static Config REN { get { return TCAScenario.Globals.REN; } }
 
-		public RendezvouAutopilot(ModuleTCA tca) : base(tca) {}
+		public RendezvousAutopilot(ModuleTCA tca) : base(tca) {}
 
 		AttitudeControl ATC;
 		ThrottleControl THR;
@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			Dtol = REN.Dtol;
 			CorrectionTimer.Period = REN.CorrectionTimer;
-			CFG.AP2.AddHandler(this, Autopilot2.Rendezvou);
+			CFG.AP2.AddHandler(this, Autopilot2.Rendezvous);
 		}
 
 		public void RendezvouCallback(Multiplexer.Command cmd)
@@ -308,7 +308,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{
 			base.UpdateState();
-			IsActive &= CFG.AP2[Autopilot2.Rendezvou];
+			IsActive &= CFG.AP2[Autopilot2.Rendezvous];
 			ControlsActive = IsActive || VSL.TargetVessel != null;
 		}
 
@@ -457,10 +457,10 @@ namespace ThrottleControlledAvionics
 //					}
 //					#endif
 				}
-				else if(Utils.ButtonSwitch("Rendezvou", CFG.AP2[Autopilot2.Rendezvou],
+				else if(Utils.ButtonSwitch("Rendezvou", CFG.AP2[Autopilot2.Rendezvous],
 				                           "Compute and perform a rendezvou maneuver, then brake near the target.", 
 				                           GUILayout.ExpandWidth(false)))
-					CFG.AP2.XToggle(Autopilot2.Rendezvou);
+					CFG.AP2.XToggle(Autopilot2.Rendezvous);
 			}
 			else GUILayout.Label(new GUIContent("Rendezvou", "Compute and perform a rendezvou maneuver, then brake near the target."), 
 			                     Styles.inactive_button, GUILayout.ExpandWidth(false));
