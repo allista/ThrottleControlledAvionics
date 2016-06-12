@@ -62,7 +62,7 @@ namespace ThrottleControlledAvionics
 			content_scroll = GUILayout.BeginScrollView(content_scroll, Styles.white_on_black, GUILayout.ExpandHeight(true));
 			GUILayout.Label(current_text, Styles.rich_label, GUILayout.MaxWidth(width));
 			GUILayout.EndScrollView();
-			if(GUILayout.Button("Close")) Toggle();
+			if(GUILayout.Button("Close")) Show(false);
 			GUILayout.EndVertical();
 			base.DrawMainWindow(windowID);
 		}
