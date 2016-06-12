@@ -8,7 +8,6 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
-using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
@@ -18,10 +17,10 @@ namespace ThrottleControlledAvionics
 	{
 		public static readonly string[] RoleNames = 
 		{
-			"Main Engine",
-			"Maneuver Engine",
+			"Thrust & Maneuver",
+			"Maneuver",
 			"Manual Control",
-			"Balanced Thrust",
+			"Thrust",
 			"UnBalanced Thrust",
 		};
 
