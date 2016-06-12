@@ -89,7 +89,7 @@ namespace ThrottleControlledAvionics
 		public void On(T key) 
 		{ 
 			if(Paused) return;
-//			DebugUtils.Log("\n{0}.On: {1}->{2}", GetType(), state, key);//debug
+//			DebugUtils.LogF("\n{}.On: {}->{}", GetType(), state, key);//debug
 			if(!key.Equals(state)) Off();
 			state = key;
 			Callback callback;
@@ -100,7 +100,7 @@ namespace ThrottleControlledAvionics
 		public override void Off() 
 		{ 
 			if(Paused || state.Equals(default(T))) return;
-//			DebugUtils.Log("\n{0}.Off: {1}->None", GetType(), state);//debug
+//			DebugUtils.LogF("\n{}.Off: {}->None", GetType(), state);//debug
 			var old_state = state; //prevents recursion
 			state = default(T);
 			Callback callback;
