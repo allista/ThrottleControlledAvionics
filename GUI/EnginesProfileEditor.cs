@@ -161,7 +161,6 @@ namespace ThrottleControlledAvionics
 						TCAMacroEditor.Edit(CFG);
 				}
 				GUILayout.BeginHorizontal();
-					GUILayout.Label("On Launch:", GUILayout.ExpandWidth(false));
 					GUILayout.BeginVertical();
 						GUILayout.BeginHorizontal();
 							Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false));
