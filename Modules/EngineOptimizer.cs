@@ -18,8 +18,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "TRQ";
-
 			[Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
 			[Persistent] public float OptimizationPrecision    = 0.01f;  //optimize engines limits until torque error or delta torque error is less than this
 			[Persistent] public float OptimizationAngleCutoff  = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
@@ -85,6 +83,9 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque)
+		{ float max_limit; return OptimizeLimitsForTorque(engines, needed_torque, out max_limit); }
+
+		public bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque, out float max_limit)
 		{
 			var num_engines = engines.Count;
 			var zero_torque = needed_torque.IsZero();
@@ -141,10 +142,21 @@ namespace ThrottleControlledAvionics
 //			     num_engines, optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance);//debug
 			//treat single-engine crafts specially
 			if(num_engines == 1) 
+			{
 				engines[0].limit = optimized? engines[0].best_limit : 0f;
+				max_limit = engines[0].limit;
+			}
 			else //restore the best state
+			{
+				max_limit = 0;
 				for(int j = 0; j < num_engines; j++) 
-				{ var e = engines[j]; e.limit = e.best_limit; }
+				{ 
+					var e = engines[j]; 
+					e.limit = e.best_limit; 
+					if(e.limit > max_limit)
+						max_limit = e.limit;
+				}
+			}
 			return optimized;
 		}
 
@@ -194,12 +206,14 @@ namespace ThrottleControlledAvionics
 				needed_torque = VSL.Torque.EnginesLimits.Clamp(needed_torque);
 			}
 			//optimize engines; if failed, set the flag and kill torque if requested
-			if(!OptimizeLimitsForTorque(VSL.Engines.Steering, needed_torque) && !needed_torque.IsZero())
+			float max_limit;
+			if(!OptimizeLimitsForTorque(VSL.Engines.Steering, needed_torque, out max_limit) && !needed_torque.IsZero())
 			{
 				for(int j = 0; j < num_engines; j++) VSL.Engines.Steering[j].InitLimits();
-				OptimizeLimitsForTorque(VSL.Engines.Steering, Vector3.zero);
+				OptimizeLimitsForTorque(VSL.Engines.Steering, Vector3.zero, out max_limit);
 				SetState(TCAState.Unoptimized);
 			}
+			if(max_limit < 0.01f) Status("red", "Thrust is disabled because engines cannot be balanced.");
 		}
 
 		void tune_steering_params()
