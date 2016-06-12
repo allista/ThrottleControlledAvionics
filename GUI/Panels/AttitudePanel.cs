@@ -7,7 +7,6 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
-using System;
 
 namespace ThrottleControlledAvionics
 {
@@ -17,16 +16,9 @@ namespace ThrottleControlledAvionics
 
 		AttitudeControl ATC;
 
-		#if DEBUG
-		VTOLControl VTOL;
-		#endif
-
 		public override void Draw() 
 		{ 
 			if(ATC != null) ATC.Draw();
-			#if DEBUG
-			if(VTOL != null) VTOL.Draw();
-			#endif
 		}
 	}
 }
