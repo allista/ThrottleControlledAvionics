@@ -17,8 +17,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "WRP";
-
 			[Persistent] public float DewarpTime = 20f;  //sec
 			[Persistent] public float MaxWarp    = 10000f;
 		}

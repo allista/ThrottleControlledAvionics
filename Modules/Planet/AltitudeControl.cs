@@ -19,8 +19,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "ALT";
-
 			[Persistent] public float MaxSpeedErrorF = 100f;
 			[Persistent] public float MaxSpeedLow    = 10f; 
 			[Persistent] public float MaxSpeedHigh   = 300f;

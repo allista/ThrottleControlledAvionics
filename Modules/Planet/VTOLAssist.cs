@@ -18,8 +18,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "TLA";
-
 			[Persistent] public float MinHSpeed   = 0.1f;
 			[Persistent] public float MaxHSpeed   = 10;
 			[Persistent] public float GearTimer   = 1;

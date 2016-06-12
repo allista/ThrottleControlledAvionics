@@ -19,8 +19,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "CC";
-
 			[Persistent] public float PitchFactor = 0.2f;
 			[Persistent] public float MaxRevSpeed = -4f;
 			[Persistent] public float UpdateDelay = 1;

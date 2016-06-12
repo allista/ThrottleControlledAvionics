@@ -17,8 +17,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "TRA";
-
 			[Persistent] public float MinDeltaV         = 0.01f; //m/s
 			[Persistent] public PID_Controller TransPID = new PID_Controller(0.5f, 0.01f, 0.5f, 0, 1);
 		}
