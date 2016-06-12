@@ -28,6 +28,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float AngleThreshold         = 60f;
 			[Persistent] public float MaxAttitudeError       = 10f;  //deg
 			[Persistent] public float AttitudeErrorThreshold = 3f;   //deg
+			[Persistent] public float MaxTimeToAlignment     = 15f;  //s
 		}
 		static Config ATCB { get { return TCAScenario.Globals.ATCB; } }
 
@@ -53,6 +54,7 @@ namespace ThrottleControlledAvionics
 		public float AttitudeError { get; private set; }
 		public bool  Aligned { get; private set; }
 		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/ATCB.MaxAttitudeError, 0); } }
+		readonly DifferentialF ErrorDif = new DifferentialF();
 
 		protected Vector3 current_thrust 
 		{
@@ -204,10 +206,14 @@ namespace ThrottleControlledAvionics
 
 		protected void set_authority_flag()
 		{
-			var rotation = Vector3.Dot(-steering.normalized, VSL.vessel.angularVelocity.normalized);
-			if(VSL.Controls.HaveControlAuthority && AttitudeError > ATCB.MaxAttitudeError && rotation < 0.1)
+			ErrorDif.Update(AttitudeError);
+			if(ErrorDif.MaxOrder < 1) return;
+			if(VSL.Controls.HaveControlAuthority && AttitudeError > ATCB.MaxAttitudeError && ErrorDif[1] >= 0)
 				VSL.Controls.HaveControlAuthority = !AuthorityTimer.Check;
-			else if(!VSL.Controls.HaveControlAuthority && AttitudeError < ATCB.MaxAttitudeError*2 && rotation > 0.3)
+			else if(!VSL.Controls.HaveControlAuthority && 
+			        (AttitudeError < ATCB.AttitudeErrorThreshold || 
+			         AttitudeError < ATCB.MaxAttitudeError*2 && ErrorDif[1] < 0 && 
+			         AttitudeError/ErrorDif[1]*Mathf.Deg2Rad > -ATCB.MaxTimeToAlignment))
 				VSL.Controls.HaveControlAuthority = AuthorityTimer.Check;
 			else AuthorityTimer.Reset();
 		}
@@ -405,10 +411,10 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null) return;
-			GLUtils.GLVec(VSL.Physics.wCoM, VSL.OnPlanetParams.Heading*2500, Color.white);
-			GLUtils.GLVec(VSL.Physics.wCoM, current_thrust.normalized*20, Color.red);
-			GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
-			GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.green);
+			GLUtils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
+			GLUtils.GLVec(VSL.refT.position, current_thrust.normalized*20, Color.red);
+			GLUtils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
+			GLUtils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.green);
 			GLUtils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
 			GLUtils.GLVec(VSL.refT.position, VSL.WorldDir(steering_pid.Action*20), Color.magenta);
 
