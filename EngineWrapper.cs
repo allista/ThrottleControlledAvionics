@@ -45,6 +45,14 @@ namespace ThrottleControlledAvionics
 
 		public abstract void InitLimits();
 		public abstract void InitState();
+
+		public virtual  void InitTorque(VesselWrapper VSL, float ratio_factor)
+		{
+			wThrustLever = wThrustPos-VSL.Physics.wCoM;
+			thrustDirection = VSL.refT.InverseTransformDirection(wThrustDir);
+			specificTorque = VSL.refT.InverseTransformDirection(Vector3.Cross(wThrustLever, wThrustDir));
+			torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(wThrustLever.normalized, wThrustDir))), ratio_factor);
+		}
 	}
 
 	public class RCSWrapper : ThrusterWrapper
@@ -150,6 +158,7 @@ namespace ThrottleControlledAvionics
 		public float   throttle;
 		public float   VSF;   //vertical speed factor
 		public bool    isVSC; //vertical speed controller
+		public bool    isSteering;
 		public TCARole Role { get { return info.Role; } }
 		public int     Group { get { return info.Group; } }
 		public CenterOfThrustQuery thrustInfo;
@@ -176,17 +185,19 @@ namespace ThrottleControlledAvionics
 
 		public override void InitLimits()
 		{
-			isVSC = false;
+			isVSC = isSteering = false;
 			switch(Role)
 			{
 			case TCARole.MAIN:
 			case TCARole.BALANCE:
 			case TCARole.UNBALANCE:
 				limit = best_limit = 1f;
+				isSteering = Role == TCARole.MAIN;
 				isVSC = true;
 				break;
 			case TCARole.MANEUVER:
 				limit = best_limit = 0f;
+				isSteering = true;
 				break;
 			case TCARole.MANUAL:
 				limit = best_limit = thrustLimit;
@@ -196,6 +207,7 @@ namespace ThrottleControlledAvionics
 
 		public override void InitState()
 		{
+			if(engine == null || part == null || vessel == null) return;
 			//update thrust info
 			thrustInfo = new CenterOfThrustQuery();
 			engine.OnCenterOfThrustQuery(thrustInfo);
