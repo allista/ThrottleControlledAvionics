@@ -165,10 +165,9 @@ namespace ThrottleControlledAvionics
 		{
 			ConfigNode node;
 			var name = GetType().Name;
-			if(CFG.ModuleConfigs.TryGetValue(name, out node))
-				Load(node);
+			if(CFG.ModuleConfigs.TryGetValue(name, out node)) Load(node);
 			//deprecated: old configuration conversion
-			else Load(CFG.LoadedConfig);
+			else if(CFG.LoadedConfig != null) Load(CFG.LoadedConfig);
 		}
 	}
 
