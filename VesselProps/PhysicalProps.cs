@@ -24,16 +24,20 @@ namespace ThrottleControlledAvionics
 		public float      M { get; private set; } //mass
 		public float      StG { get; private set; } //gee at position
 		public float      G { get; private set; } //gee - centrifugal acceleration
-		public double     UT { get; private set; } //Planetarium.GetUniversalTime
+		public float      mg { get; private set; }
 		public Vector3    wCoM { get; private set; } //center of mass in world space
 		public Vector3    MoI { get; private set; } = Vector3.one; //main diagonal of inertia tensor
 		public Matrix3x3f InertiaTensor { get; private set; }
 		public float      AngularDrag;
 
+		public double     UT { get; private set; } //Planetarium.GetUniversalTime
+
+		Vector3 _wCoM { get { return vessel.packed? vessel.CoM : vessel.CoM+vessel.rb_velocity*TimeWarp.fixedDeltaTime; } }
+
 		public override void Update()
 		{
 			UT     = Planetarium.GetUniversalTime();
-			wCoM   = vessel.CurrentCoM;
+			wCoM   = _wCoM;
 			refT   = vessel.ReferenceTransform;
 			Radial = wCoM - vessel.mainBody.position;
 			Up     = Radial.normalized;
@@ -41,10 +45,10 @@ namespace ThrottleControlledAvionics
 			M      = vessel.GetTotalMass();
 			StG    = (float)(vessel.mainBody.gMagnitudeAtCenter/Radial.sqrMagnitude);
 			G      = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
+			mg     = M*G;
 		}
 
 		public Vector3d NorthDirW { get { return Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-wCoM, Up).normalized; } }
-//		public Vector3d EastDirW { get { return (QuaternionD.AngleAxis(90, Up) * NorthDirW).normalized; } }
 
 		public double Bearing(Vector3d dir)
 		{
@@ -65,7 +69,7 @@ namespace ThrottleControlledAvionics
 		public void UpdateMoI()
 		{
 			if(vessel == null || vessel.rigidbody == null) return;
-			var CoM = vessel.CurrentCoM;
+			var CoM = _wCoM;
 			InertiaTensor = new Matrix3x3f();
 			var vesselTransform = vessel.GetTransform();
 			var inverseVesselRotation = Quaternion.Inverse(vesselTransform.rotation);
