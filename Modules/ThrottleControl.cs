@@ -19,8 +19,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "THR";
-
 			[Persistent] public float MinDeltaV        = 0.1f; //m/s
 			[Persistent] public float DeltaVThreshold  = 10f;  //sec
 		}
@@ -33,9 +31,15 @@ namespace ThrottleControlledAvionics
 		public float DeltaV = -1;
 
 		public float NextThrottle(float dV, float throttle)
-		{ 
+		{ return NextThrottle(dV, throttle, VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Engines.ThrustDecelerationTime); }
+
+		public static float NextThrottle(float dV, float throttle, VesselWrapper VSL)
+		{ return NextThrottle(dV, throttle, VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Engines.ThrustDecelerationTime); }
+
+		public static float NextThrottle(float dV, float throttle, float mass, float thrust, float deceleration_time)
+		{
 			var dt = Utils.Clamp(dV/THR.DeltaVThreshold, 0.5f, 2f);
-			return Utils.Clamp((dV/VSL.Engines.MaxThrustM*VSL.Physics.M-throttle*VSL.Engines.ThrustDecelerationTime)/dt, 0f, 1f); 
+			return Utils.Clamp((dV/thrust*mass-throttle*deceleration_time)/dt, 0f, 1f); 
 		}
 
 		public void BlockThrottle(bool state)
