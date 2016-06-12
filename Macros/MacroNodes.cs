@@ -359,7 +359,10 @@ namespace ThrottleControlledAvionics
 		{ base.Rewind(); T.Reset(); }
 
 		protected override bool Action(VesselWrapper VSL)
-		{ return !T.Check; }
+		{ 
+			VSL.Info.Countdown = T.Remaining;
+			return !T.Check; 
+		}
 	}
 
 	[RequireModules(typeof(TimeWarpControl))]
@@ -378,6 +381,7 @@ namespace ThrottleControlledAvionics
 			if(StopUT < 0) StopUT = VSL.Physics.UT+Value;
 			else if(VSL.Physics.UT >= StopUT) return false;
 			VSL.Controls.WarpToTime = StopUT;
+			VSL.Info.Countdown = VSL.Physics.UT-StopUT;
 			return true;
 		}
 	}
