@@ -87,7 +87,6 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
-				ClearStatus();
 				break;
 			}
 		}
