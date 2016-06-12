@@ -68,6 +68,12 @@ namespace ThrottleControlledAvionics
 
 	public static class VectorExtensions
 	{
+		public static bool IsNaN(this Vector3d v)
+		{ return double.IsNaN(v.x) || double.IsNaN(v.y) || double.IsNaN(v.z); }
+
+		public static bool IsNaN(this Vector3 v)
+		{ return float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z); }
+
 		public static Vector3 CubeNorm(this Vector3 v)
 		{
 			if(v.IsZero()) return v;
