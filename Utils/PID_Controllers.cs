@@ -145,7 +145,10 @@ namespace ThrottleControlledAvionics
 
 		public void Update(Vector3d error)
 		{
+			if(error.IsNaN()) return;
 			if(last_error.IsZero()) last_error = error;
+			if(Vector3d.Dot(error, integral_error) < 0) 
+				integral_error = default(Vector3d);
 			var old_ierror = integral_error;
 			integral_error += error*TimeWarp.fixedDeltaTime;
 			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
@@ -158,10 +161,12 @@ namespace ThrottleControlledAvionics
 						double.IsNaN(act.y)? 0f : Utils.Clamp(act.y, Min, Max),
 						double.IsNaN(act.z)? 0f : Utils.Clamp(act.z, Min, Max)
 					);
-				if(!act.Equals(action)) integral_error = old_ierror;
+				if(act != action) integral_error = old_ierror;
 			}
-			//			Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; error {4}, action {5}", 
-			//			          this, P*error, I*integral_error, D*(error-last_error)/TimeWarp.fixedDeltaTime, error, action);//debug
+//			Utils.LogF("{}\nPe {}\nIe {}\nDe {}\nerror {}\nact {}\naction {}\nact==action {}", 
+//			           this, P*error, I*integral_error, 
+//			           D*(error-last_error)/TimeWarp.fixedDeltaTime, 
+//			           error, act, action, act == action);//debug
 			last_error = error;
 		}
 	}
@@ -180,11 +185,12 @@ namespace ThrottleControlledAvionics
 		{
 			if(float.IsNaN(error)) return;
 			if(last_error.Equals(0)) last_error = error;
+			if(integral_error*error < 0) integral_error = 0;
 			var old_ierror = integral_error;
 			integral_error += error*TimeWarp.fixedDeltaTime;
 			var act = P*error + I*integral_error + D*(error-last_error)/TimeWarp.fixedDeltaTime;
 			action = Mathf.Clamp(act, Min, Max);
-			if(!act.Equals(action)) integral_error = old_ierror;
+			if(Mathf.Abs(act-action) > 1e-5) integral_error = old_ierror;
 			#if DEBUG
 			if(debug)
 				Utils.Log("{0}\nPe {1}; Ie {2}; De {3}; error {4}, action {5}", 
