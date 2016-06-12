@@ -64,7 +64,6 @@ namespace ThrottleControlledAvionics
 		public string ToString(string F) { return value.ToString(F); }
 	}
 
-
 	public abstract class LowPassFilter
 	{
 		public static float alpha(float tau) { return TimeWarp.fixedDeltaTime/(tau+TimeWarp.fixedDeltaTime);}
@@ -99,7 +98,7 @@ namespace ThrottleControlledAvionics
 
 		#if DEBUG
 		public string DebugInfo
-		{ get { return string.Format("LowPassFilter: [Tau {0}, Value {2}]", Tau, value); } }
+		{ get { return string.Format("LowPassFilter: [Tau {0}, Value {1}]", Tau, Value); } }
 		#endif
 	}
 
@@ -135,6 +134,22 @@ namespace ThrottleControlledAvionics
 		where T : IComparable
 	{ public T Min, Max; }
 
+	public abstract class ConditionalLowPassFilter<T> : LowPassFilter<T>
+	{ protected abstract bool do_filter(T cur); }
+
+	public class EquilibriumLowPassFilterVd : ConditionalLowPassFilter<Vector3d>
+	{
+		protected override bool do_filter(Vector3d cur)
+		{ return Vector3d.Dot(cur, value) <= 0; }
+
+		public override Vector3d Update(Vector3d cur)
+		{
+			if(cur.IsNaN()) return value;
+			value = do_filter(cur)? value +  alpha * (cur-value) : cur;
+			return value;
+		}
+	}
+
 	public class LowPassFilterF : LowPassFilter<float>
 	{
 		public override float Update(float cur)
@@ -159,6 +174,7 @@ namespace ThrottleControlledAvionics
 	{
 		public override Vector3 Update(Vector3 cur)
 		{
+			if(cur.IsNaN()) return value;
 			value = value + alpha * (cur-value);
 			return value;
 		}
@@ -168,6 +184,7 @@ namespace ThrottleControlledAvionics
 	{
 		public override Vector3d Update(Vector3d cur)
 		{
+			if(cur.IsNaN()) return value;
 			value = value + alpha * (cur-value);
 			return value;
 		}
@@ -247,6 +264,7 @@ namespace ThrottleControlledAvionics
 
 	public class FuzzyThreshold<T> where T : IComparable
 	{
+		public bool Inverse;
 		public T Upper, Lower;
 		T value;
 		public T Value 
@@ -255,8 +273,16 @@ namespace ThrottleControlledAvionics
 			set 
 			{ 
 				this.value = value; 
-				if(this.value.CompareTo(Lower) < 0) On = true;
-				else On &= this.value.CompareTo(Upper) < 0;
+				if(Inverse)
+				{
+					if(this.value.CompareTo(Upper) > 0) On = true;
+					else On &= this.value.CompareTo(Lower) > 0;
+				}
+				else
+				{
+					if(this.value.CompareTo(Lower) < 0) On = true;
+					else On &= this.value.CompareTo(Upper) < 0;
+				}
 			}
 		}
 		public bool On { get; protected set; } = false;
