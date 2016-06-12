@@ -57,6 +57,9 @@ namespace ThrottleControlledAvionics
 		public Vessel.Situations Situation { get { return vessel.situation; } }
 
 		#if DEBUG
+		public void LogF(string msg, params object[] args) 
+		{ vessel.Log("{0}", Utils.Format(msg, args)); }
+
 		public void LogFST(string msg, params object[] args) 
 		{ vessel.Log("{0}\n{1}", Utils.Format(msg, args), DebugUtils.getStacktrace(1)); }
 		#endif
@@ -266,16 +269,22 @@ namespace ThrottleControlledAvionics
 
 		void activate_next_stage()
 		{
-			if(vessel.currentStage <= 0) return;
+			var next_stage = vessel.currentStage;
+			var cur_parts = vessel.parts.Where(p => p.inverseStage == vessel.currentStage).ToList();
+			if(cur_parts.Count == 0 || cur_parts.All(p => p.State == PartStates.ACTIVE))
+				next_stage = vessel.currentStage-1;
+			if(next_stage < 0) return;
+//			Log(vessel.parts.Aggregate("\n", (s, p) => s+Utils.Format("{}: {}, stage {}\n", p.Title(), p.State, p.inverseStage)));//debug
+//			LogF("current stage {}, next stage {}, next engines {}, cur_parts {}", 
+//			     vessel.currentStage, next_stage, Engines.NearestEnginedStage, cur_parts.Count);//debug
 			if(IsActiveVessel)
 			{
-				Staging.ActivateNextStage();
+				Staging.ActivateStage(next_stage);
 				vessel.ActionGroups.ToggleGroup(KSPActionGroup.Stage);
 				ResourceDisplay.Instance.Refresh();
 			}
 			else
 			{
-				int next_stage = vessel.currentStage-1;
 				GameEvents.onStageActivate.Fire(next_stage);
 				vessel.parts.ForEach(p => p.activate(next_stage, vessel));
 				vessel.currentStage = next_stage;
