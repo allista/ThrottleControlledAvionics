@@ -18,7 +18,9 @@ namespace ThrottleControlledAvionics
 	{
 		public const double TwoPI  = Math.PI*2;
 		public const double HalfPI = Math.PI/2;
+		public const float  Sin45  = 0.70710678f;
 		public const float  G0 = 9.80665f; //m/s2
+
 
 		/// <summary>
 		/// The camel case components matching regexp.
@@ -51,6 +53,8 @@ namespace ThrottleControlledAvionics
 		public static string formatOrbit(Orbit o)
 		{
 			return Utils.Format(
+				"PeA:    {} m\n" +
+				"ApA:    {} m\n" +
 				"Body R: {} m\n" +
 				"PeR:    {} m\n" +
 				"ApR:    {} m\n" +
@@ -66,6 +70,7 @@ namespace ThrottleControlledAvionics
 				"T:       {} s\n" +
 				"Vel: {} m/s\n" +
 				"Pos: {} m\n",
+				o.PeA, o.ApA,
 				o.referenceBody.Radius, o.PeR, o.ApR, 
 				o.eccentricity, o.inclination, o.LAN, o.meanAnomaly, o.trueAnomaly, o.argumentOfPeriapsis,
 				o.period, o.epoch, o.ObTAtEpoch, o.ObT,
@@ -247,8 +252,10 @@ namespace ThrottleControlledAvionics
 	public class Coordinates
 	{
 		public double Lat, Lon;
+
 		public Coordinates(double lat, double lon) 
 		{ Lat = Utils.ClampAngle(lat); Lon = Utils.ClampAngle(lon); }
+
 		public Coordinates(Vessel vsl) : this(vsl.latitude, vsl.longitude) {}
 
 		public static string AngleToDMS(double angle)
