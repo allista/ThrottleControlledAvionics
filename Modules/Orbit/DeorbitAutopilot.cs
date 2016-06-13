@@ -36,8 +36,8 @@ namespace ThrottleControlledAvionics
 			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
 		}
 
-		enum Stage { None, Compute, Deorbit, Correct, Coast, Wait }
-		Stage stage;
+		public enum Stage { None, Compute, Deorbit, Correct, Coast, Wait }
+		[Persistent] public Stage stage;
 		double current_PeR;
 
 		protected LandingTrajectory fixed_PeR_orbit(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double PeR)
@@ -63,7 +63,7 @@ namespace ThrottleControlledAvionics
 				targetAlt = TargetAltitude;
 			}
 			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, Node2OrbitDeltaV(StartUT, NodeDeltaV)), 
-			                             StartUT, Target, targetAlt);
+			                             StartUT, CFG.Target, targetAlt);
 		}
 
 		protected LandingTrajectory horizontal_correction(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double start_offset)
@@ -77,7 +77,7 @@ namespace ThrottleControlledAvionics
 					NodeDeltaV += PlaneCorrection(old);
 			}
 			return new LandingTrajectory(VSL, Node2OrbitDeltaV(StartUT, NodeDeltaV), 
-			                             StartUT, Target, old == null? TargetAltitude : old.TargetAltitude);
+			                             StartUT, CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
 		void compute_landing_trajectory()
@@ -107,12 +107,14 @@ namespace ThrottleControlledAvionics
 
 		public void DeorbitCallback(Multiplexer.Command cmd)
 		{
-			reset();
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-			case Multiplexer.Command.On:
 				RegisterTo<Radar>();
+				break;
+
+			case Multiplexer.Command.On:
+				reset();
 				if(!setup()) 
 				{
 					CFG.AP2.Off();
@@ -128,13 +130,13 @@ namespace ThrottleControlledAvionics
 					current_PeR = DEO.StartPeR * 
 						Utils.ClampH(DEO.AtmosphereF/Body.atmDensityASL, 1) *
 						Utils.ClampH(VSL.Engines.MaxThrustM/VSL.Physics.M/Body.GeeASL/Utils.G0, 1);
-					LogF("GeeASL: {}, TWR: {}", Body.GeeASL, VSL.Engines.MaxThrustM/VSL.Physics.M/Body.GeeASL/Utils.G0);
 					compute_landing_trajectory();
 				}
-				break;
+				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
+				reset();
 				break;
 			}
 		}
@@ -150,7 +152,6 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			if(CFG.Target != Target) SetTarget(Target);
 			if(landing) { do_land(); return; }
 			switch(stage)
 			{

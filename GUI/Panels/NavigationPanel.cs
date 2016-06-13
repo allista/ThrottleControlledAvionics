@@ -269,8 +269,8 @@ namespace ThrottleControlledAvionics
 					var c = marker_color(i, num);
 					if(wp0 == null) DrawPath(vessel, wp, c);
 					else DrawPath(vessel.mainBody, wp0, wp, c);
-					if(DrawGroundMarker(vessel.mainBody, wp.Lat, wp.Lon, c))
-						DrawLabelAtPointer(wp.FullDescription(vessel), wp.DistanceTo(vessel));
+					if(DrawGroundMarker(vessel.mainBody, wp.Pos.Lat, wp.Pos.Lon, c))
+						DrawLabelAtPointer(wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
 					wp0 = wp; i++;
 				}
 			}
@@ -335,11 +335,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		static void DrawPath(Vessel v, WayPoint wp1, Color c)
-		{
-			var wp0 = new WayPoint();
-			wp0.Lat = v.latitude; wp0.Lon = v.longitude;
-			DrawPath(v.mainBody, wp0, wp1, c);
-		}
+		{ DrawPath(v.mainBody, new WayPoint(v.latitude, v.longitude), wp1, c); }
 
 		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
 		static bool IsOccluded(Vector3d worldPosition, CelestialBody byBody)

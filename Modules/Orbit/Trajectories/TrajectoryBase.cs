@@ -86,15 +86,22 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public abstract class TargetedTrajectory<T> : TargetedTrajectoryBase where T : ITargetable
+	public abstract class TargetedTrajectory : TargetedTrajectoryBase
 	{
-		public readonly T Target;
+		public readonly WayPoint Target;
 
-		protected TargetedTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, T target) 
+		protected TargetedTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target) 
 			: base(vsl, dV, startUT) { Target = target; }
 
 		public override Vector3d BrakeDeltaV
-		{ get { return Target.GetOrbit().getOrbitalVelocityAtUT(AtTargetUT)-NewOrbit.getOrbitalVelocityAtUT(AtTargetUT); } }
+		{ 
+			get 
+			{ 
+				var t_orbit = Target.GetOrbit();
+				var t_vel = t_orbit != null? t_orbit.getOrbitalVelocityAtUT(AtTargetUT) : Vector3d.zero;
+				return t_vel-NewOrbit.getOrbitalVelocityAtUT(AtTargetUT); 
+			} 
+		}
 
 		public override string ToString()
 		{ 

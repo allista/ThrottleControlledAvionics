@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class LandingTrajectory : TargetedTrajectory<WayPoint>
+	public class LandingTrajectory : TargetedTrajectory
 	{
 		public readonly double TargetAltitude;
 		public QuaternionD AtSurfaceRotation { get; private set; }
@@ -98,13 +98,13 @@ namespace ThrottleControlledAvionics
 			//compute distance to target
 			DistanceToTarget = Target.AngleTo(SurfacePoint)*Body.Radius;
 			//compute distance in lat-lon coordinates
-			DeltaLat = Utils.AngleDelta(SurfacePoint.Lat, Target.Lat)*
-				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLat), SurfacePoint.Lat));
-			DeltaLon = Utils.AngleDelta(SurfacePoint.Lon, Target.Lon)*
-				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLon), SurfacePoint.Lon));
+			DeltaLat = Utils.AngleDelta(SurfacePoint.Pos.Lat, Target.Pos.Lat)*
+				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLat), SurfacePoint.Pos.Lat));
+			DeltaLon = Utils.AngleDelta(SurfacePoint.Pos.Lon, Target.Pos.Lon)*
+				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLon), SurfacePoint.Pos.Lon));
 			//compute distance in radial coordinates
 			DeltaFi = 90-Vector3d.Angle(Vector3d.Cross(StartPos, AtTargetPos).xzy,
-			                            AtSurfaceRotation * Body.GetRelSurfacePosition(Target.Lat, Target.Lon, TargetAltitude));
+			                            AtSurfaceRotation * Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude));
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 
 //			Utils.Log("{0}", this);//debug

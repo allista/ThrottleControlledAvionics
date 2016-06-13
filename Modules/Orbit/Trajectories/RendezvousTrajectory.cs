@@ -11,7 +11,7 @@ using System;
 
 namespace ThrottleControlledAvionics
 {
-	public class RendezvousTrajectory : TargetedTrajectory<Vessel>
+	public class RendezvousTrajectory : TargetedTrajectory
 	{
 		public double SearchStart { get; private set; }
 		public Vector3d TargetPos { get; private set; }
@@ -19,12 +19,14 @@ namespace ThrottleControlledAvionics
 		public double DeltaR { get; private set; }
 		public double MinPeR { get; private set; }
 		public bool KillerOrbit { get; private set; }
+		public Orbit TargetOrbit { get; private set; }
 
-		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, Vessel target, double min_PeR, double transfer_time = -1) 
+		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target, double min_PeR, double transfer_time = -1) 
 			: base(vsl, dV, startUT, target) 
 		{ 
 			MinPeR = min_PeR;
 			TimeToTarget = transfer_time;
+			TargetOrbit = Target.GetOrbit();
 			update(); 
 		}
 
@@ -39,17 +41,17 @@ namespace ThrottleControlledAvionics
 		{
 			if(TimeToTarget < 0)
 			{
-				TrajectoryCalculator.ClosestApproach(NewOrbit, Target.orbit, StartUT, out AtTargetUT);
+				TrajectoryCalculator.ClosestApproach(NewOrbit, TargetOrbit, StartUT, out AtTargetUT);
 				TimeToTarget = AtTargetUT-StartUT;
 			}
 			else AtTargetUT = StartUT+TimeToTarget;
 			AtTargetPos = NewOrbit.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = NewOrbit.getOrbitalVelocityAtUT(AtTargetUT);
-			TargetPos = Target.orbit.getRelativePositionAtUT(AtTargetUT);
+			TargetPos = TargetOrbit.getRelativePositionAtUT(AtTargetUT);
 			DistanceToTarget = Utils.ClampL((AtTargetPos-TargetPos).magnitude-VSL.Geometry.R, 0);
 			DeltaTA = Utils.ProjectionAngle(AtTargetPos, TargetPos, 
 			                                Vector3d.Cross(NewOrbit.GetOrbitNormal(), AtTargetPos))*
-				Math.Sign(Target.orbit.period-OrigOrbit.period);
+				Math.Sign(TargetOrbit.period-OrigOrbit.period);
 			DeltaFi = 90-Vector3d.Angle(NewOrbit.GetOrbitNormal(), TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
 			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TimeToTarget;
@@ -64,7 +66,7 @@ namespace ThrottleControlledAvionics
 				             "DeltaR: {} m\n" +
 				             "MinPeR: {} m\n" +
 				             "Killer: {}\n",
-				             Target.orbit,
+				             TargetOrbit,
 				             DeltaTA, 
 				             DeltaR, MinPeR, KillerOrbit);
 		}

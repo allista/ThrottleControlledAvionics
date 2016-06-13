@@ -18,14 +18,13 @@ namespace ThrottleControlledAvionics
 		new public const string NODE_NAME = "WAYPOINT";
 
 		[Persistent] public string Name;
-		[Persistent] public double Lat;
-		[Persistent] public double Lon;
+		[Persistent] public Coordinates Pos = new Coordinates(0, 0);
 
-		[Persistent] public float  Radius; //relative to ship's radius
+		[Persistent] public float Radius; //relative to ship's radius
 		public float  AbsRadius { get; private set; }
 
-		[Persistent] public bool   Pause;
-		[Persistent] public bool   Land;
+		[Persistent] public bool Pause;
+		[Persistent] public bool Land;
 		//target proxy
 		[Persistent] ProtoTargetInfo TargetInfo = new ProtoTargetInfo();
 		ITargetable target;
@@ -40,22 +39,21 @@ namespace ThrottleControlledAvionics
 			var dist_s = node.GetValue("Distance");
 			if(float.TryParse(dist_s, out dist))
 				Radius = dist/10;
+			var pos_n = node.GetNode("Pos");
+			if(pos_n == null) Pos.Load(node);
 		}
 
 		void set_coordinates(double lat, double lon)
-		{
-			var c = new Coordinates(lat, lon);
-			Lat = c.Lat; Lon = c.Lon;
-		}
+		{ Pos = new Coordinates(lat, lon); }
 
 		void set_coordinates(Vessel v)
 		{ set_coordinates(v.latitude, v.longitude); }
 
-		public override string ToString() { return string.Format("[{0}] {1}", GetName(), new Coordinates(Lat, Lon)); }
-		public string FullDescription(Vessel vsl) { return new Coordinates(Lat, Lon).FullDescription(vsl); }
+		public override string ToString() { return string.Format("[{0}] {1}", GetName(), Pos); }
+		public string SurfaceDescription(Vessel vsl) { return Pos.FullDescription(vsl); }
 
 		public WayPoint() { AbsRadius = Radius = TCAScenario.Globals.PN.MinDistance; }
-		public WayPoint(Coordinates c) : this() { Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); go = new GameObject(); }
+		public WayPoint(Coordinates c) : this() { Pos = c; Name = c.ToString(); go = new GameObject(); }
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
 		public WayPoint(double lat, double lon) : this(new Coordinates(lat,lon)) {}
 		public WayPoint(Vector3d worldPos, CelestialBody body) : this(new Coordinates(body.GetLatitude(worldPos), body.GetLongitude(worldPos))) {}
@@ -63,21 +61,21 @@ namespace ThrottleControlledAvionics
 		//using Haversine formula (see http://www.movable-type.co.uk/scripts/latlong.html)
 		public double AngleTo(double lat, double lon)
 		{
-			var lat1 = Lat*Mathf.Deg2Rad;
+			var lat1 = Pos.Lat*Mathf.Deg2Rad;
 			var lat2 = lat*Mathf.Deg2Rad;
 			var dlat = lat2-lat1;
-			var dlon = (lon-Lon)*Mathf.Deg2Rad;
+			var dlon = (lon-Pos.Lon)*Mathf.Deg2Rad;
 			var a = (1-Math.Cos(dlat))/2 + Math.Cos(lat1)*Math.Cos(lat2)*(1-Math.Cos(dlon))/2;
 			return 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1-a));
 		}
 		public double AngleTo(Coordinates c) { return AngleTo(c.Lat, c.Lon); }
-		public double AngleTo(WayPoint wp) { return AngleTo(wp.Lat, wp.Lon); }
+		public double AngleTo(WayPoint wp) { return AngleTo(wp.Pos); }
 		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
 		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL.vessel)*VSL.mainBody.Radius/VSL.Geometry.R; }
 		public bool   CloseEnough(VesselWrapper VSL) { return RelDistanceTo(VSL)-1 < Radius; }
-		public double SurfaceAlt(CelestialBody body) { return Utils.TerrainAltitude(body, Lat, Lon); }
-		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Lat, Lon, SurfaceAlt(body)); }
+		public double SurfaceAlt(CelestialBody body) { return Utils.TerrainAltitude(body, Pos.Lat, Pos.Lon); }
+		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
 
 		public static double BearingTo(double lat1, double lat2, double dlon)
 		{
@@ -88,13 +86,13 @@ namespace ThrottleControlledAvionics
 		}
 
 		public double BearingTo(WayPoint other)
-		{ return BearingTo(Lat*Mathf.Deg2Rad, other.Lat*Mathf.Deg2Rad, (Lon-other.Lon)*Mathf.Deg2Rad); }
+		{ return BearingTo(Pos.Lat*Mathf.Deg2Rad, other.Pos.Lat*Mathf.Deg2Rad, (Pos.Lon-other.Pos.Lon)*Mathf.Deg2Rad); }
 
 		public double BearingFrom(Vessel vsl)
 		{ 
 			return BearingTo(Utils.ClampAngle(vsl.latitude)*Mathf.Deg2Rad, 
-		                     Lat*Mathf.Deg2Rad, 
-		                     (Lon-Utils.ClampAngle(vsl.longitude))*Mathf.Deg2Rad);
+			                 Pos.Lat*Mathf.Deg2Rad, 
+			                 (Pos.Lon-Utils.ClampAngle(vsl.longitude))*Mathf.Deg2Rad);
 		}
 
 		public static Coordinates PointBetween(double lat1, double lon1, double lat2, double lon2, double dist)
@@ -112,9 +110,9 @@ namespace ThrottleControlledAvionics
 			var dlon = Math.Atan2(Math.Sin(bearing)*sin_d*cos_lat1, cos_d-sin_lat1*Math.Sin(lat));
 			return new Coordinates(lat*Mathf.Rad2Deg, lon1+dlon*Mathf.Rad2Deg);
 		}
-		public Coordinates PointBetween(double lat, double lon, double dist) { return PointBetween(Lat, Lon, lat, lon, dist); }
-		public Coordinates PointBetween(WayPoint wp, double dist) { return PointBetween(Lat, Lon, wp.Lat, wp.Lon, dist); }
-		public Coordinates PointFrom(Vessel v, double dist) { return PointBetween(v.latitude, v.longitude, Lat, Lon, dist); }
+		public Coordinates PointBetween(double lat, double lon, double dist) { return PointBetween(Pos.Lat, Pos.Lon, lat, lon, dist); }
+		public Coordinates PointBetween(WayPoint wp, double dist) { return PointBetween(Pos.Lat, Pos.Lon, wp.Pos.Lat, wp.Pos.Lon, dist); }
+		public Coordinates PointFrom(Vessel v, double dist) { return PointBetween(v.latitude, v.longitude, Pos.Lat, Pos.Lon, dist); }
 
 		//Call this every frame to make sure the target transform stays up to date
 		public void Update(VesselWrapper VSL) 
@@ -134,7 +132,7 @@ namespace ThrottleControlledAvionics
 			else
 			{
 				if(go == null) go = new GameObject();
-				go.transform.position = VSL.mainBody.GetWorldSurfacePosition(Lat, Lon, Utils.TerrainAltitude(VSL.mainBody, Lat, Lon)); 
+				go.transform.position = VSL.mainBody.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, Utils.TerrainAltitude(VSL.mainBody, Pos.Lat, Pos.Lon)); 
 			}
 			AbsRadius = Radius*VSL.Geometry.R;
 		}

@@ -11,7 +11,7 @@ using System;
 
 namespace ThrottleControlledAvionics
 {
-	public abstract class LandingTrajectoryAutopilot : TargetedTrajectoryCalculator<LandingTrajectory, WayPoint>
+	public abstract class LandingTrajectoryAutopilot : TargetedTrajectoryCalculator<LandingTrajectory>
 	{
 		public new class Config : TCAModule.ModuleConfig
 		{
@@ -29,8 +29,8 @@ namespace ThrottleControlledAvionics
 
 		protected LandingTrajectoryAutopilot(ModuleTCA tca) : base(tca) {}
 
-		enum LandingStage { None, Start, Wait, Decelerate, Coast, HardLanding, Approach, Land }
-		LandingStage landing_stage;
+		public enum LandingStage { None, Start, Wait, Decelerate, Coast, HardLanding, Approach, Land }
+		[Persistent] public LandingStage landing_stage;
 
 		protected LowPassFilterD DistanceFilter = new LowPassFilterD();
 		protected Timer DecelerationTimer = new Timer(0.5);
@@ -41,7 +41,7 @@ namespace ThrottleControlledAvionics
 		protected ThrottleControl THR;
 		protected BearingControl  BRC;
 
-		protected double TargetAltitude { get { return Target.SurfaceAlt(Body); } }
+		protected double TargetAltitude { get { return CFG.Target.SurfaceAlt(Body); } }
 
 		public override void Init()
 		{
@@ -60,13 +60,6 @@ namespace ThrottleControlledAvionics
 			FullStop = false;
 		}
 
-		protected override void setup_target()
-		{
-			Target = Target2WP();
-			Target.UpdateCoordinates(Body);
-			SetTarget(Target);
-		}
-
 		protected bool landing { get { return landing_stage != LandingStage.None; } }
 
 		protected void start_landing()
@@ -74,7 +67,7 @@ namespace ThrottleControlledAvionics
 			Status("Preparing for final deceleration...");
 			sim = new AtmoSim(Body, VSL);
 			if(trajectory != null) trajectory.UpdateOrbit(VesselOrbit, false);
-			else trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, Target, TargetAltitude);
+			else trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude);
 			landing_stage = LandingStage.Wait;
 		}
 
@@ -165,7 +158,7 @@ namespace ThrottleControlledAvionics
 				if(obstacle_ahead(trajectory) > 0) { FullStop = true; decelerate(); break; }
 				VSL.Info.TTB = (float)trajectory.BrakeDuration;
 				CFG.AT.OnIfNot(Attitude.Custom);
-				ATC.SetThrustDirW(BrakeDirection(VesselOrbit.vel.xzy, Target.WorldPos(Body), 
+				ATC.SetThrustDirW(BrakeDirection(VesselOrbit.vel.xzy, CFG.Target.WorldPos(Body), 
 				                                 Utils.ClampL(VSL.Info.Countdown*5, 100)));
 				if(ATC.Aligned) VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else VSL.Controls.StopWarp();
@@ -176,7 +169,7 @@ namespace ThrottleControlledAvionics
 				DistanceFilter.Update(trajectory.DistanceToTarget);
 				if(FullStop) Status("red", "Possible collision detected.\nPerforming full deceleration.");
 				else Status("Decelerating. Landing site error: {0:F1}m", DistanceFilter.Value);
-				var TargetPos = Target.WorldPos(Body);
+				var TargetPos = CFG.Target.WorldPos(Body);
 				var radial_speed = Vector3d.Dot(VSL.HorizontalSpeed.Vector, TargetPos-VSL.Physics.wCoM);
 				if(VSL.Controls.HaveControlAuthority && (last_distance-DistanceFilter > 0.01 || radial_speed < 0)) DecelerationTimer.Reset();
 				if(FullStop || !DecelerationTimer.Check && DistanceFilter > LTRJ.Dtol && VSL.HorizontalSpeed.Absolute > LTRJ.BrakeEndSpeed)
@@ -195,7 +188,7 @@ namespace ThrottleControlledAvionics
 				CFG.HF.OnIfNot(HFlight.Level);
 				CFG.BR.OnIfNot(BearingMode.Auto);
 				trajectory.UpdateOrbit(VesselOrbit, false);
-				BRC.ForwardDirection = Vector3d.Exclude(VSL.Physics.Up, Target.WorldPos(Body)-VSL.Physics.wCoM);
+				BRC.ForwardDirection = Vector3d.Exclude(VSL.Physics.Up, CFG.Target.WorldPos(Body)-VSL.Physics.wCoM);
 				Status("Coasting. Landing site error: {0:F1} m", trajectory.DistanceToTarget);
 				var tts = sim.FreeFallTime(out terminal_velocity);
 				VSL.Info.Countdown = tts-MatchVelocityAutopilot.BrakingOffset(terminal_velocity, VSL, out VSL.Info.TTB)-LTRJ.CorrectionOffset;

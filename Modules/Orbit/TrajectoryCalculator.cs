@@ -378,7 +378,7 @@ namespace ThrottleControlledAvionics
 
 		protected Vector3d AoPCorrection(RendezvousTrajectory old, double amount)
 		{
-			return new Vector3d(Math.Sign(old.Target.orbit.period-old.NewOrbit.period)*amount, 0, 0);
+			return new Vector3d(Math.Sign(old.TargetOrbit.period-old.NewOrbit.period)*amount, 0, 0);
 		}
 
 		protected Vector3d PlaneCorrection(TargetedTrajectoryBase old, double angle)
@@ -516,15 +516,13 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	public abstract class TargetedTrajectoryCalculator<T, TT> : TrajectoryCalculator<T> 
-		where T : TargetedTrajectory<TT> where TT : class, ITargetable
+	public abstract class TargetedTrajectoryCalculator<T> : TrajectoryCalculator<T>  where T : TargetedTrajectory
 	{
 		protected TargetedTrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
 		protected ManeuverAutopilot MAN;
 
 		protected double Dtol;
-		protected TT Target;
 		protected Timer CorrectionTimer = new Timer();
 
 		protected bool target_is_far(T cur, T best)
@@ -552,19 +550,11 @@ namespace ThrottleControlledAvionics
 			better_predicate = trajectory_is_better;
 		}
 
-		protected override void reset()
-		{
-			base.reset();
-			Target = null;
-		}
-
 		protected virtual bool check_target()
 		{
-			if(!VSL.HasTarget) return false;
-			if(VSL.Target is WayPoint) return true;
-			var orb = VSL.Target.GetOrbit();
-			if(orb == null) return false;
-			if(orb.referenceBody != VSL.mainBody)
+			if(CFG.Target == null) return false;
+			var orb = CFG.Target.GetOrbit();
+			if(orb != null && orb.referenceBody != VSL.mainBody)
 			{
 				Status("yellow", "This autopilot requires a target to be\n" +
 				       "in the sphere of influence of the same planetary body.");
@@ -573,14 +563,19 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		protected abstract void setup_target();
+		protected virtual void setup_target()
+		{
+			SetTarget(Target2WP());
+			if(CFG.Target != null)
+				CFG.Target.UpdateCoordinates(Body);
+		}
 
 		protected bool setup()
 		{
+			setup_target();
 			if(check_target())
 			{
 				clear_nodes();
-				setup_target();
 				return true;
 			}
 			return false;
@@ -591,7 +586,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{
 			base.UpdateState();
-			IsActive &= Target != null && VSL.orbit != null && VSL.orbit.referenceBody != null;
+			IsActive &= CFG.Target != null && VSL.orbit != null && VSL.orbit.referenceBody != null;
 		}
 	}
 }

@@ -30,8 +30,8 @@ namespace ThrottleControlledAvionics
 			set { target = value; TargetR = target.magnitude; } 
 		}
 		public double TargetR { get; private set; }
-		public double LaunchUT;
-		public double ApAUT;
+		public double LaunchUT = -1;
+		public double ApAUT = -1;
 		public double dApA { get; private set; }
 		public double GravityTurnStart { get; private set; }
 
@@ -47,6 +47,7 @@ namespace ThrottleControlledAvionics
 			GearAction.action = () =>VSL.GearOn(false);
 			ErrorThreshold.Lower = 2*GLB.ORB.Dtol;
 			ErrorThreshold.Upper = 4*GLB.ORB.Dtol;
+			GravityTurnStart = 0;
 		}
 
 		public void UpdateTargetPosition()

@@ -146,6 +146,7 @@ namespace ThrottleControlledAvionics
 		void onVesselModify(Vessel vsl)
 		{ 
 			if(vsl != vessel) return;
+			AllModules.ForEach(m => m.SaveToConfig());
 			check_priority();
 			enable_module(TCA_Active);
 			if(!enabled) reset();

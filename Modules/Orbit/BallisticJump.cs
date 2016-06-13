@@ -38,8 +38,8 @@ namespace ThrottleControlledAvionics
 
 		public BallisticJump(ModuleTCA tca) : base(tca) {}
 
-		enum Stage { None, Start, Compute, Accelerate, CorrectAltitude, CorrectTrajectory, Coast, Waiting }
-		Stage stage;
+		public enum Stage { None, Start, Compute, Accelerate, CorrectAltitude, CorrectTrajectory, Coast, Waiting }
+		[Persistent] public Stage stage;
 		float StartAltitude;
 
 		public override void Init()
@@ -71,22 +71,25 @@ namespace ThrottleControlledAvionics
 
 		public void BallisticJumpCallback(Multiplexer.Command cmd)
 		{
-			reset();
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-			case Multiplexer.Command.On:
 				RegisterTo<Radar>();
-				if(!setup())
-				{
-					CFG.AP2.Off();
-					return;
-				}
-				stage = Stage.Start;
 				break;
+
+			case Multiplexer.Command.On:
+				reset();
+				if(setup())
+				{
+					stage = Stage.Start;
+					goto case Multiplexer.Command.Resume;
+				}
+				CFG.AP2.Off();
+				return;
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
+				reset();
 				break;
 			}
 		}
@@ -97,11 +100,11 @@ namespace ThrottleControlledAvionics
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
 			{
-				V += old.DeltaR*(1-Target.AngleTo(VSL.vessel)/Utils.TwoPI*0.9);
+				V += old.DeltaR*(1-CFG.Target.AngleTo(VSL.vessel)/Utils.TwoPI*0.9);
 				dir = Quaternion.AngleAxis((float)old.DeltaFi, VSL.Physics.Up.xzy) * dir;
 			}
 			return new LandingTrajectory(VSL, dir*V-VesselOrbit.getOrbitalVelocityAtUT(StartUT), StartUT, 
-			                             Target, old == null? TargetAltitude : old.TargetAltitude);
+			                             CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
 		protected LandingTrajectory orbit_correction(LandingTrajectory old, LandingTrajectory best, ref double angle, ref double V, float start_offset)
@@ -109,12 +112,12 @@ namespace ThrottleControlledAvionics
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
 			{
-				V += old.DeltaR*(1-Target.AngleTo(VSL.vessel)/Utils.TwoPI*0.9);
+				V += old.DeltaR*(1-CFG.Target.AngleTo(VSL.vessel)/Utils.TwoPI*0.9);
 				angle += old.DeltaFi;
 			}
 			var vel = VesselOrbit.getOrbitalVelocityAtUT(StartUT);
 			return new LandingTrajectory(VSL, QuaternionD.AngleAxis(angle, VSL.Physics.Up.xzy)*vel.normalized*V - vel, StartUT, 
-			                             Target, old == null? TargetAltitude : old.TargetAltitude);
+			                             CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
 		void compute_initial_trajectory()
@@ -124,7 +127,7 @@ namespace ThrottleControlledAvionics
 			stage = Stage.Compute;
 			var dir = (VSL.Physics.Up+ 
 			           Vector3d.Exclude(VSL.Physics.Up, VSL.refT.right).normalized *
-			           BJ.StartTangent*(1+Target.AngleTo(VSL.vessel)/Utils.TwoPI)*BJ.InclinationF).normalized.xzy;
+			           BJ.StartTangent*(1+CFG.Target.AngleTo(VSL.vessel)/Utils.TwoPI)*BJ.InclinationF).normalized.xzy;
 			var V = Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)/2;
 			setup_calculation((o, b) => fixed_inclination_orbit(o, b, ref dir, ref V, BJ.StartOffset));
 		}
@@ -148,7 +151,6 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			if(CFG.Target != Target) SetTarget(Target);
 			if(landing) { do_land(); return; }
 			switch(stage)
 			{
