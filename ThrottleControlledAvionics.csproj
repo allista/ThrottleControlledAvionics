@@ -170,6 +170,7 @@
     <Compile Include="Modules\Orbit\Components\ToOrbitExecutor.cs" />
     <Compile Include="Modules\Orbit\Components\ManeuverExecutor.cs" />
     <Compile Include="Modules\Orbit\RendezvousAutopilot.cs" />
+    <Compile Include="Utils\Coordinates.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
