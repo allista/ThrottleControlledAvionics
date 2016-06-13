@@ -83,6 +83,25 @@ namespace ThrottleControlledAvionics
 				Mathf.Abs(Vector3.Dot(wdir, VSL.refT.up)),
 				Mathf.Abs(Vector3.Dot(wdir, VSL.refT.forward))));
 		}
+
+		public Vector3 MaxAreaDirection
+		{
+			get
+			{
+				var maxI = BoundsSideAreas.MaxI();
+				switch(maxI)
+				{
+				case 0:
+					return VSL.refT.right;
+				case 1:
+					return VSL.refT.up;
+				case 2:
+					return -VSL.refT.forward;
+				default:
+					return VSL.refT.up;
+				}
+			}
+		}
 	}
 }
 

@@ -30,7 +30,7 @@ namespace ThrottleControlledAvionics
 			{
 				var vsf   = CFG.VSCIsActive && VSL.VerticalSpeed.Absolute < 0? 
 					Utils.Clamp(1-(Utils.ClampH(CFG.VerticalCutoff, 0)-VSL.VerticalSpeed.Absolute)/TDC.VSf, 1e-9f, 1) : 1;
-				var twr   = VSL.OnPlanetParams.SlowThrust? VSL.OnPlanetParams.DTWR : VSL.OnPlanetParams.MaxTWR*0.70710678f; //MaxTWR at 45deg
+				var twr   = VSL.OnPlanetParams.SlowThrust? VSL.OnPlanetParams.DTWR : VSL.OnPlanetParams.MaxTWR*Utils.Sin45; //MaxTWR at 45deg
 				return Utils.Clamp(twr/TDC.TWRf, 1e-9f, 1)*vsf;
 			}
 		}
@@ -45,8 +45,6 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "HSC";
-
 			[Persistent] public float TranslationUpperThreshold  = 5f;
 			[Persistent] public float TranslationLowerThreshold  = 0.2f;
 
@@ -67,6 +65,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
 			[Persistent] public float LowPassF = 0.1f;
 
+			[Persistent] public float MaxCorrectionWeight = 1f;
+
 			public override void Init() 
 			{ 
 				base.Init();
@@ -76,19 +76,19 @@ namespace ThrottleControlledAvionics
 		}
 		static Config HSC { get { return TCAScenario.Globals.HSC; } }
 
-		readonly PIDf_Controller translation_pid = new PIDf_Controller();
-		readonly LowPassFilterVd filter = new LowPassFilterVd();
-		Vector3d needed_thrust_dir;
-
-		public List<Vector3d> CourseCorrections = new List<Vector3d>();
-		Vector3d              CourseCorrection;
+		public HorizontalSpeedControl(ModuleTCA tca) : base(tca) {}
 
 		//modules
 		BearingControl BRC;
 		AttitudeControl ATC;
 		TranslationControl TRA;
 
-		public HorizontalSpeedControl(ModuleTCA tca) : base(tca) {}
+		readonly PIDf_Controller translation_pid = new PIDf_Controller();
+		readonly LowPassFilterVd filter = new LowPassFilterVd();
+		Vector3d needed_thrust_dir;
+
+		readonly List<Vector3d> CourseCorrections = new List<Vector3d>();
+		Vector3d CourseCorrection;
 
 		public override void Init() 
 		{ 
@@ -101,18 +101,24 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
+		public void AddRawCorrection(Vector3d cor) 
+		{ CourseCorrections.Add(cor); }
+
+		public void AddWeightedCorrection(Vector3d cor) 
+		{ 
+			var cm = cor.magnitude;
+			if(cm > 1e-10) cor *= Math.Sqrt(1/cm);
+			if(VSL.Physics.G > 1e-10) cor *= Utils.ClampH(Utils.G0/VSL.Physics.G, HSC.MaxCorrectionWeight);
+			CourseCorrections.Add(cor);
+		}
+
 		#if DEBUG
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
-			if(!VSL.HorizontalSpeed.NeededVector.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, VSL.HorizontalSpeed.NeededVector, Color.red);
-//			if(!VSL.HorizontalSpeed.Vector.IsZero())
-//				GLUtils.GLVec(VSL.Physics.wCoM+VSL.Physics.Up,  VSL.HorizontalSpeed.Vector, Color.magenta);
-//			if(!TCA.CC.ForwardDirection.IsZero())
-//				GLUtils.GLVec(VSL.Physics.wCoM+VSL.Physics.Up*2,  TCA.CC.ForwardDirection, Color.green);
-			if(!CourseCorrection.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM+VSL.Physics.Up*3, CourseCorrection, Color.blue);
+			GLUtils.GLVec(VSL.refT.position, VSL.HorizontalSpeed.NeededVector, Color.red);
+			GLUtils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H, VSL.HorizontalSpeed.Vector, Color.magenta);
+			GLUtils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H*1.1, CourseCorrection, Color.green);
 		}
 
 		public override void Reset()
@@ -232,9 +238,8 @@ namespace ThrottleControlledAvionics
 				     VSL.HorizontalSpeed.Absolute <= HSC.TranslationLowerThreshold) &&
 				   Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)
 				{
-					//correction for low TWR
 					var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), 1) * Utils.ClampL(fVm/rVm, 1) / TWR_factor;
+					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), VSL.Physics.G/Utils.G0) * Utils.ClampL(fVm/rVm, 1) / TWR_factor;
 					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
 				}
 				if(hVm > HSC.TranslationLowerThreshold)
@@ -278,7 +283,7 @@ namespace ThrottleControlledAvionics
 						HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
 					translation_pid.Update((float)fVm);
 					VSL.Controls.ManualTranslation = translation_pid.Action*hVl.CubeNorm()*transF;
-					LogF("\nPID: {}\nManualTranslation: {}", translation_pid, VSL.Controls.ManualTranslation);
+//					LogF("\nPID: {}\nManualTranslation: {}", translation_pid, VSL.Controls.ManualTranslation);
 					EnableManualTranslation(translation_pid.Action > 0);
 				}
 				else EnableManualTranslation(false);

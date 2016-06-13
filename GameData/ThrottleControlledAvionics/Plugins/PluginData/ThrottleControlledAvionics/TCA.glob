@@ -134,9 +134,10 @@ ATCB
 	SlowTorqueF    = 0.2
 	AALowPassF     = 1
 	
-	AngleThreshold = 60
-	MaxAttitudeError = 10  //deg
-	AttitudeErrorThreshold = 3
+	AngleThreshold = 60         //deg
+	MaxAttitudeError = 10       //deg
+	AttitudeErrorThreshold = 3  //deg
+	MaxTimeToAlignment     = 15 //s
 }
 
 TDC
@@ -167,6 +168,7 @@ HSC
 	HVCurve            = 1.5
 	SlowTorqueF        = 1
 	LowPassF           = 0.1
+	CorrectionWeight   = 100
 }
 
 VTOL
@@ -201,27 +203,38 @@ CC
 
 PN
 {
-	MinDistance          = 50
+	TakeoffAltitude      = 100
+	
+	MinDistance          = 3
+	OnPathMinDistance    = 6
 	MinTime              = 5
-	OnPathMinDistance    = 300
-	DistanceF            = 0.12
-	MinSpeed             = 10
-	MaxSpeed             = 500
+	
+	DistanceFactor       = 0.3
+	AngularAccelFactor   = 3
 	DirectNavThreshold   = 1
 	GCNavStep            = 0.1
+
+	MinSpeed             = 10
+	MaxSpeed             = 500
+
 	LookAheadTime        = 3
 	BearingCutoff        = 80
 	FormationSpeedCutoff = 10
 	FormationFactor      = 0.2
 	FormationBreakTime   = 10
 	FormationUpdateTimer = 60
-	TakeoffAltitude      = 100
-	BrakeOffset          = 0.9
-	PitchRollAAf         = 100
+
 	FollowerMaxAwaySpeed = 15
 	
-	SpeedFilterF         = 5
-	SpeedFilterR         = 1
+	BrakeOffset          = 0.9
+	PitchRollAAf         = 100
+	
+	LateralPID
+	{
+		P = 2
+		I = 0.2
+		D = 0.5
+	}
 }
 
 LND
@@ -353,8 +366,9 @@ LTRJ
 	BrakeEndSpeed      = 30   //m/s
 	CorrectionOffset   = 20   //s
 	CorrectionTimer    = 10   //s
-	LowPassF           = 1 //s
+	LowPassF           = 1    //s
 	ObstacleBrakeF     = 1.1
+	TerminalVelocityThreshold = 10
 }
 
 DEO
@@ -374,11 +388,13 @@ BJ
 
 ORB
 {
-	Dtol                = 100   //m
-	GTurnCurve          = 0.6	
-	Dist2VelF           = 0.01	
-	RadiusOffset        = 10000 //m
-	LaunchTangentK      = 1
+	Dtol           = 100   //m
+	GTurnCurve     = 0.9
+	GTurnOffset    = 1000
+	Dist2VelF      = 0.01	
+	RadiusOffset   = 10000 //m
+	LaunchTangentK = 2.0
+	DragK          = 2.0
 }
 
 REN

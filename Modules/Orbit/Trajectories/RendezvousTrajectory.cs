@@ -28,9 +28,6 @@ namespace ThrottleControlledAvionics
 			update(); 
 		}
 
-		public override bool IsBetter(BaseTrajectory other)
-		{ return !KillerOrbit && base.IsBetter(other); }
-
 		public override void UpdateOrbit(Orbit current)
 		{
 			base.UpdateOrbit(current);
@@ -56,21 +53,19 @@ namespace ThrottleControlledAvionics
 			DeltaFi = 90-Vector3d.Angle(NewOrbit.GetOrbitNormal(), TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
 			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TimeToTarget;
-//			Utils.Log("{0}", this);//debug
+//			DebugUtils.LogF("{}", this);//debug
 		}
 
 		public override string ToString()
 		{
 			return base.ToString() +
-				Utils.Format("\n\nTargetOrbit:\n{}\n" +
+				Utils.Format("\nTargetOrbit:\n{}\n" +
 				             "DeltaTA: {} deg\n" +
-				             "TimeToTarget: {} s\n" +
 				             "DeltaR: {} m\n" +
 				             "MinPeR: {} m\n" +
 				             "Killer: {}\n",
 				             Target.orbit,
 				             DeltaTA, 
-				             TimeToTarget, 
 				             DeltaR, MinPeR, KillerOrbit);
 		}
 	}

@@ -20,7 +20,10 @@ namespace ThrottleControlledAvionics
 		[Persistent] public string Name;
 		[Persistent] public double Lat;
 		[Persistent] public double Lon;
-		[Persistent] public float  Distance;
+
+		[Persistent] public float  Radius; //relative to ship's radius
+		public float  AbsRadius { get; private set; }
+
 		[Persistent] public bool   Pause;
 		[Persistent] public bool   Land;
 		//target proxy
@@ -28,6 +31,16 @@ namespace ThrottleControlledAvionics
 		ITargetable target;
 		//a transform holder for simple lat-lon coordinates on the map
 		GameObject go;
+
+		[Obsolete("Legacy config conversion")]
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			float dist;
+			var dist_s = node.GetValue("Distance");
+			if(float.TryParse(dist_s, out dist))
+				Radius = dist/10;
+		}
 
 		void set_coordinates(double lat, double lon)
 		{
@@ -39,8 +52,9 @@ namespace ThrottleControlledAvionics
 		{ set_coordinates(v.latitude, v.longitude); }
 
 		public override string ToString() { return string.Format("[{0}] {1}", GetName(), new Coordinates(Lat, Lon)); }
+		public string FullDescription(Vessel vsl) { return new Coordinates(Lat, Lon).FullDescription(vsl); }
 
-		public WayPoint() { Distance = TCAScenario.Globals.PN.MinDistance; }
+		public WayPoint() { AbsRadius = Radius = TCAScenario.Globals.PN.MinDistance; }
 		public WayPoint(Coordinates c) : this() { Lat = c.Lat; Lon = c.Lon; Name = c.ToString(); go = new GameObject(); }
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
 		public WayPoint(double lat, double lon) : this(new Coordinates(lat,lon)) {}
@@ -60,6 +74,8 @@ namespace ThrottleControlledAvionics
 		public double AngleTo(WayPoint wp) { return AngleTo(wp.Lat, wp.Lon); }
 		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
+		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL.vessel)*VSL.mainBody.Radius/VSL.Geometry.R; }
+		public bool   CloseEnough(VesselWrapper VSL) { return RelDistanceTo(VSL)-1 < Radius; }
 		public double SurfaceAlt(CelestialBody body) { return Utils.TerrainAltitude(body, Lat, Lon); }
 		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Lat, Lon, SurfaceAlt(body)); }
 
@@ -101,9 +117,9 @@ namespace ThrottleControlledAvionics
 		public Coordinates PointFrom(Vessel v, double dist) { return PointBetween(v.latitude, v.longitude, Lat, Lon, dist); }
 
 		//Call this every frame to make sure the target transform stays up to date
-		public void Update(CelestialBody body) 
+		public void Update(VesselWrapper VSL) 
 		{ 
-			if(target != null) UpdateCoordinates(body);
+			if(target != null) UpdateCoordinates(VSL.mainBody);
 			if(TargetInfo.targetType != ProtoTargetInfo.Type.Null && 
 			   HighLogic.LoadedSceneIsFlight)
 			{
@@ -113,13 +129,14 @@ namespace ThrottleControlledAvionics
 					TargetInfo.targetType = ProtoTargetInfo.Type.Null;
 					Name += " last location";
 				}
-				else UpdateCoordinates(body);
+				else UpdateCoordinates(VSL.mainBody);
 			}
 			else
 			{
 				if(go == null) go = new GameObject();
-				go.transform.position = body.GetWorldSurfacePosition(Lat, Lon, Utils.TerrainAltitude(body, Lat, Lon)); 
+				go.transform.position = VSL.mainBody.GetWorldSurfacePosition(Lat, Lon, Utils.TerrainAltitude(VSL.mainBody, Lat, Lon)); 
 			}
+			AbsRadius = Radius*VSL.Geometry.R;
 		}
 
 		public void UpdateCoordinates(CelestialBody body)

@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float CorrectionTimer    = 10f;   //s
 			[Persistent] public float LowPassF           = 1f;    //s
 			[Persistent] public float ObstacleBrakeF     = 1.1f;
+			[Persistent] public float TerminalVelocityThreshold = 10f;
 		}
 		protected static Config LTRJ { get { return TCAScenario.Globals.LTRJ; } }
 
@@ -150,9 +151,8 @@ namespace ThrottleControlledAvionics
 
 		protected bool do_land()
 		{
-			if(VSL.LandedOrSplashed) { CFG.AP2.Off(); return true; }
-			VSL.Engines.ActivateNextStageOnFlameout();
-			VSL.Engines.ActivateEnginesIfNeeded();
+			if(VSL.LandedOrSplashed) { ClearStatus(); CFG.AP2.Off(); return true; }
+			VSL.Engines.ActivateEngines();
 			if(VSL.Engines.MaxThrustM.Equals(0) && !VSL.Engines.HaveNextStageEngines) 
 				landing_stage = LandingStage.HardLanding;
 			double terminal_velocity;
@@ -178,10 +178,8 @@ namespace ThrottleControlledAvionics
 				else Status("Decelerating. Landing site error: {0:F1}m", DistanceFilter.Value);
 				var TargetPos = Target.WorldPos(Body);
 				var radial_speed = Vector3d.Dot(VSL.HorizontalSpeed.Vector, TargetPos-VSL.Physics.wCoM);
-				if(last_distance-DistanceFilter > 0.01 || radial_speed < 0) DecelerationTimer.Reset();
-				if(VSL.Controls.HaveControlAuthority &&
-				   (FullStop || !DecelerationTimer.Check && DistanceFilter > LTRJ.Dtol) &&
-				   VSL.HorizontalSpeed.Absolute > LTRJ.BrakeEndSpeed)
+				if(VSL.Controls.HaveControlAuthority && (last_distance-DistanceFilter > 0.01 || radial_speed < 0)) DecelerationTimer.Reset();
+				if(FullStop || !DecelerationTimer.Check && DistanceFilter > LTRJ.Dtol && VSL.HorizontalSpeed.Absolute > LTRJ.BrakeEndSpeed)
 				{
 					CFG.AT.OnIfNot(Attitude.Custom);
 					ATC.SetThrustDirW(BrakeDirection(VSL.vessel.srf_velocity, TargetPos));
@@ -200,12 +198,11 @@ namespace ThrottleControlledAvionics
 				BRC.ForwardDirection = Vector3d.Exclude(VSL.Physics.Up, Target.WorldPos(Body)-VSL.Physics.wCoM);
 				Status("Coasting. Landing site error: {0:F1} m", trajectory.DistanceToTarget);
 				var tts = sim.FreeFallTime(out terminal_velocity);
-				VSL.Info.Countdown = tts-VSL.Engines.TTB((float)terminal_velocity)-1;
-				if(VSL.Info.Countdown <= 0 || 
-				   VSL.Altitude.Relative < 2*(2-ATC.AttitudeFactor)*LTRJ.FlyOverAlt)
+				VSL.Info.Countdown = tts-MatchVelocityAutopilot.BrakingOffset(terminal_velocity, VSL, out VSL.Info.TTB)-LTRJ.CorrectionOffset;
+				if(VSL.Info.Countdown <= 0 || VSL.Altitude.Relative < 2*(2-ATC.AttitudeFactor)*LTRJ.FlyOverAlt)
 				{
 					if(VSL.OnPlanetParams.MaxTWR < 1 || 
-					   VSL.Engines.MaxDeltaV < terminal_velocity*10 ||
+					   VSL.Engines.MaxDeltaV < terminal_velocity*LTRJ.TerminalVelocityThreshold ||
 					   !VSL.Controls.HaveControlAuthority && 
 					   VSL.Torque.AngularAcceleration(VSL.Torque.MaxTorquePossible).magnitude < Utils.TwoPI)
 						landing_stage = LandingStage.HardLanding;
@@ -218,27 +215,36 @@ namespace ThrottleControlledAvionics
 				ATC.SetThrustDirW(VSL.vessel.srf_velocity);
 				VSL.Info.Countdown = sim.FreeFallTime(out terminal_velocity);
 				VSL.BrakesOn();
+				Status("yellow", "Landing...");
 				if(VSL.Engines.MaxThrustM > 0 && VSL.Controls.HaveControlAuthority)
 				{
 					VSL.Info.Countdown -= VSL.Engines.MaxDeltaV > terminal_velocity? 
-						VSL.Engines.TTB((float)terminal_velocity) : VSL.Engines.SuicidalBurnTime;
-					if(VSL.Info.Countdown < 0 && 
-					   (!VSL.OnPlanetParams.HaveParachutes || 
-					    VSL.OnPlanetParams.ParachutesActive && VSL.OnPlanetParams.ParachutesDeployed))
+						MatchVelocityAutopilot.BrakingOffset((float)terminal_velocity, VSL) : VSL.Engines.SuicidalBurnTime;
+					if(CFG.VSCIsActive ||
+					   (VSL.Info.Countdown < 0 && 
+					    (!VSL.OnPlanetParams.HaveParachutes || 
+					     VSL.OnPlanetParams.ParachutesActive && VSL.OnPlanetParams.ParachutesDeployed)))
 					{
 						CFG.BlockThrottle = true;
 						CFG.AltitudeAboveTerrain = true;
 						CFG.VF.OffIfOn(VFlight.AltitudeControl);
 						CFG.VerticalCutoff = -0.5f;
 					}
-					else THR.Throttle = 0;
-					Status("yellow", "Unable to perform full landing sequence.\nWill deceletate just before landing...");
+					else 
+					{
+						THR.Throttle = 0;
+						Status("yellow", "Have some fuel left.\nWill deceletate just before landing...");
+					}
 				}
 				if(Body.atmosphere && VSL.OnPlanetParams.HaveUsableParachutes)
 				{
 					VSL.OnPlanetParams.ActivateParachutes();
-					if(CFG.AutoParachutes) Status("yellow", "Waiting for safe speed to deploy parachutes...");
-					else Status("red", "Automatic parachute deployment is disabled.\nActivate parachutes manually when needed.");
+					if(!VSL.OnPlanetParams.ParachutesActive)
+					{
+						ATC.SetCustomRotationW(VSL.Geometry.MaxAreaDirection, VSL.Physics.Up);
+						if(CFG.AutoParachutes) Status("yellow", "Waiting for safe speed to deploy parachutes.\nTrying to decelerate using drag...");
+						else Status("red", "Automatic parachute deployment is disabled.\nActivate parachutes manually when needed.");
+					}
 				}
 				if(!VSL.OnPlanetParams.HaveParachutes && 
 				   !VSL.Engines.HaveNextStageEngines && 
@@ -253,9 +259,7 @@ namespace ThrottleControlledAvionics
 				landing_stage = LandingStage.Land;
 				break;
 			case LandingStage.Land:
-				Status("Landing on the nearest flat surface...");
 				if(CFG.AP1[Autopilot1.Land]) break;
-				ClearStatus();
 				break;
 			}
 			return false;

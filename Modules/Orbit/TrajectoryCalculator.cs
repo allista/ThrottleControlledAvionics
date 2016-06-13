@@ -22,6 +22,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinPeA             = 10000f; //m
 			[Persistent] public int   MaxIterations      = 1000;
 			[Persistent] public int   PerFrameIterations = 10;
+			[Persistent] public float ManeuverOffset     = 60f;    //s
 		}
 		protected static Config TRJ { get { return TCAScenario.Globals.TRJ; } }
 
@@ -37,6 +38,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected Vector3d hV(double UT) { return hV(VesselOrbit, UT); }
+		protected Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
 		protected double MinPeR { get { return Body.atmosphere? Body.Radius+Body.atmosphereDepth+1000 : Body.Radius+TRJ.MinPeA; } }
 		protected bool ApAhead { get { return VesselOrbit.timeToAp < VesselOrbit.timeToPe; } }
 		protected bool LiftoffPossible
@@ -61,7 +63,7 @@ namespace ThrottleControlledAvionics
 			obt.UpdateFromStateVectors(pos, vel, old.referenceBody, UT);
 			if(obt.eccentricity < 0.01) 
 			{
-				Func<double,double> dist = t => (vel-obt.getOrbitalVelocityAtUT(t)).sqrMagnitude;
+				Func<double,double> dist = t => (vel-obt.getOrbitalVelocityAtObT(t)).sqrMagnitude;
 				var T  = obt.ObT;
 				var dT = obt.period/10;
 				var D  = dist(T);
@@ -228,6 +230,7 @@ namespace ThrottleControlledAvionics
 		{
 			var posA = a.getRelativePositionAtUT(UT);
 			var tanA = Vector3d.Cross(a.GetOrbitNormal(), posA);
+//			DebugUtils.LogF("\nposA {}\ntanA {}\nposB {}", posA, tanA, posB);//debug
 			return Utils.ProjectionAngle(posA, posB, tanA);
 		}
 
@@ -238,7 +241,7 @@ namespace ThrottleControlledAvionics
 		{
 			alpha = AngleDelta(a, b, UT)/360;
 			resonance = ResonanceA(a, b);
-			if(double.IsNaN(alpha)) Utils.LogF("\nUT {}\nalpha {}\nresonance {}", UT, alpha, resonance);//debug
+//			DebugUtils.LogF("\nUT {}\nalpha {}\nresonance {}", UT, alpha, resonance);//debug
 			var TTR = alpha*resonance;
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
 		}
@@ -288,9 +291,8 @@ namespace ThrottleControlledAvionics
 			else return Vector3d.zero;
 			min_dV = dV.magnitude;
 			dVdir  = dV/min_dV;
-//			Utils.LogF("\ndV {}\n dV*velN {}", dV, Vector3d.Dot(dV, old.getOrbitalVelocityAtUT(UT).normalized));//debug
-			if(min_dV > max_dV) return dVdir*max_dV;
-			if(NewOrbit(old, dV, UT).PeR > min_PeR) return dV;
+			if(min_dV > max_dV) min_dV = max_dV;
+			if(NewOrbit(old, dV, UT).PeR > min_PeR) return dVdir*min_dV;
 			max_dV = min_dV;
 			min_dV = 0;
 			//tune orbit for maximum dV but PeR above the min_PeR
@@ -428,7 +430,7 @@ namespace ThrottleControlledAvionics
 				if(TimeToStart > 0 && TimeToStart < offset)
 					StartUT += offset-TimeToStart+1;
 				dV = next_dV(StartUT);
-				TTB = VSL.Engines.TTB((float)dV.magnitude, 1);
+				TTB = VSL.Engines.TTB((float)dV.magnitude);
 				TimeToStart = StartUT-VSL.Physics.UT-TTB/2;
 			} while(maxI-- > 0 && TimeToStart < offset);
 			return dV;
@@ -447,7 +449,7 @@ namespace ThrottleControlledAvionics
 		protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
 		public delegate T NextTrajectory(T old, T best);
-		public delegate bool TrajectoryPredicate(T cur, T best);
+		public delegate bool TrajectoryPredicate(T first, T second);
 
 		protected TimeWarpControl WRP;
 
@@ -476,7 +478,7 @@ namespace ThrottleControlledAvionics
 //				{ yield return null; continue; }
 //				clear_nodes(); //debug
 				current = next_trajectory(current, best);
-				if(best == null || current.IsBetter(best)) 
+				if(best == null || better_predicate(current, best)) 
 					best = current;
 				frameI--; maxI--;
 				if(frameI <= 0)
@@ -486,7 +488,7 @@ namespace ThrottleControlledAvionics
 					yield return null;
 					frameI = TRJ.PerFrameIterations;
 				}
-			} while(predicate(current, best) && maxI > 0);
+			} while(end_predicate(current, best) && maxI > 0);
 //			Log("Best trajectory:\n{0}", best);//debug
 //			clear_nodes();//debug
 			yield return best;
@@ -494,7 +496,8 @@ namespace ThrottleControlledAvionics
 
 		protected T trajectory;
 		protected NextTrajectory next_trajectory;
-		protected TrajectoryPredicate predicate;
+		protected TrajectoryPredicate end_predicate;
+		protected TrajectoryPredicate better_predicate;
 		IEnumerator<T> trajectory_calculator;
 		protected bool computing { get { return trajectory_calculator != null; } }
 		protected bool trajectory_computed()
@@ -535,10 +538,18 @@ namespace ThrottleControlledAvionics
 			                          -MatchVelocityAutopilot.BrakingNodeCorrection(dV.magnitude, VSL));
 		}
 
+		protected virtual bool trajectory_is_better(T first, T second)
+		{
+			return second.DistanceToTarget < 0 || first.DistanceToTarget >= 0 && 
+				(first.DistanceToTarget+first.ManeuverDeltaV.magnitude+first.BrakeDeltaV.magnitude < 
+				 second.DistanceToTarget+second.ManeuverDeltaV.magnitude+second.BrakeDeltaV.magnitude);
+		}
+
 		protected virtual void setup_calculation(NextTrajectory next)
 		{
 			next_trajectory = next;
-			predicate = target_is_far;
+			end_predicate = target_is_far;
+			better_predicate = trajectory_is_better;
 		}
 
 		protected override void reset()

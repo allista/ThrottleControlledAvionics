@@ -19,8 +19,6 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "BRC";
-
 			[Persistent] public bool  DrawForwardDirection = true;
 			[Persistent] public float YawFactor = 60f;
 			[Persistent] public float MinAAf = 0.001f;
@@ -117,13 +115,13 @@ namespace ThrottleControlledAvionics
 			bearing_pid.Update(angle, Vector3.Dot(VSL.vessel.angularVelocity, laxis)*Mathf.Rad2Deg);
 			steering = rotation2steering(world2local_rotation(Quaternion.AngleAxis(bearing_pid.Action*eff, axis)));
 			VSL.Controls.AddSteering(steering);
-			if(VSL.IsActiveVessel)
-				TCAGui.DebugMessage = 
-					Utils.Format("angle {}deg, action {}deg, action*eff {}deg\n" +
-					              "AAf {}, DragF {}, Area {}, ADf {}\nresult {}",
-					              angle, bearing_pid.Action, bearing_pid.Action*eff, 
-					              1/(Mathf.Abs(Vector3.Dot(laxis, VSL.Torque.MaxAngularA))), 
-					              VSL.Physics.AngularDrag, VSL.Geometry.Area, ADf, AAf);//debug
+//			if(VSL.IsActiveVessel)
+//				TCAGui.DebugMessage = 
+//					Utils.Format("angle {}deg, action {}deg, action*eff {}deg\n" +
+//					              "AAf {}, DragF {}, Area {}, ADf {}\nresult {}",
+//					              angle, bearing_pid.Action, bearing_pid.Action*eff, 
+//					              1/(Mathf.Abs(Vector3.Dot(laxis, VSL.Torque.MaxAngularA))), 
+//					              VSL.Physics.AngularDrag, VSL.Geometry.Area, ADf, AAf);//debug
 			DirectionOverride = Vector3d.zero;
 		}
 
@@ -136,14 +134,14 @@ namespace ThrottleControlledAvionics
 			{
 				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(false));
 				#if DEBUG
-				GLUtils.GLVec(VSL.Controls.Transform.position, ForwardDirection.normalized*2500, Color.green);
+//				GLUtils.GLVec(VSL.Controls.Transform.position, ForwardDirection.normalized*2500, Color.green);
 				#endif
 			}
 			else if(CFG.BR[BearingMode.User])
 			{
 				if(draw_forward_direction)
 				{
-					GLUtils.GLVec(VSL.Physics.wCoM, ForwardDirection*2500, Color.green);
+					GLUtils.GLVec(VSL.Physics.wCoM, ForwardDirection.normalized*2500, Color.green);
 					draw_forward_direction = !DirectionLineTimer.Check;
 				}
 				if(Bearing.Draw("°", increment:10))

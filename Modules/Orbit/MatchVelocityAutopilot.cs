@@ -22,10 +22,7 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "MVA";
-
 			[Persistent] public float TranslationThreshold = 5f;   //m/s
-			[Persistent] public float BrakingOffsetF       = 1.2f;
 		}
 		static Config MVA { get { return TCAScenario.Globals.MVA; } }
 		public MatchVelocityAutopilot(ModuleTCA tca) : base(tca) {}
@@ -86,21 +83,27 @@ namespace ThrottleControlledAvionics
 			Target = null;
 		}
 
-		public static double BrakingDistance(double V0, double t, VesselWrapper VSL)
+		public static double BrakingDistance(double V0, VesselWrapper VSL, out float ttb)
 		{
-			return V0*t + 
+			ttb = VSL.Engines.TTB((float)V0);
+			var throttle = ThrottleControl.NextThrottle((float)V0, 1, VSL);
+			return V0*ttb + 
 				VSL.Engines.MaxThrustM/VSL.Engines.MaxMassFlow * 
-				((t-VSL.Physics.M/VSL.Engines.MaxMassFlow) * 
-				 Math.Log((VSL.Physics.M-VSL.Engines.MaxMassFlow*t)/VSL.Physics.M) - t);
+				((ttb-VSL.Physics.M/VSL.Engines.MaxMassFlow/throttle) * 
+				 Math.Log((VSL.Physics.M-VSL.Engines.MaxMassFlow*throttle*ttb)/VSL.Physics.M) - ttb);
 		}
 
-		public static double BrakingOffset(double V0, double ttb, VesselWrapper VSL)
-		{ return BrakingDistance(V0, ttb, VSL)/V0*MVA.BrakingOffsetF; }
+		public static double BrakingOffset(double V0, VesselWrapper VSL, out float ttb)
+		{ return BrakingDistance(V0, VSL, out ttb)/V0; }
+
+		public static double BrakingOffset(double V0, VesselWrapper VSL)
+		{ float ttb; return BrakingDistance(V0, VSL, out ttb)/V0; }
 
 		public static double BrakingNodeCorrection(double V0, VesselWrapper VSL)
 		{ 
-			var ttb = VSL.Engines.TTB((float)V0, 1);
-			return BrakingOffset(V0, ttb, VSL) - ttb/2;
+			float ttb;
+			var offset = BrakingOffset(V0, VSL, out ttb);
+			return  offset - ttb/2;
 		}
 
 		bool StartCondition(float dV)
@@ -118,8 +121,7 @@ namespace ThrottleControlledAvionics
 			ATC.SetThrustDirW(ApprdV);
 			if(TTA > 0)
 			{
-				VSL.Info.TTB = VSL.Engines.TTB(dV, 1);
-				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL.Info.TTB, VSL);
+				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL, out VSL.Info.TTB);
 				if(CFG.WarpToNode && ATC.Aligned)
 					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
 				if(VSL.Info.Countdown > 0) return false;

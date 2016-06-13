@@ -25,7 +25,6 @@ namespace ThrottleControlledAvionics
 		public Vector3  EnginesTorque { get; private set; } //current torque applied to the vessel by engines
 		public Vector3  MaxTorque { get; private set; } //current maximum torque
 		public Vector3  MaxAngularA { get; private set; } //current maximum angular acceleration
-		public Vector3  wMaxAngularA { get; private set; } //current maximum angular acceleration
 		public float    MaxAngularA_m { get; private set; }
 		public float    MaxAAMod { get; private set; }
 		public Vector3  MaxPitchRollAA { get; private set; }
@@ -84,7 +83,6 @@ namespace ThrottleControlledAvionics
 			MaxTorquePossible = MaxEnginesLimits.Max+MaxTorque;
 			MaxTorque += EnginesLimits.Max;
 			MaxAngularA = AngularAcceleration(MaxTorque);
-			wMaxAngularA = refT.TransformDirection(MaxAngularA);
 			MaxAngularA_m = MaxAngularA.magnitude;
 			if(MaxAngularA_m > 0)
 			{
@@ -92,7 +90,7 @@ namespace ThrottleControlledAvionics
 				MaxAAMod *= MaxAAMod*MaxAAMod;
 			}
 			else MaxAAMod = 1;
-			MaxPitchRollAA   = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(VSL.Engines.Thrust));
+			MaxPitchRollAA = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(VSL.Engines.Thrust)).AbsComponents();
 			MaxPitchRollAA_m = MaxPitchRollAA.magnitude;
 		}
 

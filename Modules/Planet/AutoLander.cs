@@ -24,8 +24,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "LND";
-
 			[Persistent] public float MaxUnevenness        = 0.1f;
 			[Persistent] public float UnevennessThreshold  = 0.3f;
 			[Persistent] public float MaxHorizontalTime    = 5f;
@@ -33,7 +31,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float WideCheckAltitude    = 200f;
 			[Persistent] public float MaxWideCheckAltitude = 1000f;
 			[Persistent] public int   WideCheckLevel       = 5;
-			[Persistent] public float NodeTargetRange      = 15;
+			[Persistent] public float NodeTargetRange      = 1;
 			[Persistent] public float NodeAnchorF          = 0.5f;
 			[Persistent] public float GearOnAtH            = 5;
 			[Persistent] public float StopAtH              = 2;
@@ -279,7 +277,7 @@ namespace ThrottleControlledAvionics
 				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(CFG.Anchor == null) { CFG.AP1.Off(); return false; }
-				if(CFG.Anchor.DistanceTo(VSL.vessel)-VSL.Geometry.R < CFG.Anchor.Distance)
+				if(CFG.Anchor.CloseEnough(VSL))
 				{
 					if(NextNode.flat)
 					{
@@ -330,7 +328,7 @@ namespace ThrottleControlledAvionics
 		{
 			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(NextNode.position),
 			                          VSL.mainBody.GetLongitude(NextNode.position));
-			CFG.Anchor.Distance = LND.NodeTargetRange;
+			CFG.Anchor.Radius = LND.NodeTargetRange;
 			stage = Stage.MoveNext;
 		}
 
@@ -339,7 +337,7 @@ namespace ThrottleControlledAvionics
 			var c = center_node;
 			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(c.position),
 			                          VSL.mainBody.GetLongitude(c.position));
-			CFG.Anchor.Distance = LND.NodeTargetRange;
+			CFG.Anchor.Radius = LND.NodeTargetRange;
 			CFG.Nav.OnIfNot(Navigation.Anchor);
 			DesiredAltitude = LND.GearOnAtH+VSL.Geometry.H;
 			stage = Stage.Land;

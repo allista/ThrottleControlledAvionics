@@ -52,7 +52,7 @@ namespace ThrottleControlledAvionics
 			                GUILayout.ExpandWidth(true));
 			GUILayout.Label(new GUIContent(VSL.Info.TTB >= 0? 
 			                               string.Format("{0:F1}s", VSL.Info.TTB) : "",
-			                               "Full Thrust Duration"), 
+			                               "Thrust Duration"), 
 			                Styles.yellow, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}

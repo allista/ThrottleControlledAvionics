@@ -8,19 +8,21 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
+using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
 	public class AtmoSim
 	{
 		const double DeltaTime = 0.5;
-		const double Cd = 0.0006;
+		static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		static double Cd;
 
 		readonly CelestialBody Body;
 		readonly VesselWrapper VSL;
 
 		/// <summary>
-		/// Initializes a new instance of the <see cref="ThrottleControlledAvionics.ToOrbitSim"/> class.
+		/// Initializes a new instance of the <see cref="ThrottleControlledAvionics.AtmoSim"/> class.
 		/// </summary>
 		/// <param name="body">Planetary body.</param>
 		/// <param name="vsl">VesselWrapper.</param>
@@ -28,18 +30,24 @@ namespace ThrottleControlledAvionics
 		{
 			Body = body;
 			VSL = vsl;
-		}
-
-		double atm_density(double h)
-		{
-			if(!Body.atmosphere) return 0;
-			var P = Body.GetPressure(h);
-			var T = Body.GetTemperature(h);
-			return Body.GetDensity(P, T);
+			//0.0005 converts dynamic pressure to kPa and divides area by 2: Drag = dP * Cd * S/2.
+			Cd = 0.0005 * TCAScenario.Globals.ORB.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
 		}
 
 		double drag(double s, double h, double v)
-		{ return atm_density(h) * v*v * Cd * s/2; }
+		{ 
+			if(h > Body.atmosphereDepth) return 0;
+			var P  = Body.GetPressure(h);
+			var T  = Body.GetTemperature(h);
+			var r  = Body.GetDensity(P, T);
+			var v2 = v*v;
+			var dP = r * v2;
+			var mach = v/Body.GetSpeedOfSound(P, r);
+			var Cd = AtmoSim.Cd *
+			    PhysicsGlobals.DragCurveMultiplier.Evaluate((float)mach) *
+				PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(r*Math.Abs(v)));
+			return dP * Cd * s;
+		}
 
 		double StG(double h) 
 		{ 
@@ -47,13 +55,17 @@ namespace ThrottleControlledAvionics
 			return Body.gMagnitudeAtCenter/r/r; 
 		}
 
-		double freeclimb_altitude(double m, double s, double h, double v, double dt)
+		double G(double h, double hv) { return StG(h)-hv*hv/(Body.Radius+h); }
+
+		double freeclimb_altitude(double m, double s, double h, double v, double hv, double dt, out double t)
 		{
+			t = 0;
 			var H = h;
 			while(v > 0)
 			{
 				H += v*dt;
-				v -= (StG(H) + drag(s, H, v)/m)*dt;
+				v -= (G(H, hv) + drag(s, H, v)/m)*dt;
+				t += dt;
 			}
 			return H;
 		}
@@ -72,7 +84,7 @@ namespace ThrottleControlledAvionics
 			{
 				h += v*dt;
 				var ah = h+th;
-				v -= (StG(ah) - drag(s, ah, v)/m)*dt;
+				v = Utils.ClampH(v-(StG(ah) - drag(s, ah, v)/m)*dt, -0.1);
 				t += dt;
 //				Utils.LogF("h {}, v {}, t {}", h, v, t);//debug
 			}
@@ -80,58 +92,77 @@ namespace ThrottleControlledAvionics
 			return t-dt/2;
 		}
 
-		public double FromSurfaceTTA(double ApA, double slope, double gturn_curve)
+		public double FromSurfaceTTA(double ApA, double alpha, double gturn_curve, double surface_vel)
 		{
 			var t = 0.0;
-			var v = Vector3d.zero;
+			var v = new Vector3d(0, surface_vel);
 			var h = (double)VSL.Altitude.Absolute;
 			var m = (double)VSL.Physics.M;
-			var mT = VSL.Engines.MaxThrust+VSL.Engines.ManualThrust;
-			var mflow = VSL.Engines.MaxMassFlow+VSL.Engines.ManualMassFlow;
-			if(VSL.Engines.NumActive.Equals(0))
-				mT = VSL.Engines.GetNearestEnginedStageMaxThrust(out mflow);
-			var mTm = mT.magnitude;
+			var eStats = VSL.Engines.NoActiveEngines? 
+				VSL.Engines.GetNearestEnginedStageStats() :
+				VSL.Engines.GetEnginesStats(VSL.Engines.Active);
+			var mT = eStats.Thrust;
+			var mflow = eStats.MassFlow;
+			var mTm = mT.magnitude*Mathfx.Lerp(0.6, 0.95, Utils.ClampH(
+				VSL.Torque.AngularAcceleration(eStats.TorqueLimits.Max+VSL.Torque.RCSLimits.Max+VSL.Torque.WheelsLimits.Max).magnitude, 1));
 			var s = VSL.Geometry.AreaInDirection(mT);
-			var hmove = slope*ApA;
+			var R = Body.Radius;
 			var thrust = true;
+			var throttle = 1.0;
 			while(v.x >= 0)
 			{
+				var atmF = Utils.Clamp(h/Body.atmosphereDepth, 0, 1);
 				if(thrust)
 				{
+					double apaT;
+					var apa = freeclimb_altitude(m, s, h, v.x, v.y, DeltaTime*4, out apaT);
+					var dapa = (ApA-apa)*gturn_curve;
+					var arc = (alpha-v.y*apaT/(R+(h+apa)/2))*(R+apa);
+					var vv = Utils.ClampL(dapa, 0);
+					var hv = Utils.ClampL(arc-dapa, 0)*Utils.Clamp((h-VSL.Altitude.Absolute)/GLB.ORB.GTurnOffset, 0, 1);
+					if(h < Body.atmosphereDepth) hv *= Math.Sqrt(atmF);
+					var angle = Math.Atan2(vv, hv);
+					throttle = ThrottleControl.NextThrottle((float)(Math.Sqrt(vv*vv+hv*hv)*TCAScenario.Globals.ORB.Dist2VelF*VSL.Physics.StG/Utils.G0), 
+					                                        (float)throttle, (float)m, (float)mTm, 0);
+					var v_throttle = Math.Sin(angle);
+					v.x += (mTm*v_throttle*throttle/m-G(h, v.y))*DeltaTime;
+					var h_throttle = 0.0;
+					if(arc > 0)
+					{
+						h_throttle = Math.Cos(angle) ;
+						v.y += (mTm*h_throttle*throttle/m)*DeltaTime;
+					}
+					thrust = ApA-apa > GLB.ORB.Dtol && arc > GLB.ORB.Dtol;
 					if(!CheatOptions.InfiniteFuel)
 					{
-						var dm = mflow*DeltaTime;
+						var dm = mflow*(h_throttle+v_throttle)*throttle*DeltaTime;
 						if(m < dm) { thrust = false; continue; }
 						m -= dm;
 					}
-					var apa = freeclimb_altitude(m, s, h, v.x, DeltaTime*4);
-					var dapa = ApA-apa;
-					var vv = Utils.ClampL(dapa, 0);
-					var hv = Utils.ClampL(hmove-dapa*gturn_curve, 0)*Utils.Clamp((apa-h)/100, 0, 1);
-					if(Body.atmosphere) hv *= Math.Sqrt(Utils.Clamp(VSL.Altitude.Absolute/Body.atmosphereDepth, 0, 1));
-					var angle = Math.Atan2(vv, hv);
-					v.x += (mTm*Math.Sin(angle)/m-StG(h))*DeltaTime;
-					v.y += (mTm*Math.Cos(angle)/m)*DeltaTime;
-					thrust = ApA-apa > 1;
-//					Utils.LogF("v.v {}, v.h {}, dapa {}, hmove {}",
-//					           v.x, v.y, dapa, hmove);//debug
+//					Utils.LogF("apaT {}, dapa {}, arc {}, throttle {}, h-thr {}, v-thr {}", apaT, dapa, arc, throttle);//debug
 				}
-				else v.x -= StG(h)*DeltaTime;
-				var vm = v.magnitude;
-				v *= 1-drag(s, h, vm)/m/vm*DeltaTime;
-//				Utils.LogF("v.v {}, v.h {}, drag {}, h {}, hmove {}", 
-//				           v.x, v.y, drag(s, h, vm)/m, h, hmove);//debug
-				hmove -= v.y*DeltaTime;
+				else v.x -= G(h, v.y)*DeltaTime;
+				if(h < Body.atmosphereDepth)
+				{
+					var y = v.y-surface_vel*(1-atmF);
+					var vm = Math.Sqrt(v.x*v.x+y*y);
+					var D = drag(s, h, vm)/m*DeltaTime/vm;
+					v.x -= v.x*D;
+					v.y -= y*D;
+				}
+				alpha -= v.y*DeltaTime/Body.Radius;
 				h += v.x*DeltaTime;
 				t += DeltaTime;
+//				Utils.LogF("v.v {}, v.h {}, drag {}, h {}, hmove {}", v.x, v.y, drag(s, h, vm)/m, h, hmove);//debug
+//				DebugUtils.CSV("LambertSolver", t, v.x, v.y, (alpha0-alpha)*(R+h), h, m, mTm*throttle, throttle, Math.Atan2(v.x, v.y)*Mathf.Rad2Deg);//debug
 			}
 			return t-DeltaTime/2;
 		}
 
-		public static double FromSurfaceTTA(VesselWrapper VSL, double ApA, double slope, double gturn_curve)
+		public static double FromSurfaceTTA(VesselWrapper VSL, double ApA, double alpha, double gturn_curve, double surface_vel)
 		{
 			var sim = new AtmoSim(VSL.mainBody, VSL);
-			return sim.FromSurfaceTTA(ApA, slope, gturn_curve);
+			return sim.FromSurfaceTTA(ApA, alpha, gturn_curve, surface_vel);
 		}
 
 	}

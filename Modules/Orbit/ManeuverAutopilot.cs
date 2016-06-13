@@ -108,7 +108,7 @@ namespace ThrottleControlledAvionics
 		bool StartCondition(float dV)
 		{
 			if(Working) return true;
-			var ttb = VSL.Engines.TTB(dV, THR.NextThrottle(dV, 1));
+			var ttb = VSL.Engines.TTB(dV);
 			if(float.IsNaN(ttb)) return false;
 			VSL.Info.TTB = ttb;
 			var burn = Node.UT-VSL.Info.TTB/2f;

@@ -134,7 +134,7 @@ namespace ThrottleControlledAvionics
 				if(Math.Abs(tau-tauP) < tol) return dV4TransferP(out transfer_time);
 				else //TODO: implement hyperbolic transfers
 				{
-					Utils.LogF("dV4Transfer: hyperbolic transfer orbits are not yet supported.");
+					Utils.Log("dV4Transfer: hyperbolic transfer orbits are not yet supported.");
 					return Vector3d.zero;
 				}
 			}

@@ -67,7 +67,7 @@ namespace ThrottleControlledAvionics
 			//correct for brake maneuver
 			if(with_brake)
 			{
-				BrakeDuration = VSL.Engines.TTB((float)AtTargetVel.magnitude, 1);
+				BrakeDuration = VSL.Engines.TTB((float)AtTargetVel.magnitude);
 				BrakeStartUT  = AtTargetUT-BrakeDuration;
 				BrakeNodeUT   = AtTargetUT-BrakeDuration/2;
 				brake_delta_v = -(Vector3d.Exclude(NewOrbit.getRelativePositionAtUT(BrakeNodeUT),
@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 			{
 				brake_delta_v = -(AtTargetVel+
 				                  Vector3d.Cross(Body.angularVelocity.xzy, AtTargetPos));
-				BrakeDuration = VSL.Engines.TTB((float)BrakeDeltaV.magnitude, 1);
+				BrakeDuration = VSL.Engines.TTB((float)BrakeDeltaV.magnitude);
 				BrakeStartUT  = AtTargetUT-BrakeDuration;
 				BrakeNodeUT   = AtTargetUT-BrakeDuration/2;
 			}

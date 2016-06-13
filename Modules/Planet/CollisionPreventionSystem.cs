@@ -22,8 +22,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "CPS";
-
 			[Persistent] public float MinDistance       = 5f;
 			[Persistent] public float SafeDistance      = 30f;
 			[Persistent] public float SafeTime          = 5f;
@@ -58,9 +56,10 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
+			filter.Tau = CPS.LowPassF;
 			ManeuverTimer.Period = CPS.ManeuverTimer;
 			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
+//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
 			#endif
 		}
 
@@ -70,8 +69,7 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(!IsActive || VSL == null || VSL.vessel == null) return;
-			if(!filter.Value.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, filter.Value, Color.magenta);
+			GLUtils.GLVec(VSL.refT.position, filter.Value, Color.magenta);
 //			if(VSL.IsActiveVessel)
 //			{
 //				if(!Dir.IsZero())
@@ -83,7 +81,7 @@ namespace ThrottleControlledAvionics
 //				if(!Maneuver.IsZero() && !DeltaV.IsZero())
 //					GLUtils.GLVec(VSL.Physics.wCoM, Maneuver+DeltaV, Color.red);
 //			}
-//			GLUtils.GLBounds(VSL.EnginesExhaust, VSL.refT, Collided? Color.red : Color.white);
+			GLUtils.GLBounds(VSL.Geometry.B, VSL.refT, Collided? Color.red : Color.white);
 //			for(int i = 0, VSLEnginesCount = VSL.Engines.Count; i < VSLEnginesCount; i++)
 //			{
 //				var e = VSL.Engines[i];
@@ -98,12 +96,12 @@ namespace ThrottleControlledAvionics
 		public override void Reset()
 		{
 			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
+//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 
 		static float SafeTime(VesselWrapper vsl, Vector3d dVn)
-		{ return CPS.SafeTime/Utils.Clamp(Mathf.Abs(Vector3.Dot(vsl.Torque.wMaxAngularA, dVn)), 0.01f, 1f); }
+		{ return CPS.SafeTime/Utils.Clamp(Mathf.Abs(Vector3.Dot(vsl.Torque.MaxAngularA, vsl.LocalDir(dVn))), 0.01f, 1f); }
 
 		public static bool AvoidStatic(VesselWrapper vsl, Vector3d dir, float dist, Vector3d dV, out Vector3d maneuver)
 		{
@@ -320,7 +318,7 @@ namespace ThrottleControlledAvionics
 //				    Corrections.Aggregate("\n", (s, v) => s+v+"\n"));//debug
 			}
 			//correct horizontal course
-			HSC.CourseCorrections.Add(Vector3d.Exclude(VSL.Physics.Up, filter.Value));
+			HSC.AddWeightedCorrection(Vector3d.Exclude(VSL.Physics.Up, filter.Value));
 		}
 	}
 }

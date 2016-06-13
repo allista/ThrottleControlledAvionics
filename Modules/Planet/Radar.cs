@@ -21,8 +21,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "RAD";
-
 			[Persistent] public float UpViewAngle       = 15;
 			[Persistent] public float DownViewAngle     = 15;
 			[Persistent] public float MinAngleDelta     = 0.1f;
@@ -194,8 +192,8 @@ namespace ThrottleControlledAvionics
 				rewind();
 			}
 			//calculate closing speed and initial ray direction
-			var alt_threshold = VSL.Altitude.Absolute-VSL.Geometry.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2);
 			Dir = Vector3.zero;
+			var alt_threshold = VSL.Altitude.Absolute-Mathf.Min(CFG.DesiredAltitude, VSL.Geometry.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2));
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
 			if((DistanceAhead < 0 || DistanceAhead > RAD.MinDistanceAhead ||
 		        Vector3.Dot(RelObstaclePosition, NeededHorVelocity) < 0) &&
@@ -264,7 +262,7 @@ namespace ThrottleControlledAvionics
 			if(AngleDelta < RAD.AngleDelta) LittleSteps++;
 			//if on side collision course, correct it
 			if(HSC != null && !SideManeuver.IsZero()) 
-				HSC.CourseCorrections.Add(SideManeuver);
+				HSC.AddWeightedCorrection(SideManeuver);
 			//probe for surface height
 			Altimeter.ProbeHeightAhead(Dir);
 			//update collision info if detected something
@@ -303,7 +301,7 @@ namespace ThrottleControlledAvionics
 						dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
 							-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.Torque.MaxPitchRollAA_m;
 					else dV = -NeededHorVelocity;
-					HSC.CourseCorrections.Add(dV);
+					HSC.AddRawCorrection(dV);
 				}
 			}
 			else CollisionSpeed = -1;

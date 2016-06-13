@@ -31,8 +31,8 @@ namespace ThrottleControlledAvionics
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) return false;
 			THR.Throttle = 0;
-			VSL.Engines.ActivateNextStageOnFlameout();
-			VSL.Engines.ActivateEnginesIfNeeded();
+			VSL.Engines.ActivateEngines();
+			if(VSL.Engines.MaxThrustM.Equals(0)) return true;
 			//orient along the burning vector
 			if(dVrem && VSL.Controls.RCSAvailableInDirection(-dV)) 
 				CFG.AT.OnIfNot(Attitude.KillRotation);

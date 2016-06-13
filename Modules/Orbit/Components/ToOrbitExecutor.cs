@@ -30,14 +30,15 @@ namespace ThrottleControlledAvionics
 			set { target = value; TargetR = target.magnitude; } 
 		}
 		public double TargetR { get; private set; }
-
 		public double LaunchUT;
 		public double ApAUT;
+		public double dApA { get; private set; }
+		public double GravityTurnStart { get; private set; }
 
 		Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
 		CelestialBody Body { get { return VesselOrbit.referenceBody; } }
 		Vector3d hV(double UT) { return TrajectoryCalculator.hV(VesselOrbit, UT); }
-		public double dApA { get; private set; }
+		double CircularizationOffset = -1;
 
 		public ToOrbitExecutor(ModuleTCA tca) : base(tca) 
 		{ 
@@ -45,12 +46,19 @@ namespace ThrottleControlledAvionics
 			Executor = new ManeuverExecutor(tca);
 			GearAction.action = () =>VSL.GearOn(false);
 			ErrorThreshold.Lower = 2*GLB.ORB.Dtol;
-			ErrorThreshold.Upper = 10*GLB.ORB.Dtol;
+			ErrorThreshold.Upper = 4*GLB.ORB.Dtol;
+		}
+
+		public void UpdateTargetPosition()
+		{
+			Target = QuaternionD.AngleAxis(Body.angularV*TimeWarp.fixedDeltaTime*Mathf.Rad2Deg, 
+			                               Body.zUpAngularVelocity.normalized)*Target;
 		}
 
 		public bool Liftoff()
 		{
-			VSL.Engines.ActivateEnginesIfNeeded();
+			UpdateTargetPosition();
+			VSL.Engines.ActivateInactiveEngines();
 			if(VSL.VerticalSpeed.Absolute/VSL.Physics.G < MinClimbTime)
 			{ 
 				Status("Liftoff...");
@@ -59,6 +67,7 @@ namespace ThrottleControlledAvionics
 				THR.Throttle = 1;
 				return true;
 			}
+			GravityTurnStart = VSL.Altitude.Absolute;
 			GearAction.Run();
 			CFG.VTOLAssistON = false;
 			CFG.StabilizeFlight = false;
@@ -66,49 +75,65 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		public bool GravityTurn(double gturn_curve, double dist2vel, double Dtol)
+		/// <summary>
+		/// The arc distance in radians between current vessel position and the Target.
+		/// </summary>
+		public double ArcDistance
+		{ get { return Utils.ProjectionAngle(VesselOrbit.pos, target, target-VesselOrbit.pos) * Mathf.Deg2Rad; } }
+
+		public bool GravityTurn(double ApA_offset, double gturn_curve, double dist2vel, double Dtol)
 		{
+			UpdateTargetPosition();
 			dApA = TargetR-VesselOrbit.ApR;
-			var vel   = Vector3d.zero;
-			var cApV  = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp);
-			var hv    = Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel).normalized;
-			var alpha = Utils.ProjectionAngle(cApV, target, Vector3d.Cross(VesselOrbit.GetOrbitNormal(), cApV))*Mathf.Deg2Rad*Body.Radius;
-			ErrorThreshold.Value = dApA+alpha;
+			var vel  = Vector3d.zero;
+			var cApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp);
+			var hv   = Vector3d.Exclude(VesselOrbit.pos, target-VesselOrbit.pos).normalized;
+			var arc  = Utils.ProjectionAngle(cApV, target, hv)*Mathf.Deg2Rad*cApV.magnitude;
+			ErrorThreshold.Value = dApA+arc;
 			if(!ErrorThreshold)
 			{
-				if(alpha > Dtol)
+				var startF = Utils.Clamp((VSL.Altitude.Absolute-GravityTurnStart)/GLB.ORB.GTurnOffset, 0, 1);
+				if(dApA > Dtol)
+					vel += VSL.Physics.Up.xzy*dApA*gturn_curve;
+				if(arc > Dtol)
 				{
-					var hvel = Utils.ClampL(alpha-dApA*gturn_curve, 0)*dist2vel*
-						Utils.Clamp((VesselOrbit.ApA-VSL.Altitude.Absolute)/100, 0, 1);
+					var hvel = Utils.ClampL(arc-dApA*gturn_curve, 0)*startF;
 					if(Body.atmosphere) hvel *= Math.Sqrt(Utils.Clamp(VSL.Altitude.Absolute/Body.atmosphereDepth, 0, 1));
 					vel += hv*hvel;
 				}
-				if(dApA > Dtol)
-					vel += VSL.Physics.Up.xzy*dApA*gturn_curve*dist2vel;
-				vel *= VSL.Physics.StG/Utils.G0;
+				vel *= VSL.Physics.StG/Utils.G0*dist2vel;
 				if(!vel.IsZero())
 				{
 					var norm = VesselOrbit.GetOrbitNormal();
-					vel += norm*Math.Sin((90-Vector3d.Angle(norm, target))*Mathf.Deg2Rad)*vel.magnitude*
-						Utils.Clamp(VSL.VerticalSpeed.Absolute/VSL.Physics.G-MinClimbTime, 0, 100);
+					var dFi = (90-Vector3d.Angle(norm, target))*Mathf.Deg2Rad;
+					vel += norm*Math.Sin(dFi)*vel.magnitude*startF
+						*Utils.Clamp(VSL.VerticalSpeed.Absolute/VSL.Physics.G-MinClimbTime, 0, 100)
+						*Utils.ClampL(Vector3d.Dot(hv, VesselOrbit.vel.normalized), 0);
 				}
 				vel = vel.xzy;
-				if(Executor.Execute(vel, 1)) 
+				CircularizationOffset = -1;
+				if(Executor.Execute(vel, Utils.Clamp(1-VSL.Torque.MaxAngularA_m, 0.1f, 1)))
 				{
 					if(CFG.AT.Not(Attitude.KillRotation)) 
 					{
 						CFG.BR.OnIfNot(BearingMode.Auto);
-						BRC.ForwardDirection = hV(VSL.Physics.UT).xzy;
+						BRC.ForwardDirection = hv.xzy;
 					}
 					Status("Gravity turn...");
 					return true;
 				}
 			}
-			CFG.BR.OffIfOn(BearingMode.Auto);
 			Status("Coasting...");
+			CFG.BR.OffIfOn(BearingMode.Auto);
 			CFG.AT.OnIfNot(Attitude.KillRotation);
 			THR.Throttle = 0;
-			return (Body.atmosphere && VesselOrbit.radius < Body.Radius+Body.atmosphereDepth);
+			if(CircularizationOffset < 0)
+			{
+				ApAUT = VSL.Physics.UT+VesselOrbit.timeToAp;
+				CircularizationOffset = VSL.Engines.TTB((float)TrajectoryCalculator.dV4C(VesselOrbit, hV(ApAUT), ApAUT).magnitude)/2;
+			}
+			return VesselOrbit.timeToAp > ApA_offset+CircularizationOffset &&
+				Body.atmosphere && VesselOrbit.radius < Body.Radius+Body.atmosphereDepth;
 		}
 	}
 }

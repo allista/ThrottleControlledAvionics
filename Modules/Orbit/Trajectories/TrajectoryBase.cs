@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 		{
 			VSL = vsl;
 			ManeuverDeltaV = dV;
-			ManeuverDuration = VSL.Engines.TTB((float)ManeuverDeltaV.magnitude, 1);
+			ManeuverDuration = VSL.Engines.TTB((float)ManeuverDeltaV.magnitude);
 			StartUT = startUT;
 			TimeToStart = startUT-VSL.Physics.UT;
 			Body = VSL.vessel.orbitDriver.orbit.referenceBody;
@@ -49,8 +49,6 @@ namespace ThrottleControlledAvionics
 			StartPos = NewOrbit.pos;
 			StartVel = NewOrbit.vel;
 		}
-
-		public abstract bool IsBetter(BaseTrajectory other);
 
 		public override string ToString()
 		{
@@ -78,20 +76,11 @@ namespace ThrottleControlledAvionics
 
 		public abstract Vector3d BrakeDeltaV { get; }
 
-		public override bool IsBetter(BaseTrajectory other)
-		{
-			var _other = other as TargetedTrajectoryBase;
-			return _other == null || _other.DistanceToTarget < 0 || 
-				DistanceToTarget >= 0 && 
-				(DistanceToTarget+ManeuverDeltaV.magnitude+BrakeDeltaV.magnitude < 
-				 _other.DistanceToTarget+_other.ManeuverDeltaV.magnitude+_other.BrakeDeltaV.magnitude);
-		}
-
 		public override string ToString()
 		{ 
 			return base.ToString()+
 				Utils.Format("\nDistanceToTarget: {} m\n" +
-				             "TimeToTarget: {}\n" +
+				             "TimeToTarget: {} s\n" +
 				             "DeltaFi: {} deg\n",
 				             DistanceToTarget, TimeToTarget, DeltaFi);
 		}

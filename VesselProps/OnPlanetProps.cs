@@ -41,24 +41,25 @@ namespace ThrottleControlledAvionics
 		public bool    SlowThrust { get; private set; }
 
 		public float   VSF; //vertical speed factor
-		public float   MinVSF;
-		public float   MinVSFtwr;
+		public float   GeeVSF; //the value of VSF that provides the thrust equal to the gravity force
+		public float   MinVSF; //minimum allowable VSF to have enough control authority
+
 
 		public override void Update()
 		{
 			AccelSpeed = 0f; DecelSpeed = 0f; SlowThrust = false;
 			//calculate total downward thrust and slow engines' corrections
-			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.M/VSL.Physics.G;
+			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.mg;
 			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
-				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.M/VSL.Physics.G : 0f;
-			MinVSFtwr = 1/Utils.ClampL(MaxTWR, 1);
+				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.mg : 0f;
+			GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
 			var mVSFtor = (VSL.Torque.MaxPitchRollAA_m > 0)? 
-				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRollAA_m, GLB.VSC.MaxVSFtwr*MinVSFtwr) : 0;
+				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRollAA_m, GLB.VSC.MaxVSFtwr*GeeVSF) : 0;
 			MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
-			var rotation_factor = Utils.ClampL(Vector3.Dot(VSL.Controls.Steering, VSL.vessel.angularVelocity), 0);
+			var rotation_factor = Utils.ClampL(Vector3.Dot(VSL.Controls.Steering, VSL.vessel.angularVelocity.normalized), 0);
 			for(int i = 0; i < VSL.Engines.NumActive; i++)
 			{
 				var e = VSL.Engines.Active[i];
@@ -74,7 +75,7 @@ namespace ThrottleControlledAvionics
 					{
 						e.VSF = Utils.ClampH(Utils.ClampL(Vector3.Dot(VSL.Controls.Steering, e.specificTorque), 0)*
 						                     rotation_factor,
-						                     MinVSFtwr);
+						                     GeeVSF);
 						#if DEBUG
 						if(e.VSF > 0) //debug
 						{ 
@@ -97,7 +98,7 @@ namespace ThrottleControlledAvionics
 					}
 				}
 			}
-			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/VSL.Physics.M/VSL.Physics.G, 0.1f);
+			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/VSL.Physics.mg, 0.1f);
 			if(refT != null)
 			{
 				Fwd = Vector3.Cross(VSL.Controls.Transform.right, -VSL.Engines.MaxThrust).normalized;
@@ -106,11 +107,13 @@ namespace ThrottleControlledAvionics
 				Heading = Vector3.ProjectOnPlane(Fwd, VSL.Physics.Up).normalized;
 			}
 			var controllable_thrust = slow_thrust+fast_thrust;
-			if(controllable_thrust.Equals(0)) return;
-			//correct setpoint for current TWR and slow engines
-			if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
-			if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
-			SlowThrust = AccelSpeed > 0 || DecelSpeed > 0;
+			if(controllable_thrust > 0)
+			{
+				//correct setpoint for current TWR and slow engines
+				if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
+				if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
+				SlowThrust = AccelSpeed > 0 || DecelSpeed > 0;
+			}
 			//parachutes
 			UnusedParachutes.Clear();
 			ParachutesActive = false;
@@ -119,7 +122,9 @@ namespace ThrottleControlledAvionics
 			{
 				var p = Parachutes[i];
 				ParachutesDeployed |= p.deploymentState == ModuleParachute.deploymentStates.DEPLOYED;
-				ParachutesActive |= ParachutesDeployed || p.deploymentState == ModuleParachute.deploymentStates.SEMIDEPLOYED;
+				ParachutesActive |= ParachutesDeployed || 
+					p.deploymentState == ModuleParachute.deploymentStates.ACTIVE ||
+					p.deploymentState == ModuleParachute.deploymentStates.SEMIDEPLOYED;
 				if(p.part != null && !p.part.ShieldedFromAirstream && p.deploymentState == ModuleParachute.deploymentStates.STOWED)
 					UnusedParachutes.Add(p);
 			}

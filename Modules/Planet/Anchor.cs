@@ -18,8 +18,6 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			new public const string NODE_NAME = "ANC";
-
 			[Persistent] public float MaxSpeed      = 10;
 			[Persistent] public float DistanceF     = 50;
 			[Persistent] public float AngularAccelF = 2f;
@@ -87,7 +85,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.HorizontalSpeed > ANC.MaxSpeed)
 				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 			else CFG.HF.OnIfNot(HFlight.Move);
-			CFG.Anchor.Update(VSL.mainBody);
+			CFG.Anchor.Update(VSL);
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position - 
 			                                  (VSL.Physics.wCoM+
@@ -97,7 +95,7 @@ namespace ThrottleControlledAvionics
 			VSL.Info.Destination = vdir;
 			vdir.Normalize();
 			//tune the pid and update needed velocity
-			AccelCorrection.Update(Mathf.Clamp(VSL.Engines.MaxThrustM*VSL.OnPlanetParams.MinVSFtwr/VSL.Physics.M/ANC.MaxAccelF, 0.01f, 1)*
+			AccelCorrection.Update(Mathf.Clamp(VSL.Physics.G/ANC.MaxAccelF, 0.01f, 1)*
 			                       Mathf.Clamp(VSL.Torque.MaxPitchRollAA_m/ANC.AngularAccelF, 0.01f, 1), 0.01f);
 			pid.P   = ANC.DistancePID.P*AccelCorrection;
 			pid.D   = ANC.DistancePID.D*(2-AccelCorrection);
