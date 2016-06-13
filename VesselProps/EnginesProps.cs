@@ -172,7 +172,7 @@ namespace ThrottleControlledAvionics
 				else CFG.ActiveProfile.Update(All, true);
 			}
 			//get active engines and RCS
-			NearestEnginedStage = 0;
+			NearestEnginedStage = -1;
 			HaveNextStageEngines = false;
 			var groups = KSPActionGroup.None;
 			Active.Clear(); Active.Capacity = All.Count;
@@ -184,9 +184,9 @@ namespace ThrottleControlledAvionics
 				for(int j = 0; j < e.engine.Actions.Count; j++)
 					groups |= e.engine.Actions[j].actionGroup;
 				//update staging information
-				if(e.part.inverseStage > NearestEnginedStage) 
+				if(e.part.inverseStage > NearestEnginedStage && e.part.inverseStage <= vessel.currentStage)
 					NearestEnginedStage = e.part.inverseStage;
-				HaveNextStageEngines |= e.part.inverseStage >= 0 && e.part.inverseStage < VSL.vessel.currentStage;
+				HaveNextStageEngines |= e.part.inverseStage >= 0 && e.part.inverseStage < vessel.currentStage;
 			}
 			ActionGroups = groups;
 			ActiveRCS.Clear();

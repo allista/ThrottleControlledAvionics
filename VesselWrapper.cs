@@ -267,16 +267,20 @@ namespace ThrottleControlledAvionics
 			else if(CFG.Enabled && TCA.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
 		}
 
+		bool stage_is_empty(int stage)
+		{
+			var cur_parts = vessel.parts.Where(p => p.hasStagingIcon && p.inverseStage == stage).ToList();
+//			LogF("{} stagable parts at stage {}", cur_parts.Count, stage);//debug
+			return cur_parts.Count == 0 || cur_parts.All(p => p.State == PartStates.ACTIVE);
+		}
+
 		void activate_next_stage()
 		{
 			var next_stage = vessel.currentStage;
-			var cur_parts = vessel.parts.Where(p => p.inverseStage == vessel.currentStage).ToList();
-			if(cur_parts.Count == 0 || cur_parts.All(p => p.State == PartStates.ACTIVE))
-				next_stage = vessel.currentStage-1;
+			while(next_stage >= 0 && stage_is_empty(next_stage)) next_stage--;
 			if(next_stage < 0) return;
 //			Log(vessel.parts.Aggregate("\n", (s, p) => s+Utils.Format("{}: {}, stage {}\n", p.Title(), p.State, p.inverseStage)));//debug
-//			LogF("current stage {}, next stage {}, next engines {}, cur_parts {}", 
-//			     vessel.currentStage, next_stage, Engines.NearestEnginedStage, cur_parts.Count);//debug
+//			LogF("current stage {}, next stage {}, next engines {}", vessel.currentStage, next_stage, Engines.NearestEnginedStage);//debug
 			if(IsActiveVessel)
 			{
 				Staging.ActivateStage(next_stage);
