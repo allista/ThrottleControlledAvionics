@@ -235,8 +235,9 @@ namespace ThrottleControlledAvionics
 				if(Physics.SphereCast(VSL.Geometry.C+dir*(VSL.Geometry.R+0.1f), VSL.Geometry.R, dir,
 				               out raycastHit, dist, RadarMask))
 					vR = (raycastHit.point-v.CurrentCoM).magnitude;
-				vB = v.EnginesExhaust();
 				vT = v.ReferenceTransform;
+				vB = v.Bounds(vT);
+				vB.Encapsulate(v.EnginesExhaust());
 			}
 			//compute course correction
 			var dV = VSL.vessel.srf_velocity-v.srf_velocity+(VSL.vessel.acceleration-v.acceleration)*CPS.LookAheadTime;
