@@ -63,7 +63,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++)
 			{
 				var e = engines[i];
-				if(cfg.Differs(e)) Update(e, with_On);
+				if(cfg.DiffersFrom(e)) Update(e, with_On);
 			}
 		}
 
@@ -93,7 +93,7 @@ namespace ThrottleControlledAvionics
 			Changed = false;
 		}
 
-		public bool Differs(EngineWrapper e)
+		public bool DiffersFrom(EngineWrapper e)
 		{
 			return On != e.engine.EngineIgnited || Role != e.Role ||
 				(Role == TCARole.MANUAL && Mathf.Abs(e.thrustLimit-Limit) > lim_eps);
