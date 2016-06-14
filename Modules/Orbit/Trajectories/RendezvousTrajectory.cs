@@ -20,6 +20,7 @@ namespace ThrottleControlledAvionics
 		public double MinPeR { get; private set; }
 		public bool KillerOrbit { get; private set; }
 		public Orbit TargetOrbit { get; private set; }
+		Vessel TargetVessel;
 
 		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target, double min_PeR, double transfer_time = -1) 
 			: base(vsl, dV, startUT, target) 
@@ -27,6 +28,7 @@ namespace ThrottleControlledAvionics
 			MinPeR = min_PeR;
 			TimeToTarget = transfer_time;
 			TargetOrbit = Target.GetOrbit();
+			TargetVessel = Target.GetVessel();
 			update(); 
 		}
 
@@ -48,7 +50,7 @@ namespace ThrottleControlledAvionics
 			AtTargetPos = NewOrbit.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = NewOrbit.getOrbitalVelocityAtUT(AtTargetUT);
 			TargetPos = TargetOrbit.getRelativePositionAtUT(AtTargetUT);
-			DistanceToTarget = Utils.ClampL((AtTargetPos-TargetPos).magnitude-VSL.Geometry.R, 0);
+			DistanceToTarget = Utils.ClampL((AtTargetPos-TargetPos).magnitude-VSL.Geometry.R-TargetVessel.Radius(), 0);
 			DeltaTA = Utils.ProjectionAngle(AtTargetPos, TargetPos, 
 			                                Vector3d.Cross(NewOrbit.GetOrbitNormal(), AtTargetPos))*
 				Math.Sign(TargetOrbit.period-OrigOrbit.period);

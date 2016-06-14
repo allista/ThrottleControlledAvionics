@@ -454,7 +454,7 @@ namespace ThrottleControlledAvionics
 				Status("Matching orbits at nearest approach...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
 				update_trajectory();
-				var dist = (TargetOrbit.pos-VesselOrbit.pos).magnitude;
+				var dist = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.R-TargetVessel.Radius(), 0);
 				if(dist > REN.CorrectionStart) start_orbit();
 				else if(dist > REN.CorrectionStart/4) fine_tune_approach();
 				else if(dist > REN.Dtol) approach();
@@ -464,7 +464,7 @@ namespace ThrottleControlledAvionics
 				Status("Approaching...");
 				var dP = TargetOrbit.pos-VesselOrbit.pos;
 				var dPm = dP.magnitude;
-				if(dPm - VSL.Geometry.R < REN.Dtol) 
+				if(dPm - VSL.Geometry.R - TargetVessel.Radius() < REN.Dtol) 
 				{ brake(); break; }
 				if(ATC.AttitudeError > 1) break;
 				var dV = Vector3d.Dot(VesselOrbit.vel-TargetOrbit.vel, dP/dPm);
@@ -485,7 +485,7 @@ namespace ThrottleControlledAvionics
 					CFG.AP1.Off();
 					THR.Throttle = 0;
 				}
-				if((VSL.Physics.wCoM-TargetVessel.CurrentCoM).magnitude-VSL.Geometry.R > REN.Dtol)
+				if((VSL.Physics.wCoM-TargetVessel.CurrentCoM).magnitude-VSL.Geometry.R-TargetVessel.Radius() > REN.Dtol)
 				{ approach(); break; }
 				CFG.AP2.Off();
 				CFG.AT.OnIfNot(Attitude.KillRotation);
