@@ -29,28 +29,7 @@ namespace ThrottleControlledAvionics
 		public override void Update()
 		{
 			//update physical bounds
-			var b = new Bounds();
-			bool inited = false;
-			var parts = vessel.parts;
-			for(int i = 0, partsCount = parts.Count; i < partsCount; i++)
-			{
-				Part p = parts[i];
-				if(p == null) continue;
-				var meshes = p.FindModelComponents<MeshFilter>();
-				for(int mi = 0, meshesLength = meshes.Length; mi < meshesLength; mi++)
-				{
-					//skip meshes without renderer
-					var m = meshes[mi];
-					if(m.renderer == null || !m.renderer.enabled) continue;
-					var bounds = Utils.BoundCorners(m.sharedMesh.bounds);
-					for(int j = 0; j < 8; j++)
-					{
-						var c = refT.InverseTransformPoint(m.transform.TransformPoint(bounds[j]));
-						if(inited) b.Encapsulate(c);
-						else { b = new Bounds(c, Vector3.zero); inited = true; }
-					}
-				}
-			}
+			var b = vessel.Bounds(refT);
 			C = refT.TransformPoint(b.center);
 			H = Mathf.Abs(Vector3.Dot(refT.TransformDirection(b.extents), VSL.Physics.Up))+
 				Vector3.Dot(vessel.CurrentCoM-C, VSL.Physics.Up);
@@ -68,8 +47,7 @@ namespace ThrottleControlledAvionics
 					var t = e.engine.thrustTransforms[k];
 					if(t == null) continue;
 					var term = refT.InverseTransformPoint(t.position + t.forward * e.engine.exhaustDamageMaxRange*GLB.ExhaustSafeDist);
-					if(inited) b.Encapsulate(term);
-					else { b = new Bounds(term, Vector3.zero); inited = true; }
+					b.Encapsulate(term);
 				}
 			}
 			B = b;
