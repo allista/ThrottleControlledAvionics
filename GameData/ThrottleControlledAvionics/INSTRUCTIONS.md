@@ -48,13 +48,15 @@ All of the above combined provides basis for a set of a much more complex autopi
 
 In editor or in flight, through the part menu or engines' *Profiles* (discussed later) you may set any engine to work in one of the following modes: 
 
-* **Main Engine** (_default_): when balancing, TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all Main Engines should have 100% thrust in the absence of control input. *These engines are used to control vertical speed AND attitude.*
-* **Balanced Thrust**: a group of engines in this mode is always balanced so that it does not generate any torque. It is mostly useful for jets-based VTOLs. *These engines are used to control vertical speed.*
-* **Maneuver Engine**: when balancing, TCA tries to minimize the thrust of these engines. In a perfectly balanced ship these engines produce thrust only in response to control input. *These engines are used to control attitude and for translation.*
-* **Manual Control**: balancing does not change the thrust of these engines, but includes them in calculations. HSC, however, may use them to change horizontal speed of the vessel.
+* **Thrust & Maneuver** (_default_): when balancing, TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all such engines should have 100% thrust in the absence of control input. *These engines are used to control vertical speed AND attitude.*
+* **Thrust**: a group of engines in this mode is always balanced so that it does not generate any torque. It is mostly useful for jets-based VTOLs. *These engines are used to control vertical speed.*
+* **Maneuver**: when balancing, TCA tries to minimize the thrust of these engines. In a perfectly balanced ship these engines produce thrust only in response to control input. *These engines are used to control attitude, and for translation.*
+* **UnBalanced Thrust**: this mod is primarily intended for a single-engine configuration like rocket lander or a VTOL-capable plane with a single lifting engine. TCA never tries to balance engines in this mode, but still *uses them to control altitude and vertical speed.*
+* **Manual Control**: these engines are never balanced or used to control altitude or vertical velocity. Instead, their thrust may be directly controlled with a slider under "Manual Engines" pane which is toggled with "Show/Hide Manual Engines" button; or from a corresponding engines profile. *HSC, however, uses them for horizontal thrust when needed.*
 
-Each engine has also a *group ID*. By default it is set to zero, meaning the engine is not included into any group. But *all the engines sharing the same non-zero group ID will also share the mode and*, if they are Manual engines, *the value of thrust limiters*
-. This is a mere convenience to setup engines quicker during construction and to have shorter Profiles.
+Each engine has also a *group ID*. By default it is set to zero, meaning the engine is not included into any group. But *all the engines sharing the same non-zero group ID will also share the mode and*, if they are Manual engines, *the value of thrust limiters*. This is a mere convenience to setup engines quicker during construction and to have shorter Profiles.
+
+**Note** on changing properties of a single engine in a *group* from the part menu. A group acts as a whole, so when you change some property of a grouped engine these changes are propagated to other engines in that group. This includes enabling/disabling engines: *shutting down one engine will shut down the whole group*.
 
 ##Engines Profiles
 
@@ -77,9 +79,9 @@ Another option available for a profile is leveling of a ship on activation (the 
 
 ###Staging and Action Groups
 
-In-flight the active profile overrides other engine controls (e.g. via Part Menu) except staging and *custom* action groups. So if an engine in a profile is Off, but you press the space to go to the next stage and  that engine is activated, its state in the profile is changed. Similarly, if you toggle an engine via Custom Action Groups (numeric keys), its state in the profile is changed accordingly.
+Activation of engines by staging or action groups *always* takes priority over TCA setting, so the *active* profile is always updated on a stage or active group activation. But *remember the caveat of grouped engines*.
 
-*But be careful* when staging/toggling an engine belonging to an engine group: remember that a group has a single profile, so changes to one of the engines are propagated to the rest of the group.
+TCA itself may also be toggled via action group. To set it up, you need to find a Control Part (probe core, cockpit, etc.) that says "TCA Active: True" in its part menu (as a rule, this should be the first one you have added to a ship). Then follow the standard procedure action group assignment.
 
 ##Interface Basics
 
@@ -243,33 +245,82 @@ Simple. But what if you're trying to make several ships following the same targe
 
 ##In-Orbit Autopilots
 
-These programs are available when the ship is in orbit or on a suborbital trajectory, but out of the atmosphere.
-
 ###Warp switch
 
 Enables automatic time-warping to the start of the burn, taking into account attitude error and burn duration.
 
-###Execute Maneuver
+###Execute Node
 
 Does as it says; except it uses the T-SAS to control the attitude, so it's easily possible to perform orbital maneuvering with an unbalanced VTOL whose cockpit is rotated 90 degrees with respect to engines. Or to change orbit of a whole compound space station with engines pointing in different directions. I mean, controllably and predictably change orbit. Just assign engines' Roles properly.
 
-###Match Velocity with Target
+###Match V
 
 Constantly corrects ships orbital velocity to match that of the target object, using main thrusters as well as RCS (if available). Don't try it from far away, though, as in that case it will considerable modify your current orbit.
 
-###Brake near Target
+###Brake Near
 
-First waits for the nearest approach point with the target, then matches orbital velocities. No continuous orbit correction afterwards is made.
+First waits for the nearest approach point with the target, then matches orbital velocities. No continuous orbit correction is made afterwards.
+
+###ToOrbit
+
+This autopilot tries to achieve a circular orbit with user-defined radius and inclination. It uses a two-step approach, where it first gets into a suborbital trajectory with low apoapsis; at that apoapsis it accelerates to an orbit with the apoapsis equal to the final orbit radius; and finally it performs a circularization maneuver.
+
+When you enable this autopilot, a small configuration window appears allowing you to define desired orbital parameters.
+
+* **Radius** is set in kilometers above the "sea level"; if a planet has atmosphere it is forced to be 1km above it, otherwise it is force to be grater than 10km.
+* **Inclination** is set in degrees and is physically limited to range from *|vessel latitude|* to *180 - |vessel latitude|*.
+* **Ascending/Descending Node** switch defines the type of the orbit node located above the starting point. I.e. AN orbits start to the North of the equator, and DN start to the South.
+* **Prograde/Retrograde Orbit** switch defines orbit direction: a vessel on a PG orbit rotates in the same direction as the central body, and on a RG orbit in the opposite. In other words RG orbits correspond to negative inclinations.
+
+###Rendezvous
+
+This is a very complex autopilot whose final goal is to bring your ship close to its target. You may start from ground, from suborbital trajectory or from orbit; the only limitation is that the target should be in orbit around the same central body.
+
+To achieve its goal the Rendezvous autopilot performs a series of maneuvers divided into several stages:
+
+* **To Orbit** stage works almost like ToOrbit autopilot, except if you start from the ground it will try to predict the duration of ascension and will wait for the appropriate launch window. It also calculates the inclination needed to minimize dV of the consequent maneuvers.
+* **Start Orbit** stage corrects current orbit to achieve a faster resonance with the target, so you don't have to wait a week for the rendezvous maneuver window.
+* **Rendezvous Maneuver** stage computes and performs the main maneuver that will eventually bring your ship close to the target.
+* **Fine-tune Approach** stage is performed repeatedly after the main rendezvous maneuver until the closest approach distance is below the threshold (default *100m + ship's radius + target's radius*; configurable in *TCA.glob::REN*).
+* **Match Orbits** stage schedules and performs a brake maneuver that synchronizes ship's orbit with the target's orbit at nearest approach.
+* **Approach** stage brings the ship in close proximity to the target after orbits were synchronized.
+
+###Land
+
+Unlike the Land autopilot in On-Planet group, this autopilot is dedicated to landing from orbit. It is also a complex autopilot that in fact uses the On-Planet Land program as its final stage. The whole sequence of operation is as follows:
+
+* **Deorbit Burn** stage calculates, schedules and performs a deorbiting maneuver.
+* **Correct Trajectory** stage repeatedly corrects trajectory to bring the landing site close to the target.
+* **Deceleration** stage performs a brake maneuver that kills most of the velocity and at the same time fine-tunes the landing site's position.
+* **Approach** stage is just the *Go To* navigation program.
+* **Land** stage is the *On-Planet Land* program.
+* **Hard Land** *(optional)*: if something goes wrong, e.g. the ship doesn't have enough fuel to perform the Approach&Land scenario, or its TWR is too low, or it lacks the control authority in thick atmosphere. In that case this stage kicks in after Deceleration and tries it's best to land the ship instead of crushing it. It uses all means available, including parachutes, airbrakes, braking with ship's own drag (by placing its most wide side against the airstream), and final suicidal burn.
+
+###Jump To *(aka Ballistic Jump or Suborbital Hop)*
+
+This autopilot uses a calculated suborbital trajectory to get to a far enough target on the surface of the same planet. Think of ballistic missiles here. Its operations divided into several stages as well:
+
+* **Liftoff** stage is used to ensure the initial acceleration to the suborbital trajectory will not meed a quick end in the nearest mountainside.
+* **Acceleration** stage calculates and performs a maneuver to achieve the desired trajectory.
+* **Correct Trajectory** stage repeatedly corrects trajectory to fine-tune the position of a landing site.
+* **Land** stage encloses the Deceleration, Approach, Land/Hard Land stages of the Land autopilot described above.
 
 ##Utility Modules
 
 ###Radar
 
-Scans the surface before-underneath the ship to detect obstacles before the ship's nose does. By itself does not do anything, but is used by other modules to avoid collisions.
+Scans the surface before and underneath the ship to detect obstacles before the ship's nose crash into them. By itself does not do anything, but is used by HSC and Altitude Control to avoid collisions.
 
 ###Collision Prevention System (CPS)
 
 Scans nearby vessels, measuring distance and relative speed. The predicts possible collisions and calculates an avoidance maneuver which is fed to the HSC and VSC to actuate.
+
+###VTOL Mode of manual control
+
+This module changes the way manual controls work. With it enabled a VTOL craft starts to behave like a conventional helicopter: 
+
+* **pitch-roll-yaw** controls define the angle of the total thrust vector to the vertical; this angle itself is limited to the non-suicidal values that depend on current TWR and thrust response time. Idle controls in that mode are equivalent to the *Level* program.
+* **reference part** used in this mode may differ from the current control part (which is set by "Control from here" button in the part menu) and is picked by TCA automatically. This is allows to control the craft as a whole as if from a remote, not from "this particular probe core that Jeb's attached to the side with the duck-tape".
 
 ###VTOL Assist
 
@@ -355,6 +406,16 @@ This button reloads **TCA.glob** file from disk.
 ####TCA hotkey
 
 This button allows to change the key that toggles TCA from keyboard.
+
+####TCA control switches
+
+* **VTOL Mode** enables/disables VTOL Mode of manual controls
+* **VTOL Assist** enables/disables VTOL Assist module
+* **Flight Stabilizer** enables/disables Flight Stabilizer module
+* **AutoGear** allows/forbids the automatic use of landing gear action group by TCA
+* **AutoBrakes** allows/forbids the automatic use of brakes action group by TCA
+* **AutoStage** allows/forbids the automatic staging by TCA
+* **AutoChute** allows/forbids the automatic use parachutes by TCA
 
 ####Sensitivity of throttle controls
 
