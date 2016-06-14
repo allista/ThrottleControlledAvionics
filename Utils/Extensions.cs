@@ -422,6 +422,34 @@ namespace ThrottleControlledAvionics
 		public static bool PartsStarted(this Vessel v)
 		{ return v.parts.TrueForAll(p => p.started); }
 
+		public static Bounds Bounds(this Vessel vessel, Transform refT)
+		{
+			//update physical bounds
+			var b = new Bounds();
+			bool inited = false;
+			var parts = vessel.parts;
+			for(int i = 0, partsCount = parts.Count; i < partsCount; i++)
+			{
+				Part p = parts[i];
+				if(p == null) continue;
+				var meshes = p.FindModelComponents<MeshFilter>();
+				for(int mi = 0, meshesLength = meshes.Length; mi < meshesLength; mi++)
+				{
+					//skip meshes without renderer
+					var m = meshes[mi];
+					if(m.renderer == null || !m.renderer.enabled) continue;
+					var bounds = Utils.BoundCorners(m.sharedMesh.bounds);
+					for(int j = 0; j < 8; j++)
+					{
+						var c = refT.InverseTransformPoint(m.transform.TransformPoint(bounds[j]));
+						if(inited) b.Encapsulate(c);
+						else { b = new Bounds(c, Vector3.zero); inited = true; }
+					}
+				}
+			}
+			return b;
+		}
+
 		public static Bounds EnginesExhaust(this Vessel vessel)
 		{
 			var CoM = vessel.CurrentCoM;
@@ -446,6 +474,13 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			return b;
+		}
+
+		public static float Radius(this Vessel vessel)
+		{ 
+			var tca = ModuleTCA.EnabledTCA(vessel);
+			return tca != null? tca.VSL.Geometry.R : 
+				vessel.Bounds(vessel.ReferenceTransform).size.magnitude;
 		}
 	}
 }
