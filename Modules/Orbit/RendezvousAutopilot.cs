@@ -526,12 +526,12 @@ namespace ThrottleControlledAvionics
 //					}
 //					#endif
 				}
-				else if(Utils.ButtonSwitch("Rendezvou", CFG.AP2[Autopilot2.Rendezvous],
-				                           "Compute and perform a rendezvou maneuver, then brake near the target.", 
+				else if(Utils.ButtonSwitch("Rendezvous", CFG.AP2[Autopilot2.Rendezvous],
+				                           "Compute and perform a rendezvous maneuver, then brake near the target.", 
 				                           GUILayout.ExpandWidth(false)))
 					CFG.AP2.XToggle(Autopilot2.Rendezvous);
 			}
-			else GUILayout.Label(new GUIContent("Rendezvou", "Compute and perform a rendezvou maneuver, then brake near the target."), 
+			else GUILayout.Label(new GUIContent("Rendezvous", "Compute and perform a rendezvous maneuver, then brake near the target."), 
 			                     Styles.inactive_button, GUILayout.ExpandWidth(false));
 		}
 	}
