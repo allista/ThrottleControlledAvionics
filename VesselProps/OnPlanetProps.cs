@@ -65,7 +65,7 @@ namespace ThrottleControlledAvionics
 				var e = VSL.Engines.Active[i];
 				e.VSF = 1f;
 				#if DEBUG
-				e.part.SetHighlightDefault();//debug
+				e.part.SetHighlightDefault();
 				#endif
 				if(e.thrustInfo == null) continue;
 				if(e.isVSC)
@@ -77,7 +77,7 @@ namespace ThrottleControlledAvionics
 						                     rotation_factor,
 						                     GeeVSF);
 						#if DEBUG
-						if(e.VSF > 0) //debug
+						if(e.VSF > 0)
 						{ 
 							e.part.SetHighlightColor(Color.yellow);
 							e.part.SetHighlight(true, false);

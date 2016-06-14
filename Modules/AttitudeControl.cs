@@ -147,7 +147,7 @@ namespace ThrottleControlledAvionics
 //			LogF("\nneeded {}\ncurrent {}\nangle {}\nsteering {}",
 //			     needed, current, Vector3.Angle(needed, current), DebugUtils.FormatSteering(steering));//debug
 
-			//FIXME: sometimes generates NaN!
+			//FIXME: sometimes generates NaN
 //			needed (2.309423E+09, -5.479368E+11, -2.858228E+11); |v| = 6.180087E+11
 //			current (-0.0680542, -28.58647, -718.0868); |v| = 718.6556
 //			angle 60.17245 > threshold

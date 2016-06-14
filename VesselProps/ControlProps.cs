@@ -65,7 +65,6 @@ namespace ThrottleControlledAvionics
 				{
 					var pos = (p.transform.position-VSL.Physics.wCoM).normalized;
 					var ali = Vector3.Dot(p.transform.up, pos);
-					Utils.LogF("part {}, alignment {}", p, ali);//debug
 					if(ref_part == null ||  
 					   (Math.Abs(max_ali-ali) < 1e-5 && ref_part.mass < p.mass) ||
 					   max_ali < ali)
@@ -74,7 +73,6 @@ namespace ThrottleControlledAvionics
 			}
 			CFG.ControlTransform = ref_part.flightID;
 			Transform = ref_part.transform;
-			Utils.LogF("Command Part: {}, out of {} parts", ref_part, command_parts.Count);//debug
 		}
 
 		public void UpdateRefTransform()

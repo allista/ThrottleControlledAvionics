@@ -76,7 +76,7 @@ namespace ThrottleControlledAvionics
 			ToOrbit.Target = ToOrbitTarget;
 		}
 
-		public void RendezvousCallback(Multiplexer.Command cmd) //FIXME: Resume is broken
+		public void RendezvousCallback(Multiplexer.Command cmd)
 		{
 			switch(cmd)
 			{
@@ -194,9 +194,9 @@ namespace ThrottleControlledAvionics
 				Utils.ClampL(TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT+TRJ.ManeuverOffset)
 				             *VesselOrbit.period-transfer_time, TRJ.ManeuverOffset);
 			double dT = TargetOrbit.period/4;
-			LogF("transfer time: {}, StartT {}, TTR {}", 
-			     transfer_time, StartUT-VSL.Physics.UT, 
-			     TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT+TRJ.ManeuverOffset)*VesselOrbit.period);//debug
+//			LogF("transfer time: {}, StartT {}, TTR {}", 
+//			     transfer_time, StartUT-VSL.Physics.UT, 
+//			     TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT+TRJ.ManeuverOffset)*VesselOrbit.period);//debug
 			setup_calculation((o, b) => orbit_correction(o, b, StartUT, ref dT));
 		}
 

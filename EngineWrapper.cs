@@ -127,7 +127,8 @@ namespace ThrottleControlledAvionics
 	{
 		uint id;
 
-		public EngineID(EngineWrapper e) //FIXME: generates Number overflow on flight scene load
+		//FIXME: generates Number overflow on flight scene load
+		public EngineID(EngineWrapper e) 
 		{
 			if(e.part == null || e.engine == null) return;
 			var rT  = e.part.localRoot == null? e.part.transform : e.part.localRoot.transform;

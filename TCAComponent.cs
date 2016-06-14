@@ -166,7 +166,7 @@ namespace ThrottleControlledAvionics
 			ConfigNode node;
 			var name = GetType().Name;
 			if(CFG.ModuleConfigs.TryGetValue(name, out node)) Load(node);
-			//deprecated: old configuration conversion
+			//deprecated: Old configuration conversion
 			else if(CFG.LoadedConfig != null) Load(CFG.LoadedConfig);
 		}
 	}
