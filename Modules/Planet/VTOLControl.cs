@@ -68,7 +68,6 @@ namespace ThrottleControlledAvionics
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			if(!IsActive) return;
-			VSL.Controls.GimbalLimit = 100;
 			if(VSL.HasUserInput) 
 			{ 
 				Quaternion rot = Quaternion.identity;
@@ -105,8 +104,10 @@ namespace ThrottleControlledAvionics
 				#endif
 				compute_steering(Rotation.Local(current_thrust.normalized, -VSL.Physics.Up, VSL)); 
 				tune_steering();
+				set_gimbal_limit();
 				VSL.Controls.AddSteering(steering);
 			}
+
 		}
 
 		#if DEBUG

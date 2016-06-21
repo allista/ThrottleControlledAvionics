@@ -334,7 +334,11 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		public void ClearFrameState()
-		{ AllModules.ForEach(m => m.ClearFrameState()); }
+		{ 
+			AllModules.ForEach(m => m.ClearFrameState()); 
+			NavigationPanel.CustomMarkersWP.Clear();
+			NavigationPanel.CustomMarkersVec.Clear();
+		}
 
 		void Update() //works both in Editor and in flight
 		{

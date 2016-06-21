@@ -109,6 +109,7 @@ namespace ThrottleControlledAvionics
 			var R = Body.Radius;
 			var thrust = true;
 			var throttle = 1.0;
+//			var alpha0 = alpha; //debug
 			while(v.x >= 0)
 			{
 				var atmF = Utils.Clamp(h/Body.atmosphereDepth, 0, 1);

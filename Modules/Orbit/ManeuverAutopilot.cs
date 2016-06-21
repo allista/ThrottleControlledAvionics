@@ -28,7 +28,6 @@ namespace ThrottleControlledAvionics
 		public ManeuverAutopilot(ModuleTCA tca) : base(tca) {}
 
 		ThrottleControl THR;
-		AttitudeControl ATC;
 
 		ManeuverNode Node;
 		PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
@@ -62,6 +61,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.On:
 				if(!VSL.HasManeuverNode) 
 				{ CFG.AP1.Off(); return; }
+				VSL.Controls.StopWarp();
 				CFG.AT.On(Attitude.ManeuverNode);
 				Node = Solver.maneuverNodes[0];
 				if(VSL.Engines.MaxDeltaV < (float)Node.DeltaV.magnitude)
@@ -96,8 +96,8 @@ namespace ThrottleControlledAvionics
 		public static void AddNode(VesselWrapper VSL, Vector3d dV, double UT)
 		{
 			var node = VSL.vessel.patchedConicSolver.AddManeuverNode(UT);
-			var norm = VSL.orbit.GetOrbitNormal().normalized;
-			var prograde = VSL.orbit.getOrbitalVelocityAtUT(UT).normalized;
+			var norm = node.patch.GetOrbitNormal().normalized;
+			var prograde = node.patch.getOrbitalVelocityAtUT(UT).normalized;
 			var radial = Vector3d.Cross(prograde, norm).normalized;
 			node.DeltaV = new Vector3d(Vector3d.Dot(dV, radial),
 			                           Vector3d.Dot(dV, norm),
@@ -115,7 +115,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
 			{
 				if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold) VSL.Controls.WarpToTime = burn-180;
-				else AlignedTimer.RunIf(() => VSL.Controls.WarpToTime = burn-ATC.AttitudeError, ATC.Aligned);
+				else AlignedTimer.RunIf(() => VSL.Controls.WarpToTime = burn-VSL.Controls.AttitudeError, VSL.Controls.Aligned);
 			}
 			VSL.Info.Countdown = burn-VSL.Physics.UT;
 			if(TimeWarp.CurrentRate > 1 || VSL.Info.Countdown > 0) return false;

@@ -13,7 +13,7 @@ using UnityEngine;
 namespace ThrottleControlledAvionics
 {
 	//adapted from MechJeb
-	public class WayPoint : ConfigNodeObject, ITargetable
+	public class WayPoint : ConfigNodeObject, ITargetable, IEquatable<WayPoint>
 	{
 		new public const string NODE_NAME = "WAYPOINT";
 
@@ -30,6 +30,9 @@ namespace ThrottleControlledAvionics
 		ITargetable target;
 		//a transform holder for simple lat-lon coordinates on the map
 		GameObject go;
+
+		public bool IsProxy { get { return target != null; } }
+		public bool IsVessel { get { return target is Vessel; } }
 
 		[Obsolete("Legacy config conversion")]
 		public override void Load(ConfigNode node)
@@ -71,10 +74,13 @@ namespace ThrottleControlledAvionics
 		public double AngleTo(Coordinates c) { return AngleTo(c.Lat, c.Lon); }
 		public double AngleTo(WayPoint wp) { return AngleTo(wp.Pos); }
 		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
+		public double AngleTo(VesselWrapper vsl) { return AngleTo(vsl.vessel.latitude, vsl.vessel.longitude); }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
-		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL.vessel)*VSL.mainBody.Radius/VSL.Geometry.R; }
+		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.mainBody.Radius/VSL.Geometry.R; }
 		public bool   CloseEnough(VesselWrapper VSL) { return RelDistanceTo(VSL)-1 < Radius; }
 		public double SurfaceAlt(CelestialBody body) { return Utils.TerrainAltitude(body, Pos.Lat, Pos.Lon); }
+		public Vector3d RelSurfPos(CelestialBody body) { return body.GetRelSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
+		public Vector3d RelOrbPos(CelestialBody body) { return RelSurfPos(body).xzy; }
 		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
 
 		public static double BearingTo(double lat1, double lat2, double dlon)
@@ -192,6 +198,9 @@ namespace ThrottleControlledAvionics
 			}
 			return target.GetTransform(); 
 		}
+
+		public bool Equals(WayPoint wp)
+		{ return wp != null && Pos.Lat.Equals(wp.Pos.Lat) && Pos.Lon.Equals(wp.Pos.Lon); }
 	}
 }
 

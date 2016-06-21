@@ -34,6 +34,8 @@ namespace ThrottleControlledAvionics
 
 		Vector3 _wCoM { get { return vessel.packed? vessel.CoM : vessel.CoM+vessel.rb_velocity*TimeWarp.fixedDeltaTime; } }
 
+		public double GeeAt(double sqrRadius) { return vessel.mainBody.gMagnitudeAtCenter/sqrRadius; }
+
 		public override void Update()
 		{
 			UT     = Planetarium.GetUniversalTime();
@@ -43,7 +45,7 @@ namespace ThrottleControlledAvionics
 			Up     = Radial.normalized;
 			UpL    = VSL.refT.InverseTransformDirection(Up);
 			M      = vessel.GetTotalMass();
-			StG    = (float)(vessel.mainBody.gMagnitudeAtCenter/Radial.sqrMagnitude);
+			StG    = (float)GeeAt(Radial.sqrMagnitude);
 			G      = Utils.ClampL(StG-(float)vessel.CentrifugalAcc.magnitude, 1e-5f);
 			mg     = M*G;
 		}

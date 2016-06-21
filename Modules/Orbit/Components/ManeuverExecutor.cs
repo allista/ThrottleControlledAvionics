@@ -27,10 +27,10 @@ namespace ThrottleControlledAvionics
 
 		public bool Execute(Vector3d dV, float MinDeltaV = 0.1f, ManeuverCondition condition = null)
 		{
+			THR.Throttle = 0;
 			dVrem.Value = dV.magnitude;
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) return false;
-			THR.Throttle = 0;
 			VSL.Engines.ActivateEngines();
 			if(VSL.Engines.MaxThrustM.Equals(0)) return true;
 			//orient along the burning vector
@@ -45,7 +45,7 @@ namespace ThrottleControlledAvionics
 			if(condition != null && !condition((float)dVrem)) return true;
 			if(VSL.Controls.TranslationAvailable)
 			{
-				if(dVrem || ATC.AttitudeError > GLB.ATCB.AttitudeErrorThreshold)
+				if(dVrem || VSL.Controls.AttitudeError > GLB.ATCB.AttitudeErrorThreshold)
 					TRA.AddDeltaV(-VSL.LocalDir(dV));
 				if(dVrem && CFG.AT[Attitude.KillRotation]) 
 				{

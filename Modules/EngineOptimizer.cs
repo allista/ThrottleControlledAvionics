@@ -189,7 +189,8 @@ namespace ThrottleControlledAvionics
 			//calculate steering
 			if(CFG.AutoTune) tune_steering_params();
 			var needed_torque = Vector3.zero;
-			Steering = VSL.Controls.Steering;
+			//tune steering if MaxAA has changed drastically
+			Steering = VSL.Controls.Steering*Mathf.Lerp(Utils.ClampH(VSL.Torque.MaxAAMod, 1), 1, VSL.Controls.InvAttitudeFactor);
 			if(Steering.sqrMagnitude >= TCAScenario.Globals.InputDeadZone)
 			{
 				//correct steering

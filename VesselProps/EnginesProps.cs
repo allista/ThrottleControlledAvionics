@@ -80,21 +80,32 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		public float TTB(float dV)
+		public float TTB(float dV, float Ve, float throttle)
 		{
 			if(MaxThrustM.Equals(0)) return float.MaxValue;
-			var throttle = ThrottleControl.NextThrottle(dV, 1, VSL);
+			if(dV.Equals(0)) return 0;
 			return CheatOptions.InfiniteFuel?
 				VSL.Physics.M*dV/MaxThrustM/throttle : 
-				PropellantNeeded(dV)/MaxMassFlow/throttle;
+				FuelNeeded(dV, Ve)/MaxMassFlow/throttle;
 		}
 
-		public float PropellantNeeded(float dV) { return VSL.Physics.M*(1-Mathf.Exp(-dV/MaxVe)); }
+		public float TTB(float dV)
+		{ return TTB(dV, MaxVe, ThrottleControl.NextThrottle(dV, 1, VSL)); }
 
-		public float MaxDeltaV
-		{ get { return MaxVe*Mathf.Log(VSL.Physics.M/(VSL.Physics.M-(float)GetAvailableFuelMass())); } }
+		public float FuelNeeded(float dV, float Ve) { return VSL.Physics.M*(1-Mathf.Exp(-dV/Ve)); }
+		public float FuelNeeded(float dV) { return FuelNeeded(dV, MaxVe); }
+
+		public float DeltaV(float Ve, float fuel_mass) { return Ve*Mathf.Log(VSL.Physics.M/(VSL.Physics.M-fuel_mass)); }
+		public float DeltaV(float fuel_mass) { return DeltaV(MaxVe, fuel_mass); }
+
+		public float MaxHoverTimeASL(float fuel_mass)
+		{ return (float)(MaxThrustM/(VSL.Physics.M-fuel_mass) / (VSL.mainBody.GeeASL*Utils.G0) * fuel_mass/MaxMassFlow); }
+
+		public float MaxDeltaV { get { return DeltaV(MaxVe, GetAvailableFuelMass()); } }
 
 		public float SuicidalBurnTime { get { return TTB(MaxDeltaV); } }
+
+		public float RelVeASL { get { return (float)(VSL.Engines.MaxThrustM - VSL.mainBody.GeeASL*Utils.G0*VSL.Physics.M)/VSL.Engines.MaxMassFlow; } }
 
 		public Vector3 NearestEnginedStageMaxThrust
 		{ get { return GetNearestEnginedStageStats().Thrust; } }
@@ -123,7 +134,7 @@ namespace ThrottleControlledAvionics
 					if(e.Role != TCARole.MANEUVER)
 					{
 						stats.Thrust += e.wThrustDir * thrust;
-						stats.MassFlow += e.engine.maxThrust*throttle/e.engine.atmosphereCurve.Evaluate((float)(e.part.staticPressureAtm))/Utils.G0;
+						stats.MassFlow += e.MaxFuelFlow*throttle;
 					}
 					if(e.isSteering) stats.TorqueLimits.Add(e.specificTorque*thrust);
 				}
@@ -201,7 +212,7 @@ namespace ThrottleControlledAvionics
 			NoActiveRCS = NumActiveRCS == 0 || 
 				VSL.Controls.Steering.sqrMagnitude < GLB.InputDeadZone && 
 				VSL.Controls.Translation.sqrMagnitude < GLB.InputDeadZone;
-			return NumActive > 0 && vessel.ctrlState.mainThrottle > 0 || !NoActiveRCS;
+			return !(NoActiveEngines && NoActiveRCS);
 		}
 
 		public void Sort()
@@ -261,13 +272,13 @@ namespace ThrottleControlledAvionics
 				if(e.Role == TCARole.MANUAL)
 				{
 					ManualThrust += e.wThrustDir*e.finalThrust;
-					ManualMassFlow += e.finalThrust/e.engine.realIsp/Utils.G0;
+					ManualMassFlow += e.RealFuelFlow;
 					ManualThrustLimits.Add(e.thrustDirection*e.nominalCurrentThrust(1));
 				}
 				if(e.isVSC)
 				{
 					MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
-					MaxMassFlow += e.engine.maxThrust/e.engine.realIsp/Utils.G0;
+					MaxMassFlow += e.MaxFuelFlow;
 					if(e.useEngineResponseTime && e.finalThrust > 0)
 					{
 						var decelT = 1f/e.engineDecelerationSpeed;
@@ -280,13 +291,13 @@ namespace ThrottleControlledAvionics
 					total_torque += torque;
 					TorqueResponseTime += torque*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed);
 				}
-				MassFlow += e.engine.requestedMassFlow*e.engine.propellantReqMet/100;
+				MassFlow += e.RealFuelFlow;
 			}
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
 			if(TorqueResponseTime > 0) TorqueResponseTime = total_torque/TorqueResponseTime;
-			MaxVe = MaxThrustM/MaxMassFlow;
 			SlowTorque = TorqueResponseTime > 0;
 			MaxThrustM = MaxThrust.magnitude;
+			MaxVe = MaxThrustM/MaxMassFlow;
 			//init RCS wrappers and calculate MaxThrust taking torque imbalance into account
 			MaxThrustRCS = new Vector6();
 			var RCSThrusImbalance = new Vector3[6];
@@ -352,7 +363,7 @@ namespace ThrottleControlledAvionics
 					var e = Active[i];
 					if(e.isVSC)
 					{
-						e.VSF *= VSL.OnPlanetParams.VSF;
+						if(e.VSF.Equals(1)) e.VSF = VSL.OnPlanetParams.VSF;
 						e.throttle = e.VSF * vessel.ctrlState.mainThrottle;
 					}
 					else 
@@ -456,7 +467,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		double GetAvailableFuelMass()
+		public float GetAvailableFuelMass()
 		{
 			double fuel_mass = 0;
 			var available_resources = new List<PartResource>();
@@ -469,7 +480,7 @@ namespace ThrottleControlledAvionics
 				if(added_resources.Add(r))
 					fuel_mass += r.amount * r.info.density;
 			}
-			return fuel_mass;
+			return (float)fuel_mass;
 		}
 	}
 }

@@ -51,20 +51,9 @@ namespace ThrottleControlledAvionics
 		public static void LockEditor(string LockName, bool Lock=true)
 		{
 			if(Lock && InputLockManager.GetControlLock(LockName) != ControlTypes.EDITOR_LOCK)
-			{
-				#if DEBUG
-				Log("AddingLock: {0}", LockName);
-				#endif
 				InputLockManager.SetControlLock(ControlTypes.EDITOR_LOCK, LockName);
-				return;
-			}
-			if(!Lock && InputLockManager.GetControlLock(LockName) == ControlTypes.EDITOR_LOCK) 
-			{
-				#if DEBUG
-				Log("RemovingLock: {0}", LockName);
-				#endif
+			else if(!Lock && InputLockManager.GetControlLock(LockName) == ControlTypes.EDITOR_LOCK) 
 				InputLockManager.RemoveControlLock(LockName);
-			}
 		}
 
 		public static void LockIfMouseOver(string LockName, Rect WindowRect, bool Lock=true)

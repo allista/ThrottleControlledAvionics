@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float StartOffset = 60f;   //s
 			[Persistent] public float StartPeR    = 0.49f; //of planet radius
 			[Persistent] public float AtmosphereF = 0.2f;  //kg/m3
+			[Persistent] public float MaxRelInclination = 5f;  //deg
 		}
 		static Config DEO { get { return TCAScenario.Globals.DEO; } }
 
@@ -36,7 +37,7 @@ namespace ThrottleControlledAvionics
 			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
 		}
 
-		public enum Stage { None, Compute, Deorbit, Correct, Coast, Wait }
+		public enum Stage { None, PlaneCorrection, Compute, Deorbit, Correct, Coast, Wait }
 		[Persistent] public Stage stage;
 		double current_PeR;
 
@@ -80,6 +81,19 @@ namespace ThrottleControlledAvionics
 			                             StartUT, CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
+		protected LandingTrajectory plane_correction(LandingTrajectory old, LandingTrajectory best, ref double rotation, double StartUT)
+		{
+			if(old != null) 
+			{
+				double ttr;
+				rotation += RelativeInclinationAtResonance(old.NewOrbit, CFG.Target.RelOrbPos(Body), old.StartUT, out ttr);
+				StartUT = Math.Max(old.StartUT, VSL.Physics.UT+LTRJ.CorrectionOffset);
+			}
+			return new LandingTrajectory(VSL, QuaternionD.AngleAxis(rotation, VesselOrbit.getRelativePositionAtUT(StartUT)) * 
+			                             VesselOrbit.getRelativePositionAtUT(StartUT), 
+			                             StartUT, CFG.Target);
+		}
+
 		void compute_landing_trajectory()
 		{
 			trajectory = null;
@@ -97,6 +111,19 @@ namespace ThrottleControlledAvionics
 			setup_calculation((o, b) => horizontal_correction(o, b, ref NodeDeltaV, LTRJ.CorrectionOffset));
 		}
 
+		void correct_orbit_plane(double start_offset)
+		{
+			trajectory = null;
+			stage = Stage.PlaneCorrection;
+			double rotation = 0;
+			setup_calculation((o, b) => plane_correction(o, b, ref rotation, VSL.Physics.UT+start_offset));
+		}
+
+		protected bool plane_is_better(LandingTrajectory first, LandingTrajectory second)
+		{
+			return false;
+		}
+
 		protected override void reset()
 		{
 			base.reset();
@@ -110,7 +137,12 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				RegisterTo<Radar>();
+//				Utils.LogF("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
+				NeedRadarWhenMooving();
+				if(stage == Stage.None && !landing) 
+					goto case Multiplexer.Command.On;
+				else if(VSL.HasManeuverNode) 
+					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
 				break;
 
 			case Multiplexer.Command.On:
@@ -130,7 +162,16 @@ namespace ThrottleControlledAvionics
 					current_PeR = DEO.StartPeR * 
 						Utils.ClampH(DEO.AtmosphereF/Body.atmDensityASL, 1) *
 						Utils.ClampH(VSL.Engines.MaxThrustM/VSL.Physics.M/Body.GeeASL/Utils.G0, 1);
-					compute_landing_trajectory();
+					//calculate orbit inclination relative to target
+					double ttr;
+					var rinc = RelativeInclinationAtResonance(VesselOrbit, CFG.Target.RelOrbPos(Body), VSL.Physics.UT, out ttr);
+					if(rinc < DEO.MaxRelInclination) compute_landing_trajectory();
+					else 
+					{
+						if(ttr > VesselOrbit.period/2)
+							correct_orbit_plane(Utils.ClampL(ttr-VesselOrbit.period/2, LTRJ.CorrectionOffset));
+						else correct_orbit_plane(LTRJ.CorrectionOffset);
+					}
 				}
 				goto case Multiplexer.Command.Resume;
 
@@ -145,13 +186,13 @@ namespace ThrottleControlledAvionics
 		{
 			base.UpdateState();
 			IsActive &= CFG.AP2[Autopilot2.Deorbit];
-			var tVSL = VSL.TargetVessel;
-			ControlsActive = IsActive || !VSL.LandedOrSplashed && (tVSL != null && tVSL.LandedOrSplashed || VSL.Target is WayPoint);
+			ControlsActive = IsActive || 
+				!VSL.LandedOrSplashed && (VSL.Target is WayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
 		}
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
+			if(!IsActive) { CFG.AP2.OffIfOn(Autopilot2.Deorbit); return; }
 			if(landing) { do_land(); return; }
 			switch(stage)
 			{
@@ -186,15 +227,15 @@ namespace ThrottleControlledAvionics
 				fine_tune_approach();
 				break;
 			case Stage.Correct:
-				Status("Correcting trajectory...");
 				if(!trajectory_computed()) break;
-				clear_nodes(); add_trajectory_node();
-				CFG.AP1.OnIfNot(Autopilot1.Maneuver);
+				add_correction_node_if_needed();
 				stage = Stage.Coast; 
 				break;
 			case Stage.Coast:
-				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				Status("Coasting to final deceleration burn...");
+				if(CFG.AP1[Autopilot1.Maneuver]) 
+				{ Status("Correcting trajectory..."); break; }
+				Status("Coasting to deceleration burn...");
+				update_trajectory();
 				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-DEO.StartOffset;
 				if(VSL.Info.Countdown > 0 && !correct_trajectory()) break;
 				stage = Stage.None;

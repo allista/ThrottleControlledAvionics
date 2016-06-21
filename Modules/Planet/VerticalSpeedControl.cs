@@ -121,10 +121,9 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-			GUILayout.Label(string.Format("Vertical Speed: {0:0.00m/s}", VSL.VerticalSpeed.Display), GUILayout.Width(190));
-			GUILayout.Label("Set Point: " + (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
-			                                         CFG.VerticalCutoff.ToString("0.0m/s") : "OFF"), 
-			                        GUILayout.ExpandWidth(false));
+//			GUILayout.Label(string.Format("Vertical Speed: {0:0.00m/s}", VSL.VerticalSpeed.Display), Styles.boxed_label,  GUILayout.Width(190));
+			GUILayout.Label(new GUIContent(string.Format("V.Spd. {0}", (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? CFG.VerticalCutoff.ToString("0.0m/s") : "OFF")), 
+			                               "Desired vertical speed"), GUILayout.ExpandWidth(false));
 			var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, 
 			                                             -GLB.VSC.MaxSpeed, 
 			                                             GLB.VSC.MaxSpeed);

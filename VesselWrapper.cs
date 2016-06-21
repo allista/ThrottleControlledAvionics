@@ -53,7 +53,17 @@ namespace ThrottleControlledAvionics
 		public ITargetable Target { get { return vessel.targetObject; } set { vessel.targetObject = value; } }
 		public Vessel TargetVessel { get { return vessel.targetObject == null? null : vessel.targetObject.GetVessel(); } }
 		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
-		public bool HasManeuverNode { get { return vessel.patchedConicSolver != null && vessel.patchedConicSolver.maneuverNodes.Count > 0; } }
+		public bool HasManeuverNode 
+		{ 
+			get 
+			{ 
+				return vessel.patchedConicSolver != null && 
+					vessel.patchedConicSolver.maneuverNodes.Count > 0 && 
+					vessel.patchedConicSolver.maneuverNodes[0] != null; 
+			} 
+		}
+		public ManeuverNode FirstManeuverNode { get { return vessel.patchedConicSolver.maneuverNodes[0]; } }
+
 		public Vessel.Situations Situation { get { return vessel.situation; } }
 
 		#if DEBUG
@@ -164,6 +174,7 @@ namespace ThrottleControlledAvionics
 		public void UpdateAutopilotInfo(FlightCtrlState s)
 		{
 			if(!CFG.Enabled) return;
+			Controls.GimbalLimit = 100;
 			HasUserInput = 
 				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
 				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||

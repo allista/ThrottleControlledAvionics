@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
 		[Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
 		[Persistent] public AttitudeControlBase.Config       ATCB = new AttitudeControlBase.Config();
-//		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
+		[Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
 		[Persistent] public BearingControl.Config            BRC = new BearingControl.Config();
 		[Persistent] public ThrustDirectionControl.Config    TDC = new ThrustDirectionControl.Config();
 		[Persistent] public HorizontalSpeedControl.Config    HSC = new HorizontalSpeedControl.Config();
@@ -134,8 +134,11 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float   VerticalCutoff; //desired positive vertical speed m/s (configurable)
 		[Persistent] public bool    BlockThrottle;
 		[Persistent] public float   ControlSensitivity = 0.01f;
+
 		public bool VSCIsActive { get { return VF || VerticalCutoff < TCAScenario.Globals.VSC.MaxSpeed; } }
 		public void DisableVSC() { VF.Off(); VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed; BlockThrottle = false; }
+		public void SmoothSetVSC(float spd) { VerticalCutoff = Mathf.Lerp(VerticalCutoff, spd, TimeWarp.fixedDeltaTime); }
+		public void SmoothSetVSC(float spd, float min, float max) { VerticalCutoff = Utils.Clamp(Mathf.Lerp(VerticalCutoff, spd, TimeWarp.fixedDeltaTime), min, max); }
 		//steering
 		[Persistent] public Multiplexer<ControlMode> CTRL = new Multiplexer<ControlMode>();
 		[Persistent] public uint    ControlTransform = 0;

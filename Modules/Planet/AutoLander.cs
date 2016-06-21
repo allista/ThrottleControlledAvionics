@@ -37,6 +37,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float StopAtH              = 2;
 			[Persistent] public float StopTimer            = 2;
 			[Persistent] public float CutoffTimer          = 2;
+			[Persistent] public int   RaysPerFrame         = 5;
 
 			public float MaxStartAltitude;
 
@@ -49,7 +50,7 @@ namespace ThrottleControlledAvionics
 		static Config LND { get { return TCAScenario.Globals.LND; } }
 
 		static int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery") | 1 << LayerMask.NameToLayer("Parts") | 1);
-		enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, Land }
+		enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, StartLanding, Land }
 
 		Stage stage;
 		IEnumerator scanner;
@@ -61,7 +62,6 @@ namespace ThrottleControlledAvionics
 		Vector3 right, fwd, up, down, dir, sdir, anchor;
 		float MaxDistance, delta;
 		float DesiredAltitude;
-		bool landing_started;
 		readonly Timer StopTimer = new Timer();
 		readonly Timer CutoffTimer = new Timer();
 
@@ -95,13 +95,12 @@ namespace ThrottleControlledAvionics
 			Nodes = null;
 			StopTimer.Reset();
 			CutoffTimer.Reset();
-			landing_started = false;
 
 			switch(cmd)
 			{
 			case Multiplexer.Command.On:
 			case Multiplexer.Command.Resume:
-				if(VSL.LandedOrSplashed) { CFG.AP1.OffIfOn(Autopilot1.Land); break; }
+				if(VSL.LandedOrSplashed) { CFG.AP1.Off(); break; }
 				CFG.HF.On(HFlight.Stop);
 				DesiredAltitude = 0;
 				TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
@@ -148,6 +147,7 @@ namespace ThrottleControlledAvionics
 			//job progress
 			total_rays = bside*bside+side*side+1;
 			done_rays = 0;
+			var frame_rays = 0;
 //			Utils.Log("Scanning Surface: {0}x{0} -> {1}x{1}", bside, side);//debug
 			yield return null;
 			//cast the rays
@@ -159,7 +159,12 @@ namespace ThrottleControlledAvionics
 					dir = (sdir+right*(i-center)*delta+fwd*(j-center)*delta).normalized;
 					Nodes[i,j] = get_surface_node(delta/2);
 					done_rays++;
-					yield return null;
+					frame_rays++;
+					if(frame_rays >= LND.RaysPerFrame)
+					{
+						frame_rays = 0;
+						yield return null;
+					}
 				}
 			//compute unevenness
 			for(int i = 1; i <= side; i++)
@@ -175,7 +180,12 @@ namespace ThrottleControlledAvionics
 							n.UpdateUnevenness(n1);
 						}
 					done_rays++;
-					yield return null;
+					frame_rays++;
+					if(frame_rays >= LND.RaysPerFrame)
+					{
+						frame_rays = 0;
+						yield return null;
+					}
 				}
 			if(lvl > 1)
 			{
@@ -222,15 +232,14 @@ namespace ThrottleControlledAvionics
 		void set_initial_altitude()
 		{
 			VSL.Altitude.Update();
-			DesiredAltitude = Mathf.Max(VSL.Altitude+VSL.VerticalSpeed.Absolute, 
-			                            VSL.Altitude.TerrainAltitude+VSL.Geometry.H*2);
+			DesiredAltitude = Mathf.Max(VSL.Altitude.Relative+VSL.VerticalSpeed.Absolute*3, VSL.Geometry.H*2);
+			DesiredAltitude = Mathf.Min(DesiredAltitude, LND.MaxStartAltitude);
 		}
 
 		bool altitude_changed
 		{
 			get
 			{
-				CFG.AltitudeAboveTerrain = true;
 				if(DesiredAltitude <= 0) set_initial_altitude();
 				CFG.DesiredAltitude = DesiredAltitude;
 				var err = Mathf.Abs(VSL.Altitude-DesiredAltitude);
@@ -242,7 +251,7 @@ namespace ThrottleControlledAvionics
 				else if(err < 5)
 				{
 					CFG.VF.OffIfOn(VFlight.AltitudeControl);
-					CFG.VerticalCutoff = 0;
+					CFG.SmoothSetVSC(0);
 				}
 				return Mathf.Abs(VSL.VerticalSpeed.Absolute) < LND.MinVerticalSpeed;
 			}
@@ -274,7 +283,6 @@ namespace ThrottleControlledAvionics
 		{
 			get
 			{
-				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
 				if(CFG.Anchor == null) { CFG.AP1.Off(); return false; }
 				if(CFG.Anchor.CloseEnough(VSL))
@@ -288,7 +296,7 @@ namespace ThrottleControlledAvionics
 					else return true;
 				}
 				else if(!CFG.Nav[Navigation.Anchor] && 
-				        (!CFG.Nav[Navigation.GoToTarget] || VSL.Target != CFG.Anchor))
+				        (!CFG.Nav[Navigation.GoToTarget] || !VSL.Target.Equals(CFG.Anchor)))
 				{
 					SetTarget(CFG.Anchor);
 					CFG.Nav.On(Navigation.GoToTarget);
@@ -299,7 +307,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		float distance_to_node(SurfaceNode n)
-		{ return Vector3.ProjectOnPlane(n.position-VSL.Physics.wCoM, VSL.Physics.Up).magnitude; }
+		{ return Vector3.ProjectOnPlane(n.position-VSL.Physics.wCoM, VSL.Physics.Up).magnitude/VSL.Geometry.R; }
 
 		void wide_check(float delta_alt = 0)
 		{
@@ -308,8 +316,9 @@ namespace ThrottleControlledAvionics
 			DesiredAltitude += delta_alt;
 			if(DesiredAltitude > LND.MaxWideCheckAltitude)
 			{
-				Status("red", "Unable to find suitale place for landing.");
+				Utils.LogF("DesiredAlt {}", DesiredAltitude);
 				CFG.AP1.Off();
+				Status("red", "Unable to find suitale place for landing.");
 			}
 			else stage = Stage.WideCheck;
 		}
@@ -329,6 +338,7 @@ namespace ThrottleControlledAvionics
 			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(NextNode.position),
 			                          VSL.mainBody.GetLongitude(NextNode.position));
 			CFG.Anchor.Radius = LND.NodeTargetRange;
+			CFG.Target = CFG.Anchor;
 			stage = Stage.MoveNext;
 		}
 
@@ -338,8 +348,9 @@ namespace ThrottleControlledAvionics
 			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(c.position),
 			                          VSL.mainBody.GetLongitude(c.position));
 			CFG.Anchor.Radius = LND.NodeTargetRange;
+			CFG.Target = CFG.Anchor;
 			CFG.Nav.OnIfNot(Navigation.Anchor);
-			DesiredAltitude = LND.GearOnAtH+VSL.Geometry.H;
+			DesiredAltitude = VSL.Geometry.H*LND.GearOnAtH;
 			stage = Stage.Land;
 		}
 
@@ -354,14 +365,16 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(!IsActive || CFG.AP1.Paused) return;
+			CFG.AltitudeAboveTerrain = true;
+			CFG.BlockThrottle = true;
 			switch(stage)
 			{
 			case Stage.None:
-				CFG.AltitudeAboveTerrain = true;
 				CFG.VF.OnIfNot(VFlight.AltitudeControl);
+				Status("Preparing for landing sequence...");
 				//here we just need the altitude control to prevent smashing into something while stopping
 				if(DesiredAltitude <= 0) set_initial_altitude();
-				if(stopped && VSL.Altitude < LND.MaxStartAltitude+10) 
+				if(stopped) 
 				{
 					set_initial_altitude();
 					CFG.DesiredAltitude = DesiredAltitude;
@@ -410,23 +423,23 @@ namespace ThrottleControlledAvionics
 				if(NextNode.flat) stage = Stage.PointCheck;
 				else wide_check();
 				break;
-			case Stage.Land:
+			case Stage.StartLanding:
 				Status("lime", "Landing...");
-				if(!landing_started)
-				{
-					landing_started = true;
-					apply_cfg(cfg => cfg.AP1.XOnIfNot(Autopilot1.Land));
-				}
+				DesiredAltitude = VSL.Geometry.H*LND.GearOnAtH;
+				apply_cfg(cfg => cfg.AP1.XOnIfNot(Autopilot1.Land));
+				stage = Stage.Land;
+				break;
+			case Stage.Land:
+				CFG.VTOLAssistON = true;
+				if(CFG.AutoGear) Status("lime", "Landing...");
+				else Status("yellow", "Landing. Autodeployment of landing gear is disabled.");
 				if(DesiredAltitude > 0)
 				{
-					CFG.Nav.OnIfNot(Navigation.Anchor);
-					DesiredAltitude = VSL.Geometry.H*LND.GearOnAtH;
 					CFG.DesiredAltitude = DesiredAltitude;
+					CFG.Nav.OnIfNot(Navigation.Anchor);
 					CFG.VF.OnIfNot(VFlight.AltitudeControl);
-					if(VSL.Altitude-DesiredAltitude > 5 &&
-					   VSL.VerticalSpeed.Absolute < -1) break;
-					CFG.VTOLAssistON = true;
-					CFG.VerticalCutoff = -0.5f;
+					if(VSL.Altitude-DesiredAltitude > 5 || VSL.VerticalSpeed.Absolute < -1) break;
+					CFG.VerticalCutoff = VSL.OnPlanetParams.SlowThrust? -0.5f : -1f;
 					DesiredAltitude = -10;
 				}
 				CFG.VF.Off();
@@ -442,8 +455,7 @@ namespace ThrottleControlledAvionics
 					if(VSL.Altitude > LND.StopAtH*VSL.Geometry.H)
 						CFG.Nav.OnIfNot(Navigation.Anchor);
 					else CFG.HF.OnIfNot(HFlight.Stop);
-					set_VSpeed((VSL.OnPlanetParams.SlowThrust? -0.5f : -1f)
-					           *Utils.ClampL(1-VSL.HorizontalSpeed, 0.1f));
+					CFG.SmoothSetVSC((VSL.OnPlanetParams.SlowThrust? -0.5f : -1f)*Utils.ClampL(1-VSL.HorizontalSpeed, 0.1f), -1, 0);
 				}
 				CutoffTimer.Reset();
 				break;
@@ -452,9 +464,6 @@ namespace ThrottleControlledAvionics
 				break;
 			}
 		}
-
-		void set_VSpeed(float val)
-		{ CFG.VerticalCutoff = Mathf.Lerp(CFG.VerticalCutoff, val, TimeWarp.fixedDeltaTime); }
 
 		#if DEBUG
 		public void RadarBeam()

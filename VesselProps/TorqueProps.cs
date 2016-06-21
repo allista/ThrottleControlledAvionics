@@ -45,6 +45,9 @@ namespace ThrottleControlledAvionics
 		public float AngularAccelerationInDirection(Vector3 dir)
 		{ return Mathf.Abs(Vector3.Dot(VSL.Torque.MaxAngularA, dir)); }
 
+		public bool HavePotentialControlAuthority
+		{ get { return AngularAcceleration(MaxTorquePossible).magnitude > Utils.TwoPI; } }
+
 		public override void Update()
 		{
 			//engines

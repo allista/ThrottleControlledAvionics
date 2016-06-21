@@ -39,8 +39,10 @@ namespace ThrottleControlledAvionics
 
 		public RendezvousAutopilot(ModuleTCA tca) : base(tca) {}
 
-		AttitudeControl ATC;
 		ThrottleControl THR;
+
+		protected override RendezvousTrajectory CurrentTrajectory
+		{ get { return new RendezvousTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, MinPeR); } }
 
 		public enum Stage { None, Start, Launch, ToOrbit, StartOrbit, ComputeRendezvou, Rendezvou, MatchOrbits, Approach, Brake }
 		[Persistent] public Stage stage;
@@ -51,8 +53,6 @@ namespace ThrottleControlledAvionics
 		Vector3d ToOrbitIniApV;
 
 		double CurrentDistance = -1;
-		RendezvousTrajectory CurrentTrajectory 
-		{ get { return new RendezvousTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, MinPeR); } }
 		Orbit TargetOrbit { get { return CFG.Target.GetOrbit(); } }
 		Vessel TargetVessel { get { return CFG.Target.GetVessel(); } }
 
@@ -81,9 +81,11 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				RegisterTo<Radar>();
+//				LogFST("Resuming: stage {}", stage);//debug
+				NeedRadarWhenMooving();
 				switch(stage)
 				{
+				case Stage.None:
 				case Stage.ComputeRendezvou:
 					stage = Stage.Start;
 					break;
@@ -95,6 +97,8 @@ namespace ThrottleControlledAvionics
 					resume_to_orbit();
 					break;
 				}
+				if(VSL.HasManeuverNode) 
+					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
 				break;
 
 			case Multiplexer.Command.On:
@@ -109,6 +113,7 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
+				SetTarget(); 
 				reset();
 				break;
 			}
@@ -327,11 +332,10 @@ namespace ThrottleControlledAvionics
 			else CFG.AP1.On(Autopilot1.MatchVel);
 		}
 
-		void update_trajectory(bool update_distance=true)
+		protected override void update_trajectory()
 		{
-			if(trajectory == null) trajectory = CurrentTrajectory;
-			else trajectory.UpdateOrbit(VesselOrbit);
-			if(update_distance) CurrentDistance = trajectory.DistanceToTarget;
+			base.update_trajectory();
+			CurrentDistance = trajectory.DistanceToTarget;
 		}
 
 		protected override void reset()
@@ -364,7 +368,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
+			if(!IsActive) { CFG.AP2.OffIfOn(Autopilot2.Rendezvous); return; }
 			switch(stage)
 			{
 			case Stage.Start:
@@ -412,8 +416,8 @@ namespace ThrottleControlledAvionics
 			case Stage.StartOrbit:
 //				log_flight();//debug
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
+				update_trajectory();
 				CurrentDistance = -1;
-				update_trajectory(false);
 				if(trajectory.DistanceToTarget < REN.CorrectionStart ||
 				   (trajectory.TimeToTarget+trajectory.TimeToStart)/VesselOrbit.period > REN.MaxTTR) 
 					stage = Stage.Rendezvou;
@@ -466,7 +470,7 @@ namespace ThrottleControlledAvionics
 				var dPm = dP.magnitude;
 				if(dPm - VSL.Geometry.R - TargetVessel.Radius() < REN.Dtol) 
 				{ brake(); break; }
-				if(ATC.AttitudeError > 1) break;
+				if(VSL.Controls.AttitudeError > 1) break;
 				var dV = Vector3d.Dot(VesselOrbit.vel-TargetOrbit.vel, dP/dPm);
 				var nV = Utils.Clamp(dPm*REN.ApproachVelF, 1, REN.MaxApproachV);
 				if(dV+GLB.THR.MinDeltaV < nV) 
@@ -497,18 +501,18 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			#if DEBUG
-			if(CFG.Target != null && Body != null && TargetOrbit != null)
-			{
-				if(ToOrbit != null)
-				{
-					GLUtils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
-					GLUtils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
-					GLUtils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).xzy, Color.yellow);
-				}
-				else GLUtils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.yellow);
-				GLUtils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
-				GLUtils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
-			}
+//			if(CFG.Target != null && Body != null && TargetOrbit != null)
+//			{
+//				if(ToOrbit != null)
+//				{
+//					GLUtils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
+//					GLUtils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
+//					GLUtils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).xzy, Color.yellow);
+//				}
+//				else GLUtils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.yellow);
+//				GLUtils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
+//				GLUtils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
+//			}
 			#endif
 			if(ControlsActive)
 			{

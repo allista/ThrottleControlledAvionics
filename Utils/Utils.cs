@@ -30,6 +30,36 @@ namespace ThrottleControlledAvionics
 		static Regex CCR = new Regex(CamelCaseRegexp);
 		public static string ParseCamelCase(string s) { return CCR.Replace(s, "$1 "); }
 
+		public static string FormatVeryBigValue(float value, string unit, string format = "F1")
+		{
+			string mod = "";
+			if(value > 1e24) { value /= 1e24f; mod = "Y"; }
+			else if(value > 1e21) { value /= 1e21f; mod = "Z"; }
+			else if(value > 1e18) { value /= 1e18f; mod = "E"; }
+			else if(value > 1e15) { value /= 1e15f; mod = "P"; }
+			else if(value > 1e12) { value /= 1e12f; mod = "T"; }
+			else return FormatBigValue(value, unit, format);
+			return value.ToString(format)+mod+unit;
+		}
+
+		public static string FormatBigValue(float value, string unit, string format = "F1")
+		{
+			string mod = "";
+			if     (value > 1e9) { value /= 1e9f; mod = "G"; }
+			else if(value > 1e6) { value /= 1e6f; mod = "M"; }
+			else if(value > 1e3) { value /= 1e3f; mod = "k"; }
+			return value.ToString(format)+mod+unit;
+		}
+
+		public static string FormatSmallValue(float value, string unit, string format = "F1")
+		{
+			string mod = "";
+			if(value > 1e-3) { value *= 1e3f; mod = "m"; }
+			else if(value > 1e-6) { value *= 1e6f; mod = "μ"; }
+			else if(value > 1e-9) { value *= 1e9f; mod = "n"; }
+			return value.ToString(format)+mod+unit;
+		}
+
 		#region Logging
 		public static string Format(string s, params object[] args)
 		{
@@ -188,6 +218,9 @@ namespace ThrottleControlledAvionics
 			return Math.Atan2(Bt, Ba)*Mathf.Rad2Deg;
 		}
 
+		public static double ClampedProjectionAngle(Vector3d A, Vector3d B, Vector3d tangentA)
+		{ return ClampAngle(ProjectionAngle(A, B, tangentA)); }
+
 		public static float EWA(float old, float cur, float ratio = 0.7f)
 		{ return (1-ratio)*old + ratio*cur; }
 
@@ -224,12 +257,6 @@ namespace ThrottleControlledAvionics
 			edges[7] = new Vector3(max.x, max.y, max.z); //right-top-front
 			return edges;
 		}
-
-		public static string DistanceToStr(double d)
-		{
-			var k = d/1000;
-			return k < 1? string.Format("{0:F0}m", d) : string.Format("{0:F1}km", k);
-		}			
 
 		public static double TerrainAltitude(CelestialBody body, double Lat, double Lon)
 		{

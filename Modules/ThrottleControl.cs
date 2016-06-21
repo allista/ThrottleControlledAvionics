@@ -25,8 +25,6 @@ namespace ThrottleControlledAvionics
 		static Config THR { get { return TCAScenario.Globals.THR; } }
 		public ThrottleControl(ModuleTCA tca) : base(tca) {}
 
-		AttitudeControl ATC;
-
 		public float Throttle = -1;
 		public float DeltaV = -1;
 
@@ -62,12 +60,8 @@ namespace ThrottleControlledAvionics
 			if(!CFG.Enabled) return;
 			if(DeltaV >= 0)
 			{
-				if(DeltaV >= THR.MinDeltaV)
-				{
-					Throttle = NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) *
-						(ATC == null? 1f : ATC.AttitudeFactor);
-				}
-				else Throttle = 0;
+				Throttle = DeltaV < THR.MinDeltaV? Throttle = 0 :
+					NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) * VSL.Controls.AttitudeFactor;
 			}
 			if(Throttle >= 0) 
 			{ 

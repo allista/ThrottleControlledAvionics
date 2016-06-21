@@ -125,7 +125,7 @@ ATCB
 	}
 	
 	MinAAf         = 0.2
-	MaxAAf         = 1
+	MaxAAf         = 2
 	AngularMf      = 0.001
 	InertiaFactor  = 10
 	MoIFactor      = 0.01
@@ -137,7 +137,12 @@ ATCB
 	AngleThreshold = 60         //deg
 	MaxAttitudeError = 10       //deg
 	AttitudeErrorThreshold = 3  //deg
-	MaxTimeToAlignment     = 15 //s
+	MaxTimeToAlignment = 15 //s
+}
+
+ATC
+{
+	RollFilter = 0.5
 }
 
 TDC
@@ -166,6 +171,7 @@ HSC
 	AccelerationFactor = 1
 	MinHvThreshold     = 10
 	HVCurve            = 1.5
+	MinHVCurve         = 0.5
 	SlowTorqueF        = 1
 	LowPassF           = 0.1
 	CorrectionWeight   = 100
@@ -239,19 +245,19 @@ PN
 
 LND
 {
-	MaxUnevenness        = 0.3
+	MaxUnevenness        = 0.35
 	UnevennessThreshold  = 0.6
 	MaxHorizontalTime    = 2
-	MinVerticalSpeed     = 1
+	MinVerticalSpeed     = 5
 	WideCheckAltitude    = 100
 	MaxWideCheckAltitude = 1000
 	WideCheckLevel       = 7
-	NodeTargetRange      = 50
-	NodeAnchorRange      = 5
+	NodeTargetRange      = 1
 	GearOnAtH            = 5
 	StopAtH              = 2
 	StopTimer            = 1
 	CutoffTimer          = 1
+	RaysPerFrame         = 5
 }
 
 RAD
@@ -363,12 +369,14 @@ LTRJ
 	Dtol               = 100  //m
 	FlyOverAlt         = 1000 //m
 	ApproachAlt        = 250  //m
-	BrakeEndSpeed      = 30   //m/s
+	BrakeEndSpeed      = 5    //m/s
+	MinBrakeOffset     = 10   //s
+	FinalBrakeOffset   = 3    //s
 	CorrectionOffset   = 20   //s
-	CorrectionTimer    = 10   //s
-	LowPassF           = 1    //s
+	CorrectionTimer    = 30   //s
+	CorrectionMinDv    = 1    //m/s
 	ObstacleBrakeF     = 1.1
-	TerminalVelocityThreshold = 10
+	HoverTimeThreshold = 60   //s
 }
 
 DEO

@@ -50,23 +50,7 @@ namespace ThrottleControlledAvionics
 		protected Vector3 angularV;
 		protected Vector3 angularM;
 		protected float AAf, Ef, PIf;
-
-		public float AttitudeError { get; private set; }
-		public bool  Aligned { get; private set; }
-		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/ATCB.MaxAttitudeError, 0); } }
-		readonly DifferentialF ErrorDif = new DifferentialF();
-
-		protected Vector3 current_thrust 
-		{
-			get
-			{
-				var thrust = VSL.Engines.Thrust;
-				if(thrust.IsZero()) thrust =  VSL.Engines.MaxThrust;
-				if(thrust.IsZero()) thrust =  VSL.Engines.NearestEnginedStageMaxThrust;
-				if(thrust.IsZero()) thrust = -VSL.Controls.Transform.up;
-				return thrust;
-			}
-		}
+		protected readonly DifferentialF ErrorDif = new DifferentialF();
 
 		protected Vector3 fwd_axis
 		{ get { return VSL.OnPlanetParams.NoseUp? VSL.Controls.Transform.forward : VSL.Controls.Transform.up; } }
@@ -94,10 +78,9 @@ namespace ThrottleControlledAvionics
 			steering_pid.Reset();
 			AAf_filter.Reset();
 			AAf_filter.Tau = 0;
-			VSL.Controls.GimbalLimit = 100;
 			VSL.Controls.HaveControlAuthority = true;
-			AttitudeError = 180;
-			Aligned = false;
+			VSL.Controls.AttitudeError = 180;
+			VSL.Controls.Aligned = false;
 		}
 
 		protected static Vector3 rotation2steering(Quaternion rotation)
@@ -166,9 +149,9 @@ namespace ThrottleControlledAvionics
 		{
 			//calculate attitude error and Aligned state
 			var steering_m = steering.magnitude;
-			AttitudeError = steering_m*Mathf.Rad2Deg;
-			Aligned &= AttitudeError < ATCB.MaxAttitudeError;
-			Aligned |= AttitudeError < ATCB.AttitudeErrorThreshold;
+			VSL.Controls.AttitudeError = steering_m*Mathf.Rad2Deg;
+			VSL.Controls.Aligned &= VSL.Controls.AttitudeError < ATCB.MaxAttitudeError;
+			VSL.Controls.Aligned |= VSL.Controls.AttitudeError < ATCB.AttitudeErrorThreshold;
 			Ef = Utils.Clamp(steering_m/Mathf.PI, ATCB.MinEf, 1);
 			//tune lowpass filter
 			AAf_filter.Tau = (1-Mathf.Sqrt(Ef))*ATCB.AALowPassF;
@@ -206,14 +189,19 @@ namespace ThrottleControlledAvionics
 
 		protected void set_authority_flag()
 		{
-			ErrorDif.Update(AttitudeError);
+			ErrorDif.Update(VSL.Controls.AttitudeError);
 			if(ErrorDif.MaxOrder < 1) return;
-			if(VSL.Controls.HaveControlAuthority && AttitudeError > ATCB.MaxAttitudeError && ErrorDif[1] >= 0)
+			var max_alignment_time = VSL.Info.Countdown > 0? 
+				Math.Min(VSL.Info.Countdown, ATCB.MaxTimeToAlignment) : 
+				ATCB.MaxTimeToAlignment;
+			if(VSL.Controls.HaveControlAuthority && 
+			   VSL.Controls.AttitudeError > ATCB.MaxAttitudeError && 
+			   (ErrorDif[1] >= 0 || VSL.Controls.AttitudeError*Mathf.Deg2Rad/ErrorDif[1] < -max_alignment_time))
 				VSL.Controls.HaveControlAuthority = !AuthorityTimer.Check;
 			else if(!VSL.Controls.HaveControlAuthority && 
-			        (AttitudeError < ATCB.AttitudeErrorThreshold || 
-			         AttitudeError < ATCB.MaxAttitudeError*2 && ErrorDif[1] < 0 && 
-			         AttitudeError/ErrorDif[1]*Mathf.Deg2Rad > -ATCB.MaxTimeToAlignment))
+			        (VSL.Controls.AttitudeError < ATCB.AttitudeErrorThreshold || 
+			         VSL.Controls.AttitudeError < ATCB.MaxAttitudeError*2 && ErrorDif[1] < 0 && 
+			         VSL.Controls.AttitudeError*Mathf.Deg2Rad/ErrorDif[1] > -max_alignment_time))
 				VSL.Controls.HaveControlAuthority = AuthorityTimer.Check;
 			else AuthorityTimer.Reset();
 		}
@@ -224,6 +212,12 @@ namespace ThrottleControlledAvionics
 	[OptionalModules(typeof(TimeWarpControl))]
 	public class AttitudeControl : AttitudeControlBase
 	{
+		public new class Config : ModuleConfig
+		{
+			[Persistent] public float RollFilter = 1f;
+		}
+		static Config ATC { get { return TCAScenario.Globals.ATC; } }
+
 		readonly MinimumF omega_min = new MinimumF();
 		Transform refT;
 		Quaternion locked_attitude;
@@ -231,6 +225,7 @@ namespace ThrottleControlledAvionics
 
 		BearingControl BRC;
 		Vector3 lthrust, needed_lthrust;
+		readonly LowPassFilterV roll_filter = new LowPassFilterV();
 
 		public AttitudeControl(ModuleTCA tca) : base(tca) {}
 
@@ -238,6 +233,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			base.Init();
 			CFG.AT.SetSingleCallback(Enable);
+			roll_filter.Tau = ATC.RollFilter;
 		}
 
 		protected override void UpdateState() 
@@ -378,13 +374,19 @@ namespace ThrottleControlledAvionics
 		{
 			if(BRC != null && BRC.IsActive)
 				steering = Vector3.ProjectOnPlane(steering, lthrust);
+			else
+			{
+				var roll = Vector3.Project(steering, lthrust);
+				steering -= roll;
+				roll_filter.Tau = ATC.RollFilter*Utils.ClampL(1-steering.magnitude/Mathf.Rad2Deg/GLB.ATCB.MaxAttitudeError, 0);
+				steering += roll_filter.Update(roll);
+			}
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && CFG.AT && VSL.refT != null && VSL.orbit != null)) return;
-			VSL.Controls.GimbalLimit = 100;
 			if(VSL.AutopilotDisabled) { reset(); return; }
 			compute_steering();
 			tune_steering();
@@ -411,7 +413,7 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null) return;
-			GLUtils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
+//			GLUtils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
 			GLUtils.GLVec(VSL.refT.position, current_thrust.normalized*20, Color.red);
 			GLUtils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
 			GLUtils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.green);
@@ -460,8 +462,8 @@ namespace ThrottleControlledAvionics
 				CFG.AT.XToggle(Attitude.AntiRelVel);
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.enabled_button : Styles.grey, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
-			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", AttitudeError) : "", 
-			            Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
+			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", VSL.Controls.AttitudeError) : "", 
+			                VSL.Controls.Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 	}

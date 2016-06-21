@@ -147,6 +147,9 @@ namespace ThrottleControlledAvionics
 			return srv != null && srv.Register(this, predicate);
 		}
 
+		public bool NeedRadarWhenMooving()
+		{ return RegisterTo<Radar>(vsl => vsl.HorizontalSpeed.MoovingFast); }
+
 		public bool UnregisterFrom<S>() 
 			where S : TCAService
 		{

@@ -34,6 +34,18 @@ namespace ThrottleControlledAvionics
 				return Utils.Clamp(twr/TDC.TWRf, 1e-9f, 1)*vsf;
 			}
 		}
+
+		protected Vector3 current_thrust 
+		{
+			get
+			{
+				var thrust = VSL.Engines.Thrust;
+				if(thrust.IsZero()) thrust =  VSL.Engines.MaxThrust;
+				if(thrust.IsZero()) thrust =  VSL.Engines.NearestEnginedStageMaxThrust;
+				if(thrust.IsZero()) thrust = -VSL.Controls.Transform.up;
+				return thrust;
+			}
+		}
 	}
 
 	[CareerPart]
@@ -61,6 +73,7 @@ namespace ThrottleControlledAvionics
 			public float RotationMaxCos;
 
 			[Persistent] public float HVCurve = 2;
+			[Persistent] public float MinHVCurve = 0.5f;
 			[Persistent] public float SlowTorqueF = 2;
 			[Persistent] public float AccelerationFactor = 1f, MinHvThreshold = 10f;
 			[Persistent] public float LowPassF = 0.1f;
@@ -146,7 +159,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 				RegisterTo<SASBlocker>();
-				RegisterTo<Radar>(vsl => vsl.HorizontalSpeed.MoovingFast);
+				NeedRadarWhenMooving();
 				break;
 
 			case Multiplexer.Command.On:
@@ -200,8 +213,6 @@ namespace ThrottleControlledAvionics
 			needed_thrust_dir = -VSL.Physics.Up;
 			if(!CFG.HF[HFlight.Level])
 			{
-				//if the vessel is not moving, nothing to do
-				if(VSL.LandedOrSplashed || VSL.Engines.Thrust.IsZero()) return;
 				//set forward direction
 				if(CFG.HF[HFlight.NoseOnCourse] && !VSL.HorizontalSpeed.NeededVector.IsZero())
 					BRC.ForwardDirection = VSL.HorizontalSpeed.NeededVector;
@@ -238,8 +249,9 @@ namespace ThrottleControlledAvionics
 				     VSL.HorizontalSpeed.Absolute <= HSC.TranslationLowerThreshold) &&
 				   Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)
 				{
+					var GeeF  = VSL.Physics.G/Utils.G0;
 					var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, HSC.HVCurve), VSL.Physics.G/Utils.G0) * Utils.ClampL(fVm/rVm, 1) / TWR_factor;
+					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / TWR_factor;
 					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
 				}
 				if(hVm > HSC.TranslationLowerThreshold)
@@ -288,18 +300,18 @@ namespace ThrottleControlledAvionics
 				}
 				else EnableManualTranslation(false);
 			}
-			else 
-			{
-				EnableManualTranslation(false);
-				if(thrust.IsZero()) thrust = VSL.Engines.MaxThrust;
-			}
+			else EnableManualTranslation(false);
+			if(thrust.IsZero()) thrust = current_thrust;
+			needed_thrust_dir.Normalize();
 			//tune filter
 			filter.Tau = VSL.Engines.SlowTorque ? 
 				HSC.LowPassF / (1 + VSL.Engines.TorqueResponseTime * HSC.SlowTorqueF) : 
 				HSC.LowPassF;
-			ATC.SetCustomRotationW(thrust, filter.Update(needed_thrust_dir));
+			ATC.SetCustomRotationW(thrust, filter.Update(needed_thrust_dir).normalized);
 
 			#if DEBUG
+//			LogF("\nthrust {}\nneeded {}\nfilterred {}\nAttitudeError {}", 
+//			     thrust, needed_thrust_dir, filter.Value.normalized, VSL.Controls.AttitudeError);//debug
 //			CSV(VSL.Physics.UT, 
 //			    filter.Value.x, filter.Value.y, filter.Value.z,
 //			    thrust.x, thrust.y, thrust.z);//debug

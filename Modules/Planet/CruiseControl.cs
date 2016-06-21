@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 				RegisterTo<SASBlocker>();
-				RegisterTo<Radar>(vsl => vsl.HorizontalSpeed.Mooving);
+				NeedRadarWhenMooving();
 				break;
 
 			case Multiplexer.Command.On:

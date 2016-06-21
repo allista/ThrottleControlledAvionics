@@ -21,7 +21,6 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxSpeed      = 10;
 			[Persistent] public float DistanceF     = 50;
 			[Persistent] public float AngularAccelF = 2f;
-			[Persistent] public float MaxAccelF     = 4f;
 			[Persistent] public float LookAheadTime = 2f;
 			[Persistent] public float SlowTorqueF   = 1f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
@@ -95,10 +94,9 @@ namespace ThrottleControlledAvionics
 			VSL.Info.Destination = vdir;
 			vdir.Normalize();
 			//tune the pid and update needed velocity
-			AccelCorrection.Update(Mathf.Clamp(VSL.Physics.G/ANC.MaxAccelF, 0.01f, 1)*
-			                       Mathf.Clamp(VSL.Torque.MaxPitchRollAA_m/ANC.AngularAccelF, 0.01f, 1), 0.01f);
-			pid.P   = ANC.DistancePID.P*AccelCorrection;
-			pid.D   = ANC.DistancePID.D*(2-AccelCorrection);
+			AccelCorrection.Update(Mathf.Clamp(VSL.Torque.MaxPitchRollAA_m/ANC.AngularAccelF, 0.01f, 1), 0.01f);
+			pid.P = ANC.DistancePID.P*AccelCorrection;
+			pid.D = ANC.DistancePID.D*(2-AccelCorrection);
 			pid.Update(distance*ANC.DistanceF/(VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ANC.SlowTorqueF : 1f));
 			VSL.HorizontalSpeed.SetNeeded(vdir*pid.Action);
 //			Log("dist {0}, pid {1}, nHV {2}, slow {3}, torque response {4}", 

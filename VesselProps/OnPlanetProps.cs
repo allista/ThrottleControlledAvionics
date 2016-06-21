@@ -8,7 +8,6 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -59,31 +58,15 @@ namespace ThrottleControlledAvionics
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
-			var rotation_factor = Utils.ClampL(Vector3.Dot(VSL.Controls.Steering, VSL.vessel.angularVelocity.normalized), 0);
 			for(int i = 0; i < VSL.Engines.NumActive; i++)
 			{
 				var e = VSL.Engines.Active[i];
-				e.VSF = 1f;
-				#if DEBUG
-				e.part.SetHighlightDefault();
-				#endif
+				e.VSF = 1;
 				if(e.thrustInfo == null) continue;
 				if(e.isVSC)
 				{
 					var dcomponent = -Vector3.Dot(e.wThrustDir, VSL.Physics.Up);
-					if(dcomponent <= 0) 
-					{
-						e.VSF = Utils.ClampH(Utils.ClampL(Vector3.Dot(VSL.Controls.Steering, e.specificTorque), 0)*
-						                     rotation_factor,
-						                     GeeVSF);
-						#if DEBUG
-						if(e.VSF > 0)
-						{ 
-							e.part.SetHighlightColor(Color.yellow);
-							e.part.SetHighlight(true, false);
-						}
-						#endif
-					}
+					if(dcomponent <= 0) e.VSF = VSL.HasUserInput? 0 : GeeVSF*VSL.Controls.InvAttitudeFactor;
 					else 
 					{
 						var dthrust = e.nominalCurrentThrust(e.best_limit)*dcomponent;
@@ -121,10 +104,11 @@ namespace ThrottleControlledAvionics
 			for(int i = 0, count = Parachutes.Count; i < count; i++)
 			{
 				var p = Parachutes[i];
-				ParachutesDeployed |= p.deploymentState == ModuleParachute.deploymentStates.DEPLOYED;
-				ParachutesActive |= ParachutesDeployed || 
+				ParachutesActive |= 
 					p.deploymentState == ModuleParachute.deploymentStates.ACTIVE ||
-					p.deploymentState == ModuleParachute.deploymentStates.SEMIDEPLOYED;
+					p.deploymentState == ModuleParachute.deploymentStates.SEMIDEPLOYED ||
+					p.deploymentState == ModuleParachute.deploymentStates.DEPLOYED;
+				ParachutesDeployed |= p.deploymentState == ModuleParachute.deploymentStates.DEPLOYED && p.part.maximum_drag/p.fullyDeployedDrag > 0.9;
 				if(p.part != null && !p.part.ShieldedFromAirstream && p.deploymentState == ModuleParachute.deploymentStates.STOWED)
 					UnusedParachutes.Add(p);
 			}
@@ -138,7 +122,9 @@ namespace ThrottleControlledAvionics
 			for(int i = 0, count = UnusedParachutes.Count; i < count; i++)
 			{
 				var p = Parachutes[i];
-				if(p.deploymentSafeState == ModuleParachute.deploymentSafeStates.SAFE)
+				if(p.deploymentSafeState == ModuleParachute.deploymentSafeStates.SAFE &&
+				   VSL.Altitude.Relative < p.deployAltitude
+				   +Mathf.Abs(VSL.VerticalSpeed.Absolute)*(1/Utils.ClampL(p.semiDeploymentSpeed, 0.1f)+10))
 					parachute_cooldown.Run(p.Deploy);
 			}
 		}

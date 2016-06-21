@@ -91,7 +91,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				RegisterTo<Radar>(vsl => vsl.HorizontalSpeed.MoovingFast);
+				NeedRadarWhenMooving();
 				break;
 
 			case Multiplexer.Command.On:
@@ -258,12 +258,13 @@ namespace ThrottleControlledAvionics
 			update_altitude();
 			var above_ground = VSL.Altitude.AboveGround;
 			var style = above_ground? Styles.green : Styles.red;
-			GUILayout.Label(string.Format("Altitude: {0:F2}m {1:+0.0;-0.0;+0.0}m/s", 
-			                              VSL.Altitude.Current, VSL.VerticalSpeed.Display), 
-			                        GUILayout.Width(190));
-			GUILayout.Label(new GUIContent("Set Point (m):", above_ground? 
-			                                       "Setpoint is above the ground" : "Warning! Setpoint is below the ground"), 
-			                        GUILayout.Width(90));
+//			GUILayout.Label(string.Format("Altitude: {0:F2}m {1:+0.0;-0.0;+0.0}m/s", 
+//			                              VSL.Altitude.Current, VSL.VerticalSpeed.Display), 
+//			                Styles.boxed_label, GUILayout.Width(190));
+			GUILayout.Label(new GUIContent("Alt. (m):", above_ground? 
+			                               "Desired altitude is above the ground" : 
+			                               "Warning! Desired altitude is below the ground"), 
+			                GUILayout.ExpandWidth(false));
 			s_altitude = GUILayout.TextField(s_altitude, style, GUILayout.ExpandWidth(true), GUILayout.MinWidth(60));
 			if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
 			{

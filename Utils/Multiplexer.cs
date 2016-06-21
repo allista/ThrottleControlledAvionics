@@ -89,8 +89,8 @@ namespace ThrottleControlledAvionics
 		public void On(T key) 
 		{ 
 			if(Paused) return;
-//			DebugUtils.LogF("\n{}.On: {}->{}", GetType(), state, key);//debug
 			if(!key.Equals(state)) Off();
+//			DebugUtils.LogF("\n{}.On: {}->{}", GetType(), state, key);//debug
 			state = key;
 			Callback callback;
 			if(callbacks.TryGetValue(key, out callback))

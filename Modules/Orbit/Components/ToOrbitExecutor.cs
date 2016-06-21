@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class ToOrbitExecutor : TCAComponent
+	public class ToOrbitExecutor : OrbitalComponent
 	{
 		const double MinClimbTime = 5;
 
@@ -35,9 +35,6 @@ namespace ThrottleControlledAvionics
 		public double dApA { get; private set; }
 		public double GravityTurnStart { get; private set; }
 
-		Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
-		CelestialBody Body { get { return VesselOrbit.referenceBody; } }
-		Vector3d hV(double UT) { return TrajectoryCalculator.hV(VesselOrbit, UT); }
 		double CircularizationOffset = -1;
 
 		public ToOrbitExecutor(ModuleTCA tca) : base(tca) 

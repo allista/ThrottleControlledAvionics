@@ -83,23 +83,25 @@ namespace ThrottleControlledAvionics
 			Target = null;
 		}
 
-		public static double BrakingDistance(double V0, VesselWrapper VSL, out float ttb)
+		public static float BrakingDistance(float V0, float Ve, float throttle, VesselWrapper VSL, out float ttb)
 		{
-			ttb = VSL.Engines.TTB((float)V0);
-			var throttle = ThrottleControl.NextThrottle((float)V0, 1, VSL);
+			ttb = VSL.Engines.TTB(V0, Ve, throttle);
 			return V0*ttb + 
 				VSL.Engines.MaxThrustM/VSL.Engines.MaxMassFlow * 
 				((ttb-VSL.Physics.M/VSL.Engines.MaxMassFlow/throttle) * 
-				 Math.Log((VSL.Physics.M-VSL.Engines.MaxMassFlow*throttle*ttb)/VSL.Physics.M) - ttb);
+				 Mathf.Log((VSL.Physics.M-VSL.Engines.MaxMassFlow*throttle*ttb)/VSL.Physics.M) - ttb);
 		}
 
-		public static double BrakingOffset(double V0, VesselWrapper VSL, out float ttb)
+		public static float BrakingDistance(float V0, VesselWrapper VSL, out float ttb)
+		{ return BrakingDistance(V0, VSL.Engines.MaxVe, ThrottleControl.NextThrottle((float)V0, 1, VSL), VSL, out ttb); }
+
+		public static float BrakingOffset(float V0, VesselWrapper VSL, out float ttb)
 		{ return BrakingDistance(V0, VSL, out ttb)/V0; }
 
-		public static double BrakingOffset(double V0, VesselWrapper VSL)
+		public static float BrakingOffset(float V0, VesselWrapper VSL)
 		{ float ttb; return BrakingDistance(V0, VSL, out ttb)/V0; }
 
-		public static double BrakingNodeCorrection(double V0, VesselWrapper VSL)
+		public static float BrakingNodeCorrection(float V0, VesselWrapper VSL)
 		{ 
 			float ttb;
 			var offset = BrakingOffset(V0, VSL, out ttb);
@@ -122,8 +124,8 @@ namespace ThrottleControlledAvionics
 			if(TTA > 0)
 			{
 				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL, out VSL.Info.TTB);
-				if(CFG.WarpToNode && ATC.Aligned)
-					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-ATC.AttitudeError;
+				if(CFG.WarpToNode && VSL.Controls.Aligned)
+					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-VSL.Controls.AttitudeError;
 				if(VSL.Info.Countdown > 0) return false;
 			}
 			VSL.Info.Countdown = 0;

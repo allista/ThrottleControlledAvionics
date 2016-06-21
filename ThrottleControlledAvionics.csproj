@@ -171,6 +171,9 @@
     <Compile Include="Modules\Orbit\Components\ManeuverExecutor.cs" />
     <Compile Include="Modules\Orbit\RendezvousAutopilot.cs" />
     <Compile Include="Utils\Coordinates.cs" />
+    <Compile Include="Modules\Orbit\Components\OrbitalComponent.cs" />
+    <Compile Include="Modules\Orbit\Components\TrajectoryOptimizers.cs" />
+    <Compile Include="Modules\Orbit\Trajectories\CurrentTrajectory.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

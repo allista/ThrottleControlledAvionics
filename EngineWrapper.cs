@@ -157,6 +157,8 @@ namespace ThrottleControlledAvionics
 		public uint flightID { get { return part.flightID; } }
 
 		public float   throttle;
+		public float   realIsp;
+		public float   flowMod;
 		public float   VSF;   //vertical speed factor
 		public bool    isVSC; //vertical speed controller
 		public bool    isSteering;
@@ -215,27 +217,27 @@ namespace ThrottleControlledAvionics
 			thrustInfo.dir.Normalize();
 			//compute velocity and atmosphere thrust modifier (from KSP code)
 			//too bad these functions arn't made public =/
-			var realIsp = engine.atmosphereCurve.Evaluate((float)(engine.part.staticPressureAtm));
+			realIsp = engine.atmosphereCurve.Evaluate((float)(engine.part.staticPressureAtm));
 			if(engine.useAtmCurveIsp)
 				realIsp *= engine.atmCurveIsp.Evaluate((float)(part.atmDensity / 1.225));
 			if(engine.useVelCurveIsp)
 				realIsp *= engine.velCurveIsp.Evaluate((float)part.machNumber);
-			var flow_mod = 1f;
+			flowMod = 1f;
 			if(engine.atmChangeFlow)
 			{
-				flow_mod = (float)(part.atmDensity / 1.225);
+				flowMod = (float)(part.atmDensity / 1.225);
 				if (engine.useAtmCurve)
-					flow_mod = engine.atmCurve.Evaluate(flow_mod);
+					flowMod = engine.atmCurve.Evaluate(flowMod);
 			}
 			if(engine.useVelCurve)
-				flow_mod *= engine.velCurve.Evaluate((float)part.machNumber);
-			if(flow_mod > engine.flowMultCap)
+				flowMod *= engine.velCurve.Evaluate((float)part.machNumber);
+			if(flowMod > engine.flowMultCap)
 			{
-				float to_cap = flow_mod - engine.flowMultCap;
-				flow_mod = engine.flowMultCap + to_cap / (engine.flowMultCapSharpness + to_cap / engine.flowMultCap);
+				float to_cap = flowMod - engine.flowMultCap;
+				flowMod = engine.flowMultCap + to_cap / (engine.flowMultCapSharpness + to_cap / engine.flowMultCap);
 			}
-			if(flow_mod < engine.CLAMP) flow_mod = engine.CLAMP;
-			thrustMod = realIsp*flow_mod/zeroISP;
+			if(flowMod < engine.CLAMP) flowMod = engine.CLAMP;
+			thrustMod = realIsp*flowMod/zeroISP;
 			//update Role
 			if(engine.throttleLocked && info.Role != TCARole.MANUAL) 
 				info.SetRole(TCARole.MANUAL);
@@ -257,6 +259,9 @@ namespace ThrottleControlledAvionics
 				 nominalCurrentThrust(throttle) :
 				 engine.finalThrust);
 		}
+
+		public float MaxFuelFlow { get { return engine.maxFuelFlow*flowMod; } }
+		public float RealFuelFlow { get { return engine.requestedMassFlow*engine.propellantReqMet/100; } }
 		#endregion
 
 		#region Accessors

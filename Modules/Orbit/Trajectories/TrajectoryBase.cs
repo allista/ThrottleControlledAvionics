@@ -12,6 +12,8 @@ namespace ThrottleControlledAvionics
 {
 	public abstract class BaseTrajectory
 	{
+		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+
 		public readonly VesselWrapper VSL;
 		public readonly CelestialBody Body;
 		public readonly Orbit OrigOrbit;
@@ -67,7 +69,7 @@ namespace ThrottleControlledAvionics
 		public double AtTargetUT;
 		public Vector3d AtTargetPos { get; protected set; }
 		public Vector3d AtTargetVel { get; protected set; }
-		public double TimeToTarget { get; protected set; }
+		public double TimeToTarget;
 		public double DistanceToTarget { get; protected set; } = -1;
 		public double DeltaFi { get; protected set; }
 

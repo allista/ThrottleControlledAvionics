@@ -27,9 +27,12 @@ namespace ThrottleControlledAvionics
 		protected static Config TRJ { get { return TCAScenario.Globals.TRJ; } }
 
 		protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
-
+		//multiple inheritance or some sort of mixins or property extensions would be great here =/
 		protected Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
 		protected CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
+		protected Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
+		protected double MinPeR { get { return Body.atmosphere? Body.Radius+Body.atmosphereDepth+1000 : Body.Radius+TRJ.MinPeA; } }
+		protected bool ApAhead { get { return VesselOrbit.timeToAp < VesselOrbit.timeToPe; } }
 
 		public static Vector3d hV(Orbit o, double UT) 
 		{ 
@@ -38,9 +41,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected Vector3d hV(double UT) { return hV(VesselOrbit, UT); }
-		protected Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
-		protected double MinPeR { get { return Body.atmosphere? Body.Radius+Body.atmosphereDepth+1000 : Body.Radius+TRJ.MinPeA; } }
-		protected bool ApAhead { get { return VesselOrbit.timeToAp < VesselOrbit.timeToPe; } }
+
 		protected bool LiftoffPossible
 		{
 			get
@@ -249,6 +250,23 @@ namespace ThrottleControlledAvionics
 		public static double TimeToResonance(Orbit a, Orbit b, double UT)
 		{ double resonance, alpha; return TimeToResonance(a, b, UT, out resonance, out alpha); }
 
+		public static QuaternionD InvBodyRotationAtdT(CelestialBody Body, double dT)
+		{ return QuaternionD.AngleAxis((-dT/Body.rotationPeriod*360), Body.angularVelocity.normalized); }
+
+		public static QuaternionD BodyRotationAtdT(CelestialBody Body, double dT)
+		{ return QuaternionD.AngleAxis((-dT/Body.rotationPeriod*360), Body.angularVelocity.normalized); }
+
+		public static double RelativeInclination(Orbit orb, Vector3d srf_pos)
+		{ return 90-Vector3d.Angle(orb.GetOrbitNormal(), srf_pos); }
+
+		public static double RelativeInclinationAtResonance(Orbit orb, Vector3d srf_pos, double UT, out double ttr)
+		{
+			ttr = Utils.ClampedProjectionAngle(orb.getRelativePositionAtUT(UT), srf_pos, 
+			                                   orb.getOrbitalVelocityAtUT(UT))
+				/360*orb.period;
+			return RelativeInclination(orb, BodyRotationAtdT(orb.referenceBody, ttr)*srf_pos);
+		}
+
 		public static Vector3d dV4T(Orbit old, double T, double UT)
 		{
 			var body = old.referenceBody;
@@ -338,8 +356,6 @@ namespace ThrottleControlledAvionics
 				   (dir? UT+dT < StartUT : UT+dT > StartUT) ||
 				   (dir? UT+dT > StopUT  : UT+dT < StopUT))
 					dT /= -2.1;
-//				Utils.LogF("d {}, lastD {}, minD {}, T {}, dT {}",
-//				           d, lastD, minD, UT-StartUT, dT);//debug
 				lastD = d;
 				UT += dT;
 			}
@@ -356,6 +372,7 @@ namespace ThrottleControlledAvionics
 				if(orb.getRelativePositionAtUT(StopUT).sqrMagnitude < radius) break;
 				StopUT += dT;
 			}
+			StartUT = Math.Max(StartUT, StopUT-dT);
 			while(StopUT-StartUT > 0.01)
 			{
 				var UT = StartUT+(StopUT-StartUT)/2;
@@ -365,22 +382,32 @@ namespace ThrottleControlledAvionics
 			return StartUT+(StopUT-StartUT)/2;
 		}
 
+		public static double FlyAboveUT(Orbit orb, Vector3d pos, double StartUT)
+		{
+			var ini_error = Utils.ClampedProjectionAngle(orb.getRelativePositionAtUT(StartUT), pos, 
+			                                      		 orb.getOrbitalVelocityAtUT(StartUT))/360*orb.period;
+			var dT = orb.period/10; 
+			StartUT += Utils.ClampL(ini_error-dT, 0);
+			var StopUT = StartUT;
+			while(StopUT-StartUT < orb.period)
+			{
+				if(Utils.ProjectionAngle(orb.getRelativePositionAtUT(StopUT), pos, 
+				                         orb.getOrbitalVelocityAtUT(StopUT)) < 0) break;
+				StopUT += dT;
+			}
+			StartUT = Math.Max(StartUT, StopUT-dT);
+			while(StopUT-StartUT > 0.01)
+			{
+				var UT = StartUT+(StopUT-StartUT)/2;
+				if(Utils.ProjectionAngle(orb.getRelativePositionAtUT(UT), pos, 
+				                         orb.getOrbitalVelocityAtUT(UT)) > 0) 
+					StartUT = UT;
+				else StopUT = UT;
+			}
+			return StartUT+(StopUT-StartUT)/2;
+		}
+
 		//Node: radial, normal, prograde
-		protected Vector3d RadiusCorrection(RendezvousTrajectory old, double amount)
-		{
-			var theta = old.TimeToTarget / old.NewOrbit.period * Math.PI * 2;
-			amount *= Body.gMagnitudeAtCenter/old.AtTargetPos.sqrMagnitude * TRJ.dV4dRf;
-			return new Vector3d(Math.Sin(theta)*amount, 0, (1-Math.Cos(theta))/2*amount);
-		}
-
-		protected Vector3d RadiusCorrection(RendezvousTrajectory old)
-		{ return RadiusCorrection(old, old.DeltaR); }
-
-		protected Vector3d AoPCorrection(RendezvousTrajectory old, double amount)
-		{
-			return new Vector3d(Math.Sign(old.TargetOrbit.period-old.NewOrbit.period)*amount, 0, 0);
-		}
-
 		protected Vector3d PlaneCorrection(TargetedTrajectoryBase old, double angle)
 		{
 			angle *= Math.Sin(old.TimeToTarget/old.NewOrbit.period*2*Math.PI);
@@ -514,6 +541,13 @@ namespace ThrottleControlledAvionics
 			}
 			return false;
 		}
+
+		protected abstract T CurrentTrajectory { get; }
+		protected virtual void update_trajectory()
+		{
+			if(trajectory == null) trajectory = CurrentTrajectory;
+			else trajectory.UpdateOrbit(VesselOrbit);
+		}
 	}
 
 	public abstract class TargetedTrajectoryCalculator<T> : TrajectoryCalculator<T>  where T : TargetedTrajectory
@@ -533,7 +567,7 @@ namespace ThrottleControlledAvionics
 			var dV = trajectory.BrakeDeltaV;
 			ManeuverAutopilot.AddNode(VSL, dV, 
 			                          trajectory.AtTargetUT
-			                          -MatchVelocityAutopilot.BrakingNodeCorrection(dV.magnitude, VSL));
+			                          -MatchVelocityAutopilot.BrakingNodeCorrection((float)dV.magnitude, VSL));
 		}
 
 		protected virtual bool trajectory_is_better(T first, T second)

@@ -37,6 +37,9 @@ namespace ThrottleControlledAvionics
 		const float  IconSize = 16;
 		static Texture2D WayPointMarker, PathNodeMarker;
 
+		public static List<Vector3d> CustomMarkersVec = new List<Vector3d>();
+		public static List<WayPoint> CustomMarkersWP = new List<WayPoint>();
+
 		public static void OnAwake()
 		{
 			WayPointMarker = GameDatabase.Instance.GetTexture(WPM_ICON, false);
@@ -160,7 +163,7 @@ namespace ThrottleControlledAvionics
 					if(CFG.Target == wp)
 					{
 						var d = wp.DistanceTo(vessel);
-						label += string.Format(" <= {0}", Utils.DistanceToStr(d)); 
+						label += string.Format(" <= {0}", Utils.FormatBigValue((float)d, "m")); 
 						if(vessel.horizontalSrfSpeed > 0.1)
 							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed)));
 					}
@@ -209,7 +212,7 @@ namespace ThrottleControlledAvionics
 		{ GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 300, 200), text); }
 
 		static void DrawLabelAtPointer(string text, double distance)
-		{ DrawLabelAtPointer(string.Format("{0}\nDistance: {1}", text, Utils.DistanceToStr(distance))); }
+		{ DrawLabelAtPointer(string.Format("{0}\nDistance: {1}", text, Utils.FormatBigValue((float)distance, "m"))); }
 
 		//adapted from MechJeb
 		bool clicked;
@@ -225,7 +228,7 @@ namespace ThrottleControlledAvionics
 				if(coords != null)
 				{
 					var t = new WayPoint(coords);
-					DrawGroundMarker(vessel.mainBody, coords.Lat, coords.Lon, new Color(1.0f, 0.56f, 0.0f));
+					DrawGroundMarker(vessel.mainBody, coords, new Color(1.0f, 0.56f, 0.0f));
 					DrawLabelAtPointer(coords.FullDescription(vessel), t.DistanceTo(vessel));
 					if(!clicked)
 					{ 
@@ -258,6 +261,7 @@ namespace ThrottleControlledAvionics
 					}
 				}
 			}
+			bool current_target_drawn = false;
 			if(CFG.ShowWaypoints)
 			{
 				var i = 0;
@@ -265,15 +269,28 @@ namespace ThrottleControlledAvionics
 				WayPoint wp0 = null;
 				foreach(var wp in CFG.Waypoints)
 				{
+					current_target_drawn = wp.Equals(CFG.Target);
 					wp.UpdateCoordinates(vessel.mainBody);
 					var c = marker_color(i, num);
 					if(wp0 == null) DrawPath(vessel, wp, c);
 					else DrawPath(vessel.mainBody, wp0, wp, c);
-					if(DrawGroundMarker(vessel.mainBody, wp.Pos.Lat, wp.Pos.Lon, c))
+					if(DrawGroundMarker(vessel.mainBody, wp, c))
 						DrawLabelAtPointer(wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
 					wp0 = wp; i++;
 				}
 			}
+			//current target and anchor
+			if(CFG.Anchor != null) 
+			{
+				DrawWayPoint(CFG.Anchor, Color.cyan, "Anchor");
+				current_target_drawn |= CFG.Anchor.Equals(CFG.Target);
+			}
+			if(CFG.Target != null && !current_target_drawn && 
+			   (!CFG.Target.IsVessel || CFG.Target.GetVessel().LandedOrSplashed))
+				DrawWayPoint(CFG.Target, Color.magenta, "Target");
+			//custom markers
+			CustomMarkersWP.ForEach(m => DrawWayPoint(m, Color.red, m.Name));
+			CustomMarkersVec.ForEach(m => DrawWorldMarker(m, Color.red, "Custom WayPoint"));
 			#if DEBUG
 //			VSL.Engines.All.ForEach(e => e.engine.thrustTransforms.ForEach(t => DrawWorldMarker(t.position, Color.red, e.name)));
 //			DrawWorldMarker(VSL.vessel.transform.position, Color.yellow, "Vessel");
@@ -302,7 +319,7 @@ namespace ThrottleControlledAvionics
 			return icon_rect.Contains(Event.current.mousePosition);
 		}
 
-		static bool DrawGroundMarker(CelestialBody body, double lat, double lon, Color c, float r = IconSize, Texture2D texture = null)
+		static bool DrawGroundMarker(CelestialBody body, Coordinates pos, Color c, float r = IconSize, Texture2D texture = null)
 		{
 			Vector3d center;
 			Camera camera;
@@ -310,16 +327,34 @@ namespace ThrottleControlledAvionics
 			{
 				//TODO: cache local center coordinates of the marker
 				camera = MapView.MapCamera.camera;
-				center = body.position + (Utils.TerrainAltitude(body, lat, lon)+body.Radius) * body.GetSurfaceNVector(lat, lon);
+				center = body.position + (Utils.TerrainAltitude(body, pos.Lat, pos.Lon)+body.Radius) * body.GetSurfaceNVector(pos.Lat, pos.Lon);
 			}
 			else
 			{
 				camera = FlightCamera.fetch.mainCamera;
-				center = body.GetWorldSurfacePosition(lat, lon, Utils.TerrainAltitude(body, lat, lon)+GLB.WaypointHeight);
+				center = body.GetWorldSurfacePosition(pos.Lat, pos.Lon, Utils.TerrainAltitude(body, pos.Lat, pos.Lon)+GLB.WaypointHeight);
 				if(camera.transform.InverseTransformPoint(center).z <= 0) return false;
 			}
 			return !IsOccluded(center, body) && 
 				DrawMarker(camera.WorldToScreenPoint(MapView.MapIsEnabled ? ScaledSpace.LocalToScaledSpace(center) : center), c, r, texture);
+		}
+
+		static bool DrawGroundMarker(CelestialBody body, WayPoint wp, Color c, float r = IconSize, Texture2D texture = null)
+		{ return DrawGroundMarker(body, wp.Pos, c, r, texture); }
+
+		static void DrawWorldMarker(Vector3d wPos, Color c, string label = "", float r = IconSize, Texture2D texture = null)
+		{
+			var camera = MapView.MapIsEnabled ? MapView.MapCamera.camera : FlightCamera.fetch.mainCamera;
+			if(camera.transform.InverseTransformPoint(wPos).z <= 0) return;
+			if(DrawMarker(camera.WorldToScreenPoint(MapView.MapIsEnabled? ScaledSpace.LocalToScaledSpace(wPos) : wPos), c, r, texture) &&
+			   !string.IsNullOrEmpty(label)) DrawLabelAtPointer(label);
+
+		}
+
+		void DrawWayPoint(WayPoint wp, Color c, string label = null, float r = IconSize, Texture2D texture = null)
+		{
+			if(DrawGroundMarker(vessel.mainBody, wp, c, r, texture))
+				DrawLabelAtPointer(label ?? wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
 		}
 
 		static void DrawPath(CelestialBody body, WayPoint wp0, WayPoint wp1, Color c)
@@ -330,7 +365,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 1; i<N; i++)
 			{
 				var p = wp0.PointBetween(wp1, dD*i);
-				DrawGroundMarker(body, p.Lat, p.Lon, c, IconSize/2, PathNodeMarker);
+				DrawGroundMarker(body, p, c, IconSize/2, PathNodeMarker);
 			}
 		}
 
@@ -344,17 +379,6 @@ namespace ThrottleControlledAvionics
 			                      worldPosition, byBody.position - worldPosition) <= 90.0;
 		}
 		#endregion
-
-		#if DEBUG
-		public static void DrawWorldMarker(Vector3d wPos, Color c, string label = "", float r = IconSize, Texture2D texture = null)
-		{
-			var camera = MapView.MapIsEnabled ? MapView.MapCamera.camera : FlightCamera.fetch.mainCamera;
-			if(camera.transform.InverseTransformPoint(wPos).z <= 0) return;
-			if(DrawMarker(camera.WorldToScreenPoint(MapView.MapIsEnabled? ScaledSpace.LocalToScaledSpace(wPos) : wPos), c, r, texture) &&
-			   !string.IsNullOrEmpty(label)) DrawLabelAtPointer(label);
-				
-		}
-		#endif
 	}
 }
 

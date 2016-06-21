@@ -113,12 +113,13 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Resume:
 				if(CFG.Target != null) 
 					start_to(CFG.Target);
+				else finish();
 				break;
 
 			case Multiplexer.Command.On:
 				var wp = Target2WP();
-				if(wp == null) return;
-				start_to(wp);
+				if(wp == null) finish();
+				else start_to(wp);
 				break;
 
 			case Multiplexer.Command.Off:
@@ -134,6 +135,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.On:
 				if(CFG.Waypoints.Count > 0)
 					start_to(CFG.Waypoints.Peek());
+				else finish();
 				break;
 
 			case Multiplexer.Command.Off:
@@ -164,13 +166,12 @@ namespace ThrottleControlledAvionics
 			DistancePID.Reset();
 			LateralPID.Reset();
 			LateralFilter.Reset();
-			CFG.HF.On(HFlight.NoseOnCourse);
+			CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 			RegisterTo<Radar>();
 		}
 
 		void finish()
 		{
-			SetTarget();
 			CFG.Nav.Off();
 			CFG.HF.OnIfNot(HFlight.Stop);
 			UnregisterFrom<Radar>();
@@ -352,7 +353,9 @@ namespace ThrottleControlledAvionics
 			//check if we have arrived to the target and stayed long enough
 			if(distance < end_distance)
 			{
-				CFG.HF.OnIfNot(VSL.HorizontalSpeed.NeededVector.sqrMagnitude > 1? HFlight.NoseOnCourse : HFlight.Move);
+				var prev_needed_speed = VSL.HorizontalSpeed.NeededVector.magnitude;
+				if(prev_needed_speed < 1 && !CFG.HF[HFlight.Move]) CFG.HF.OnIfNot(HFlight.Move);
+				else if(prev_needed_speed > 10 && !CFG.HF[HFlight.NoseOnCourse]) CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 				if(CFG.Nav[Navigation.FollowTarget])
 				{
 					if(tvel.sqrMagnitude > 1)

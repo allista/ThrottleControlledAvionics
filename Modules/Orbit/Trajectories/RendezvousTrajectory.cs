@@ -54,7 +54,7 @@ namespace ThrottleControlledAvionics
 			DeltaTA = Utils.ProjectionAngle(AtTargetPos, TargetPos, 
 			                                Vector3d.Cross(NewOrbit.GetOrbitNormal(), AtTargetPos))*
 				Math.Sign(TargetOrbit.period-OrigOrbit.period);
-			DeltaFi = 90-Vector3d.Angle(NewOrbit.GetOrbitNormal(), TargetPos);
+			DeltaFi = TrajectoryCalculator.RelativeInclination(NewOrbit, TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
 			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TimeToTarget;
 //			DebugUtils.LogF("{}", this);//debug

@@ -30,6 +30,13 @@ namespace ThrottleControlledAvionics
 		{
 			if(!VSL.OnPlanet) return;
 			GUILayout.BeginHorizontal();
+			GUILayout.Label(new GUIContent(
+				string.Format("{0} ▲{1} ►{2}", 
+				              Utils.FormatBigValue(VSL.Altitude.Current, "m"), 
+				              Utils.FormatBigValue(VSL.VerticalSpeed.Display, "m/s", "+0.0;-0.0;+0.0"), 
+				              Utils.FormatBigValue(VSL.HorizontalSpeed.Absolute, "m/s")), 
+				"Altitude, Vertical speed, Horizontal speed."),
+			                Styles.boxed_label, GUILayout.Width(240));
 			if(ALT != null && CFG.VF[VFlight.AltitudeControl]) ALT.Draw();
 			else if(VSC != null) VSC.Draw();
 			if(THR != null) THR.Draw();

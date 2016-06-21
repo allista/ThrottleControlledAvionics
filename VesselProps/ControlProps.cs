@@ -25,9 +25,16 @@ namespace ThrottleControlledAvionics
 		public bool    TranslationAvailable { get; private set; }
 		public Vector3 ManualTranslation;
 		public Switch  ManualTranslationSwitch = new Switch();
+//		float gl;//debug
+//		public float   GimbalLimit { get { return gl; } set { gl = value; DebugUtils.LogF("GimbalLimit set: {}", gl); } }//debug
 		public float   GimbalLimit = 100;
-		public bool HaveControlAuthority = true;
-		public double WarpToTime = -1;
+		public bool    HaveControlAuthority = true;
+		public double  WarpToTime = -1;
+
+		public bool  Aligned = true;
+		public float AttitudeError = 0;
+		public float InvAttitudeFactor { get { return Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1); } }
+		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0); } }
 
 		public void StopWarp() { WarpToTime = 0; }
 
@@ -35,8 +42,7 @@ namespace ThrottleControlledAvionics
 		{
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
-			if(!Steering.IsZero()) //tune steering if MaxAA has changed drastically
-				Steering = Steering*Utils.ClampH(VSL.Torque.MaxAAMod, 1)/Steering.CubeNorm().magnitude;
+			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
 			TranslationAvailable = VSL.Engines.Maneuver.Count > 0 || VSL.Engines.NumActiveRCS > 0;
 		}

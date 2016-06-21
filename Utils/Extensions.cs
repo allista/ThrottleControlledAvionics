@@ -478,6 +478,7 @@ namespace ThrottleControlledAvionics
 
 		public static float Radius(this Vessel vessel)
 		{ 
+			if(!vessel.loaded) return (float)Math.Pow(vessel.totalMass, 1/3.0);
 			var tca = ModuleTCA.EnabledTCA(vessel);
 			return tca != null? tca.VSL.Geometry.R : 
 				vessel.Bounds(vessel.ReferenceTransform).size.magnitude;
