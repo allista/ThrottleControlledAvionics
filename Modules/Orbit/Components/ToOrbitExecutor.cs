@@ -110,7 +110,7 @@ namespace ThrottleControlledAvionics
 				}
 				vel = vel.xzy;
 				CircularizationOffset = -1;
-				if(Executor.Execute(vel, Utils.Clamp(1-VSL.Torque.MaxAngularA_m, 0.1f, 1)))
+				if(Executor.Execute(vel, Utils.Clamp(1-VSL.Torque.MaxAngularA_rad, 0.1f, 1)))
 				{
 					if(CFG.AT.Not(Attitude.KillRotation)) 
 					{

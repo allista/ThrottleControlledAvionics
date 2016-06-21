@@ -25,7 +25,9 @@ namespace ThrottleControlledAvionics
 		public Vector3  EnginesTorque { get; private set; } //current torque applied to the vessel by engines
 		public Vector3  MaxTorque { get; private set; } //current maximum torque
 		public Vector3  MaxAngularA { get; private set; } //current maximum angular acceleration
-		public float    MaxAngularA_m { get; private set; }
+		public float    MaxAngularA_rad { get; private set; }
+		public float    MaxAngularA_deg { get; private set; }
+		public float    MinTurnTime { get; private set; }
 		public float    MaxAAMod { get; private set; }
 		public Vector3  MaxPitchRollAA { get; private set; }
 		public float    MaxPitchRollAA_m { get; private set; }
@@ -44,6 +46,9 @@ namespace ThrottleControlledAvionics
 
 		public float AngularAccelerationInDirection(Vector3 dir)
 		{ return Mathf.Abs(Vector3.Dot(VSL.Torque.MaxAngularA, dir)); }
+
+		public float MinRotationTime(float angle)
+		{ return Mathf.Sqrt(2*angle/MaxAngularA_deg); }
 
 		public bool HavePotentialControlAuthority
 		{ get { return AngularAcceleration(MaxTorquePossible).magnitude > Utils.TwoPI; } }
@@ -86,10 +91,13 @@ namespace ThrottleControlledAvionics
 			MaxTorquePossible = MaxEnginesLimits.Max+MaxTorque;
 			MaxTorque += EnginesLimits.Max;
 			MaxAngularA = AngularAcceleration(MaxTorque);
-			MaxAngularA_m = MaxAngularA.magnitude;
-			if(MaxAngularA_m > 0)
+			MaxAngularA_rad = MaxAngularA.magnitude;
+			MaxAngularA_deg = MaxAngularA_rad*Mathf.Rad2Deg;
+			MinTurnTime = MinRotationTime(180);
+			Utils.LogF("max AA {}rad, {}deg, min turn time {}s", MaxAngularA_rad, MaxAngularA_deg, MinTurnTime);//debug
+			if(MaxAngularA_rad > 0)
 			{
-				MaxAAMod = MaxAAFilter.Update(MaxAngularA_m)/MaxAngularA_m;
+				MaxAAMod = MaxAAFilter.Update(MaxAngularA_rad)/MaxAngularA_rad;
 				MaxAAMod *= MaxAAMod*MaxAAMod;
 			}
 			else MaxAAMod = 1;

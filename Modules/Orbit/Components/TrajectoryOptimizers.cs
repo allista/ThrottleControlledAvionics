@@ -35,31 +35,30 @@ namespace ThrottleControlledAvionics
 
 		protected IEnumerator<T> optimize_trajectory(NextTrajectory next, TrajectoryPredicate is_better, TrajectoryPredicate not_found)
 		{
-			VSL.Controls.StopWarp();
 			T current = null;
 			T best = null;
 			var maxI = GLB.TRJ.MaxIterations;
 			var frameI = GLB.TRJ.PerFrameIterations;
 			do {
-				//				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) //debug
-				//				{ yield return null; continue; }
+//				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) //debug
+//				{ yield return null; continue; }
 				current = next(current, best);
 				if(best == null || is_better(current, best)) 
 					best = current;
 				frameI--; maxI--;
 				if(frameI <= 0)
 				{
-					//					clear_nodes(); //debug
-					//					add_node(current.ManeuverDeltaV, current.StartUT);//debug
-					//					var lnd = current as LandingTrajectory;//debug
-					//					if(lnd != null) add_node(lnd.BrakeDeltaV, lnd.BrakeStartUT);//debug
-					//					Status("Push to continue");//debug
+//					clear_nodes(); //debug
+//					add_node(current.ManeuverDeltaV, current.StartUT);//debug
+//					var lnd = current as LandingTrajectory;//debug
+//					if(lnd != null) add_node(lnd.BrakeDeltaV, lnd.BrakeStartUT);//debug
+//					Status("Push to continue");//debug
 					yield return null;
 					frameI = GLB.TRJ.PerFrameIterations;
 				}
 			} while(not_found(current, best) && maxI > 0);
-			//			Log("Best trajectory:\n{0}", best);//debug
-			//			clear_nodes();//debug
+//			Log("Best trajectory:\n{0}", best);//debug
+//			clear_nodes();//debug
 			yield return best;
 		}
 

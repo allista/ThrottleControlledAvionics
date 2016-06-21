@@ -384,6 +384,7 @@ DEO
 	StartOffset        = 60   //s
 	StartPeR           = 0.49 //of planet radius
 	AtmosphereF        = 0.5  //kg/m3
+	MaxRelInclination  = 0.5  //deg
 }
 
 BJ

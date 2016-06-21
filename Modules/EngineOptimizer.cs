@@ -228,7 +228,7 @@ namespace ThrottleControlledAvionics
 				CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAngularA.z)/100f);
 			}
 			//tune PI coefficients
-			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.MaxAngularA_m);
+			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.MaxAngularA_rad);
 			CFG.Engines.I = CFG.Engines.P/2f;
 		}
 

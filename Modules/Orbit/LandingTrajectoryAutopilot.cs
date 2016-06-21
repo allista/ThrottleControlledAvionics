@@ -104,6 +104,7 @@ namespace ThrottleControlledAvionics
 				clear_nodes(); 
 				add_trajectory_node();
 				CFG.AP1.OnIfNot(Autopilot1.Maneuver);
+				VSL.Controls.StopWarp();
 			}
 		}
 
@@ -221,7 +222,7 @@ namespace ThrottleControlledAvionics
 				brake_vel = CorrectBrakeDirection(brake_vel, brake_pos);
 				CFG.AT.OnIfNot(Attitude.Custom);
 				ATC.SetThrustDirW(brake_vel);
-				VSL.Info.Countdown = trajectory.BrakeEndUT-VSL.Physics.UT
+				VSL.Info.Countdown = trajectory.BrakeEndUT-VSL.Physics.UT-1
 					-Math.Max(MatchVelocityAutopilot.BrakingOffset((float)brake_vel.magnitude, VSL, out VSL.Info.TTB), 
 					          LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1)));
 				if(VSL.Info.Countdown <= 0) { FullStop = false; decelerate(); break; }
@@ -258,7 +259,7 @@ namespace ThrottleControlledAvionics
 				BRC.ForwardDirection = Vector3d.Exclude(VSL.Physics.Up, CFG.Target.WorldPos(Body)-VSL.Physics.wCoM);
 				terminal_velocity = compute_terminal_velocity();
 				VSL.Info.Countdown -= MatchVelocityAutopilot.BrakingOffset((float)terminal_velocity, VSL, out VSL.Info.TTB)
-					+Utils.ClampH(Vector3.Angle(VSL.Engines.MaxThrust, VSL.vessel.srf_velocity)/VSL.Torque.MaxAngularA_m, TRJ.ManeuverOffset);
+					+Utils.ClampH(VSL.Torque.MinRotationTime(Vector3.Angle(VSL.Engines.MaxThrust, VSL.vessel.srf_velocity)), TRJ.ManeuverOffset);
 				if(VSL.Info.Countdown <= 0)
 				{
 					FullStop = false;

@@ -158,7 +158,7 @@ namespace ThrottleControlledAvionics
 			//tune PID parameters
 			angularV = VSL.vessel.angularVelocity;
 			angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
-			AAf = AAf_filter.Update(Mathf.Clamp(1/VSL.Torque.MaxAngularA_m, ATCB.MinAAf, ATCB.MaxAAf));
+			AAf = AAf_filter.Update(Mathf.Clamp(1/VSL.Torque.MaxAngularA_rad, ATCB.MinAAf, ATCB.MaxAAf));
 			var slow = VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ATCB.SlowTorqueF : 1;
 			PIf = AAf*Utils.ClampL(1-Ef, 0.5f)*ATCB.MaxEf/slow;
 			steering_pid.P = ATCB.PID.P*PIf;
@@ -191,9 +191,7 @@ namespace ThrottleControlledAvionics
 		{
 			ErrorDif.Update(VSL.Controls.AttitudeError);
 			if(ErrorDif.MaxOrder < 1) return;
-			var max_alignment_time = VSL.Info.Countdown > 0? 
-				Math.Min(VSL.Info.Countdown, ATCB.MaxTimeToAlignment) : 
-				ATCB.MaxTimeToAlignment;
+			var max_alignment_time = VSL.Info.Countdown > 0? VSL.Info.Countdown : ATCB.MaxTimeToAlignment;
 			if(VSL.Controls.HaveControlAuthority && 
 			   VSL.Controls.AttitudeError > ATCB.MaxAttitudeError && 
 			   (ErrorDif[1] >= 0 || VSL.Controls.AttitudeError*Mathf.Deg2Rad/ErrorDif[1] < -max_alignment_time))
