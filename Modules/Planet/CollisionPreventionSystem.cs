@@ -101,7 +101,7 @@ namespace ThrottleControlledAvionics
 		#endif
 
 		static float SafeTime(VesselWrapper vsl, Vector3d dVn)
-		{ return CPS.SafeTime/Utils.Clamp(Mathf.Abs(Vector3.Dot(vsl.Torque.MaxAngularA, vsl.LocalDir(dVn))), 0.01f, 1f); }
+		{ return CPS.SafeTime/Utils.Clamp(Mathf.Abs(Vector3.Dot(vsl.Torque.MaxAA, vsl.LocalDir(dVn))), 0.01f, 1f); }
 
 		public static bool AvoidStatic(VesselWrapper vsl, Vector3d dir, float dist, Vector3d dV, out Vector3d maneuver)
 		{
@@ -133,7 +133,10 @@ namespace ThrottleControlledAvionics
 			//filter vessels on non-collision courses
 			var dVn = dV.normalized;
 			var cosA = Mathf.Clamp(Vector3.Dot(dir, dVn), -1, 1);
-			var collision_dist = Mathf.Max(vsl.Geometry.R, dist-vsl.Geometry.DistToBounds(vsl.Physics.wCoM+dir*dist)) +
+			var collision_dist = threshold.Equals(0)?
+				2*dist-vsl.Geometry.DistToBounds(vsl.Physics.wCoM+dir*dist)-
+				Mathf.Sqrt(exhaust2.SqrDistance(refT2.InverseTransformPoint(vsl.Physics.wCoM))) :
+				Mathf.Max(vsl.Geometry.R, dist-vsl.Geometry.DistToBounds(vsl.Physics.wCoM+dir*dist)) +
 				Mathf.Max(r2, dist-Mathf.Sqrt(exhaust2.SqrDistance(refT2.InverseTransformPoint(vsl.Physics.wCoM))));
 //			vsl.Log("R {0}, R2 {1}; r {2}, r2 {3}", vsl.Geometry.R, r2, 
 //			        dist-vsl.DistToBounds(vsl.wCoM+dir*dist), 

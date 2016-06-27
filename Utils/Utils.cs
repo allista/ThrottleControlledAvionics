@@ -60,6 +60,12 @@ namespace ThrottleControlledAvionics
 			return value.ToString(format)+mod+unit;
 		}
 
+//		public static string FormatTimeDelta(double value)
+//		{
+//			var h = 0;
+//			if(value > 3600) h
+//		}
+
 		#region Logging
 		public static string Format(string s, params object[] args)
 		{
@@ -83,9 +89,11 @@ namespace ThrottleControlledAvionics
 		public static string formatOrbit(Orbit o)
 		{
 			return Utils.Format(
+				"Body:   {}\n" +
+				"\trotation: {}s\n" +
+				"\tradius:   {}\n" +
 				"PeA:    {} m\n" +
 				"ApA:    {} m\n" +
-				"Body R: {} m\n" +
 				"PeR:    {} m\n" +
 				"ApR:    {} m\n" +
 				"Ecc:    {}\n" +
@@ -100,11 +108,25 @@ namespace ThrottleControlledAvionics
 				"T:       {} s\n" +
 				"Vel: {} m/s\n" +
 				"Pos: {} m\n",
+				o.referenceBody.bodyName, o.referenceBody.rotationPeriod,
+				FormatBigValue((float)o.referenceBody.Radius, "m"),
 				o.PeA, o.ApA,
-				o.referenceBody.Radius, o.PeR, o.ApR, 
+				o.PeR, o.ApR, 
 				o.eccentricity, o.inclination, o.LAN, o.meanAnomaly, o.trueAnomaly, o.argumentOfPeriapsis,
 				o.period, o.epoch, o.ObTAtEpoch, o.ObT,
 				formatVector(o.vel), formatVector(o.pos));
+		}
+
+		public static string formatBounds(Bounds b, string name="")
+		{
+			return string.Format("Bounds:  {0}\n" +
+			                     "Center:  {1}\n" +
+			                     "Extents: {2}\n" +
+			                     "Min:     {3}\n" +
+			                     "Max:     {4}\n" +
+			                     "Volume:  {5}", 
+			                     name, b.center, b.extents, b.min, b.max,
+			                     b.size.x*b.size.y*b.size.z);
 		}
 
 		static void convert_args(object[] args)
@@ -115,6 +137,7 @@ namespace ThrottleControlledAvionics
 				if(arg is Vector3) args[i] = formatVector((Vector3)arg);
 				else if(arg is Vector3d) args[i] = formatVector((Vector3d)arg);
 				else if(arg is Orbit) args[i] = formatOrbit((Orbit)arg);
+				else if(arg is Bounds) args[i] = formatBounds((Bounds)arg);
 				else if(arg == null) args[i] = "null";
 				else args[i] = arg.ToString();
 			}
@@ -144,7 +167,7 @@ namespace ThrottleControlledAvionics
 			Utils.Log(string.Format("{0}:{1}:{2}: {3}", vn, pm.part == null? "_part" : pm.part.Title(), pm.moduleName, msg), args); 
 		}
 
-		public static void LogF(string msg, params object[] args) { Log(Utils.Format(msg, args)); }
+		public static void LogF(string msg, params object[] args) { Log(Format(msg, args)); }
 		#endregion
 
 		#region Math

@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
 			IsActive &= VSL.InOrbit && VSL.orbit != null && Target != null && Target.GetOrbit() != null 
 				&& VSL.Engines.MaxThrustM > 0 && CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
 			var tVSL = VSL.TargetVessel;
-			ControlsActive = IsActive || tVSL != null && tVSL.situation == Vessel.Situations.ORBITING && tVSL.mainBody == VSL.mainBody;
+			ControlsActive = IsActive || tVSL != null && tVSL.situation == Vessel.Situations.ORBITING && tVSL.mainBody == VSL.Body;
 			if(IsActive) return;
 			reset();
 		}
@@ -125,7 +125,7 @@ namespace ThrottleControlledAvionics
 			{
 				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL, out VSL.Info.TTB);
 				if(CFG.WarpToNode && VSL.Controls.Aligned)
-					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-VSL.Controls.AttitudeError;
+					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-VSL.Controls.MinAlignmentTime;
 				if(VSL.Info.Countdown > 0) return false;
 			}
 			VSL.Info.Countdown = 0;

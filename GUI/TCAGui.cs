@@ -115,7 +115,7 @@ namespace ThrottleControlledAvionics
 			do {
 				if(vessel == null) yield break;
 				yield return null;
-			} while(!vessel.loaded || vessel.packed);	
+			} while(!vessel.loaded || TimeWarp.CurrentRateIndex == 0 && vessel.packed);	
 			init();
 		}
 
@@ -303,7 +303,7 @@ namespace ThrottleControlledAvionics
 			                    new GUIContent(string.Format("Change TCA hotkey: {0}", TCA_Key), "Select TCA Hotkey"), 
 			                    selecting_key? Styles.enabled_button : Styles.active_button, 
 			                    GUILayout.ExpandWidth(true)))
-			{ selecting_key = true; ScreenMessages.PostScreenMessage("Press a key that will toggle TCA", 5, ScreenMessageStyle.UPPER_CENTER); }
+			{ selecting_key = true; Utils.Message("Press a key that will toggle TCA"); }
 			GUILayout.EndHorizontal();
 			Toggles.Draw();
 			if(THR != null)
@@ -460,6 +460,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("A: {0:0.0}m/s2", VSL.VerticalSpeed.Derivative), GUILayout.Width(80));
 			GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.orbit.ApA), GUILayout.Width(120));
 			GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed.Absolute), GUILayout.Width(100));
+			GUILayout.Label(string.Format("Rho: {0:0.000}ASL", VSL.Body.atmosphere? VSL.vessel.atmDensity/VSL.Body.atmDensityASL : 0), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(string.Format("VSP: {0:0.0m/s}", CFG.VerticalCutoff), GUILayout.Width(100));
@@ -467,6 +468,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.Altitude.Ahead.Equals(float.MinValue)) GUILayout.Label("Obst: N/A", GUILayout.Width(120));
 			else GUILayout.Label(string.Format("Obst: {0:0.0}m", VSL.Altitude.Ahead), GUILayout.Width(120));
 			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)), GUILayout.Width(100));
+			GUILayout.Label(string.Format("dP: {0:0.000}kPa", VSL.vessel.dynamicPressurekPa), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			if(!string.IsNullOrEmpty(DebugMessage))
 				GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));
@@ -481,7 +483,7 @@ namespace ThrottleControlledAvionics
 				return;
 			}
 			Styles.Init();
-			Utils.LockIfMouseOver(LockName, MainWindow);
+			Utils.LockIfMouseOver(LockName, MainWindow, !NavigationControls.SelectingTarget);
 			MainWindow = 
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 MainWindow, 
@@ -514,9 +516,7 @@ namespace ThrottleControlledAvionics
 							catch(Exception ex) { Utils.Log("TCA GUI: exception caught while trying to set hotkey:\n{0}", ex); }
 						}
 						if(e.keyCode == KeyCode.None) 
-							ScreenMessages
-								.PostScreenMessage(string.Format("Unable to convert '{0}' to keycode.\nPlease, try an alphabet character.", e.character), 
-								                   5, ScreenMessageStyle.UPPER_CENTER);
+							Utils.Message("Unable to convert '{0}' to keycode.\nPlease, try an alphabet character.", e.character);
 						else TCA_Key = e.keyCode;
 						Utils.Log("TCA: new key slected: {0}", TCA_Key);
 					}

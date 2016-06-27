@@ -47,14 +47,16 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(VSL.Controls.WarpToTime < 0) return;
-			if(!CFG.WarpToNode && VSL.Controls.WarpToTime > 0) VSL.Controls.WarpToTime = 0;
+			if(VSL.Controls.WarpToTime > 0 && 
+			   (!CFG.WarpToNode || TimeWarp.WarpMode == TimeWarp.Modes.LOW)) 
+				VSL.Controls.WarpToTime = 0;
 			if(VSL.Controls.WarpToTime <= VSL.Physics.UT && TimeWarp.CurrentRate.Equals(1))
 			{ VSL.Controls.WarpToTime = -1; return; }
 			if(TimeWarp.CurrentRateIndex > 0 && TimeToDewarp(TimeWarp.CurrentRateIndex) < 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex-1, false);
 			else if(TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
 			        TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= WRP.MaxWarp &&
-			        (VSL.LandedOrSplashed || VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.mainBody)) &&
+			        (VSL.LandedOrSplashed || VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.Body)) &&
 			        TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
 		}

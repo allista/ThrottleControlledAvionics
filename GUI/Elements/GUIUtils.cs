@@ -62,6 +62,9 @@ namespace ThrottleControlledAvionics
 			LockEditor(LockName, Lock);
 		}
 		#endregion
+
+		public static void Message(string msg, params object[] args)
+		{ ScreenMessages.PostScreenMessage(string.Format(msg, args), 5, ScreenMessageStyle.UPPER_CENTER); }
 	}
 
 	//adapted from MechJeb

@@ -299,7 +299,7 @@ namespace ThrottleControlledAvionics
 						dV = -NeededHorVelocity;
 					else if(Vector3d.Dot(SurfaceVelocity, RelObstaclePosition) > 0)
 						dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
-							-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.Torque.MaxPitchRollAA_m;
+							-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.Torque.MaxPitchRollAA_rad;
 					else dV = -NeededHorVelocity;
 					HSC.AddRawCorrection(dV);
 				}
@@ -533,7 +533,7 @@ namespace ThrottleControlledAvionics
 
 			public void ProbeHeightAhead(Vector3 Dir)
 			{
-				if(VSL.mainBody == null || VSL.mainBody.pqsController == null) return;
+				if(VSL.Body == null || VSL.Body.pqsController == null) return;
 				if(LookAheadTime > RAD.LookAheadTime) 
 				{
 					Obstacle = BestPoint;
@@ -545,7 +545,7 @@ namespace ThrottleControlledAvionics
 						Obstacle = BestPoint;
 					rewind();
 				}
-				CurPoint.Update(VSL.Physics.wCoM+Dir*(VSL.Geometry.R+Utils.ClampL(VSL.HorizontalSpeed, 0.1f)*LookAheadTime), VSL.mainBody);
+				CurPoint.Update(VSL.Physics.wCoM+Dir*(VSL.Geometry.R+Utils.ClampL(VSL.HorizontalSpeed, 0.1f)*LookAheadTime), VSL.Body);
 				if(CurPoint > BestPoint) BestPoint = CurPoint;
 				if(BestPoint > Obstacle) Obstacle = BestPoint;
 				if(VSL.Altitude.Absolute-CurPoint.Altitude <= VSL.Geometry.H)

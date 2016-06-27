@@ -115,7 +115,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
 			{
 				if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold) VSL.Controls.WarpToTime = burn-180;
-				else AlignedTimer.RunIf(() => VSL.Controls.WarpToTime = burn-VSL.Controls.AttitudeError, VSL.Controls.Aligned);
+				else AlignedTimer.RunIf(() => VSL.Controls.WarpToTime = burn-VSL.Controls.MinAlignmentTime, VSL.Controls.Aligned);
 			}
 			VSL.Info.Countdown = burn-VSL.Physics.UT;
 			if(TimeWarp.CurrentRate > 1 || VSL.Info.Countdown > 0) return false;

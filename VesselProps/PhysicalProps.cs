@@ -32,14 +32,26 @@ namespace ThrottleControlledAvionics
 
 		public double     UT { get; private set; } //Planetarium.GetUniversalTime
 
-		Vector3 _wCoM { get { return vessel.packed? vessel.CoM : vessel.CoM+vessel.rb_velocity*TimeWarp.fixedDeltaTime; } }
+		public void UpdateCoM() { wCoM = vessel.findWorldCenterOfMass(); }
 
 		public double GeeAt(double sqrRadius) { return vessel.mainBody.gMagnitudeAtCenter/sqrRadius; }
+
+		public double GetSoundSpeed(double alt)
+		{
+			if(alt > VSL.Body.atmosphereDepth) return 0;
+			var P  = VSL.Body.GetPressure(alt);
+			var T  = VSL.Body.GetTemperature(alt);
+			var r  = VSL.Body.GetDensity(P, T);
+			return VSL.Body.GetSpeedOfSound(P, r);
+		}
+
+		public double GetSoundSpeed()
+		{ return GetSoundSpeed(VSL.Altitude.Absolute); }
 
 		public override void Update()
 		{
 			UT     = Planetarium.GetUniversalTime();
-			wCoM   = _wCoM;
+			wCoM   = vessel.packed? vessel.CoM : vessel.CoM+vessel.rb_velocity*TimeWarp.fixedDeltaTime;
 			refT   = vessel.ReferenceTransform;
 			Radial = wCoM - vessel.mainBody.position;
 			Up     = Radial.normalized;
@@ -50,7 +62,7 @@ namespace ThrottleControlledAvionics
 			mg     = M*G;
 		}
 
-		public Vector3d NorthDirW { get { return Vector3.ProjectOnPlane(VSL.mainBody.position+VSL.mainBody.transform.up*(float)VSL.mainBody.Radius-wCoM, Up).normalized; } }
+		public Vector3d NorthDirW { get { return Vector3.ProjectOnPlane(VSL.Body.position+VSL.Body.transform.up*(float)VSL.Body.Radius-wCoM, Up).normalized; } }
 
 		public double Bearing(Vector3d dir)
 		{
@@ -71,7 +83,6 @@ namespace ThrottleControlledAvionics
 		public void UpdateMoI()
 		{
 			if(vessel == null || vessel.rigidbody == null) return;
-			var CoM = _wCoM;
 			InertiaTensor = new Matrix3x3f();
 			var vesselTransform = vessel.GetTransform();
 			var inverseVesselRotation = Quaternion.Inverse(vesselTransform.rotation);
@@ -92,7 +103,7 @@ namespace ThrottleControlledAvionics
 				}
 				//Compute the contributions to the vessel inertia tensor due to the part mass and position
 				float partMass = rb.mass;
-				Vector3 partPosition = vesselTransform.InverseTransformDirection(rb.worldCenterOfMass - CoM);
+				Vector3 partPosition = vesselTransform.InverseTransformDirection(rb.worldCenterOfMass - wCoM);
 				for(int i = 0; i < 3; i++)
 				{
 					InertiaTensor.Add(i, i, partMass * partPosition.sqrMagnitude);

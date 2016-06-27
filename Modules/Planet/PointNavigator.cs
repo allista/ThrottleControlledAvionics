@@ -339,11 +339,11 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			//if the distance is greater that the threshold (in radians), use Great Circle navigation
-			if(distance/VSL.mainBody.Radius > PN.DirectNavThreshold)
+			if(distance/VSL.Body.Radius > PN.DirectNavThreshold)
 			{
 				var next = CFG.Target.PointFrom(VSL.vessel, 0.1);
 				distance = (float)CFG.Target.DistanceTo(VSL.vessel);
-				vdir = Vector3.ProjectOnPlane(VSL.mainBody.GetWorldSurfacePosition(next.Lat, next.Lon, VSL.vessel.altitude)
+				vdir = Vector3.ProjectOnPlane(VSL.Body.GetWorldSurfacePosition(next.Lat, next.Lon, VSL.vessel.altitude)
 				                              -VSL.vessel.transform.position, VSL.Physics.Up);
 				tvel = Vector3.zero;
 			}
@@ -435,11 +435,13 @@ namespace ThrottleControlledAvionics
 						next_wp.Update(VSL);
 						var next_dist = Vector3.ProjectOnPlane(next_wp.GetTransform().position-CFG.Target.GetTransform().position, VSL.Physics.Up);
 						var angle2next = Vector3.Angle(vdir, next_dist);
-						var minD = Utils.ClampL(min_dist*(1-angle2next/180/VSL.Torque.MaxPitchRollAA_m*PN.PitchRollAAf), CFG.Target.AbsRadius);
+						var minD = Utils.ClampL(min_dist*(1-angle2next/180/VSL.Torque.MaxPitchRollAA_rad*PN.PitchRollAAf), CFG.Target.AbsRadius);
 						if(minD > distance) distance = minD;
 					}
 					else distance = min_dist;
 				}
+				else if(CFG.Nav.Not(Navigation.FollowTarget))
+					distance = Utils.ClampL(distance-end_distance+VSL.Geometry.R*2, 0);
 				//tune maximum speed and PID
 				DistancePID.Min = Mathf.Min(CFG.MaxNavSpeed, 1);
 				DistancePID.Max = CFG.MaxNavSpeed;

@@ -158,14 +158,14 @@ namespace ThrottleControlledAvionics
 				StartUT = VSL.Physics.UT+REN.CorrectionOffset;
 			if(old != null) 
 			{
-				transfer_time = old.TimeToTarget+dT;
+				transfer_time = old.TransferTime+dT;
 				if(transfer_time > TargetOrbit.period ||
 				   transfer_time < TRJ.ManeuverOffset ||
 				   old.ManeuverDeltaV.sqrMagnitude > best.ManeuverDeltaV.sqrMagnitude &&
 				   !old.KillerOrbit && !best.KillerOrbit)
 				{
 					dT /= -2.1;
-					transfer_time = best.TimeToTarget+dT;
+					transfer_time = best.TransferTime+dT;
 				}
 			}
 			else transfer_time = TRJ.ManeuverOffset;
@@ -419,7 +419,7 @@ namespace ThrottleControlledAvionics
 				update_trajectory();
 				CurrentDistance = -1;
 				if(trajectory.DistanceToTarget < REN.CorrectionStart ||
-				   (trajectory.TimeToTarget+trajectory.TimeToStart)/VesselOrbit.period > REN.MaxTTR) 
+				   (trajectory.TransferTime+trajectory.TimeToStart)/VesselOrbit.period > REN.MaxTTR) 
 					stage = Stage.Rendezvou;
 				else compute_rendezvou_trajectory();
 				break;
@@ -518,7 +518,8 @@ namespace ThrottleControlledAvionics
 			{
 				if(computing) 
 				{
-					if(GUILayout.Button("Computing...", Styles.inactive_button, GUILayout.ExpandWidth(false)))
+					if(GUILayout.Button(new GUIContent("Rendezvous", "Computing trajectory. Push to cancel."), 
+					                    Styles.inactive_button, GUILayout.ExpandWidth(false)))
 						CFG.AP2.Off();
 //					#if DEBUG
 //					if(current != null)

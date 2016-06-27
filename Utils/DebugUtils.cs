@@ -39,18 +39,6 @@ namespace ThrottleControlledAvionics
 			Utils.Log(s);
 		}
 
-		public static void logBounds(string name, Bounds b)
-		{
-			Utils.Log("Bounds:  {0}\n" +
-			    "Center:  {1}\n" +
-			    "Extents: {2}\n" +
-			    "Min:     {3}\n" +
-			    "Max:     {4}\n" +
-			    "Volume:  {5}", 
-			    name, b.center, b.extents, b.min, b.max,
-			          b.size.x*b.size.y*b.size.z);
-		}
-
 		public static void logOrbit(string name, Orbit o)
 		{ Utils.Log("Orbit: {0}\n{1}", name, Utils.formatOrbit(o)); }
 

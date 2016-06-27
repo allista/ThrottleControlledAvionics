@@ -56,6 +56,7 @@ namespace ThrottleControlledAvionics
 		public Vector3  ManualThrust { get; private set; }
 		public Vector6  ManualThrustLimits { get; private set; } = Vector6.zero;
 		public float    MaxThrustM { get; private set; }
+		public float    MaxAccel { get; private set; }
 		public float    ThrustDecelerationTime { get; private set; }
 
 		public float    TorqueResponseTime { get; private set; }
@@ -99,13 +100,13 @@ namespace ThrottleControlledAvionics
 		public float DeltaV(float fuel_mass) { return DeltaV(MaxVe, fuel_mass); }
 
 		public float MaxHoverTimeASL(float fuel_mass)
-		{ return (float)(MaxThrustM/(VSL.Physics.M-fuel_mass) / (VSL.mainBody.GeeASL*Utils.G0) * fuel_mass/MaxMassFlow); }
+		{ return (float)(MaxThrustM/(VSL.Physics.M-fuel_mass) / (VSL.Body.GeeASL*Utils.G0) * fuel_mass/MaxMassFlow); }
 
 		public float MaxDeltaV { get { return DeltaV(MaxVe, GetAvailableFuelMass()); } }
 
 		public float SuicidalBurnTime { get { return TTB(MaxDeltaV); } }
 
-		public float RelVeASL { get { return (float)(VSL.Engines.MaxThrustM - VSL.mainBody.GeeASL*Utils.G0*VSL.Physics.M)/VSL.Engines.MaxMassFlow; } }
+		public float RelVeASL { get { return (float)(VSL.Engines.MaxThrustM - VSL.Body.GeeASL*Utils.G0*VSL.Physics.M)/VSL.Engines.MaxMassFlow; } }
 
 		public Vector3 NearestEnginedStageMaxThrust
 		{ get { return GetNearestEnginedStageStats().Thrust; } }
@@ -298,6 +299,7 @@ namespace ThrottleControlledAvionics
 			SlowTorque = TorqueResponseTime > 0;
 			MaxThrustM = MaxThrust.magnitude;
 			MaxVe = MaxThrustM/MaxMassFlow;
+			MaxAccel = MaxThrustM/VSL.Physics.M;
 			//init RCS wrappers and calculate MaxThrust taking torque imbalance into account
 			MaxThrustRCS = new Vector6();
 			var RCSThrusImbalance = new Vector3[6];

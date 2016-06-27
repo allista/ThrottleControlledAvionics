@@ -190,7 +190,7 @@ namespace ThrottleControlledAvionics
 			if(CFG.AutoTune) tune_steering_params();
 			var needed_torque = Vector3.zero;
 			//tune steering if MaxAA has changed drastically
-			Steering = VSL.Controls.Steering*Mathf.Lerp(Utils.ClampH(VSL.Torque.MaxAAMod, 1), 1, VSL.Controls.InvAttitudeFactor);
+			Steering = VSL.Controls.Steering*Mathf.Lerp(Utils.ClampH(VSL.Torque.MaxAAMod, 1), 1, VSL.Controls.InvAlignmentFactor);
 			if(Steering.sqrMagnitude >= TCAScenario.Globals.InputDeadZone)
 			{
 				//correct steering
@@ -223,12 +223,12 @@ namespace ThrottleControlledAvionics
 			if(CFG.AT) CFG.SteeringModifier = Vector3.one;
 			else
 			{
-				CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAngularA.x)/100f);
-				CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAngularA.y)/100f);
-				CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAngularA.z)/100f);
+				CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAA.x)/100f);
+				CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAA.y)/100f);
+				CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAA.z)/100f);
 			}
 			//tune PI coefficients
-			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.MaxAngularA_rad);
+			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.MaxAA_rad);
 			CFG.Engines.I = CFG.Engines.P/2f;
 		}
 

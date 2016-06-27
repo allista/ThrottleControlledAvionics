@@ -101,6 +101,25 @@ namespace ThrottleControlledAvionics
 			                   Mathf.Clamp(v.z, min, max)); 
 		}
 
+		public static Vector3 ClampMagnitudeH(this Vector3 v, float max)
+		{ 
+			var vm = v.magnitude;
+			return vm > max? v/vm*max : v;
+
+		}
+
+		public static Vector3d ClampMagnitudeH(this Vector3d v, float max)
+		{ 
+			var vm = v.magnitude;
+			return vm > max? v/vm*max : v;
+		}
+
+		public static Vector3d ClampMagnitudeL(this Vector3d v, float min)
+		{ 
+			var vm = v.magnitude;
+			return vm < min? v/vm*min : v;
+		}
+
 		public static Vector3 Sign(this Vector3 v)
 		{ return new Vector3(Mathf.Sign(v.x), Mathf.Sign(v.y), Mathf.Sign(v.z)); }
 

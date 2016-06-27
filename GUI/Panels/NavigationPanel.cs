@@ -28,8 +28,8 @@ namespace ThrottleControlledAvionics
 		PointNavigator PN;
 		BallisticJump BJ;
 
-		bool selecting_target;
 		bool select_single;
+		public bool SelectingTarget { get; private set; }
 		Vector2 waypointsScroll;
 		readonly ActionDamper AddTargetDamper = new ActionDamper();
 		const string WPM_ICON = "ThrottleControlledAvionics/Icons/waypoint";
@@ -82,8 +82,8 @@ namespace ThrottleControlledAvionics
 				                         Styles.active_button, GUILayout.Width(75)))
 					follow_me();
 			}
-			if(selecting_target)
-				selecting_target &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.Width(120));
+			if(SelectingTarget)
+				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.Width(120));
 			else if(VSL.HasTarget && 
 			            !(VSL.Target is WayPoint) && 
 			            (CFG.Waypoints.Count == 0 || VSL.Target != CFG.Waypoints.Peek().GetTarget()))
@@ -98,7 +98,7 @@ namespace ThrottleControlledAvionics
 			else if(GUILayout.Button(new GUIContent("Add Waypoint", "Select a new waypoint"), 
 			                         Styles.active_button, GUILayout.Width(120)))
 			{
-				selecting_target = true;
+				SelectingTarget = true;
 				CFG.ShowWaypoints = true;
 			}
 			if(CFG.Waypoints.Count > 0 && !CFG.Nav.Paused)
@@ -122,13 +122,19 @@ namespace ThrottleControlledAvionics
 
 		public void AddSingleWaypointInMapView()
 		{
-			if(selecting_target)
-				selecting_target &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(false));
+			if(SelectingTarget)
+				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(false));
+			else if(CFG.Target != null)
+			{
+				if(GUILayout.Button(new GUIContent("Del Target", "Remove target point"), 
+			                        Styles.danger_button, GUILayout.ExpandWidth(false)))
+					VSL.SetTarget();
+			}
 			else if(GUILayout.Button(new GUIContent("Set Target", "Select target point"), 
 			                         Styles.active_button, GUILayout.ExpandWidth(false)))
 			{
 				select_single = true;
-				selecting_target = true;
+				SelectingTarget = true;
 				CFG.GUIVisible = true;
 				CFG.ShowWaypoints = true;
 				MapView.EnterMapView();
@@ -220,7 +226,7 @@ namespace ThrottleControlledAvionics
 		void WaypointOverlay()
 		{
 			if(TCA == null || !TCA.Available || !TCAGui.HUD_enabled) return;
-			if(selecting_target)
+			if(SelectingTarget)
 			{
 				var coords = MapView.MapIsEnabled? 
 					Coordinates.GetAtPointer(vessel.mainBody) :
@@ -242,11 +248,9 @@ namespace ThrottleControlledAvionics
 						{ 
 							if(select_single)
 							{
-								selecting_target = false;
+								SelectingTarget = false;
 								select_single = false;
-								CFG.Waypoints.Clear();
-								CFG.Waypoints.Enqueue(t);
-								VSL.Target = t;
+								VSL.SetTarget(t);
 								MapView.ExitMapView();
 							}
 							else AddTargetDamper.Run(() => CFG.Waypoints.Enqueue(t));
@@ -255,7 +259,7 @@ namespace ThrottleControlledAvionics
 						}
 						if(Input.GetMouseButtonUp(1))
 						{ 
-							selecting_target &= (DateTime.Now - clicked_time).TotalSeconds >= 0.1;
+							SelectingTarget &= (DateTime.Now - clicked_time).TotalSeconds >= 0.08;
 							clicked = false; 
 						}
 					}

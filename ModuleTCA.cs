@@ -296,7 +296,7 @@ namespace ThrottleControlledAvionics
 			StartCoroutine(updateUnpackDistance());
 			Actions["onActionUpdate"].active = true;
 			Actions["ToggleTCA"].actionGroup = CFG.ActionGroup;
-			CFG.Resume();
+			CFG.Resume(this);
 		}
 
 		void reset()
@@ -354,8 +354,15 @@ namespace ThrottleControlledAvionics
 			if(CFG.Enabled)
 			{
 				//update heavy to compute parameters
+				VSL.Physics.UpdateCoM();
 				VSL.Physics.UpdateMoI();
 				VSL.Geometry.Update();
+//				Utils.LogF("{}: MoI {}, Srf {}, MaxPossibleTorque {}, M {}, MaxThrust {}\n" +
+//				           "atmDensity {}, Torq.Ang.DragRes {}, NoEng.Torq.Ang.DragRes {}, Max.Pos.Ang.DragRes {}\n",
+//				           this.Title(), VSL.Physics.MoI, VSL.Geometry.BoundsSideAreas, VSL.Torque.MaxTorquePossible,
+//				           VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Body.atmDensityASL,
+//				           VSL.Torque.MaxAngularDragResistance, VSL.Torque.NoEnginesAngularDragResistance, VSL.Torque.MaxPossibleAngularDragResistance
+//				          );//debug
 			}
 		}
 

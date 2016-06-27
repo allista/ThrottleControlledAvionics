@@ -142,8 +142,9 @@ namespace ThrottleControlledAvionics
 					VSL.GearOn(false); 
 					VSL.BrakesOn(false);
 				},
-				                     VSL.VerticalSpeed.Relative > 0 ||
-				                     VSL.HorizontalSpeed > TLA.GearOnMaxHSpeed);
+				                     VSL.VerticalSpeed.Relative > 5 ||
+				                     VSL.HorizontalSpeed > TLA.GearOnMaxHSpeed || 
+				                     VSL.VerticalSpeed.Relative > 0 && VSL.Altitude.Relative > VSL.Geometry.H*5);
 			}
 		}
 	}

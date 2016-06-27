@@ -117,7 +117,7 @@ namespace ThrottleControlledAvionics
 		{ EditedCFG = cfg; }
 
 		protected void Message(string msg)
-		{ ScreenMessages.PostScreenMessage(Name+": "+msg, 5, ScreenMessageStyle.UPPER_CENTER); }
+		{ Utils.Message("{0}: {1}", Name, msg); }
 
 		#if DEBUG
 		protected void Log(VesselWrapper VSL, string msg, params object[] args)

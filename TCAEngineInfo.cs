@@ -74,10 +74,8 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(!HighLogic.LoadedSceneIsEditor && group > 0) 
 			{
-				ScreenMessages.PostScreenMessage(
-					"Cannot change the role of an engine belonging to a group.\n" +
-					"Use in-flight group controls  instead.", 
-					5, ScreenMessageStyle.UPPER_CENTER);
+				Utils.Message("Cannot change the role of an engine belonging to a group.\n" +
+				              "Use in-flight group controls  instead.");
 				return;
 			}
 			Role = RolesOrder[(++role_index) % NumRoles];

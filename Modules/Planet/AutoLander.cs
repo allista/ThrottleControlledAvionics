@@ -120,8 +120,8 @@ namespace ThrottleControlledAvionics
 			var c = VSL.Geometry.C+dir*(VSL.Geometry.R+0.1f);
 			if(Physics.SphereCast(c, radius, dir, out raycastHit, MaxDistance, RadarMask))
 			{
-				if(VSL.mainBody.ocean && 
-				   (raycastHit.point-VSL.mainBody.position).magnitude < VSL.mainBody.Radius)
+				if(VSL.Body.ocean && 
+				   (raycastHit.point-VSL.Body.position).magnitude < VSL.Body.Radius)
 					return null;
 				return new SurfaceNode(c, raycastHit.point, up);
 			}
@@ -232,8 +232,9 @@ namespace ThrottleControlledAvionics
 		void set_initial_altitude()
 		{
 			VSL.Altitude.Update();
-			DesiredAltitude = Mathf.Max(VSL.Altitude.Relative+VSL.VerticalSpeed.Absolute*3, VSL.Geometry.H*2);
-			DesiredAltitude = Mathf.Min(DesiredAltitude, LND.MaxStartAltitude);
+			DesiredAltitude = Utils.Clamp(VSL.Altitude.Relative+VSL.VerticalSpeed.Absolute*3, 
+			                              VSL.Geometry.H*2, LND.MaxStartAltitude);
+			CFG.DesiredAltitude = DesiredAltitude;
 		}
 
 		bool altitude_changed
@@ -241,7 +242,6 @@ namespace ThrottleControlledAvionics
 			get
 			{
 				if(DesiredAltitude <= 0) set_initial_altitude();
-				CFG.DesiredAltitude = DesiredAltitude;
 				var err = Mathf.Abs(VSL.Altitude-DesiredAltitude);
 				if(err > 10)
 				{
@@ -316,7 +316,6 @@ namespace ThrottleControlledAvionics
 			DesiredAltitude += delta_alt;
 			if(DesiredAltitude > LND.MaxWideCheckAltitude)
 			{
-				Utils.LogF("DesiredAlt {}", DesiredAltitude);
 				CFG.AP1.Off();
 				Status("red", "Unable to find suitale place for landing.");
 			}
@@ -335,8 +334,8 @@ namespace ThrottleControlledAvionics
 
 		void move_next()
 		{
-			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(NextNode.position),
-			                          VSL.mainBody.GetLongitude(NextNode.position));
+			CFG.Anchor = new WayPoint(VSL.Body.GetLatitude(NextNode.position),
+			                          VSL.Body.GetLongitude(NextNode.position));
 			CFG.Anchor.Radius = LND.NodeTargetRange;
 			CFG.Target = CFG.Anchor;
 			stage = Stage.MoveNext;
@@ -345,8 +344,8 @@ namespace ThrottleControlledAvionics
 		void land()
 		{
 			var c = center_node;
-			CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(c.position),
-			                          VSL.mainBody.GetLongitude(c.position));
+			CFG.Anchor = new WayPoint(VSL.Body.GetLatitude(c.position),
+			                          VSL.Body.GetLongitude(c.position));
 			CFG.Anchor.Radius = LND.NodeTargetRange;
 			CFG.Target = CFG.Anchor;
 			CFG.Nav.OnIfNot(Navigation.Anchor);
@@ -374,15 +373,10 @@ namespace ThrottleControlledAvionics
 				Status("Preparing for landing sequence...");
 				//here we just need the altitude control to prevent smashing into something while stopping
 				if(DesiredAltitude <= 0) set_initial_altitude();
-				if(stopped) 
-				{
-					set_initial_altitude();
-					CFG.DesiredAltitude = DesiredAltitude;
-					stage = Stage.PointCheck;	
-				}
+				if(stopped) stage = Stage.PointCheck;	
 				break;
 			case Stage.PointCheck:
-				Status("Checking landing site...");
+				Status("Checking a landing site...");
 				if(!stopped) break;
 				if(scan(1, null, VSL.Geometry.R*2)) break;
 				if(Nodes == null || center_node == null) 
@@ -392,7 +386,7 @@ namespace ThrottleControlledAvionics
 				else land();
 				break;
 			case Stage.FlatCheck:
-				Status("Searching for landing site...");
+				Status("Searching for a landing site...");
 				if(!stopped) break;
 				if(FlatNodes.Count > 0)
 				{
@@ -417,7 +411,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.MoveNext:
 				if(NextNode.flat) Status("Checking landing site...");
-				else Status("Searching for landing site...");
+				else Status("Searching for a landing site...");
 				if(!moved_to_next_node) break;
 				DesiredAltitude = VSL.Altitude;
 				if(NextNode.flat) stage = Stage.PointCheck;

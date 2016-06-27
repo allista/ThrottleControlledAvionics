@@ -7,6 +7,7 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
+using System;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -32,7 +33,7 @@ namespace ThrottleControlledAvionics
 			var b = vessel.Bounds(refT);
 			C = refT.TransformPoint(b.center);
 			H = Mathf.Abs(Vector3.Dot(refT.TransformDirection(b.extents), VSL.Physics.Up))+
-				Vector3.Dot(vessel.CurrentCoM-C, VSL.Physics.Up);
+				Vector3.Dot(VSL.Physics.wCoM-C, VSL.Physics.Up);
 			R = b.extents.magnitude;
 			BoundsSideAreas = new Vector3(B.extents.y*B.extents.z, //right
 										  B.extents.x*B.extents.z, //up

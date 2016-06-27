@@ -64,6 +64,9 @@ namespace ThrottleControlledAvionics
 			else SQD.ApplyCFG(action);
 		}
 
+		protected void Message(string msg, params object[] args)
+		{ if(VSL.IsActiveVessel) Utils.Message(msg, args); }
+
 		protected void ClearStatus() 
 		{ if(VSL.IsActiveVessel) TCAGui.StatusMessage = ""; }
 
@@ -122,15 +125,7 @@ namespace ThrottleControlledAvionics
 		protected virtual void Update() {}
 		protected virtual void reset() {}
 
-		protected void SetTarget(WayPoint wp = null)
-		{
-			CFG.Target = wp;
-			var t = wp == null? null : wp.GetTarget();
-			if(VSL.IsActiveVessel && t != null)
-				ScreenMessages.PostScreenMessage("Target: "+t.GetName(),
-				                                 5, ScreenMessageStyle.UPPER_CENTER);
-			VSL.Target = t;
-		}
+		protected void SetTarget(WayPoint wp = null) { VSL.SetTarget(wp); }
 		protected void SetTarget(Vessel vsl) { SetTarget(new WayPoint(vsl)); }
 
 		protected WayPoint Target2WP()

@@ -247,9 +247,9 @@ namespace ThrottleControlledAvionics
 				//calculate needed thrust direction
 				if(!(with_manual_thrust && zero_manual_thrust &&
 				     VSL.HorizontalSpeed.Absolute <= HSC.TranslationLowerThreshold) &&
-				   Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)
+				   rVm > HSC.RotationLowerThreshold && Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)
 				{
-					var GeeF  = VSL.Physics.G/Utils.G0;
+					var GeeF  = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
 					var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
 					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / TWR_factor;
 					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;

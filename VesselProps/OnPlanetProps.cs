@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 		public bool HaveUsableParachutes { get; private set; }
 		public bool ParachutesActive { get; private set; }
 		public bool ParachutesDeployed { get; private set; }
+		public int  NearestParachuteStage { get; private set; }
 		readonly ActionDamper parachute_cooldown = new ActionDamper(0.5);
 
 		public Vector3 Fwd { get; private set; }  //fwd unit vector of the Control module in world space
@@ -52,8 +53,8 @@ namespace ThrottleControlledAvionics
 			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
 				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.mg : 0f;
 			GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
-			var mVSFtor = (VSL.Torque.MaxPitchRollAA_m > 0)? 
-				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRollAA_m, GLB.VSC.MaxVSFtwr*GeeVSF) : 0;
+			var mVSFtor = (VSL.Torque.MaxPitchRollAA_rad > 0)? 
+				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRollAA_rad, GLB.VSC.MaxVSFtwr*GeeVSF) : 0;
 			MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
 			var down_thrust = 0f;
 			var slow_thrust = 0f;
@@ -66,7 +67,7 @@ namespace ThrottleControlledAvionics
 				if(e.isVSC)
 				{
 					var dcomponent = -Vector3.Dot(e.wThrustDir, VSL.Physics.Up);
-					if(dcomponent <= 0) e.VSF = VSL.HasUserInput? 0 : GeeVSF*VSL.Controls.InvAttitudeFactor;
+					if(dcomponent <= 0) e.VSF = VSL.HasUserInput? 0 : GeeVSF*VSL.Controls.InvAlignmentFactor;
 					else 
 					{
 						var dthrust = e.nominalCurrentThrust(e.best_limit)*dcomponent;
@@ -101,9 +102,12 @@ namespace ThrottleControlledAvionics
 			UnusedParachutes.Clear();
 			ParachutesActive = false;
 			ParachutesDeployed = false;
+			NearestParachuteStage = 0;
 			for(int i = 0, count = Parachutes.Count; i < count; i++)
 			{
 				var p = Parachutes[i];
+				if(p.part.inverseStage > NearestParachuteStage) 
+					NearestParachuteStage = p.part.inverseStage;
 				ParachutesActive |= 
 					p.deploymentState == ModuleParachute.deploymentStates.ACTIVE ||
 					p.deploymentState == ModuleParachute.deploymentStates.SEMIDEPLOYED ||

@@ -200,7 +200,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Accelerate:
 				if(!VSL.HasManeuverNode) { CFG.AP2.Off(); break; }
-				if(VSL.Controls.AttitudeFactor > 0.9 || !CFG.VSCIsActive)
+				if(VSL.Controls.AlignmentFactor > 0.9 || !CFG.VSCIsActive)
 				{
 					CFG.DisableVSC();
 					if(!Executor.Execute(VSL.FirstManeuverNode.GetBurnVector(VesselOrbit), 10)) fine_tune_approach();
@@ -240,7 +240,7 @@ namespace ThrottleControlledAvionics
 			if(ControlsActive) 
 			{	
 				if(computing) 
-					GUILayout.Label(new GUIContent("Jump To", "Computing maneuver..."), 
+					GUILayout.Label(new GUIContent("Jump To", "Computing maneuver. Push to cancel."), 
 					                Styles.inactive_button, GUILayout.ExpandWidth(false));
 				else if(Utils.ButtonSwitch("Jump To", CFG.AP2[Autopilot2.BallisticJump],
 				                           "Fly to the target using ballistic trajectory.", 

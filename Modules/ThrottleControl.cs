@@ -25,8 +25,9 @@ namespace ThrottleControlledAvionics
 		static Config THR { get { return TCAScenario.Globals.THR; } }
 		public ThrottleControl(ModuleTCA tca) : base(tca) {}
 
-		public float Throttle = -1;
+		float throttle = -1;
 		public float DeltaV = -1;
+		public float Throttle { get { return throttle; } set { throttle = value; DeltaV = -1; } }
 
 		public float NextThrottle(float dV, float throttle)
 		{ return NextThrottle(dV, throttle, VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Engines.ThrustDecelerationTime); }
@@ -52,7 +53,6 @@ namespace ThrottleControlledAvionics
 		{
 			base.reset();
 			Throttle = -1;
-			DeltaV = -1;
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
@@ -60,14 +60,14 @@ namespace ThrottleControlledAvionics
 			if(!CFG.Enabled) return;
 			if(DeltaV >= 0)
 			{
-				Throttle = DeltaV < THR.MinDeltaV? Throttle = 0 :
-					NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) * VSL.Controls.AttitudeFactor;
+				throttle = DeltaV < THR.MinDeltaV? throttle = 0 :
+					NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) * VSL.Controls.AlignmentFactor;
 			}
 			if(Throttle >= 0) 
 			{ 
-				s.mainThrottle = Throttle; 
-				VSL.vessel.ctrlState.mainThrottle = Throttle; 
-				if(VSL.IsActiveVessel) FlightInputHandler.state.mainThrottle = Throttle;
+				s.mainThrottle = throttle; 
+				VSL.vessel.ctrlState.mainThrottle = throttle; 
+				if(VSL.IsActiveVessel) FlightInputHandler.state.mainThrottle = throttle;
 			}
 			else if(CFG.BlockThrottle && VSL.OnPlanet)
 				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;

@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float AngularAccelF = 2f;
 			[Persistent] public float LookAheadTime = 2f;
 			[Persistent] public float SlowTorqueF   = 1f;
+			[Persistent] public float DistanceCurve = 2f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
 		static Config ANC { get { return TCAScenario.Globals.ANC; } }
@@ -73,8 +74,8 @@ namespace ThrottleControlledAvionics
 		public void AnchorHereCallback(Multiplexer.Command cmd)
 		{
 			if(cmd == Multiplexer.Command.On)
-				CFG.Anchor = new WayPoint(VSL.mainBody.GetLatitude(VSL.Physics.wCoM), 
-				                          VSL.mainBody.GetLongitude(VSL.Physics.wCoM));
+				CFG.Anchor = new WayPoint(VSL.Body.GetLatitude(VSL.Physics.wCoM), 
+				                          VSL.Body.GetLongitude(VSL.Physics.wCoM));
 			AnchorCallback(cmd);
 		}
 
@@ -86,21 +87,25 @@ namespace ThrottleControlledAvionics
 			else CFG.HF.OnIfNot(HFlight.Move);
 			CFG.Anchor.Update(VSL);
 			//calculate direct distance
-			var vdir = Vector3.ProjectOnPlane(CFG.Anchor.GetTransform().position - 
-			                                  (VSL.Physics.wCoM+
-			                                   VSL.HorizontalSpeed.Vector*ANC.LookAheadTime), 
-			                                  VSL.Physics.Up);
+			var apos = CFG.Anchor.GetTransform().position;
+			var vdir = Vector3.ProjectOnPlane(apos - (VSL.Physics.wCoM+VSL.HorizontalSpeed.Vector*ANC.LookAheadTime), VSL.Physics.Up);
 			var distance = Mathf.Sqrt(vdir.magnitude);
-			VSL.Info.Destination = vdir;
 			vdir.Normalize();
+			VSL.Info.Destination = apos-VSL.Physics.wCoM;
+			var real_dist = Vector3.ProjectOnPlane(VSL.Info.Destination, VSL.Physics.Up).magnitude;
 			//tune the pid and update needed velocity
-			AccelCorrection.Update(Mathf.Clamp(VSL.Torque.MaxPitchRollAA_m/ANC.AngularAccelF, 0.01f, 1), 0.01f);
+			AccelCorrection.Update(Mathf.Clamp(VSL.Torque.MaxPossibleAA_rad/ANC.AngularAccelF, 0.01f, 1), 0.01f);
 			pid.P = ANC.DistancePID.P*AccelCorrection;
 			pid.D = ANC.DistancePID.D*(2-AccelCorrection);
+			if(real_dist <= Mathf.Max(CFG.Anchor.AbsRadius-VSL.Geometry.R, 1)) 
+			{
+				distance = 0;
+				pid.D = 0;
+			}
+			// CFG.Anchor.AbsRadius*Mathf.Pow(real_dist/CFG.Anchor.AbsRadius, ANC.DistanceCurve);
 			pid.Update(distance*ANC.DistanceF/(VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ANC.SlowTorqueF : 1f));
 			VSL.HorizontalSpeed.SetNeeded(vdir*pid.Action);
-//			Log("dist {0}, pid {1}, nHV {2}, slow {3}, torque response {4}", 
-//			    distance, pid, VSL.HorizontalSpeed.NeededVector, slow, VSL.TorqueResponseTime);//debug
+//			CSV(pid.P, pid.D, distance, real_dist, pid.Action);//debug
 		}
 
 		public override void Draw()

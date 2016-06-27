@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
 			PrevRelative = Relative;
 			Absolute = (float)vessel.altitude;
 			TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
-			Relative = (float)(vessel.altitude) - TerrainAltitude;
+			Relative = Utils.ClampL((float)(vessel.altitude) - TerrainAltitude, 0);
 			Current = CFG.AltitudeAboveTerrain? Relative : Absolute;
 			AboveGround = 
 				CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= VSL.Geometry.H ||

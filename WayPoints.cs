@@ -26,13 +26,13 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool Pause;
 		[Persistent] public bool Land;
 		//target proxy
-		[Persistent] ProtoTargetInfo TargetInfo = new ProtoTargetInfo();
+		[Persistent] public ProtoTargetInfo TargetInfo = new ProtoTargetInfo();
 		ITargetable target;
 		//a transform holder for simple lat-lon coordinates on the map
 		GameObject go;
 
 		public bool IsProxy { get { return target != null; } }
-		public bool IsVessel { get { return target is Vessel; } }
+		public bool IsVessel { get { return GetVessel() != null; } }
 
 		[Obsolete("Legacy config conversion")]
 		public override void Load(ConfigNode node)
@@ -76,12 +76,15 @@ namespace ThrottleControlledAvionics
 		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
 		public double AngleTo(VesselWrapper vsl) { return AngleTo(vsl.vessel.latitude, vsl.vessel.longitude); }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
-		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.mainBody.Radius/VSL.Geometry.R; }
+		public double DistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius; }
+		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius/VSL.Geometry.R; }
 		public bool   CloseEnough(VesselWrapper VSL) { return RelDistanceTo(VSL)-1 < Radius; }
 		public double SurfaceAlt(CelestialBody body) { return Utils.TerrainAltitude(body, Pos.Lat, Pos.Lon); }
 		public Vector3d RelSurfPos(CelestialBody body) { return body.GetRelSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
 		public Vector3d RelOrbPos(CelestialBody body) { return RelSurfPos(body).xzy; }
 		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
+		public Vector3d VectorTo(WayPoint wp, CelestialBody body) { return wp.RelSurfPos(body)-RelSurfPos(body); }
+		public Vector3d VectorTo(VesselWrapper VSL, CelestialBody body) { return VSL.Physics.wCoM-WorldPos(body); }
 
 		public static double BearingTo(double lat1, double lat2, double dlon)
 		{
@@ -123,7 +126,7 @@ namespace ThrottleControlledAvionics
 		//Call this every frame to make sure the target transform stays up to date
 		public void Update(VesselWrapper VSL) 
 		{ 
-			if(target != null) UpdateCoordinates(VSL.mainBody);
+			if(target != null) UpdateCoordinates(VSL.Body);
 			if(TargetInfo.targetType != ProtoTargetInfo.Type.Null && 
 			   HighLogic.LoadedSceneIsFlight)
 			{
@@ -133,12 +136,12 @@ namespace ThrottleControlledAvionics
 					TargetInfo.targetType = ProtoTargetInfo.Type.Null;
 					Name += " last location";
 				}
-				else UpdateCoordinates(VSL.mainBody);
+				else UpdateCoordinates(VSL.Body);
 			}
 			else
 			{
 				if(go == null) go = new GameObject();
-				go.transform.position = VSL.mainBody.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, Utils.TerrainAltitude(VSL.mainBody, Pos.Lat, Pos.Lon)); 
+				go.transform.position = VSL.Body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, Utils.TerrainAltitude(VSL.Body, Pos.Lat, Pos.Lon)); 
 			}
 			AbsRadius = Radius*VSL.Geometry.R;
 		}
@@ -200,7 +203,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool Equals(WayPoint wp)
-		{ return wp != null && Pos.Lat.Equals(wp.Pos.Lat) && Pos.Lon.Equals(wp.Pos.Lon); }
+		{ return wp != null && Math.Abs(Pos.Lat-wp.Pos.Lat) < 1e-6 && Math.Abs(Pos.Lon-wp.Pos.Lon) < 1e-6; }
 	}
 }
 

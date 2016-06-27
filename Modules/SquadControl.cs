@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
 				}
 				action(tca);
 			}
-			ScreenMessages.PostScreenMessage("Squad Action Executed", 5, ScreenMessageStyle.UPPER_CENTER);
+			Message("Squad Action Executed");
 		}
 
 		public void Apply(Action<ModuleTCA> action)

@@ -26,7 +26,7 @@ namespace ThrottleControlledAvionics
 			: base(vsl, dV, startUT, target) 
 		{ 
 			MinPeR = min_PeR;
-			TimeToTarget = transfer_time;
+			TransferTime = transfer_time;
 			TargetOrbit = Target.GetOrbit();
 			TargetVessel = Target.GetVessel();
 			update(); 
@@ -35,18 +35,18 @@ namespace ThrottleControlledAvionics
 		public override void UpdateOrbit(Orbit current)
 		{
 			base.UpdateOrbit(current);
-			TimeToTarget = -1;
+			TransferTime = -1;
 			update();
 		}
 
 		void update()
 		{
-			if(TimeToTarget < 0)
+			if(TransferTime < 0)
 			{
 				TrajectoryCalculator.ClosestApproach(NewOrbit, TargetOrbit, StartUT, out AtTargetUT);
-				TimeToTarget = AtTargetUT-StartUT;
+				TransferTime = AtTargetUT-StartUT;
 			}
-			else AtTargetUT = StartUT+TimeToTarget;
+			else AtTargetUT = StartUT+TransferTime;
 			AtTargetPos = NewOrbit.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = NewOrbit.getOrbitalVelocityAtUT(AtTargetUT);
 			TargetPos = TargetOrbit.getRelativePositionAtUT(AtTargetUT);
@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
 				Math.Sign(TargetOrbit.period-OrigOrbit.period);
 			DeltaFi = TrajectoryCalculator.RelativeInclination(NewOrbit, TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
-			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TimeToTarget;
+			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TransferTime;
 //			DebugUtils.LogF("{}", this);//debug
 		}
 

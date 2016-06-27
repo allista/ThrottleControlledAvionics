@@ -15,8 +15,6 @@ namespace ThrottleControlledAvionics
 	public class LandingTrajectory : TargetedTrajectory
 	{
 		public readonly double TargetAltitude;
-		public QuaternionD AtSurfaceRotation { get; private set; }
-		public QuaternionD AtStartRotation { get; private set; }
 		public WayPoint SurfacePoint { get; private set; }
 
 		public double VslStartLat { get; private set; }
@@ -51,18 +49,16 @@ namespace ThrottleControlledAvionics
 			//calculate the position of a landing site
 			if(orb.ApA <= TargetAltitude) AtTargetUT = orb.StartUT+(orb.trueAnomaly < 180? orb.timeToAp : 1);
 			else AtTargetUT = TrajectoryCalculator.NearestRadiusUT(orb, Body.Radius+TargetAltitude, UT);
-			TimeToTarget = AtTargetUT-StartUT;
-			AtSurfaceRotation = TrajectoryCalculator.InvBodyRotationAtdT(Body, TimeToSurface);
+			TransferTime = AtTargetUT-StartUT;
 			AtTargetPos = orb.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = orb.getOrbitalVelocityAtUT(AtTargetUT);
-			SurfacePoint = new WayPoint(AtSurfaceRotation*(AtTargetPos.xzy)+Body.position, Body);
+			SurfacePoint = new WayPoint((TrajectoryCalculator.BodyRotationAtdT(Body, -TimeToSurface)*AtTargetPos).xzy+Body.position, Body);
 			SurfacePoint.Name = "Landing Site";
 		}
 
 		void update(bool with_brake)
 		{
 			update_from_orbit(NewOrbit, NewOrbit.trueAnomaly > 180? StartUT : StartUT+NewOrbit.timeToAp);
-			AtStartRotation = TrajectoryCalculator.InvBodyRotationAtdT(Body, TimeToStart);
 			//correct for brake maneuver
 			if(with_brake)
 			{
@@ -85,7 +81,7 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				var start_pos = AtStartRotation*(StartPos.xzy) + Body.position;
+				var start_pos = (TrajectoryCalculator.BodyRotationAtdT(Body, -TimeToStart)*StartPos).xzy + Body.position;
 				VslStartLat = Utils.ClampAngle(Body.GetLatitude(start_pos));
 				VslStartLon = Utils.ClampAngle(Body.GetLongitude(start_pos));
 			}
@@ -97,8 +93,9 @@ namespace ThrottleControlledAvionics
 			DeltaLon = Utils.AngleDelta(SurfacePoint.Pos.Lon, Target.Pos.Lon)*
 				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLon), SurfacePoint.Pos.Lon));
 			//compute distance in radial coordinates
-			DeltaFi = 90-Vector3d.Angle(NewOrbit.GetOrbitNormal().xzy,
-			                            QuaternionD.Inverse(AtSurfaceRotation) * Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude));
+			DeltaFi = 90-Vector3d.Angle(NewOrbit.GetOrbitNormal(),
+			                            TrajectoryCalculator.BodyRotationAtdT(Body, TimeToSurface) * 
+			                            Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude).xzy);
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 
 //			Utils.Log("{0}", this);//debug
@@ -131,25 +128,6 @@ namespace ThrottleControlledAvionics
 				             SurfacePoint, TimeToSurface,
 				             DeltaR, DeltaLat, DeltaLon,
 				             BrakeDeltaV, BrakeDuration, BrakeStartUT-VSL.Physics.UT);
-		}
-	}
-
-	public class PlaneChangeTrajectory : TargetedTrajectory
-	{
-		public PlaneChangeTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target)
-			: base(vsl, dV, startUT, target) { update(); }
-
-		void update()
-		{ 
-			DeltaFi = TrajectoryCalculator.RelativeInclinationAtResonance(NewOrbit, Target.RelOrbPos(Body), StartUT, out TimeToTarget); 
-			DistanceToTarget = DeltaFi;
-			AtTargetUT = StartUT+TimeToTarget;
-		}
-
-		public override void UpdateOrbit(Orbit current)
-		{
-			base.UpdateOrbit(current);
-			update();
 		}
 	}
 }

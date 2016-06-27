@@ -44,7 +44,7 @@ namespace ThrottleControlledAvionics
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(VesselProps))).ToList();
 		
 		//state
-		public CelestialBody mainBody { get { return vessel.mainBody; } }
+		public CelestialBody Body { get { return vessel.mainBody; } }
 		public Orbit orbit { get { return vessel.orbit; } }
 		public bool OnPlanet { get; private set; }
 		public bool InOrbit { get; private set; }
@@ -63,8 +63,16 @@ namespace ThrottleControlledAvionics
 			} 
 		}
 		public ManeuverNode FirstManeuverNode { get { return vessel.patchedConicSolver.maneuverNodes[0]; } }
-
 		public Vessel.Situations Situation { get { return vessel.situation; } }
+
+		public void SetTarget(WayPoint wp = null)
+		{
+			CFG.Target = wp;
+			var t = wp == null? null : wp.GetTarget();
+			if(t != null && IsActiveVessel) 
+				Utils.Message("Target: {0}", t.GetName());
+			Target = t;
+		}
 
 		#if DEBUG
 		public void LogF(string msg, params object[] args) 
@@ -220,6 +228,8 @@ namespace ThrottleControlledAvionics
 		{
 			Physics.Update();
 			Altitude.Update();
+			if(CFG.Target != null) 
+				CFG.Target.Update(this);
 		}
 
 		public void UpdateCommons()

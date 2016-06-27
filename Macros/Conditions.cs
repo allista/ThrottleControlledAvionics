@@ -53,7 +53,7 @@ namespace ThrottleControlledAvionics
 	public class InAtmosphereCondition : Condition
 	{
 		protected override bool Evaluate(VesselWrapper VSL)
-		{ return VSL.OnPlanet && VSL.mainBody.atmosphere; }
+		{ return VSL.OnPlanet && VSL.Body.atmosphere; }
 	}
 
 	public class LandedOrSplashedCondition : Condition

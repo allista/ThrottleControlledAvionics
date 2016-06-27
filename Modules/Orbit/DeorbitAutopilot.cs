@@ -22,10 +22,8 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : TCAModule.ModuleConfig
 		{
-			[Persistent] public float StartOffset = 60f;   //s
 			[Persistent] public float StartPeR    = 0.49f; //of planet radius
-			[Persistent] public float AtmosphereF = 0.2f;  //kg/m3
-			[Persistent] public float MaxRelInclination = 5f;  //deg
+			[Persistent] public float AngularDragF = 0.5f;
 		}
 		static Config DEO { get { return TCAScenario.Globals.DEO; } }
 
@@ -37,7 +35,7 @@ namespace ThrottleControlledAvionics
 			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
 		}
 
-		public enum Stage { None, CorrectPlane, Compute, Deorbit, Correct, Coast, Wait }
+		public enum Stage { None, Compute, Deorbit, Correct, Coast, Wait }
 		[Persistent] public Stage stage;
 		double current_PeR;
 
@@ -55,12 +53,12 @@ namespace ThrottleControlledAvionics
 				{ dLonLat = old.DeltaLon; dLatLon = old.DeltaLat; }
 				else { dLonLat = old.DeltaLat; dLatLon = old.DeltaLon; }
 				if(Math.Abs(dLonLat) > Math.Abs(dLatLon))
-					StartUT = AngleDelta2StartUT(old, dLonLat, DEO.StartOffset, VesselOrbit.period, VesselOrbit.period);
+					StartUT = AngleDelta2StartUT(old, dLonLat, TRJ.ManeuverOffset, VesselOrbit.period, VesselOrbit.period);
 				else NodeDeltaV += PlaneCorrection(old);
 			}
 			else 
 			{
-				StartUT = VSL.Physics.UT+DEO.StartOffset;
+				StartUT = VSL.Physics.UT+TRJ.ManeuverOffset;
 				targetAlt = TargetAltitude;
 			}
 			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, Node2OrbitDeltaV(StartUT, NodeDeltaV)), 
@@ -84,29 +82,21 @@ namespace ThrottleControlledAvionics
 		void compute_landing_trajectory()
 		{
 			trajectory = null;
-			stage = Stage.Compute;
+			MAN.MinDeltaV = 1;
+			Dtol = LTRJ.Dtol;
 			var NodeDeltaV = Vector3d.zero;
 			setup_calculation((o, b) => fixed_PeR_orbit(o, b, ref NodeDeltaV, current_PeR));
+			stage = Stage.Compute;
 		}
 
 		protected override void fine_tune_approach()
 		{
 			trajectory = null;
-			stage = Stage.Correct;
+			Dtol = LTRJ.Dtol/2;
 			CorrectionTimer.Reset();
 			var NodeDeltaV = Vector3d.zero;
-			setup_calculation((o, b) => horizontal_correction(o, b, ref NodeDeltaV, Mathf.Max(LTRJ.CorrectionOffset, VSL.Torque.MinTurnTime)));
-		}
-
-		void correct_orbit_plane(double start_offset, double rel_inclination)
-		{
-			var StartUT = VSL.Physics.UT+start_offset;
-			var vel = VesselOrbit.getOrbitalVelocityAtUT(StartUT);
-			var dV = QuaternionD.AngleAxis(rel_inclination, VesselOrbit.getRelativePositionAtUT(StartUT)) * vel - vel;
-			add_node(dV, StartUT);
-			VSL.Controls.StopWarp();
-			CFG.AP1.OnIfNot(Autopilot1.Maneuver);
-			stage = Stage.CorrectPlane;
+			setup_calculation((o, b) => horizontal_correction(o, b, ref NodeDeltaV, Mathf.Max(LTRJ.CorrectionOffset, VSL.Torque.NoEnginesTurnTime)));
+			stage = Stage.Correct;
 		}
 
 		protected override void reset()
@@ -144,20 +134,10 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
-					current_PeR = DEO.StartPeR * 
-						Utils.ClampH(DEO.AtmosphereF/Body.atmDensityASL, 1) *
-						Utils.ClampH(VSL.Engines.MaxThrustM/VSL.Physics.M/Body.GeeASL/Utils.G0, 1);
-					//calculate orbit inclination relative to target
-					double ttr;
-					var rel_incl = RelativeInclinationAtResonance(VesselOrbit, CFG.Target.RelOrbPos(Body), VSL.Physics.UT, out ttr);
-					Utils.LogF("rel inclination {}, ttr {}", rel_incl, ttr);//debug
-					if(rel_incl < DEO.MaxRelInclination) compute_landing_trajectory();
-					else 
-					{
-						if(ttr > VesselOrbit.period/4)
-							correct_orbit_plane(Utils.ClampL(ttr-VesselOrbit.period/4, LTRJ.CorrectionOffset), rel_incl);
-						else correct_orbit_plane(LTRJ.CorrectionOffset, rel_incl);
-					}
+					current_PeR = DEO.StartPeR;
+					if(Body.atmosphere) current_PeR *= 
+						Utils.ClampH(VSL.Torque.MaxPossibleAngularDragResistance/Body.atmDensityASL*DEO.AngularDragF, 1);
+					compute_landing_trajectory();
 				}
 				goto case Multiplexer.Command.Resume;
 
@@ -182,11 +162,6 @@ namespace ThrottleControlledAvionics
 			if(landing) { do_land(); return; }
 			switch(stage)
 			{
-			case Stage.CorrectPlane:
-				Status("Performing initial plane correction...");
-				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				compute_landing_trajectory();
-				break;
 			case Stage.Compute:
 				if(!trajectory_computed()) break;
 				if(trajectory.DistanceToTarget < LTRJ.Dtol || current_PeR >= 1)
@@ -205,7 +180,8 @@ namespace ThrottleControlledAvionics
 				else 
 				{
 					current_PeR += 0.1;
-					if(current_PeR < 1) compute_landing_trajectory();
+					if(current_PeR < 1) 
+						compute_landing_trajectory();
 				}
 				break;
 			case Stage.Wait:
@@ -225,9 +201,9 @@ namespace ThrottleControlledAvionics
 			case Stage.Coast:
 				if(CFG.AP1[Autopilot1.Maneuver]) 
 				{ Status("Correcting trajectory..."); break; }
-				Status("Coasting to deceleration burn...");
+				Status("Coasting...");
 				update_trajectory();
-				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-DEO.StartOffset;
+				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-TRJ.ManeuverOffset;
 				if(VSL.Info.Countdown > 0 && !correct_trajectory()) break;
 				stage = Stage.None;
 				start_landing();
@@ -241,7 +217,8 @@ namespace ThrottleControlledAvionics
 			{
 				if(computing) 
 				{
-					if(GUILayout.Button("Computing...", Styles.inactive_button, GUILayout.ExpandWidth(false)))
+					if(GUILayout.Button(new GUIContent("Land", "Computing trajectory. Push to cancel."), 
+					                                   Styles.inactive_button, GUILayout.ExpandWidth(false)))
 						CFG.AP2.XOff();
 				}
 				else if(Utils.ButtonSwitch("Land", CFG.AP2[Autopilot2.Deorbit],

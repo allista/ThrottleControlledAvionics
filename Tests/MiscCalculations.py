@@ -1577,3 +1577,43 @@ if __name__ == '__main__':
     # print vec(1742.705, 122.1291, 973.6855).norm
 
 
+    # analyzeCSV(
+    #         'Tests/DEO-Kerbin-hard.csv',
+    #         # 'Tests/DEO-Duna-hard.csv',
+    #            (
+    #                'Alt',
+    #                'P',
+    #                'Rho',
+    #                'Rho/ASL',
+    #                'T',
+    #                'G',
+    #                'Speed',
+    #                'HSpeed',
+    #                'VSpeed',
+    #                'Mach',
+    #                'dP',
+    #                'Err'
+    #            ),
+    #            (
+    #                'Alt',
+    #                'P',
+    #                'Rho',
+    #                'Rho/ASL',
+    #                'T',
+    #                'G',
+    #                'Speed',
+    #                'HSpeed',
+    #                'VSpeed',
+    #                'Mach',
+    #                'dP',
+    #                'Err'
+    #            ),
+    #            )
+
+    analyzeCSV('Tests/Anchor.csv',
+               (
+                   'P', 'D', 'dist', 'r-dist', 'act'
+               ),
+               # region=(1500,2400)
+               )
+

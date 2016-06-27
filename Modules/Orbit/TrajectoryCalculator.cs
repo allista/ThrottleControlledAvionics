@@ -250,11 +250,11 @@ namespace ThrottleControlledAvionics
 		public static double TimeToResonance(Orbit a, Orbit b, double UT)
 		{ double resonance, alpha; return TimeToResonance(a, b, UT, out resonance, out alpha); }
 
-		public static QuaternionD InvBodyRotationAtdT(CelestialBody Body, double dT)
-		{ return QuaternionD.AngleAxis((-dT/Body.rotationPeriod*360), Body.angularVelocity.normalized); }
-
 		public static QuaternionD BodyRotationAtdT(CelestialBody Body, double dT)
-		{ return QuaternionD.AngleAxis((-dT/Body.rotationPeriod*360), Body.angularVelocity.normalized); }
+		{ 
+			var angle = (-dT/Body.rotationPeriod*360) % 360;
+			return QuaternionD.AngleAxis(angle, Body.zUpAngularVelocity.normalized); 
+		}
 
 		public static double RelativeInclination(Orbit orb, Vector3d srf_pos)
 		{ return 90-Vector3d.Angle(orb.GetOrbitNormal(), srf_pos); }
@@ -410,8 +410,8 @@ namespace ThrottleControlledAvionics
 		//Node: radial, normal, prograde
 		protected Vector3d PlaneCorrection(TargetedTrajectoryBase old, double angle)
 		{
-			angle *= Math.Sin(old.TimeToTarget/old.NewOrbit.period*2*Math.PI);
-			var rot = QuaternionD.AngleAxis(angle, old.AtTargetPos);
+			angle *= Math.Sin(old.TransferTime/old.NewOrbit.period*2*Math.PI);
+			var rot = QuaternionD.AngleAxis(angle, old.StartPos);
 			return Orbit2NodeDeltaV(old.StartUT, (rot*old.StartVel)-old.StartVel);
 		}
 
@@ -510,6 +510,8 @@ namespace ThrottleControlledAvionics
 				if(frameI <= 0)
 				{
 //					add_node(current.ManeuverDeltaV, current.StartUT);//debug
+//					var lt = current as LandingTrajectory;//debug
+//					if(lt != null) NavigationPanel.CustomMarkersWP.Add(lt.SurfacePoint);//debug
 //					Status("Push to continue");//debug
 					yield return null;
 					frameI = TRJ.PerFrameIterations;
@@ -529,6 +531,7 @@ namespace ThrottleControlledAvionics
 		protected bool trajectory_computed()
 		{
 			if(trajectory != null) return true;
+			Status("Computing trajectory...");	
 			if(trajectory_calculator == null)
 				trajectory_calculator = compute_trajectory();
 			if(trajectory_calculator.MoveNext())
@@ -587,7 +590,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(CFG.Target == null) return false;
 			var orb = CFG.Target.GetOrbit();
-			if(orb != null && orb.referenceBody != VSL.mainBody)
+			if(orb != null && orb.referenceBody != VSL.Body)
 			{
 				Status("yellow", "This autopilot requires a target to be\n" +
 				       "in the sphere of influence of the same planetary body.");

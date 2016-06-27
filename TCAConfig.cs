@@ -293,8 +293,17 @@ namespace ThrottleControlledAvionics
 		public void ClearCallbacks()
 		{ multiplexers.ForEach(m => m.ClearCallbacks()); }
 
-		public void Resume()
-		{ multiplexers.ForEach(m => m.Resume()); }
+		public void Resume(ModuleTCA TCA)
+		{ 
+			if(Target != null) 
+			{
+				Target.Update(TCA.VSL);
+				TCA.VSL.SetTarget(Target);
+			}
+			if(Anchor != null) Anchor.Update(TCA.VSL);
+			Waypoints.ForEach(wp => wp.Update(TCA.VSL));
+			multiplexers.ForEach(m => m.Resume()); 
+		}
 	}
 
 	public class NamedConfig : VesselConfig

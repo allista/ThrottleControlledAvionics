@@ -125,7 +125,7 @@ ATCB
 	}
 	
 	MinAAf         = 0.2
-	MaxAAf         = 2
+	MaxAAf         = 1
 	AngularMf      = 0.001
 	InertiaFactor  = 10
 	MoIFactor      = 0.01
@@ -138,6 +138,7 @@ ATCB
 	MaxAttitudeError = 10       //deg
 	AttitudeErrorThreshold = 3  //deg
 	MaxTimeToAlignment = 15 //s
+	DragResistanceF = 10
 }
 
 ATC
@@ -155,7 +156,7 @@ HSC
 {
 	TranslationUpperThreshold  = 5
 	TranslationLowerThreshold  = 0.5
-	RotationLowerThreshold     = 0.01
+	RotationLowerThreshold     = 0.05
 	RotationUpperThreshold     = 30
 	TranslationMaxAngle        = 80
 	RotationMaxAngle           = 15
@@ -285,6 +286,7 @@ ANC
 	MaxAccelF     = 4
 	LookAheadTime = 2
 	SlowTorqueF   = 1
+	DistanceCurve = 3
 	
 	DistancePID
 	{
@@ -369,22 +371,28 @@ LTRJ
 	Dtol               = 100  //m
 	FlyOverAlt         = 1000 //m
 	ApproachAlt        = 250  //m
-	BrakeEndSpeed      = 5    //m/s
+	
+	BrakeThrustThreshod = 100 //m/s
+	BrakeEndSpeed      = 10   //m/s
 	MinBrakeOffset     = 10   //s
 	FinalBrakeOffset   = 3    //s
+	
 	CorrectionOffset   = 20   //s
 	CorrectionTimer    = 30   //s
 	CorrectionMinDv    = 1    //m/s
+	CorrectionF        = 4
+	
 	ObstacleBrakeF     = 1.1
 	HoverTimeThreshold = 60   //s
+	DropBallastThreshold = 0.4 //dP/P_asl
+	DPressureThreshold = 3    //kPa
+	MachThreshold      = 0.9
 }
 
 DEO
 {
-	StartOffset        = 60   //s
 	StartPeR           = 0.49 //of planet radius
-	AtmosphereF        = 0.5  //kg/m3
-	MaxRelInclination  = 0.5  //deg
+	AngularDragF       = 0.14
 }
 
 BJ
@@ -392,7 +400,7 @@ BJ
 	StartOffset      = 15  //s
 	StartInclination = 30  //deg
 	StartAltitude    = 50  //m
-	InclinationF     = 2.2
+	InclinationF     = 2
 }
 
 ORB

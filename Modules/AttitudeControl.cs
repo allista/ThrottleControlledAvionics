@@ -29,6 +29,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxAttitudeError       = 10f;  //deg
 			[Persistent] public float AttitudeErrorThreshold = 3f;   //deg
 			[Persistent] public float MaxTimeToAlignment     = 15f;  //s
+			[Persistent] public float DragResistanceF        = 10f;
 		}
 		static Config ATCB { get { return TCAScenario.Globals.ATCB; } }
 
@@ -79,8 +80,7 @@ namespace ThrottleControlledAvionics
 			AAf_filter.Reset();
 			AAf_filter.Tau = 0;
 			VSL.Controls.HaveControlAuthority = true;
-			VSL.Controls.AttitudeError = 180;
-			VSL.Controls.Aligned = false;
+			VSL.Controls.SetAttitudeError(180);
 		}
 
 		protected static Vector3 rotation2steering(Quaternion rotation)
@@ -98,13 +98,17 @@ namespace ThrottleControlledAvionics
 
 		protected void compute_steering(Vector3 current, Vector3 needed)
 		{
+			#if DEBUG
+			if(current.IsZero() || needed.IsZero())
+				LogFST("compute steering:\ncurrent {}\nneeded {}\ncurrent thrust {}", current, needed, current_thrust);
+			#endif
 			if(Vector3.Angle(needed, current) > ATCB.AngleThreshold)
 			{
 				//rotational axis
 				var current_maxI = current.MaxI();
 				var axis = Vector3.Cross(needed, current).Exclude(current_maxI);
 				if(axis.sqrMagnitude < 0.01f) 
-					axis = VSL.Torque.MaxAngularA.Exclude(current_maxI).MaxComponent();
+					axis = VSL.Torque.MaxAA.Exclude(current_maxI).MaxComponent();
 				//main rotation component
 				var axis1 = axis.MaxComponent();
 				var current_cmp1 = Vector3.ProjectOnPlane(current, axis1);
@@ -149,16 +153,14 @@ namespace ThrottleControlledAvionics
 		{
 			//calculate attitude error and Aligned state
 			var steering_m = steering.magnitude;
-			VSL.Controls.AttitudeError = steering_m*Mathf.Rad2Deg;
-			VSL.Controls.Aligned &= VSL.Controls.AttitudeError < ATCB.MaxAttitudeError;
-			VSL.Controls.Aligned |= VSL.Controls.AttitudeError < ATCB.AttitudeErrorThreshold;
+			VSL.Controls.SetAttitudeError(steering_m*Mathf.Rad2Deg);
 			Ef = Utils.Clamp(steering_m/Mathf.PI, ATCB.MinEf, 1);
 			//tune lowpass filter
 			AAf_filter.Tau = (1-Mathf.Sqrt(Ef))*ATCB.AALowPassF;
 			//tune PID parameters
 			angularV = VSL.vessel.angularVelocity;
 			angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
-			AAf = AAf_filter.Update(Mathf.Clamp(1/VSL.Torque.MaxAngularA_rad, ATCB.MinAAf, ATCB.MaxAAf));
+			AAf = AAf_filter.Update(Mathf.Clamp(1/VSL.Torque.MaxAA_rad, ATCB.MinAAf, ATCB.MaxAAf));
 			var slow = VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ATCB.SlowTorqueF : 1;
 			PIf = AAf*Utils.ClampL(1-Ef, 0.5f)*ATCB.MaxEf/slow;
 			steering_pid.P = ATCB.PID.P*PIf;
@@ -168,7 +170,7 @@ namespace ThrottleControlledAvionics
 			var control = new Vector3(steering.x.Equals(0)? 0 : 1,
 			                          steering.y.Equals(0)? 0 : 1,
 			                          steering.z.Equals(0)? 0 : 1);
-			steering.Scale(Vector3.Scale(VSL.Torque.MaxAngularA.Exclude(steering.MinI()), control).Inverse(0).CubeNorm());
+			steering.Scale(Vector3.Scale(VSL.Torque.MaxAA.Exclude(steering.MinI()), control).Inverse(0).CubeNorm());
 			//add inertia
 			steering += Vector3.Scale(angularM.Sign(),
 			                          Vector3.Scale(Vector3.Scale(angularM, angularM),
@@ -192,14 +194,16 @@ namespace ThrottleControlledAvionics
 			ErrorDif.Update(VSL.Controls.AttitudeError);
 			if(ErrorDif.MaxOrder < 1) return;
 			var max_alignment_time = VSL.Info.Countdown > 0? VSL.Info.Countdown : ATCB.MaxTimeToAlignment;
+			var omega = Mathf.Abs(ErrorDif[1]/TimeWarp.fixedDeltaTime);
+			var turn_time = VSL.Controls.MinAlignmentTime-omega/VSL.Torque.MaxAA_rad/Mathf.Rad2Deg;
 			if(VSL.Controls.HaveControlAuthority && 
 			   VSL.Controls.AttitudeError > ATCB.MaxAttitudeError && 
-			   (ErrorDif[1] >= 0 || VSL.Controls.AttitudeError*Mathf.Deg2Rad/ErrorDif[1] < -max_alignment_time))
+			   (ErrorDif[1] >= 0 || turn_time > max_alignment_time))
 				VSL.Controls.HaveControlAuthority = !AuthorityTimer.Check;
 			else if(!VSL.Controls.HaveControlAuthority && 
 			        (VSL.Controls.AttitudeError < ATCB.AttitudeErrorThreshold || 
 			         VSL.Controls.AttitudeError < ATCB.MaxAttitudeError*2 && ErrorDif[1] < 0 && 
-			         VSL.Controls.AttitudeError*Mathf.Deg2Rad/ErrorDif[1] > -max_alignment_time))
+			         turn_time < max_alignment_time))
 				VSL.Controls.HaveControlAuthority = AuthorityTimer.Check;
 			else AuthorityTimer.Reset();
 		}

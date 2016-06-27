@@ -86,10 +86,11 @@ namespace ThrottleControlledAvionics
 				var ah = h+th;
 				v = Utils.ClampH(v-(StG(ah) - drag(s, ah, v)/m)*dt, -0.1);
 				t += dt;
+				dt = Math.Min(dt, (VSL.Geometry.H-h)/v);
 //				Utils.LogF("h {}, v {}, t {}", h, v, t);//debug
 			}
 			terminal_velocity = Math.Abs(v);
-			return t-dt/2;
+			return t;
 		}
 
 		public double FromSurfaceTTA(double ApA, double alpha, double gturn_curve, double surface_vel)
@@ -162,7 +163,7 @@ namespace ThrottleControlledAvionics
 
 		public static double FromSurfaceTTA(VesselWrapper VSL, double ApA, double alpha, double gturn_curve, double surface_vel)
 		{
-			var sim = new AtmoSim(VSL.mainBody, VSL);
+			var sim = new AtmoSim(VSL.Body, VSL);
 			return sim.FromSurfaceTTA(ApA, alpha, gturn_curve, surface_vel);
 		}
 

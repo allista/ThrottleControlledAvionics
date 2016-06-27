@@ -67,9 +67,9 @@ namespace ThrottleControlledAvionics
 	public abstract class TargetedTrajectoryBase : BaseTrajectory
 	{
 		public double AtTargetUT;
+		public double TransferTime;
 		public Vector3d AtTargetPos { get; protected set; }
 		public Vector3d AtTargetVel { get; protected set; }
-		public double TimeToTarget;
 		public double DistanceToTarget { get; protected set; } = -1;
 		public double DeltaFi { get; protected set; }
 
@@ -82,9 +82,9 @@ namespace ThrottleControlledAvionics
 		{ 
 			return base.ToString()+
 				Utils.Format("\nDistanceToTarget: {} m\n" +
-				             "TimeToTarget: {} s\n" +
+				             "TransferTime: {} s\n" +
 				             "DeltaFi: {} deg\n",
-				             DistanceToTarget, TimeToTarget, DeltaFi);
+				             DistanceToTarget, TransferTime, DeltaFi);
 		}
 	}
 

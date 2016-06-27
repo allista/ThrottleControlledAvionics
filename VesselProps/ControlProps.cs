@@ -32,11 +32,22 @@ namespace ThrottleControlledAvionics
 		public double  WarpToTime = -1;
 
 		public bool  Aligned = true;
-		public float AttitudeError = 0;
-		public float InvAttitudeFactor { get { return Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1); } }
-		public float AttitudeFactor { get { return Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0); } }
+		public float AttitudeError { get; private set; }
+		public float MinAlignmentTime { get; private set; }
+		public float AlignmentFactor { get; private set; }
+		public float InvAlignmentFactor { get; private set; }
 
-		public void StopWarp() { WarpToTime = 0; }
+		public void SetAttitudeError(float error)
+		{
+			AttitudeError = error;
+			Aligned &= AttitudeError < GLB.ATCB.MaxAttitudeError;
+			Aligned |= AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
+			MinAlignmentTime = VSL.Torque.MinRotationTime(AttitudeError);
+			AlignmentFactor = Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0);
+			InvAlignmentFactor = Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1);
+		}
+
+		public void StopWarp() { if(WarpToTime > 0) WarpToTime = 0; }
 
 		public override void Update()
 		{

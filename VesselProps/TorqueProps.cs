@@ -21,20 +21,33 @@ namespace ThrottleControlledAvionics
 
 		public List<ModuleReactionWheel> Wheels = new List<ModuleReactionWheel>();
 
-		public Vector3  MaxTorquePossible { get; private set; } //theoretical maximum torque from active engines, wheels and RCS
-		public Vector3  EnginesTorque { get; private set; } //current torque applied to the vessel by engines
-		public Vector3  MaxTorque { get; private set; } //current maximum torque
-		public Vector3  MaxAngularA { get; private set; } //current maximum angular acceleration
-		public float    MaxAngularA_rad { get; private set; }
-		public float    MaxAngularA_deg { get; private set; }
-		public float    MinTurnTime { get; private set; }
-		public float    MaxAAMod { get; private set; }
-		public Vector3  MaxPitchRollAA { get; private set; }
-		public float    MaxPitchRollAA_m { get; private set; }
-
 		public Vector6  EnginesLimits { get; private set; } = Vector6.zero; //torque limits of engines
 		public Vector6  WheelsLimits { get; private set; } = Vector6.zero; //torque limits of reaction wheels
 		public Vector6  RCSLimits { get; private set; } = Vector6.zero; //torque limits of rcs
+
+		public Vector3  EnginesTorque { get; private set; } //current torque applied to the vessel by engines
+		public Vector3  NoEnginesTorque { get; private set; } //current maximum torque
+		public Vector3  MaxTorque { get; private set; } //current maximum torque
+		public Vector3  MaxPossibleTorque { get; private set; } //theoretical maximum torque from active engines, wheels and RCS
+
+		public Vector3  MaxAA { get; private set; } //current maximum angular acceleration
+		public Vector3  NoEnginesAA { get; private set; } //current maximum angular acceleration
+		public Vector3  MaxPossibleAA { get; private set; }
+		public Vector3  MaxPitchRollAA { get; private set; }
+
+		public float    MaxAA_rad { get; private set; }
+		public float    MaxPitchRollAA_rad { get; private set; }
+		public float    MaxPossibleAA_rad { get; private set; }
+		public float    NoEnginesAA_rad { get; private set; }
+
+		public float    MinTurnTime { get; private set; }
+		public float    NoEnginesTurnTime { get; private set; }
+
+		public float    MaxAngularDragResistance { get { return AngularDragResistance(MaxTorque); } }
+		public float    MaxPossibleAngularDragResistance { get { return AngularDragResistance(MaxPossibleTorque); } }
+		public float    NoEnginesAngularDragResistance { get { return AngularDragResistance(NoEnginesTorque); } }
+
+		public float    MaxAAMod { get; private set; }
 
 		public Vector3 AngularAcceleration(Vector3 torque)
 		{
@@ -45,13 +58,36 @@ namespace ThrottleControlledAvionics
 		}
 
 		public float AngularAccelerationInDirection(Vector3 dir)
-		{ return Mathf.Abs(Vector3.Dot(VSL.Torque.MaxAngularA, dir)); }
+		{ return Mathf.Abs(Vector3.Dot(VSL.Torque.MaxAA, dir)); }
+
+		//rotation with zero start and end angular velocities and constant angular acceleration
+		public float MinRotationTime(float angle, float AA_rad)
+		{ return 2*Mathf.Sqrt(angle/AA_rad/Mathf.Rad2Deg); }
 
 		public float MinRotationTime(float angle)
-		{ return Mathf.Sqrt(2*angle/MaxAngularA_deg); }
+		{ return MinRotationTime(angle, MaxAA_rad); }
+
+		public float MaxPossibleTorqueRotationTime(float angle)
+		{ return MinRotationTime(angle, MaxPossibleAA_rad); }
+
+		public float AngularDragResistance(Vector3 torque) 
+		{ 
+			var s = VSL.Geometry.BoundsSideAreas;
+			return 
+				torque.x/(s.y+s.z) +
+				torque.y/(s.x+s.z) +
+				torque.z/(s.y+s.x);
+		}
 
 		public bool HavePotentialControlAuthority
-		{ get { return AngularAcceleration(MaxTorquePossible).magnitude > Utils.TwoPI; } }
+		{ 
+			get 
+			{ 
+				var max_res = MaxPossibleAngularDragResistance;
+				return max_res > 1.1*MaxAngularDragResistance &&
+					max_res > VSL.Body.atmDensityASL*GLB.ATCB.DragResistanceF; 
+			} 
+		}
 
 		public override void Update()
 		{
@@ -86,23 +122,29 @@ namespace ThrottleControlledAvionics
 					RCSLimits.Add(refT.InverseTransformDirection(Vector3.Cross(t.position-VSL.Physics.wCoM, t.up)*r.rcs.thrusterPower));
 				}
 			}
-			//torque angular acceleration
-			MaxTorque = RCSLimits.Max+WheelsLimits.Max;
-			MaxTorquePossible = MaxEnginesLimits.Max+MaxTorque;
-			MaxTorque += EnginesLimits.Max;
-			MaxAngularA = AngularAcceleration(MaxTorque);
-			MaxAngularA_rad = MaxAngularA.magnitude;
-			MaxAngularA_deg = MaxAngularA_rad*Mathf.Rad2Deg;
-			MinTurnTime = MinRotationTime(180);
-			Utils.LogF("max AA {}rad, {}deg, min turn time {}s", MaxAngularA_rad, MaxAngularA_deg, MinTurnTime);//debug
-			if(MaxAngularA_rad > 0)
+			//torque and angular acceleration
+			NoEnginesTorque = RCSLimits.Max+WheelsLimits.Max;
+			MaxTorque = NoEnginesTorque+EnginesLimits.Max;
+			MaxPossibleTorque = NoEnginesTorque+MaxEnginesLimits.Max;
+
+			MaxAA = AngularAcceleration(MaxTorque);
+			MaxAA_rad = MaxAA.magnitude;
+			NoEnginesAA = AngularAcceleration(NoEnginesTorque);
+			NoEnginesAA_rad = NoEnginesAA.magnitude;
+			MaxPossibleAA = AngularAcceleration(MaxPossibleTorque);
+			MaxPossibleAA_rad = MaxPossibleAA.magnitude;
+			MaxPitchRollAA = Vector3.ProjectOnPlane(MaxAA, refT.InverseTransformDirection(VSL.Engines.Thrust)).AbsComponents();
+			MaxPitchRollAA_rad = MaxPitchRollAA.magnitude;
+
+			MinTurnTime = MinRotationTime(180, MaxAA_rad);
+			NoEnginesTurnTime = MinRotationTime(180, NoEnginesAA_rad);
+
+			if(MaxAA_rad > 0)
 			{
-				MaxAAMod = MaxAAFilter.Update(MaxAngularA_rad)/MaxAngularA_rad;
+				MaxAAMod = MaxAAFilter.Update(MaxAA_rad)/MaxAA_rad;
 				MaxAAMod *= MaxAAMod*MaxAAMod;
 			}
 			else MaxAAMod = 1;
-			MaxPitchRollAA = Vector3.ProjectOnPlane(MaxAngularA, refT.InverseTransformDirection(VSL.Engines.Thrust)).AbsComponents();
-			MaxPitchRollAA_m = MaxPitchRollAA.magnitude;
 		}
 
 		public void UpdateTorque(params IList<EngineWrapper>[] engines)

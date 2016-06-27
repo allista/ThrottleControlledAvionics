@@ -253,6 +253,7 @@ namespace ThrottleControlledAvionics
 				var cnode = loadNode(PluginData("TCA.conf"));
 				if(cnode != null) LoadLegacyConfigs(cnode);
 			}
+			LoadGlobals();
 		}
 
 		public override void OnSave (ConfigNode node) { SaveConfigs(node); }
