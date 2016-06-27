@@ -135,7 +135,7 @@ namespace ThrottleControlledAvionics
 						v.y += (mTm*h_throttle*throttle/m)*DeltaTime;
 					}
 					thrust = ApA-apa > GLB.ORB.Dtol && arc > GLB.ORB.Dtol;
-					if(!CheatOptions.InfiniteFuel)
+					if(!CheatOptions.InfinitePropellant)
 					{
 						var dm = mflow*(h_throttle+v_throttle)*throttle*DeltaTime;
 						if(m < dm) { thrust = false; continue; }

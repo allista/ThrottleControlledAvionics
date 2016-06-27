@@ -85,7 +85,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(MaxThrustM.Equals(0)) return float.MaxValue;
 			if(dV.Equals(0)) return 0;
-			return CheatOptions.InfiniteFuel?
+			return CheatOptions.InfinitePropellant?
 				VSL.Physics.M*dV/MaxThrustM/throttle : 
 				FuelNeeded(dV, Ve)/MaxMassFlow/throttle;
 		}
@@ -447,7 +447,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case ResourceFlowMode.ALL_VESSEL:
 			case ResourceFlowMode.STAGE_PRIORITY_FLOW:
-			case ResourceFlowMode.ALL_VESSEL_BAlANCE:
+			case ResourceFlowMode.ALL_VESSEL_BALANCE:
 			case ResourceFlowMode.STAGE_PRIORITY_FLOW_BALANCE:
 			case ResourceFlowMode.STAGE_STACK_FLOW:
 			case ResourceFlowMode.STAGE_STACK_FLOW_BALANCE:

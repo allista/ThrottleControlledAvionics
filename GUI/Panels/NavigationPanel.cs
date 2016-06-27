@@ -326,7 +326,7 @@ namespace ThrottleControlledAvionics
 			if(MapView.MapIsEnabled)
 			{
 				//TODO: cache local center coordinates of the marker
-				camera = MapView.MapCamera.camera;
+				camera = PlanetariumCamera.Camera;
 				center = body.position + (Utils.TerrainAltitude(body, pos.Lat, pos.Lon)+body.Radius) * body.GetSurfaceNVector(pos.Lat, pos.Lon);
 			}
 			else
@@ -344,7 +344,7 @@ namespace ThrottleControlledAvionics
 
 		static void DrawWorldMarker(Vector3d wPos, Color c, string label = "", float r = IconSize, Texture2D texture = null)
 		{
-			var camera = MapView.MapIsEnabled ? MapView.MapCamera.camera : FlightCamera.fetch.mainCamera;
+			var camera = MapView.MapIsEnabled ? PlanetariumCamera.Camera : FlightCamera.fetch.mainCamera;
 			if(camera.transform.InverseTransformPoint(wPos).z <= 0) return;
 			if(DrawMarker(camera.WorldToScreenPoint(MapView.MapIsEnabled? ScaledSpace.LocalToScaledSpace(wPos) : wPos), c, r, texture) &&
 			   !string.IsNullOrEmpty(label)) DrawLabelAtPointer(label);

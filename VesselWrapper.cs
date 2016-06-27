@@ -12,6 +12,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using KSP.UI.Screens;
 
 namespace ThrottleControlledAvionics
 {
@@ -304,9 +305,10 @@ namespace ThrottleControlledAvionics
 //			LogF("current stage {}, next stage {}, next engines {}", vessel.currentStage, next_stage, Engines.NearestEnginedStage);//debug
 			if(IsActiveVessel)
 			{
-				Staging.ActivateStage(next_stage);
+				StageManager.ActivateStage(next_stage);
 				vessel.ActionGroups.ToggleGroup(KSPActionGroup.Stage);
-				ResourceDisplay.Instance.Refresh();
+				if(ResourceDisplay.Instance != null)
+					ResourceDisplay.Instance.isDirty = true;
 			}
 			else
 			{

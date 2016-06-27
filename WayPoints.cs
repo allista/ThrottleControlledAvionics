@@ -191,6 +191,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 GetSrfVelocity() { return target == null? Vector3.zero : target.GetSrfVelocity(); }
 		public Vessel GetVessel() { return target == null? null : target.GetVessel(); }
 		public VesselTargetModes GetTargetingMode() { return target == null? VesselTargetModes.Direction : target.GetTargetingMode(); }
+		public bool GetActiveTargetable() { return false; }
 
 		public Transform GetTransform() 
 		{ 

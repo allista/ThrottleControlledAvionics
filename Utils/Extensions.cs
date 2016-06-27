@@ -455,9 +455,7 @@ namespace ThrottleControlledAvionics
 				var meshes = p.FindModelComponents<MeshFilter>();
 				for(int mi = 0, meshesLength = meshes.Length; mi < meshesLength; mi++)
 				{
-					//skip meshes without renderer
 					var m = meshes[mi];
-					if(m.renderer == null || !m.renderer.enabled) continue;
 					var bounds = Utils.BoundCorners(m.sharedMesh.bounds);
 					for(int j = 0; j < 8; j++)
 					{

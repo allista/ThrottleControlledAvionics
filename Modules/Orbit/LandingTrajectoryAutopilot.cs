@@ -370,7 +370,7 @@ namespace ThrottleControlledAvionics
 					}
 					var fuel_left = VSL.Engines.GetAvailableFuelMass();
 					var fuel_needed = VSL.Engines.FuelNeeded((float)terminal_velocity, rel_Ve);
-					if(!CheatOptions.InfiniteFuel && 
+					if(!CheatOptions.InfinitePropellant && 
 					   (fuel_needed >= fuel_left ||
 					    VSL.Engines.MaxHoverTimeASL(fuel_left-fuel_needed) < LTRJ.HoverTimeThreshold))
 					{
