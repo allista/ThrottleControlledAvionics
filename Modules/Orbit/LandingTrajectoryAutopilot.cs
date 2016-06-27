@@ -128,7 +128,7 @@ namespace ThrottleControlledAvionics
 
 		double distance_from_ground(Orbit orb, double UT)
 		{
-			var pos = orb.getRelativePositionAtUT(UT);
+			var pos = BodyRotationAtdT(Body, VSL.Physics.UT-UT)*orb.getRelativePositionAtUT(UT);
 			return pos.magnitude-VSL.Geometry.H*2-Body.Radius - Utils.TerrainAltitude(Body, pos.xzy+Body.position);
 		}
 
@@ -136,9 +136,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(trj == null) return -1;
 			var start = trj.StartUT;
-			var stop = trj.NewOrbit.trueAnomaly > 180? 
-				Math.Min(start+trj.BrakeDuration*LTRJ.ObstacleBrakeF, trj.AtTargetUT-1) :
-				start+trj.NewOrbit.timeToAp;
+			var stop = trj.BrakeEndUT;
 			var UT = start;
 			var dT = (stop-start);
 			double dist = 1;
@@ -307,8 +305,8 @@ namespace ThrottleControlledAvionics
 					          LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1)));
 				if(VSL.Info.Countdown > 1)
 					correct_attitude_with_thrusters(VSL.Torque.MaxPossibleTorqueRotationTime(VSL.Controls.AttitudeError));
-				if(VSL.Info.Countdown <= 0) { FullStop = false; decelerate(); break; }
 				if(obstacle_ahead(trajectory) > 0) { FullStop = true; decelerate(); break; }
+				if(VSL.Info.Countdown <= 0) { FullStop = false; decelerate(); break; }
 				if(VSL.Controls.Aligned) VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else VSL.Controls.StopWarp();
 				break;
@@ -318,8 +316,10 @@ namespace ThrottleControlledAvionics
 				if(FullStop)
 				{
 					Status("red", "Possible collision detected.");
-					CollisionTimer.RunIf(start_landing, obstacle_ahead(trajectory) < 0);
-					if(Executor.Execute(-VSL.vessel.srf_velocity, 1)) break; 
+					var obstacle = obstacle_ahead(trajectory);
+					if(obstacle > 0 && Executor.Execute(VSL.Physics.Up*obstacle)) break; 
+					start_landing();
+					break;
 				}
 				else
 				{
