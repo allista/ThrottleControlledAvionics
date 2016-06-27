@@ -491,8 +491,7 @@ namespace ThrottleControlledAvionics
 								 DrawMainWindow, 
 				                 VSL.vessel.vesselName,
 				                 GUILayout.Width(ControlsWidth),
-				                 GUILayout.Height(ControlsHeight));
-			MainWindow.clampToScreen();
+				                 GUILayout.Height(ControlsHeight)).clampToScreen();
 			InOrbitControls.OrbitEditorWindow();
 		}
 

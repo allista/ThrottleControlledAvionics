@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
 			UpL    = VSL.refT.InverseTransformDirection(Up);
 			M      = vessel.GetTotalMass();
 			StG    = (float)GeeAt(Radial.sqrMagnitude);
-			G      = Utils.ClampL(StG-(float)vessel.graviticAcceleration.magnitude, 1e-5f);
+			G      = Utils.ClampL(StG-(float)FlightGlobals.getCentrifugalAcc(wCoM, VSL.Body).magnitude, 1e-5f);
 			mg     = M*G;
 		}
 

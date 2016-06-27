@@ -32,15 +32,8 @@ namespace ThrottleControlledAvionics
 		protected CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
 		protected Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
 		protected double MinPeR { get { return Body.atmosphere? Body.Radius+Body.atmosphereDepth+1000 : Body.Radius+TRJ.MinPeA; } }
-		protected bool ApAhead { get { return VesselOrbit.timeToAp < VesselOrbit.timeToPe; } }
 
-		public static Vector3d hV(Orbit o, double UT) 
-		{ 
-			return Vector3d.Exclude(o.getRelativePositionAtUT(UT), 
-			                        o.getOrbitalVelocityAtUT(UT));
-		}
-
-		protected Vector3d hV(double UT) { return hV(VesselOrbit, UT); }
+		protected Vector3d hV(double UT) { return VesselOrbit.hV(UT); }
 
 		protected bool LiftoffPossible
 		{
@@ -137,7 +130,7 @@ namespace ThrottleControlledAvionics
 		public static Vector3d dV4Ap(Orbit old, double R, double UT, Vector3d add_dV = default(Vector3d))
 		{
 			var up     = old.ApR < R;
-			var vel    = hV(old, UT);
+			var vel    = old.hV(UT);
 			var dVdir  = vel.normalized * (up? 1 : -1);
 			var min_dV = 0.0;
 			var max_dV = 0.0;
@@ -167,7 +160,7 @@ namespace ThrottleControlledAvionics
 		{
 			var oldR   = old.getRelativePositionAtUT(TargetUT);
 			var up     = oldR.magnitude < R;
-			var dVdir  = hV(old, UT).normalized * (up? 1 : -1);
+			var dVdir  = old.hV(UT).normalized * (up? 1 : -1);
 			var min_dV = 0.0;
 			var max_dV = 0.0;
 			if(up)

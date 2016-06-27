@@ -77,8 +77,7 @@ namespace ThrottleControlledAvionics
 				                 draw_orbit_editor, 
 				                 "Target Orbit Editor",
 				                 GUILayout.Width(orb_width),
-				                 GUILayout.Height(orb_height));
-			orbit_editor.clampToScreen();
+				                 GUILayout.Height(orb_height)).clampToScreen();
 		}
 	}
 }

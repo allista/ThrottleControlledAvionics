@@ -216,7 +216,7 @@ namespace ThrottleControlledAvionics
 				if(CFG.AP1[Autopilot1.Maneuver]) 
 				{ Status("Correcting trajectory..."); break; }
 				Status("Coasting...");
-				if(VesselOrbit.trueAnomaly < 180 && !correct_trajectory()) break;
+				if(VesselOrbit.ApAhead() && !correct_trajectory()) break;
 				stage = Stage.None;
 				start_landing();
 				break;

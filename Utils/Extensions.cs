@@ -11,7 +11,6 @@
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
-using ModuleWheels;
 
 namespace ThrottleControlledAvionics
 {
@@ -500,6 +499,17 @@ namespace ThrottleControlledAvionics
 			var tca = ModuleTCA.EnabledTCA(vessel);
 			return tca != null? tca.VSL.Geometry.R : 
 				vessel.Bounds(vessel.ReferenceTransform).size.magnitude;
+		}
+	}
+
+	public static class OrbitExtensions
+	{
+		public static bool ApAhead(this Orbit obt) { return obt.timeToAp < obt.timeToPe; }
+
+		public static Vector3d hV(this Orbit obt, double UT) 
+		{ 
+			return Vector3d.Exclude(obt.getRelativePositionAtUT(UT), 
+		                            obt.getOrbitalVelocityAtUT(UT));
 		}
 	}
 }

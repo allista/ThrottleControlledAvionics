@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
 		void update_from_orbit(Orbit orb, double UT)
 		{
 			//calculate the position of a landing site
-			if(orb.ApA <= TargetAltitude) AtTargetUT = orb.StartUT+(orb.trueAnomaly < 180? orb.timeToAp : 1);
+			if(orb.ApA <= TargetAltitude) AtTargetUT = orb.StartUT+(orb.ApAhead()? orb.timeToAp : 1);
 			else AtTargetUT = TrajectoryCalculator.NearestRadiusUT(orb, Body.Radius+TargetAltitude, UT);
 			TransferTime = AtTargetUT-StartUT;
 			AtTargetPos = orb.getRelativePositionAtUT(AtTargetUT);
@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
 
 		void update(bool with_brake)
 		{
-			update_from_orbit(NewOrbit, NewOrbit.trueAnomaly > 180? StartUT : StartUT+NewOrbit.timeToAp);
+			update_from_orbit(NewOrbit, NewOrbit.ApAhead()? StartUT+NewOrbit.timeToAp : StartUT);
 			//correct for brake maneuver
 			if(with_brake)
 			{

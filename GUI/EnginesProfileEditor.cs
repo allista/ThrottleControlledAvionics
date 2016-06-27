@@ -222,8 +222,7 @@ namespace ThrottleControlledAvionics
 					DrawMainWindow, 
 					TCATitle,
 					GUILayout.Width(width),
-					GUILayout.Height(height));
-			MainWindow.clampToScreen();
+					GUILayout.Height(height)).clampToScreen();
 		}
 	}
 }

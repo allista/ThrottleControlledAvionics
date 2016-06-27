@@ -233,7 +233,7 @@ namespace ThrottleControlledAvionics
 			if(VesselOrbit.PeR < MinPeR) 
 			{
 				update_trajectory();
-				StartUT = Math.Min(trajectory.AtTargetUT, VSL.Physics.UT+(ApAhead? VesselOrbit.timeToAp : REN.CorrectionOffset));
+				StartUT = Math.Min(trajectory.AtTargetUT, VSL.Physics.UT+(VesselOrbit.ApAhead()? VesselOrbit.timeToAp : REN.CorrectionOffset));
 				if(trajectory.DistanceToTarget < REN.ApproachThreshold*2 && StartUT.Equals(trajectory.AtTargetUT)) 
 				{ //approach is close enough to directly match orbits
 					match_orbits(); 
@@ -249,7 +249,7 @@ namespace ThrottleControlledAvionics
 					return;
 				}
 				//starting from circular orbit and proceeding to TTR fitting...
-				StartUT = ApAhead? VSL.Physics.UT+VesselOrbit.timeToAp : VSL.Physics.UT+REN.CorrectionOffset;
+				StartUT = VesselOrbit.ApAhead()? VSL.Physics.UT+VesselOrbit.timeToAp : VSL.Physics.UT+REN.CorrectionOffset;
 				dV = dV4C(old, hV(StartUT), StartUT);
 				old = NewOrbit(old, dV, StartUT);
 			}
