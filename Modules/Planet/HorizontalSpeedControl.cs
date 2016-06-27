@@ -109,9 +109,6 @@ namespace ThrottleControlledAvionics
 			filter.Tau = HSC.LowPassF;
 			translation_pid.setPID(HSC.ManualTranslationPID);
 			CFG.HF.AddSingleCallback(ControlCallback);
-			#if DEBUG
-//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-			#endif
 		}
 
 		public void AddRawCorrection(Vector3d cor) 
@@ -132,12 +129,6 @@ namespace ThrottleControlledAvionics
 			GLUtils.GLVec(VSL.refT.position, VSL.HorizontalSpeed.NeededVector, Color.red);
 			GLUtils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H, VSL.HorizontalSpeed.Vector, Color.magenta);
 			GLUtils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H*1.1, CourseCorrection, Color.green);
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 

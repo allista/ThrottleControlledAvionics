@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
 		};
 
 		public static readonly TCARole[] RolesOrder = { TCARole.MAIN, TCARole.BALANCE, TCARole.MANEUVER, TCARole.UNBALANCE, TCARole.MANUAL };
-		public static readonly int NumRoles = Enum.GetValues(typeof(TCARole)).Length;
+		public static readonly int NumRoles = RolesOrder.Length;
 
 		public static TCARole NextRole(TCARole cur)
 		{ return RolesOrder[(Array.FindIndex(RolesOrder, r => r == cur)+1) % NumRoles]; }
@@ -41,8 +41,8 @@ namespace ThrottleControlledAvionics
 		int role;
 		int role_index;
 
-		[UI_IntRange(minValue = 0, maxValue = 10, stepIncrement = 1)]
-		[KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "TCA: Engines Group", guiFormat = "D")]
+		[UI_ChooseOption]
+		[KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Engine Group:")]
 		public int group;
 
 		public TCARole Role = TCARole.MAIN;
@@ -56,10 +56,26 @@ namespace ThrottleControlledAvionics
 			update_status();
 		}
 
+		static void setup_groups(UI_ChooseOption chooser)
+		{
+			if(chooser == null) return;
+			chooser.options = new string[TCAScenario.Globals.MaxManualGroups];
+			chooser.options[0] = "OFF";
+			for(int i = 1; i<TCAScenario.Globals.MaxManualGroups; i++)
+				chooser.options[i] = string.Format("G{0:D}", i);
+		}
+
+		static void setup_roles(UI_ChooseOption chooser)
+		{
+			if(chooser == null) return;
+			chooser.options = new string[NumRoles];
+			for(int i = 0; i<NumRoles; i++) chooser.options[i] = RoleNames[i];
+		}
+
 		public override void OnStart(StartState state) 
 		{ 
-			var grp = Fields["group"].uiControlEditor as UI_IntRange;
-			if(grp != null) grp.maxValue = TCAScenario.Globals.MaxManualGroups;
+			setup_groups(Fields["group"].uiControlEditor as UI_ChooseOption);
+			setup_groups(Fields["group"].uiControlFlight as UI_ChooseOption);
 			update_status();
 		}
 

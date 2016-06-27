@@ -11,6 +11,7 @@
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using ModuleWheels;
 
 namespace ThrottleControlledAvionics
 {
@@ -266,7 +267,7 @@ namespace ThrottleControlledAvionics
 				physicallySignificant = physicallySignificant && p.PhysicsSignificance != 1;
 			//Landing gear set physicalSignificance = NONE when they enter the flight scene
 			//Launch clamp mass should be ignored.
-			physicallySignificant &= !p.HasModule<ModuleLandingGear>() && !p.HasModule<LaunchClamp>();
+			physicallySignificant &= !p.HasModule<ModuleWheelBase>() && !p.HasModule<LaunchClamp>();
 			return physicallySignificant;
 		}
 

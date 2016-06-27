@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using KSP.UI.Screens;
 
 namespace ThrottleControlledAvionics
 {
@@ -63,8 +64,8 @@ namespace ThrottleControlledAvionics
 
 		void Reset() { reset = true; }
 
-		void OnShipLoad(ShipConstruct ship, CraftBrowser.LoadType load_type)
-		{ init_engines = load_type == CraftBrowser.LoadType.Normal; }
+		void OnShipLoad(ShipConstruct ship, CraftBrowserDialog.LoadType load_type)
+		{ init_engines = load_type == CraftBrowserDialog.LoadType.Normal; }
 
 		bool GetCFG(ShipConstruct ship)
 		{

@@ -95,9 +95,6 @@ namespace ThrottleControlledAvionics
 			FormationUpdateTimer.Period = PN.FormationUpdateTimer;
 			CFG.Nav.AddCallback(GoToTargetCallback, Navigation.GoToTarget, Navigation.FollowTarget);
 			CFG.Nav.AddCallback(FollowPathCallback, Navigation.FollowPath);
-			#if DEBUG
-			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-			#endif
 		}
 
 		protected override void UpdateState() 
@@ -483,12 +480,6 @@ namespace ThrottleControlledAvionics
 			if(CFG.Target != null && CFG.Target.GetTransform() != null && CFG.Nav[Navigation.FollowTarget])
 				GLUtils.GLLine(VSL.Physics.wCoM, CFG.Target.GetTransform().position+formation_offset,
 				               Maneuvering? Color.yellow : Color.cyan);
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 	}

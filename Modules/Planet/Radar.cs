@@ -99,9 +99,6 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			ManeuverTimer.Period = RAD.ManeuverTimer;
 			reset();
-			#if DEBUG
-//			RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-			#endif
 		}
 
 		#if DEBUG
@@ -112,12 +109,6 @@ namespace ThrottleControlledAvionics
 			Altimeter.Draw();
 			CurHit.Draw();
 			DetectedHit.Draw();
-		}
-
-		public override void Reset()
-		{
-			base.Reset();
-//			RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
 		}
 		#endif
 
