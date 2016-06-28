@@ -464,7 +464,7 @@ namespace ThrottleControlledAvionics
 				}
 				break;
 			case ResourceFlowMode.STACK_PRIORITY_SEARCH:
-				origin.FindResource_StackPriority(origin, resources, resourceID, 0, Part.NewRequestID(), false, ref total_amount, ref max_amount, null, PhysicsGlobals.Stack_PriUsesSurf);
+				origin.FindResource_StackPriority(origin, resources, resourceID, 1e-20, Part.NewRequestID(), false, ref total_amount, ref max_amount, null, PhysicsGlobals.Stack_PriUsesSurf);
 				break;
 			}
 		}
@@ -473,13 +473,13 @@ namespace ThrottleControlledAvionics
 		{
 			double fuel_mass = 0;
 			var available_resources = new List<PartResource>();
-			var added_resources = new HashSet<PartResource>();
+			var added_resources = new HashSet<int>();
 			Active.ForEach(e => e.engine.GetConsumedResources()
 			               .ForEach(r => GetAvailableFuel(e.part, r.id, r.resourceFlowMode, available_resources)));
 			for(int i = 0, count = available_resources.Count; i < count; i++)
 			{
 				var r = available_resources[i];
-				if(added_resources.Add(r))
+				if(added_resources.Add(r.info.id))
 					fuel_mass += r.amount * r.info.density;
 			}
 			return (float)fuel_mass;
