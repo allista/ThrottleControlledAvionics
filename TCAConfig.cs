@@ -29,6 +29,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float InputDeadZone        = 0.01f; //1% of steering or translation control
 		[Persistent] public int   MaxManualGroups      = 10; //maximum number of manual control groups
 		[Persistent] public float KeyRepeatTime        = 0.1f;
+		[Persistent] public float ClickDuration        = 0.05f;
 		[Persistent] public float WaypointHeight       = 3f;
 		[Persistent] public float UnpackDistance       = 5000f;
 		[Persistent] public float ActionListHeight     = 110f;

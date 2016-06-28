@@ -24,17 +24,6 @@ namespace ThrottleControlledAvionics
 
 		protected ThrustDirectionControl(ModuleTCA tca) : base(tca) {}
 
-		protected float TWR_factor
-		{
-			get
-			{
-				var vsf   = CFG.VSCIsActive && VSL.VerticalSpeed.Absolute < 0? 
-					Utils.Clamp(1-(Utils.ClampH(CFG.VerticalCutoff, 0)-VSL.VerticalSpeed.Absolute)/TDC.VSf, 1e-9f, 1) : 1;
-				var twr   = VSL.OnPlanetParams.SlowThrust? VSL.OnPlanetParams.DTWR : VSL.OnPlanetParams.MaxTWR*Utils.Sin45; //MaxTWR at 45deg
-				return Utils.Clamp(twr/TDC.TWRf, 1e-9f, 1)*vsf;
-			}
-		}
-
 		protected Vector3 current_thrust 
 		{
 			get
@@ -242,7 +231,7 @@ namespace ThrottleControlledAvionics
 				{
 					var GeeF  = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
 					var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / TWR_factor;
+					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / VSL.OnPlanetParams.TWRf;
 					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
 				}
 				if(hVm > HSC.TranslationLowerThreshold)

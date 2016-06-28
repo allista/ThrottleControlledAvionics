@@ -4,6 +4,7 @@ RoleSymmetryInFlight = true
 InputDeadZone        = 0.03
 MaxManualGroups      = 10
 KeyRepeatTime        = 0.1
+ClickDuration        = 0.2
 WaypointHeight       = 5
 ExhaustSafeDist      = 1.3
 UnpackDistance       = 5000
@@ -125,7 +126,7 @@ ATCB
 	}
 	
 	MinAAf         = 0.2
-	MaxAAf         = 1
+	MaxAAf         = 2
 	AngularMf      = 0.001
 	InertiaFactor  = 10
 	MoIFactor      = 0.01

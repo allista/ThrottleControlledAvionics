@@ -65,7 +65,6 @@ namespace ThrottleControlledAvionics
 
 		readonly PIDf_Controller DistancePID = new PIDf_Controller();
 		readonly PIDvd_Controller LateralPID = new PIDvd_Controller();
-		readonly LowPassFilterVd LateralFilter = new LowPassFilterVd();
 		readonly Timer ArrivedTimer = new Timer();
 
 		Vessel tVSL;
@@ -88,8 +87,6 @@ namespace ThrottleControlledAvionics
 			DistancePID.Reset();
 			LateralPID.setPID(PN.LateralPID);
 			LateralPID.Reset();
-			LateralFilter.Tau = 1;
-			LateralFilter.Reset();
 			ArrivedTimer.Period = PN.MinTime;
 			FormationBreakTimer.Period = PN.FormationBreakTime;
 			FormationUpdateTimer.Period = PN.FormationUpdateTimer;
@@ -162,7 +159,6 @@ namespace ThrottleControlledAvionics
 			SetTarget(wp);
 			DistancePID.Reset();
 			LateralPID.Reset();
-			LateralFilter.Reset();
 			CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 			RegisterTo<Radar>();
 		}
@@ -444,8 +440,8 @@ namespace ThrottleControlledAvionics
 				DistancePID.Max = CFG.MaxNavSpeed;
 				if(cur_vel > 0)
 				{
-					var lateral_thrust = VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
-					var brake_thrust = lateral_thrust >= VSL.Physics.mg? lateral_thrust : VSL.Physics.mg;
+					var brake_thrust = Mathf.Max(VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude,
+					                             VSL.Physics.mg*VSL.OnPlanetParams.TWRf);
 					var eta = distance/cur_vel;
 					var max_speed = 0f;
 					if(brake_thrust > 0)
@@ -466,11 +462,16 @@ namespace ThrottleControlledAvionics
 				VSL.HorizontalSpeed.SetNeeded(nV);
 			}
 			//correct for lateral movement
-			LateralPID.Update(-Vector3d.Exclude(vdir, VSL.HorizontalSpeed.Vector));
-			if(!LateralFilter.Value.IsZero())
-				LateralFilter.Tau = (float)Utils.Clamp(1-LateralFilter.Value.magnitude, 0, 0.5);
-			LateralFilter.Update(LateralPID.Action);
-			HSC.AddWeightedCorrection(LateralFilter);
+			var latV = -Vector3d.Exclude(vdir, VSL.HorizontalSpeed.Vector);
+			var latF = (float)Math.Min((latV.magnitude/Math.Max(VSL.HorizontalSpeed.Absolute, 0.1)), 1);
+			LateralPID.P = PN.LateralPID.P*latF;
+			LateralPID.I = Mathf.Min(PN.LateralPID.I, latF);
+			LateralPID.D = PN.LateralPID.D*latF;
+			LateralPID.Update(latV);
+			HSC.AddWeightedCorrection(LateralPID.Action);
+//			LogF("\ndir v {}\nlat v {}\nact v {}\nlatPID {}", 
+//			     VSL.HorizontalSpeed.NeededVector, latV,
+//			     LateralPID.Action, LateralPID);//debug
 		}
 
 		#if DEBUG

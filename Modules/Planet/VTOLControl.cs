@@ -71,7 +71,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.HasUserInput) 
 			{ 
 				Quaternion rot = Quaternion.identity;
-				var angle = VTOL.MaxAngle*TWR_factor;
+				var angle = VTOL.MaxAngle*VSL.OnPlanetParams.TWRf;
 				if(!s.yaw.Equals(0))
 				{
 					rot = Quaternion.AngleAxis(s.yaw*90, up_axis) * rot;

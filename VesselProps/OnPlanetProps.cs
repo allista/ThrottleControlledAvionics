@@ -43,11 +43,12 @@ namespace ThrottleControlledAvionics
 		public float   VSF; //vertical speed factor
 		public float   GeeVSF; //the value of VSF that provides the thrust equal to the gravity force
 		public float   MinVSF; //minimum allowable VSF to have enough control authority
+		public float   TWRf { get; private set; }
 
 
 		public override void Update()
 		{
-			AccelSpeed = 0f; DecelSpeed = 0f; SlowThrust = false;
+			AccelSpeed = 0f; DecelSpeed = 0f; TWRf = 1; SlowThrust = false;
 			//calculate total downward thrust and slow engines' corrections
 			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.mg;
 			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
@@ -97,6 +98,11 @@ namespace ThrottleControlledAvionics
 				if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
 				if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
 				SlowThrust = AccelSpeed > 0 || DecelSpeed > 0;
+				//TWR factor
+				var vsf = CFG.VSCIsActive && VSL.VerticalSpeed.Absolute < 0? 
+					Utils.Clamp(1-(Utils.ClampH(CFG.VerticalCutoff, 0)-VSL.VerticalSpeed.Absolute)/GLB.TDC.VSf, 1e-9f, 1) : 1;
+				var twr = SlowThrust? VSL.OnPlanetParams.DTWR : VSL.OnPlanetParams.MaxTWR*Utils.Sin45; //MaxTWR at 45deg
+				TWRf = Utils.Clamp(twr/GLB.TDC.TWRf, 1e-9f, 1)*vsf;
 			}
 			//parachutes
 			UnusedParachutes.Clear();

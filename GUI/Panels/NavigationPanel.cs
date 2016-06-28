@@ -255,7 +255,7 @@ namespace ThrottleControlledAvionics
 						}
 						if(Input.GetMouseButtonUp(1))
 						{ 
-							SelectingTarget &= (DateTime.Now - clicked_time).TotalSeconds >= 0.08;
+							SelectingTarget &= (DateTime.Now - clicked_time).TotalSeconds >= GLB.ClickDuration;
 							clicked = false; 
 						}
 					}
@@ -269,7 +269,7 @@ namespace ThrottleControlledAvionics
 				WayPoint wp0 = null;
 				foreach(var wp in CFG.Waypoints)
 				{
-					current_target_drawn = wp.Equals(CFG.Target);
+					current_target_drawn |= wp.Equals(CFG.Target);
 					wp.UpdateCoordinates(vessel.mainBody);
 					var c = marker_color(i, num);
 					if(wp0 == null) DrawPath(vessel, wp, c);
@@ -375,8 +375,10 @@ namespace ThrottleControlledAvionics
 		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
 		static bool IsOccluded(Vector3d worldPosition, CelestialBody byBody)
 		{
-			return Vector3d.Angle(ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) - 
-			                      worldPosition, byBody.position - worldPosition) <= 90.0;
+			var c_pos = MapView.MapIsEnabled? 
+				ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) :
+				(Vector3d)FlightCamera.fetch.mainCamera.transform.position;
+			return Vector3d.Angle(c_pos-worldPosition, byBody.position-worldPosition) <= 90.0;
 		}
 		#endregion
 	}

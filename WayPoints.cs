@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 		public double DistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius; }
 		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius/VSL.Geometry.R; }
 		public bool   CloseEnough(VesselWrapper VSL) { return RelDistanceTo(VSL)-1 < Radius; }
-		public double SurfaceAlt(CelestialBody body) { return Utils.TerrainAltitude(body, Pos.Lat, Pos.Lon); }
+		public double SurfaceAlt(CelestialBody body) { return Pos.Alt(body); }
 		public Vector3d RelSurfPos(CelestialBody body) { return body.GetRelSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
 		public Vector3d RelOrbPos(CelestialBody body) { return RelSurfPos(body).xzy; }
 		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
