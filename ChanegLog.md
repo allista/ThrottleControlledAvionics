@@ -1,9 +1,23 @@
 **DELETE the old version before installing a new one**
     
-_**BUT** do not delete the TCA.user and config.xml file to preserve your settings_
+_**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.1.0**
-    * Added **bearing controls** to main GUI and keyboard. Works independently of CruiseControl, e.g. you may set the bearing in Stop or Level mode.
+* **v3.2.0 -- compatible with KSP-1.1.3**
+    * Added orbital autopilots ([see the video](https://www.youtube.com/watch?v=l1e2brjWgBA)):
+        * **ToOrbit autopilot** that achieves a circular orbit defined by radius and inclination, prograde or retrograde. It is smart about high orbits as it uses the double-burn technique, which is how the real satellites get to the geostationary orbit.
+        * **Rendezvous autopilot** that can bring a ship to its target-in-orbit from anywhere in the same sphere of influence: from orbit, from a suborbital trajectory and from the surface.
+        * **Deorbit autopilot** that lands a ship from orbit precisely at the selected target.
+        * **Ballistic jump** that brings a ship to a target located far away on the surface of the same planet using a ballistic trajectory. It is, of course, better to use it in vacuum or sparse atmosphere.
+    * Added **VTOL Control** module that allows you to control a VTOL like a copter in a remote-controller style ([see the video](https://www.youtube.com/watch?v=VWFwzOA9YG0)).
+    * **Renamed** two engine modes. I hope this way it's more intuitive:
+        * Main = "Thrust & Maneuver"
+        * Balanced = "Thrust"
+    * **Control-freak special**: added a set of switches to the advanced tab that allow to disable automatic usage of Staging, Landing Gear, Brakes and Parachutes.
+    * Added **verbose status messages** at the bottom of the TCA window. *These are persistent and may be dismissed by clicking on them.*
+    * **Numerous bugfixes and improvements** in almost every module.
+
+* v3.1.0
+    * Added **bearing controls** to the main GUI and keyboard. Works independently of CruiseControl, e.g. you may set the bearing in Stop or Level mode.
     * Added **UnBalanced** engine mode which is a mix of Main and Manual: like Main it responses to altitude/vert.velocity controls, but like Manual it is not used for controlled torque generation. Like Manual engine it may be balanced with other engines in Main, Maneuver or Balanced modes. The main use: to make single-engine balanced-by-design VTOLs and rocket landers.
     * Added **configurable button colors**. See the top the *TCA.glob* file for details.
     * Settings in *TCA.glob* could (and should) now be overwritten in GameData/ThrottleControlledAvionics/**TCA.user** file. Read **[the manual](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md#tcaglob--the-global-tca-settings)** for details.
