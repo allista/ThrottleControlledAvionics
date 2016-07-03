@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -31,7 +32,7 @@ namespace ThrottleControlledAvionics
 			return String.Format("{0:0}°{1:00}'{2:00}\"", Math.Sign(angle)*d, m, s);
 		}
 
-		public double Alt(CelestialBody body) { return Utils.TerrainAltitude(body, Lat, Lon); }
+		public double Alt(CelestialBody body) { return body.TerrainAltitude(Lat, Lon); }
 		public string Biome(CelestialBody body) { return ScienceUtil.GetExperimentBiome(body, Lat, Lon); }
 
 		static Coordinates Search(CelestialBody body, Ray mouseRay)

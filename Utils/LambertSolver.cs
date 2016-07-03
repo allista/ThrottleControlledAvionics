@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -156,7 +157,7 @@ namespace ThrottleControlledAvionics
 			}
 			if(double.IsNaN(x1))
 			{
-				Utils.Log("Unable to solve transfer orbit: {0}", transfer_time);
+				Utils.Log("Unable to solve transfer orbit: {}", transfer_time);
 				return Vector3d.zero;
 			}
 			return dV(x1, _y(x1));

@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -31,7 +32,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float GearOnAtH       = 5f;
 			[Persistent] public float GearOnTime      = 5f;
 		}
-		static Config TLA { get { return TCAScenario.Globals.TLA; } }
+		static Config TLA { get { return Globals.Instance.TLA; } }
 		public VTOLAssist(ModuleTCA tca) : base(tca) {}
 
 		bool last_state, landed, tookoff;

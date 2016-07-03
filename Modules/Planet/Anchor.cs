@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -26,7 +27,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float DistanceCurve = 2f;
 			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
-		static Config ANC { get { return TCAScenario.Globals.ANC; } }
+		static Config ANC { get { return Globals.Instance.ANC; } }
 		public Anchor(ModuleTCA tca) : base(tca) {}
 
 		readonly PIDf_Controller pid = new PIDf_Controller();
@@ -91,7 +92,7 @@ namespace ThrottleControlledAvionics
 			VSL.Info.Destination = apos-VSL.Physics.wCoM;
 			var real_dist = Vector3.ProjectOnPlane(VSL.Info.Destination, VSL.Physics.Up).magnitude;
 			//tune the pid and update needed velocity
-			AccelCorrection.Update(Mathf.Clamp(VSL.Torque.MaxPossibleAA_rad/ANC.AngularAccelF, 0.01f, 1), 0.01f);
+			AccelCorrection.Update(Mathf.Clamp(VSL.Torque.MaxPossible.AA_rad/ANC.AngularAccelF, 0.01f, 1), 0.01f);
 			pid.P = ANC.DistancePID.P*AccelCorrection;
 			pid.D = ANC.DistancePID.D*(2-AccelCorrection);
 			if(real_dist <= Mathf.Max(CFG.Anchor.AbsRadius-VSL.Geometry.R, 1)) 
@@ -116,7 +117,7 @@ namespace ThrottleControlledAvionics
 		public void AnchorPointer()
 		{
 			if(CFG.Anchor == null) return;
-			GLUtils.GLLine(VSL.Physics.wCoM, CFG.Anchor.GetTransform().position, Color.cyan);
+			Utils.GLLine(VSL.Physics.wCoM, CFG.Anchor.GetTransform().position, Color.cyan);
 		}
 		#endif
 	}

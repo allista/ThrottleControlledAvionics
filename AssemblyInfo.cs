@@ -9,6 +9,7 @@
 
 using System;
 using System.Reflection;
+using AT_Utils;
 
 // Information about this assembly is defined by the following attributes. 
 // Change them to the values specific to your project.
@@ -37,15 +38,16 @@ using System.Reflection;
 
 namespace ThrottleControlledAvionics
 {
-	public static class KSP_AVC_Info
+	public class ModInfo : KSP_AVC_Info
 	{
-		public static readonly string  Name          = "ThrottleControlledAvionics";
-		public static readonly Version HangarVersion = Assembly.GetCallingAssembly().GetName().Version;
-		public static readonly Version MinKSPVersion = new Version(1,1,3);
-		public static readonly Version MaxKSPVersion = new Version(1,1,3);
-		public static readonly string  VersionURL    = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
-		public static readonly string  UpgradeURL    = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
-		public static readonly string  ChangeLogURL  = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/ChanegLog.md";
-		public static readonly string  VersionFile   = "ThrottleControlledAvionics.version";
+		public ModInfo()
+		{
+			MinKSPVersion = new Version(1,1,3);
+			MaxKSPVersion = new Version(1,1,3);
+
+			VersionURL   = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
+			UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
+			ChangeLogURL = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/ChanegLog.md";
+		}
 	}
 }

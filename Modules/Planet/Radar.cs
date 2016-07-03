@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -45,7 +46,7 @@ namespace ThrottleControlledAvionics
 				AngleDelta = (UpViewAngle+DownViewAngle)/NumRays;
 			}
 		}
-		static Config RAD { get { return TCAScenario.Globals.RAD; } }
+		static Config RAD { get { return Globals.Instance.RAD; } }
 
 		[Flags]
 		public enum Mode 
@@ -290,7 +291,7 @@ namespace ThrottleControlledAvionics
 						dV = -NeededHorVelocity;
 					else if(Vector3d.Dot(SurfaceVelocity, RelObstaclePosition) > 0)
 						dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
-							-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.Torque.MaxPitchRollAA_rad;
+							-RAD.MinDistanceAhead/DistanceAhead*RAD.PitchRollAAf/VSL.Torque.MaxPitchRoll.AA_rad;
 					else dV = -NeededHorVelocity;
 					HSC.AddRawCorrection(dV);
 				}
@@ -407,7 +408,7 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 			public void Draw()
 			{
-				GLUtils.GLLine(Ori, Valid? hit.point : Ori+Dir*max_distance, 
+				Utils.GLLine(Ori, Valid? hit.point : Ori+Dir*max_distance, 
 				                   Valid? Color.magenta : Color.red);
 			}
 			#endif
@@ -552,7 +553,7 @@ namespace ThrottleControlledAvionics
 
 			#if DEBUG
 			public void Draw() 
-			{ GLUtils.GLLine(VSL.Physics.wCoM, CurPoint.Position, Color.green); }
+			{ Utils.GLLine(VSL.Physics.wCoM, CurPoint.Position, Color.green); }
 			#endif
 		}
 	}

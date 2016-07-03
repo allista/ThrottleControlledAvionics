@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -20,7 +21,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float Timer = 2;
 			[Persistent] public float MinAngularVelocity = 0.001f; //(rad/s)^2 ~= 1.8deg/s
 		}
-		static Config STB { get { return TCAScenario.Globals.STB; } }
+		static Config STB { get { return Globals.Instance.STB; } }
 		public FlightStabilizer(ModuleTCA tca) : base(tca) {}
 
 		readonly Timer OnTimer = new Timer();

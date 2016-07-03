@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -110,7 +111,7 @@ namespace ThrottleControlledAvionics
 				}
 				vel = vel.xzy;
 				CircularizationOffset = -1;
-				if(Executor.Execute(vel, Utils.Clamp(1-VSL.Torque.MaxAA_rad, 0.1f, 1)))
+				if(Executor.Execute(vel, Utils.Clamp(1-VSL.Torque.MaxCurrent.AA_rad, 0.1f, 1)))
 				{
 					if(CFG.AT.Not(Attitude.KillRotation)) 
 					{

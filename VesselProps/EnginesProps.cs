@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -80,6 +81,20 @@ namespace ThrottleControlledAvionics
 			RCS.Add(new RCSWrapper(m));
 			return true;
 		}
+
+		public Vector3 CurrentMaxThrust 
+		{
+			get
+			{
+				var thrust = MaxThrust;
+				if(thrust.IsZero()) thrust =  NearestEnginedStageMaxThrust;
+				if(thrust.IsZero()) thrust = -VSL.Controls.Transform.up;
+				return thrust;
+			}
+		}
+
+		public Vector3 CurrentThrust 
+		{ get { return Thrust.IsZero()? CurrentMaxThrust : Thrust; } }
 
 		public float TTB(float dV, float Ve, float throttle)
 		{
@@ -395,7 +410,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = Active[i];
-				if(e.gimbal != null) 
+				if(e.gimbal != null)
 					e.gimbal.gimbalLimiter = VSL.Controls.GimbalLimit;
 				if(!Equals(e.Role, TCARole.MANUAL))
 					e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);

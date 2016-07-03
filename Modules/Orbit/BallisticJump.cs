@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -34,7 +35,7 @@ namespace ThrottleControlledAvionics
 				StartTangent = 1/Mathf.Tan(Utils.Clamp(StartInclination, 10, 80)*Mathf.Deg2Rad);
 			}
 		}
-		static Config BJ { get { return TCAScenario.Globals.BJ; } }
+		static Config BJ { get { return Globals.Instance.BJ; } }
 
 		public BallisticJump(ModuleTCA tca) : base(tca) {}
 
@@ -228,11 +229,11 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 //			if(current != null)//debug
 //			{
-//				GLUtils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);
-//				GLUtils.GLLine(Body.position, current.SurfacePoint.WorldPos(Body), Color.yellow);
+//				Utils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);
+//				Utils.GLLine(Body.position, current.SurfacePoint.WorldPos(Body), Color.yellow);
 //				var brake = current.NewOrbit.getPositionAtUT(current.BrakeStartUT);
-//				GLUtils.GLVec(brake, current.BrakeDeltaV.xzy.normalized*2000, Color.red);
-//				GLUtils.GLVec(brake, (current.NewOrbit.getOrbitalVelocityAtUT(current.BrakeNodeUT)+
+//				Utils.GLVec(brake, current.BrakeDeltaV.xzy.normalized*2000, Color.red);
+//				Utils.GLVec(brake, (current.NewOrbit.getOrbitalVelocityAtUT(current.BrakeNodeUT)+
 //				                      current.BrakeDeltaV).xzy.normalized*2000, 
 //				              Color.magenta);
 //			}

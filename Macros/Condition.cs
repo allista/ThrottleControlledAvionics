@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -17,7 +18,7 @@ namespace ThrottleControlledAvionics
 	{
 		public delegate void Selector(Action<Condition> callback);
 
-		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		internal static Globals GLB { get { return Globals.Instance; } }
 
 		protected string Name;
 		public Condition Prev;

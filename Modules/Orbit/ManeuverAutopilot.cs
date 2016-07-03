@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -23,7 +24,7 @@ namespace ThrottleControlledAvionics
 		{
 			[Persistent] public float WrapThreshold = 600f; //s
 		}
-		static Config MAN { get { return TCAScenario.Globals.MAN; } }
+		static Config MAN { get { return Globals.Instance.MAN; } }
 
 		public ManeuverAutopilot(ModuleTCA tca) : base(tca) {}
 

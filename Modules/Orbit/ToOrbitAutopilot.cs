@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -29,7 +30,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float Dist2VelF      = 0.1f;
 			[Persistent] public float DragK          = 0.0008f;
 		}
-		static Config ORB { get { return TCAScenario.Globals.ORB; } }
+		static Config ORB { get { return Globals.Instance.ORB; } }
 
 		public enum Stage { None, Start, Liftoff, GravityTurn, ChangeApA, Circularize }
 
@@ -197,10 +198,10 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 			if(ToOrbit != null)
 			{
-				GLUtils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
-				GLUtils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
-				GLUtils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
-				GLUtils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
+				Utils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
+				Utils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
+				Utils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
+				Utils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
 			}
 			#endif
 			if(stage == Stage.None)

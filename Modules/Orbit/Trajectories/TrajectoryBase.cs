@@ -7,12 +7,13 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
 	public abstract class BaseTrajectory
 	{
-		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		internal static Globals GLB { get { return Globals.Instance; } }
 
 		public readonly VesselWrapper VSL;
 		public readonly CelestialBody Body;

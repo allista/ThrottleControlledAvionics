@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -102,7 +103,7 @@ namespace ThrottleControlledAvionics
 		{
 			var ret = false;
 			component = null;
-			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(TCAScenario.Globals.ActionListHeight));
+			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(Globals.Instance.ActionListHeight));
 			GUILayout.BeginVertical();
 			for(int i = 0, count = AvailableComponents.Keys.Count; i < count; i++)
 			{

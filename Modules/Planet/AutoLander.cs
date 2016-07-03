@@ -11,6 +11,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -47,7 +48,7 @@ namespace ThrottleControlledAvionics
 				MaxStartAltitude = MaxWideCheckAltitude/2;
 			}
 		}
-		static Config LND { get { return TCAScenario.Globals.LND; } }
+		static Config LND { get { return Globals.Instance.LND; } }
 
 		static int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery") | 1 << LayerMask.NameToLayer("Parts") | 1);
 		enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, StartLanding, Land }
@@ -463,7 +464,7 @@ namespace ThrottleControlledAvionics
 			if(Nodes == null) return;
 			if(scanner == null && NextNode != null)
 			{
-				GLUtils.GLLine(VSL.Physics.wCoM, NextNode.position, Color.Lerp(Color.blue, Color.red, NextNode.unevenness));
+				Utils.GLLine(VSL.Physics.wCoM, NextNode.position, Color.Lerp(Color.blue, Color.red, NextNode.unevenness));
 				return;
 			}
 			for(int i = 0; i < bside; i++)
@@ -471,7 +472,7 @@ namespace ThrottleControlledAvionics
 				{
 					var n = Nodes[i,j];
 					if(n == null) continue;
-					GLUtils.GLLine(VSL.Physics.wCoM, n.position, Color.Lerp(Color.blue, Color.red, n.unevenness));
+					Utils.GLLine(VSL.Physics.wCoM, n.position, Color.Lerp(Color.blue, Color.red, n.unevenness));
 				}
 		}
 

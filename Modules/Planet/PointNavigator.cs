@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -57,7 +58,7 @@ namespace ThrottleControlledAvionics
 				FormationSpeedSqr = FormationSpeedCutoff*FormationSpeedCutoff;
 			}
 		}
-		static Config PN { get { return TCAScenario.Globals.PN; } }
+		static Config PN { get { return Globals.Instance.PN; } }
 		public PointNavigator(ModuleTCA tca) : base(tca) {}
 
 		public bool Maneuvering { get; private set; }
@@ -428,7 +429,7 @@ namespace ThrottleControlledAvionics
 						next_wp.Update(VSL);
 						var next_dist = Vector3.ProjectOnPlane(next_wp.GetTransform().position-CFG.Target.GetTransform().position, VSL.Physics.Up);
 						var angle2next = Vector3.Angle(vdir, next_dist);
-						var minD = Utils.ClampL(min_dist*(1-angle2next/180/VSL.Torque.MaxPitchRollAA_rad*PN.PitchRollAAf), CFG.Target.AbsRadius);
+						var minD = Utils.ClampL(min_dist*(1-angle2next/180/VSL.Torque.MaxPitchRoll.AA_rad*PN.PitchRollAAf), CFG.Target.AbsRadius);
 						if(minD > distance) distance = minD;
 					}
 					else distance = min_dist;
@@ -436,7 +437,8 @@ namespace ThrottleControlledAvionics
 				else if(CFG.Nav.Not(Navigation.FollowTarget))
 					distance = Utils.ClampL(distance-end_distance+VSL.Geometry.R*2, 0);
 				//tune maximum speed and PID
-				DistancePID.Min = Mathf.Min(CFG.MaxNavSpeed, 1);
+				if(CFG.MaxNavSpeed < 10) CFG.MaxNavSpeed = 10;
+				DistancePID.Min = 0;
 				DistancePID.Max = CFG.MaxNavSpeed;
 				if(cur_vel > 0)
 				{
@@ -479,7 +481,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL == null || VSL.vessel == null) return;
 			if(CFG.Target != null && CFG.Target.GetTransform() != null && CFG.Nav[Navigation.FollowTarget])
-				GLUtils.GLLine(VSL.Physics.wCoM, CFG.Target.GetTransform().position+formation_offset,
+				Utils.GLLine(VSL.Physics.wCoM, CFG.Target.GetTransform().position+formation_offset,
 				               Maneuvering? Color.yellow : Color.cyan);
 		}
 		#endif

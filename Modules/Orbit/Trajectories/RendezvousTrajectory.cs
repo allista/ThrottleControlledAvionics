@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -57,7 +58,7 @@ namespace ThrottleControlledAvionics
 			DeltaFi = TrajectoryCalculator.RelativeInclination(NewOrbit, TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
 			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TransferTime;
-//			DebugUtils.LogF("{}", this);//debug
+//			DebugUtils.Log("{}", this);//debug
 		}
 
 		public override string ToString()

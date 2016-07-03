@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -22,10 +23,20 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : TCAModule.ModuleConfig
 		{
-			[Persistent] public float StartPeR    = 0.49f; //of planet radius
+			[Persistent] public float StartEcc     = 0.5f;
+			[Persistent] public int   EccSteps     = 10;
+			[Persistent] public float MaxEcc       = 0.8f; 
 			[Persistent] public float AngularDragF = 0.5f;
+
+			public float dEcc;
+
+			public override void Init()
+			{
+				base.Init();
+				dEcc = StartEcc/EccSteps;
+			}
 		}
-		static Config DEO { get { return TCAScenario.Globals.DEO; } }
+		static Config DEO { get { return Globals.Instance.DEO; } }
 
 		public DeorbitAutopilot(ModuleTCA tca) : base(tca) {}
 
@@ -37,9 +48,9 @@ namespace ThrottleControlledAvionics
 
 		public enum Stage { None, Compute, Deorbit, Correct, Coast, Wait }
 		[Persistent] public Stage stage;
-		double current_PeR;
+		double currentEcc;
 
-		protected LandingTrajectory fixed_PeR_orbit(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double PeR)
+		protected LandingTrajectory fixed_Ecc_orbit(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double ecc)
 		{
 			double StartUT;
 			double targetAlt;
@@ -61,7 +72,7 @@ namespace ThrottleControlledAvionics
 				StartUT = VSL.Physics.UT+TRJ.ManeuverOffset;
 				targetAlt = TargetAltitude;
 			}
-			return new LandingTrajectory(VSL, dV4Pe(VesselOrbit, Body.Radius*PeR, StartUT, Node2OrbitDeltaV(StartUT, NodeDeltaV)), 
+			return new LandingTrajectory(VSL, dV4Ecc(VesselOrbit, ecc, StartUT, Body.Radius*0.9, Node2OrbitDeltaV(StartUT, NodeDeltaV)), 
 			                             StartUT, CFG.Target, targetAlt);
 		}
 
@@ -85,7 +96,7 @@ namespace ThrottleControlledAvionics
 			MAN.MinDeltaV = 1;
 			Dtol = LTRJ.Dtol;
 			var NodeDeltaV = Vector3d.zero;
-			setup_calculation((o, b) => fixed_PeR_orbit(o, b, ref NodeDeltaV, current_PeR));
+			setup_calculation((o, b) => fixed_Ecc_orbit(o, b, ref NodeDeltaV, currentEcc));
 			stage = Stage.Compute;
 		}
 
@@ -95,7 +106,7 @@ namespace ThrottleControlledAvionics
 			Dtol = LTRJ.Dtol/2;
 			CorrectionTimer.Reset();
 			var NodeDeltaV = Vector3d.zero;
-			setup_calculation((o, b) => horizontal_correction(o, b, ref NodeDeltaV, Mathf.Max(LTRJ.CorrectionOffset, VSL.Torque.NoEnginesTurnTime)));
+			setup_calculation((o, b) => horizontal_correction(o, b, ref NodeDeltaV, Mathf.Max(LTRJ.CorrectionOffset, VSL.Torque.NoEngines.TurnTime)));
 			stage = Stage.Correct;
 		}
 
@@ -103,7 +114,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.reset();
 			stage = Stage.None;
-			current_PeR = DEO.StartPeR;
+			currentEcc = DEO.StartEcc;
 			CFG.AP1.Off();
 		}
 
@@ -112,7 +123,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-//				Utils.LogF("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
+//				Utils.Log("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
 				NeedRadarWhenMooving();
 				if(stage == Stage.None && !landing) 
 					goto case Multiplexer.Command.On;
@@ -134,9 +145,9 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
-					current_PeR = DEO.StartPeR;
-					if(Body.atmosphere) current_PeR *= 
-						Utils.ClampH(VSL.Torque.MaxPossibleAngularDragResistance/Body.atmDensityASL*DEO.AngularDragF, 1);
+					currentEcc = DEO.StartEcc;
+					if(Body.atmosphere) currentEcc = 
+						Utils.ClampH(currentEcc*(2.1-Utils.ClampH(VSL.Torque.MaxPossible.AngularDragResistance/Body.atmDensityASL*DEO.AngularDragF, 1)), DEO.MaxEcc);
 					compute_landing_trajectory();
 				}
 				goto case Multiplexer.Command.Resume;
@@ -164,7 +175,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Stage.Compute:
 				if(!trajectory_computed()) break;
-				if(trajectory.DistanceToTarget < LTRJ.Dtol || current_PeR >= 1)
+				if(trajectory.DistanceToTarget < LTRJ.Dtol || currentEcc < 1e-10)
 				{
 					clear_nodes(); add_trajectory_node();
 					CorrectionTimer.Reset();
@@ -179,8 +190,8 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
-					current_PeR += 0.1;
-					if(current_PeR < 1) 
+					currentEcc -= DEO.dEcc;
+					if(currentEcc > 1e-10) 
 						compute_landing_trajectory();
 				}
 				break;

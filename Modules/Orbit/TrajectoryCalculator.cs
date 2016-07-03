@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -24,7 +25,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public int   PerFrameIterations = 10;
 			[Persistent] public float ManeuverOffset     = 60f;    //s
 		}
-		protected static Config TRJ { get { return TCAScenario.Globals.TRJ; } }
+		protected static Config TRJ { get { return Globals.Instance.TRJ; } }
 
 		protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 		//multiple inheritance or some sort of mixins or property extensions would be great here =/
@@ -184,6 +185,31 @@ namespace ThrottleControlledAvionics
 			return (max_dV+min_dV)/2*dVdir+add_dV;
 		}
 
+		public static Vector3d dV4Ecc(Orbit old, double ecc, double UT, double minR = -1, Vector3d add_dV = default(Vector3d))
+		{
+			var dir = old.getOrbitalVelocityAtUT(UT);
+			var up = old.eccentricity > ecc;
+			var min_dV = 0.0;
+			var max_dV = dir.magnitude+add_dV.magnitude;
+			dir.Normalize();
+			if(up)
+			{
+				max_dV = 1;
+				while(NewOrbit(old, dir*max_dV, UT).eccentricity > ecc)
+				{ max_dV *= 2; if(max_dV > 100000) break; }
+			} else dir *= -1;
+			while(max_dV-min_dV > TRJ.dVtol)
+			{
+				var dV = (max_dV+min_dV)/2;
+				var orb = NewOrbit(old, dir*dV+add_dV, UT);
+				if( up && (orb.eccentricity < ecc || minR > 0 && orb.PeR > minR) || 
+				   !up && orb.eccentricity > ecc) 
+					max_dV = dV;
+				else min_dV = dV;
+			}
+			return (max_dV+min_dV)/2*dir+add_dV;
+		}
+
 		protected Orbit AscendingOrbit(double ApR, Vector3d hVdir, double slope)
 		{
 			var LaunchRad = Utils.ClampH(Math.Atan(1/(Body.Radius*slope/(2*ApR) - 
@@ -224,7 +250,7 @@ namespace ThrottleControlledAvionics
 		{
 			var posA = a.getRelativePositionAtUT(UT);
 			var tanA = Vector3d.Cross(a.GetOrbitNormal(), posA);
-//			DebugUtils.LogF("\nposA {}\ntanA {}\nposB {}", posA, tanA, posB);//debug
+//			DebugUtils.Log("\nposA {}\ntanA {}\nposB {}", posA, tanA, posB);//debug
 			return Utils.ProjectionAngle(posA, posB, tanA);
 		}
 
@@ -235,7 +261,7 @@ namespace ThrottleControlledAvionics
 		{
 			alpha = AngleDelta(a, b, UT)/360;
 			resonance = ResonanceA(a, b);
-//			DebugUtils.LogF("\nUT {}\nalpha {}\nresonance {}", UT, alpha, resonance);//debug
+//			DebugUtils.Log("\nUT {}\nalpha {}\nresonance {}", UT, alpha, resonance);//debug
 			var TTR = alpha*resonance;
 			return TTR > 0? TTR : TTR+Math.Abs(resonance);
 		}
@@ -297,7 +323,7 @@ namespace ThrottleControlledAvionics
 			Vector3d dV, dVdir;
 			double alpha, resonance;
 			var TTR = TimeToResonance(old, target, UT, out resonance, out alpha);
-//			Utils.LogF("\nTTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
+//			Utils.Log("\nTTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
 			if(TTR > max_TTR) dV = dV4Resonance(old, target, Math.Max(max_TTR/2, 0.75), alpha, UT);
 			else return Vector3d.zero;
 			min_dV = dV.magnitude;
@@ -504,13 +530,13 @@ namespace ThrottleControlledAvionics
 				{
 //					add_node(current.ManeuverDeltaV, current.StartUT);//debug
 //					var lt = current as LandingTrajectory;//debug
-//					if(lt != null) NavigationPanel.CustomMarkersWP.Add(lt.SurfacePoint);//debug
+//					if(lt != null) add_node(lt.BrakeDeltaV, lt.BrakeEndUT);//debug
 //					Status("Push to continue");//debug
 					yield return null;
 					frameI = TRJ.PerFrameIterations;
 				}
 			} while(end_predicate(current, best) && maxI > 0);
-//			Log("Best trajectory:\n{0}", best);//debug
+//			Log("Best trajectory:\n{}", best);//debug
 //			clear_nodes();//debug
 			yield return best;
 		}
@@ -555,7 +581,10 @@ namespace ThrottleControlledAvionics
 		protected Timer CorrectionTimer = new Timer();
 
 		protected bool target_is_far(T cur, T best)
-		{ return best.DistanceToTarget > Dtol; }
+		{ 
+			return best.DistanceToTarget > Dtol && 
+				(cur == best || Math.Abs(cur.DistanceToTarget-best.DistanceToTarget)/Dtol > 0.1); //convergence
+		}
 
 		protected void add_target_node()
 		{

@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -45,7 +46,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public FloatCurve EnginesCurve  = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
 			[Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
 		}
-		static Config ENG { get { return TCAScenario.Globals.ENG; } }
+		static Config ENG { get { return Globals.Instance.ENG; } }
 
 		public EngineOptimizer(ModuleTCA tca) : base(tca) {}
 
@@ -92,11 +93,11 @@ namespace ThrottleControlledAvionics
 			TorqueAngle = TorqueError = -1f;
 			float error, angle;
 			var last_error = -1f;
-			Vector3 cur_imbalance = VSL.Torque.EnginesTorque, target;
+			Vector3 cur_imbalance = VSL.Torque.Engines.Torque, target;
 			for(int i = 0; i < ENG.MaxIterations; i++)
 			{
 				//calculate current errors and target
-				cur_imbalance = VSL.Torque.EnginesTorque;
+				cur_imbalance = VSL.Torque.Engines.Torque;
 				for(int j = 0; j < num_engines; j++) 
 				{ var e = engines[j]; cur_imbalance += e.Torque(e.throttle * e.limit); }
 				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);
@@ -191,7 +192,7 @@ namespace ThrottleControlledAvionics
 			var needed_torque = Vector3.zero;
 			//tune steering if MaxAA has changed drastically
 			Steering = VSL.Controls.Steering*Mathf.Lerp(Utils.ClampH(VSL.Torque.MaxAAMod, 1), 1, VSL.Controls.InvAlignmentFactor);
-			if(Steering.sqrMagnitude >= TCAScenario.Globals.InputDeadZone)
+			if(Steering.sqrMagnitude >= Globals.Instance.InputDeadZone)
 			{
 				//correct steering
 				if(!CFG.AutoTune) Steering *= CFG.SteeringGain;
@@ -223,12 +224,12 @@ namespace ThrottleControlledAvionics
 			if(CFG.AT) CFG.SteeringModifier = Vector3.one;
 			else
 			{
-				CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAA.x)/100f);
-				CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAA.y)/100f);
-				CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxAA.z)/100f);
+				CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.x)/100f);
+				CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.y)/100f);
+				CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.z)/100f);
 			}
 			//tune PI coefficients
-			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.MaxAA_rad);
+			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.MaxCurrent.AA_rad);
 			CFG.Engines.I = CFG.Engines.P/2f;
 		}
 
@@ -246,7 +247,7 @@ namespace ThrottleControlledAvionics
 //			{
 //				var e = VSL.Engines.Active[i];
 //				if(e.thrustInfo == null) continue;
-//				GLUtils.GLVec(e.wThrustPos, e.wThrustDir * 0.5f, Color.yellow);
+//				Utils.GLVec(e.wThrustPos, e.wThrustDir * 0.5f, Color.yellow);
 //			}
 //		}
 //
@@ -258,19 +259,19 @@ namespace ThrottleControlledAvionics
 
 		void DebugEngines(IList<EngineWrapper> engines, Vector3 needed_torque)
 		{
-			Utils.Log("Engines:\n"+
+			Utils.Log("Engines:\n{}",
 			          engines.Aggregate("", (s, e) => s 
 		                +string.Format("engine(vec{0}, vec{1}, vec{2}, {3}, {4}),\n",
 						VSL.LocalDir(e.wThrustPos-VSL.Physics.wCoM),
                        	e.thrustDirection,e.specificTorque, e.nominalCurrentThrust(0), e.nominalCurrentThrust(1))));
-			Utils.Log("Engines Torque:\n"+engines.Aggregate("", (s, e) => s + "vec"+e.Torque(e.throttle*e.limit)+",\n"));
+			Utils.Log("Engines Torque:\n{}", engines.Aggregate("", (s, e) => s + "vec"+e.Torque(e.throttle*e.limit)+",\n"));
 			Utils.Log(
-				"Steering: {0}\n" +
-				"Needed Torque: {1}\n" +
-				"Torque Imbalance: {2}\n" +
-				"Torque Error: {3}kNm, {4}°\n" +
-				"Torque Clamp:\n   +{5}\n   -{6}\n" +
-				"Limits: [{7}]", 
+				"Steering: {}\n" +
+				"Needed Torque: {}\n" +
+				"Torque Imbalance: {}\n" +
+				"Torque Error: {}kNm, {}°\n" +
+				"Torque Clamp:\n   +{}\n   -{}\n" +
+				"Limits: [{}]", 
 				Steering,
 				needed_torque,
 				engines.Aggregate(Vector3.zero, (v,e) => v+e.Torque(e.throttle*e.limit)),

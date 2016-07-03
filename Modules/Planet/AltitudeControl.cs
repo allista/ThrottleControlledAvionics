@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -40,7 +41,7 @@ namespace ThrottleControlledAvionics
 				RocketPID.Min = JetsPID.Min = -MaxSpeedLow;
 			}
 		}
-		static Config ALT { get { return TCAScenario.Globals.ALT; } }
+		static Config ALT { get { return Globals.Instance.ALT; } }
 
 		static readonly ActionDamper UpDamper = new ActionDamper();
 		static readonly ActionDamper DownDamper = new ActionDamper();
@@ -75,8 +76,8 @@ namespace ThrottleControlledAvionics
 
 		public void SetAltitudeAboveTerrain(bool enable = true)
 		{
-			if(RAD == null || 
-			   enable == CFG.AltitudeAboveTerrain) return;
+			DebugUtils.Log("RAD {}, enable {}, CFG.AltitudeAboveTerrain {}", RAD, enable, CFG.AltitudeAboveTerrain);//debug
+			if(RAD == null || enable == CFG.AltitudeAboveTerrain) return;
 			CFG.AltitudeAboveTerrain = enable;
 			VSL.Altitude.Update();
 			Falling.Reset();

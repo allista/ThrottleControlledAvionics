@@ -9,13 +9,14 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
 	public class MacroNode : TypedConfigNodeObject
 	{
 		public delegate void Selector(Action<MacroNode> callback);
-		protected static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		internal static Globals GLB { get { return Globals.Instance; } }
 		protected VesselConfig EditedCFG;
 
 		public MacroNode Parent;

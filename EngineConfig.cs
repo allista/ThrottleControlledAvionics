@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -30,7 +31,7 @@ namespace ThrottleControlledAvionics
 //		{ 
 //			get { return changed; } 
 //			set { 
-//				if(value != changed) DebugUtils.LogF("{}.Changed: {}->{}", Name, changed, value);
+//				if(value != changed) DebugUtils.Log("{}.Changed: {}->{}", Name, changed, value);
 //				changed = value; 
 //			} 
 //		}
@@ -313,7 +314,7 @@ namespace ThrottleControlledAvionics
 
 		public void Apply(IList<EngineWrapper> engines)
 		{
-//			DebugUtils.LogF("Applying {}", Name);//debug
+//			DebugUtils.Log("Applying {}", Name);//debug
 			for(int i = 0, enginesCount = engines.Count; i < enginesCount; i++) 
 			{
 				var e = engines[i];

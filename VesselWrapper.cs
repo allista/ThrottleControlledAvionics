@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using KSP.UI.Screens;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -20,7 +21,7 @@ namespace ThrottleControlledAvionics
 	{
 		public ModuleTCA    TCA { get; private set; }
 		public VesselConfig CFG { get; private set; }
-		public TCAGlobals   GLB { get { return TCAScenario.Globals; } }
+		internal Globals    GLB { get { return Globals.Instance; } }
 
 		public TCAState State;
 		public void     SetState(TCAState state) { State |= state; }

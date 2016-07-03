@@ -7,8 +7,8 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float DewarpTime = 20f;  //sec
 			[Persistent] public float MaxWarp    = 10000f;
 		}
-		static Config WRP { get { return TCAScenario.Globals.WRP; } }
+		static Config WRP { get { return Globals.Instance.WRP; } }
 
 		public TimeWarpControl(ModuleTCA tca) : base(tca) {}
 

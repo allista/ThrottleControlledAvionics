@@ -12,6 +12,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -27,7 +28,7 @@ namespace ThrottleControlledAvionics
 	{
 		public readonly ModuleTCA TCA;
 		public VesselWrapper VSL { get { return TCA.VSL; } }
-		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		internal static Globals GLB { get { return Globals.Instance; } }
 		public VesselConfig CFG { get { return TCA.VSL.CFG; } }
 		public TCAState State { get { return VSL.State; } }
 		public void SetState(TCAState state) { VSL.State |= state; }
@@ -81,8 +82,7 @@ namespace ThrottleControlledAvionics
 		{ return string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg); }
 
 		protected void Log(string msg, params object[] args) { Utils.Log(LogTemplate(msg), args); }
-		protected void LogF(string msg, params object[] args) { Utils.LogF(LogTemplate(msg), args); }
-		protected void LogFST(string msg, params object[] args) { DebugUtils.LogF(LogTemplate(msg), args); }
+		protected void LogFST(string msg, params object[] args) { DebugUtils.Log(LogTemplate(msg), args); }
 
 		protected void CSV(params object[] args)
 		{
@@ -121,7 +121,7 @@ namespace ThrottleControlledAvionics
 		public virtual void ProcessKeys() {}
 		public override void Draw() {}
 
-		protected virtual void UpdateState() { IsActive = CFG.Enabled; }
+		protected virtual void UpdateState() { IsActive = VSL != null && CFG.Enabled; }
 		protected virtual void Update() {}
 		protected virtual void reset() {}
 

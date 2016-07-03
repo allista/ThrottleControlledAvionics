@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -32,9 +33,9 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(new GUIContent(
 				string.Format("{0} ▲{1} ►{2}", 
-				              Utils.FormatBigValue(VSL.Altitude.Current, "m"), 
-				              Utils.FormatBigValue(VSL.VerticalSpeed.Display, "m/s", "+0.0;-0.0;+0.0"), 
-				              Utils.FormatBigValue(VSL.HorizontalSpeed.Absolute, "m/s")), 
+				              Utils.formatBigValue(VSL.Altitude.Current, "m"), 
+				              Utils.formatBigValue(VSL.VerticalSpeed.Display, "m/s", "+0.0;-0.0;+0.0"), 
+				              Utils.formatBigValue(VSL.HorizontalSpeed.Absolute, "m/s")), 
 				"Altitude, Vertical speed, Horizontal speed."),
 			                Styles.boxed_label, GUILayout.Width(240));
 			if(ALT != null && CFG.VF[VFlight.AltitudeControl]) ALT.Draw();
@@ -79,7 +80,7 @@ namespace ThrottleControlledAvionics
 								if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
 							});
 					#if DEBUG
-					RAD.RadarBeam();
+//					RAD.RadarBeam();
 					#endif
 				}
 			}

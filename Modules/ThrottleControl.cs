@@ -7,8 +7,8 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinDeltaV        = 0.1f; //m/s
 			[Persistent] public float DeltaVThreshold  = 10f;  //sec
 		}
-		static Config THR { get { return TCAScenario.Globals.THR; } }
+		static Config THR { get { return Globals.Instance.THR; } }
 		public ThrottleControl(ModuleTCA tca) : base(tca) {}
 
 		float throttle = -1;

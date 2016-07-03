@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -20,21 +21,9 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float TWRf  = 3;
 			[Persistent] public float VSf   = 3;
 		}
-		static Config TDC { get { return TCAScenario.Globals.TDC; } }
+		static Config TDC { get { return Globals.Instance.TDC; } }
 
 		protected ThrustDirectionControl(ModuleTCA tca) : base(tca) {}
-
-		protected Vector3 current_thrust 
-		{
-			get
-			{
-				var thrust = VSL.Engines.Thrust;
-				if(thrust.IsZero()) thrust =  VSL.Engines.MaxThrust;
-				if(thrust.IsZero()) thrust =  VSL.Engines.NearestEnginedStageMaxThrust;
-				if(thrust.IsZero()) thrust = -VSL.Controls.Transform.up;
-				return thrust;
-			}
-		}
 	}
 
 	[CareerPart]
@@ -76,7 +65,7 @@ namespace ThrottleControlledAvionics
 				RotationMaxCos = Mathf.Cos(RotationMaxAngle*Mathf.Deg2Rad);
 			}
 		}
-		static Config HSC { get { return TCAScenario.Globals.HSC; } }
+		static Config HSC { get { return Globals.Instance.HSC; } }
 
 		public HorizontalSpeedControl(ModuleTCA tca) : base(tca) {}
 
@@ -115,9 +104,9 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
-			GLUtils.GLVec(VSL.refT.position, VSL.HorizontalSpeed.NeededVector, Color.red);
-			GLUtils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H, VSL.HorizontalSpeed.Vector, Color.magenta);
-			GLUtils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H*1.1, CourseCorrection, Color.green);
+			Utils.GLVec(VSL.refT.position, VSL.HorizontalSpeed.NeededVector, Color.red);
+			Utils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H, VSL.HorizontalSpeed.Vector, Color.magenta);
+			Utils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H*1.1, CourseCorrection, Color.green);
 		}
 		#endif
 
@@ -281,7 +270,7 @@ namespace ThrottleControlledAvionics
 				else EnableManualTranslation(false);
 			}
 			else EnableManualTranslation(false);
-			if(thrust.IsZero()) thrust = current_thrust;
+			if(thrust.IsZero()) thrust = VSL.Engines.CurrentThrust;
 			needed_thrust_dir.Normalize();
 			//tune filter
 			filter.Tau = VSL.Engines.SlowTorque ? 

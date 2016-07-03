@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -26,12 +27,20 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float ADf    = 0.1f;
 			[Persistent] public PID_Controller DirectionPID = new PID_Controller(0.5f, 0f, 0.5f, -175, 175);
 		}
-		static Config BRC { get { return TCAScenario.Globals.BRC; } }
+		static Config BRC { get { return Globals.Instance.BRC; } }
 
 		readonly Timer DirectionLineTimer = new Timer();
 		readonly PIDf_Controller2 bearing_pid = new PIDf_Controller2();
 		public readonly FloatField Bearing = new FloatField(min:0, max:360, circle:true);
 
+		#if DEBUG
+//		Vector3d DO;
+//		public Vector3d DirectionOverride { get { return DO; } 
+//			set { if(!value.IsZero()) LogFST("DirOverride: {}", value); DO = value; } }
+//		Vector3d FD;
+//		public Vector3d ForwardDirection { get { return FD; } 
+//			set { if(!value.IsZero()) LogFST("FwdOverride: {}", value); FD = value; } }
+		#endif
 		public Vector3d DirectionOverride;
 		public Vector3d ForwardDirection;
 
@@ -93,7 +102,7 @@ namespace ThrottleControlledAvionics
 						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
 					draw_forward_direction = BRC.DrawForwardDirection;
 					VSL.HasUserInput = !(s.pitch.Equals(0) && s.roll.Equals(0));
-					VSL.AutopilotDisabled = false;
+					VSL.AutopilotDisabled = VSL.HasUserInput;
 					DirectionLineTimer.Reset();
 					bearing_pid.Reset();
 					s.yaw = 0;
@@ -107,21 +116,20 @@ namespace ThrottleControlledAvionics
 			var cDir  = H(VSL.OnPlanetParams.Fwd);
 			var nDir  = DirectionOverride.IsZero()? H(ForwardDirection) : H(DirectionOverride);
 			var angle = Vector3.Angle(cDir, nDir)*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
-			var eff   = Mathf.Abs(Vector3.Dot(VSL.Engines.MaxThrust.normalized, VSL.Physics.Up));
-			var ADf   = (float)(VSL.vessel.staticPressurekPa * VSL.Geometry.Area * VSL.Physics.AngularDrag / 101.325*BRC.ADf)+1;
-			AAf = Utils.Clamp(1/VSL.Torque.AngularAccelerationInDirection(laxis)/ADf, BRC.MinAAf, BRC.MaxAAf);
+			var eff   = Mathf.Abs(Vector3.Dot(VSL.Engines.CurrentMaxThrust.normalized, VSL.Physics.Up));
+			var ADf   = (float)VSL.vessel.staticPressurekPa/VSL.Torque.MaxCurrent.AngularDragResistanceAroundAxis(laxis)*BRC.ADf+1;
+			AAf = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis)/ADf, BRC.MinAAf, BRC.MaxAAf);
 			bearing_pid.P = BRC.DirectionPID.P;
 			bearing_pid.D = BRC.DirectionPID.D*AAf;
-			bearing_pid.Update(angle, Vector3.Dot(VSL.vessel.angularVelocity, laxis)*Mathf.Rad2Deg);
-			steering = rotation2steering(world2local_rotation(Quaternion.AngleAxis(bearing_pid.Action*eff, axis)));
+			bearing_pid.Update(angle*eff, Vector3.Dot(VSL.vessel.angularVelocity, laxis)*Mathf.Rad2Deg);
+			steering = rotation2steering(world2local_rotation(Quaternion.AngleAxis(bearing_pid.Action, axis)));
 			VSL.Controls.AddSteering(steering);
 //			if(VSL.IsActiveVessel)
 //				TCAGui.DebugMessage = 
 //					Utils.Format("angle {}deg, action {}deg, action*eff {}deg\n" +
-//					              "AAf {}, DragF {}, Area {}, ADf {}\nresult {}",
+//					             "AAf {}, ADf {}, result {}",
 //					              angle, bearing_pid.Action, bearing_pid.Action*eff, 
-//					              1/(Mathf.Abs(Vector3.Dot(laxis, VSL.Torque.MaxAngularA))), 
-//					              VSL.Physics.AngularDrag, VSL.Geometry.Area, ADf, AAf);//debug
+//					             1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis), ADf, AAf);//debug
 			DirectionOverride = Vector3d.zero;
 		}
 
@@ -134,14 +142,15 @@ namespace ThrottleControlledAvionics
 			{
 				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(false));
 				#if DEBUG
-//				GLUtils.GLVec(VSL.Controls.Transform.position, ForwardDirection.normalized*2500, Color.green);
+				var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
+				Utils.GLVec(VSL.Controls.Transform.position, dir.normalized*2500, Color.green);
 				#endif
 			}
 			else if(CFG.BR[BearingMode.User])
 			{
 				if(draw_forward_direction)
 				{
-					GLUtils.GLVec(VSL.Physics.wCoM, ForwardDirection.normalized*2500, Color.green);
+					Utils.GLVec(VSL.Physics.wCoM, ForwardDirection.normalized*2500, Color.green);
 					draw_forward_direction = !DirectionLineTimer.Check;
 				}
 				if(Bearing.Draw("°", increment:10))

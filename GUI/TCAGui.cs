@@ -8,6 +8,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -17,6 +18,7 @@ namespace ThrottleControlledAvionics
 		static Vessel vessel;
 		public static ModuleTCA TCA { get; private set; }
 		public static VesselWrapper VSL { get { return TCA.VSL; } }
+		internal static Globals GLB { get { return Globals.Instance; } }
 		public static VesselConfig CFG { get { return TCA.CFG; } }
 
 		#region modules
@@ -69,16 +71,18 @@ namespace ThrottleControlledAvionics
 			update_configs();
 		}
 
-		public override void SaveConfig(ConfigNode node = null)
+		public override void SaveConfig()
 		{
 			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);
-			base.SaveConfig(node);
+			base.SaveConfig();
 		}
+
+		void save_config(ConfigNode node) { SaveConfig(); }
 
 		public override void Awake()
 		{
 			base.Awake();
-			GameEvents.onGameStateSave.Add(SaveConfig);
+			GameEvents.onGameStateSave.Add(save_config);
 			GameEvents.onVesselChange.Add(onVesselChange);
 			NavigationPanel.OnAwake();
 			#if DEBUG
@@ -92,7 +96,7 @@ namespace ThrottleControlledAvionics
 			base.OnDestroy();
 			clear_fields();
 			TCAToolbarManager.AttachTCA(null);
-			GameEvents.onGameStateSave.Remove(SaveConfig);
+			GameEvents.onGameStateSave.Remove(save_config);
 			GameEvents.onVesselChange.Remove(onVesselChange);
 		}
 
@@ -201,7 +205,7 @@ namespace ThrottleControlledAvionics
 		{
 			//help button
 			if(GUI.Button(new Rect(MainWindow.width - 23f, 2f, 20f, 18f), 
-			                  new GUIContent("?", "Help"))) TCAManual.Toggle();
+			              new GUIContent("?", "Help"))) TCAManual.Toggle();
 			if(TCA.Controllable)
 			{
 				//options button
@@ -290,11 +294,11 @@ namespace ThrottleControlledAvionics
 		{
 			if(!adv_options) return;
 			GUILayout.BeginVertical(Styles.white);
-			GUILayout.Label(TCATitle, Styles.label, GUILayout.ExpandWidth(true));
+			GUILayout.Label(Title, Styles.label, GUILayout.ExpandWidth(true));
 			GUILayout.BeginHorizontal();
 			if(GUILayout.Button("Reload TCA Settings", Styles.active_button, GUILayout.ExpandWidth(true))) 
 			{
-				TCAScenario.LoadGlobals();
+				Globals.Load();
 				Styles.ConfigureButtons();
 				TCA.OnReloadGlobals();
 			}
@@ -377,7 +381,7 @@ namespace ThrottleControlledAvionics
 			CFG.SteeringModifier.y = Utils.FloatSlider("Roll", CFG.SteeringModifier.y, 0, 1, "P1");
 			GUILayout.EndHorizontal();
 			//engines
-			CFG.Engines.DrawControls("Engines Controller");
+			CFG.Engines.DrawControls("Engines Controller", GLB.ENG.MaxP, GLB.ENG.MaxI);
 		}
 
 		static bool show_parts_info;
@@ -483,8 +487,7 @@ namespace ThrottleControlledAvionics
 				return;
 			}
 			Styles.Init();
-			Utils.LockIfMouseOver(LockName, MainWindow, !NavigationControls.SelectingTarget);
-			NavigationControls.WaypointOverlay();
+			Utils.LockIfMouseOver(LockName, MainWindow, !MapView.MapIsEnabled);
 			MainWindow = 
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 MainWindow, 
@@ -493,6 +496,8 @@ namespace ThrottleControlledAvionics
 				                 GUILayout.Width(ControlsWidth),
 				                 GUILayout.Height(ControlsHeight)).clampToScreen();
 			InOrbitControls.OrbitEditorWindow();
+			if(Event.current.type == EventType.Repaint)
+				NavigationControls.WaypointOverlay();
 		}
 
 		public void Update()
@@ -513,12 +518,12 @@ namespace ThrottleControlledAvionics
 						{
 							var ec = new string(e.character, 1).ToUpper();
 							try { e.keyCode = (KeyCode)Enum.Parse(typeof(KeyCode), ec); }
-							catch(Exception ex) { Utils.Log("TCA GUI: exception caught while trying to set hotkey:\n{0}", ex); }
+							catch(Exception ex) { Utils.Log("TCA GUI: exception caught while trying to set hotkey:\n{}", ex); }
 						}
 						if(e.keyCode == KeyCode.None) 
 							Utils.Message("Unable to convert '{0}' to keycode.\nPlease, try an alphabet character.", e.character);
 						else TCA_Key = e.keyCode;
-						Utils.Log("TCA: new key slected: {0}", TCA_Key);
+						Utils.Log("TCA: new key slected: {}", TCA_Key);
 					}
 					selecting_key = false;
 				}

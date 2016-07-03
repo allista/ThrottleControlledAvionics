@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -69,7 +70,7 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				brake_delta_v = -(AtTargetVel + Vector3d.Cross(Body.angularVelocity.xzy, AtTargetPos));
+				brake_delta_v = -(AtTargetVel + Vector3d.Cross(Body.zUpAngularVelocity, AtTargetPos));
 				BrakeEndUT = TrajectoryCalculator.FlyAboveUT(NewOrbit, Target.RelSurfPos(Body).xzy, StartUT);
 				BrakeStartUT = BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration);
 			}
@@ -98,7 +99,7 @@ namespace ThrottleControlledAvionics
 			                            Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude).xzy);
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 
-//			Utils.Log("{0}", this);//debug
+//			Utils.Log("{}", this);//debug
 		}
 
 		public Vector3d GetOrbitVelocityAtSurface()

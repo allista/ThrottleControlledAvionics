@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -165,7 +166,7 @@ namespace ThrottleControlledAvionics
 					if(CFG.Target == wp)
 					{
 						var d = wp.DistanceTo(vessel);
-						label += string.Format(" <= {0}", Utils.FormatBigValue((float)d, "m")); 
+						label += string.Format(" <= {0}", Utils.formatBigValue((float)d, "m")); 
 						if(vessel.horizontalSrfSpeed > 0.1)
 							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed)));
 					}
@@ -214,7 +215,7 @@ namespace ThrottleControlledAvionics
 		{ GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 300, 200), text); }
 
 		static void DrawLabelAtPointer(string text, double distance)
-		{ DrawLabelAtPointer(string.Format("{0}\nDistance: {1}", text, Utils.FormatBigValue((float)distance, "m"))); }
+		{ DrawLabelAtPointer(string.Format("{0}\nDistance: {1}", text, Utils.formatBigValue((float)distance, "m"))); }
 
 		//adapted from MechJeb
 		bool clicked;
@@ -327,12 +328,12 @@ namespace ThrottleControlledAvionics
 			{
 				//TODO: cache local center coordinates of the marker
 				camera = PlanetariumCamera.Camera;
-				center = body.position + (Utils.TerrainAltitude(body, pos.Lat, pos.Lon)+body.Radius) * body.GetSurfaceNVector(pos.Lat, pos.Lon);
+				center = body.position + (body.TerrainAltitude(pos.Lat, pos.Lon)+body.Radius) * body.GetSurfaceNVector(pos.Lat, pos.Lon);
 			}
 			else
 			{
 				camera = FlightCamera.fetch.mainCamera;
-				center = body.GetWorldSurfacePosition(pos.Lat, pos.Lon, Utils.TerrainAltitude(body, pos.Lat, pos.Lon)+GLB.WaypointHeight);
+				center = body.GetWorldSurfacePosition(pos.Lat, pos.Lon, body.TerrainAltitude(pos.Lat, pos.Lon)+GLB.WaypointHeight);
 				if(camera.transform.InverseTransformPoint(center).z <= 0) return false;
 			}
 			return !IsOccluded(center, body) && 

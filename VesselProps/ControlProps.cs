@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -26,7 +27,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 ManualTranslation;
 		public Switch  ManualTranslationSwitch = new Switch();
 //		float gl;//debug
-//		public float   GimbalLimit { get { return gl; } set { gl = value; DebugUtils.LogF("GimbalLimit set: {}", gl); } }//debug
+//		public float   GimbalLimit { get { return gl; } set { gl = value; DebugUtils.Log("GimbalLimit set: {}", gl); } }//debug
 		public float   GimbalLimit = 100;
 		public bool    HaveControlAuthority = true;
 		public double  WarpToTime = -1;
@@ -42,7 +43,7 @@ namespace ThrottleControlledAvionics
 			AttitudeError = error;
 			Aligned &= AttitudeError < GLB.ATCB.MaxAttitudeError;
 			Aligned |= AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
-			MinAlignmentTime = VSL.Torque.MinRotationTime(AttitudeError);
+			MinAlignmentTime = VSL.Torque.MaxCurrent.MinRotationTime(AttitudeError);
 			AlignmentFactor = Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0);
 			InvAlignmentFactor = Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1);
 		}
@@ -63,7 +64,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.Engines.NumActiveRCS.Equals(0)) return false;
 			var lDir = VSL.LocalDir(wDir).normalized;
 			var thrust = VSL.Engines.MaxThrustRCS.Project(lDir);
-//			Utils.LogF("\nMaxThrustRCS:\n{}\nRCS dir: {}\nRCS thrust: {}\nRCS accel: {}\nActive RCS: {}\n",
+//			Utils.Log("\nMaxThrustRCS:\n{}\nRCS dir: {}\nRCS thrust: {}\nRCS accel: {}\nActive RCS: {}\n",
 //			           VSL.Engines.MaxThrustRCS, lDir, thrust, thrust.magnitude/VSL.Physics.M, VSL.Engines.NumActiveRCS);//debug
 			return thrust.magnitude/VSL.Physics.M > GLB.TRA.MinDeltaV/2;
 		}

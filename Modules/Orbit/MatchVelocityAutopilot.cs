@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -24,7 +25,7 @@ namespace ThrottleControlledAvionics
 		{
 			[Persistent] public float TranslationThreshold = 5f;   //m/s
 		}
-		static Config MVA { get { return TCAScenario.Globals.MVA; } }
+		static Config MVA { get { return Globals.Instance.MVA; } }
 		public MatchVelocityAutopilot(ModuleTCA tca) : base(tca) {}
 
 		ThrottleControl THR;

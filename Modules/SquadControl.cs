@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -19,7 +20,7 @@ namespace ThrottleControlledAvionics
 //		{
 //			new public const string NODE_NAME = "SQD";
 //		}
-//		static Config SQD { get { return TCAScenario.Globals.SQD; } }
+//		static Config SQD { get { return Globals.Instance.SQD; } }
 
 		public SquadControl(ModuleTCA tca) : base(tca) {}
 

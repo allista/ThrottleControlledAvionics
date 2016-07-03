@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -55,7 +56,7 @@ namespace ThrottleControlledAvionics
 		public override string ToString() { return string.Format("[{0}] {1}", GetName(), Pos); }
 		public string SurfaceDescription(Vessel vsl) { return Pos.FullDescription(vsl); }
 
-		public WayPoint() { AbsRadius = Radius = TCAScenario.Globals.PN.MinDistance; }
+		public WayPoint() { AbsRadius = Radius = Globals.Instance.PN.MinDistance; }
 		public WayPoint(Coordinates c) : this() { Pos = c; Name = c.ToString(); go = new GameObject(); }
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
 		public WayPoint(double lat, double lon) : this(new Coordinates(lat,lon)) {}
@@ -141,7 +142,7 @@ namespace ThrottleControlledAvionics
 			else
 			{
 				if(go == null) go = new GameObject();
-				go.transform.position = VSL.Body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, Utils.TerrainAltitude(VSL.Body, Pos.Lat, Pos.Lon)); 
+				go.transform.position = VSL.Body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, VSL.Body.TerrainAltitude(Pos.Lat, Pos.Lon)); 
 			}
 			AbsRadius = Radius*VSL.Geometry.R;
 		}

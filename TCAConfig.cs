@@ -13,13 +13,12 @@ using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	public class TCAGlobals : ConfigNodeObject
+	class Globals : PluginGlobals<Globals>
 	{
-		new public const string NODE_NAME = "TCAGLOBALS";
-
 		public const string TCA_PART = "ThrottleControlledAvionics";
 		public const string INSTRUCTIONS = "INSTRUCTIONS.md";
 
@@ -35,14 +34,6 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float ActionListHeight     = 110f;
 		[Persistent] public float MaxAAFilter          = 1f;
 		[Persistent] public float ExhaustSafeDist      = 1.1f;
-
-		[Persistent] public string EnabledButtonColor  = "green";
-		[Persistent] public string ActiveButtonColor   = "yellow";
-		[Persistent] public string InactiveButtonColor = "grey";
-		[Persistent] public string ConfirmButtonColor  = "green";
-		[Persistent] public string AddButtonColor      = "green";
-		[Persistent] public string CloseButtonColor    = "red";
-		[Persistent] public string DangerButtonColor   = "red";
 
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
@@ -77,17 +68,17 @@ namespace ThrottleControlledAvionics
 
 		public MDSection Manual;
 
-		public void Init()
+		public override void Init()
 		{ 
 			try
 			{
-				using(var file = new StreamReader(TCAScenario.PluginFolder(INSTRUCTIONS)))
+				using(var file = new StreamReader(PluginFolder(INSTRUCTIONS)))
 				{
 					Manual = MD2Unity.Parse(file);
 					if(Manual.NoTitle) Manual.Title = "TCA Reference Manual";
 				}
 			}
-			catch(Exception ex) { Utils.Log("Error loading {0} file:\n{1}\n{2}", TCAScenario.PluginFolder(INSTRUCTIONS), ex.Message, ex.StackTrace); }
+			catch(Exception ex) { Utils.Log("Error loading {} file:\n{}", PluginFolder(INSTRUCTIONS), ex); }
 			InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
 			//init all module configs
 			var mt = typeof(TCAModule.ModuleConfig);
@@ -99,9 +90,6 @@ namespace ThrottleControlledAvionics
 				method.Invoke(fi.GetValue(this), null);
 			}
 		}
-
-		//Globals are readonly
-		public override void Save(ConfigNode node) {}
 	}
 
 	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, Target, AntiTarget, RelVel, AntiRelVel, ManeuverNode, Custom }
@@ -136,8 +124,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool    BlockThrottle;
 		[Persistent] public float   ControlSensitivity = 0.01f;
 
-		public bool VSCIsActive { get { return VF || VerticalCutoff < TCAScenario.Globals.VSC.MaxSpeed; } }
-		public void DisableVSC() { VF.Off(); VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed; BlockThrottle = false; }
+		public bool VSCIsActive { get { return VF || VerticalCutoff < Globals.Instance.VSC.MaxSpeed; } }
+		public void DisableVSC() { VF.Off(); VerticalCutoff = Globals.Instance.VSC.MaxSpeed; BlockThrottle = false; }
 		public void SmoothSetVSC(float spd) { VerticalCutoff = Mathf.Lerp(VerticalCutoff, spd, TimeWarp.fixedDeltaTime); }
 		public void SmoothSetVSC(float spd, float min, float max) { VerticalCutoff = Utils.Clamp(Mathf.Lerp(VerticalCutoff, spd, TimeWarp.fixedDeltaTime), min, max); }
 		//steering
@@ -202,8 +190,8 @@ namespace ThrottleControlledAvionics
 		public VesselConfig()
 		{
 			//set defaults
-			VerticalCutoff = TCAScenario.Globals.VSC.MaxSpeed;
-			Engines.setPI(TCAScenario.Globals.ENG.EnginesPI);
+			VerticalCutoff = Globals.Instance.VSC.MaxSpeed;
+			Engines.setPI(Globals.Instance.ENG.EnginesPI);
 			//explicitly set multiplexer conflicts
 			AT.AddConflicts(HF, Nav, AP1, AP2);
 			HF.AddConflicts(AT, Nav, AP1, AP2);

@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -84,7 +85,7 @@ namespace ThrottleControlledAvionics
 			var ret = false;
 			macro = null;
 			var del = new List<TCAMacro>();
-			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(TCAScenario.Globals.ActionListHeight));
+			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(Globals.Instance.ActionListHeight));
 			GUILayout.BeginVertical();
 			for(int i = 0, count = DB.List.Count; i < count; i++)
 			{

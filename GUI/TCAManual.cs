@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -16,7 +17,7 @@ namespace ThrottleControlledAvionics
 	{
 		const string LockName = "TCAMnualEditor";
 
-		static MDSection Manual { get { return TCAScenario.Globals.Manual; } }
+		static MDSection Manual { get { return Globals.Instance.Manual; } }
 		static MDSection current_section;
 		static string current_text = "";
 		static Vector2 sections_scroll;
@@ -80,7 +81,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.Window(GetInstanceID(), 
 				                 MainWindow, 
 				                 DrawMainWindow, 
-				                 TCAScenario.Globals.Manual.Title,
+				                 Globals.Instance.Manual.Title,
 				                 GUILayout.Width(width),
 				                 GUILayout.Height(height)).clampToScreen();
 		}

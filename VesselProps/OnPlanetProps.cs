@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -54,8 +55,8 @@ namespace ThrottleControlledAvionics
 			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
 				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.mg : 0f;
 			GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
-			var mVSFtor = (VSL.Torque.MaxPitchRollAA_rad > 0)? 
-				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRollAA_rad, GLB.VSC.MaxVSFtwr*GeeVSF) : 0;
+			var mVSFtor = (VSL.Torque.MaxPitchRoll.AA_rad > 0)? 
+				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRoll.AA_rad, GLB.VSC.MaxVSFtwr*GeeVSF) : 0;
 			MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
 			var down_thrust = 0f;
 			var slow_thrust = 0f;

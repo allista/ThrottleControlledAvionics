@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -21,7 +22,7 @@ namespace ThrottleControlledAvionics
 		internal static Profiler prof = new Profiler();
 		#endif
 
-		public static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		internal static Globals GLB { get { return Globals.Instance; } }
 		public VesselWrapper VSL { get; private set; }
 		public VesselConfig CFG { get; set; }
 		public TCAState State { get { return VSL.State; } set { VSL.State = value; } }
@@ -357,7 +358,7 @@ namespace ThrottleControlledAvionics
 				VSL.Physics.UpdateCoM();
 				VSL.Physics.UpdateMoI();
 				VSL.Geometry.Update();
-//				Utils.LogF("{}: MoI {}, Srf {}, MaxPossibleTorque {}, M {}, MaxThrust {}\n" +
+//				Utils.Log("{}: MoI {}, Srf {}, MaxPossibleTorque {}, M {}, MaxThrust {}\n" +
 //				           "atmDensity {}, Torq.Ang.DragRes {}, NoEng.Torq.Ang.DragRes {}, Max.Pos.Ang.DragRes {}\n",
 //				           this.Title(), VSL.Physics.MoI, VSL.Geometry.BoundsSideAreas, VSL.Torque.MaxTorquePossible,
 //				           VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Body.atmDensityASL,

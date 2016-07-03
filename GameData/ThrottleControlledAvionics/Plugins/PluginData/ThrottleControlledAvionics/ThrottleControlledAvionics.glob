@@ -11,15 +11,6 @@ UnpackDistance       = 5000
 ActionListHeight     = 110
 MaxAAFilter          = 1
 
-//available colors: normal (meaning white), grey, red, dark_red, green, dark_green, yellow, dark_yellow, cyan, magenta
-EnabledButtonColor   = green
-ActiveButtonColor    = yellow
-InactiveButtonColor  = grey
-ConfirmButtonColor   = green
-AddButtonColor       = green
-CloseButtonColor     = red
-DangerButtonColor    = red
-
 RCS
 {
 	MaxIterations = 50
@@ -125,6 +116,7 @@ ATCB
 		D = 0.5
 	}
 	
+	MaxAA          = 2
 	MinAAf         = 0.2
 	MaxAAf         = 2
 	AngularMf      = 0.001
@@ -188,7 +180,7 @@ BRC
 {
 	MaxAAf = 6
 	MinAAf = 0.2
-	ADf    = 0.02
+	ADf    = 0.005
 	YawFactor = 60
 	DrawForwardDirection = true
 	
@@ -392,7 +384,9 @@ LTRJ
 
 DEO
 {
-	StartPeR           = 0.49 //of planet radius
+	StartEcc           = 0.5
+	MaxEcc             = 0.8
+	EccSteps           = 10
 	AngularDragF       = 0.14
 }
 

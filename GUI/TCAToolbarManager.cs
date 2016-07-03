@@ -9,6 +9,7 @@
 
 using UnityEngine;
 using KSP.UI.Screens;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -48,7 +49,7 @@ namespace ThrottleControlledAvionics
 			//setup toolbar/applauncher button
 			if(TCAToolbarButton == null &&
 				ToolbarManager.ToolbarAvailable && 
-			   !TCAScenario.Globals.UseStockAppLauncher)
+			   !Globals.Instance.UseStockAppLauncher)
 			{
 				Utils.Log("Using Blizzy's toolbar");
 				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");

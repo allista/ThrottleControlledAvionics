@@ -3,14 +3,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>8.0.30703</ProductVersion>
-    <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{06BD5A34-D2DE-413A-A815-DFC1EBEA8B5D}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>ThrottleControlledAvionics</RootNamespace>
     <AssemblyName>ThrottleControlledAvionics</AssemblyName>
     <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
-    <ReleaseVersion>2.3</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>True</DebugSymbols>
@@ -106,11 +103,6 @@
     <Compile Include="GUI\EnginesProfileEditor.cs" />
     <Compile Include="GUI\TCAToolbarManager.cs" />
     <Compile Include="Macros\TCAMacro.cs" />
-    <Compile Include="Utils\Utils.cs" />
-    <Compile Include="Utils\PID_Controllers.cs" />
-    <Compile Include="Utils\DebugUtils.cs" />
-    <Compile Include="Utils\ConfigNodeObjects.cs" />
-    <Compile Include="Utils\Multiplexer.cs" />
     <Compile Include="Macros\Conditions.cs" />
     <Compile Include="Macros\MacroNodes.cs" />
     <Compile Include="GUI\TCAMacroEditor.cs" />
@@ -123,13 +115,10 @@
     <Compile Include="Macros\LoopsAndBranches.cs" />
     <Compile Include="Modules\MacroProcessor.cs" />
     <Compile Include="Modules\AttitudeControl.cs" />
-    <Compile Include="Utils\Vector6.cs" />
-    <Compile Include="Utils\Filters.cs" />
     <Compile Include="Modules\ThrottleControl.cs" />
     <Compile Include="Modules\TranslationControl.cs" />
     <Compile Include="Modules\TimeWarpControl.cs" />
     <Compile Include="Modules\SASBlocker.cs" />
-    <Compile Include="Utils\MD2Unity.cs" />
     <Compile Include="GUI\TCAManual.cs" />
     <Compile Include="TCAModulesDatabase.cs" />
     <Compile Include="Modules\SquadControl.cs" />
@@ -140,9 +129,6 @@
     <Compile Include="GUI\Panels\MacrosPanel.cs" />
     <Compile Include="GUI\Panels\SquadPanel.cs" />
     <Compile Include="VesselProps\VesselProps.cs" />
-    <Compile Include="GUI\Elements\AddonWindowBase.cs" />
-    <Compile Include="GUI\Elements\DropDownList.cs" />
-    <Compile Include="GUI\Elements\Styles.cs" />
     <Compile Include="GUI\Elements\ToolbarWrapper.cs" />
     <Compile Include="GUI\Elements\ControlPanel.cs" />
     <Compile Include="VesselProps\PhysicalProps.cs" />
@@ -155,7 +141,6 @@
     <Compile Include="VesselProps\ControlProps.cs" />
     <Compile Include="VesselProps\InfoProps.cs" />
     <Compile Include="VesselProps\OnPlanetProps.cs" />
-    <Compile Include="GUI\Elements\GUIUtils.cs" />
     <Compile Include="Modules\Orbit\TrajectoryCalculator.cs" />
     <Compile Include="Modules\Orbit\BallisticJump.cs" />
     <Compile Include="Modules\Orbit\DeorbitAutopilot.cs" />
@@ -179,11 +164,9 @@
     <Compile Include="Modules\Planet\VTOLAssist.cs" />
     <Compile Include="Utils\OrbitDBG.cs" />
     <Compile Include="Modules\Planet\VTOLControl.cs" />
-    <Compile Include="Utils\Triggers.cs" />
     <Compile Include="Utils\LambertSolver.cs" />
     <Compile Include="Utils\AtmoSim.cs" />
     <Compile Include="TCAComponent.cs" />
-    <Compile Include="Utils\Extensions.cs" />
     <Compile Include="GUI\Panels\TogglesPanel.cs" />
     <Compile Include="Modules\Orbit\ToOrbitAutopilot.cs" />
     <Compile Include="Modules\Orbit\Components\ToOrbitExecutor.cs" />
@@ -207,5 +190,22 @@
     <Folder Include="Modules\Orbit\" />
     <Folder Include="Modules\Orbit\Trajectories\" />
     <Folder Include="Modules\Orbit\Components\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AT_Utils\AT_Utils.csproj">
+      <Project>{64CC36A2-0610-4F74-9F31-3D4E22866B7E}</Project>
+      <Name>AT_Utils</Name>
+      <Private>False</Private>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
+    <None Include="ChanegLog.md" />
+    <None Include="export_git.sh" />
+    <None Include="extract_csv.sh" />
+    <None Include="make_release" />
+    <None Include="make-release.sh" />
+    <None Include="README.md" />
+    <None Include="GameData\ThrottleControlledAvionics\Plugins\PluginData\ThrottleControlledAvionics\TCA.glob" />
   </ItemGroup>
 </Project>

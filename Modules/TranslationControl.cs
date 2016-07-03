@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -20,7 +21,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinDeltaV         = 0.01f; //m/s
 			[Persistent] public PID_Controller TransPID = new PID_Controller(0.5f, 0.01f, 0.5f, 0, 1);
 		}
-		static Config TRA { get { return TCAScenario.Globals.TRA; } }
+		static Config TRA { get { return Globals.Instance.TRA; } }
 		public TranslationControl(ModuleTCA tca) : base(tca) {}
 
 		readonly PIDf_Controller pid = new PIDf_Controller();

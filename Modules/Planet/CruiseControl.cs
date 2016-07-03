@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -23,7 +24,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxRevSpeed = -4f;
 			[Persistent] public float UpdateDelay = 1;
 		}
-		static Config CC { get { return TCAScenario.Globals.CC; } }
+		static Config CC { get { return Globals.Instance.CC; } }
 
 		BearingControl BRC;
 
@@ -114,7 +115,7 @@ namespace ThrottleControlledAvionics
 					CFG.MaxNavSpeed = Utils.Clamp(CFG.MaxNavSpeed-s.pitch*CC.PitchFactor, CC.MaxRevSpeed, GLB.PN.MaxSpeed);
 					SetNeededVelocity(VSL.HorizontalSpeed.NeededVector);
 					VSL.HasUserInput = !(s.yaw.Equals(0) && s.roll.Equals(0));
-					VSL.AutopilotDisabled = false;
+					VSL.AutopilotDisabled = VSL.HasUserInput;
 					s.pitch = 0;
 				}
 			}

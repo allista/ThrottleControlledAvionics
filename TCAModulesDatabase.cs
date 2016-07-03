@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.IO;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -83,10 +84,10 @@ namespace ThrottleControlledAvionics
 			}
 
 			#if DEBUG
-			Utils.Log("\nTCA Modules in the ModulesDatabase:\n{0}", 
+			Utils.Log("\nTCA Modules in the ModulesDatabase:\n{}", 
 			          RegisteredModules.Aggregate("", (s, t) => s + t.Value + "\n\n"));
-			Utils.Log("Pipeline: {0}", Pipeline.Aggregate("", (s, t) => s + t.Name + "->"));
-			Utils.Log("AP Pipeline: {0}", Pipeline.Where(m => m.IsSubclassOf(typeof(AutopilotModule))).Aggregate("", (s, t) => s + t.Name + "->"));
+			Utils.Log("Pipeline: {}", Pipeline.Aggregate("", (s, t) => s + t.Name + "->"));
+			Utils.Log("AP Pipeline: {}", Pipeline.Where(m => m.IsSubclassOf(typeof(AutopilotModule))).Aggregate("", (s, t) => s + t.Name + "->"));
 			File.WriteAllText("ModuleDatabase.csv",
 			                  RegisteredModules.Aggregate("", (s, t) => s + t.Value.ToCSV() + "\n"));
 			#endif
@@ -104,7 +105,7 @@ namespace ThrottleControlledAvionics
 		public static bool ModuleAvailable(Type m) 
 		{ 
 			if(!ValidModule(m)) return false;
-			if(!TCAScenario.Globals.IntegrateIntoCareer) return true;
+			if(!Globals.Instance.IntegrateIntoCareer) return true;
 			var meta = GetModuleMeta(m);
 			return meta == null || 
 				((string.IsNullOrEmpty(meta.PartName) || 
@@ -270,7 +271,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(module.PartName != Name)
 			{
-				Utils.Log("PartMeta[{0}]: trying to add {1} that belongs to the {2}", 
+				Utils.Log("PartMeta[{}]: trying to add {} that belongs to the {}", 
 				          Name, module.Module.Name, module.PartName);
 				return;
 			}

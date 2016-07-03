@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -30,7 +31,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float AccelThreshold    = 0.1f;
 			[Persistent] public float MaxVSFtwr         = 0.9f;
 		}
-		static Config VSC { get { return TCAScenario.Globals.VSC; } }
+		static Config VSC { get { return Globals.Instance.VSC; } }
 
 		public VerticalSpeedControl(ModuleTCA tca) : base(tca) {}
 

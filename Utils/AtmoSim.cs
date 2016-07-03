@@ -9,13 +9,14 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
 	public class AtmoSim
 	{
 		const double DeltaTime = 0.5;
-		static TCAGlobals GLB { get { return TCAScenario.Globals; } }
+		static Globals GLB { get { return Globals.Instance; } }
 		static double Cd;
 
 		readonly CelestialBody Body;
@@ -31,7 +32,7 @@ namespace ThrottleControlledAvionics
 			Body = body;
 			VSL = vsl;
 			//0.0005 converts dynamic pressure to kPa and divides area by 2: Drag = dP * Cd * S/2.
-			Cd = 0.0005 * TCAScenario.Globals.ORB.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
+			Cd = 0.0005 * Globals.Instance.ORB.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
 		}
 
 		double drag(double s, double h, double v)
@@ -87,7 +88,7 @@ namespace ThrottleControlledAvionics
 				v = Utils.ClampH(v-(StG(ah) - drag(s, ah, v)/m)*dt, -0.1);
 				t += dt;
 				dt = Math.Min(dt, (VSL.Geometry.H-h)/v);
-//				Utils.LogF("h {}, v {}, t {}", h, v, t);//debug
+//				Utils.Log("h {}, v {}, t {}", h, v, t);//debug
 			}
 			terminal_velocity = Math.Abs(v);
 			return t;
@@ -124,7 +125,7 @@ namespace ThrottleControlledAvionics
 					var hv = Utils.ClampL(arc-dapa, 0)*Utils.Clamp((h-VSL.Altitude.Absolute)/GLB.ORB.GTurnOffset, 0, 1);
 					if(h < Body.atmosphereDepth) hv *= Math.Sqrt(atmF);
 					var angle = Math.Atan2(vv, hv);
-					throttle = ThrottleControl.NextThrottle((float)(Math.Sqrt(vv*vv+hv*hv)*TCAScenario.Globals.ORB.Dist2VelF*VSL.Physics.StG/Utils.G0), 
+					throttle = ThrottleControl.NextThrottle((float)(Math.Sqrt(vv*vv+hv*hv)*Globals.Instance.ORB.Dist2VelF*VSL.Physics.StG/Utils.G0), 
 					                                        (float)throttle, (float)m, (float)mTm, 0);
 					var v_throttle = Math.Sin(angle);
 					v.x += (mTm*v_throttle*throttle/m-G(h, v.y))*DeltaTime;
@@ -141,7 +142,7 @@ namespace ThrottleControlledAvionics
 						if(m < dm) { thrust = false; continue; }
 						m -= dm;
 					}
-//					Utils.LogF("apaT {}, dapa {}, arc {}, throttle {}, h-thr {}, v-thr {}", apaT, dapa, arc, throttle);//debug
+//					Utils.Log("apaT {}, dapa {}, arc {}, throttle {}, h-thr {}, v-thr {}", apaT, dapa, arc, throttle);//debug
 				}
 				else v.x -= G(h, v.y)*DeltaTime;
 				if(h < Body.atmosphereDepth)
@@ -155,7 +156,7 @@ namespace ThrottleControlledAvionics
 				alpha -= v.y*DeltaTime/Body.Radius;
 				h += v.x*DeltaTime;
 				t += DeltaTime;
-//				Utils.LogF("v.v {}, v.h {}, drag {}, h {}, hmove {}", v.x, v.y, drag(s, h, vm)/m, h, hmove);//debug
+//				Utils.Log("v.v {}, v.h {}, drag {}, h {}, hmove {}", v.x, v.y, drag(s, h, vm)/m, h, hmove);//debug
 //				DebugUtils.CSV("LambertSolver", t, v.x, v.y, (alpha0-alpha)*(R+h), h, m, mTm*throttle, throttle, Math.Atan2(v.x, v.y)*Mathf.Rad2Deg);//debug
 			}
 			return t-DeltaTime/2;

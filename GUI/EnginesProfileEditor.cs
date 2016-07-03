@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using KSP.UI.Screens;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -220,7 +221,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.Window(GetInstanceID(), 
 					MainWindow, 
 					DrawMainWindow, 
-					TCATitle,
+					Title,
 					GUILayout.Width(width),
 					GUILayout.Height(height)).clampToScreen();
 		}

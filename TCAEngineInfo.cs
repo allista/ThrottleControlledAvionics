@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -59,9 +60,9 @@ namespace ThrottleControlledAvionics
 		static void setup_groups(UI_ChooseOption chooser)
 		{
 			if(chooser == null) return;
-			chooser.options = new string[TCAScenario.Globals.MaxManualGroups];
+			chooser.options = new string[Globals.Instance.MaxManualGroups];
 			chooser.options[0] = "OFF";
-			for(int i = 1; i<TCAScenario.Globals.MaxManualGroups; i++)
+			for(int i = 1; i<Globals.Instance.MaxManualGroups; i++)
 				chooser.options[i] = string.Format("G{0:D}", i);
 		}
 
@@ -97,7 +98,7 @@ namespace ThrottleControlledAvionics
 			Role = RolesOrder[(++role_index) % NumRoles];
 			update_status();
 			//set the role of symmetry counterparts, if needed
-			if(!TCAScenario.Globals.RoleSymmetryInFlight 
+			if(!Globals.Instance.RoleSymmetryInFlight 
 			   && HighLogic.LoadedSceneIsFlight) return;
 			foreach(var cp in part.symmetryCounterparts)
 			{

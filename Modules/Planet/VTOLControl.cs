@@ -10,6 +10,7 @@
 
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -23,7 +24,7 @@ namespace ThrottleControlledAvionics
 		{
 			[Persistent] public float MaxAngle = 45f;
 		}
-		static Config VTOL { get { return TCAScenario.Globals.VTOL; } }
+		static Config VTOL { get { return Globals.Instance.VTOL; } }
 
 		BearingControl BRC;
 
@@ -62,7 +63,7 @@ namespace ThrottleControlledAvionics
 		protected override void correct_steering()
 		{
 			if(BRC != null && BRC.IsActive)
-				steering = Vector3.ProjectOnPlane(steering, VSL.LocalDir(current_thrust));
+				steering = Vector3.ProjectOnPlane(steering, VSL.LocalDir(VSL.Engines.CurrentThrust));
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
@@ -87,14 +88,16 @@ namespace ThrottleControlledAvionics
 					rot = Quaternion.AngleAxis(s.roll*angle, fwd_axis) * rot;
 					s.roll = 0;
 				}
+				VSL.HasUserInput = false;
 				VSL.AutopilotDisabled = true;
-				rot *= Quaternion.FromToRotation(-VSL.Physics.Up, current_thrust.normalized);
+				rot *= Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.CurrentThrust.normalized);
 				#if DEBUG
-				needed_thrust = rot.Inverse() * current_thrust;
+				needed_thrust = rot.Inverse() * VSL.Engines.CurrentThrust;
 				#endif
 				steering = rotation2steering(world2local_rotation(rot));
+				VSL.Controls.SetAttitudeError(steering.magnitude*Mathf.Rad2Deg);
 				tune_steering();
-				set_gimbal_limit();
+				VSL.Controls.GimbalLimit = 0;
 				VSL.Controls.AddSteering(steering);
 			}
 			else if(!(VSL.LandedOrSplashed || CFG.AT))
@@ -102,9 +105,8 @@ namespace ThrottleControlledAvionics
 				#if DEBUG
 				needed_thrust = -VSL.Physics.Up;
 				#endif
-				compute_steering(Rotation.Local(current_thrust.normalized, -VSL.Physics.Up, VSL)); 
+				compute_steering(Rotation.Local(VSL.Engines.CurrentThrust.normalized, -VSL.Physics.Up, VSL)); 
 				tune_steering();
-				set_gimbal_limit();
 				VSL.Controls.AddSteering(steering);
 			}
 
@@ -118,15 +120,15 @@ namespace ThrottleControlledAvionics
 			base.Draw();
 			if(!IsActive || CFG.CTRL.Not(ControlMode.VTOL)) return;
 			if(!VSL.Engines.MaxThrust.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, VSL.Engines.MaxThrust.normalized*20, Color.red);
+				Utils.GLVec(VSL.Physics.wCoM, VSL.Engines.MaxThrust.normalized*20, Color.red);
 			if(!needed_thrust.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, needed_thrust.normalized*20, Color.yellow);
+				Utils.GLVec(VSL.Physics.wCoM, needed_thrust.normalized*20, Color.yellow);
 			if(!steering.IsZero())
-				GLUtils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(steering.normalized*20), Color.cyan);
+				Utils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(steering.normalized*20), Color.cyan);
 			
-			GLUtils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.up*3, Color.green);
-			GLUtils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.forward*3, Color.blue);
-			GLUtils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.right*3, Color.red);
+			Utils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.up*3, Color.green);
+			Utils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.forward*3, Color.blue);
+			Utils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.right*3, Color.red);
 		}
 		#endif
 	}

@@ -8,10 +8,9 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Collections.Generic;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -24,21 +23,9 @@ namespace ThrottleControlledAvionics
 		})]
 	public class TCAScenario : ScenarioModule
 	{
-		public const string GLOBALSNAME = "TCA.glob";
-		public const string GLOBALS_OVERRIDE = "TCA.user";
 		public const string MACROSNAME  = "TCA.macro";
 		public const string VSL_NODE    = "VESSELS";
 		public const string NAMED_NODE  = "NAMED";
-
-		static TCAGlobals globals;
-		public static TCAGlobals Globals 
-		{
-			get
-			{
-				if(globals == null) LoadGlobals();
-				return globals;
-			}
-		}
 
 		static TCAMacroLibrary macros;
 		public static TCAMacroLibrary Macros
@@ -48,7 +35,7 @@ namespace ThrottleControlledAvionics
 				if(macros == null)
 				{
 					macros = new TCAMacroLibrary();
-					var node = loadNode(PluginFolder(MACROSNAME));
+					var node = loadNode(Globals.Instance.PluginFolder(MACROSNAME));
 					if(node != null) macros.Load(node);
 				}
 				return macros;
@@ -60,7 +47,7 @@ namespace ThrottleControlledAvionics
 			Macros.SaveMacro(macro, true);
 			var node = new ConfigNode();
 			Macros.Save(node);
-			node.Save(PluginFolder(MACROSNAME));
+			node.Save(Globals.Instance.PluginFolder(MACROSNAME));
 		}
 
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
@@ -70,31 +57,7 @@ namespace ThrottleControlledAvionics
 		#region ModuleInfo
 		public static string ModuleStatusString()
 		{ return HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
-		public static bool HasTCA { get { return !Globals.IntegrateIntoCareer || Utils.PartIsPurchased(TCAGlobals.TCA_PART); } }
-		#endregion
-
-		#region From KSPPluginFramework
-		static public string PluginFolder(string filename)
-		{ return Path.Combine(_AssemblyFolder, "../"+filename).Replace("\\","/"); }
-		//Combine the Location of the assembly and the provided string.
-		//This means we can use relative or absolute paths.
-		static public string PluginData(string filename)
-		{ return Path.Combine(_AssemblyFolder, "PluginData/"+_AssemblyName+"/"+filename).Replace("\\","/"); }
-		/// <summary>
-		/// Name of the Assembly that is running this MonoBehaviour
-		/// </summary>
-		internal static String _AssemblyName
-		{ get { return Assembly.GetExecutingAssembly().GetName().Name; } }
-		/// <summary>
-		/// Full Path of the executing Assembly
-		/// </summary>
-		internal static String _AssemblyLocation
-		{ get { return Assembly.GetExecutingAssembly().Location; } }
-		/// <summary>
-		/// Folder containing the executing Assembly
-		/// </summary>
-		internal static String _AssemblyFolder
-		{ get { return Path.GetDirectoryName(_AssemblyLocation); } }
+		public static bool HasTCA { get { return !Globals.Instance.IntegrateIntoCareer || Utils.PartIsPurchased(Globals.TCA_PART); } }
 		#endregion
 
 		#region Runtime Interface
@@ -144,18 +107,8 @@ namespace ThrottleControlledAvionics
 		{
 			var node = ConfigNode.Load(filepath);
 			if(node == null)
-				Utils.Log("TCAScenario: Unable to read "+filepath);
+				Utils.Log("TCAScenario: Unable to read {}", filepath);
 			return node;
-		}
-
-		public static void LoadGlobals()
-		{
-			globals = new TCAGlobals();
-			var gnode = loadNode(PluginData(GLOBALSNAME));
-			if(gnode != null) Globals.Load(gnode);
-			gnode = loadNode(PluginFolder(GLOBALS_OVERRIDE));
-			if(gnode != null) Globals.Load(gnode);
-			Globals.Init();
 		}
 
 		public static void LoadConfigs(ConfigNode node) 
@@ -202,9 +155,8 @@ namespace ThrottleControlledAvionics
 				{
 					if(current_vessels.Contains(c.VesselID))
 						c.Save(n.AddNode(VesselConfig.NODE_NAME));
-					else Utils.Log(
-						"TCAScenario: SaveConfigs: vessel {0} is not present in the game. " +
-						"Removing orphan configuration.", c.VesselID);
+					else Utils.Log("TCAScenario: SaveConfigs: vessel {} is not present in the game. " +
+					               "Removing orphan configuration.", c.VesselID);
 				}
 			}
 			if(NamedConfigs.Count > 0)
@@ -250,10 +202,10 @@ namespace ThrottleControlledAvionics
 			//deprecated: Old config conversion
 			if(Configs.Count == 0 && NamedConfigs.Count == 0)
 			{
-				var cnode = loadNode(PluginData("TCA.conf"));
+				var cnode = loadNode(Globals.Instance.PluginData("TCA.conf"));
 				if(cnode != null) LoadLegacyConfigs(cnode);
 			}
-			LoadGlobals();
+			Globals.Load();
 		}
 
 		public override void OnSave (ConfigNode node) { SaveConfigs(node); }

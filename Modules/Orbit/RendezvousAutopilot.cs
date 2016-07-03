@@ -9,6 +9,7 @@
 //
 using System;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -35,7 +36,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float ApproachVelF        = 0.01f;  //parts
 			[Persistent] public float MaxInclinationDelta = 30;     //deg
 		}
-		static Config REN { get { return TCAScenario.Globals.REN; } }
+		static Config REN { get { return Globals.Instance.REN; } }
 
 		public RendezvousAutopilot(ModuleTCA tca) : base(tca) {}
 
@@ -505,13 +506,13 @@ namespace ThrottleControlledAvionics
 //			{
 //				if(ToOrbit != null)
 //				{
-//					GLUtils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
-//					GLUtils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
-//					GLUtils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).xzy, Color.yellow);
+//					Utils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
+//					Utils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
+//					Utils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).xzy, Color.yellow);
 //				}
-//				else GLUtils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.yellow);
-//				GLUtils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
-//				GLUtils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
+//				else Utils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.yellow);
+//				Utils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
+//				Utils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
 //			}
 			#endif
 			if(ControlsActive)
@@ -524,10 +525,10 @@ namespace ThrottleControlledAvionics
 //					#if DEBUG
 //					if(current != null)
 //					{
-//						GLUtils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);//debug
-//						GLUtils.GLVec(Body.position, current.TargetPos.xzy, Color.magenta);//debug
-//						GLUtils.GLVec(Body.position+current.StartPos.xzy, current.ManeuverDeltaV.normalized.xzy*Body.Radius/4, Color.yellow);//debug
-//						GLUtils.GLLine(Body.position+current.StartPos.xzy, Body.position+current.TargetPos.xzy, Color.cyan);//debug
+//						Utils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);//debug
+//						Utils.GLVec(Body.position, current.TargetPos.xzy, Color.magenta);//debug
+//						Utils.GLVec(Body.position+current.StartPos.xzy, current.ManeuverDeltaV.normalized.xzy*Body.Radius/4, Color.yellow);//debug
+//						Utils.GLLine(Body.position+current.StartPos.xzy, Body.position+current.TargetPos.xzy, Color.cyan);//debug
 //					}
 //					#endif
 				}

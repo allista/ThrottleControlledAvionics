@@ -1610,10 +1610,10 @@ if __name__ == '__main__':
     #            ),
     #            )
 
-    analyzeCSV('Tests/Anchor.csv',
+    analyzeCSV('Tests/ATC.csv',
                (
-                   'P', 'D', 'dist', 'r-dist', 'act'
+                   'AA', 'AAf1', 'AAf', 'PIf', 'P', 'I', 'D', 'Act', 'Err'
                ),
-               # region=(1500,2400)
+               #~ region=(2300,)
                )
 
