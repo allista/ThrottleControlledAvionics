@@ -76,8 +76,7 @@ namespace ThrottleControlledAvionics
 
 		public void SetAltitudeAboveTerrain(bool enable = true)
 		{
-			DebugUtils.Log("RAD {}, enable {}, CFG.AltitudeAboveTerrain {}", RAD, enable, CFG.AltitudeAboveTerrain);//debug
-			if(RAD == null || enable == CFG.AltitudeAboveTerrain) return;
+			if(RAD == null) return;
 			CFG.AltitudeAboveTerrain = enable;
 			VSL.Altitude.Update();
 			Falling.Reset();

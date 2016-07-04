@@ -356,7 +356,7 @@ TRJ
 	dV4dRf             = 1e-4
 	MinPeA             = 10000 //m
 	MaxIterations      = 2000
-	PerFrameIterations = 10
+	PerFrameIterations = 5
 }
 
 LTRJ
