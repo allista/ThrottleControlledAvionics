@@ -50,29 +50,34 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Stage stage;
 		double currentEcc;
 
+
+		Vector3d PlaneCorrection(TargetedTrajectoryBase old)
+		{
+			var angle = old.DeltaFi;
+			angle *= Math.Sin(old.TransferTime/old.NewOrbit.period*2*Math.PI);
+			var rot = QuaternionD.AngleAxis(angle, old.StartPos);
+			return Orbit2NodeDeltaV((rot*old.StartVel)-old.StartVel, old.StartUT);
+		}
+
 		protected LandingTrajectory fixed_Ecc_orbit(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double ecc)
 		{
 			double StartUT;
 			double targetAlt;
 			if(old != null) 
 			{
-				double dLatLon;
-				double dLonLat;
-				StartUT = old.StartUT;
 				targetAlt = old.TargetAltitude;
-				if(Math.Abs(VesselOrbit.inclination) <= 45) 
-				{ dLonLat = old.DeltaLon; dLatLon = old.DeltaLat; }
-				else { dLonLat = old.DeltaLat; dLatLon = old.DeltaLon; }
-				if(Math.Abs(dLonLat) > Math.Abs(dLatLon))
-					StartUT = AngleDelta2StartUT(old, dLonLat, TRJ.ManeuverOffset, VesselOrbit.period, VesselOrbit.period);
-				else NodeDeltaV += PlaneCorrection(old);
+				StartUT = AngleDelta2StartUT(old, Math.Abs(VesselOrbit.inclination) <= 45 ? old.DeltaLon : old.DeltaLat, 
+				                             TRJ.ManeuverOffset, VesselOrbit.period, VesselOrbit.period);
+				NodeDeltaV += PlaneCorrection(old);
 			}
 			else 
 			{
 				StartUT = VSL.Physics.UT+TRJ.ManeuverOffset;
 				targetAlt = TargetAltitude;
 			}
-			return new LandingTrajectory(VSL, dV4Ecc(VesselOrbit, ecc, StartUT, Body.Radius*0.9, Node2OrbitDeltaV(StartUT, NodeDeltaV)), 
+			return new LandingTrajectory(VSL, 
+			                             dV4Ecc(VesselOrbit, ecc, StartUT, Body.Radius*0.9)+
+			                             Node2OrbitDeltaV(NodeDeltaV, StartUT), 
 			                             StartUT, CFG.Target, targetAlt);
 		}
 
@@ -86,7 +91,7 @@ namespace ThrottleControlledAvionics
 				else 
 					NodeDeltaV += PlaneCorrection(old);
 			}
-			return new LandingTrajectory(VSL, Node2OrbitDeltaV(StartUT, NodeDeltaV), 
+			return new LandingTrajectory(VSL, Node2OrbitDeltaV(NodeDeltaV, StartUT), 
 			                             StartUT, CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
@@ -145,9 +150,21 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
-					currentEcc = DEO.StartEcc;
-					if(Body.atmosphere) currentEcc = 
-						Utils.ClampH(currentEcc*(2.1-Utils.ClampH(VSL.Torque.MaxPossible.AngularDragResistance/Body.atmDensityASL*DEO.AngularDragF, 1)), DEO.MaxEcc);
+					var tPos = CFG.Target.RelOrbPos(Body);
+					var UT = VSL.Physics.UT +
+						(AngleDelta(VesselOrbit, tPos, VSL.Physics.UT)-30)/360*VesselOrbit.period;
+					var vPos = VesselOrbit.getRelativePositionAtUT(UT);
+					var solver = new LambertSolver(NewOrbit(VesselOrbit, dV4C(VesselOrbit, Vector3d.Exclude(vPos, tPos-vPos), UT), UT), tPos, UT);
+					var orb = NewOrbit(VesselOrbit, solver.dV4TransferME(), UT);
+					if(orb.eccentricity > DEO.StartEcc)
+					{
+						currentEcc = DEO.StartEcc;
+						if(Body.atmosphere) currentEcc = 
+							Utils.ClampH(currentEcc*(2.1-Utils.ClampH(VSL.Torque.MaxPossible.AngularDragResistance/Body.atmDensityASL*DEO.AngularDragF, 1)), DEO.MaxEcc);
+					}
+					else currentEcc = Utils.ClampH(orb.eccentricity-DEO.dEcc, DEO.dEcc);
+					if(Globals.Instance.AutosaveBeforeLanding)
+						Utils.SaveGame(VSL.vessel.vesselName.Replace(" ", "_")+"-before_landing");
 					compute_landing_trajectory();
 				}
 				goto case Multiplexer.Command.Resume;
@@ -179,12 +196,28 @@ namespace ThrottleControlledAvionics
 				{
 					clear_nodes(); add_trajectory_node();
 					CorrectionTimer.Reset();
-					if(trajectory.DistanceToTarget < LTRJ.Dtol) 
+					var fuel_needed = VSL.Engines.FuelNeeded((float)trajectory.ManeuverDeltaV.magnitude) +
+						VSL.Engines.FuelNeededAtAlt((float)trajectory.AtTargetVel.magnitude, 
+						                            (float)(trajectory.AtTargetPos.magnitude-Body.Radius));
+					var fuel_available = VSL.Engines.GetAvailableFuelMass();
+					var hover_time = fuel_needed < fuel_available? VSL.Engines.MaxHoverTimeASL(fuel_available-fuel_needed) : 0;
+//					Log("Fuel needed {}, Fuel available {}, Hover time {}", fuel_needed, fuel_available, hover_time);//debug
+					var status = "";
+					if(trajectory.DistanceToTarget < LTRJ.Dtol && hover_time > LTRJ.HoverTimeThreshold) 
 					{ CFG.AP1.On(Autopilot1.Maneuver); stage = Stage.Deorbit; }
-					else 
+					else
 					{
-						Status("red", "Predicted landing site is too far from the target.\n" +
-						       "<i>To proceed, activate maneuver execution manually.</i>");
+						if(hover_time < LTRJ.HoverTimeThreshold)
+						{
+							status += "WARNING: Not enough fuel for powered landing.\n";
+							if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
+								status += "<i>Landing with parachutes may be possible, " +
+									"but you're advised to supervise the process.</i>\n";
+						}
+						if(trajectory.DistanceToTarget > LTRJ.Dtol)
+							status += "WARNING: Predicted landing site is too far from the target.\n";
+						status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
+						Status("yellow", status);
 						stage = Stage.Wait;
 					}
 				}
@@ -196,7 +229,8 @@ namespace ThrottleControlledAvionics
 				}
 				break;
 			case Stage.Wait:
-				if(!CFG.AP1[Autopilot1.Maneuver]) break;
+				if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
+				CFG.AP1.On(Autopilot1.Maneuver);
 				stage = Stage.Deorbit;
 				break;
 			case Stage.Deorbit:
@@ -210,12 +244,19 @@ namespace ThrottleControlledAvionics
 				stage = Stage.Coast; 
 				break;
 			case Stage.Coast:
-				if(CFG.AP1[Autopilot1.Maneuver]) 
-				{ Status("Correcting trajectory..."); break; }
-				Status("Coasting...");
 				update_trajectory();
 				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-TRJ.ManeuverOffset;
+				if(CFG.AP1[Autopilot1.Maneuver]) 
+				{ 
+					if(VSL.Info.Countdown > 0)
+					{
+						Status("Correcting trajectory..."); 
+						break; 
+					}
+				}
+				Status("Coasting...");
 				if(VSL.Info.Countdown > 0 && !correct_trajectory()) break;
+				CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 				stage = Stage.None;
 				start_landing();
 				break;
@@ -224,6 +265,15 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
+			#if DEBUG
+			Utils.GLVec(VSL.Physics.wCoM, VSL.vessel.srf_velocity, Color.yellow);
+			if(CFG.Target != null)
+			{
+				Utils.GLLine(VSL.Physics.wCoM, CFG.Target.WorldPos(Body), Color.magenta);
+				if(trajectory != null)
+					Utils.GLVec(VSL.Physics.wCoM, correction_direction()*5, Color.red);
+			}
+			#endif
 			if(ControlsActive)
 			{
 				if(computing) 

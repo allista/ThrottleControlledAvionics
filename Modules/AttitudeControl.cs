@@ -103,7 +103,7 @@ namespace ThrottleControlledAvionics
 		{
 			#if DEBUG
 			if(current.IsZero() || needed.IsZero())
-				LogFST("compute steering:\ncurrent {}\nneeded {}\ncurrent thrust {}", current, needed, VSL.Engines.CurrentThrust);
+				LogFST("compute steering:\ncurrent {}\nneeded {}\ncurrent thrust {}", current, needed, VSL.Engines.CurrentThrustDir);
 			#endif
 			VSL.Controls.SetAttitudeError(Vector3.Angle(needed, current));
 			if(VSL.Controls.AttitudeError > ATCB.AngleThreshold)
@@ -276,7 +276,7 @@ namespace ThrottleControlledAvionics
 		{ CustomRotation = Rotation.Local(current, needed, VSL); }
 
 		public void SetThrustDirW(Vector3 needed)
-		{ CustomRotation = Rotation.Local(VSL.Engines.CurrentThrust, needed, VSL); }
+		{ CustomRotation = Rotation.Local(VSL.Engines.CurrentThrustDir, needed, VSL); }
 
 		public void ResetCustomRotation() { CustomRotation = default(Rotation); }
 
@@ -292,12 +292,17 @@ namespace ThrottleControlledAvionics
 		{
 			Vector3 v;
 			omega_min.Update(VSL.vessel.angularVelocity.sqrMagnitude);
-			lthrust = VSL.LocalDir(VSL.Engines.CurrentThrust).normalized;
+			lthrust = VSL.LocalDir(VSL.Engines.CurrentThrustDir);
 			needed_lthrust = Vector3.zero;
 			steering = Vector3.zero;
 			switch(CFG.AT.state)
 			{
 			case Attitude.Custom:
+				if(CustomRotation.Equals(default(Rotation)))
+				{
+					CFG.AT.On(Attitude.KillRotation);
+					goto case Attitude.KillRotation;
+				}
 				lthrust = CustomRotation.current;
 				needed_lthrust = CustomRotation.needed;
 				break;
@@ -412,7 +417,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null) return;
 //			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
-			Utils.GLVec(VSL.refT.position, VSL.Engines.CurrentThrust.normalized*20, Color.red);
+			Utils.GLVec(VSL.refT.position, VSL.Engines.CurrentThrustDir*20, Color.red);
 			Utils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
 			Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.green);
 			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);

@@ -73,6 +73,7 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				TimeWarp.SetRate(0, false);
+				CFG.AT.On(Attitude.KillRotation);
 				reset();
 				break;
 			}

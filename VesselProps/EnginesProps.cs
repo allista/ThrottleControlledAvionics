@@ -82,46 +82,82 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		public Vector3 CurrentMaxThrust 
+		public Vector3 CurrentMaxThrustDir 
 		{
 			get
 			{
 				var thrust = MaxThrust;
 				if(thrust.IsZero()) thrust =  NearestEnginedStageMaxThrust;
 				if(thrust.IsZero()) thrust = -VSL.Controls.Transform.up;
-				return thrust;
+				return thrust.normalized;
 			}
 		}
 
-		public Vector3 CurrentThrust 
-		{ get { return Thrust.IsZero()? CurrentMaxThrust : Thrust; } }
+		public Vector3 CurrentThrustDir 
+		{ get { return Thrust.IsZero()? CurrentMaxThrustDir : Thrust.normalized; } }
 
-		public float TTB(float dV, float Ve, float throttle)
+		public float ThrustAtAlt(float vel, float alt, out float mflow)
 		{
-			if(MaxThrustM.Equals(0)) return float.MaxValue;
+			var flow = 0f;
+			var thrust = 0f;
+			Active.ForEach(e => 
+			{ 
+				float mFlow;
+				thrust += e.ThrustAtAlt(vel, alt, out mFlow); 
+				flow += mFlow; 
+			});
+			mflow = flow;
+			return thrust;
+		}
+
+		public float TTB(float dV, float thrust, float mflow, float throttle)
+		{
+			if(thrust.Equals(0)) return float.MaxValue;
 			if(dV.Equals(0)) return 0;
-			return CheatOptions.InfinitePropellant?
-				VSL.Physics.M*dV/MaxThrustM/throttle : 
-				FuelNeeded(dV, Ve)/MaxMassFlow/throttle;
+			return (CheatOptions.InfinitePropellant?
+			        VSL.Physics.M/thrust*dV : FuelNeeded(dV, thrust/mflow)/mflow) / throttle;
 		}
 
 		public float TTB(float dV)
-		{ return TTB(dV, MaxVe, ThrottleControl.NextThrottle(dV, 1, VSL)); }
+		{ return TTB(dV, MaxThrustM, MaxMassFlow, ThrottleControl.NextThrottle(dV, 1, VSL)); }
 
 		public float FuelNeeded(float dV, float Ve) { return VSL.Physics.M*(1-Mathf.Exp(-dV/Ve)); }
 		public float FuelNeeded(float dV) { return FuelNeeded(dV, MaxVe); }
+		public float FuelNeededAtAlt(float dV, float alt) 
+		{ 
+			float mflow;
+			float thrust = ThrustAtAlt(0, alt, out mflow);
+			return FuelNeeded(dV, thrust/mflow); 
+		}
 
 		public float DeltaV(float Ve, float fuel_mass) { return Ve*Mathf.Log(VSL.Physics.M/(VSL.Physics.M-fuel_mass)); }
 		public float DeltaV(float fuel_mass) { return DeltaV(MaxVe, fuel_mass); }
 
 		public float MaxHoverTimeASL(float fuel_mass)
-		{ return (float)(MaxThrustM/(VSL.Physics.M-fuel_mass) / (VSL.Body.GeeASL*Utils.G0) * fuel_mass/MaxMassFlow); }
+		{ 
+			float mflow;
+			float thrust = ThrustAtAlt(0, 0, out mflow);
+			return (float)(thrust/(VSL.Physics.M-fuel_mass) / (VSL.Body.GeeASL*Utils.G0) * fuel_mass/mflow); 
+		}
+
+		public float MaxDeltaVAtAlt(float alt) 
+		{ 
+			float mflow;
+			float thrust = ThrustAtAlt(0, alt, out mflow);
+			return DeltaV(thrust/mflow, GetAvailableFuelMass()); 
+		}
 
 		public float MaxDeltaV { get { return DeltaV(MaxVe, GetAvailableFuelMass()); } }
 
-		public float SuicidalBurnTime { get { return TTB(MaxDeltaV); } }
-
-		public float RelVeASL { get { return (float)(VSL.Engines.MaxThrustM - VSL.Body.GeeASL*Utils.G0*VSL.Physics.M)/VSL.Engines.MaxMassFlow; } }
+		public float RelVeASL 
+		{ 
+			get 
+			{ 
+				float mflow;
+				float thrust = ThrustAtAlt(0, 0, out mflow);
+				return (float)(thrust - VSL.Body.GeeASL*Utils.G0*VSL.Physics.M)/mflow; 
+			} 
+		}
 
 		public Vector3 NearestEnginedStageMaxThrust
 		{ get { return GetNearestEnginedStageStats().Thrust; } }

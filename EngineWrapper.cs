@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
 		public float   torqueRatio;
 		public float   limit, best_limit, limit_tmp;
 		public float   thrustMod;
-		protected float zeroISP;
+		protected float zeroIsp;
 
 		public abstract Vessel vessel { get; }
 		public abstract Part part { get; }
@@ -67,7 +67,7 @@ namespace ThrottleControlledAvionics
 
 		public RCSWrapper(ModuleRCS rcs)
 		{
-			zeroISP = rcs.atmosphereCurve.Evaluate(0f);
+			zeroIsp = rcs.atmosphereCurve.Evaluate(0f);
 			this.rcs = rcs;
 		}
 
@@ -76,7 +76,7 @@ namespace ThrottleControlledAvionics
 
 		public override void InitState()
 		{
-			thrustMod = rcs.atmosphereCurve.Evaluate((float)(rcs.part.staticPressureAtm))/zeroISP;
+			thrustMod = rcs.atmosphereCurve.Evaluate((float)(rcs.part.staticPressureAtm))/zeroIsp;
 			var total_sthrust = 0f;
 			avg_thrust_dir = Vector3.zero;
 			avg_thrust_pos = Vector3.zero;
@@ -171,7 +171,7 @@ namespace ThrottleControlledAvionics
 		{
 			//init
 			thrustController.setMaster(ThrustPI);
-			zeroISP = engine.atmosphereCurve.Evaluate(0f);
+			zeroIsp = engine.atmosphereCurve.Evaluate(0f);
 			name = Utils.ParseCamelCase(engine.part.Title());
 			if(engine.engineID.Length > 0 && engine.engineID != "Engine") 
 				name += " (" + engine.engineID + ")";
@@ -216,29 +216,9 @@ namespace ThrottleControlledAvionics
 			thrustInfo = new CenterOfThrustQuery();
 			engine.OnCenterOfThrustQuery(thrustInfo);
 			thrustInfo.dir.Normalize();
-			//compute velocity and atmosphere thrust modifier (from KSP code)
-			//too bad these functions arn't made public =/
-			realIsp = engine.atmosphereCurve.Evaluate((float)(engine.part.staticPressureAtm));
-			if(engine.useAtmCurveIsp)
-				realIsp *= engine.atmCurveIsp.Evaluate((float)(part.atmDensity / 1.225));
-			if(engine.useVelCurveIsp)
-				realIsp *= engine.velCurveIsp.Evaluate((float)part.machNumber);
-			flowMod = 1f;
-			if(engine.atmChangeFlow)
-			{
-				flowMod = (float)(part.atmDensity / 1.225);
-				if (engine.useAtmCurve)
-					flowMod = engine.atmCurve.Evaluate(flowMod);
-			}
-			if(engine.useVelCurve)
-				flowMod *= engine.velCurve.Evaluate((float)part.machNumber);
-			if(flowMod > engine.flowMultCap)
-			{
-				float to_cap = flowMod - engine.flowMultCap;
-				flowMod = engine.flowMultCap + to_cap / (engine.flowMultCapSharpness + to_cap / engine.flowMultCap);
-			}
-			if(flowMod < engine.CLAMP) flowMod = engine.CLAMP;
-			thrustMod = realIsp*flowMod/zeroISP;
+			realIsp = GetIsp((float)(engine.part.staticPressureAtm), (float)(part.atmDensity/1.225), (float)part.machNumber);
+			flowMod = GetFlowMod((float)(part.atmDensity/1.225), (float)part.machNumber);
+			thrustMod = realIsp*flowMod/zeroIsp;
 			//update Role
 			if(engine.throttleLocked && info.Role != TCARole.MANUAL) 
 				info.SetRole(TCARole.MANUAL);
@@ -259,6 +239,49 @@ namespace ThrottleControlledAvionics
 				(Role != TCARole.MANUAL? 
 				 nominalCurrentThrust(throttle) :
 				 engine.finalThrust);
+		}
+
+
+		float GetIsp(float pressureAtm, float rel_density, float vel_mach) 
+		{
+			var Isp = engine.atmosphereCurve.Evaluate(pressureAtm) * engine.multIsp;
+			if(engine.useAtmCurveIsp)
+				Isp *= engine.atmCurveIsp.Evaluate(rel_density);
+			if(engine.useVelCurveIsp)
+				Isp *= engine.velCurveIsp.Evaluate(vel_mach);	
+			return Isp;
+		}
+
+		float GetFlowMod(float rel_density, float vel_mach)
+		{
+			var fmod = engine.multFlow;
+			if(engine.atmChangeFlow)
+			{
+				fmod = rel_density;
+				if (engine.useAtmCurve)
+					fmod = engine.atmCurve.Evaluate(fmod);
+			}
+			if(engine.useVelCurve)
+				fmod *= engine.velCurve.Evaluate(vel_mach);
+			if(fmod > engine.flowMultCap)
+			{
+				float to_cap = fmod - engine.flowMultCap;
+				fmod = engine.flowMultCap + to_cap / (engine.flowMultCapSharpness + to_cap / engine.flowMultCap);
+			}
+			if(fmod < engine.CLAMP) fmod = engine.CLAMP;
+			return fmod;
+		}
+
+		public float ThrustAtAlt(float vel, float alt, out float mFlow) 
+		{
+			mFlow = 0;
+			if(!vessel.mainBody.atmosphere) return zeroIsp;
+			var atm = vessel.mainBody.AtmoParamsAtAltitude(alt);
+			var rel_density = (float)(atm.Rho/1.225);
+			var vel_mach = (float)(vel/atm.Mach1);
+			var Ve = GetIsp((float)(atm.P/1013.25), rel_density, vel_mach) * Utils.G0;
+			mFlow = engine.maxFuelFlow * GetFlowMod(rel_density, vel_mach);
+			return mFlow * Ve;
 		}
 
 		public float MaxFuelFlow { get { return engine.maxFuelFlow*flowMod; } }

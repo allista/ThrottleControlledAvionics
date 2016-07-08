@@ -89,7 +89,7 @@ namespace ThrottleControlledAvionics
 			NoEngines.Update(RCSLimits.Max+WheelsLimits.Max);
 			MaxCurrent.Update(NoEngines.Torque+EnginesLimits.Max);
 			MaxPossible.Update(NoEngines.Torque+MaxEnginesLimits.Max);
-			MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrust));
+			MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrustDir));
 
 			if(MaxCurrent.AA_rad > 0)
 			{

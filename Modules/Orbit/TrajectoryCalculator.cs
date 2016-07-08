@@ -185,29 +185,24 @@ namespace ThrottleControlledAvionics
 			return (max_dV+min_dV)/2*dVdir+add_dV;
 		}
 
-		public static Vector3d dV4Ecc(Orbit old, double ecc, double UT, double minR = -1, Vector3d add_dV = default(Vector3d))
+		public static Vector3d dV4Ecc(Orbit old, double ecc, double UT, double maxR = -1)
 		{
-			var dir = old.getOrbitalVelocityAtUT(UT);
 			var up = old.eccentricity > ecc;
+			var dir = old.getOrbitalVelocityAtUT(UT);
 			var min_dV = 0.0;
-			var max_dV = dir.magnitude+add_dV.magnitude;
+			var max_dV = up? dV4C(old, dir, UT).magnitude : dir.magnitude;
+			if(!up) dir *= -1;
 			dir.Normalize();
-			if(up)
-			{
-				max_dV = 1;
-				while(NewOrbit(old, dir*max_dV, UT).eccentricity > ecc)
-				{ max_dV *= 2; if(max_dV > 100000) break; }
-			} else dir *= -1;
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
 				var dV = (max_dV+min_dV)/2;
-				var orb = NewOrbit(old, dir*dV+add_dV, UT);
-				if( up && (orb.eccentricity < ecc || minR > 0 && orb.PeR > minR) || 
+				var orb = NewOrbit(old, dir*dV, UT);
+				if( up && (orb.eccentricity < ecc || maxR > 0 && orb.PeR > maxR) || 
 				   !up && orb.eccentricity > ecc) 
 					max_dV = dV;
 				else min_dV = dV;
 			}
-			return (max_dV+min_dV)/2*dir+add_dV;
+			return (max_dV+min_dV)/2*dir;
 		}
 
 		protected Orbit AscendingOrbit(double ApR, Vector3d hVdir, double slope)
@@ -427,17 +422,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		//Node: radial, normal, prograde
-		protected Vector3d PlaneCorrection(TargetedTrajectoryBase old, double angle)
-		{
-			angle *= Math.Sin(old.TransferTime/old.NewOrbit.period*2*Math.PI);
-			var rot = QuaternionD.AngleAxis(angle, old.StartPos);
-			return Orbit2NodeDeltaV(old.StartUT, (rot*old.StartVel)-old.StartVel);
-		}
-
-		protected Vector3d PlaneCorrection(TargetedTrajectoryBase old)
-		{ return PlaneCorrection(old, old.DeltaFi); }
-
-		protected Vector3d Orbit2NodeDeltaV(double StartUT, Vector3d OrbitDeltaV)
+		protected Vector3d Orbit2NodeDeltaV(Vector3d OrbitDeltaV, double StartUT)
 		{
 			var norm = VesselOrbit.GetOrbitNormal().normalized;
 			var prograde = hV(StartUT).normalized;
@@ -447,7 +432,7 @@ namespace ThrottleControlledAvionics
 			                    Vector3d.Dot(OrbitDeltaV, prograde));
 		}
 
-		protected Vector3d Node2OrbitDeltaV(double StartUT, Vector3d NodeDeltaV)
+		protected Vector3d Node2OrbitDeltaV(Vector3d NodeDeltaV, double StartUT)
 		{ 
 			var norm = VesselOrbit.GetOrbitNormal().normalized;
 			var prograde = hV(StartUT).normalized;
@@ -488,6 +473,10 @@ namespace ThrottleControlledAvionics
 			VSL.vessel.patchedConicSolver.maneuverNodes.Clear();
 			VSL.vessel.patchedConicSolver.flightPlan.Clear();
 		}
+
+		#if DEBUG
+		public static bool setp_by_step_computation;
+		#endif
 	}
 
 	public abstract class TrajectoryCalculator<T> : TrajectoryCalculator where T : BaseTrajectory
@@ -512,6 +501,37 @@ namespace ThrottleControlledAvionics
 			trajectory_calculator = null;
 		}
 
+		#if DEBUG
+		IEnumerator<T> compute_trajectory()
+		{
+			T current = null;
+			T best = null;
+			var maxI = TRJ.MaxIterations;
+			var frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
+			do {
+				var lt = current as LandingTrajectory;
+				if(lt != null) NavigationPanel.CustomMarkersWP.Add(lt.SurfacePoint);
+				if(setp_by_step_computation && best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage))
+				{ yield return null; continue; }
+				clear_nodes();
+				current = next_trajectory(current, best);
+				if(best == null || better_predicate(current, best)) 
+					best = current;
+				frameI--; maxI--;
+				if(frameI <= 0)
+				{
+					add_node(current.ManeuverDeltaV, current.StartUT);
+					if(setp_by_step_computation) Status("Push to continue");
+					else Status("Computing trajectory...");
+					yield return null;
+					frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
+				}
+			} while(end_predicate(current, best) && maxI > 0);
+			Log("Best trajectory:\n{}", best);
+			clear_nodes();
+			yield return best;
+		}
+		#else
 		IEnumerator<T> compute_trajectory()
 		{
 			T current = null;
@@ -519,31 +539,19 @@ namespace ThrottleControlledAvionics
 			var maxI = TRJ.MaxIterations;
 			var frameI = TRJ.PerFrameIterations;
 			do {
-//				if(best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage)) //debug
-//				{ yield return null; continue; }
-//				clear_nodes(); //debug
 				current = next_trajectory(current, best);
 				if(best == null || better_predicate(current, best)) 
 					best = current;
 				frameI--; maxI--;
 				if(frameI <= 0)
 				{
-//					add_node(current.ManeuverDeltaV, current.StartUT);//debug
-//					var lt = current as LandingTrajectory;//debug
-//					if(lt != null) //debug
-//					{
-//						add_node(lt.BrakeDeltaV, lt.BrakeEndUT);
-//						NavigationPanel.CustomMarkersWP.Add(lt.SurfacePoint);
-//					}
-//					Status("Push to continue");//debug
 					yield return null;
 					frameI = TRJ.PerFrameIterations;
 				}
 			} while(end_predicate(current, best) && maxI > 0);
-//			Log("Best trajectory:\n{}", best);//debug
-//			clear_nodes();//debug
 			yield return best;
 		}
+		#endif
 
 		protected T trajectory;
 		protected NextTrajectory next_trajectory;
@@ -554,8 +562,9 @@ namespace ThrottleControlledAvionics
 		protected bool trajectory_computed()
 		{
 			if(trajectory != null) return true;
-			//debug
-//			Status("Computing trajectory...");	
+			#if !DEBUG
+			Status("Computing trajectory...");	
+			#endif
 			if(trajectory_calculator == null)
 				trajectory_calculator = compute_trajectory();
 			if(trajectory_calculator.MoveNext())
@@ -635,6 +644,12 @@ namespace ThrottleControlledAvionics
 
 		protected bool setup()
 		{
+			if(VSL.Engines.NoActiveEngines)
+			{
+				Status("yellow", "No engines are active, unable to calculate trajectory.\n" +
+					"Please, activate ship's engines and try again.");
+				return false;
+			}
 			setup_target();
 			if(check_target())
 			{

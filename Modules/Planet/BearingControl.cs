@@ -116,7 +116,7 @@ namespace ThrottleControlledAvionics
 			var cDir  = H(VSL.OnPlanetParams.Fwd);
 			var nDir  = DirectionOverride.IsZero()? H(ForwardDirection) : H(DirectionOverride);
 			var angle = Vector3.Angle(cDir, nDir)*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
-			var eff   = Mathf.Abs(Vector3.Dot(VSL.Engines.CurrentMaxThrust.normalized, VSL.Physics.Up));
+			var eff   = Mathf.Abs(Vector3.Dot(VSL.Engines.CurrentMaxThrustDir.normalized, VSL.Physics.Up));
 			var ADf   = (float)VSL.vessel.staticPressurekPa/VSL.Torque.MaxCurrent.AngularDragResistanceAroundAxis(laxis)*BRC.ADf+1;
 			AAf = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis)/ADf, BRC.MinAAf, BRC.MaxAAf);
 			bearing_pid.P = BRC.DirectionPID.P;

@@ -270,7 +270,7 @@ namespace ThrottleControlledAvionics
 				else EnableManualTranslation(false);
 			}
 			else EnableManualTranslation(false);
-			if(thrust.IsZero()) thrust = VSL.Engines.CurrentThrust;
+			if(thrust.IsZero()) thrust = VSL.Engines.CurrentThrustDir;
 			needed_thrust_dir.Normalize();
 			//tune filter
 			filter.Tau = VSL.Engines.SlowTorque ? 

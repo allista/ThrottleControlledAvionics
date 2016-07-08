@@ -296,18 +296,19 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginVertical(Styles.white);
 			GUILayout.Label(Title, Styles.label, GUILayout.ExpandWidth(true));
 			GUILayout.BeginHorizontal();
-			if(GUILayout.Button("Reload TCA Settings", Styles.active_button, GUILayout.ExpandWidth(true))) 
-			{
-				Globals.Load();
-				Styles.ConfigureButtons();
-				TCA.OnReloadGlobals();
-			}
 			//change key binding
 			if(GUILayout.Button(selecting_key? new GUIContent("Change TCA hotkey: ?", "Choose new TCA hotkey") : 
 			                    new GUIContent(string.Format("Change TCA hotkey: {0}", TCA_Key), "Select TCA Hotkey"), 
 			                    selecting_key? Styles.enabled_button : Styles.active_button, 
 			                    GUILayout.ExpandWidth(true)))
 			{ selecting_key = true; Utils.Message("Press a key that will toggle TCA"); }
+			Utils.ButtonSwitch("Autosave on landing", ref Globals.Instance.AutosaveBeforeLanding);
+			if(GUILayout.Button("Reload TCA Settings", Styles.active_button, GUILayout.ExpandWidth(true))) 
+			{
+				Globals.Load();
+				Styles.ConfigureButtons();
+				TCA.OnReloadGlobals();
+			}
 			GUILayout.EndHorizontal();
 			Toggles.Draw();
 			if(THR != null)

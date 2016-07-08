@@ -214,10 +214,17 @@ namespace ThrottleControlledAvionics
 				stage = Stage.Coast;
 				break;
 			case Stage.Coast:
+				var ap_ahead = VesselOrbit.ApAhead();
 				if(CFG.AP1[Autopilot1.Maneuver]) 
-				{ Status("Correcting trajectory..."); break; }
+				{ 
+					if(ap_ahead)
+					{
+						Status("Correcting trajectory..."); 
+						break; 
+					}
+				}
 				Status("Coasting...");
-				if(VesselOrbit.ApAhead() && !correct_trajectory()) break;
+				if(ap_ahead && !correct_trajectory()) break;
 				stage = Stage.None;
 				start_landing();
 				break;

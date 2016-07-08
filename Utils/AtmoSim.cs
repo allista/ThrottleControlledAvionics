@@ -38,15 +38,13 @@ namespace ThrottleControlledAvionics
 		double drag(double s, double h, double v)
 		{ 
 			if(h > Body.atmosphereDepth) return 0;
-			var P  = Body.GetPressure(h);
-			var T  = Body.GetTemperature(h);
-			var r  = Body.GetDensity(P, T);
+			var atm = Body.AtmoParamsAtAltitude(h);
 			var v2 = v*v;
-			var dP = r * v2;
-			var mach = v/Body.GetSpeedOfSound(P, r);
+			var dP = atm.Rho * v2;
+			var mach = v/atm.Mach1;
 			var Cd = AtmoSim.Cd *
 			    PhysicsGlobals.DragCurveMultiplier.Evaluate((float)mach) *
-				PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(r*Math.Abs(v)));
+				PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(atm.Rho*Math.Abs(v)));
 			return dP * Cd * s;
 		}
 

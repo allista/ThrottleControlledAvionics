@@ -1,6 +1,8 @@
-UseStockAppLauncher  = false
-IntegrateIntoCareer  = true
-RoleSymmetryInFlight = true
+UseStockAppLauncher   = false
+IntegrateIntoCareer   = true
+RoleSymmetryInFlight  = true
+AutosaveBeforeLanding = true
+
 InputDeadZone        = 0.03
 MaxManualGroups      = 10
 KeyRepeatTime        = 0.1
@@ -355,7 +357,7 @@ TRJ
 	dVtol              = 0.01  //m/s
 	dV4dRf             = 1e-4
 	MinPeA             = 10000 //m
-	MaxIterations      = 2000
+	MaxIterations      = 1000
 	PerFrameIterations = 5
 }
 

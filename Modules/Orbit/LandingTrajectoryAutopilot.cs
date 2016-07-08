@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float FlyOverAlt         = 1000;  //m
 			[Persistent] public float ApproachAlt        = 250;   //m
 
-			[Persistent] public float BrakeThrustThreshod = 100;   //m/s
+			[Persistent] public float BrakeThrustThreshod = 100;  //m/s
 			[Persistent] public float BrakeEndSpeed      = 10;    //m/s
 			[Persistent] public float MinBrakeOffset     = 10;    //m/s
 			[Persistent] public float FinalBrakeOffset   = 5;     //m/s
@@ -155,6 +155,9 @@ namespace ThrottleControlledAvionics
 			return -dist;
 		}
 
+		void rel_altitude_if_needed()
+		{ CFG.AltitudeAboveTerrain = VSL.Altitude.Relative < 5000; }
+
 		void approach()
 		{
 			CFG.BR.Off();
@@ -216,25 +219,42 @@ namespace ThrottleControlledAvionics
 
 		void correct_attitude_with_thrusters(float turn_time)
 		{
+			if(VSL.Controls.AttitudeError < 0.3f) return;
 			if(VSL.Torque.MaxPossible.AngularDragResistance > VSL.Torque.MaxCurrent.AngularDragResistance*1.1)
 				THR.Throttle = (float)Utils.ClampH(Utils.ClampL(VSL.vessel.dynamicPressurekPa/LTRJ.DPressureThreshold, 1)*
 				                                   turn_time/Utils.ClampL(VSL.Info.Countdown, 1), 1);
+		}
+
+		#if DEBUG
+		protected //debug
+		#endif
+		Vector3d correction_direction()
+		{
+			var t = Utils.ClampL(VSL.Info.Countdown, 1e-5)+TimeWarp.fixedDeltaTime;
+			var T = CFG.Target.WorldPos(Body);
+			var L = trajectory.SurfacePoint.WorldPos(Body);
+			var correction = (((L-VSL.Physics.wCoM)/t + VSL.Physics.Up*VSL.Physics.StG*t/2) - VSL.vessel.srf_velocity);
+			if(Vector3d.Dot(correction, VSL.vessel.srf_velocity) <= 0)
+				correction = VSL.vessel.srf_velocity;
+			correction += (L-T)/VSL.Engines.MaxAccel*Utils.G0*Body.GeeASL * 
+				Math.Pow(Utils.ClampH(trajectory.DistanceToTarget/LTRJ.Dtol*2, 1), GLB.ANC.DistanceCurve);
+			return correction;
 		}
 
 		bool correct_landing_site()
 		{
 			if(VSL.Controls.HaveControlAuthority)
 			{
-				var err = CFG.Target.VectorTo(trajectory.SurfacePoint, Body);
-				ATC.SetThrustDirW(VSL.vessel.srf_velocity+err.ClampMagnitudeL(LTRJ.Dtol*(float)Body.GeeASL));
+				ATC.SetThrustDirW(correction_direction());
 				THR.Throttle = Mathf.Max(THR.Throttle, 
-				                         Utils.ClampH((float)err.magnitude/VSL.Engines.MaxAccel/LTRJ.Dtol*LTRJ.CorrectionF, 
+				                         Utils.ClampH((float)CFG.Target.VectorTo(trajectory.SurfacePoint, Body).magnitude /
+				                                      VSL.Engines.MaxAccel/LTRJ.Dtol*LTRJ.CorrectionF, 
 				                                      VSL.OnPlanetParams.GeeVSF));
 			}
 			return trajectory.DistanceToTarget < LTRJ.Dtol;
 		}
 
-		Vector3d CorrectedBrakeVelocity(Vector3d obt_vel, Vector3d obt_pos)
+		Vector3d corrected_brake_velocity(Vector3d obt_vel, Vector3d obt_pos)
 		{ 
 			return (obt_vel-Vector3d.Project(obt_vel, obt_pos) *
 			        (1-Utils.Clamp(0.5*(Body.atmDensityASL+VSL.vessel.dynamicPressurekPa/LTRJ.DPressureThreshold), 0.1, 1)) +
@@ -242,7 +262,7 @@ namespace ThrottleControlledAvionics
 				.xzy;
 		}
 
-		Vector3d CorrectBrakeDirection(Vector3d vel, Vector3d pos)
+		Vector3d corrected_brake_direction(Vector3d vel, Vector3d pos)
 		{ 
 			var tpos = CFG.Target.RelSurfPos(Body);
 			return QuaternionD.AngleAxis(Utils.ProjectionAngle(Vector3d.Exclude(pos, vel), 
@@ -291,27 +311,29 @@ namespace ThrottleControlledAvionics
 			switch(landing_stage)
 			{
 			case LandingStage.Wait:
+				Status("Preparing for deceleration...");
 				THR.Throttle = 0;
 				update_trajectory();
 				nose_to_target();
-				Status("Preparing for deceleration...");
+				rel_altitude_if_needed();
 				obt_vel = VesselOrbit.getOrbitalVelocityAtUT(trajectory.BrakeStartUT);
 				brake_pos = VesselOrbit.getRelativePositionAtUT(trajectory.BrakeStartUT);
-				brake_vel = CorrectedBrakeVelocity(obt_vel, brake_pos);
-				brake_vel = CorrectBrakeDirection(brake_vel, brake_pos.xzy);
+				brake_vel = corrected_brake_velocity(obt_vel, brake_pos);
+				brake_vel = corrected_brake_direction(brake_vel, brake_pos.xzy);
 				CFG.AT.OnIfNot(Attitude.Custom);
 				ATC.SetThrustDirW(brake_vel);
 				VSL.Info.Countdown = trajectory.BrakeEndUT-VSL.Physics.UT-1
 					-Math.Max(MatchVelocityAutopilot.BrakingOffset((float)obt_vel.magnitude, VSL, out VSL.Info.TTB), 
 					          LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1)));
-				if(VSL.Info.Countdown > 1)
-					correct_attitude_with_thrusters(VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError));
+				correct_attitude_with_thrusters(VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError));
 				if(obstacle_ahead(trajectory) > 0) { FullStop = true; decelerate(); break; }
-				if(VSL.Info.Countdown <= 0) { FullStop = false; decelerate(); break; }
+				if(VSL.Info.Countdown <= VSL.vessel.dynamicPressurekPa/LTRJ.DPressureThreshold) 
+				{ FullStop = false; decelerate(); break; }
 				if(VSL.Controls.Aligned) VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else VSL.Controls.StopWarp();
 				break;
 			case LandingStage.Decelerate:
+				rel_altitude_if_needed();
 				update_trajectory();
 				nose_to_target();
 				if(FullStop)
@@ -333,8 +355,8 @@ namespace ThrottleControlledAvionics
 					        trajectory.DistanceToTarget > LTRJ.Dtol/10 &&
 					        Vector3d.Dot(CFG.Target.VectorTo(trajectory.SurfacePoint, Body), VSL.HorizontalSpeed.Vector) > 0)
 					{ 
-						brake_vel = CorrectedBrakeVelocity(VesselOrbit.vel, VesselOrbit.pos);
-						brake_vel = CorrectBrakeDirection(brake_vel, VesselOrbit.pos.xzy);
+						brake_vel = corrected_brake_velocity(VesselOrbit.vel, VesselOrbit.pos);
+						brake_vel = corrected_brake_direction(brake_vel, VesselOrbit.pos.xzy);
 						//this is nice smoothing, but is dangerous on a low decending trajectory
 						if(-VSL.Altitude.Relative/VSL.VerticalSpeed.Absolute-VSL.Torque.MaxCurrent.TurnTime > VSL.vessel.srfSpeed/VSL.Engines.MaxAccel)
 							brake_vel = brake_vel.normalized*VSL.HorizontalSpeed.Absolute*Utils.ClampH(trajectory.DistanceToTarget/CFG.Target.DistanceTo(VSL.vessel), 1);
@@ -359,13 +381,13 @@ namespace ThrottleControlledAvionics
 					rel_Ve = VSL.Engines.RelVeASL;
 					if(rel_Ve <= 0)
 					{
-						Message("Not enough thrust to land properly.\nPerforming emergency landing...");
+						Message(10, "Not enough thrust to land properly.\nPerforming emergency landing...");
 						landing_stage = LandingStage.HardLanding;
 						break;
 					}
 					if(!(VSL.Controls.HaveControlAuthority || VSL.Torque.HavePotentialControlAuthority))
 					{
-						Message("Lacking control authority to land properly.\nPerforming emergency landing...");
+						Message(10, "Lacking control authority to land properly.\nPerforming emergency landing...");
 						landing_stage = LandingStage.HardLanding;
 						break;
 					}
@@ -375,7 +397,7 @@ namespace ThrottleControlledAvionics
 					   (fuel_needed >= fuel_left ||
 					    VSL.Engines.MaxHoverTimeASL(fuel_left-fuel_needed) < LTRJ.HoverTimeThreshold))
 					{
-						Message("Not enough fuel to land properly.\nPerforming emergency landing...");
+						Message(10, "Not enough fuel to land properly.\nPerforming emergency landing...");
 						landing_stage = LandingStage.HardLanding;
 						break;
 					}
@@ -396,14 +418,14 @@ namespace ThrottleControlledAvionics
 					var fuel_left = VSL.Engines.GetAvailableFuelMass();
 					var fuel_needed = rel_Ve > 0? VSL.Engines.FuelNeeded((float)terminal_velocity, rel_Ve) : fuel_left*2;
 					VSL.Info.Countdown -= fuel_left > fuel_needed ? 
-						MatchVelocityAutopilot.BrakingOffset((float)terminal_velocity, VSL) : 
-						MatchVelocityAutopilot.BrakingOffset(VSL.Engines.DeltaV(fuel_left), VSL);
+						VSL.Engines.TTB((float)terminal_velocity) : 
+						VSL.Engines.TTB(VSL.Engines.DeltaV(fuel_left));
 					if((VSL.Info.Countdown < 0 && 
 					    (!VSL.OnPlanetParams.HaveParachutes || 
 					     VSL.OnPlanetParams.ParachutesActive && VSL.OnPlanetParams.ParachutesDeployed)))
 						THR.Throttle = VSL.VerticalSpeed.Absolute < -5? 1 : VSL.OnPlanetParams.GeeVSF;
 					else THR.Throttle = 0;
-					Status("yellow", "Have some fuel left.\nWill deceletate just before landing...");
+					Status("yellow", "Not enough fuel to land properly.\nWill deceletate as much as possible before impact...");
 				}
 				if(Body.atmosphere && VSL.OnPlanetParams.HaveUsableParachutes)
 				{
@@ -424,8 +446,8 @@ namespace ThrottleControlledAvionics
 				   !VSL.Engines.HaveNextStageEngines && 
 				   (VSL.Engines.MaxThrustM.Equals(0) || !VSL.Controls.HaveControlAuthority))
 				{
-					ATC.SetCustomRotationW(VSL.Geometry.MaxAreaDirection, VSL.Physics.Up);
-					Status("red", "Collision is imminent.\nImpact speed: {0}", Utils.formatBigValue((float)terminal_velocity, "m/s"));
+					if(Body.atmosphere) ATC.SetCustomRotationW(VSL.Geometry.MaxAreaDirection, VSL.Physics.Up);
+					Status("red", "Crash is imminent.\nImpact speed: {0}", Utils.formatBigValue((float)terminal_velocity, "m/s"));
 				}
 				break;
 			case LandingStage.SoftLanding:
@@ -438,7 +460,7 @@ namespace ThrottleControlledAvionics
 				{
 					Status("white", "Final deceleration. Landing site error: {0}", 
 					       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
-					ATC.SetThrustDirW(VSL.vessel.srf_velocity+CFG.Target.VectorTo(trajectory.SurfacePoint, Body)*Body.GeeASL);
+					ATC.SetThrustDirW(correction_direction());
 					if(VSL.Altitude.Relative > GLB.LND.WideCheckAltitude)
 					{
 						var brake_spd = Mathf.Max(VSL.HorizontalSpeed.Absolute, -VSL.VerticalSpeed.Absolute);
@@ -448,16 +470,19 @@ namespace ThrottleControlledAvionics
 						THR.Throttle = Utils.Clamp(brake_spd/LTRJ.BrakeThrustThreshod, min_thrust, 1);
 					}
 					else THR.Throttle = 1;
-					if(VSL.vessel.srfSpeed > LTRJ.BrakeEndSpeed) break;
-					THR.Throttle = 0;
+					if(VSL.vessel.srfSpeed > LTRJ.BrakeEndSpeed) 
+					{
+						FullStop = THR.Throttle.Equals(1) || VSL.Info.Countdown < 10;
+						break;
+					}
 				}
 				else
 				{
 					var turn_time = VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError);
-					VSL.Info.TTB = VSL.Engines.TTB(Mathf.Abs(VSL.VerticalSpeed.Absolute));
-					VSL.Info.Countdown -= VSL.Info.TTB+turn_time+LTRJ.FinalBrakeOffset;
 					correct_attitude_with_thrusters(turn_time);
 					correct_landing_site();
+					VSL.Info.TTB = VSL.Engines.TTB(Mathf.Abs(VSL.VerticalSpeed.Absolute));
+					VSL.Info.Countdown -= VSL.Info.TTB+turn_time+LTRJ.FinalBrakeOffset;
 					if(VSL.Controls.InvAlignmentFactor > 0.5) 
 						Status("white", "Final deceleration: correcting attitude.\nLanding site error: {0}", 
 						       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
@@ -467,6 +492,7 @@ namespace ThrottleControlledAvionics
 					FullStop = VSL.Info.Countdown <= 0 || VSL.vessel.srfSpeed < LTRJ.BrakeEndSpeed;
 					break;
 				}
+				THR.Throttle = 0;
 				if(CFG.Target.DistanceTo(VSL.vessel)-VSL.Geometry.R > LTRJ.Dtol) approach();
 				else land();
 				break;

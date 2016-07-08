@@ -65,8 +65,10 @@ namespace ThrottleControlledAvionics
 			else SQD.ApplyCFG(action);
 		}
 
-		protected void Message(string msg, params object[] args)
-		{ if(VSL.IsActiveVessel) Utils.Message(msg, args); }
+		protected void Message(float duration, string msg, params object[] args)
+		{ if(VSL.IsActiveVessel) Utils.Message(duration, msg, args); }
+
+		protected void Message(string msg, params object[] args) { Message(5, msg, args); }
 
 		protected void ClearStatus() 
 		{ if(VSL.IsActiveVessel) TCAGui.StatusMessage = ""; }

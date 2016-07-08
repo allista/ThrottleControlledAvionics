@@ -111,6 +111,13 @@ namespace ThrottleControlledAvionics
 		}
 
 		/// <summary>
+		/// Calculates the ME transfer orbit from a given orbit and UT to the destination radius-vector.
+		/// </summary>
+		/// <returns>The DeltaVee for the maneuver.</returns>
+		public Vector3d dV4TransferME()
+		{ double transfer_time; return dV4TransferME(out transfer_time); }
+
+		/// <summary>
 		/// Calculates the parabolic transfer orbit from a given orbit and UT to the destination radius-vector.
 		/// </summary>
 		/// <returns>The DeltaVee for the maneuver.</returns>

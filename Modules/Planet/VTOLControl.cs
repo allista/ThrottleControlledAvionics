@@ -63,7 +63,7 @@ namespace ThrottleControlledAvionics
 		protected override void correct_steering()
 		{
 			if(BRC != null && BRC.IsActive)
-				steering = Vector3.ProjectOnPlane(steering, VSL.LocalDir(VSL.Engines.CurrentThrust));
+				steering = Vector3.ProjectOnPlane(steering, VSL.LocalDir(VSL.Engines.CurrentThrustDir));
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
@@ -90,9 +90,9 @@ namespace ThrottleControlledAvionics
 				}
 				VSL.HasUserInput = false;
 				VSL.AutopilotDisabled = true;
-				rot *= Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.CurrentThrust.normalized);
+				rot *= Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.CurrentThrustDir);
 				#if DEBUG
-				needed_thrust = rot.Inverse() * VSL.Engines.CurrentThrust;
+				needed_thrust = rot.Inverse() * VSL.Engines.CurrentThrustDir;
 				#endif
 				steering = rotation2steering(world2local_rotation(rot));
 				VSL.Controls.SetAttitudeError(steering.magnitude*Mathf.Rad2Deg);
@@ -105,7 +105,7 @@ namespace ThrottleControlledAvionics
 				#if DEBUG
 				needed_thrust = -VSL.Physics.Up;
 				#endif
-				compute_steering(Rotation.Local(VSL.Engines.CurrentThrust.normalized, -VSL.Physics.Up, VSL)); 
+				compute_steering(Rotation.Local(VSL.Engines.CurrentThrustDir, -VSL.Physics.Up, VSL)); 
 				tune_steering();
 				VSL.Controls.AddSteering(steering);
 			}

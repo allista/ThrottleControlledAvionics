@@ -66,7 +66,9 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.Off:
-				reset(); break;
+				CFG.AT.On(Attitude.KillRotation);
+				reset(); 
+				break;
 			}
 		}
 
@@ -84,17 +86,21 @@ namespace ThrottleControlledAvionics
 			Target = null;
 		}
 
-		public static float BrakingDistance(float V0, float Ve, float throttle, VesselWrapper VSL, out float ttb)
+		public static float BrakingDistance(float V0, float thrust, float mflow, float throttle, VesselWrapper VSL, out float ttb)
 		{
-			ttb = VSL.Engines.TTB(V0, Ve, throttle);
+			ttb = VSL.Engines.TTB(V0, thrust, mflow, throttle);
 			return V0*ttb + 
-				VSL.Engines.MaxThrustM/VSL.Engines.MaxMassFlow * 
-				((ttb-VSL.Physics.M/VSL.Engines.MaxMassFlow/throttle) * 
-				 Mathf.Log((VSL.Physics.M-VSL.Engines.MaxMassFlow*throttle*ttb)/VSL.Physics.M) - ttb);
+				thrust/mflow * 
+				((ttb-VSL.Physics.M/mflow/throttle) * 
+				 Mathf.Log((VSL.Physics.M-mflow*throttle*ttb)/VSL.Physics.M) - ttb);
 		}
 
 		public static float BrakingDistance(float V0, VesselWrapper VSL, out float ttb)
-		{ return BrakingDistance(V0, VSL.Engines.MaxVe, ThrottleControl.NextThrottle((float)V0, 1, VSL), VSL, out ttb); }
+		{ 
+			return BrakingDistance(V0, VSL.Engines.MaxThrustM, VSL.Engines.MaxMassFlow, 
+			                       ThrottleControl.NextThrottle((float)V0, 1, VSL), 
+			                       VSL, out ttb);
+		}
 
 		public static float BrakingOffset(float V0, VesselWrapper VSL, out float ttb)
 		{ return BrakingDistance(V0, VSL, out ttb)/V0; }
