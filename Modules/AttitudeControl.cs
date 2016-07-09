@@ -27,6 +27,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinEf = 0.001f, MaxEf  = 5f;
 			[Persistent] public float SlowTorqueF            = 2;
 			[Persistent] public float AALowPassF             = 1f;
+			[Persistent] public float MinSteeringThreshold   = 0.1f;
 
 			[Persistent] public float AngleThreshold         = 60f;
 			[Persistent] public float MaxAttitudeError       = 10f;  //deg
@@ -172,23 +173,17 @@ namespace ThrottleControlledAvionics
 			steering_pid.P = ATCB.PID.P*PIf;
 			steering_pid.I = ATCB.PID.I*PIf;
 			steering_pid.D = ATCB.PID.D*Utils.ClampH(Utils.ClampH(2-Ef-AAm/ATCB.MaxAA, 1)+angularM.magnitude*ATCB.AngularMf, 1)*AAf*AAf*slow*slow;
-			//tune steering
-			var control = new Vector3(steering.x.Equals(0)? 0 : 1,
-			                          steering.y.Equals(0)? 0 : 1,
-			                          steering.z.Equals(0)? 0 : 1);
-			if(CFG.AT[Attitude.Custom])
-			{
-				//add inertia to handle constantly changing needed direction
-				steering += Vector3.Scale(angularM.Sign(),
-				                          Vector3.Scale(Vector3.Scale(angularM, angularM),
-				                                        Vector3.Scale(VSL.Torque.MaxCurrent.Torque, VSL.Physics.MoI).Inverse(0)))
-					.ClampComponents(-Mathf.PI, Mathf.PI)/
-					Mathf.Lerp(ATCB.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATCB.MoIFactor);
-			}
+			//add inertia to handle constantly changing needed direction
+			steering += Vector3.Scale(angularM.Sign(),
+			                          Vector3.Scale(Vector3.Scale(angularM, angularM),
+			                                        Vector3.Scale(VSL.Torque.MaxCurrent.Torque, VSL.Physics.MoI).Inverse(0)))
+				.ClampComponents(-Mathf.PI, Mathf.PI)/
+				Mathf.Lerp(ATCB.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATCB.MoIFactor);
 			steering_pid.Update(steering, angularV);
+			//tune steering
 			steering = Vector3.Scale(steering_pid.Action, 
-			                         Vector3.Scale(AA, control).Inverse(0).CubeNorm()+
-			                         VSL.Torque.MaxCurrent.AA.Component(steering.MinI()).Inverse(0));
+			                         AA.Inverse(0).CubeNorm()+
+			                         Vector3.one.Component(AA.MinI())*ATCB.MinSteeringThreshold);
 			correct_steering();
 		}
 

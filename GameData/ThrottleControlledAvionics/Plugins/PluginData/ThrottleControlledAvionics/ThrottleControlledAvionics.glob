@@ -121,6 +121,7 @@ ATCB
 	MaxAA          = 2
 	MinAAf         = 0.2
 	MaxAAf         = 2
+
 	AngularMf      = 0.001
 	InertiaFactor  = 10
 	MoIFactor      = 0.01
@@ -128,6 +129,7 @@ ATCB
 	MaxEf          = 2
 	SlowTorqueF    = 0.2
 	AALowPassF     = 1
+	MinSteeringThreshold = 0.1
 	
 	AngleThreshold = 60         //deg
 	MaxAttitudeError = 10       //deg
