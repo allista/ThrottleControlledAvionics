@@ -2,7 +2,15 @@
     
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.2.0 -- compatible with KSP-1.1.3**
+* **v3.2.1**
+    * Numerous fixes and improvements to:
+        * *Deorbit autopilot*
+        * *Landing autopilot*
+        * *Attitude* and *Bearing* control
+    * Compiled against *AT_Utils* library that will now be common to all my mods. It is distributed with TCA, so no additional action is required.
+    * The naming convention of the `.glob` and `.user` files has changed: these files are now named `ThrottleControlledAvionics.glob` and `ThrottleControlledAvionics.user`. If you have done any customizations, don't forget to rename your `TCA.user` file accordingly.
+
+* v3.2.0
     * Added orbital autopilots ([see the video](https://www.youtube.com/watch?v=l1e2brjWgBA)):
         * **ToOrbit autopilot** that achieves a circular orbit defined by radius and inclination, prograde or retrograde. It is smart about high orbits as it uses the double-burn technique, which is how the real satellites get to the geostationary orbit.
         * **Rendezvous autopilot** that can bring a ship to its target-in-orbit from anywhere in the same sphere of influence: from orbit, from a suborbital trajectory and from the surface.

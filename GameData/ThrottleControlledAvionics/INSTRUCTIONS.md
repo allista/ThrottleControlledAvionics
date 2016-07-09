@@ -117,14 +117,11 @@ In flight the icon of the TCA toolbar button changes according to TCA state: "Di
 * *Obstacle On Course*: the ship is on a collision course with something
 * *Ground Collision Possible*: the same as above, but with the negative vertical velocity
 * *Loosing Altitude*: vertical velocity is negative and lower than the set-point
+* *Low Control Authority*: available torque is not enough to achieve desired attitude in time
 * *Engines Unoptimized*: engines are unable to provide required torque, so they are set to give zero torque
 * *Ascending*: the ship is automatically gaining altitude to avoid a collision with an obstacle
 * *VTOL Assist On*: VTOL Assist autopilot is active at the moment
 * *Stabilizing Flight*: Stabilizing Flight autopilot is active at the moment
-* *Landing...*: the final stage of the Land program 
-* *Checking Landing Site*: TCA flies the ship to a potential landing site to determine its flatness
-* *Searching For Landing Site*: Land autopilot flies the ship to a nearby area to perform a surface scan
-* *Scanning Surface*: Land autopilot is scanning the surface to get the list of potential landing sites
 * *Altitude Control*: Altitude Control is active and is the main autopilot at the moment
 * *Vertical Speed Control*: Vertical Speed Control is active and is the main autopilot at the moment
 * *Systems Nominal*: all working well
