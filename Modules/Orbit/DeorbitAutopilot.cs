@@ -194,32 +194,14 @@ namespace ThrottleControlledAvionics
 				if(!trajectory_computed()) break;
 				if(trajectory.DistanceToTarget < LTRJ.Dtol || currentEcc < 1e-10)
 				{
-					clear_nodes(); add_trajectory_node();
-					CorrectionTimer.Reset();
-					var fuel_needed = VSL.Engines.FuelNeeded((float)trajectory.ManeuverDeltaV.magnitude) +
-						VSL.Engines.FuelNeededAtAlt((float)trajectory.AtTargetVel.magnitude, 
-						                            (float)(trajectory.AtTargetPos.magnitude-Body.Radius));
-					var fuel_available = VSL.Engines.GetAvailableFuelMass();
-					var hover_time = fuel_needed < fuel_available? VSL.Engines.MaxHoverTimeASL(fuel_available-fuel_needed) : 0;
-//					Log("Fuel needed {}, Fuel available {}, Hover time {}", fuel_needed, fuel_available, hover_time);//debug
-					var status = "";
-					if(trajectory.DistanceToTarget < LTRJ.Dtol && hover_time > LTRJ.HoverTimeThreshold) 
-					{ CFG.AP1.On(Autopilot1.Maneuver); stage = Stage.Deorbit; }
-					else
-					{
-						if(hover_time < LTRJ.HoverTimeThreshold)
-						{
-							status += "WARNING: Not enough fuel for powered landing.\n";
-							if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
-								status += "<i>Landing with parachutes may be possible, " +
-									"but you're advised to supervise the process.</i>\n";
-						}
-						if(trajectory.DistanceToTarget > LTRJ.Dtol)
-							status += "WARNING: Predicted landing site is too far from the target.\n";
-						status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
-						Status("yellow", status);
-						stage = Stage.Wait;
+					if(check_initial_trajectory())
+					{ 
+						CorrectionTimer.Reset();
+						clear_nodes(); add_trajectory_node();
+						CFG.AP1.On(Autopilot1.Maneuver); 
+						stage = Stage.Deorbit; 
 					}
+					else stage = Stage.Wait;
 				}
 				else 
 				{

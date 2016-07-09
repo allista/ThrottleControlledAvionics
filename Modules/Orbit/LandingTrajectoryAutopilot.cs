@@ -86,9 +86,36 @@ namespace ThrottleControlledAvionics
 
 		protected bool landing { get { return landing_stage != LandingStage.None; } }
 
+		protected bool check_initial_trajectory()
+		{
+			var fuel_needed = VSL.Engines.FuelNeeded((float)trajectory.ManeuverDeltaV.magnitude) +
+				VSL.Engines.FuelNeededAtAlt((float)trajectory.AtTargetVel.magnitude, 
+				                                    (float)(trajectory.AtTargetPos.magnitude-Body.Radius));
+			var fuel_available = VSL.Engines.GetAvailableFuelMass();
+			var hover_time = fuel_needed < fuel_available? VSL.Engines.MaxHoverTimeASL(fuel_available-fuel_needed) : 0;
+			var status = "";
+			if(trajectory.DistanceToTarget < LTRJ.Dtol && hover_time > LTRJ.HoverTimeThreshold) return true;
+			else
+			{
+				if(hover_time < LTRJ.HoverTimeThreshold)
+				{
+					status += "WARNING: Not enough fuel for powered landing.\n";
+					if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
+						status += "<i>Landing with parachutes may be possible, " +
+							"but you're advised to supervise the process.</i>\n";
+				}
+				if(trajectory.DistanceToTarget > LTRJ.Dtol)
+					status += "WARNING: Predicted landing site is too far from the target.\n";
+				status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
+				Status("yellow", status);
+				return false;
+			}
+		}
+
 		protected void start_landing()
 		{
 			FullStop = false;
+			clear_nodes();
 			update_trajectory();
 			VSL.Controls.StopWarp();
 			VSL.Controls.Aligned = false;
@@ -237,6 +264,7 @@ namespace ThrottleControlledAvionics
 			if(Vector3d.Dot(correction, VSL.vessel.srf_velocity) <= 0)
 				correction = VSL.vessel.srf_velocity;
 			correction += (L-T)/VSL.Engines.MaxAccel*Utils.G0*Body.GeeASL * 
+				Utils.ClampH(1 + VSL.vessel.dynamicPressurekPa/LTRJ.DPressureThreshold, 2) *
 				Math.Pow(Utils.ClampH(trajectory.DistanceToTarget/LTRJ.Dtol*2, 1), GLB.ANC.DistanceCurve);
 			return correction;
 		}
@@ -371,8 +399,9 @@ namespace ThrottleControlledAvionics
 				update_trajectory();
 				nose_to_target();
 				setup_for_deceleration();
-				correct_landing_site();
 				terminal_velocity = compute_terminal_velocity();
+				correct_attitude_with_thrusters(VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError));//test
+				correct_landing_site();
 				VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
 				VSL.Info.Countdown -= Math.Max(VSL.Info.TTB+VSL.Torque.NoEngines.TurnTime+VSL.vessel.dynamicPressurekPa, TRJ.ManeuverOffset);
 				if(VSL.Info.Countdown <= 0)

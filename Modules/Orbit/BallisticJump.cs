@@ -172,31 +172,24 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Compute:
 				if(!trajectory_computed()) break;
-				clear_nodes(); add_trajectory_node();
-				if(trajectory.DistanceToTarget < LTRJ.Dtol)
+				var obst = obstacle_ahead(trajectory);
+				if(obst > 0)
 				{
-					var obst = obstacle_ahead(trajectory);
-					if(obst > 0)
-					{
-						StartAltitude += (float)obst+BJ.ObstacleOffset;
-						stage = Stage.Start;
-					}
-					else
-					{
-						CFG.HF.Off();
-						CFG.AT.OnIfNot(Attitude.ManeuverNode);
-						stage = Stage.Accelerate;
-					}
+					StartAltitude += (float)obst+BJ.ObstacleOffset;
+					stage = Stage.Start;
 				}
-				else 
+				else if(check_initial_trajectory())
 				{
-					Status("red", "Predicted landing site is too far from the target.\n" +
-					       "<i>To proceed, activate maneuver execution manually.</i>");
-					stage = Stage.Wait;
+					CFG.HF.Off();
+					clear_nodes(); add_trajectory_node();
+					CFG.AT.OnIfNot(Attitude.ManeuverNode);
+					stage = Stage.Accelerate;
 				}
+				else stage = Stage.Wait;
 				break;
 			case Stage.Wait:
-				if(!CFG.AP1[Autopilot1.Maneuver]) break;
+				if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
+				CFG.AP1.On(Autopilot1.Maneuver);
 				stage = Stage.Accelerate;
 				break;
 			case Stage.Accelerate:
