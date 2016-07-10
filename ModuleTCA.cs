@@ -293,7 +293,8 @@ namespace ThrottleControlledAvionics
 			TCAModulesDatabase.InitModules(this);
 			VSL.ConnectAutopilotOutput();//should follow module initialization
 			TCAGui.AttachTCA(this);
-			part.force_activate(); //need to activate the part for OnFixedUpdate to work
+			if(part.State != PartStates.ACTIVE)
+				part.force_activate(); //need to activate the part for OnFixedUpdate to work
 			StartCoroutine(updateUnpackDistance());
 			Actions["onActionUpdate"].active = true;
 			Actions["ToggleTCA"].actionGroup = CFG.ActionGroup;
@@ -372,6 +373,7 @@ namespace ThrottleControlledAvionics
 			if(VSL == null) return;
 			//initialize systems
 			VSL.UpdateState();
+			State = TCAState.Disabled;
 			if(!CFG.Enabled) return;
 			State = TCAState.Enabled;
 			if(!VSL.Info.ElectricChargeAvailible) return;

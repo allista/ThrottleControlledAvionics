@@ -307,10 +307,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Attitude.Custom:
 				if(CustomRotation.Equals(default(Rotation)))
-				{
-					CFG.AT.On(Attitude.KillRotation);
 					goto case Attitude.KillRotation;
-				}
 				lthrust = CustomRotation.current;
 				needed_lthrust = CustomRotation.needed;
 				break;
@@ -444,7 +441,7 @@ namespace ThrottleControlledAvionics
 			#endif
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
-			            CFG.AT? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false));
+			                CFG.AT && !VSL.AutopilotDisabled? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false));
 			if(Utils.ButtonSwitch("Kill", CFG.AT[Attitude.KillRotation], "Kill rotation", GUILayout.ExpandWidth(false)))
 				CFG.AT.XToggle(Attitude.KillRotation);
 			if(Utils.ButtonSwitch("Hold", CFG.AT[Attitude.HoldAttitude], "Hold current attitude", GUILayout.ExpandWidth(false)))
@@ -473,8 +470,10 @@ namespace ThrottleControlledAvionics
 				CFG.AT.XToggle(Attitude.AntiRelVel);
 			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.enabled_button : Styles.grey, GUILayout.ExpandWidth(false)))
 				CFG.AT.OffIfOn(Attitude.Custom);
-			GUILayout.Label(CFG.AT? string.Format("Err: {0:F1}°", VSL.Controls.AttitudeError) : "", 
-			                VSL.Controls.Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
+			var err = "OFF";
+			if(VSL.AutopilotDisabled) err = "USER";
+			else if(CFG.AT) err = string.Format("Err: {0:F1}°", VSL.Controls.AttitudeError);
+			GUILayout.Label(err, VSL.Controls.Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
 		}
 	}
