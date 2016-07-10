@@ -253,7 +253,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
-		protected //debug
+		protected
 		#endif
 		Vector3d correction_direction()
 		{
@@ -400,7 +400,7 @@ namespace ThrottleControlledAvionics
 				nose_to_target();
 				setup_for_deceleration();
 				terminal_velocity = compute_terminal_velocity();
-				correct_attitude_with_thrusters(VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError));//test
+				correct_attitude_with_thrusters(VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError));
 				correct_landing_site();
 				VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
 				VSL.Info.Countdown -= Math.Max(VSL.Info.TTB+VSL.Torque.NoEngines.TurnTime+VSL.vessel.dynamicPressurekPa, TRJ.ManeuverOffset);

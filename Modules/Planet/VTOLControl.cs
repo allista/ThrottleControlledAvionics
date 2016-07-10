@@ -73,21 +73,12 @@ namespace ThrottleControlledAvionics
 			{ 
 				Quaternion rot = Quaternion.identity;
 				var angle = VTOL.MaxAngle*VSL.OnPlanetParams.TWRf;
-				if(!s.yaw.Equals(0))
-				{
-					rot = Quaternion.AngleAxis(s.yaw*90, up_axis) * rot;
-					s.yaw = 0;
-				}
+				var pitch_roll = Mathf.Abs(s.pitch)+Mathf.Abs(s.roll);
 				if(!s.pitch.Equals(0)) 
-				{
-					rot = Quaternion.AngleAxis(s.pitch*angle, VSL.Controls.Transform.right) * rot;
-					s.pitch = 0;
-				}
+					rot = Quaternion.AngleAxis(Mathf.Abs(s.pitch)/pitch_roll*s.pitch*angle, VSL.Controls.Transform.right) * rot;
 				if(!s.roll.Equals(0)) 
-				{
-					rot = Quaternion.AngleAxis(s.roll*angle, fwd_axis) * rot;
-					s.roll = 0;
-				}
+					rot = Quaternion.AngleAxis(Mathf.Abs(s.roll)/pitch_roll*s.roll*angle, fwd_axis) * rot;
+				s.pitch = s.roll = 0;
 				VSL.HasUserInput = false;
 				VSL.AutopilotDisabled = true;
 				rot *= Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.CurrentThrustDir);
@@ -95,6 +86,9 @@ namespace ThrottleControlledAvionics
 				needed_thrust = rot.Inverse() * VSL.Engines.CurrentThrustDir;
 				#endif
 				steering = rotation2steering(world2local_rotation(rot));
+				if(!s.yaw.Equals(0))
+					steering += rotation2steering(world2local_rotation(Quaternion.AngleAxis(s.yaw*60, VSL.Engines.CurrentThrustDir)));
+				s.yaw = 0;
 				VSL.Controls.SetAttitudeError(steering.magnitude*Mathf.Rad2Deg);
 				tune_steering();
 				VSL.Controls.GimbalLimit = 0;

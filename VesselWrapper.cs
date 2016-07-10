@@ -186,9 +186,9 @@ namespace ThrottleControlledAvionics
 			if(!CFG.Enabled) return;
 			Controls.GimbalLimit = 100;
 			HasUserInput = 
-				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.1f) ||
-				!Mathfx.Approx(s.roll, s.rollTrim, 0.1f) ||
-				!Mathfx.Approx(s.yaw, s.yawTrim, 0.1f);
+				!Mathfx.Approx(s.pitch, s.pitchTrim, 0.01f) ||
+				!Mathfx.Approx(s.roll, s.rollTrim, 0.01f) ||
+				!Mathfx.Approx(s.yaw, s.yawTrim, 0.01f);
 			AutopilotDisabled = HasUserInput;
 		}
 
