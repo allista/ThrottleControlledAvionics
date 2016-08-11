@@ -94,6 +94,17 @@ namespace ThrottleControlledAvionics
 			float error, angle;
 			var last_error = -1f;
 			Vector3 cur_imbalance = VSL.Torque.Engines.Torque, target;
+//			Log("=============================== Optimization ===============================\n" +
+//			    "needed_torque {}\n" +
+//			    "OnPlanet.VSF {}, GeeVSF {}, MaxTWR {}\n" +
+//			    "Physics.M {}, G {}\n" +
+//			    "Engines.MaxThrust {}\n" +
+//			    "Control.AttitudeError {}, InvFactor {}\n", 
+//			    needed_torque, 
+//			    VSL.OnPlanetParams.VSF, VSL.OnPlanetParams.GeeVSF, VSL.OnPlanetParams.MaxTWR, 
+//			    VSL.Physics.M, VSL.Physics.G,
+//			    VSL.Engines.MaxThrust,
+//			    VSL.Controls.AttitudeError, VSL.Controls.InvAlignmentFactor);//debug
 			for(int i = 0; i < ENG.MaxIterations; i++)
 			{
 				//calculate current errors and target
@@ -139,8 +150,11 @@ namespace ThrottleControlledAvionics
 			}
 			var optimized = TorqueError < ENG.OptimizationTorqueCutoff || 
 				(!zero_torque && TorqueAngle < ENG.OptimizationAngleCutoff);
-//			LogF("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}", 
-//			     num_engines, optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance);//debug
+//			Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}\nlimits:\n{}\n" +
+//				"-------------------------------------------------------------------------------------------------", 
+//			    num_engines, optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance,
+//			    engines.Aggregate("", (s, e) => s+string.Format("{0}: VSF {1:P1}, throttle {2:P1}, best limit {3:P1}\n", 
+//			                                                    e.name, e.VSF, e.throttle, e.best_limit)));//debug
 			//treat single-engine crafts specially
 			if(num_engines == 1) 
 			{
@@ -215,7 +229,8 @@ namespace ThrottleControlledAvionics
 				OptimizeLimitsForTorque(VSL.Engines.Steering, Vector3.zero, out max_limit);
 				SetState(TCAState.Unoptimized);
 			}
-			if(max_limit < 0.01f) Status("red", "Thrust is disabled because engines cannot be balanced.");
+			if(VSL.Engines.HaveMainEngines && max_limit < 0.01f) 
+				Status("red", "Thrust is disabled because engines cannot be balanced.");
 		}
 
 		void tune_steering_params()

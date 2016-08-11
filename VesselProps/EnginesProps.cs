@@ -45,6 +45,7 @@ namespace ThrottleControlledAvionics
 		public int  NumActiveRCS { get; private set; }
 		public bool NoActiveEngines { get; private set; }
 		public bool NoActiveRCS { get; private set; }
+		public bool HaveMainEngines { get; private set; }
 		public bool ForceUpdateEngines = false;
 
 		public bool HaveNextStageEngines { get; private set; }
@@ -269,6 +270,7 @@ namespace ThrottleControlledAvionics
 
 		public void Sort()
 		{
+			bool have_mains = false;
 			Steering.Clear(); Steering.Capacity = NumActive;
 			Maneuver.Clear(); Maneuver.Capacity = NumActive;
 			Balanced.Clear(); Balanced.Capacity = NumActive;
@@ -280,6 +282,7 @@ namespace ThrottleControlledAvionics
 				switch(e.Role)
 				{
 				case TCARole.MAIN:
+					have_mains = true;
 					Steering.Add(e);
 					break;
 				case TCARole.MANEUVER:
@@ -297,6 +300,7 @@ namespace ThrottleControlledAvionics
 					break;
 				}
 			}
+			HaveMainEngines = have_mains;
 		}
 
 		public override void Update()
