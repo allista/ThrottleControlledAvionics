@@ -48,7 +48,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCAScenario.Parts.Count == 0) 
 			{
-				GUILayout.Label("No TCA modules is purchased.");
+				GUILayout.Label("No modules installed.");
 				return;
 			}
 			GUILayout.BeginVertical(Styles.white);
@@ -95,21 +95,25 @@ namespace ThrottleControlledAvionics
 			if(show_status)
 			{
 				GUILayout.BeginVertical();
-				if(HighLogic.CurrentGame.Mode == Game.Modes.CAREER)
+				GUILayout.Label(Title);
+				if(!TCAScenario.ModuleInstalled)
+					GUILayout.Label("<color=red><size=30>TCA module was not found in any of the loaded parts.</size></color>\n\n" +
+					                    "This probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
+					                    "<color=yellow><b>ModuleManager</b> is required</color> for TCA to work.", Styles.rich_label);
+				else if(HighLogic.CurrentGame.Mode == Game.Modes.CAREER)
 				{
-					GUILayout.Label(Title);
-					if(!TCAScenario.ModuleInstalled)
-						GUILayout.Label("<color=red><size=30>TCA module was not found in any of the loaded parts.</size></color>\n\n" +
-						                "This probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
-						                "<color=yellow><b>ModuleManager</b> is required</color> for TCA to work.", Styles.rich_label);
-					else if(!TCAScenario.HasTCA)
-						GUILayout.Label("<color=yellow>TCA Subsystem is <b>NOT</b> purchased. Get it in R&D first.</color>", Styles.rich_label);
+					
+					if(!TCAScenario.HasTCA)
+						GUILayout.Label("<color=yellow><size=30>TCA Subsystem is <b>NOT</b> purchased. Get it in R&D first.</size></color>", Styles.rich_label);
 					else
 					{
-						GUILayout.Label("<color=lime>TCA Subsystem is purchased.</color>", Styles.rich_label);
+						GUILayout.Label("<color=lime>TCA Subsystem is purchased.</color>\nInstalled TCA modules:", Styles.rich_label);
 						PartsInfo();
 					}
 				}
+				else GUILayout.Label("<b>Sandbox Game:</b>\n" +
+				                     "<color=lime>TCA should be fully functional</color> " +
+				                     "on all vessels with some engines/RCS and a command module (cockpit, probe core, etc).", Styles.rich_label);
 				GUILayout.EndVertical();
 			}
 			else GUILayout.Label(current_text, Styles.rich_label, GUILayout.MaxWidth(width));
