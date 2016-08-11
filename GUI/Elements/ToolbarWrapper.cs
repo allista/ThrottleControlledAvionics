@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013-2014, Maik Schreiber
+Copyright (c) 2013-2016, Maik Schreiber
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -30,7 +30,7 @@ using System.Reflection;
 using UnityEngine;
 
 
-// _TODO: Change to your plugin's namespace here.
+// TODO: Change to your plugin's namespace here.
 namespace ThrottleControlledAvionics {
 
 
@@ -402,7 +402,7 @@ namespace ThrottleControlledAvionics {
 	/// <example>
 	/// <code>
 	/// IButton button = ...
-	/// button.Visibility = new GameScenesVisibility(GameScenes.EDITOR, GameScenes.SPH);
+	/// button.Visibility = new GameScenesVisibility(GameScenes.EDITOR, GameScenes.FLIGHT);
 	/// </code>
 	/// </example>
 	/// <seealso cref="IButton.Visibility"/>
