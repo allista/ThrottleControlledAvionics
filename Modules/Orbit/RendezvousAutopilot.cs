@@ -83,6 +83,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 //				LogFST("Resuming: stage {}", stage);//debug
+				if(!check_patched_conics()) return;
 				NeedRadarWhenMooving();
 				switch(stage)
 				{
@@ -351,7 +352,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.UpdateState();
 			IsActive &= CFG.AP2[Autopilot2.Rendezvous];
-			ControlsActive = IsActive || VSL.TargetVessel != null;
+			ControlsActive &= IsActive || VSL.TargetVessel != null;
 		}
 
 //		double startAlpha; //debug

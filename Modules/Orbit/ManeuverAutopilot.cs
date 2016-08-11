@@ -48,10 +48,8 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
-			var HasPatchedConics = GameVariables.Instance
-				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) == GameVariables.OrbitDisplayMode.PatchedConics;
-			IsActive &= CFG.AP1[Autopilot1.Maneuver] && Node != null && HasPatchedConics;
-			ControlsActive = IsActive || VSL.HasManeuverNode && HasPatchedConics;
+			IsActive &= VSL.HasManeuverNode;
+			ControlsActive &= IsActive || TCAScenario.HasPatchedConics && VSL.HasManeuverNode;
 		}
 
 		public void ManeuverCallback(Multiplexer.Command cmd)
@@ -60,6 +58,12 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 			case Multiplexer.Command.On:
+				if(!TCAScenario.HasPatchedConics)
+				{
+					Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
+					CFG.AP1.Off(); 
+					return;
+				}
 				if(!VSL.HasManeuverNode) 
 				{ CFG.AP1.Off(); return; }
 				VSL.Controls.StopWarp();

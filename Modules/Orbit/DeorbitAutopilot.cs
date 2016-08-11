@@ -129,6 +129,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 //				Utils.Log("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
+				if(!check_patched_conics()) return;
 				NeedRadarWhenMooving();
 				if(stage == Stage.None && !landing) 
 					goto case Multiplexer.Command.On;
@@ -138,11 +139,8 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.On:
 				reset();
-				if(!setup()) 
-				{
-					CFG.AP2.Off();
-					return;
-				}
+				if(!check_patched_conics()) return;
+				if(!setup()) { CFG.AP2.Off(); return; }
 				if(VesselOrbit.PeR < Body.Radius)
 				{
 					Status("red", "Already deorbiting. Trying to correct course and land.");
@@ -180,7 +178,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.UpdateState();
 			IsActive &= CFG.AP2[Autopilot2.Deorbit];
-			ControlsActive = IsActive || 
+			ControlsActive &= IsActive || 
 				!VSL.LandedOrSplashed && (VSL.Target is WayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
 		}
 

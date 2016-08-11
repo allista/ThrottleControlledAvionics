@@ -44,8 +44,6 @@ namespace ThrottleControlledAvionics
 		static bool selecting_key;
 		static bool adv_options;
 
-		static List<TCAPart> parts;
-
 		public static string StatusMessage;
 		#endregion
 
@@ -138,7 +136,6 @@ namespace ThrottleControlledAvionics
 		static void clear_fields()
 		{
 			TCA = null;
-			parts = null;
 			AllPanels.ForEach(p => p.Reset());
 			AllPanelFields.ForEach(fi => fi.SetValue(null, null));
 			ModuleFields.ForEach(fi => fi.SetValue(null, null));
@@ -154,7 +151,6 @@ namespace ThrottleControlledAvionics
 			TCAToolbarManager.AttachTCA(TCA);
 			create_fields();
 			update_configs();
-			parts = TCAModulesDatabase.GetPurchasedParts();
 			return true;
 		}
 		#endregion
@@ -319,7 +315,6 @@ namespace ThrottleControlledAvionics
 			}
 			ControllerProperties();
 			ConfigsGUI();
-			PartsInfo();
 			GUILayout.EndVertical();
 		}
 
@@ -383,28 +378,6 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 			//engines
 			CFG.Engines.DrawControls("Engines Controller", GLB.ENG.MaxP, GLB.ENG.MaxI);
-		}
-
-		static bool show_parts_info;
-		static void PartsInfo()
-		{
-			if(parts == null || parts.Count == 0) return;
-			Utils.ButtonSwitch("Show status of TCA Modules", ref show_parts_info, "", GUILayout.ExpandWidth(true));
-			if(show_parts_info)
-			{
-				GUILayout.BeginVertical(Styles.white);
-				for(int i = 0, partsCount = parts.Count; i < partsCount; i++)
-				{
-					var part = parts[i];
-					GUILayout.BeginHorizontal();
-					GUILayout.Label(part.Title);
-					GUILayout.FlexibleSpace();
-					GUILayout.Label(part.Active? "Active" : "Dependencies Unsatisfied",
-					                part.Active? Styles.green : Styles.red);
-					GUILayout.EndHorizontal();
-				}
-				GUILayout.EndVertical();
-			}
 		}
 
 		static void EnginesControl()

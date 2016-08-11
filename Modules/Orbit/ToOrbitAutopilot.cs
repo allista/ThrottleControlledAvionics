@@ -69,12 +69,14 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
+				if(!check_patched_conics()) return;
 				ToOrbit = new ToOrbitExecutor(TCA);
 				ToOrbit.Target = Target;
 				break;
 
 			case Multiplexer.Command.On:
 				reset();
+				if(!check_patched_conics()) return;
 				Vector3d hVdir;
 				if(TargetOrbit.Inclination.Range > 1e-5f)
 				{

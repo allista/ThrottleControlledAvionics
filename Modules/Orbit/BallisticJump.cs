@@ -75,6 +75,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 //				LogFST("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
+				if(!check_patched_conics()) return;
 				NeedRadarWhenMooving();
 				if(VSL.HasManeuverNode) 
 					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
@@ -150,7 +151,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.UpdateState();
 			IsActive &= CFG.AP2[Autopilot2.BallisticJump];
-			ControlsActive = IsActive || (VSL.Target is WayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
+			ControlsActive &= IsActive || (VSL.Target is WayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
 		}
 
 		protected override void Update()

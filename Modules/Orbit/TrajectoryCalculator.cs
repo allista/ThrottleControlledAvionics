@@ -474,6 +474,25 @@ namespace ThrottleControlledAvionics
 			VSL.vessel.patchedConicSolver.flightPlan.Clear();
 		}
 
+
+		protected bool check_patched_conics()
+		{
+			if(!TCAScenario.HasPatchedConics)
+			{
+				Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
+				CFG.AP2.Off(); 
+				return false;
+			}
+			return true;
+		}
+
+		protected override void UpdateState()
+		{
+			base.UpdateState();
+			IsActive &= TCAScenario.HasPatchedConics;
+			ControlsActive &= TCAScenario.HasPatchedConics;
+		}
+
 		#if DEBUG
 		public static bool setp_by_step_computation;
 		#endif

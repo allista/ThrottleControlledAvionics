@@ -53,11 +53,14 @@ namespace ThrottleControlledAvionics
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
 		public static bool ConfigsLoaded { get; private set; }
+		public static bool ModuleInstalled { get; private set; }
 
 		#region ModuleInfo
+		public static bool HasPatchedConics { get; private set; }
 		public static string ModuleStatusString()
 		{ return HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
 		public static bool HasTCA { get { return !Globals.Instance.IntegrateIntoCareer || Utils.PartIsPurchased(Globals.TCA_PART); } }
+		public static List<TCAPart> Parts = new List<TCAPart>();
 		#endregion
 
 		#region Runtime Interface
@@ -199,6 +202,23 @@ namespace ThrottleControlledAvionics
 		public override void OnLoad(ConfigNode node)
 		{ 
 			LoadConfigs(node);
+			//patched conics availability
+			HasPatchedConics = GameVariables.Instance
+				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) 
+				== GameVariables.OrbitDisplayMode.PatchedConics;
+			//update available parts
+			Parts = TCAModulesDatabase.GetPurchasedParts();
+			//check if MM is successfully installed ModuleTCA in any of the parts
+			ModuleInstalled = false;
+			foreach(var p in PartLoader.LoadedPartsList)
+			{
+				if(p.partPrefab != null && p.partPrefab.HasModule<ModuleTCA>())
+				{
+					ModuleInstalled = true;
+					break;
+				}
+			}
+			if(!ModuleInstalled) TCAManual.ShowStatus();
 			//deprecated: Old config conversion
 			if(Configs.Count == 0 && NamedConfigs.Count == 0)
 			{

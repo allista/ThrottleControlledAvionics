@@ -109,7 +109,7 @@ namespace ThrottleControlledAvionics
 			public virtual void Init() {}
 		}
 
-		public bool ControlsActive { get; protected set; }
+		public bool ControlsActive { get; protected set; } = true;
 		public bool IsActive { get; protected set; }
 		public bool Working { get; protected set; }
 
