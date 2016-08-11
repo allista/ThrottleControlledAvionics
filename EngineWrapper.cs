@@ -216,13 +216,23 @@ namespace ThrottleControlledAvionics
 			thrustInfo = new CenterOfThrustQuery();
 			engine.OnCenterOfThrustQuery(thrustInfo);
 			thrustInfo.dir.Normalize();
-			realIsp = GetIsp((float)(engine.part.staticPressureAtm), (float)(part.atmDensity/1.225), (float)part.machNumber);
+			realIsp = GetIsp((float)(part.staticPressureAtm), (float)(part.atmDensity/1.225), (float)part.machNumber);
 			flowMod = GetFlowMod((float)(part.atmDensity/1.225), (float)part.machNumber);
 			thrustMod = realIsp*flowMod/zeroIsp;
 			//update Role
 			if(engine.throttleLocked && info.Role != TCARole.MANUAL) 
 				info.SetRole(TCARole.MANUAL);
 			InitLimits();
+//			Utils.Log("Engine.InitState: {}\n" +
+//			          "wThrustDir {}\n" +
+//			          "wThrustPos {}\n" +
+//			          "zeroIsp {}, realIsp {}, flowMod {}, thrustMod {}\n" +
+//			          "P {}, Rho {}, Mach {}, multIsp {}, multFlow {}\n" +
+//			          "###############################################################",
+//			          name, wThrustDir, wThrustPos, 
+//			          zeroIsp, realIsp, flowMod, thrustMod,
+//			          part.staticPressureAtm, part.atmDensity, part.machNumber, 
+//			          engine.multIsp, engine.multFlow);//debug
 		}
 
 		public override Vector3 Thrust(float throttle)
@@ -258,7 +268,7 @@ namespace ThrottleControlledAvionics
 			if(engine.atmChangeFlow)
 			{
 				fmod = rel_density;
-				if (engine.useAtmCurve)
+				if(engine.useAtmCurve)
 					fmod = engine.atmCurve.Evaluate(fmod);
 			}
 			if(engine.useVelCurve)
@@ -268,7 +278,11 @@ namespace ThrottleControlledAvionics
 				float to_cap = fmod - engine.flowMultCap;
 				fmod = engine.flowMultCap + to_cap / (engine.flowMultCapSharpness + to_cap / engine.flowMultCap);
 			}
-			if(fmod < engine.CLAMP) fmod = engine.CLAMP;
+			//the "< 1" check is needed for TCA to work with SolverEngines, 
+			//as it sets the CLAMP to float.MaxValue:
+			//SolverEngines/SolverEngines/EngineModule.cs:
+			//https://github.com/KSP-RO/SolverEngines/blob/eba89da74767fb66ea96661a5950fa52233e8822/SolverEngines/EngineModule.cs#L572
+			if(fmod < engine.CLAMP && engine.CLAMP < 1) fmod = engine.CLAMP;
 			return fmod;
 		}
 
