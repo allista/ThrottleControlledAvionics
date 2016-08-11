@@ -242,3 +242,7 @@ pip-log.txt
 /TCA.glob
 /.directory
 /GameData/ThrottleControlledAvionics/TCA.macro
+
+## PyCharm
+
+.idea
