@@ -1,4 +1,4 @@
-UseStockAppLauncher   = false
+UseStockAppLauncher   = true
 IntegrateIntoCareer   = true
 RoleSymmetryInFlight  = true
 AutosaveBeforeLanding = true

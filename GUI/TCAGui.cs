@@ -299,6 +299,8 @@ namespace ThrottleControlledAvionics
 			                    GUILayout.ExpandWidth(true)))
 			{ selecting_key = true; Utils.Message("Press a key that will toggle TCA"); }
 			Utils.ButtonSwitch("Autosave on landing", ref Globals.Instance.AutosaveBeforeLanding);
+			if(Utils.ButtonSwitch("Use Stock Toolbar", ref Globals.Instance.UseStockAppLauncher))
+				TCAToolbarManager.Init();
 			if(GUILayout.Button("Reload TCA Settings", Styles.active_button, GUILayout.ExpandWidth(true))) 
 			{
 				Globals.Load();

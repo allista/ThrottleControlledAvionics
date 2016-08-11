@@ -14,7 +14,7 @@ using AT_Utils;
 namespace ThrottleControlledAvionics
 {
 	/// <summary>
-	/// TCA toolbar manager. It is needed as since KSP-1.0 the ApplicationLauncher
+	/// TCA toolbar manager. It is needed becaus in KSP-1.0+ the ApplicationLauncher
 	/// works differently: it only fires OnReady event at MainMenu and the first 
 	/// time the Spacecenter is loaded. Thus we need to register the AppButton only 
 	/// once and then just hide and show it using VisibleScenes, not removing it.
@@ -24,8 +24,7 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.EveryScene, false)]
 	public class TCAToolbarManager : MonoBehaviour
 	{
-		//state
-		static bool inited;
+		static TCAToolbarManager Instance;
 		//icons
 		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
 		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
@@ -37,7 +36,9 @@ namespace ThrottleControlledAvionics
 		static Texture textureNoCharge;
 		static Texture textureMan;
 		//buttons
-		const ApplicationLauncher.AppScenes SCENES = ApplicationLauncher.AppScenes.FLIGHT|ApplicationLauncher.AppScenes.VAB|ApplicationLauncher.AppScenes.SPH|ApplicationLauncher.AppScenes.SPACECENTER|ApplicationLauncher.AppScenes.MAPVIEW;
+		const ApplicationLauncher.AppScenes SCENES = ApplicationLauncher.AppScenes.FLIGHT|
+			ApplicationLauncher.AppScenes.VAB|ApplicationLauncher.AppScenes.SPH|
+			ApplicationLauncher.AppScenes.SPACECENTER|ApplicationLauncher.AppScenes.MAPVIEW;
 		static IButton TCAToolbarButton;
 		static ApplicationLauncherButton TCAButton;
 		//TCA isntance
@@ -45,65 +46,69 @@ namespace ThrottleControlledAvionics
 
 		void Awake()
 		{
-			if(inited) return;
+			if(Instance != null) return;
+			DontDestroyOnLoad(this);
+			Instance = this;
+			Utils.Log("TCAToolbarManager: Awake.");//debug
+			init();
+		}
+
+		void init()
+		{
+			DebugUtils.Log("TCAToolbarManager: Init.");
 			//setup toolbar/applauncher button
-			if(TCAToolbarButton == null &&
-				ToolbarManager.ToolbarAvailable && 
-			   !Globals.Instance.UseStockAppLauncher)
-			{
+			if(ToolbarManager.ToolbarAvailable && !Globals.Instance.UseStockAppLauncher)
+			{ 
 				Utils.Log("Using Blizzy's toolbar");
-				TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
-				TCAToolbarButton.TexturePath = ICON_MAN;
-				TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
-				TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT, GameScenes.EDITOR, GameScenes.SPACECENTER);
-				TCAToolbarButton.Visible     = true;
-				TCAToolbarButton.OnClick    += onToolbarToggle;
+				if(TCAToolbarButton == null) AddToolbarButton(); 
+				if(TCAButton != null) TCAButton.VisibleInScenes = ApplicationLauncher.AppScenes.NEVER;
 			}
 			else 
 			{
 				Utils.Log("Using stock AppLauncher");
-				GameEvents.onGUIApplicationLauncherReady.Add(AddAppLauncherButton);
-//				GameEvents.onGUIApplicationLauncherDestroyed.Add(RemoveAppLauncherButton);
+				if(TCAButton == null)
+				{
+					if(HighLogic.CurrentGame != null && ApplicationLauncher.Ready) AddAppLauncherButton();
+					else GameEvents.onGUIApplicationLauncherReady.Add(AddAppLauncherButton);
+				}
+				else TCAButton.VisibleInScenes = SCENES;
+				if(TCAToolbarButton != null)
+				{
+					TCAToolbarButton.Destroy();
+					TCAToolbarButton = null;
+				}
 			}
-			inited = true;
 		}
+		public static void Init() { if(Instance != null) Instance.init(); }
 
-		//left here in case the RemoveModApp will be fixed
-//		public void OnDestroy() 
-//		{ 
-//			Utils.Log("Removing AppLauncher|Toolbar button");
-//			GameEvents.onGUIApplicationLauncherReady.Remove(AddAppLauncherButton);
-//			GameEvents.onGUIApplicationLauncherDestroyed.Remove(RemoveAppLauncherButton);
-//			if(TCAToolbarButton != null) TCAToolbarButton.Destroy();
-//		}
-//
-//		void RemoveAppLauncherButton()
-//		{
-//			Utils.Log("Removing AppLauncher button");//debug
-//			if(TCAButton != null)
-//				ApplicationLauncher.Instance.RemoveModApplication(TCAButton);
-//		}
-
+		//need to be instance method for Event.Add to work
 		void AddAppLauncherButton()
 		{
-			if(!ApplicationLauncher.Ready) return;
-			textureOn = GameDatabase.Instance.GetTexture(ICON_ON, false);
-			textureOff = GameDatabase.Instance.GetTexture(ICON_OFF, false);
-			textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC, false);
-			textureMan = GameDatabase.Instance.GetTexture(ICON_MAN, false);
-			if(TCAButton == null)
-			{
-				Utils.Log("Adding AppLauncher button");
-				TCAButton = ApplicationLauncher.Instance.AddModApplication(
-					onAppLaunchToggleOn,
-					onAppLaunchToggleOff,
-					null, null, null, null,
-					SCENES,
-					textureMan);
-			}
+			if(!ApplicationLauncher.Ready || TCAButton != null) return;
+			Utils.Log("Adding AppLauncher button");
+			textureOn       = GameDatabase.Instance.GetTexture(ICON_ON,  false);
+			textureOff      = GameDatabase.Instance.GetTexture(ICON_OFF, false);
+			textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC,  false);
+			textureMan      = GameDatabase.Instance.GetTexture(ICON_MAN, false);
+			TCAButton = ApplicationLauncher.Instance.AddModApplication(
+				onAppLaunchToggleOn,
+				onAppLaunchToggleOff,
+				null, null, null, null,
+				SCENES,
+				textureMan);
 		}
 
-		void onToolbarToggle(ClickEvent e) 
+		static void AddToolbarButton()
+		{
+			TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
+			TCAToolbarButton.TexturePath = ICON_MAN;
+			TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
+			TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT, GameScenes.EDITOR, GameScenes.SPACECENTER);
+			TCAToolbarButton.Visible     = true;
+			TCAToolbarButton.OnClick    += onToolbarToggle;
+		}
+
+		static void onToolbarToggle(ClickEvent e) 
 		{ 
 			if(TCA != null) 
 				TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible;
@@ -111,8 +116,8 @@ namespace ThrottleControlledAvionics
 				EnginesProfileEditor.Toggle();
 			else TCAManual.Toggle();
 		}
-		void onAppLaunchToggleOn() { onToolbarToggle(null); }
-		void onAppLaunchToggleOff() { onToolbarToggle(null); }
+		static void onAppLaunchToggleOn() { onToolbarToggle(null); }
+		static void onAppLaunchToggleOff() { onToolbarToggle(null); }
 
 		public static void AttachTCA(ModuleTCA tca) 
 		{ 
