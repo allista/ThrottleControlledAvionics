@@ -49,13 +49,11 @@ namespace ThrottleControlledAvionics
 			if(Instance != null) return;
 			DontDestroyOnLoad(this);
 			Instance = this;
-			Utils.Log("TCAToolbarManager: Awake.");//debug
 			init();
 		}
 
 		void init()
 		{
-			DebugUtils.Log("TCAToolbarManager: Init.");
 			//setup toolbar/applauncher button
 			if(ToolbarManager.ToolbarAvailable && !Globals.Instance.UseStockAppLauncher)
 			{ 
