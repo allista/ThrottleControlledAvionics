@@ -123,7 +123,7 @@ namespace ThrottleControlledAvionics
 		public virtual void ProcessKeys() {}
 		public override void Draw() {}
 
-		protected virtual void UpdateState() { IsActive = VSL != null && CFG.Enabled; }
+		protected virtual void UpdateState() { IsActive = VSL != null && CFG.Enabled; ControlsActive = true; }
 		protected virtual void Update() {}
 		protected virtual void reset() {}
 

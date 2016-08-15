@@ -13,6 +13,8 @@ UnpackDistance       = 5000
 ActionListHeight     = 110
 MaxAAFilter          = 1
 
+PersistentRotationName = PersistentRotation
+
 RCS
 {
 	MaxIterations = 50
@@ -330,6 +332,7 @@ THR
 {
 	MinDeltaV       = 0.1 //m/s
 	DeltaVThreshold = 10  //sec
+	AttitudeDeadzone = 1  //deg
 }
 
 TRA
@@ -377,7 +380,8 @@ LTRJ
 	CorrectionOffset   = 20   //s
 	CorrectionTimer    = 30   //s
 	CorrectionMinDv    = 1    //m/s
-	CorrectionF        = 4
+	CorrectionThrustF  = 4
+	CorrectionTimeF    = 2
 	
 	ObstacleBrakeF     = 1.1
 	HoverTimeThreshold = 60   //s

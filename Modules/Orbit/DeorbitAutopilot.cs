@@ -174,6 +174,14 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		void deorbit()
+		{
+			CorrectionTimer.Reset();
+			clear_nodes(); add_trajectory_node();
+			CFG.AP1.On(Autopilot1.Maneuver); 
+			stage = Stage.Deorbit; 
+		}
+
 		protected override void UpdateState()
 		{
 			base.UpdateState();
@@ -192,13 +200,7 @@ namespace ThrottleControlledAvionics
 				if(!trajectory_computed()) break;
 				if(trajectory.DistanceToTarget < LTRJ.Dtol || currentEcc < 1e-10)
 				{
-					if(check_initial_trajectory())
-					{ 
-						CorrectionTimer.Reset();
-						clear_nodes(); add_trajectory_node();
-						CFG.AP1.On(Autopilot1.Maneuver); 
-						stage = Stage.Deorbit; 
-					}
+					if(check_initial_trajectory()) deorbit();
 					else stage = Stage.Wait;
 				}
 				else 
@@ -210,8 +212,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Wait:
 				if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
-				CFG.AP1.On(Autopilot1.Maneuver);
-				stage = Stage.Deorbit;
+				deorbit();
 				break;
 			case Stage.Deorbit:
 				Status("Executing deorbit burn...");
@@ -246,13 +247,7 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			#if DEBUG
-			Utils.GLVec(VSL.Physics.wCoM, VSL.vessel.srf_velocity, Color.yellow);
-			if(CFG.Target != null)
-			{
-				Utils.GLLine(VSL.Physics.wCoM, CFG.Target.WorldPos(Body), Color.magenta);
-				if(trajectory != null)
-					Utils.GLVec(VSL.Physics.wCoM, correction_direction()*5, Color.red);
-			}
+			DrawDebugLines();
 			#endif
 			if(ControlsActive)
 			{

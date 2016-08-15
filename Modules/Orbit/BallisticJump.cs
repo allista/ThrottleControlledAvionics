@@ -66,6 +66,14 @@ namespace ThrottleControlledAvionics
 				       "Use <b>Land at Target</b> instead.");
 				return false;
 			}
+			//compute initial orbit estimation using LambertSolver
+			var solver = new LambertSolver(VesselOrbit, CFG.Target.RelOrbPos(Body), VSL.Physics.UT);
+			var trj = new LandingTrajectory(VSL, solver.dV4TransferME(), VSL.Physics.UT, CFG.Target, TargetAltitude, false);
+			if(trj.TimeToSurface < TRJ.ManeuverOffset)
+			{
+				Status("yellow", "The target is too close for the jump.\nUse <b>Go To</b> instead.");
+				return false;
+			}
 			return true;
 		}
 
@@ -131,11 +139,21 @@ namespace ThrottleControlledAvionics
 			trajectory = null;
 			MAN.MinDeltaV = 1f;
 			stage = Stage.Compute;
+			var solver = new LambertSolver(VesselOrbit, CFG.Target.RelOrbPos(Body), VSL.Physics.UT);
+			var vel = (VesselOrbit.vel+solver.dV4TransferME()).xzy;
 			var dir = (VSL.Physics.Up+ 
-			           Vector3d.Exclude(VSL.Physics.Up, VesselOrbit.vel.xzy).normalized *
+			           Vector3d.Exclude(VSL.Physics.Up, vel).normalized *
 			           BJ.StartTangent*(1+CFG.Target.AngleTo(VSL)/Utils.TwoPI)*BJ.InclinationF).normalized.xzy;
-			var V = Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude);
+			var V = vel.magnitude;
 			setup_calculation((o, b) => fixed_inclination_orbit(o, b, ref dir, ref V, BJ.StartOffset));
+		}
+
+		void accelerate()
+		{
+			CFG.HF.Off();
+			clear_nodes(); add_trajectory_node();
+			CFG.AT.OnIfNot(Attitude.ManeuverNode);
+			stage = Stage.Accelerate;
 		}
 
 		protected override void fine_tune_approach()
@@ -179,19 +197,12 @@ namespace ThrottleControlledAvionics
 					StartAltitude += (float)obst+BJ.ObstacleOffset;
 					stage = Stage.Start;
 				}
-				else if(check_initial_trajectory())
-				{
-					CFG.HF.Off();
-					clear_nodes(); add_trajectory_node();
-					CFG.AT.OnIfNot(Attitude.ManeuverNode);
-					stage = Stage.Accelerate;
-				}
+				else if(check_initial_trajectory()) accelerate();
 				else stage = Stage.Wait;
 				break;
 			case Stage.Wait:
 				if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
-				CFG.AP1.On(Autopilot1.Maneuver);
-				stage = Stage.Accelerate;
+				accelerate();
 				break;
 			case Stage.Accelerate:
 				if(!VSL.HasManeuverNode) { CFG.AP2.Off(); break; }
@@ -228,6 +239,7 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			#if DEBUG
+			DrawDebugLines();
 //			if(current != null)//debug
 //			{
 //				Utils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);
