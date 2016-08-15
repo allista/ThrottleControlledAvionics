@@ -418,26 +418,26 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
-		public void RadarBeam()
+		public void DrawDebugLines()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null) return;
 //			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
-			Utils.GLVec(VSL.refT.position, VSL.Engines.CurrentThrustDir*20, Color.red);
-			Utils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized)*20, Color.yellow);
-			Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.green);
-			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
-			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering_pid.Action*20), Color.magenta);
+			Utils.GLVec(VSL.refT.position, VSL.Engines.CurrentThrustDir*20, Color.cyan);
+			Utils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized)*20, Color.green);
+//			Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.green);
+//			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
+//			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering_pid.Action*20), Color.magenta);
 
-			Utils.GLVec(VSL.refT.position, VSL.refT.right*2, Color.red);
-			Utils.GLVec(VSL.refT.position, VSL.refT.forward*2, Color.blue);
-			Utils.GLVec(VSL.refT.position, VSL.refT.up*2, Color.green);
+//			Utils.GLVec(VSL.refT.position, VSL.refT.right*2, Color.red);
+//			Utils.GLVec(VSL.refT.position, VSL.refT.forward*2, Color.blue);
+//			Utils.GLVec(VSL.refT.position, VSL.refT.up*2, Color.green);
 		}
 		#endif
 
 		public override void Draw()
 		{
 			#if DEBUG
-//			RadarBeam();
+			DrawDebugLines();
 			#endif
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
