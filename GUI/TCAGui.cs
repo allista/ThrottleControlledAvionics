@@ -441,6 +441,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.orbit.ApA), GUILayout.Width(120));
 			GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed.Absolute), GUILayout.Width(100));
 			GUILayout.Label(string.Format("Rho: {0:0.000}ASL", VSL.Body.atmosphere? VSL.vessel.atmDensity/VSL.Body.atmDensityASL : 0), GUILayout.Width(100));
+			Utils.ButtonSwitch("TRJ Dbg", ref TrajectoryCalculator.setp_by_step_computation);
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(string.Format("VSP: {0:0.0m/s}", CFG.VerticalCutoff), GUILayout.Width(100));
@@ -449,6 +450,7 @@ namespace ThrottleControlledAvionics
 			else GUILayout.Label(string.Format("Obst: {0:0.0}m", VSL.Altitude.Ahead), GUILayout.Width(120));
 			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)), GUILayout.Width(100));
 			GUILayout.Label(string.Format("dP: {0:0.000}kPa", VSL.vessel.dynamicPressurekPa), GUILayout.Width(100));
+			GUILayout.Label(string.Format("Thr: {0:P1}", VSL.vessel.ctrlState.mainThrottle), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			if(!string.IsNullOrEmpty(DebugMessage))
 				GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));
