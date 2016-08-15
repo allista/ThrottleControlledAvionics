@@ -85,7 +85,7 @@ namespace ThrottleControlledAvionics
 				var ah = h+th;
 				v = Utils.ClampH(v-(StG(ah) - drag(s, ah, v)/m)*dt, -0.1);
 				t += dt;
-				dt = Math.Min(dt, (VSL.Geometry.H-h)/v);
+				dt = Math.Max(Math.Min(dt, (VSL.Geometry.H-h)/v*0.9), 0.01);
 //				Utils.Log("h {}, v {}, t {}", h, v, t);//debug
 			}
 			terminal_velocity = Math.Abs(v);
