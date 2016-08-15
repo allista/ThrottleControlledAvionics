@@ -104,13 +104,12 @@ namespace ThrottleControlledAvionics
 			var sinA = Mathf.Sqrt(1-cosA*cosA);
 			var vdist = dist*cosA;
 			var min_separation = dist*sinA;
-			var sep_threshold = vsl.Geometry.R*2;
-			if(min_separation > sep_threshold ||
+			if(min_separation > vsl.Geometry.D ||
 			   min_separation > vsl.Geometry.R && vdist < min_separation) return false;
 			maneuver = (dVn*cosA-dir).normalized;
 			var vTime = dist*cosA/dV.magnitude;
 			if(vTime > SafeTime(vsl, dVn)) return false;
-			maneuver *= (sep_threshold-min_separation) / Math.Sqrt(vTime);
+			maneuver *= (vsl.Geometry.D-min_separation) / Math.Sqrt(vTime);
 			return true;
 		}
 

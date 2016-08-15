@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 C { get; private set; } //center
 		public float   H { get; private set; } //height
 		public float   R { get; private set; } //radius
+		public float   D { get; private set; } //diamiter
 		public float Area { get; private set; }
 		public Vector3 BoundsSideAreas { get; private set; }
 
@@ -35,6 +36,7 @@ namespace ThrottleControlledAvionics
 			H = Mathf.Abs(Vector3.Dot(refT.TransformDirection(b.extents), VSL.Physics.Up))+
 				Vector3.Dot(VSL.Physics.wCoM-C, VSL.Physics.Up);
 			R = b.extents.magnitude;
+			D = R*2;
 			BoundsSideAreas = new Vector3(B.extents.y*B.extents.z, //right
 										  B.extents.x*B.extents.z, //up
 										  B.extents.x*B.extents.y);//forward

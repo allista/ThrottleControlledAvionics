@@ -375,7 +375,7 @@ namespace ThrottleControlledAvionics
 			case Stage.PointCheck:
 				Status("Checking the surface underneath the ship...");
 				if(!stopped) break;
-				if(scan(1, null, VSL.Geometry.R*2)) break;
+				if(scan(1, null, VSL.Geometry.D)) break;
 				if(Nodes == null || center_node == null) 
 				{ wide_check(); break; }
 				TriedNodes.Add(center_node);
@@ -387,7 +387,7 @@ namespace ThrottleControlledAvionics
 				if(!stopped) break;
 				if(FlatNodes.Count > 0)
 				{
-					if(scan(1, FlatNodes[0], VSL.Geometry.R*2)) break;
+					if(scan(1, FlatNodes[0], VSL.Geometry.D)) break;
 					FlatNodes.RemoveAt(0);
 					var c = center_node;
 					if(c == null || !c.flat) break;

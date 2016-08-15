@@ -239,7 +239,7 @@ namespace ThrottleControlledAvionics
 				var side = Vector3d.Cross(VSL.Physics.Up, forward).normalized;
 				var num_offsets = all_followers.Count+(all_followers.Count%2);
 				offset *= 2;
-				var target_size = tTCA != null? tTCA.VSL.Geometry.R*2 : Utils.ClampL(Math.Pow(tVSL.totalMass, 1/3f), 1);
+				var target_size = tTCA != null? tTCA.VSL.Geometry.D : Utils.ClampL(Math.Pow(tVSL.totalMass, 1/3f), 1);
 				if(offset < target_size) offset = (float)target_size;
 				offset *= PN.MinDistance;
 				if(Formation == null || Formation.Count != num_offsets || FormationUpdateTimer.Check)
@@ -435,7 +435,7 @@ namespace ThrottleControlledAvionics
 					else distance = min_dist;
 				}
 				else if(CFG.Nav.Not(Navigation.FollowTarget))
-					distance = Utils.ClampL(distance-end_distance+VSL.Geometry.R*2, 0);
+					distance = Utils.ClampL(distance-end_distance+VSL.Geometry.D, 0);
 				//tune maximum speed and PID
 				if(CFG.MaxNavSpeed < 10) CFG.MaxNavSpeed = 10;
 				DistancePID.Min = 0;
