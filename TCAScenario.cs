@@ -54,6 +54,7 @@ namespace ThrottleControlledAvionics
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
 		public static bool ConfigsLoaded { get; private set; }
 		public static bool ModuleInstalled { get; private set; }
+		public static bool HavePersistentRotation { get; private set; }
 
 		#region ModuleInfo
 		public static bool HasPatchedConics { get; private set; }
@@ -219,6 +220,8 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			if(!ModuleInstalled) TCAManual.ShowStatus();
+			//check for PersistentRotation
+			HavePersistentRotation = AssemblyLoader.loadedAssemblies.FirstOrDefault(a => a.name == Globals.Instance.PersistentRotationName) != null;
 			//deprecated: Old config conversion
 			if(Configs.Count == 0 && NamedConfigs.Count == 0)
 			{

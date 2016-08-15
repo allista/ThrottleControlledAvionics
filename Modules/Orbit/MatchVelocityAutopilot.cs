@@ -131,7 +131,7 @@ namespace ThrottleControlledAvionics
 			if(TTA > 0)
 			{
 				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL, out VSL.Info.TTB);
-				if(CFG.WarpToNode && VSL.Controls.Aligned)
+				if(VSL.Controls.CanWarp) 
 					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-VSL.Controls.MinAlignmentTime;
 				if(VSL.Info.Countdown > 0) return false;
 			}

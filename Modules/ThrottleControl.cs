@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 		{
 			[Persistent] public float MinDeltaV        = 0.1f; //m/s
 			[Persistent] public float DeltaVThreshold  = 10f;  //sec
+			[Persistent] public float AttitudeDeadzone = 1f;   //deg
 		}
 		static Config THR { get { return Globals.Instance.THR; } }
 		public ThrottleControl(ModuleTCA tca) : base(tca) {}
@@ -61,7 +62,8 @@ namespace ThrottleControlledAvionics
 			if(DeltaV >= 0)
 			{
 				throttle = DeltaV < THR.MinDeltaV? throttle = 0 :
-					NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) * VSL.Controls.AlignmentFactor;
+					NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) * 
+					VSL.Controls.OffsetAlignmentFactor(THR.AttitudeDeadzone);
 			}
 			if(Throttle >= 0) 
 			{ 
