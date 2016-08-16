@@ -1,8 +1,18 @@
 **DELETE the old version before installing a new one**
-    
+
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.2.1**
+* **v3.2.2**
+    * Bugfixes:
+        * TCA no longer activates a part where it is installed (parts that combine command module with engines should work fine now).
+        * Fixed incompatibility with RealismOvehaul.
+        * Fixed and improved initial trajectory calculation in DeorbitAutopilot/BallisticJump.
+        * In career game: locked maneuver nodes no longer cause NREs in ToOrbit autopilot.
+    * Improved orbital landing algorithm; should work better with both stock and FAR aerodynamics.
+    * TCA is now aware of PersistentRotation and will wait for the ship to stop rotation before entering the TimeWarp.
+    * Added "Status" page to TCA Manual. It shows a warning if TCA is installed improperly. And in career mode it displays purchased TCA modules (including the main subsystem) and their statuses.
+
+* v3.2.1
     * Numerous fixes and improvements to:
         * *Deorbit autopilot*
         * *Landing autopilot*
