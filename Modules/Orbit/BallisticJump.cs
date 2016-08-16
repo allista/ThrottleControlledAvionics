@@ -71,7 +71,8 @@ namespace ThrottleControlledAvionics
 			var trj = new LandingTrajectory(VSL, solver.dV4TransferME(), VSL.Physics.UT, CFG.Target, TargetAltitude, false);
 			if(trj.TimeToSurface < TRJ.ManeuverOffset)
 			{
-				Status("yellow", "The target is too close for the jump.\nUse <b>Go To</b> instead.");
+				Status("yellow", "The target is too close for the jump.\n" +
+				       "Use <b>Go To</b> instead.");
 				return false;
 			}
 			return true;
