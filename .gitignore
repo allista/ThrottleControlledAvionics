@@ -246,3 +246,5 @@ pip-log.txt
 ## PyCharm
 
 .idea
+/TechTree/TechTreeGraph.svg
+/TechTree/TechTreeGraph_PartDeps.svg
