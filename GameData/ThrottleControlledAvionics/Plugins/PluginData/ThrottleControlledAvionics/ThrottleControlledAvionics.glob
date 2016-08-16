@@ -384,9 +384,10 @@ LTRJ
 	CorrectionTimeF    = 2
 	
 	ObstacleBrakeF     = 1.1
-	HoverTimeThreshold = 60   //s
+	HoverTimeThreshold = 60    //s
 	DropBallastThreshold = 0.4 //dP/P_asl
-	DPressureThreshold = 3    //kPa
+	MaxDPressure       = 3     //kPa
+	MinDPressure       = 0.8   //kPa
 	MachThreshold      = 0.9
 }
 

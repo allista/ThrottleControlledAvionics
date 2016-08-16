@@ -35,7 +35,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float ObstacleBrakeF     = 1.1f;
 			[Persistent] public float HoverTimeThreshold = 60f;   //s
 			[Persistent] public float DropBallastThreshold = 0.5f;//dP/P_asl
-			[Persistent] public float DPressureThreshold = 3f;    //kPa
+			[Persistent] public float MaxDPressure       = 3f;    //kPa
+			[Persistent] public float MinDPressure       = 1f;    //kPa
 			[Persistent] public float MachThreshold      = 0.9f;
 		}
 		protected static Config LTRJ { get { return Globals.Instance.LTRJ; } }
@@ -81,12 +82,12 @@ namespace ThrottleControlledAvionics
 			};
 			dP_up_timer.action = () =>
 			{
-				dP_threshold = Utils.ClampL(dP_threshold * 0.9, 1);
+				dP_threshold = Utils.ClampL(dP_threshold * 0.9, LTRJ.MinDPressure);
 				last_dP = VSL.vessel.dynamicPressurekPa;
 			};
 			dP_down_timer.action = () =>
 			{
-				dP_threshold = Utils.ClampH(dP_threshold * 1.1, LTRJ.DPressureThreshold);
+				dP_threshold = Utils.ClampH(dP_threshold * 1.1, LTRJ.MaxDPressure);
 				last_dP = VSL.vessel.dynamicPressurekPa;
 			};
 			sim = new AtmoSim(Body, VSL);
@@ -100,7 +101,7 @@ namespace ThrottleControlledAvionics
 			DecelerationTimer.Reset();
 			dP_up_timer.Reset();
 			dP_down_timer.Reset();
-			dP_threshold = LTRJ.DPressureThreshold;
+			dP_threshold = LTRJ.MaxDPressure;
 			last_Err = 0;
 			last_dP = 0;
 			FullStop = false;
@@ -335,7 +336,7 @@ namespace ThrottleControlledAvionics
 					dP_down_timer.RunIf(VSL.Controls.AttitudeError < last_Err &&
 					                    VSL.vessel.dynamicPressurekPa < last_dP);
 			}
-			else dP_threshold = LTRJ.DPressureThreshold;
+			else dP_threshold = LTRJ.MaxDPressure;
 			rel_dP = VSL.vessel.dynamicPressurekPa/dP_threshold;
 			last_Err = VSL.Controls.AttitudeError;
 			float rel_Ve;
