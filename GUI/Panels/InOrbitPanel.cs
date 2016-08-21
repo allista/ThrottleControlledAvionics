@@ -46,8 +46,10 @@ namespace ThrottleControlledAvionics
 			if(REN != null) REN.Draw();
 			if(DEO != null) DEO.Draw();
 			#if DEBUG
-			Utils.ButtonSwitch("DBG", ref TrajectoryCalculator.setp_by_step_computation, 
-			                   "Toggles step-by-step trajectory computation", GUILayout.ExpandWidth(false));
+			if(Utils.ButtonSwitch("DBG", ref TrajectoryCalculator.setp_by_step_computation, 
+			                      "Toggles step-by-step trajectory computation", GUILayout.ExpandWidth(false)) &&
+			   TrajectoryCalculator.setp_by_step_computation)
+				MapView.EnterMapView();
 			#endif
 			if(PN  != null) TCAGui.NavigationControls.AddSingleWaypointInMapView();
 			GUILayout.Label(new GUIContent(VSL.Info.Countdown >= 0? 
