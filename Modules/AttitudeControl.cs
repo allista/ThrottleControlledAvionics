@@ -34,6 +34,14 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float AttitudeErrorThreshold = 3f;   //deg
 			[Persistent] public float MaxTimeToAlignment     = 15f;  //s
 			[Persistent] public float DragResistanceF        = 10f;
+
+
+			[Persistent] public float OD_low                 = 2f;   //Hz
+			[Persistent] public float OD_high                = 20f;  //Hz
+			[Persistent] public int   OD_bins                = 50;
+			[Persistent] public int   OD_window              = 250;  //samples
+			[Persistent] public float OD_smoothing           = 0.1f; //s
+			[Persistent] public float OD_Threshold           = 0.5f;
 		}
 		static Config ATCB { get { return Globals.Instance.ATCB; } }
 
@@ -49,6 +57,7 @@ namespace ThrottleControlledAvionics
 		protected AttitudeControlBase(ModuleTCA tca) : base(tca) {}
 
 		protected Vector3 steering;
+		protected OscillationDetectorD x_OD, y_OD, z_OD;
 		protected readonly PIDv_Controller2 steering_pid = new PIDv_Controller2();
 		protected readonly LowPassFilterF AAf_filter = new LowPassFilterF();
 		protected readonly Timer AuthorityTimer = new Timer();
@@ -70,10 +79,20 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		protected static OscillationDetectorD new_OD()
+		{ 
+			return new OscillationDetectorD(ATCB.OD_low, ATCB.OD_high, 
+			                                ATCB.OD_bins, ATCB.OD_window, 
+			                                ATCB.OD_smoothing, ATCB.OD_Threshold); 
+		}
+
 		public override void Init() 
 		{ 
 			base.Init();
 			steering_pid.setPID(ATCB.PID);
+			x_OD = new_OD();
+			y_OD = new_OD();
+			z_OD = new_OD();
 			reset();
 		}
 
@@ -198,6 +217,21 @@ namespace ThrottleControlledAvionics
 //			Log("\npid.Act: {}", steering);//debug
 
 			correct_steering();
+
+			x_OD.Update(steering.x, TimeWarp.fixedDeltaTime);
+			y_OD.Update(steering.y, TimeWarp.fixedDeltaTime);
+			z_OD.Update(steering.z, TimeWarp.fixedDeltaTime);
+
+//			CSV(steering.x, steering.y, steering.z, x_OD.Value, y_OD.Value, z_OD.Value);//debug
+
+			steering.x *= 1-(float)x_OD.Value;
+			steering.y *= 1-(float)y_OD.Value;
+			steering.z *= 1-(float)z_OD.Value;
+
+//			Log("\nx_OD:\n{}" +
+//			    "\ny_OD:\n{}" +
+//			    "\nz_OD:\n{}", 
+//			    x_OD, y_OD, z_OD);
 		}
 
 		protected void set_authority_flag()
@@ -210,12 +244,12 @@ namespace ThrottleControlledAvionics
 			if(VSL.Controls.HaveControlAuthority && 
 			   VSL.Controls.AttitudeError > ATCB.MaxAttitudeError && 
 			   (ErrorDif[1] >= 0 || turn_time > max_alignment_time))
-				VSL.Controls.HaveControlAuthority = !AuthorityTimer.Check;
+				VSL.Controls.HaveControlAuthority = !AuthorityTimer.TimePassed;
 			else if(!VSL.Controls.HaveControlAuthority && 
 			        (VSL.Controls.AttitudeError < ATCB.AttitudeErrorThreshold || 
 			         VSL.Controls.AttitudeError < ATCB.MaxAttitudeError*2 && ErrorDif[1] < 0 && 
 			         turn_time < max_alignment_time))
-				VSL.Controls.HaveControlAuthority = AuthorityTimer.Check;
+				VSL.Controls.HaveControlAuthority = AuthorityTimer.TimePassed;
 			else AuthorityTimer.Reset();
 		}
 	}

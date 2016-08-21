@@ -14,6 +14,7 @@ ActionListHeight     = 110
 MaxAAFilter          = 1
 
 PersistentRotationName = PersistentRotation
+PersistentRotationThreshold = 5e-8
 
 RCS
 {
@@ -120,24 +121,31 @@ ATCB
 		D = 0.5
 	}
 	
-	MaxAA          = 2
-	MinAAf         = 0.2
-	MaxAAf         = 2
+	MaxAA                  = 2
+	MinAAf                 = 0.2
+	MaxAAf                 = 2
 
-	AngularMf      = 0.001
-	InertiaFactor  = 10
-	MoIFactor      = 0.01
-	MinEf          = 0.0001
-	MaxEf          = 2
-	SlowTorqueF    = 0.2
-	AALowPassF     = 1
-	MinSteeringThreshold = 0.1
+	AngularMf              = 0.001
+	InertiaFactor          = 10
+	MoIFactor              = 0.01
+	MinEf                  = 0.0001
+	MaxEf                  = 2
+	SlowTorqueF            = 0.2
+	AALowPassF             = 1
+	MinSteeringThreshold   = 0.1
 	
-	AngleThreshold = 60         //deg
-	MaxAttitudeError = 10       //deg
+	AngleThreshold         = 60 //deg
+	MaxAttitudeError       = 10 //deg
 	AttitudeErrorThreshold = 3  //deg
-	MaxTimeToAlignment = 15 //s
-	DragResistanceF = 10
+	MaxTimeToAlignment     = 15 //s
+	DragResistanceF        = 10
+	
+	OD_low                 = 5   //Hz
+	OD_high                = 20  //Hz
+	OD_bins                = 50
+	OD_window              = 100 //samples
+	OD_smoothing           = 0.1 //s
+	OD_Threshold           = 0.2
 }
 
 ATC
@@ -369,7 +377,7 @@ TRJ
 LTRJ
 {
 	Dtol               = 100  //m
-	FlyOverAlt         = 1000 //m
+	FlyOverAlt         = 2000 //m
 	ApproachAlt        = 250  //m
 	
 	BrakeThrustThreshod = 100 //m/s
