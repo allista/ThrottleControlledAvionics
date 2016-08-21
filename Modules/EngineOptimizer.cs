@@ -229,8 +229,8 @@ namespace ThrottleControlledAvionics
 				OptimizeLimitsForTorque(VSL.Engines.Steering, Vector3.zero, out max_limit);
 				SetState(TCAState.Unoptimized);
 			}
-			if(VSL.Engines.HaveMainEngines && max_limit < 0.01f) 
-				Status("red", "Thrust is disabled because engines cannot be balanced.");
+			if(VSL.Engines.HaveMainEngines && max_limit < VSL.vessel.ctrlState.mainThrottle*0.05f) 
+				Status(0.1, "red", "Thrust is disabled because engines cannot be balanced.");
 		}
 
 		void tune_steering_params()
