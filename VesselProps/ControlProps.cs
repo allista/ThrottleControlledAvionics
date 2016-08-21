@@ -52,7 +52,9 @@ namespace ThrottleControlledAvionics
 			Aligned &= AttitudeError < GLB.ATCB.MaxAttitudeError;
 			Aligned |= AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
 			CanWarp = CFG.WarpToNode && 
-				(TCAScenario.HavePersistentRotation? VSL.vessel.angularVelocity.sqrMagnitude < 0.001f : Aligned);
+				(WarpToTime > VSL.Physics.UT || 
+				 VSL.Controls.Aligned && 
+				 VSL.vessel.angularVelocity.sqrMagnitude < (TCAScenario.HavePersistentRotation? 1e-6f : GLB.PersistentRotationThreshold));
 			MinAlignmentTime = VSL.Torque.MaxCurrent.MinRotationTime(AttitudeError);
 			AlignmentFactor = Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0);
 			InvAlignmentFactor = Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1);
