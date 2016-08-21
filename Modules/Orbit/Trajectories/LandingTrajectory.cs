@@ -35,6 +35,8 @@ namespace ThrottleControlledAvionics
 		public float  BrakeDuration;
 		public double BrakeStartUT { get; private set; }
 		public double BrakeEndUT { get; private set; }
+		public double BrakeEndDeltaAlt { get; private set; }
+
 		public double TimeToSurface { get { return AtTargetUT-VSL.Physics.UT; } }
 
 		public LandingTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, 
@@ -59,7 +61,10 @@ namespace ThrottleControlledAvionics
 
 		void update(bool with_brake)
 		{
-			update_from_orbit(NewOrbit, NewOrbit.ApAhead()? StartUT+NewOrbit.timeToAp : StartUT);
+			update_from_orbit(NewOrbit, 
+			                  (NewOrbit.ApAhead() &&
+			                   NewOrbit.getRelativePositionAtUT(StartUT).magnitude-Body.Radius <= TargetAltitude)? 
+			                  StartUT+NewOrbit.timeToAp : StartUT);
 			//correct for brake maneuver
 			if(with_brake)
 			{
@@ -88,6 +93,7 @@ namespace ThrottleControlledAvionics
 			}
 			//compute distance to target
 			DistanceToTarget = Target.AngleTo(SurfacePoint)*Body.Radius;
+			BrakeEndDeltaAlt = NewOrbit.getRelativePositionAtUT(BrakeEndUT).magnitude-Body.Radius-TargetAltitude;
 			//compute distance in lat-lon coordinates
 			DeltaLat = Utils.AngleDelta(SurfacePoint.Pos.Lat, Target.Pos.Lat)*
 				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLat), SurfacePoint.Pos.Lat));
@@ -98,10 +104,6 @@ namespace ThrottleControlledAvionics
 			                            TrajectoryCalculator.BodyRotationAtdT(Body, TimeToSurface) * 
 			                            Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude).xzy);
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
-
-			#if DEBUG
-			Utils.Log("{}", this);
-			#endif
 		}
 
 		public Vector3d GetOrbitVelocityAtSurface()
@@ -123,14 +125,15 @@ namespace ThrottleControlledAvionics
 		{
 			return base.ToString()+
 				Utils.Format("\nLanding Site: {},\n" +
-				             "TimeToSurface: {}\n" +
+				             "TimeToSurface: {} s\n" +
 		                     "Delta R: {} deg\n" +
 				             "Delta Lat: {} deg, Delta Lon: {} deg\n" +
 				             "Brake DeltaV: {}\n" +
-				             "Brake Duration: {}, Time to Brake: {}",
+				             "Brake Duration: {} s, Time to Brake: {} s\n" +
+				             "FlyOver Altitude {} m",
 				             SurfacePoint, TimeToSurface,
 				             DeltaR, DeltaLat, DeltaLon,
-				             BrakeDeltaV, BrakeDuration, BrakeStartUT-VSL.Physics.UT);
+				             BrakeDeltaV, BrakeDuration, BrakeStartUT-VSL.Physics.UT, BrakeEndDeltaAlt);
 		}
 	}
 }
