@@ -32,7 +32,6 @@ namespace ThrottleControlledAvionics
 
 		ManeuverNode Node;
 		PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
-		Timer AlignedTimer = new Timer();
 
 		ManeuverExecutor Executor;
 		public float MinDeltaV = 1;
@@ -49,7 +48,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			base.UpdateState();
 			IsActive &= VSL.HasManeuverNode;
-			ControlsActive &= IsActive || TCAScenario.HasPatchedConics && VSL.HasManeuverNode;
+			ControlsActive &= IsActive || TCAScenario.HavePatchedConics && VSL.HasManeuverNode;
 		}
 
 		public void ManeuverCallback(Multiplexer.Command cmd)
@@ -58,7 +57,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 			case Multiplexer.Command.On:
-				if(!TCAScenario.HasPatchedConics)
+				if(!TCAScenario.HavePatchedConics)
 				{
 					Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
 					CFG.AP1.Off(); 
@@ -90,7 +89,6 @@ namespace ThrottleControlledAvionics
 			if(CFG.AT[Attitude.ManeuverNode])
 				CFG.AT.On(Attitude.KillRotation);
 			CFG.AP1.OffIfOn(Autopilot1.Maneuver);
-			AlignedTimer.Reset();
 			Executor.Reset();
 			MinDeltaV = GLB.THR.MinDeltaV;
 			VSL.Info.Countdown = 0;
@@ -120,8 +118,11 @@ namespace ThrottleControlledAvionics
 			var burn = Node.UT-VSL.Info.TTB/2f;
 			if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
 			{
-				if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold) VSL.Controls.WarpToTime = burn-180;
-				else AlignedTimer.RunIf(() => VSL.Controls.WarpToTime = burn-VSL.Controls.MinAlignmentTime, VSL.Controls.CanWarp);
+				if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold ||
+				   TCAScenario.HavePersistentRotation && burn-VSL.Physics.UT > 180) 
+					VSL.Controls.WarpToTime = burn-180;
+				else if(VSL.Controls.CanWarp) 
+					VSL.Controls.WarpToTime = burn-VSL.Controls.MinAlignmentTime;
 			}
 			VSL.Info.Countdown = burn-VSL.Physics.UT;
 			if(TimeWarp.CurrentRate > 1 || VSL.Info.Countdown > 0) return false;

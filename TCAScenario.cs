@@ -57,7 +57,7 @@ namespace ThrottleControlledAvionics
 		public static bool HavePersistentRotation { get; private set; }
 
 		#region ModuleInfo
-		public static bool HasPatchedConics { get; private set; }
+		public static bool HavePatchedConics { get; private set; }
 		public static string ModuleStatusString()
 		{ return HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
 		public static bool HasTCA { get { return !Globals.Instance.IntegrateIntoCareer || Utils.PartIsPurchased(Globals.TCA_PART); } }
@@ -204,7 +204,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			LoadConfigs(node);
 			//patched conics availability
-			HasPatchedConics = GameVariables.Instance
+			HavePatchedConics = GameVariables.Instance
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) 
 				== GameVariables.OrbitDisplayMode.PatchedConics;
 			//update available parts

@@ -98,8 +98,10 @@ namespace ThrottleControlledAvionics
 			return dir.normalized*V-old.getOrbitalVelocityAtUT(UT);
 		}
 
-		protected Orbit CircularOrbit(double UT)
-		{ return NewOrbit(VesselOrbit, dV4C(VesselOrbit, hV(UT), UT), UT); }
+		protected Orbit CircularOrbit(Vector3d dir, double UT)
+		{ return NewOrbit(VesselOrbit, dV4C(VesselOrbit, dir, UT), UT); }
+
+		protected Orbit CircularOrbit(double UT) { return CircularOrbit(hV(UT), UT); }
 
 		public static Vector3d dV4Pe(Orbit old, double R, double UT, Vector3d add_dV = default(Vector3d))
 		{
@@ -477,7 +479,7 @@ namespace ThrottleControlledAvionics
 
 		protected bool check_patched_conics()
 		{
-			if(!TCAScenario.HasPatchedConics)
+			if(!TCAScenario.HavePatchedConics)
 			{
 				Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
 				CFG.AP2.Off(); 
@@ -489,8 +491,8 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{
 			base.UpdateState();
-			IsActive &= TCAScenario.HasPatchedConics;
-			ControlsActive &= TCAScenario.HasPatchedConics;
+			IsActive &= TCAScenario.HavePatchedConics;
+			ControlsActive &= TCAScenario.HavePatchedConics;
 		}
 
 		#if DEBUG
@@ -540,7 +542,11 @@ namespace ThrottleControlledAvionics
 				if(frameI <= 0)
 				{
 					add_node(current.ManeuverDeltaV, current.StartUT);
-					if(setp_by_step_computation) Status("Push to continue");
+					if(setp_by_step_computation) 
+					{
+						Log("Trajectory #{}\n{}", TRJ.MaxIterations-maxI, current);
+						Status("Push to continue");
+					}
 					else Status("Computing trajectory...");
 					yield return null;
 					frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
