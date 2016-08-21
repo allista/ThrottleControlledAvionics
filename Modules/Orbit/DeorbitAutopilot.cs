@@ -69,6 +69,8 @@ namespace ThrottleControlledAvionics
 				StartUT = AngleDelta2StartUT(old, Math.Abs(VesselOrbit.inclination) <= 45 ? old.DeltaLon : old.DeltaLat, 
 				                             TRJ.ManeuverOffset, VesselOrbit.period, VesselOrbit.period);
 				NodeDeltaV += PlaneCorrection(old);
+				if(old.BrakeEndDeltaAlt < LTRJ.FlyOverAlt) //correct fly-over altitude
+					NodeDeltaV += new Vector3d((LTRJ.FlyOverAlt-old.BrakeEndDeltaAlt)/100, 0, 0);
 			}
 			else 
 			{
@@ -87,7 +89,8 @@ namespace ThrottleControlledAvionics
 			if(old != null) 
 			{
 				if(Math.Abs(old.DeltaR) > Math.Abs(old.DeltaFi)) 
-					NodeDeltaV += new Vector3d(0,0,old.DeltaR);
+					NodeDeltaV += new Vector3d(0, 0, old.DeltaR *
+					                           Utils.ClampH(old.NewOrbit.period/16/old.TimeToSurface, 1));
 				else 
 					NodeDeltaV += PlaneCorrection(old);
 			}
@@ -148,19 +151,32 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
+//					Log("Calculating initial orbit eccentricity...");//debug
 					var tPos = CFG.Target.RelOrbPos(Body);
 					var UT = VSL.Physics.UT +
-						(AngleDelta(VesselOrbit, tPos, VSL.Physics.UT)-30)/360*VesselOrbit.period;
+						AngleDelta(VesselOrbit, tPos, VSL.Physics.UT)/360*VesselOrbit.period;
 					var vPos = VesselOrbit.getRelativePositionAtUT(UT);
-					var solver = new LambertSolver(NewOrbit(VesselOrbit, dV4C(VesselOrbit, Vector3d.Exclude(vPos, tPos-vPos), UT), UT), tPos, UT);
-					var orb = NewOrbit(VesselOrbit, solver.dV4TransferME(), UT);
-					if(orb.eccentricity > DEO.StartEcc)
+					var dir = Vector3d.Exclude(vPos, tPos-vPos);
+					var ini_orb = CircularOrbit(dir, UT);
+					var ini_dV = ini_orb.getOrbitalVelocityAtUT(UT)-VesselOrbit.getOrbitalVelocityAtUT(UT) + dV4Pe(ini_orb, Body.Radius*0.9, UT);
+					var trj = new LandingTrajectory(VSL, ini_dV, UT, CFG.Target, TargetAltitude);
+					var dV = 10.0;
+					dir = -dir.normalized;
+					while(trj.NewOrbit.eccentricity < DEO.StartEcc)
+					{
+//						Log("\ndV: {}m/s\nini trj:\n{}", dV, trj);//debug
+						if(trj.DeltaR > 0) break;
+						trj = new LandingTrajectory(VSL, ini_dV+dir*dV, UT, CFG.Target, trj.TargetAltitude);
+						dV += 10;
+					}
+					if(trj.NewOrbit.eccentricity > DEO.StartEcc)
 					{
 						currentEcc = DEO.StartEcc;
 						if(Body.atmosphere) currentEcc = 
 							Utils.ClampH(currentEcc*(2.1-Utils.ClampH(VSL.Torque.MaxPossible.AngularDragResistance/Body.atmDensityASL*DEO.AngularDragF, 1)), DEO.MaxEcc);
 					}
-					else currentEcc = Utils.ClampH(orb.eccentricity-DEO.dEcc, DEO.dEcc);
+					else currentEcc = Utils.ClampL(trj.NewOrbit.eccentricity - DEO.dEcc, DEO.dEcc);
+//					Log("currentEcc: {}, dEcc {}", currentEcc, DEO.dEcc);//debug
 					if(Globals.Instance.AutosaveBeforeLanding)
 						Utils.SaveGame(VSL.vessel.vesselName.Replace(" ", "_")+"-before_landing");
 					compute_landing_trajectory();
