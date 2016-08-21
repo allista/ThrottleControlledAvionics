@@ -70,14 +70,19 @@ namespace ThrottleControlledAvionics
 
 		protected void Message(string msg, params object[] args) { Message(5, msg, args); }
 
-		protected void ClearStatus() 
-		{ if(VSL.IsActiveVessel) TCAGui.StatusMessage = ""; }
+		protected void ClearStatus() { if(VSL.IsActiveVessel) TCAGui.ClearStatus(); }
+
+		protected void Status(double seconds, string msg, params object[] args)
+		{ if(VSL.IsActiveVessel) TCAGui.Status(seconds, msg, args); }
 
 		protected void Status(string msg, params object[] args) 
-		{ if(VSL.IsActiveVessel) TCAGui.StatusMessage = string.Format(msg, args); }
+		{ Status(-1, msg, args); }
 
-		protected void Status(string color, string msg, params object[] args)
-		{ Status(string.Format("<color={0}>{1}</color>", color, msg), args); }
+		protected void Status(double seconds, string color, string msg, params object[] args)
+		{ if(VSL.IsActiveVessel) Status(seconds, color, msg, args); }
+
+		protected void Status(string color, string msg, params object[] args) 
+		{ Status(-1, color, msg, args); }
 
 		#if DEBUG
 		protected string LogTemplate(string msg)

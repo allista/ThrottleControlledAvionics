@@ -45,6 +45,9 @@ namespace ThrottleControlledAvionics
 		static bool adv_options;
 
 		public static string StatusMessage;
+		public static DateTime StatusEndTime;
+
+		public static Blinker EnabledBlinker = new Blinker(0.5);
 		#endregion
 
 		#region ControlPanels
@@ -103,6 +106,7 @@ namespace ThrottleControlledAvionics
 			if(vsl == null || vsl.parts == null) return;
 			vessel = vsl;
 			StatusMessage = "";
+			StatusEndTime = DateTime.MinValue;
 			StartCoroutine(init_on_load());
 		}
 
@@ -197,6 +201,24 @@ namespace ThrottleControlledAvionics
 		}
 		#endregion
 
+		#region Status
+		public static void ClearStatus() { TCAGui.StatusMessage = ""; StatusEndTime = DateTime.MinValue; }
+
+		public static void Status(double seconds, string msg, params object[] args)
+		{
+			TCAGui.StatusMessage = string.Format(msg, args);
+			TCAGui.StatusEndTime = seconds > 0? DateTime.Now.AddSeconds(seconds) : DateTime.MinValue;
+		}
+
+		public static void Status(string msg, params object[] args) { Status(-1, msg, args); }
+
+		public static void Status(double seconds, string color, string msg, params object[] args)
+		{ Status(seconds, string.Format("<color={0}>{1}</color>", color, msg), args); }
+
+		public static void Status(string color, string msg, params object[] args) 
+		{ Status(-1, color, msg, args); }
+		#endregion
+
 		protected override void DrawMainWindow(int windowID)
 		{
 			//help button
@@ -212,9 +234,14 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical();
 				GUILayout.BeginHorizontal();
 				//tca toggle
-				if(GUILayout.Button("Enabled", 
-				                    CFG.Enabled? Styles.enabled_button : Styles.inactive_button,
-				                    GUILayout.Width(70)))
+				var enabled_style = Styles.inactive_button;
+				if(CFG.Enabled) enabled_style = Styles.enabled_button;
+				else if(!VSL.LandedOrSplashed) 
+				{
+					if(EnabledBlinker.On) enabled_style = Styles.danger_button;
+					Status(0.1, "red", "<b>TCA is disabled</b>");
+				}
+				if(GUILayout.Button("Enabled", enabled_style, GUILayout.Width(70)))
 				{
 					if(SQD == null) TCA.ToggleTCA();
 					else SQD.Apply(tca => tca.ToggleTCA());
@@ -237,10 +264,13 @@ namespace ThrottleControlledAvionics
 				DebugInfo();
 //				EnginesInfo();
 				#endif
-				if(!string.IsNullOrEmpty(StatusMessage) && 
-				   GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
-				                    Styles.boxed_label, GUILayout.ExpandWidth(true)))
+				if(!string.IsNullOrEmpty(StatusMessage))
+				{ 
+				   if(GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
+					                   Styles.boxed_label, GUILayout.ExpandWidth(true)) ||
+					  StatusEndTime > DateTime.MinValue && DateTime.Now > StatusEndTime)
 					StatusMessage = "";
+				}
 				SelectConfig_end();
 				GUILayout.EndVertical();
 			}
@@ -441,7 +471,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.orbit.ApA), GUILayout.Width(120));
 			GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed.Absolute), GUILayout.Width(100));
 			GUILayout.Label(string.Format("Rho: {0:0.000}ASL", VSL.Body.atmosphere? VSL.vessel.atmDensity/VSL.Body.atmDensityASL : 0), GUILayout.Width(100));
-			Utils.ButtonSwitch("TRJ Dbg", ref TrajectoryCalculator.setp_by_step_computation);
+			GUILayout.Label(string.Format("aV2: {0:0.0E0}", VSL.vessel.angularVelocity.sqrMagnitude), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(string.Format("VSP: {0:0.0m/s}", CFG.VerticalCutoff), GUILayout.Width(100));
