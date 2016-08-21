@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 		{ Status(-1, msg, args); }
 
 		protected void Status(double seconds, string color, string msg, params object[] args)
-		{ if(VSL.IsActiveVessel) Status(seconds, color, msg, args); }
+		{ if(VSL.IsActiveVessel) TCAGui.Status(seconds, color, msg, args); }
 
 		protected void Status(string color, string msg, params object[] args) 
 		{ Status(-1, color, msg, args); }
