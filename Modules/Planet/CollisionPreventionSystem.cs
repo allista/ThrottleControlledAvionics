@@ -283,7 +283,7 @@ namespace ThrottleControlledAvionics
 					correction += Corrections[i];
 				if(correction.IsZero())
 				{ 
-					if(ManeuverTimer.Check) 
+					if(ManeuverTimer.TimePassed) 
 					{ 
 						Dangerous.Clear();
 						Correction = Vector3.zero;

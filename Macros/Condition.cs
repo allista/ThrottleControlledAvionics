@@ -205,7 +205,7 @@ namespace ThrottleControlledAvionics
 				ret = VesselValue(VSL) < Value;
 				break;
 			}
-			if(ret) { if(WaitTimer.Check) { WaitTimer.Reset(); return true; } }
+			if(ret) { if(WaitTimer.TimePassed) { WaitTimer.Reset(); return true; } }
 			else WaitTimer.Reset();
 			return false;
 		}

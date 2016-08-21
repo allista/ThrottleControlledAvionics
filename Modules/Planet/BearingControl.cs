@@ -151,7 +151,7 @@ namespace ThrottleControlledAvionics
 				if(draw_forward_direction)
 				{
 					Utils.GLVec(VSL.Physics.wCoM, ForwardDirection.normalized*2500, Color.green);
-					draw_forward_direction = !DirectionLineTimer.Check;
+					draw_forward_direction = !DirectionLineTimer.TimePassed;
 				}
 				if(Bearing.Draw("°", increment:10))
 				{ 

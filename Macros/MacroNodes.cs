@@ -362,7 +362,7 @@ namespace ThrottleControlledAvionics
 		protected override bool Action(VesselWrapper VSL)
 		{ 
 			VSL.Info.Countdown = T.Remaining;
-			return !T.Check; 
+			return !T.TimePassed; 
 		}
 	}
 

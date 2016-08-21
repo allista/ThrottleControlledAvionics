@@ -62,7 +62,7 @@ namespace ThrottleControlledAvionics
 			if(omega.sqrMagnitude > STB.MinAngularVelocity)
 			{ 
 				OffTimer.Reset();
-				Working |= OnTimer.Check;
+				Working |= OnTimer.TimePassed;
 			}
 			else if(omega.sqrMagnitude < STB.MinAngularVelocity/4)
 			{

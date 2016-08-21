@@ -242,7 +242,7 @@ namespace ThrottleControlledAvionics
 				var target_size = tTCA != null? tTCA.VSL.Geometry.D : Utils.ClampL(Math.Pow(tVSL.totalMass, 1/3f), 1);
 				if(offset < target_size) offset = (float)target_size;
 				offset *= PN.MinDistance;
-				if(Formation == null || Formation.Count != num_offsets || FormationUpdateTimer.Check)
+				if(Formation == null || Formation.Count != num_offsets || FormationUpdateTimer.TimePassed)
 				{
 					FormationUpdateTimer.Reset();
 					Formation = new List<FormationNode>(num_offsets);
@@ -373,7 +373,7 @@ namespace ThrottleControlledAvionics
 							start_to(CFG.Waypoints.Peek());
 							return;
 						}
-						else if(ArrivedTimer.Check)
+						else if(ArrivedTimer.TimePassed)
 						{ 
 							CFG.Waypoints.Clear();
 							if(on_arrival()) return;
@@ -388,7 +388,7 @@ namespace ThrottleControlledAvionics
 						return; 
 					}
 				}
-				else if(ArrivedTimer.Check) { if(on_arrival()) return; finish(); return; }
+				else if(ArrivedTimer.TimePassed) { if(on_arrival()) return; finish(); return; }
 			}
 			else 
 			{

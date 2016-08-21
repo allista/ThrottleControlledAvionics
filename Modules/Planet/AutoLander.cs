@@ -261,7 +261,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(!CFG.Nav[Navigation.Anchor]) CFG.HF.OnIfNot(HFlight.Stop);
 				if(VSL.Geometry.R/Utils.ClampL(VSL.HorizontalSpeed, 1e-10) > LND.MaxHorizontalTime)
-					return StopTimer.Check;
+					return StopTimer.TimePassed;
 				else StopTimer.Reset();
 				return false;
 			}
@@ -290,7 +290,7 @@ namespace ThrottleControlledAvionics
 					{
 						CFG.Nav.OnIfNot(Navigation.Anchor);
 						if(CFG.Anchor.DistanceTo(VSL.vessel) < delta)
-							return StopTimer.Check;
+							return StopTimer.TimePassed;
 					}
 					else return true;
 				}
@@ -435,7 +435,7 @@ namespace ThrottleControlledAvionics
 				CFG.VF.Off();
 				if(VSL.LandedOrSplashed) 
 				{ 
-					if(!CutoffTimer.Check) break;
+					if(!CutoffTimer.TimePassed) break;
 					CFG.AP1.XOff(); 
 					CFG.VerticalCutoff = -10; 
 					CFG.VF.On(VFlight.AltitudeControl);

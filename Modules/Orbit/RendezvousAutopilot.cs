@@ -449,7 +449,7 @@ namespace ThrottleControlledAvionics
 			case Stage.Rendezvou:
 //				log_flight();//debug
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				if(!CorrectionTimer.Check && CurrentDistance >= 0) break;
+				if(!CorrectionTimer.TimePassed && CurrentDistance >= 0) break;
 				CorrectionTimer.Reset();
 				update_trajectory();
 				if(CurrentDistance < REN.ApproachThreshold) match_orbits();
