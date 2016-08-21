@@ -1462,13 +1462,61 @@ def solver_sim():
     # analyze_solution(1106.96240719769)
     for tt in xrange(700, 3600, 100): analyze_solution(tt)
 
+
+from collections import deque
+class OscillationDetector(object):
+    def __init__(self, low, high, bins, window):
+        self.bins = bins
+        self.window = window
+        self.low = low*2*np.pi
+        self.high = high*2*np.pi
+        self.spectrum = np.zeros(bins)
+        self.freqs = np.linspace(self.low, self.high, bins)
+        self._time = deque(maxlen=window)
+        self._samples = deque(maxlen=window)
+
+    def update(self, val, dt):
+        val /= self.bins
+        last, t0 = None, None
+        if len(self._samples) >= self.window:
+            last = self._samples.popleft()
+            t0 = self._time.popleft()
+        self._samples.append(val)
+        if not self._time: self._time.append(0)
+        else: self._time.append(self._time[-1]+dt)
+        t = self._time[-1]
+        if last is None:
+            for i in xrange(self.bins):
+                self.spectrum[i] = self.spectrum[i] + val * np.cos(self.freqs[i] * t)
+        else:
+            for i in xrange(self.bins):
+                self.spectrum[i] = self.spectrum[i] + val * np.cos(self.freqs[i] * t) - \
+                                   last * np.cos(self.freqs[i] * t0)
+
+def test_OD():
+    time = np.arange(0, 40, dt)
+    freq = 2.153
+    signal = np.sin(time*freq*2*np.pi)*0.2+np.sin(time*freq*2.354*2*np.pi)*0.3
+    od = OscillationDetector(0.1, 10, 50, 500)
+    for s in signal: od.update(s, dt)
+
+    plt.plot(od.freqs/2/np.pi, np.abs(od.spectrum))
+    plt.show()
+
+
+
 dt = 0.01
 
 if __name__ == '__main__':
-    pass
-    # throttle_sim()
-
-
+    analyzeCSV('Tests/ATC.csv',
+               (
+                   'x', 'y', 'z', 'Fx', 'Fy', 'Fz'
+               ),
+               (
+                   'x', 'Fx',  'y', 'Fy', 'z', 'Fz'
+               ),
+               # region=(34150,),
+               )
 
 
 
@@ -1610,10 +1658,5 @@ if __name__ == '__main__':
     #            ),
     #            )
 
-    analyzeCSV('Tests/ATC.csv',
-               (
-                   'AA', 'AAf1', 'AAf', 'PIf', 'P', 'I', 'D', 'Act', 'Err'
-               ),
-               #~ region=(2300,)
-               )
+
 
