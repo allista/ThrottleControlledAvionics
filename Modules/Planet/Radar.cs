@@ -103,7 +103,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
-		public void RadarBeam()
+		public void DrawDebugLines()
 		{
 			if(VSL == null || VSL.vessel == null || !IsActive) return;
 			ForwardRay.Draw();
@@ -137,6 +137,7 @@ namespace ThrottleControlledAvionics
 			base.reset();
 			rewind();
 			DetectedHit.Reset();
+			Altimeter.Reset();
 			CollisionSpeed = -1;
 			DistanceAhead  = -1;
 			TimeAhead      = -1;
@@ -162,11 +163,6 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			var NeededHorVelocity = HSC == null? Vector3d.zero : VSL.HorizontalSpeed.NeededVector;
 			var zero_needed = NeededHorVelocity.sqrMagnitude <= 0.01;
-//			if(CollisionSpeed < 0 && VSL.HorizontalSpeed < RAD.MinClosingSpeed && 
-//			   (zero_needed && !CFG.Nav.Any(Navigation.FollowPath, Navigation.FollowTarget, Navigation.GoToTarget) ||
-//			    CFG.HF[HFlight.Stop] || CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere) || 
-//			    !VSL.AltitudeAboveGround || IsStateSet(TCAState.Landing)))
-//			{ reset(); return; }
 			//check boundary conditions
 			if(ViewAngle > RAD.DownViewAngle) 
 			{ 
@@ -207,7 +203,7 @@ namespace ThrottleControlledAvionics
 			MaxDistance = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
 			if(ViewAngle < 0) MaxDistance = MaxDistance/Mathf.Cos(ViewAngle*Mathf.Deg2Rad)*(1+ClosingSpeed/RAD.UpViewSlope*Utils.ClampL(-ViewAngle/RAD.UpViewAngle, 0));
 			CurHit.Cast(Dir, ViewAngle, MaxDistance);
-			ForwardRay.Cast(VSL.Physics.wCoM, SurfaceVelocity.normalized, (float)SurfaceVelocity.magnitude*GLB.CPS.LookAheadTime*3, VSL.Geometry.R*2);
+			ForwardRay.Cast(VSL.Physics.wCoM, SurfaceVelocity.normalized, (float)SurfaceVelocity.magnitude*GLB.CPS.LookAheadTime*3, VSL.Geometry.D);
 			//check the hit
 			if(CurHit.BeforeDestination(SurfaceVelocity))
 			{
@@ -272,7 +268,7 @@ namespace ThrottleControlledAvionics
 					Obstacle = new TerrainPoint(ForwardRay.Altitude, ForwardRay.CollisionPoint);
 			}
 			if(Obstacle.Valid) VSL.Altitude.Ahead = (float)Obstacle.Altitude;
-//			Log("\nCurHit {0}\nBestHit {1}\nDetectedHit {2}\nRObstacle {3}\nAObstacle {4}\nForwardRay {5}",
+//			Log("\nCurHit {}\nBestHit {}\nDetectedHit {}\nRObstacle {}\nAObstacle {}\nForwardRay {}",
 //			    CurHit, BestHit, DetectedHit, Obstacle, Altimeter.Obstacle, ForwardRay);//debug
 			//check for possible stright collision
 			if(VSL.Altitude.Ahead > alt_threshold) //deadzone of twice the detection height
@@ -512,6 +508,13 @@ namespace ThrottleControlledAvionics
 			public float Altitude { get { return (float)Obstacle.Altitude; } }
 
 			public PQS_Altimeter(VesselWrapper vsl) { VSL = vsl; }
+
+			public void Reset()
+			{
+				CurPoint.Reset(); 
+				BestPoint.Reset(); 
+				Obstacle.Reset();
+			}
 
 			void rewind()
 			{

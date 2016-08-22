@@ -81,7 +81,7 @@ namespace ThrottleControlledAvionics
 								if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
 							});
 					#if DEBUG
-//					RAD.RadarBeam();
+//					RAD.DrawDebugLines();
 					#endif
 				}
 			}
