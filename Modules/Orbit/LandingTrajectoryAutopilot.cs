@@ -128,7 +128,9 @@ namespace ThrottleControlledAvionics
 							"but you're advised to supervise the process.</i>\n";
 				}
 				if(trajectory.DistanceToTarget > LTRJ.Dtol)
-					status += "WARNING: Predicted landing site is too far from the target.\n";
+					status += string.Format("WARNING: Predicted landing site is too far from the target.\n" +
+					                        "Error is <color=magenta><b>{0}</color></b>", 
+					                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
 				status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
 				Status("yellow", status);
 				return false;
@@ -319,6 +321,9 @@ namespace ThrottleControlledAvionics
 			                             VSL.Physics.Up) * vel; 
 		}
 
+		void set_destination_vector()
+		{ VSL.Info.Destination = CFG.Target.WorldPos(Body)-VSL.Physics.wCoM; }
+
 		protected bool do_land()
 		{
 			if(VSL.LandedOrSplashed) 
@@ -449,6 +454,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case LandingStage.HardLanding:
 				Status("yellow", "Emergency Landing...");
+				set_destination_vector();
 				update_trajectory();
 				VSL.BrakesOn();
 				CFG.BR.Off();
@@ -495,6 +501,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case LandingStage.SoftLanding:
 				THR.Throttle = 0;
+				set_destination_vector();
 				update_trajectory();
 				setup_for_deceleration();
 				compute_terminal_velocity();
@@ -541,9 +548,12 @@ namespace ThrottleControlledAvionics
 				break;
 			case LandingStage.Approach:
 				Status("Approaching the target...");
+				set_destination_vector();
 				if(!CFG.Nav[Navigation.GoToTarget]) land();
 				break;
-			case LandingStage.Land: break;
+			case LandingStage.Land: 
+				set_destination_vector();
+				break;
 			}
 			return false;
 		}
