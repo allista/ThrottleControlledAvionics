@@ -378,15 +378,27 @@ namespace ThrottleControlledAvionics
 			ApproachUT = minUT; return Math.Sqrt(minD);
 		}
 
-		public static double NearestRadiusUT(Orbit orb, double radius, double StartUT)
+		public static double NearestRadiusUT(Orbit orb, double radius, double StartUT, bool descending = true)
 		{
 			radius *= radius;
 			var StopUT = StartUT;
-			var dT = orb.period/10; 
-			while(StopUT-StartUT < orb.period) 
-			{ 
-				if(orb.getRelativePositionAtUT(StopUT).sqrMagnitude < radius) break;
-				StopUT += dT;
+			var dT = orb.period/10;
+			var below = orb.getRelativePositionAtUT(StartUT).sqrMagnitude < radius;
+			if(below)
+			{
+				while(StopUT-StartUT < orb.timeToAp) 
+				{ 
+					if(orb.getRelativePositionAtUT(StopUT).sqrMagnitude > radius) break;
+					StopUT += dT;
+				}
+			}
+			if(!below || descending)
+			{
+				while(StopUT-StartUT < orb.period) 
+				{ 
+					if(orb.getRelativePositionAtUT(StopUT).sqrMagnitude < radius) break;
+					StopUT += dT;
+				}
 			}
 			StartUT = Math.Max(StartUT, StopUT-dT);
 			while(StopUT-StartUT > 0.01)
@@ -532,7 +544,7 @@ namespace ThrottleControlledAvionics
 			do {
 				var lt = current as LandingTrajectory;
 				if(lt != null) NavigationPanel.CustomMarkersWP.Add(lt.SurfacePoint);
-				if(setp_by_step_computation && best != null && !string.IsNullOrEmpty(TCAGui.StatusMessage))
+				if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))
 				{ yield return null; continue; }
 				clear_nodes();
 				current = next_trajectory(current, best);
@@ -551,7 +563,7 @@ namespace ThrottleControlledAvionics
 					yield return null;
 					frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
 				}
-			} while(end_predicate(current, best) && maxI > 0);
+			} while(current == null || best == null || end_predicate(current, best) && maxI > 0);
 			Log("Best trajectory:\n{}", best);
 			clear_nodes();
 			yield return best;

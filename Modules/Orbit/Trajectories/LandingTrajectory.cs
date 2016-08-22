@@ -61,10 +61,7 @@ namespace ThrottleControlledAvionics
 
 		void update(bool with_brake)
 		{
-			update_from_orbit(NewOrbit, 
-			                  (NewOrbit.ApAhead() &&
-			                   NewOrbit.getRelativePositionAtUT(StartUT).magnitude-Body.Radius <= TargetAltitude)? 
-			                  StartUT+NewOrbit.timeToAp : StartUT);
+			update_from_orbit(NewOrbit, StartUT);
 			//correct for brake maneuver
 			if(with_brake)
 			{
