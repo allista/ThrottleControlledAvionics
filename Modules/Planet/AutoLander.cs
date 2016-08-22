@@ -312,7 +312,9 @@ namespace ThrottleControlledAvionics
 		{
 			if(CFG.DesiredAltitude < LND.WideCheckAltitude)
 				CFG.DesiredAltitude = LND.WideCheckAltitude;
-			CFG.DesiredAltitude += delta_alt;
+			if(VSL.Altitude.Relative > CFG.DesiredAltitude)
+				CFG.DesiredAltitude = VSL.Altitude.Relative;
+			else CFG.DesiredAltitude += delta_alt;
 			if(CFG.DesiredAltitude > LND.MaxWideCheckAltitude)
 			{
 				CFG.AP1.Off();
