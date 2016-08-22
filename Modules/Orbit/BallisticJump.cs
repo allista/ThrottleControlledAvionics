@@ -62,14 +62,17 @@ namespace ThrottleControlledAvionics
 			if(!base.check_target()) return false;
 			if(VesselOrbit.PeR > Body.Radius)
 			{
-				Status("yellow", "Cannot to perform <b>Ballistic Jump</b> from orbit.\n" +
+				Status("yellow", "Cannot perform <b>Ballistic Jump</b> from orbit.\n" +
 				       "Use <b>Land at Target</b> instead.");
 				return false;
 			}
 			//compute initial orbit estimation using LambertSolver
 			var solver = new LambertSolver(VesselOrbit, CFG.Target.RelOrbPos(Body), VSL.Physics.UT);
-			var trj = new LandingTrajectory(VSL, solver.dV4TransferME(), VSL.Physics.UT, CFG.Target, TargetAltitude, false);
-			if(trj.TimeToSurface < TRJ.ManeuverOffset)
+			var dV = solver.dV4TransferME();
+			if(Vector3d.Dot(VesselOrbit.vel+dV, VesselOrbit.pos) < 0)
+				dV = -2*VesselOrbit.vel-dV;
+			var trj = new LandingTrajectory(VSL, dV, VSL.Physics.UT, CFG.Target, TargetAltitude, false);
+			if(trj.TransferTime < TRJ.ManeuverOffset)
 			{
 				Status("yellow", "The target is too close for the jump.\n" +
 				       "Use <b>Go To</b> instead.");
@@ -95,10 +98,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.On:
 				reset();
 				if(setup())
-				{
-					stage = Stage.Start;
 					goto case Multiplexer.Command.Resume;
-				}
 				CFG.AP2.Off();
 				return;
 
@@ -115,7 +115,7 @@ namespace ThrottleControlledAvionics
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
 			{
-				V += old.DeltaR*(1-CFG.Target.AngleTo(VSL)/Utils.TwoPI*0.9)*Body.GeeASL;
+				V += old.DeltaR*(1-CFG.Target.AngleTo(VSL)/Math.PI*0.9)*Body.GeeASL;
 				dir = Quaternion.AngleAxis((float)old.DeltaFi, VSL.Physics.Up.xzy) * dir;
 			}
 			return new LandingTrajectory(VSL, dir*V-VesselOrbit.getOrbitalVelocityAtUT(StartUT), StartUT, 
@@ -127,7 +127,7 @@ namespace ThrottleControlledAvionics
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
 			{
-				V += old.DeltaR*(1-CFG.Target.AngleTo(VSL)/Utils.TwoPI*0.9)*Body.GeeASL;
+				V += old.DeltaR*(1-CFG.Target.AngleTo(VSL)/Math.PI*0.9)*Body.GeeASL;
 				angle += old.DeltaFi;
 			}
 			var vel = VesselOrbit.getOrbitalVelocityAtUT(StartUT);
@@ -135,17 +135,26 @@ namespace ThrottleControlledAvionics
 			                             CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
+		#if DEBUG
+		public static bool ME_orbit = true;
+		#endif
 		void compute_initial_trajectory()
 		{
 			trajectory = null;
 			MAN.MinDeltaV = 1f;
 			stage = Stage.Compute;
-			var solver = new LambertSolver(VesselOrbit, CFG.Target.RelOrbPos(Body), VSL.Physics.UT);
-			var vel = (VesselOrbit.vel+solver.dV4TransferME()).xzy;
-			var dir = (VSL.Physics.Up+ 
+			var tPos = CFG.Target.RelOrbPos(Body);
+			var solver = new LambertSolver(VesselOrbit, tPos+tPos.normalized*LTRJ.FlyOverAlt, VSL.Physics.UT);
+			var vel = (VesselOrbit.vel+solver.dV4TransferME());
+			if(Vector3d.Dot(vel, VesselOrbit.pos) < 0) vel = -vel;
+			var dir = vel.normalized;
+			var V = vel.magnitude;
+			#if DEBUG
+			if(!ME_orbit)
+				dir = (VSL.Physics.Up+ 
 			           Vector3d.Exclude(VSL.Physics.Up, vel).normalized *
 			           BJ.StartTangent*(1+CFG.Target.AngleTo(VSL)/Utils.TwoPI)*BJ.InclinationF).normalized.xzy;
-			var V = vel.magnitude;
+			#endif
 			setup_calculation((o, b) => fixed_inclination_orbit(o, b, ref dir, ref V, BJ.StartOffset));
 		}
 
@@ -251,6 +260,7 @@ namespace ThrottleControlledAvionics
 //				                      current.BrakeDeltaV).xzy.normalized*2000, 
 //				              Color.magenta);
 //			}
+			Utils.ButtonSwitch("ME", ref ME_orbit, "Use ME orbit instead of a shallow one.", GUILayout.ExpandWidth(false));
 			#endif
 			if(ControlsActive) 
 			{	
