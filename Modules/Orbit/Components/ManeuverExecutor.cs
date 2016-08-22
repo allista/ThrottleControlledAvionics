@@ -56,8 +56,8 @@ namespace ThrottleControlledAvionics
 				else THR.DeltaV = (float)dVrem;
 			}
 			else THR.DeltaV = (float)dVrem;
-//			LogF("\ndVrem: {}\nAttitudeError {}, DeltaV: {}, Throttle {}, RCS {}", 
-//			     dVrem, ATC.AttitudeError, THR.DeltaV, THR.Throttle, may_use_RCS);//debug
+//			Log("\ndVrem: {}\nAttitudeError {}, DeltaV: {}, Throttle {}, RCS {}", 
+//			    dVrem, VSL.Controls.AttitudeError, THR.DeltaV, THR.Throttle, VSL.Controls.RCSAvailableInDirection(-dV));//debug
 			return true;
 		}
 	}
