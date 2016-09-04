@@ -179,9 +179,9 @@ namespace ThrottleControlledAvionics
 			this.engine = engine;
 			ID = new EngineID(this);
 			//get info
-			info = engine.part.GetModule<TCAEngineInfo>();
+			info = engine.part.Modules.GetModule<TCAEngineInfo>();
 			//find gimbal
-			gimbal = engine.part.GetModule<ModuleGimbal>();
+			gimbal = engine.part.Modules.GetModule<ModuleGimbal>();
 		}
 
 		#region methods

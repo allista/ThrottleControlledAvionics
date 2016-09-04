@@ -102,7 +102,7 @@ namespace ThrottleControlledAvionics
 			   && HighLogic.LoadedSceneIsFlight) return;
 			foreach(var cp in part.symmetryCounterparts)
 			{
-				var einfo = cp.GetModule<TCAEngineInfo>();
+				var einfo = cp.Modules.GetModule<TCAEngineInfo>();
 				if(einfo != null && 
 				   (HighLogic.LoadedSceneIsEditor || einfo.Group == 0)) 
 					einfo.SetRole(Role);
