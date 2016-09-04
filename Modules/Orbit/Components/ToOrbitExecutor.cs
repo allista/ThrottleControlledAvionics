@@ -35,8 +35,10 @@ namespace ThrottleControlledAvionics
 		public double ApAUT = -1;
 		public double dApA { get; private set; }
 		public double GravityTurnStart { get; private set; }
+		public bool   CorrectOnlyAltitude;
 
 		double CircularizationOffset = -1;
+		bool ApoapsisReached;
 
 		public ToOrbitExecutor(ModuleTCA tca) : base(tca) 
 		{ 
@@ -88,13 +90,16 @@ namespace ThrottleControlledAvionics
 			var cApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp);
 			var hv   = Vector3d.Exclude(VesselOrbit.pos, target-VesselOrbit.pos).normalized;
 			var arc  = Utils.ProjectionAngle(cApV, target, hv)*Mathf.Deg2Rad*cApV.magnitude;
-			ErrorThreshold.Value = dApA+arc;
+			ErrorThreshold.Value = CorrectOnlyAltitude? dApA : dApA+arc;
+			ApoapsisReached |= dApA < Dtol;
 			if(!ErrorThreshold)
 			{
 				var startF = Utils.Clamp((VSL.Altitude.Absolute-GravityTurnStart)/GLB.ORB.GTurnOffset, 0, 1);
 				if(dApA > Dtol)
-					vel += VSL.Physics.Up.xzy*dApA*gturn_curve;
-				if(arc > Dtol)
+					vel += CorrectOnlyAltitude && ApoapsisReached? 
+						VesselOrbit.vel.normalized.xzy*dApA :
+						VSL.Physics.Up.xzy*dApA*gturn_curve;
+				if(arc > Dtol && (!ApoapsisReached || !CorrectOnlyAltitude))
 				{
 					var hvel = Utils.ClampL(arc-dApA*gturn_curve, 0)*startF;
 					if(Body.atmosphere) hvel *= Math.Sqrt(Utils.Clamp(VSL.Altitude.Absolute/Body.atmosphereDepth, 0, 1));

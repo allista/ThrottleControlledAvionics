@@ -71,6 +71,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Resume:
 				if(!check_patched_conics()) return;
 				ToOrbit = new ToOrbitExecutor(TCA);
+				ToOrbit.CorrectOnlyAltitude = true;
 				ToOrbit.Target = Target;
 				break;
 
