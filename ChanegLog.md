@@ -2,7 +2,26 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.2.2**
+* **v3.2.3**
+    * Bugfixes:
+        * Fixed rendering of surface markers.
+        * Fixed incorrect calculation of Landing Trajectory in some cases.
+        * Fixed a bug in maneuver execution that caused it to block sometimes when a maneuver is finished.
+        * Fixed and improved landing algorithm of Deorbit Autopilot.
+        * Fixed Radar bug that was caused by not resetting the Altimeter.
+    * Improved ToOrbit autopilot algorithm.
+    * Improved low altitude landing algorithm.
+    * Ballistic Jump now uses the Minimum Energy trajectory to conserve fuel. Also fixed instability in gradient-descent optimization of the jump trajectory.
+    * Improved Deorbit Autopilot:
+        * Better initial orbit calculation. 
+        * Added orbit correction that ensures that dorbiting ship will have at least 2km above the target after the main deceleration.
+        * Improved landing algorithm.
+        * Improved detection and handling of landscape obstacles.
+    * Attitude Control uses new Oscillation Detector to quench sporadic oscillations in control output.
+    * Improved PersistentRotation management. 
+    * The "Enabled" button now flashes red if TCA is disabled when flying.
+
+* v3.2.2
     * Bugfixes:
         * TCA no longer activates a part where it is installed (parts that combine command module with engines should work fine now).
         * Fixed incompatibility with RealismOvehaul.
