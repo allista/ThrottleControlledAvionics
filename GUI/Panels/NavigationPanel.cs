@@ -34,9 +34,6 @@ namespace ThrottleControlledAvionics
 		const float  IconSize = 16;
 		static Texture2D WayPointMarker, PathNodeMarker;
 
-		public static List<Vector3d> CustomMarkersVec = new List<Vector3d>();
-		public static List<WayPoint> CustomMarkersWP = new List<WayPoint>();
-
 		public static void OnAwake()
 		{
 			WayPointMarker = GameDatabase.Instance.GetTexture(WPM_ICON, false);
@@ -290,8 +287,8 @@ namespace ThrottleControlledAvionics
 			   (!CFG.Target.IsVessel || CFG.Target.GetVessel().LandedOrSplashed))
 				DrawWayPoint(CFG.Target, Color.magenta, "Target");
 			//custom markers
-			CustomMarkersWP.ForEach(m => DrawWayPoint(m, Color.red, m.Name));
-			CustomMarkersVec.ForEach(m => DrawWorldMarker(m, Color.red, "Custom WayPoint"));
+			VSL.Info.CustomMarkersWP.ForEach(m => DrawWayPoint(m, Color.red, m.Name));
+			VSL.Info.CustomMarkersVec.ForEach(m => DrawWorldMarker(m, Color.red, "Custom WayPoint"));
 			#if DEBUG
 //			VSL.Engines.All.ForEach(e => e.engine.thrustTransforms.ForEach(t => DrawWorldMarker(t.position, Color.red, e.name)));
 //			DrawWorldMarker(VSL.vessel.transform.position, Color.yellow, "Vessel");

@@ -333,11 +333,10 @@ namespace ThrottleControlledAvionics
 		}
 		#endregion
 
-		public void ClearFrameState()
+		void ClearFrameState()
 		{ 
-			AllModules.ForEach(m => m.ClearFrameState()); 
-			NavigationPanel.CustomMarkersWP.Clear();
-			NavigationPanel.CustomMarkersVec.Clear();
+			VSL.ClearFrameState();
+			AllModules.ForEach(m => m.ClearFrameState());
 		}
 
 		void Update() //works both in Editor and in flight
@@ -375,13 +374,13 @@ namespace ThrottleControlledAvionics
 			if(!CFG.Enabled) return;
 			State = TCAState.Enabled;
 			if(!VSL.Info.ElectricChargeAvailible) return;
-			//update vessel info
 			SetState(TCAState.HaveEC);
+			ClearFrameState();
+			//update VSL
 			VSL.UpdatePhysics();
 			if(VSL.Engines.Check()) SetState(TCAState.HaveActiveEngines);
 			Actions["onActionUpdate"].actionGroup = VSL.Engines.ActionGroups;
 			VSL.UpdateCommons();
-			VSL.ClearFrameState();
 			VSL.UpdateOnPlanetStats();
 			//update modules
 			ModulePipeline.ForEach(m => m.OnFixedUpdate());

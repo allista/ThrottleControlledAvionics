@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -41,8 +42,13 @@ namespace ThrottleControlledAvionics
 		public double Countdown;
 		public float  TTB;
 
+		public List<Vector3d> CustomMarkersVec = new List<Vector3d>();
+		public List<WayPoint> CustomMarkersWP  = new List<WayPoint>();
+
 		public override void ClearFrameState()
 		{
+			CustomMarkersWP.Clear();
+			CustomMarkersVec.Clear();
 			Destination = Vector3.zero;
 			Countdown = -1;
 			TTB = -1;

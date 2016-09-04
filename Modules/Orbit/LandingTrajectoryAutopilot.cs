@@ -261,7 +261,7 @@ namespace ThrottleControlledAvionics
 		protected override void update_trajectory()
 		{
 			base.update_trajectory();
-			NavigationPanel.CustomMarkersWP.Add(trajectory.SurfacePoint);
+			VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
 		}
 
 		void nose_to_target()

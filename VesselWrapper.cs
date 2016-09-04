@@ -243,7 +243,6 @@ namespace ThrottleControlledAvionics
 
 		public void ClearFrameState()
 		{
-			TCA.ClearFrameState();
 			AllPros.ForEach(p => p.ClearFrameState());
 		}
 

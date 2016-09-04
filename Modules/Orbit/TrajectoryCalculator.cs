@@ -268,7 +268,7 @@ namespace ThrottleControlledAvionics
 
 		public static QuaternionD BodyRotationAtdT(CelestialBody Body, double dT)
 		{ 
-			var angle = (-dT/Body.rotationPeriod*360);
+			var angle = -(dT/Body.rotationPeriod*360 % 360.0);
 			return QuaternionD.AngleAxis(angle, Body.zUpAngularVelocity.normalized); 
 		}
 
@@ -543,7 +543,7 @@ namespace ThrottleControlledAvionics
 			var frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
 			do {
 				var lt = current as LandingTrajectory;
-				if(lt != null) NavigationPanel.CustomMarkersWP.Add(lt.SurfacePoint);
+				if(lt != null) VSL.Info.CustomMarkersWP.Add(lt.SurfacePoint);
 				if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))
 				{ yield return null; continue; }
 				clear_nodes();
