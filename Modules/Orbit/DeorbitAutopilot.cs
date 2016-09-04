@@ -54,7 +54,7 @@ namespace ThrottleControlledAvionics
 		Vector3d PlaneCorrection(TargetedTrajectoryBase old)
 		{
 			var angle = old.DeltaFi;
-			angle *= Math.Sin(old.TransferTime/old.NewOrbit.period*2*Math.PI);
+			angle *= Math.Sin(old.TransferTime/old.Orbit.period*2*Math.PI);
 			var rot = QuaternionD.AngleAxis(angle, old.StartPos);
 			return Orbit2NodeDeltaV((rot*old.StartVel)-old.StartVel, old.StartUT);
 		}
@@ -90,7 +90,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(Math.Abs(old.DeltaR) > Math.Abs(old.DeltaFi)) 
 					NodeDeltaV += new Vector3d(0, 0, old.DeltaR *
-					                           Utils.ClampH(old.NewOrbit.period/16/old.TimeToSurface, 1));
+					                           Utils.ClampH(old.Orbit.period/16/old.TimeToSurface, 1));
 				else 
 					NodeDeltaV += PlaneCorrection(old);
 			}
@@ -100,6 +100,7 @@ namespace ThrottleControlledAvionics
 
 		void compute_landing_trajectory()
 		{
+			//FIXME: sometimes the resulting trajectory still fails to account for CB rotation
 			trajectory = null;
 			MAN.MinDeltaV = 1;
 			Dtol = LTRJ.Dtol;
@@ -162,20 +163,20 @@ namespace ThrottleControlledAvionics
 					var trj = new LandingTrajectory(VSL, ini_dV, UT, CFG.Target, TargetAltitude);
 					var dV = 10.0;
 					dir = -dir.normalized;
-					while(trj.NewOrbit.eccentricity < DEO.StartEcc)
+					while(trj.Orbit.eccentricity < DEO.StartEcc)
 					{
 //						Log("\ndV: {}m/s\nini trj:\n{}", dV, trj);//debug
 						if(trj.DeltaR > 0) break;
 						trj = new LandingTrajectory(VSL, ini_dV+dir*dV, UT, CFG.Target, trj.TargetAltitude);
 						dV += 10;
 					}
-					if(trj.NewOrbit.eccentricity > DEO.StartEcc)
+					if(trj.Orbit.eccentricity > DEO.StartEcc)
 					{
 						currentEcc = DEO.StartEcc;
 						if(Body.atmosphere) currentEcc = 
 							Utils.ClampH(currentEcc*(2.1-Utils.ClampH(VSL.Torque.MaxPossible.AngularDragResistance/Body.atmDensityASL*DEO.AngularDragF, 1)), DEO.MaxEcc);
 					}
-					else currentEcc = Utils.ClampL(trj.NewOrbit.eccentricity - DEO.dEcc, DEO.dEcc);
+					else currentEcc = Utils.ClampL(trj.Orbit.eccentricity - DEO.dEcc, DEO.dEcc);
 //					Log("currentEcc: {}, dEcc {}", currentEcc, DEO.dEcc);//debug
 					if(Globals.Instance.AutosaveBeforeLanding)
 						Utils.SaveGame(VSL.vessel.vesselName.Replace(" ", "_")+"-before_landing");
@@ -227,11 +228,13 @@ namespace ThrottleControlledAvionics
 				}
 				break;
 			case Stage.Wait:
+				VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
 				if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
 				deorbit();
 				break;
 			case Stage.Deorbit:
 				Status("Executing deorbit burn...");
+				VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
 				fine_tune_approach();
 				break;

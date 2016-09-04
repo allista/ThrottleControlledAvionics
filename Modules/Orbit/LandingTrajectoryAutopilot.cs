@@ -196,8 +196,8 @@ namespace ThrottleControlledAvionics
 //			Utils.Log("Start {}, Stop {}", start-VSL.Physics.UT, stop-VSL.Physics.UT);//debug
 			while(dT > 0.01)
 			{
-				var d1p = UT+dT > stop?  double.MaxValue : distance_from_ground(trj.NewOrbit, UT+dT);
-				var d1m = UT-dT < start? double.MaxValue : distance_from_ground(trj.NewOrbit, UT-dT);
+				var d1p = UT+dT > stop?  double.MaxValue : distance_from_ground(trj.Orbit, UT+dT);
+				var d1m = UT-dT < start? double.MaxValue : distance_from_ground(trj.Orbit, UT-dT);
 //				Utils.Log("d1 {}, d2 {}, dT {}, T {}", d1p, d1m, dT, UT-VSL.Physics.UT);//debug
 				if(d1p < d1m) { dist = d1p; UT += dT; }
 				else { dist = d1m; UT -= dT; }

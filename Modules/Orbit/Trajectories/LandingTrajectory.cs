@@ -61,19 +61,19 @@ namespace ThrottleControlledAvionics
 
 		void update(bool with_brake)
 		{
-			update_from_orbit(NewOrbit, StartUT);
+			update_from_orbit(Orbit, StartUT);
 			//correct for brake maneuver
 			if(with_brake)
 			{
 				BrakeEndUT = AtTargetUT-GLB.LTRJ.CorrectionOffset;
 				BrakeStartUT = BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)AtTargetVel.magnitude, VSL, out BrakeDuration);
-				brake_delta_v = -0.9*NewOrbit.getOrbitalVelocityAtUT(BrakeEndUT);
-				update_from_orbit(TrajectoryCalculator.NewOrbit(NewOrbit, BrakeDeltaV, BrakeEndUT), BrakeEndUT);
+				brake_delta_v = -0.9*Orbit.getOrbitalVelocityAtUT(BrakeEndUT);
+				update_from_orbit(TrajectoryCalculator.NewOrbit(Orbit, BrakeDeltaV, BrakeEndUT), BrakeEndUT);
 			}
 			else
 			{
 				brake_delta_v = -(AtTargetVel + Vector3d.Cross(Body.zUpAngularVelocity, AtTargetPos));
-				BrakeEndUT = TrajectoryCalculator.FlyAboveUT(NewOrbit, Target.RelSurfPos(Body).xzy, StartUT);
+				BrakeEndUT = TrajectoryCalculator.FlyAboveUT(Orbit, Target.RelSurfPos(Body).xzy, StartUT);
 				BrakeStartUT = BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration);
 			}
 			//compute vessel coordinates at maneuver start
@@ -90,21 +90,21 @@ namespace ThrottleControlledAvionics
 			}
 			//compute distance to target
 			DistanceToTarget = Target.AngleTo(SurfacePoint)*Body.Radius;
-			BrakeEndDeltaAlt = NewOrbit.getRelativePositionAtUT(BrakeEndUT).magnitude-Body.Radius-TargetAltitude;
+			BrakeEndDeltaAlt = Orbit.getRelativePositionAtUT(BrakeEndUT).magnitude-Body.Radius-TargetAltitude;
 			//compute distance in lat-lon coordinates
 			DeltaLat = Utils.AngleDelta(SurfacePoint.Pos.Lat, Target.Pos.Lat)*
 				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLat), SurfacePoint.Pos.Lat));
 			DeltaLon = Utils.AngleDelta(SurfacePoint.Pos.Lon, Target.Pos.Lon)*
 				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLon), SurfacePoint.Pos.Lon));
 			//compute distance in radial coordinates
-			DeltaFi = 90-Vector3d.Angle(NewOrbit.GetOrbitNormal(),
+			DeltaFi = 90-Vector3d.Angle(Orbit.GetOrbitNormal(),
 			                            TrajectoryCalculator.BodyRotationAtdT(Body, TimeToSurface) * 
 			                            Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude).xzy);
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 		}
 
 		public Vector3d GetOrbitVelocityAtSurface()
-		{ return NewOrbit.getOrbitalVelocityAtUT(AtTargetUT); }
+		{ return Orbit.getOrbitalVelocityAtUT(AtTargetUT); }
 
 		public override void UpdateOrbit(Orbit current)
 		{

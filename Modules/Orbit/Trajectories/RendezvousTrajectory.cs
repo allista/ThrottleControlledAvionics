@@ -44,20 +44,20 @@ namespace ThrottleControlledAvionics
 		{
 			if(TransferTime < 0)
 			{
-				TrajectoryCalculator.ClosestApproach(NewOrbit, TargetOrbit, StartUT, out AtTargetUT);
+				TrajectoryCalculator.ClosestApproach(Orbit, TargetOrbit, StartUT, out AtTargetUT);
 				TransferTime = AtTargetUT-StartUT;
 			}
 			else AtTargetUT = StartUT+TransferTime;
-			AtTargetPos = NewOrbit.getRelativePositionAtUT(AtTargetUT);
-			AtTargetVel = NewOrbit.getOrbitalVelocityAtUT(AtTargetUT);
+			AtTargetPos = Orbit.getRelativePositionAtUT(AtTargetUT);
+			AtTargetVel = Orbit.getOrbitalVelocityAtUT(AtTargetUT);
 			TargetPos = TargetOrbit.getRelativePositionAtUT(AtTargetUT);
 			DistanceToTarget = Utils.ClampL((AtTargetPos-TargetPos).magnitude-VSL.Geometry.R-TargetVessel.Radius(), 0);
 			DeltaTA = Utils.ProjectionAngle(AtTargetPos, TargetPos, 
-			                                Vector3d.Cross(NewOrbit.GetOrbitNormal(), AtTargetPos))*
+			                                Vector3d.Cross(Orbit.GetOrbitNormal(), AtTargetPos))*
 				Math.Sign(TargetOrbit.period-OrigOrbit.period);
-			DeltaFi = TrajectoryCalculator.RelativeInclination(NewOrbit, TargetPos);
+			DeltaFi = TrajectoryCalculator.RelativeInclination(Orbit, TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
-			KillerOrbit = NewOrbit.PeR < MinPeR && NewOrbit.timeToPe < TransferTime;
+			KillerOrbit = Orbit.PeR < MinPeR && Orbit.timeToPe < TransferTime;
 //			DebugUtils.Log("{}", this);//debug
 		}
 

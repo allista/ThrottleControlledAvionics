@@ -19,7 +19,7 @@ namespace ThrottleControlledAvionics
 		public readonly CelestialBody Body;
 		public readonly Orbit OrigOrbit;
 
-		public Orbit NewOrbit { get; protected set; }
+		public Orbit  Orbit { get; protected set; }
 		public double StartUT { get; protected set; }
 		public double TimeToStart { get; protected set; }
 		public Vector3d ManeuverDeltaV { get; protected set; }
@@ -37,20 +37,20 @@ namespace ThrottleControlledAvionics
 			TimeToStart = startUT-VSL.Physics.UT;
 			Body = VSL.vessel.orbitDriver.orbit.referenceBody;
 			OrigOrbit = VSL.vessel.orbitDriver.orbit;
-			NewOrbit = TrajectoryCalculator.NewOrbit(OrigOrbit, ManeuverDeltaV, StartUT);
-			StartPos = NewOrbit.getRelativePositionAtUT(StartUT);
-			StartVel = NewOrbit.getOrbitalVelocityAtUT(StartUT);
+			Orbit = TrajectoryCalculator.NewOrbit(OrigOrbit, ManeuverDeltaV, StartUT);
+			StartPos = Orbit.getRelativePositionAtUT(StartUT);
+			StartVel = Orbit.getOrbitalVelocityAtUT(StartUT);
 		}
 
 		public virtual void UpdateOrbit(Orbit current)
 		{
-			NewOrbit = current;
+			Orbit = current;
 			StartUT = VSL.Physics.UT;
 			TimeToStart = 0;
 			ManeuverDeltaV = Vector3d.zero;
 			ManeuverDuration = 0;
-			StartPos = NewOrbit.pos;
-			StartVel = NewOrbit.vel;
+			StartPos = Orbit.pos;
+			StartVel = Orbit.vel;
 		}
 
 		public override string ToString()
@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
 			                     "NewOrbit:\n{}\n" +
 			                     "StartUT: {} s, TimeToStart: {} s, ManeuverDuration: {} s\n" +
 			                     "ManeuverDeltaV: {}", 
-			                     GetType().Name, OrigOrbit, NewOrbit, 
+			                     GetType().Name, OrigOrbit, Orbit, 
 			                     StartUT, TimeToStart, ManeuverDuration, ManeuverDeltaV);
 		}
 	}
@@ -102,7 +102,7 @@ namespace ThrottleControlledAvionics
 			{ 
 				var t_orbit = Target.GetOrbit();
 				var t_vel = t_orbit != null? t_orbit.getOrbitalVelocityAtUT(AtTargetUT) : Vector3d.zero;
-				return t_vel-NewOrbit.getOrbitalVelocityAtUT(AtTargetUT); 
+				return t_vel-Orbit.getOrbitalVelocityAtUT(AtTargetUT); 
 			} 
 		}
 
