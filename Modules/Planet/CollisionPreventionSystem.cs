@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 //				if(!Maneuver.IsZero() && !DeltaV.IsZero())
 //					Utils.GLVec(VSL.Physics.wCoM, Maneuver+DeltaV, Color.red);
 //			}
-			Utils.GLBounds(VSL.Geometry.B, VSL.refT, Collided? Color.red : Color.white);
+			Utils.GLDrawBounds(VSL.Geometry.B, VSL.refT, Collided? Color.red : Color.white);
 //			for(int i = 0, VSLEnginesCount = VSL.Engines.Count; i < VSLEnginesCount; i++)
 //			{
 //				var e = VSL.Engines[i];
