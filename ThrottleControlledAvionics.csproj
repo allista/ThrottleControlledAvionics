@@ -203,7 +203,6 @@
     <None Include="ChanegLog.md" />
     <None Include="export_git.sh" />
     <None Include="extract_csv.sh" />
-    <None Include="make_release" />
     <None Include="make-release.sh" />
     <None Include="README.md" />
     <None Include="GameData\ThrottleControlledAvionics\Plugins\PluginData\ThrottleControlledAvionics\TCA.glob" />
