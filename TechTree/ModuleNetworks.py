@@ -31,7 +31,7 @@ import os
 import networkx as nx
 from openpyxl import load_workbook
 
-from PyConfigNode import ConfigNode
+from KSPUtils import ConfigNode
 from config import datapath
 
 
