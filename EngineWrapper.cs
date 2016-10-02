@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
 		public float   torqueRatio;
 		public float   limit, best_limit, limit_tmp;
 		public float   thrustMod;
+		public bool    preset_limit;
 		protected float zeroIsp;
 
 		public abstract Vessel vessel { get; }
@@ -46,6 +47,13 @@ namespace ThrottleControlledAvionics
 
 		public abstract void InitLimits();
 		public abstract void InitState();
+
+		//needed for autopilots that are executed before FixedUpdate
+		public void PresetLimit(float lim)
+		{
+			limit = best_limit = limit_tmp = lim;
+			preset_limit = true;
+		}
 
 		public virtual  void InitTorque(VesselWrapper VSL, float ratio_factor)
 		{
@@ -72,7 +80,11 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override void InitLimits()
-		{ limit = best_limit = limit_tmp = 1f; }
+		{ 
+			if(!preset_limit)
+				limit = best_limit = limit_tmp = 1f;
+			preset_limit = false;
+		}
 
 		public override void InitState()
 		{
@@ -195,27 +207,35 @@ namespace ThrottleControlledAvionics
 			case TCARole.MAIN:
 			case TCARole.BALANCE:
 			case TCARole.UNBALANCE:
-				limit = best_limit = 1f;
+				if(!preset_limit)
+					limit = best_limit = 1f;
 				isSteering = Role == TCARole.MAIN;
 				isVSC = true;
 				break;
 			case TCARole.MANEUVER:
-				limit = best_limit = 0f;
+				if(!preset_limit)
+					limit = best_limit = 0f;
 				isSteering = true;
 				break;
 			case TCARole.MANUAL:
 				limit = best_limit = thrustLimit;
 				break;
 			}
+			preset_limit = false;
+		}
+
+		public void UpdateThrustInfo()
+		{
+			thrustInfo = new CenterOfThrustQuery();
+			engine.OnCenterOfThrustQuery(thrustInfo);
+			thrustInfo.dir.Normalize();
 		}
 
 		public override void InitState()
 		{
 			if(engine == null || part == null || vessel == null) return;
 			//update thrust info
-			thrustInfo = new CenterOfThrustQuery();
-			engine.OnCenterOfThrustQuery(thrustInfo);
-			thrustInfo.dir.Normalize();
+			UpdateThrustInfo();
 			realIsp = GetIsp((float)(part.staticPressureAtm), (float)(part.atmDensity/1.225), (float)part.machNumber);
 			flowMod = GetFlowMod((float)(part.atmDensity/1.225), (float)part.machNumber);
 			thrustMod = realIsp*flowMod/zeroIsp;
