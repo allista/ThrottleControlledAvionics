@@ -186,7 +186,7 @@ namespace ThrottleControlledAvionics
 			var minI = steering.MinI();
 			var AA = VSL.Torque.MaxCurrent.AA.Exclude(minI);
 			var AAm = Utils.ClampL(AA.MaxComponentF(), 1e-5f);
-			var slow = VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*ATCB.SlowTorqueF : 1;
+			var slow = VSL.Engines.SlowTorque? 1+VSL.Engines.TorqueResponseTime*AAm*ATCB.SlowTorqueF : 1;
 			AAf = AAf_filter.Update(Mathf.Clamp(1/AAm, ATCB.MinAAf, ATCB.MaxAAf));
 			AAm = Utils.ClampH(AAm, ATCB.MaxAA);
 			PIf = AAf*Utils.ClampL(1-Ef, 1/ATCB.MaxEf)*ATCB.MaxEf/slow;
