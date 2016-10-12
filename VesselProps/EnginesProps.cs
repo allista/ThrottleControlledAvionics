@@ -478,9 +478,9 @@ namespace ThrottleControlledAvionics
 		public bool ActivateNextStageOnFlameout()
 		{
 			if(!CFG.AutoStage || !HaveNextStageEngines) return false;
-			var this_engines = All.Where(e => e.part.inverseStage >= vessel.currentStage).ToList();
+			var this_engines = All.Where(e => e.Role != TCARole.MANEUVER && e.part.inverseStage >= vessel.currentStage).ToList();
 			return stage_cooldown.RunIf(VSL.ActivateNextStage,
-			                            this_engines.Count > 0 && 
+			                            this_engines.Count == 0 ||
 			                            this_engines.Any(e => e.engine.flameout));
 		}
 		readonly Timer stage_cooldown = new Timer(0.5);
