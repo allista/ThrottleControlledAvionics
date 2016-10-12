@@ -2,7 +2,17 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.2.3**
+* **v3.2.4**
+    * ToOrbit Autopilot:
+        * Added user-definable slope parameter.
+        * Engines will now always have full thrust until initial apoapsis is reached.
+        * Fixed inclination correction algorithm.
+    * ThrottleControl now applies Angular Error correction differently: it will not affect engines that provide torque, so that a ship could retain maneuverability.
+    * Main throttle is set to 0 on launch if a ship have active engines (in the active profile).
+    * Improved support of slow engines.
+    * Bugfixes.
+
+* v3.2.3
     * Bugfixes:
         * Fixed rendering of surface markers.
         * Fixed incorrect calculation of Landing Trajectory in some cases.
@@ -13,12 +23,12 @@ _**BUT** do not delete the TCA.user and config.xml files to preserve your settin
     * Improved low altitude landing algorithm.
     * Ballistic Jump now uses the Minimum Energy trajectory to conserve fuel. Also fixed instability in gradient-descent optimization of the jump trajectory.
     * Improved Deorbit Autopilot:
-        * Better initial orbit calculation. 
+        * Better initial orbit calculation.
         * Added orbit correction that ensures that dorbiting ship will have at least 2km above the target after the main deceleration.
         * Improved landing algorithm.
         * Improved detection and handling of landscape obstacles.
     * Attitude Control uses new Oscillation Detector to quench sporadic oscillations in control output.
-    * Improved PersistentRotation management. 
+    * Improved PersistentRotation management.
     * The "Enabled" button now flashes red if TCA is disabled when flying.
 
 * v3.2.2
