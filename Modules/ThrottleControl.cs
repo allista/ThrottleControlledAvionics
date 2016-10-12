@@ -29,6 +29,7 @@ namespace ThrottleControlledAvionics
 		float throttle = -1;
 		public float DeltaV = -1;
 		public float Throttle { get { return throttle; } set { throttle = value; DeltaV = -1; } }
+		public bool CorrectThrottle = true;
 
 		public float NextThrottle(float dV, float throttle)
 		{ return NextThrottle(dV, throttle, VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Engines.ThrustDecelerationTime); }
@@ -54,6 +55,14 @@ namespace ThrottleControlledAvionics
 		{
 			base.reset();
 			Throttle = -1;
+			CorrectThrottle = true;
+		}
+
+		static void set_engine_limit(EngineWrapper e, float errorF)
+		{
+			if(e.Role == TCARole.MANEUVER || e.Role == TCARole.MANUAL) return;
+			if(e.Role == TCARole.BALANCE || e.Role == TCARole.UNBALANCE) e.PresetLimit(errorF);
+			else e.PresetLimit(Mathf.Lerp(errorF, 1, e.torqueRatio));
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
@@ -62,8 +71,12 @@ namespace ThrottleControlledAvionics
 			if(DeltaV >= 0)
 			{
 				throttle = DeltaV < THR.MinDeltaV? throttle = 0 :
-					NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle) * 
-					VSL.Controls.OffsetAlignmentFactor(THR.AttitudeDeadzone);
+					NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle);
+				if(CorrectThrottle)
+				{
+					var errorF = VSL.Controls.OffsetAlignmentFactor(THR.AttitudeDeadzone);
+				 	if(errorF < 1) VSL.Engines.Active.ForEach(e => set_engine_limit(e, errorF));
+				}
 			}
 			if(Throttle >= 0) 
 			{ 
