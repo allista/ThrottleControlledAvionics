@@ -93,7 +93,7 @@ namespace ThrottleControlledAvionics
 			TorqueAngle = TorqueError = -1f;
 			float error, angle;
 			var last_error = -1f;
-			Vector3 cur_imbalance = VSL.Torque.Engines.Torque, target;
+			Vector3 cur_imbalance = VSL.Torque.Imbalance.Torque, target;
 //			Log("=============================== Optimization ===============================\n" +
 //			    "needed_torque {}\n" +
 //			    "OnPlanet.VSF {}, GeeVSF {}, MaxTWR {}\n" +
@@ -108,7 +108,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < ENG.MaxIterations; i++)
 			{
 				//calculate current errors and target
-				cur_imbalance = VSL.Torque.Engines.Torque;
+				cur_imbalance = VSL.Torque.Imbalance.Torque;
 				for(int j = 0; j < num_engines; j++) 
 				{ var e = engines[j]; cur_imbalance += e.Torque(e.throttle * e.limit); }
 				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);

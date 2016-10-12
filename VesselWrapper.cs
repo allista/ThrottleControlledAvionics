@@ -236,6 +236,7 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateCommons()
 		{
+			Engines.Sort();
 			Engines.Update();
 			Torque.Update();
 			Controls.Update();

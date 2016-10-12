@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using System.Linq;
 
 namespace ThrottleControlledAvionics
 {
@@ -210,6 +211,9 @@ namespace ThrottleControlledAvionics
 		[Persistent] public EngineConfigIntDB  Groups = new EngineConfigIntDB();
 		[Persistent] public EngineConfigUintDB Single = new EngineConfigUintDB();
 		public bool Changed, Edit;
+
+		public bool HasActiveEngines
+		{ get { return Single.DB.Any(e => e.Value.On) || Groups.DB.Any(e => e.Value.On); } }
 
 		public EnginesProfile() {}
 		public EnginesProfile(EnginesProfile p)

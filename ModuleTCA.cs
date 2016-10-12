@@ -102,12 +102,14 @@ namespace ThrottleControlledAvionics
 			base.OnAwake();
 			GameEvents.onVesselWasModified.Add(onVesselModify);
 			GameEvents.onStageActivate.Add(onStageActive);
+			GameEvents.onVesselGoOffRails.Add(onVesselGoOffRails);
 		}
 
 		internal void OnDestroy() 
 		{ 
 			GameEvents.onVesselWasModified.Remove(onVesselModify);
 			GameEvents.onStageActivate.Remove(onStageActive);
+			GameEvents.onVesselGoOffRails.Remove(onVesselGoOffRails);
 			reset();
 		}
 
@@ -142,6 +144,22 @@ namespace ThrottleControlledAvionics
 			if(state == StartState.Editor) return;
 			enable_module(TCA_Active);
 			StartCoroutine(delayed_init());
+		}
+
+		void onVesselGoOffRails(Vessel vsl)
+		{
+			if(vsl != vessel) return;
+			if(vessel.situation == Vessel.Situations.PRELAUNCH)
+			{
+				if(VSL != null && CFG != null && 
+				   CFG.ActiveProfile != null &&
+				   CFG.ActiveProfile.HasActiveEngines)
+				{
+					vessel.ctrlState.mainThrottle = 0;
+					if(VSL.IsActiveVessel)
+						FlightInputHandler.state.mainThrottle = 0;
+				}
+			}
 		}
 
 		void onVesselModify(Vessel vsl)
@@ -231,8 +249,12 @@ namespace ThrottleControlledAvionics
 		{
 			//get all ModuleTCA instances in the vessel
 			var TCA_Modules = new List<ModuleTCA>();
-			(from p in ship.Parts select p.Modules.GetModules<ModuleTCA>())
-				.ForEach(TCA_Modules.AddRange);
+			if(ship.Parts != null)
+			{
+				(from p in ship.Parts where p.Modules != null 
+				 select p.Modules.GetModules<ModuleTCA>())
+					.ForEach(TCA_Modules.AddRange);
+			}
 			return TCA_Modules;
 		}
 
@@ -388,7 +410,6 @@ namespace ThrottleControlledAvionics
 			VSL.Engines.Tune();
 			if(VSL.Engines.NumActive > 0)
 			{
-				VSL.Engines.Sort();
 				//:preset manual limits for translation if needed
 				if(VSL.Controls.ManualTranslationSwitch.On)
 				{
@@ -398,10 +419,10 @@ namespace ThrottleControlledAvionics
 				//:balance-only engines
 				if(VSL.Engines.Balanced.Count > 0)
 				{
-					VSL.Torque.UpdateTorque(VSL.Engines.Manual, VSL.Engines.UnBalanced);
+					VSL.Torque.UpdateImbalance(VSL.Engines.Manual, VSL.Engines.UnBalanced);
 					ENG.OptimizeLimitsForTorque(VSL.Engines.Balanced, Vector3.zero);
 				}
-				VSL.Torque.UpdateTorque(VSL.Engines.Manual, VSL.Engines.UnBalanced, VSL.Engines.Balanced);
+				VSL.Torque.UpdateImbalance(VSL.Engines.Manual, VSL.Engines.UnBalanced, VSL.Engines.Balanced);
 				//:optimize limits for steering
 				ENG.PresetLimitsForTranslation(VSL.Engines.Maneuver, VSL.Controls.Translation);
 				ENG.Steer();

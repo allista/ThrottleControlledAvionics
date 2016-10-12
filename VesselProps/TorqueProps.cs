@@ -23,11 +23,13 @@ namespace ThrottleControlledAvionics
 		public Vector6  WheelsLimits { get; private set; } = Vector6.zero; //torque limits of reaction wheels
 		public Vector6  RCSLimits { get; private set; } = Vector6.zero; //torque limits of rcs
 
+		public TorqueInfo Imbalance; //current torque imbalance, set by UpdateImbalance
 		public TorqueInfo Engines; //current torque applied to the vessel by engines
 		public TorqueInfo NoEngines; //current maximum torque
 		public TorqueInfo MaxCurrent; //current maximum torque
 		public TorqueInfo MaxPitchRoll; //current maximum torque
 		public TorqueInfo MaxPossible; //theoretical maximum torque from active engines, wheels and RCS
+		public TorqueInfo MaxEngines; //theoretical maximum torque from active engines
 
 		public float MaxAAMod { get; private set; }
 
@@ -86,9 +88,11 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			//torque and angular acceleration
+			Engines.Update(EnginesLimits.Max);
 			NoEngines.Update(RCSLimits.Max+WheelsLimits.Max);
-			MaxCurrent.Update(NoEngines.Torque+EnginesLimits.Max);
-			MaxPossible.Update(NoEngines.Torque+MaxEnginesLimits.Max);
+			MaxEngines.Update(MaxEnginesLimits.Max);
+			MaxCurrent.Update(NoEngines.Torque+Engines.Torque);
+			MaxPossible.Update(NoEngines.Torque+MaxEngines.Torque);
 			MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrustDir));
 
 			if(MaxCurrent.AA_rad > 0)
@@ -99,7 +103,7 @@ namespace ThrottleControlledAvionics
 			else MaxAAMod = 1;
 		}
 
-		public void UpdateTorque(params IList<EngineWrapper>[] engines)
+		public void UpdateImbalance(params IList<EngineWrapper>[] engines)
 		{
 			var torque = Vector3.zero;
 			for(int i = 0; i < engines.Length; i++)
@@ -110,7 +114,7 @@ namespace ThrottleControlledAvionics
 					torque += e.Torque(e.throttle * e.limit);
 				}
 			}
-			Engines.Update(EnginesLimits.Clamp(torque));
+			Imbalance.Update(EnginesLimits.Clamp(torque));
 		}
 	}
 
