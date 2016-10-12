@@ -33,7 +33,6 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region GUI Parameters
-		const string LockName = "TCAGui";
 		public const int ControlsWidth = 650, ControlsHeight = 100, LineHeight = 35;
 
 		static NamedConfig selected_config;
@@ -110,6 +109,13 @@ namespace ThrottleControlledAvionics
 			StartCoroutine(init_on_load());
 		}
 
+		protected override void show(bool show)
+		{
+			if(TCA == null || CFG == null) return;
+			CFG.GUIVisible = show;
+			base.show(show);
+		}
+
 		public static void AttachTCA(ModuleTCA tca) 
 		{ 
 			if(tca.vessel != vessel || instance == null) return;
@@ -119,8 +125,8 @@ namespace ThrottleControlledAvionics
 		static IEnumerator<YieldInstruction> init_on_load()
 		{
 			do {
-				if(vessel == null) yield break;
 				yield return null;
+				if(vessel == null) yield break;
 			} while(!vessel.loaded || TimeWarp.CurrentRateIndex == 0 && vessel.packed);	
 			init();
 		}
@@ -152,6 +158,7 @@ namespace ThrottleControlledAvionics
 			TCAToolbarManager.AttachTCA(null);
 			TCA = ModuleTCA.AvailableTCA(vessel);
 			if(TCA == null) return false;
+			if(CFG != null) window_enabled = CFG.GUIVisible;
 			TCAToolbarManager.AttachTCA(TCA);
 			create_fields();
 			update_configs();
@@ -168,16 +175,16 @@ namespace ThrottleControlledAvionics
 			if(first) named_configs.SelectItem(configs.Count-1);
 		}
 
-		static void SelectConfig_start() 
+		void SelectConfig_start() 
 		{ 
 			named_configs.styleListBox  = Styles.list_box;
 			named_configs.styleListItem = Styles.list_item;
-			named_configs.windowRect    = MainWindow;
+			named_configs.windowRect    = WindowPos;
 			if(TCAScenario.NamedConfigs.Count > 0)
 				named_configs.DrawBlockingSelector(); 
 		}
 
-		static void SelectConfig()
+		void SelectConfig()
 		{
 			if(TCAScenario.NamedConfigs.Count == 0)
 				GUILayout.Label("[Nothing Saved]", GUILayout.ExpandWidth(true));
@@ -193,7 +200,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		static void SelectConfig_end()
+		void SelectConfig_end()
 		{
 			if(TCAScenario.NamedConfigs.Count == 0) return;
 			named_configs.DrawDropDown();
@@ -219,10 +226,10 @@ namespace ThrottleControlledAvionics
 		{ Status(-1, color, msg, args); }
 		#endregion
 
-		protected override void DrawMainWindow(int windowID)
+		void DrawMainWindow(int windowID)
 		{
 			//help button
-			if(GUI.Button(new Rect(MainWindow.width - 23f, 2f, 20f, 18f), 
+			if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f), 
 			              new GUIContent("?", "Help"))) TCAManual.Toggle();
 			if(TCA.Controllable)
 			{
@@ -275,10 +282,10 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndVertical();
 			}
 			else GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-			base.DrawMainWindow(windowID);
+			TooltipsAndDragWindow(WindowPos);
 		}
 
-		static void StatusString()
+		void StatusString()
 		{
 			var state = "Disabled";
 			var style = Styles.grey;
@@ -316,7 +323,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(state, style, GUILayout.ExpandWidth(false));
 		}
 
-		static void AdvancedOptions()
+		void AdvancedOptions()
 		{
 			if(!adv_options) return;
 			GUILayout.BeginVertical(Styles.white);
@@ -350,7 +357,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 		}
 
-		static void ConfigsGUI()
+		void ConfigsGUI()
 		{
 			GUILayout.BeginVertical();
 			GUILayout.Label("Manage named configurations", Styles.label, GUILayout.ExpandWidth(true));
@@ -386,7 +393,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 		}
 
-		static void ControllerProperties()
+		void ControllerProperties()
 		{
 			Utils.ButtonSwitch("Autotune engines' controller parameters", ref CFG.AutoTune, "", GUILayout.ExpandWidth(true));
 			if(CFG.AutoTune) return;
@@ -412,7 +419,7 @@ namespace ThrottleControlledAvionics
 			CFG.Engines.DrawControls("Engines Controller", GLB.ENG.MaxP, GLB.ENG.MaxI);
 		}
 
-		static void EnginesControl()
+		void EnginesControl()
 		{
 			GUILayout.BeginVertical();
 			if(CFG.ActiveProfile.NumManual > 0)
@@ -435,7 +442,7 @@ namespace ThrottleControlledAvionics
 		public static string DebugMessage;
 
 		static Vector2 eInfoScroll;
-		static void EnginesInfo()
+		void EnginesInfo()
 		{
 			GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
@@ -463,7 +470,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 		}
 
-		static void DebugInfo()
+		void DebugInfo()
 		{
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(string.Format("vV: {0:0.0}m/s", VSL.VerticalSpeed.Absolute), GUILayout.Width(100));
@@ -472,6 +479,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed.Absolute), GUILayout.Width(100));
 			GUILayout.Label(string.Format("Rho: {0:0.000}ASL", VSL.Body.atmosphere? VSL.vessel.atmDensity/VSL.Body.atmDensityASL : 0), GUILayout.Width(100));
 			GUILayout.Label(string.Format("aV2: {0:0.0E0}", VSL.vessel.angularVelocity.sqrMagnitude), GUILayout.Width(100));
+			GUILayout.Label(string.Format("inc: {0:0.000}", VSL.orbit.inclination), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(string.Format("VSP: {0:0.0m/s}", CFG.VerticalCutoff), GUILayout.Width(100));
@@ -481,25 +489,23 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)), GUILayout.Width(100));
 			GUILayout.Label(string.Format("dP: {0:0.000}kPa", VSL.vessel.dynamicPressurekPa), GUILayout.Width(100));
 			GUILayout.Label(string.Format("Thr: {0:P1}", VSL.vessel.ctrlState.mainThrottle), GUILayout.Width(100));
+			GUILayout.Label(string.Format("ecc: {0:0.000}", VSL.orbit.eccentricity), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
 			if(!string.IsNullOrEmpty(DebugMessage))
 				GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));
 		}
 		#endif
 
-		public void OnGUI()
+		protected override bool can_draw()
+		{ return TCA != null && CFG.GUIVisible && AllPanels.Count > 0; }
+
+		protected override void draw_gui()
 		{
-			if(TCA == null || !CFG.GUIVisible || !HUD_enabled || AllPanels.Count == 0) 
-			{
-				Utils.LockIfMouseOver(LockName, MainWindow, false);
-				return;
-			}
-			Styles.Init();
-			Utils.LockIfMouseOver(LockName, MainWindow, !MapView.MapIsEnabled);
-			MainWindow = 
+			Utils.LockIfMouseOver(LockName, WindowPos, !MapView.MapIsEnabled);
+			WindowPos = 
 				GUILayout.Window(TCA.GetInstanceID(), 
-				                 MainWindow, 
-								 DrawMainWindow, 
+				                 WindowPos, 
+				                 DrawMainWindow, 
 				                 VSL.vessel.vesselName,
 				                 GUILayout.Width(ControlsWidth),
 				                 GUILayout.Height(ControlsHeight)).clampToScreen();

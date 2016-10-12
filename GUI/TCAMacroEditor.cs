@@ -17,8 +17,6 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.EveryScene, false)]
 	public class TCAMacroEditor : AddonWindowBase<TCAMacroEditor>
 	{
-		const string LockName = "TCAMacroEditor";
-
 		static TCAMacro Macro;
 		static VesselConfig CFG;
 		static Vector2 scroll;
@@ -118,7 +116,7 @@ namespace ThrottleControlledAvionics
 			return ret;
 		}
 
-		protected override void DrawMainWindow(int windowID)
+		void DrawMainWindow(int windowID)
 		{
 			if(Macro == null) return;
 			GUILayout.BeginVertical();
@@ -185,25 +183,22 @@ namespace ThrottleControlledAvionics
 					load_macro(macro);
 			}
 			GUILayout.EndVertical();
-			base.DrawMainWindow(windowID);
+			TooltipsAndDragWindow(WindowPos);
 		}
 
-		public void OnGUI()
+		protected override bool can_draw()
+		{ return Macro != null && CFG != null; }
+
+		protected override void draw_gui()
 		{
-			if(Macro == null || CFG == null || !do_show) 
-			{
-				Utils.LockIfMouseOver(LockName, MainWindow, false);
-				return;
-			}
-			Styles.Init();
-			Utils.LockIfMouseOver(LockName, MainWindow);
-			MainWindow = 
+			LockControls();
+			WindowPos = 
 				GUILayout.Window(GetInstanceID(), 
-					MainWindow, 
-					DrawMainWindow, 
-					Macro.Name,
-					GUILayout.Width(width),
-					GUILayout.Height(height)).clampToScreen();
+				                 WindowPos, 
+				                 DrawMainWindow, 
+				                 Macro.Name,
+				                 GUILayout.Width(width),
+				                 GUILayout.Height(height)).clampToScreen();
 		}
 	}
 

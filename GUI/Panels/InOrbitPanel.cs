@@ -15,7 +15,7 @@ namespace ThrottleControlledAvionics
 {
 	public class InOrbitPanel : ControlPanel
 	{
-		const int orb_width = 250;
+		const int orb_width = 350;
 		const int orb_height = 100;
 		static Rect orbit_editor = new Rect((Screen.width-orb_width)/2, 
 		                               		(Screen.height-orb_height)/2, 
@@ -67,7 +67,7 @@ namespace ThrottleControlledAvionics
 		void draw_orbit_editor(int windowID)
 		{
 			ORB.DrawOrbitEditor();
-			AddonWindowBase.TooltipAndDrag(orbit_editor);
+			GUIWindowBase.TooltipsAndDragWindow(orbit_editor);
 		}
 
 		public void OrbitEditorWindow()

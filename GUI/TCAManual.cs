@@ -15,8 +15,6 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.EveryScene, false)]
 	public class TCAManual : AddonWindowBase<TCAManual>
 	{
-		const string LockName = "TCAMnualEditor";
-
 		static MDSection Manual { get { return Globals.Instance.Manual; } }
 		static bool show_status;
 		static MDSection current_section;
@@ -74,7 +72,7 @@ namespace ThrottleControlledAvionics
 			Show(true);
 		}
 
-		protected override void DrawMainWindow(int windowID)
+		void DrawMainWindow(int windowID)
 		{
 			GUILayout.BeginVertical();
 			sections_scroll = GUILayout.BeginScrollView(sections_scroll, GUILayout.Height(60));
@@ -120,21 +118,16 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndScrollView();
 			if(GUILayout.Button("Close")) Show(false);
 			GUILayout.EndVertical();
-			base.DrawMainWindow(windowID);
+			TooltipsAndDragWindow(WindowPos);
 		}
 
-		public void OnGUI()
+		protected override bool can_draw() { return Manual != null; }
+		protected override void draw_gui()
 		{
-			if(Manual == null || !do_show) 
-			{
-				Utils.LockIfMouseOver(LockName, MainWindow, false);
-				return;
-			}
-			Styles.Init();
-			Utils.LockIfMouseOver(LockName, MainWindow);
-			MainWindow = 
+			LockControls();
+			WindowPos = 
 				GUILayout.Window(GetInstanceID(), 
-				                 MainWindow, 
+				                 WindowPos, 
 				                 DrawMainWindow, 
 				                 Globals.Instance.Manual.Title,
 				                 GUILayout.Width(width),

@@ -108,8 +108,7 @@ namespace ThrottleControlledAvionics
 
 		static void onToolbarToggle(ClickEvent e) 
 		{ 
-			if(TCA != null) 
-				TCA.CFG.GUIVisible = !TCA.CFG.GUIVisible;
+			if(TCA != null) TCAGui.Toggle();
 			else if(HighLogic.LoadedSceneIsEditor && EnginesProfileEditor.Available)
 				EnginesProfileEditor.Toggle();
 			else TCAManual.Toggle();
