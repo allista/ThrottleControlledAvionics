@@ -248,3 +248,4 @@ pip-log.txt
 .idea
 /TechTree/TechTreeGraph.svg
 /TechTree/TechTreeGraph_PartDeps.svg
+*.new
