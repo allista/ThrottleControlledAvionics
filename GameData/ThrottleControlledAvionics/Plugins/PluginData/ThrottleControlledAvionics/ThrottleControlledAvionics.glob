@@ -130,7 +130,7 @@ ATCB
 	MoIFactor              = 0.01
 	MinEf                  = 0.0001
 	MaxEf                  = 2
-	SlowTorqueF            = 0.2
+	SlowTorqueF            = 0.08 //0.2
 	AALowPassF             = 1
 	MinSteeringThreshold   = 0.1
 	
@@ -422,7 +422,9 @@ ORB
 	GTurnOffset    = 1000
 	Dist2VelF      = 0.01	
 	RadiusOffset   = 10000 //m
-	LaunchTangentK = 2.0
+	LaunchSlope    = 50
+	MinSlope       = 30
+	MaxSlope       = 70
 	DragK          = 2.0
 }
 
