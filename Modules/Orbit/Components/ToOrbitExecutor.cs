@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
 		public bool Liftoff()
 		{
 			UpdateTargetPosition();
-			VSL.Engines.ActivateInactiveEngines();
+			VSL.Engines.ActivateEngines();
 			if(VSL.VerticalSpeed.Absolute/VSL.Physics.G < MinClimbTime)
 			{ 
 				Status("Liftoff...");
@@ -69,6 +69,7 @@ namespace ThrottleControlledAvionics
 				return true;
 			}
 			GravityTurnStart = VSL.Altitude.Absolute;
+			ApoapsisReached = false;
 			GearAction.Run();
 			CFG.VTOLAssistON = false;
 			CFG.StabilizeFlight = false;
@@ -85,6 +86,7 @@ namespace ThrottleControlledAvionics
 		public bool GravityTurn(double ApA_offset, double gturn_curve, double dist2vel, double Dtol)
 		{
 			UpdateTargetPosition();
+			VSL.Engines.ActivateNextStageOnFlameout();
 			dApA = TargetR-VesselOrbit.ApR;
 			var vel  = Vector3d.zero;
 			var cApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp);
@@ -92,6 +94,7 @@ namespace ThrottleControlledAvionics
 			var arc  = Utils.ProjectionAngle(cApV, target, hv)*Mathf.Deg2Rad*cApV.magnitude;
 			ErrorThreshold.Value = CorrectOnlyAltitude? dApA : dApA+arc;
 			ApoapsisReached |= dApA < Dtol;
+			THR.CorrectThrottle = ApoapsisReached;
 			if(!ErrorThreshold)
 			{
 				var startF = Utils.Clamp((VSL.Altitude.Absolute-GravityTurnStart)/GLB.ORB.GTurnOffset, 0, 1);
