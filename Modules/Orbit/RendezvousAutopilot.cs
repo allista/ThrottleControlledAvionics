@@ -272,7 +272,7 @@ namespace ThrottleControlledAvionics
 			//calculate target vector
 			var ApR = Math.Max(MinPeR, (TargetOrbit.PeR+TargetOrbit.ApR)/2);
 			var hVdir = Vector3d.Cross(TargetOrbit.GetOrbitNormal(), VesselOrbit.pos).normalized;
-			var ascO = AscendingOrbit(ApR, hVdir, GLB.ORB.LaunchTangentK);
+			var ascO = AscendingOrbit(ApR, hVdir, GLB.ORB.LaunchSlope);
 			//tune target vector
 			ToOrbit = new ToOrbitExecutor(TCA);
 			ToOrbit.LaunchUT = VSL.Physics.UT;

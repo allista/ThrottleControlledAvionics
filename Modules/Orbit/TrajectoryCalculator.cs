@@ -113,18 +113,24 @@ namespace ThrottleControlledAvionics
 			var max_dV = 0.0;
 			if(up)
 			{
-				max_dV = 1;
+				max_dV = 10;
 				var max_PeR = pos.magnitude;
 				if(R > max_PeR) R = max_PeR;
-				while(NewOrbit(old, dVdir*max_dV, UT).PeR < R)
-				{ max_dV *= 2; if(max_dV > 100000) break; }
+				while(max_dV < 100000)
+				{ 
+					var orb = NewOrbit(old, dVdir*max_dV, UT);
+					if(orb.eccentricity >= 1 || orb.PeR > R) break;
+					max_dV *= 2;
+				}
 			}
 			else max_dV = vel.magnitude+add_dV.magnitude;
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
 				var dV = (max_dV+min_dV)/2;
-				var nR = NewOrbit(old, dVdir*dV+add_dV, UT).PeR;
-				if(up && nR > R || !up && nR < R) max_dV = dV;
+				var orb = NewOrbit(old, dVdir*dV+add_dV, UT);
+				if(up && (orb.eccentricity >= 1 || orb.PeR > R) || 
+				   !up && orb.PeR < R) 
+					max_dV = dV;
 				else min_dV = dV;
 			}
 			return (max_dV+min_dV)/2*dVdir+add_dV;
@@ -139,9 +145,13 @@ namespace ThrottleControlledAvionics
 			var max_dV = 0.0;
 			if(up)
 			{
-				max_dV = 1;
-				while(NewOrbit(old, dVdir*max_dV, UT).ApR < R)
-				{ max_dV *= 2; if(max_dV > 100000) break; }
+				max_dV = 10;
+				while(max_dV < 100000)
+				{ 
+					var orb = NewOrbit(old, dVdir*max_dV, UT);
+					if(orb.eccentricity >= 1 || orb.ApR > R) break;
+					max_dV *= 2;
+				}
 			}
 			else 
 			{
@@ -152,8 +162,10 @@ namespace ThrottleControlledAvionics
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
 				var dV = (max_dV+min_dV)/2;
-				var nR = NewOrbit(old, dVdir*dV+add_dV, UT).ApR;
-				if(up && nR > R || !up && nR < R) max_dV = dV;
+				var orb = NewOrbit(old, dVdir*dV+add_dV, UT);
+				if(up && (orb.eccentricity >= 1 || orb.ApR > R) ||
+				   !up && orb.ApR < R) 
+					max_dV = dV;
 				else min_dV = dV;
 			}
 			return (max_dV+min_dV)/2*dVdir+add_dV;
@@ -207,13 +219,17 @@ namespace ThrottleControlledAvionics
 			return (max_dV+min_dV)/2*dir;
 		}
 
-		protected Orbit AscendingOrbit(double ApR, Vector3d hVdir, double slope)
+		protected double slope2rad(double slope, double ApR)
 		{
-			var LaunchRad = Utils.ClampH(Math.Atan(1/(Body.Radius*slope/(2*ApR) - 
-			                                          Body.angularV/Math.Sqrt(2*VSL.Physics.StG*(ApR-Body.Radius)))), 
-			                             Utils.HalfPI);
+			var body_rot = Body.angularV*Body.Radius*Math.Sqrt(2/VSL.Physics.StG/(ApR-Body.Radius));
+			return body_rot >= slope ? Utils.HalfPI : Math.Atan2(2, slope - body_rot);
+		}
+
+		protected Orbit AscendingOrbit(double ApR, Vector3d hVdir, double angle)
+		{
+			var LaunchRad = Utils.Clamp(angle*Mathf.Deg2Rad, 0, Utils.HalfPI);
 			var velN = (Math.Sin(LaunchRad)*VesselOrbit.pos.normalized + Math.Cos(LaunchRad)*hVdir).normalized;
-			var vel = Math.Sqrt(2*VSL.Physics.G*(ApR-Body.Radius)) / Math.Sin(LaunchRad);
+			var vel = Math.Sqrt(2*VSL.Physics.StG*(ApR-Body.Radius)) / Math.Sin(LaunchRad);
 			var v   = 0.0;
 			while(vel-v > TRJ.dVtol)
 			{
@@ -242,6 +258,12 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		public static double ResonanceB(Orbit a, Orbit b)
 		{ return a.period/(b.period - a.period); }
+
+		public static double AngleDelta(Orbit a, Vector3d posB)
+		{
+			var tanA = Vector3d.Cross(a.GetOrbitNormal(), a.pos);
+				return Utils.ProjectionAngle(a.pos, posB, tanA);
+		}
 
 		public static double AngleDelta(Orbit a, Vector3d posB, double UT)
 		{
