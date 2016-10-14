@@ -3,7 +3,8 @@
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
 * **v3.2.4**
-    * ToOrbit Autopilot:
+    * **Compatible with KSP-1.2**
+    * ToOrbit Autopilots
         * Added user-definable slope parameter.
         * Engines will now always have full thrust until initial apoapsis is reached.
         * Fixed inclination correction algorithm.

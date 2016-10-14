@@ -56,24 +56,29 @@ namespace ThrottleControlledAvionics
 			var pos = old.getRelativePositionAtUT(UT);
 			var vel = old.getOrbitalVelocityAtUT(UT)+dV;
 			obt.UpdateFromStateVectors(pos, vel, old.referenceBody, UT);
-			if(obt.eccentricity < 0.01) 
+			if(obt.eccentricity < 0.01) //TODO: is it still needed?
 			{
-				Func<double,double> dist = t => (vel-obt.getOrbitalVelocityAtObT(t)).sqrMagnitude;
-				var T  = obt.ObT;
-				var dT = obt.period/10;
-				var D  = dist(T);
-				while(D > 1e-5)
+				var T   = UT;
+				var v   = obt.getOrbitalVelocityAtUT(UT);
+				var D   = (vel-v).sqrMagnitude;
+				var Dot = Vector3d.Dot(vel, v);
+				var dT  = obt.period/10;
+				while(D > 1e-4 && Math.Abs(dT) > 0.01)
 				{
 					T += dT;
-					if(T < 0) T += obt.period;
-					else if(T > obt.period) T -= obt.period;
-					var d = dist(T);
-					if(d > D) dT /= -2.1;
-					D = d;
+					v = obt.getOrbitalVelocityAtUT(T);
+					var dot = Vector3d.Dot(vel, v);
+					if(dot > 0)
+					{
+						D = (vel-v).sqrMagnitude;
+						if(dot < Dot) dT /= -2;
+						Dot = dot;
+					}
 				}
-				if(!T.Equals(obt.ObT))
+				Utils.Log2File("NewOrbit-dT.log", (T-UT).ToString());//debug
+				if(!T.Equals(UT))
 				{
-					var dP = (T-obt.ObT)/obt.period;
+					var dP = (T-UT)/obt.period;
 					obt.argumentOfPeriapsis = (obt.argumentOfPeriapsis-dP*360)%360;
 					obt.meanAnomaly = (obt.meanAnomaly+dP*Utils.TwoPI)%Utils.TwoPI;
 					obt.meanAnomalyAtEpoch = obt.meanAnomaly;
