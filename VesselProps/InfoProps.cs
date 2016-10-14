@@ -33,8 +33,9 @@ namespace ThrottleControlledAvionics
 		{
 			get
 			{
-				var ec = vessel.GetActiveResource(ElectricCharge);
-				return ec != null && ec.amount > 0;
+				double amount, max_amount;
+				vessel.GetConnectedResourceTotals(ElectricCharge.id, out amount, out max_amount);
+				return amount > 0;
 			}
 		}
 

@@ -311,7 +311,6 @@ namespace ThrottleControlledAvionics
 		static bool DrawMarker(Vector3 icon_center, Color c, float r, Texture2D texture)
 		{
 			if(texture == null) texture = WayPointMarker;
-			r *= ScreenSafeUI.PixelRatio;
 			var icon_rect = new Rect(icon_center.x - r * 0.5f, (float)Screen.height - icon_center.y - r * 0.5f, r, r);
 			Graphics.DrawTexture(icon_rect, texture, texture_rect, 0, 0, 0, 0, c, IconMaterial);
 			return icon_rect.Contains(Event.current.mousePosition);

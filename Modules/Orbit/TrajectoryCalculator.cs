@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 					obt.meanAnomalyAtEpoch = obt.meanAnomaly;
 					obt.orbitPercent = obt.meanAnomaly/Utils.TwoPI;
 					obt.eccentricAnomaly = obt.solveEccentricAnomaly(obt.meanAnomaly, obt.eccentricity, 1e-7, 8);
-					obt.trueAnomaly = obt.getTrueAnomaly(obt.eccentricAnomaly)/Math.PI*180;
+					obt.trueAnomaly = obt.GetTrueAnomaly(obt.eccentricAnomaly)/Math.PI*180;
 					obt.ObT = obt.ObTAtEpoch = T;
 				}
 			}

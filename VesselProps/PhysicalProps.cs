@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 
 		public double     UT { get; private set; } //Planetarium.GetUniversalTime
 
-		public void UpdateCoM() { wCoM = vessel.findWorldCenterOfMass(); }
+		public void UpdateCoM() { wCoM = vessel.CoM; }
 
 		public double GeeAt(double sqrRadius) { return vessel.mainBody.gMagnitudeAtCenter/sqrRadius; }
 
@@ -52,7 +52,7 @@ namespace ThrottleControlledAvionics
 		public override void Update()
 		{
 			UT     = Planetarium.GetUniversalTime();
-			wCoM   = vessel.packed? vessel.CoM : vessel.CoM+vessel.rb_velocity*TimeWarp.fixedDeltaTime;
+			wCoM   = vessel.CoM;//test
 			refT   = vessel.ReferenceTransform;
 			Radial = wCoM - vessel.mainBody.position;
 			Up     = Radial.normalized;

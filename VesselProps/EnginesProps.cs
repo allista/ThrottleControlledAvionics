@@ -488,54 +488,22 @@ namespace ThrottleControlledAvionics
 		public bool ActivateEngines()
 		{ return VSL.Engines.ActivateNextStageOnFlameout() || VSL.Engines.ActivateInactiveEngines(); }
 
-		void GetAvailableFuel(Part origin, int resourceID, ResourceFlowMode flowMode, List<PartResource> resources)
+		static void collect_fuels(EngineWrapper e, Dictionary<int, PartResourceDefinition> db)
 		{
-			double total_amount = 0.0;
-			double max_amount = 0.0;
-			PartResource partResource;
-			switch (flowMode)
-			{
-			case ResourceFlowMode.NO_FLOW:
-				partResource = origin.Resources.Get(resourceID);
-				if(partResource != null && partResource.flowState)
-					resources.Add(partResource);
-				break;
-			case ResourceFlowMode.ALL_VESSEL:
-			case ResourceFlowMode.STAGE_PRIORITY_FLOW:
-			case ResourceFlowMode.ALL_VESSEL_BALANCE:
-			case ResourceFlowMode.STAGE_PRIORITY_FLOW_BALANCE:
-			case ResourceFlowMode.STAGE_STACK_FLOW:
-			case ResourceFlowMode.STAGE_STACK_FLOW_BALANCE:
-				if(flowMode == ResourceFlowMode.STAGE_STACK_FLOW_BALANCE ||
-				   flowMode == ResourceFlowMode.STAGE_STACK_FLOW)
-					origin.FindResource_StackPriority(origin, resources, resourceID, 0, Part.NewRequestID(), true, ref total_amount, ref max_amount, null, true);
-				else
-				{
-					for (int j = vessel.parts.Count - 1; j >= 0; j--)
-					{
-						partResource = vessel.parts[j].Resources.Get(resourceID);
-						if(partResource != null && partResource.flowState) resources.Add(partResource);
-					}
-				}
-				break;
-			case ResourceFlowMode.STACK_PRIORITY_SEARCH:
-				origin.FindResource_StackPriority(origin, resources, resourceID, 1e-20, Part.NewRequestID(), false, ref total_amount, ref max_amount, null, PhysicsGlobals.Stack_PriUsesSurf);
-				break;
-			}
+			e.engine.GetConsumedResources()
+				.ForEach(r => { if(!db.ContainsKey(r.id)) db.Add(r.id, r); });
 		}
 
 		public float GetAvailableFuelMass()
 		{
 			double fuel_mass = 0;
-			var available_resources = new List<PartResource>();
-			var added_resources = new HashSet<int>();
-			Active.ForEach(e => e.engine.GetConsumedResources()
-			               .ForEach(r => GetAvailableFuel(e.part, r.id, r.resourceFlowMode, available_resources)));
-			for(int i = 0, count = available_resources.Count; i < count; i++)
+			double amount, max_amount;
+			var fuels = new Dictionary<int, PartResourceDefinition>();
+			Active.ForEach(e => collect_fuels(e, fuels));
+			foreach(var r in fuels)
 			{
-				var r = available_resources[i];
-				if(added_resources.Add(r.info.id))
-					fuel_mass += r.amount * r.info.density;
+				vessel.GetConnectedResourceTotals(r.Key, out amount, out max_amount);
+				fuel_mass += amount * r.Value.density;
 			}
 			return (float)fuel_mass;
 		}
