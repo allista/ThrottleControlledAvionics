@@ -129,7 +129,7 @@ namespace ThrottleControlledAvionics
 				}
 				if(trajectory.DistanceToTarget > LTRJ.Dtol)
 					status += string.Format("WARNING: Predicted landing site is too far from the target.\n" +
-					                        "Error is <color=magenta><b>{0}</color></b>", 
+					                        "Error is <color=magenta><b>{0}</b></color>", 
 					                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
 				status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
 				Status("yellow", status);
