@@ -123,7 +123,7 @@ namespace ThrottleControlledAvionics
 		{
 			#if DEBUG
 			if(current.IsZero() || needed.IsZero())
-				LogFST("compute steering:\ncurrent {}\nneeded {}\ncurrent thrust {}", current, needed, VSL.Engines.CurrentThrustDir);
+				Log("compute steering:\ncurrent {}\nneeded {}\ncurrent thrust {}", current, needed, VSL.Engines.CurrentThrustDir);
 			#endif
 			VSL.Controls.SetAttitudeError(Vector3.Angle(needed, current));
 			if(VSL.Controls.AttitudeError > ATCB.AngleThreshold)
