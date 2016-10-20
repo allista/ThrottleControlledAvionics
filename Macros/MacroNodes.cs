@@ -613,11 +613,8 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(VSL.vessel != null)
 			{
-				Utils.Log("ToggleActionGroupsMacroNode.Group: {}", Group);//debug
 				foreach(KSPActionGroup g in Enum.GetValues(typeof(KSPActionGroup)))
-				{ if(group_is_set(g)) VSL.vessel.ActionGroups.ToggleGroup(g); 
-					Utils.Log("ToggleActionGroupsMacroNode: {} = {}", g, group_is_set(g));//debug
-				}
+				{ if(group_is_set(g)) VSL.vessel.ActionGroups.ToggleGroup(g); }
 			}
 			return false; 
 		}
@@ -629,11 +626,8 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(VSL.vessel != null)
 			{
-				Utils.Log("SetActionGroupsMacroNode.Group: {}", Group);//debug
 				foreach(KSPActionGroup g in Enum.GetValues(typeof(KSPActionGroup)))
-				{ VSL.vessel.ActionGroups.SetGroup(g, group_is_set(g)); 
-					Utils.Log("SetActionGroupsMacroNode: {} = {}", g, group_is_set(g));//debug
-				}
+				{ VSL.vessel.ActionGroups.SetGroup(g, group_is_set(g)); }
 			}
 			return false; 
 		}
