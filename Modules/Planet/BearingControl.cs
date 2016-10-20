@@ -31,7 +31,7 @@ namespace ThrottleControlledAvionics
 
 		readonly Timer DirectionLineTimer = new Timer();
 		readonly PIDf_Controller2 bearing_pid = new PIDf_Controller2();
-		public readonly FloatField Bearing = new FloatField(min:0, max:360, circle:true);
+		public readonly FloatField Bearing = new FloatField("F1", min:0, max:360, circle:true);
 
 		#if DEBUG
 //		Vector3d DO;
