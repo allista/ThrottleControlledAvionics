@@ -575,5 +575,68 @@ namespace ThrottleControlledAvionics
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.ActivateNextStage(); return false; }
 	}
+
+	public class ToggleActionGroupsMacroNode : MacroNode
+	{
+		[Persistent] public KSPActionGroup Group = KSPActionGroup.None;
+		Vector2 scroll;
+
+//		protected static string group_name(KSPActionGroup g)
+//		{ return Enum.GetName(typeof(KSPActionGroup), g); }
+
+		protected bool group_is_set(KSPActionGroup g)
+		{ return (g & Group) == g; }
+
+		protected override void DrawThis()
+		{
+			GUILayout.BeginHorizontal();
+			if(Edit)
+			{ 
+				Edit &= !GUILayout.Button(Name, Styles.active_button, GUILayout.ExpandWidth(false));
+				var new_group = KSPActionGroup.None;
+				scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandWidth(true), GUILayout.Height(100));
+				foreach(KSPActionGroup g in Enum.GetValues(typeof(KSPActionGroup)))
+				{
+					if(g == KSPActionGroup.None || g == KSPActionGroup.REPLACEWITHDEFAULT) continue;
+					var is_set = group_is_set(g);
+					if(Utils.ButtonSwitch(g.ToString(), is_set) && !is_set) new_group |= g;
+					else if(is_set) new_group |= g;
+				}
+				GUILayout.EndScrollView();
+				Group = new_group;
+			}
+			else Edit |= GUILayout.Button(Name+": "+Group, Styles.normal_button);
+			GUILayout.EndHorizontal();
+		}
+
+		protected override bool Action(VesselWrapper VSL)
+		{ 
+			if(VSL.vessel != null)
+			{
+				Utils.Log("ToggleActionGroupsMacroNode.Group: {}", Group);//debug
+				foreach(KSPActionGroup g in Enum.GetValues(typeof(KSPActionGroup)))
+				{ if(group_is_set(g)) VSL.vessel.ActionGroups.ToggleGroup(g); 
+					Utils.Log("ToggleActionGroupsMacroNode: {} = {}", g, group_is_set(g));//debug
+				}
+			}
+			return false; 
+		}
+	}
+
+	public class SetActionGroupsMacroNode : ToggleActionGroupsMacroNode
+	{
+		protected override bool Action(VesselWrapper VSL)
+		{ 
+			if(VSL.vessel != null)
+			{
+				Utils.Log("SetActionGroupsMacroNode.Group: {}", Group);//debug
+				foreach(KSPActionGroup g in Enum.GetValues(typeof(KSPActionGroup)))
+				{ VSL.vessel.ActionGroups.SetGroup(g, group_is_set(g)); 
+					Utils.Log("SetActionGroupsMacroNode: {} = {}", g, group_is_set(g));//debug
+				}
+			}
+			return false; 
+		}
+	}
 }
 
