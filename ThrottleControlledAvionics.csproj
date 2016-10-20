@@ -117,7 +117,6 @@
     <Compile Include="GUI\Panels\MacrosPanel.cs" />
     <Compile Include="GUI\Panels\SquadPanel.cs" />
     <Compile Include="VesselProps\VesselProps.cs" />
-    <Compile Include="GUI\Elements\ToolbarWrapper.cs" />
     <Compile Include="GUI\Elements\ControlPanel.cs" />
     <Compile Include="VesselProps\PhysicalProps.cs" />
     <Compile Include="VesselProps\GeometryProps.cs" />
