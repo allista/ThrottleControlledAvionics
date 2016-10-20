@@ -269,7 +269,7 @@ namespace ThrottleControlledAvionics
 				}
 				else EnableManualTranslation(false);
 			}
-			else EnableManualTranslation(false);
+			else VSL.Controls.ManualTranslationSwitch.Set(false);
 			if(thrust.IsZero()) thrust = VSL.Engines.CurrentThrustDir;
 			needed_thrust_dir.Normalize();
 			//tune filter
