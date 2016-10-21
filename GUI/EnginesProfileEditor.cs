@@ -36,6 +36,7 @@ namespace ThrottleControlledAvionics
 			GameEvents.onEditorShipModified.Add(OnShipModified);
 			GameEvents.onEditorLoad.Add(OnShipLoad);
 			GameEvents.onEditorRestart.Add(Reset);
+			GameEvents.onEditorStarted.Add(Started);
 			Available = false;
 			//module availability
 			HasMacroProcessor = TCAModulesDatabase.ModuleAvailable(typeof(MacroProcessor));
@@ -43,16 +44,6 @@ namespace ThrottleControlledAvionics
 			HasVTOLControls = TCAModulesDatabase.ModuleAvailable(typeof(VTOLControl));
 			HasFlightStabilizer = TCAModulesDatabase.ModuleAvailable(typeof(FlightStabilizer));
 			HasAltitudeControl = TCAModulesDatabase.ModuleAvailable(typeof(AltitudeControl));
-			//update TCA part infos
-			foreach(var ap in PartLoader.LoadedPartsList)
-			{
-				foreach(var mi in ap.moduleInfos)
-				{
-					if(mi.moduleName != ModuleTCA.TCA_NAME) continue;
-					mi.info = TCAScenario.ModuleStatusString();
-					mi.primaryInfo = "<b>TCA:</b> "+mi.info;
-				}
-			}
 		}
 
 		public override void OnDestroy ()
@@ -60,9 +51,27 @@ namespace ThrottleControlledAvionics
 			GameEvents.onEditorShipModified.Remove(OnShipModified);
 			GameEvents.onEditorLoad.Remove(OnShipLoad);
 			GameEvents.onEditorRestart.Remove(Reset);
+			GameEvents.onEditorStarted.Remove(Started);
 			TCAMacroEditor.Exit();
 			base.OnDestroy();
 		}
+
+		static void UpdatePartsInfo()
+		{
+			//update TCA part infos
+			var info = TCAScenario.ModuleStatusString();
+			foreach(var ap in PartLoader.LoadedPartsList)
+			{
+				foreach(var mi in ap.moduleInfos)
+				{
+					if(mi.moduleName != ModuleTCA.TCA_NAME) continue;
+					mi.primaryInfo = "<b>TCA:</b> "+info;
+					mi.info = info;
+				}
+			}
+		}
+
+		void Started() { UpdatePartsInfo(); }
 
 		void Reset() { reset = true; }
 
