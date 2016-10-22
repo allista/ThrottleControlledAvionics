@@ -390,11 +390,11 @@ namespace ThrottleControlledAvionics
 				needed_lthrust = -VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, VSL.orbit.h.xzy.normalized));
 				break;
 			case Attitude.Target:
-				if(VSL.Target == null) { CFG.AT.On(Attitude.KillRotation); break; }
+				if(VSL.HasTarget) { CFG.AT.On(Attitude.KillRotation); break; }
 				needed_lthrust = VSL.LocalDir((VSL.Physics.wCoM-VSL.Target.GetTransform().position).normalized);
 				break;
 			case Attitude.AntiTarget:
-				if(VSL.Target == null) { CFG.AT.On(Attitude.KillRotation); break; }
+				if(VSL.HasTarget) { CFG.AT.On(Attitude.KillRotation); break; }
 				needed_lthrust = VSL.LocalDir((VSL.Target.GetTransform().position-VSL.Physics.wCoM).normalized);
 				break;
 			case Attitude.RelVel:

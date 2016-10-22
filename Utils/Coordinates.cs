@@ -18,11 +18,19 @@ namespace ThrottleControlledAvionics
 	{
 		[Persistent] public double Lat;
 		[Persistent] public double Lon;
+		[Persistent] public double Alt;
 
-		public Coordinates(double lat, double lon) 
-		{ Lat = Utils.ClampAngle(lat); Lon = Utils.ClampAngle(lon); }
+		public Coordinates(double lat, double lon, double alt) 
+		{ Lat = Utils.ClampAngle(lat); Lon = Utils.ClampAngle(lon); Alt = alt; }
 
-		public Coordinates(Vessel vsl) : this(vsl.latitude, vsl.longitude) {}
+		public Coordinates(Vector3 worldPos, CelestialBody body)
+			: this(body.GetLatitude(worldPos), 
+			       body.GetLongitude(worldPos), 
+			       body.GetAltitude(worldPos)) {}
+
+		public Coordinates(Vessel vsl) : this(vsl.latitude, vsl.longitude, vsl.altitude) {}
+
+		public void SetAlt2Surface(CelestialBody body) { Alt = SurfaceAlt(body); }
 
 		public static string AngleToDMS(double angle)
 		{
@@ -32,7 +40,7 @@ namespace ThrottleControlledAvionics
 			return String.Format("{0:0}°{1:00}'{2:00}\"", Math.Sign(angle)*d, m, s);
 		}
 
-		public double Alt(CelestialBody body) { return body.TerrainAltitude(Lat, Lon); }
+		public double SurfaceAlt(CelestialBody body) { return body.TerrainAltitude(Lat, Lon); }
 		public string Biome(CelestialBody body) { return ScienceUtil.GetExperimentBiome(body, Lat, Lon); }
 
 		static Coordinates Search(CelestialBody body, Ray mouseRay)
@@ -54,7 +62,7 @@ namespace ThrottleControlledAvionics
 					if(error < (body.pqsController.radiusMax - body.pqsController.radiusMin) / 100)
 					{
 						var surfacePoint = body.position + relSurfacePosition;
-						return new Coordinates(body.GetLatitude(surfacePoint), body.GetLongitude(surfacePoint));
+						return new Coordinates(surfacePoint, body);
 					}
 					else
 					{
@@ -89,15 +97,21 @@ namespace ThrottleControlledAvionics
 			var mouseRay = FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition);
 			RaycastHit raycast;
 			return Physics.Raycast(mouseRay, out raycast, (float)body.Radius * 4f, 1 << 15)? 
-				new Coordinates(body.GetLatitude(raycast.point), Utils.CenterAngle(body.GetLongitude(raycast.point))) : 
+				new Coordinates(body.GetLatitude(raycast.point), 
+				                Utils.CenterAngle(body.GetLongitude(raycast.point)),
+				                body.GetAltitude(raycast.point)) : 
 				Search(body, mouseRay);
 		}
 
 		public override string ToString()
-		{ return string.Format("Lat: {0} Lon: {1}", AngleToDMS(Lat), AngleToDMS(Lon)); }
+		{ 
+			return string.Format("Lat: {0} Lon: {1} Alt: {2}", 
+			                     AngleToDMS(Lat), AngleToDMS(Lon), 
+			                     Utils.formatBigValue((float)Alt, "m")); 
+		}
 
 		public string FullDescription(CelestialBody body)
-		{ return string.Format("{0}\nAlt: {1:F0}m {2}", this, Alt(body), Biome(body)); }
+		{ return string.Format("{0}\n{1}", this, Biome(body)); }
 
 		public string FullDescription(Vessel vsl) { return FullDescription(vsl.mainBody);}
 	}

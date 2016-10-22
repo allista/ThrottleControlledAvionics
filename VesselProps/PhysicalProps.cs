@@ -52,7 +52,7 @@ namespace ThrottleControlledAvionics
 		public override void Update()
 		{
 			UT     = Planetarium.GetUniversalTime();
-			wCoM   = vessel.CoM;//test
+			wCoM   = vessel.CoM;
 			refT   = vessel.ReferenceTransform;
 			Radial = wCoM - vessel.mainBody.position;
 			Up     = Radial.normalized;

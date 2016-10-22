@@ -34,7 +34,7 @@ namespace ThrottleControlledAvionics
 				var v = FlightGlobals.Vessels[i];
 				if(v == null || v == VSL.vessel || !v.loaded) continue;
 				var tca = ModuleTCA.EnabledTCA(v);
-				if(tca == null || !tca.Controllable || 
+				if(tca == null || !tca.Controllable || //TODO: add a check through ComNetPath
 				   tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
 				//try to reach packed vessels
 				if(v.packed) 

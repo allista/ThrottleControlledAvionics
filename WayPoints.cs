@@ -19,7 +19,7 @@ namespace ThrottleControlledAvionics
 		new public const string NODE_NAME = "WAYPOINT";
 
 		[Persistent] public string Name;
-		[Persistent] public Coordinates Pos = new Coordinates(0, 0);
+		[Persistent] public Coordinates Pos = new Coordinates(0, 0, 0);
 
 		[Persistent] public float Radius; //relative to ship's radius
 		public float  AbsRadius { get; private set; }
@@ -35,23 +35,11 @@ namespace ThrottleControlledAvionics
 		public bool IsProxy { get { return target != null; } }
 		public bool IsVessel { get { return GetVessel() != null; } }
 
-		[Obsolete("Legacy config conversion")]
-		public override void Load(ConfigNode node)
-		{
-			base.Load(node);
-			float dist;
-			var dist_s = node.GetValue("Distance");
-			if(float.TryParse(dist_s, out dist))
-				Radius = dist/10;
-			var pos_n = node.GetNode("Pos");
-			if(pos_n == null) Pos.Load(node);
-		}
-
-		void set_coordinates(double lat, double lon)
-		{ Pos = new Coordinates(lat, lon); }
+		void set_coordinates(double lat, double lon, double alt)
+		{ Pos = new Coordinates(lat, lon, alt); }
 
 		void set_coordinates(Vessel v)
-		{ set_coordinates(v.latitude, v.longitude); }
+		{ set_coordinates(v.latitude, v.longitude, v.altitude); }
 
 		public override string ToString() { return string.Format("[{0}] {1}", GetName(), Pos); }
 		public string SurfaceDescription(Vessel vsl) { return Pos.FullDescription(vsl); }
@@ -59,8 +47,8 @@ namespace ThrottleControlledAvionics
 		public WayPoint() { AbsRadius = Radius = Globals.Instance.PN.MinDistance; }
 		public WayPoint(Coordinates c) : this() { Pos = c; Name = c.ToString(); go = new GameObject(); }
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
-		public WayPoint(double lat, double lon) : this(new Coordinates(lat,lon)) {}
-		public WayPoint(Vector3d worldPos, CelestialBody body) : this(new Coordinates(body.GetLatitude(worldPos), body.GetLongitude(worldPos))) {}
+		public WayPoint(double lat, double lon, double alt) : this(new Coordinates(lat,lon,alt)) {}
+		public WayPoint(Vector3d worldPos, CelestialBody body) : this(new Coordinates(worldPos, body)) {}
 
 		//using Haversine formula (see http://www.movable-type.co.uk/scripts/latlong.html)
 		public double AngleTo(double lat, double lon)
@@ -80,10 +68,10 @@ namespace ThrottleControlledAvionics
 		public double DistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius; }
 		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius/VSL.Geometry.R; }
 		public bool   CloseEnough(VesselWrapper VSL) { return RelDistanceTo(VSL)-1 < Radius; }
-		public double SurfaceAlt(CelestialBody body) { return Pos.Alt(body); }
-		public Vector3d RelSurfPos(CelestialBody body) { return body.GetRelSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
+		public double SurfaceAlt(CelestialBody body) { return Pos.SurfaceAlt(body); }
+		public Vector3d RelSurfPos(CelestialBody body) { return body.GetRelSurfacePosition(Pos.Lat, Pos.Lon, Pos.Alt); }
 		public Vector3d RelOrbPos(CelestialBody body) { return RelSurfPos(body).xzy; }
-		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, SurfaceAlt(body)); }
+		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, Pos.Alt); }
 		public Vector3d VectorTo(WayPoint wp, CelestialBody body) { return wp.RelSurfPos(body)-RelSurfPos(body); }
 		public Vector3d VectorTo(VesselWrapper VSL, CelestialBody body) { return VSL.Physics.wCoM-WorldPos(body); }
 
@@ -118,7 +106,7 @@ namespace ThrottleControlledAvionics
 			//result
 			var lat  = Math.Asin(sin_lat1*Math.Cos(dist) + cos_lat1*sin_d*Math.Cos(bearing));
 			var dlon = Math.Atan2(Math.Sin(bearing)*sin_d*cos_lat1, cos_d-sin_lat1*Math.Sin(lat));
-			return new Coordinates(lat*Mathf.Rad2Deg, lon1+dlon*Mathf.Rad2Deg);
+			return new Coordinates(lat*Mathf.Rad2Deg, lon1+dlon*Mathf.Rad2Deg, 0);
 		}
 		public Coordinates PointBetween(double lat, double lon, double dist) { return PointBetween(Pos.Lat, Pos.Lon, lat, lon, dist); }
 		public Coordinates PointBetween(WayPoint wp, double dist) { return PointBetween(Pos.Lat, Pos.Lon, wp.Pos.Lat, wp.Pos.Lon, dist); }
@@ -142,7 +130,7 @@ namespace ThrottleControlledAvionics
 			else
 			{
 				if(go == null) go = new GameObject();
-				go.transform.position = VSL.Body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, VSL.Body.TerrainAltitude(Pos.Lat, Pos.Lon)); 
+				go.transform.position = VSL.Body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, Pos.Alt); 
 			}
 			AbsRadius = Radius*VSL.Geometry.R;
 		}
@@ -172,11 +160,9 @@ namespace ThrottleControlledAvionics
 				var t = target.GetTransform();
 				if(t == null) break;
 				set_coordinates(body.GetLatitude(t.position),
-				                body.GetLongitude(t.position));
+				                body.GetLongitude(t.position),
+				                body.GetAltitude(t.position));
 				return;
-//			case ProtoTargetInfo.Type.CelestialBody:
-			default:
-				break;
 			}
 			TargetInfo.targetType = ProtoTargetInfo.Type.Null;
 			Name += " last location";

@@ -179,7 +179,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.UpdateState();
 			IsActive &= CFG.AP2[Autopilot2.BallisticJump];
-			ControlsActive &= IsActive || (VSL.Target is WayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
+			ControlsActive &= IsActive || (VSL.TargetIsNavPoint || VSL.TargetIsWayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
 		}
 
 		protected override void Update()

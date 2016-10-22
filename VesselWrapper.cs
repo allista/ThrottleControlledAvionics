@@ -52,9 +52,18 @@ namespace ThrottleControlledAvionics
 		public bool InOrbit { get; private set; }
 		public bool IsActiveVessel { get; private set; }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
-		public ITargetable Target { get { return vessel.targetObject; } set { vessel.targetObject = value; } }
+		public ITargetable Target { get { return vessel.targetObject ?? NavWayPoint; } set { vessel.targetObject = value; } }
 		public Vessel TargetVessel { get { return vessel.targetObject == null? null : vessel.targetObject.GetVessel(); } }
-		public bool HasTarget { get { return vessel.targetObject != null && !(vessel.targetObject is CelestialBody); } }
+		public bool TargetIsNavPoint { get { return vessel.targetObject == null && NavWaypoint.fetch != null && NavWaypoint.fetch.IsActive; } }
+		public bool TargetIsWayPoint { get { return vessel.targetObject is WayPoint; } }
+		public bool HasTarget 
+		{ 
+			get 
+			{ 
+				return vessel.targetObject != null && !(vessel.targetObject is CelestialBody) 
+					|| NavWaypoint.fetch != null && NavWaypoint.fetch.IsActive; 
+			} 
+		}
 		public bool HasManeuverNode 
 		{ 
 			get 
@@ -76,13 +85,27 @@ namespace ThrottleControlledAvionics
 			Target = t;
 		}
 
-		#if DEBUG
-		public void LogF(string msg, params object[] args) 
-		{ vessel.Log("{0}", Utils.Format(msg, args)); }
+		public WayPoint TargetAsWP
+		{
+			get
+			{
+				var t = Target;
+				if(t == null) return null;
+				return t as WayPoint ??  new WayPoint(t);
+			}
+		}
 
-		public void LogFST(string msg, params object[] args) 
-		{ vessel.Log("{0}\n{1}", Utils.Format(msg, args), DebugUtils.getStacktrace(1)); }
-		#endif
+		public WayPoint NavWayPoint
+		{
+			get
+			{
+				var nvp = NavWaypoint.fetch;
+				if(nvp == null || !nvp.IsActive) return null;
+				var wp = new WayPoint(nvp.Latitude, nvp.Longitude, nvp.Altitude+nvp.Height);
+				wp.Name = nvp.name;
+				return wp;
+			}
+		}
 
 		#region Utils
 		public void Log(string msg, params object[] args) { vessel.Log(msg, args); }

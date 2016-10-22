@@ -112,7 +112,7 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.On:
-				var wp = Target2WP();
+				var wp = VSL.TargetAsWP;
 				if(wp == null) finish();
 				else start_to(wp);
 				break;

@@ -135,13 +135,6 @@ namespace ThrottleControlledAvionics
 		protected void SetTarget(WayPoint wp = null) { VSL.SetTarget(wp); }
 		protected void SetTarget(Vessel vsl) { SetTarget(new WayPoint(vsl)); }
 
-		protected WayPoint Target2WP()
-		{
-			if(VSL.Target == null) return null;
-			return VSL.Target as WayPoint ?? 
-				new WayPoint(VSL.Target);
-		}
-
 		public bool RegisterTo<S>(Func<VesselWrapper,bool> predicate = null) 
 			where S : TCAService
 		{
@@ -171,8 +164,6 @@ namespace ThrottleControlledAvionics
 			ConfigNode node;
 			var name = GetType().Name;
 			if(CFG.ModuleConfigs.TryGetValue(name, out node)) Load(node);
-			//deprecated: Old configuration conversion
-			else if(CFG.LoadedConfig != null) Load(CFG.LoadedConfig);
 		}
 	}
 

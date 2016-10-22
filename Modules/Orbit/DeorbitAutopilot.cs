@@ -204,7 +204,7 @@ namespace ThrottleControlledAvionics
 			base.UpdateState();
 			IsActive &= CFG.AP2[Autopilot2.Deorbit];
 			ControlsActive &= IsActive || 
-				!VSL.LandedOrSplashed && (VSL.Target is WayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
+				!VSL.LandedOrSplashed && (VSL.TargetIsWayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
 		}
 
 		protected override void Update()

@@ -335,8 +335,7 @@ namespace ThrottleControlledAvionics
 
 		void move_next()
 		{
-			CFG.Anchor = new WayPoint(VSL.Body.GetLatitude(NextNode.position),
-			                          VSL.Body.GetLongitude(NextNode.position));
+			CFG.Anchor = new WayPoint(NextNode.position, VSL.Body);
 			CFG.Anchor.Radius = LND.NodeTargetRange;
 			CFG.Target = CFG.Anchor;
 			stage = Stage.MoveNext;
@@ -345,8 +344,7 @@ namespace ThrottleControlledAvionics
 		void land()
 		{
 			var c = center_node;
-			CFG.Anchor = new WayPoint(VSL.Body.GetLatitude(c.position),
-			                          VSL.Body.GetLongitude(c.position));
+			CFG.Anchor = new WayPoint(c.position, VSL.Body);
 			CFG.Anchor.Radius = LND.NodeTargetRange;
 			CFG.Target = CFG.Anchor;
 			CFG.Nav.OnIfNot(Navigation.Anchor);

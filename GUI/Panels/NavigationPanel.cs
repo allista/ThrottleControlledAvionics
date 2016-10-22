@@ -79,13 +79,16 @@ namespace ThrottleControlledAvionics
 			if(SelectingTarget)
 				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.Width(120));
 			else if(VSL.HasTarget && 
-			            !(VSL.Target is WayPoint) && 
-			            (CFG.Waypoints.Count == 0 || VSL.Target != CFG.Waypoints.Peek().GetTarget()))
+			        (VSL.TargetIsNavPoint ||
+			        !VSL.TargetIsWayPoint && 
+			         (CFG.Waypoints.Count == 0 || VSL.Target != CFG.Waypoints.Peek().GetTarget())))
 			{
 				if(GUILayout.Button(new GUIContent("Add As Waypoint", "Add current target as a waypoint"), 
 				                    Styles.active_button, GUILayout.Width(120)))
 				{
-					CFG.Waypoints.Enqueue(new WayPoint(VSL.Target));
+					var t = VSL.TargetAsWP;
+					VSL.SetTarget(t);
+					CFG.Waypoints.Enqueue(t);
 					CFG.ShowWaypoints = true;
 				}
 			}
@@ -217,7 +220,7 @@ namespace ThrottleControlledAvionics
 		//adapted from MechJeb
 		bool clicked;
 		DateTime clicked_time;
-		public void WaypointOverlay()
+		public void WaypointOverlay() //TODO: add waypoint editing by drag
 		{
 			if(TCA == null || !TCA.Available || !TCAGui.HUD_enabled) return;
 			if(SelectingTarget)
@@ -324,12 +327,12 @@ namespace ThrottleControlledAvionics
 			{
 				//TODO: cache local center coordinates of the marker
 				camera = PlanetariumCamera.Camera;
-				center = body.position + (body.TerrainAltitude(pos.Lat, pos.Lon)+body.Radius) * body.GetSurfaceNVector(pos.Lat, pos.Lon);
+				center = body.position + (pos.Alt+body.Radius) * body.GetSurfaceNVector(pos.Lat, pos.Lon);
 			}
 			else
 			{
 				camera = FlightCamera.fetch.mainCamera;
-				center = body.GetWorldSurfacePosition(pos.Lat, pos.Lon, body.TerrainAltitude(pos.Lat, pos.Lon)+GLB.WaypointHeight);
+				center = body.GetWorldSurfacePosition(pos.Lat, pos.Lon, pos.Alt+GLB.WaypointHeight);
 				if(camera.transform.InverseTransformPoint(center).z <= 0) return false;
 			}
 			return !IsOccluded(center, body) && 
@@ -362,12 +365,13 @@ namespace ThrottleControlledAvionics
 			for(int i = 1; i<N; i++)
 			{
 				var p = wp0.PointBetween(wp1, dD*i);
+				p.SetAlt2Surface(body);
 				DrawGroundMarker(body, p, c, IconSize/2, PathNodeMarker);
 			}
 		}
 
 		static void DrawPath(Vessel v, WayPoint wp1, Color c)
-		{ DrawPath(v.mainBody, new WayPoint(v.latitude, v.longitude), wp1, c); }
+		{ DrawPath(v.mainBody, new WayPoint(v), wp1, c); }
 
 		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
 		static bool IsOccluded(Vector3d worldPosition, CelestialBody byBody)

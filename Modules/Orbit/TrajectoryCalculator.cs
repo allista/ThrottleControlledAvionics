@@ -701,7 +701,7 @@ namespace ThrottleControlledAvionics
 
 		protected virtual void setup_target()
 		{
-			SetTarget(Target2WP());
+			SetTarget(VSL.TargetAsWP);
 			if(CFG.Target != null)
 				CFG.Target.UpdateCoordinates(Body);
 		}
