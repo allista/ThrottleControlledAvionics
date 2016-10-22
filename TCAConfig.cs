@@ -226,9 +226,11 @@ namespace ThrottleControlledAvionics
 
 			Waypoints.Clear();
 			var wpn = node.GetNode("Waypoints");
-			if(wpn == null) wpn = node; //deprecated: Old config conversion
-			foreach(var n in wpn.GetNodes(WayPoint.NODE_NAME))
-				Waypoints.Enqueue(ConfigNodeObject.FromConfig<WayPoint>(n));
+			if(wpn != null)
+			{
+				foreach(var n in wpn.GetNodes(WayPoint.NODE_NAME))
+					Waypoints.Enqueue(ConfigNodeObject.FromConfig<WayPoint>(n));
+			}
 
 			if(Anchor != null && string.IsNullOrEmpty(Anchor.Name))
 				Anchor = null;
@@ -236,14 +238,6 @@ namespace ThrottleControlledAvionics
 				Target = null;
 			if(SelectedMacro != null && !SelectedMacro.Block.HasSubnodes)
 				SelectedMacro = null;
-
-			//deprecated: Old config conversion
-			val = node.GetValue("VSControlSensitivity"); 
-			if(!string.IsNullOrEmpty(val))
-			{
-				if(!float.TryParse(val, out ControlSensitivity))
-					ControlSensitivity = 0.01f;
-			}
 		}
 
 		public override void Save(ConfigNode node)

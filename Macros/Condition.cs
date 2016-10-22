@@ -124,28 +124,6 @@ namespace ThrottleControlledAvionics
 		public override void Load(ConfigNode node)
 		{
 			base.Load(node);
-
-			//deprecated: Only needed for legacy config conversion
-			if(node.HasValue("Value"))
-			{
-				float val;
-				if(float.TryParse(node.GetValue("Value"), out val))
-					Value.Value = val;
-			}
-			if(node.HasValue("Error"))
-			{
-				float val;
-				if(float.TryParse(node.GetValue("Error"), out val))
-					Error.Value = val;
-			}
-			if(node.HasValue("Period"))
-			{
-				float val;
-				if(float.TryParse(node.GetValue("Period"), out val))
-					Period.Value = val;
-			}
-			///////////////////////////////////////////////////////
-
 			negatable = Period.Equals(0);
 			not &= negatable;
 			WaitTimer.Period = Period;

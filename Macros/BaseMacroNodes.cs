@@ -146,18 +146,6 @@ namespace ThrottleControlledAvionics
 		[Persistent] public FloatField Value = new FloatField();
 		protected string Suffix;
 
-		[Obsolete("Only needed for legacy config conversion")]
-		public override void Load(ConfigNode node)
-		{
-			base.Load(node);
-			if(node.HasValue("Value"))
-			{
-				float val;
-				if(float.TryParse(node.GetValue("Value"), out val))
-					Value.Value = val;
-			}
-		}
-
 		protected virtual void OnValueChanged() {}
 
 		protected override void DrawThis()

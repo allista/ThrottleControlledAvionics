@@ -271,18 +271,6 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Mode mode;
 		[Persistent] public FloatField Bearing = new FloatField("F1", 0, 360);
 
-		[Obsolete("Only needed for legacy config conversion")]
-		public override void Load(ConfigNode node)
-		{
-			base.Load(node);
-			if(node.HasValue("Bearing"))
-			{
-				float val;
-				if(float.TryParse(node.GetValue("Bearing"), out val))
-					Bearing.Value = val;
-			}
-		}
-
 		public FlyMacroNode() { Name += ":"; Suffix = "m/s"; }
 
 		protected override void DrawThis()

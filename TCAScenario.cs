@@ -222,12 +222,6 @@ namespace ThrottleControlledAvionics
 			if(!ModuleInstalled) TCAManual.ShowStatus();
 			//check for PersistentRotation
 			HavePersistentRotation = AssemblyLoader.loadedAssemblies.FirstOrDefault(a => a.name == Globals.Instance.PersistentRotationName) != null;
-			//deprecated: Old config conversion
-			if(Configs.Count == 0 && NamedConfigs.Count == 0)
-			{
-				var cnode = loadNode(Globals.Instance.PluginData("TCA.conf"));
-				if(cnode != null) LoadLegacyConfigs(cnode);
-			}
 			Globals.Load();
 		}
 
