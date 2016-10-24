@@ -10,6 +10,7 @@
 using System;
 using UnityEngine;
 using AT_Utils;
+using CommNet;
 
 namespace ThrottleControlledAvionics
 {
@@ -26,16 +27,46 @@ namespace ThrottleControlledAvionics
 
 		public bool SquadMode;
 
+		bool is_comm_reachable(ModuleTCA tca)
+		{
+			//if KerbNet is not enabled, always reachable
+			if(!CommNetScenario.CommNetEnabled) return true;
+			//if it is locally controllable, it is also remotely controllable
+			if(tca.IsControllable) return true;
+			//null checks
+			if(TCA.vessel.Connection == null) return false;
+			if(tca == null || tca.vessel == null || tca.vessel.Connection == null) return false;
+			//check KerbNet path
+			var start = TCA.vessel.Connection.Comm;
+			var end = tca.vessel.Connection.Comm;
+			var path = new CommPath();
+			if(TCA.vessel.Connection.Comm.Net.FindPath(start, path, end)) return true;
+			//check direct ship2ship connection
+			var sqrDist = (start.precisePosition-end.precisePosition).sqrMagnitude;
+			var offset = start.distanceOffset + end.distanceOffset;
+			if(!offset.Equals(0))
+			{
+				offset = Math.Sqrt(sqrDist) + offset;
+				sqrDist = offset > 0 ? offset * offset : 0;
+			}
+			return CommNetScenario.RangeModel
+				.InRange(Math.Max(start.antennaTransmit.power, start.antennaRelay.power),
+				         Math.Max(end.antennaTransmit.power, end.antennaRelay.power), 
+				         sqrDist);
+		}
+
 		void apply_to_others(Action<ModuleTCA> action)
 		{
 			if(TCA.CFG.Squad == 0 || !SquadMode) return;
+			bool executed = false;
 			for(int i = 0, num_vessels = FlightGlobals.Vessels.Count; i < num_vessels; i++)
 			{
 				var v = FlightGlobals.Vessels[i];
 				if(v == null || v == VSL.vessel || !v.loaded) continue;
 				var tca = ModuleTCA.EnabledTCA(v);
-				if(tca == null || !tca.Controllable || //TODO: add a check through ComNetPath
-				   tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
+				if(tca == null || !tca.Available) continue;
+				if(tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
+				if(!is_comm_reachable(tca)) continue;
 				//try to reach packed vessels
 				if(v.packed) 
 				{
@@ -46,8 +77,9 @@ namespace ThrottleControlledAvionics
 					v.GoOffRails();
 				}
 				action(tca);
+				executed = true;
 			}
-			Message("Squad Action Executed");
+			if(executed) Message("Squad Action Executed");
 		}
 
 		public void Apply(Action<ModuleTCA> action)

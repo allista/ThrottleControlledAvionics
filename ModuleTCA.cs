@@ -13,10 +13,11 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using AT_Utils;
+using CommNet;
 
 namespace ThrottleControlledAvionics
 {
-	public class ModuleTCA : PartModule, ITCAComponent, IModuleInfo
+	public class ModuleTCA : PartModule, ITCAComponent, IModuleInfo, ICommNetControlSource
 	{
 		#if DEBUG
 		internal static Profiler prof = new Profiler();
@@ -73,7 +74,14 @@ namespace ThrottleControlledAvionics
 		#region Public Info
 		public bool Valid { get { return vessel != null && part != null && Available; } }
 		public bool Available { get { return enabled && VSL != null; } }
-		public bool Controllable { get { return Available && vessel.IsControllable; } }
+		public bool IsControllable 
+		{ 
+			get 
+			{ 
+				return Available && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL || 
+				                     vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED); 
+			} 
+		}
 		#endregion
 
 		#region Initialization
@@ -107,6 +115,9 @@ namespace ThrottleControlledAvionics
 
 		internal void OnDestroy() 
 		{ 
+			if(vessel != null && vessel.connection != null)
+				vessel.connection.UnregisterCommandSource(this);
+			GameEvents.CommNet.OnNetworkInitialized.Remove(OnNetworkInitialised);
 			GameEvents.onVesselWasModified.Remove(onVesselModify);
 			GameEvents.onStageActivate.Remove(onStageActive);
 			GameEvents.onVesselGoOffRails.Remove(onVesselGoOffRails);
@@ -355,6 +366,28 @@ namespace ThrottleControlledAvionics
 		}
 		#endregion
 
+		#region ICommNetControlSource
+		public void UpdateNetwork() {}
+		VesselControlState localControlState;
+		public VesselControlState GetControlSourceState() { return localControlState; }
+		public bool IsCommCapable() { return false; }
+
+		//this code adapted from the ModuleCommand
+		//why not do it in OnStart?
+		public virtual void Start()
+		{
+			if(HighLogic.LoadedSceneIsGame && !HighLogic.LoadedSceneIsEditor && 
+			   HighLogic.LoadedScene != GameScenes.SPACECENTER)
+				{
+					if(CommNetNetwork.Initialized)
+					{ if(vessel.Connection != null) OnNetworkInitialised(); }
+					GameEvents.CommNet.OnNetworkInitialized.Add(OnNetworkInitialised);
+				}
+		}
+		protected virtual void OnNetworkInitialised()
+		{ vessel.connection.RegisterCommandSource(this); }
+		#endregion
+
 		void ClearFrameState()
 		{ 
 			VSL.ClearFrameState();
@@ -395,7 +428,9 @@ namespace ThrottleControlledAvionics
 			State = TCAState.Disabled;
 			if(!CFG.Enabled) return;
 			State = TCAState.Enabled;
+			localControlState = VesselControlState.None;
 			if(!VSL.Info.ElectricChargeAvailible) return;
+			localControlState = VesselControlState.ProbePartial;
 			SetState(TCAState.HaveEC);
 			ClearFrameState();
 			//update VSL

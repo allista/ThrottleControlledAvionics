@@ -226,12 +226,27 @@ namespace ThrottleControlledAvionics
 		{ Status(-1, color, msg, args); }
 		#endregion
 
+		void DrawStatusMessage()
+		{
+			#if DEBUG
+			DebugInfo();
+//			EnginesInfo();
+			#endif
+			if(!string.IsNullOrEmpty(StatusMessage))
+			{ 
+				if(GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
+				                       Styles.boxed_label, GUILayout.ExpandWidth(true)) ||
+				      StatusEndTime > DateTime.MinValue && DateTime.Now > StatusEndTime)
+					StatusMessage = "";
+			}
+		}
+
 		void DrawMainWindow(int windowID)
 		{
 			//help button
 			if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f), 
 			              new GUIContent("?", "Help"))) TCAManual.Toggle();
-			if(TCA.Controllable)
+			if(TCA.IsControllable)
 			{
 				//options button
 				if(GUI.Button(new Rect(2f, 2f, 70f, 18f), 
@@ -267,21 +282,21 @@ namespace ThrottleControlledAvionics
 				MacroControls.Draw();
 				NavigationControls.WaypointList();
 				EnginesControl();
-				#if DEBUG
-				DebugInfo();
-//				EnginesInfo();
-				#endif
-				if(!string.IsNullOrEmpty(StatusMessage))
-				{ 
-				   if(GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
-					                   Styles.boxed_label, GUILayout.ExpandWidth(true)) ||
-					  StatusEndTime > DateTime.MinValue && DateTime.Now > StatusEndTime)
-					StatusMessage = "";
-				}
+				DrawStatusMessage();
 				SelectConfig_end();
 				GUILayout.EndVertical();
 			}
-			else GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+			else 
+			{
+				GUILayout.BeginVertical();
+				GUILayout.BeginHorizontal();
+				GUILayout.FlexibleSpace();
+				StatusString();
+				GUILayout.EndHorizontal();
+				GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+				DrawStatusMessage();
+				GUILayout.EndVertical();
+			}
 			TooltipsAndDragWindow(WindowPos);
 		}
 
@@ -518,7 +533,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(TCA == null) return;
 			if(!TCA.Available && !init()) return;
-			if(!TCA.Controllable) return;
+			if(!TCA.IsControllable) return;
 			AllPanels.ForEach(p => p.Update());
 			if(selecting_key)
 			{ 
