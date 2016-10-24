@@ -98,7 +98,10 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.On:
 				reset();
 				if(setup())
+				{
+					SaveGame("before_jump");
 					goto case Multiplexer.Command.Resume;
+				}
 				CFG.AP2.Off();
 				return;
 

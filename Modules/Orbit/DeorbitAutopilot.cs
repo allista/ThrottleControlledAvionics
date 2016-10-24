@@ -178,8 +178,6 @@ namespace ThrottleControlledAvionics
 					}
 					else currentEcc = Utils.ClampL(trj.Orbit.eccentricity - DEO.dEcc, DEO.dEcc);
 //					Log("currentEcc: {}, dEcc {}", currentEcc, DEO.dEcc);//debug
-					if(Globals.Instance.AutosaveBeforeLanding)
-						Utils.SaveGame(VSL.vessel.vesselName.Replace(" ", "_")+"-before_landing");
 					compute_landing_trajectory();
 				}
 				goto case Multiplexer.Command.Resume;
@@ -217,6 +215,7 @@ namespace ThrottleControlledAvionics
 				if(!trajectory_computed()) break;
 				if(trajectory.DistanceToTarget < LTRJ.Dtol || currentEcc < 1e-10)
 				{
+					SaveGame("before_landing");
 					if(check_initial_trajectory()) deorbit();
 					else stage = Stage.Wait;
 				}

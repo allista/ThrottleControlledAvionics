@@ -165,6 +165,12 @@ namespace ThrottleControlledAvionics
 			var name = GetType().Name;
 			if(CFG.ModuleConfigs.TryGetValue(name, out node)) Load(node);
 		}
+
+		public void SaveGame(string description)
+		{
+			if(Globals.Instance.AutosaveBeforeLanding)
+				Utils.SaveGame(VSL.vessel.vesselName.Replace(" ", "_")+"-"+description);
+		}
 	}
 
 	public abstract class AutopilotModule : TCAModule
