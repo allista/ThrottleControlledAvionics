@@ -20,6 +20,7 @@ namespace ThrottleControlledAvionics
 		VTOLControl VTOL;
 		VTOLAssist VLA;
 		FlightStabilizer STB;
+		TranslationControl TRA;
 
 		public override void Draw()
 		{
@@ -36,6 +37,9 @@ namespace ThrottleControlledAvionics
 			if(STB != null) 
 				Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
 				                   "Try to stabilize flight if spinning uncontrollably", GUILayout.ExpandWidth(true));
+			if(TRA != null) 
+				Utils.ButtonSwitch("HSC Translation", ref CFG.CorrectWithTranslation, 
+				                   "Use translation to correct horizontal velocity", GUILayout.ExpandWidth(true));
 			Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear, 
 			                   "Automatically deploy/retract landing gear when needed", GUILayout.ExpandWidth(true));
 			Utils.ButtonSwitch("AutoBrakes", ref CFG.AutoBrakes, 

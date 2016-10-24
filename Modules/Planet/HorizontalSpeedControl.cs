@@ -223,20 +223,16 @@ namespace ThrottleControlledAvionics
 					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / VSL.OnPlanetParams.TWRf;
 					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
 				}
-				if(hVm > HSC.TranslationLowerThreshold)
+				//try to use translation controls (maneuver engines and RCS)
+				if(hVm > HSC.TranslationLowerThreshold && TRA != null && CFG.CorrectWithTranslation)
 				{
-					//try to use translation
 					var nVn = nVm > 0? nV/nVm : Vector3d.zero;
 					var cV_lat = Vector3.ProjectOnPlane(CourseCorrection, nV);
-					//normal translation controls (maneuver engines and RCS)
-					if(TRA != null)
-					{
-						if(nVm < HSC.TranslationUpperThreshold || 
-						   Mathf.Abs((float)Vector3d.Dot(HVn, nVn)) < HSC.TranslationMaxCos)
-							TRA.AddDeltaV(hVl);
-						else if(cV_lat.magnitude > HSC.TranslationLowerThreshold)
-							TRA.AddDeltaV(-VSL.LocalDir(cV_lat));
-					}
+					if(nVm < HSC.TranslationUpperThreshold || 
+					   Mathf.Abs((float)Vector3d.Dot(HVn, nVn)) < HSC.TranslationMaxCos)
+						TRA.AddDeltaV(hVl);
+					else if(cV_lat.magnitude > HSC.TranslationLowerThreshold)
+						TRA.AddDeltaV(-VSL.LocalDir(cV_lat));
 				}
 				//manual engine control
 				if(with_manual_thrust)
