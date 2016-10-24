@@ -30,6 +30,22 @@ namespace ThrottleControlledAvionics
 
 		public Coordinates(Vessel vsl) : this(vsl.latitude, vsl.longitude, vsl.altitude) {}
 
+		public static Coordinates SurfacePoint(double lat, double lon, CelestialBody body)
+		{
+			var c = new Coordinates(lat, lon, 0);
+			c.SetAlt2Surface(body);
+			return c;
+		}
+
+		public static Coordinates SurfacePoint(Vector3 worldPos, CelestialBody body)
+		{
+			var c = new Coordinates(body.GetLatitude(worldPos), body.GetLongitude(worldPos), 0);
+			c.SetAlt2Surface(body);
+			return c;
+		}
+
+		public Coordinates Copy() { return new Coordinates(Lat, Lon, Alt); }
+
 		public void SetAlt2Surface(CelestialBody body) { Alt = SurfaceAlt(body); }
 
 		public static string AngleToDMS(double angle)
@@ -60,10 +76,7 @@ namespace ThrottleControlledAvionics
 					if(body.ocean && alt < body.Radius) alt = body.Radius;
 					error = Math.Abs(curRadius - alt);
 					if(error < (body.pqsController.radiusMax - body.pqsController.radiusMin) / 100)
-					{
-						var surfacePoint = body.position + relSurfacePosition;
-						return new Coordinates(surfacePoint, body);
-					}
+						return Coordinates.SurfacePoint(body.position + relSurfacePosition, body);
 					else
 					{
 						lastRadius = curRadius;

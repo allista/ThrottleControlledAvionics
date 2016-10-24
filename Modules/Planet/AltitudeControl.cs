@@ -123,12 +123,22 @@ namespace ThrottleControlledAvionics
 			//correct for terrain altitude and radar data if following terrain
 			if(CFG.AltitudeAboveTerrain) 
 			{
+				var no_obstacle_ahead = false;
+				if(CFG.Target != null && CFG.Nav)
+				{
+					if(CFG.Target.Pos.Alt > VSL.Altitude.Ahead)
+					{
+						no_obstacle_ahead = alt-VSL.Altitude.Ahead > VSL.Geometry.H;
+						VSL.Altitude.Ahead = (float)CFG.Target.Pos.Alt;
+					}
+				}
 				if(VSL.Altitude.Ahead > VSL.Altitude.TerrainAltitude)
 				{
 					alt -= VSL.Altitude.Ahead;
 					if(alt <= VSL.Geometry.H) 
 					{
-						SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
+						if(!no_obstacle_ahead)
+							SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
 						if(RAD.TimeAhead > 0) 
 						{
 							CFG.VerticalCutoff = Mathf.Sqrt(2f*Utils.ClampL((VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute)*VSL.Physics.G, 0));

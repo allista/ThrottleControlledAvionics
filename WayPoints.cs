@@ -24,6 +24,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float Radius; //relative to ship's radius
 		public float  AbsRadius { get; private set; }
 
+		[Persistent] public bool Movable;
 		[Persistent] public bool Pause;
 		[Persistent] public bool Land;
 		//target proxy
@@ -34,6 +35,7 @@ namespace ThrottleControlledAvionics
 
 		public bool IsProxy { get { return target != null; } }
 		public bool IsVessel { get { return GetVessel() != null; } }
+		public bool IsMovable { get { return Movable && !IsProxy; } }
 
 		void set_coordinates(double lat, double lon, double alt)
 		{ Pos = new Coordinates(lat, lon, alt); }
@@ -64,6 +66,8 @@ namespace ThrottleControlledAvionics
 		public double AngleTo(WayPoint wp) { return AngleTo(wp.Pos); }
 		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
 		public double AngleTo(VesselWrapper vsl) { return AngleTo(vsl.vessel.latitude, vsl.vessel.longitude); }
+		public float  DirectDistanceTo(Vessel vsl) { return (vsl.transform.position-GetTransform().position).magnitude; }
+		public double DistanceTo(WayPoint wp, CelestialBody body) { return AngleTo(wp)*body.Radius; }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
 		public double DistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius; }
 		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius/VSL.Geometry.R; }
