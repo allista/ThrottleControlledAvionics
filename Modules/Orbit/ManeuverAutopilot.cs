@@ -35,6 +35,7 @@ namespace ThrottleControlledAvionics
 
 		ManeuverExecutor Executor;
 		public float MinDeltaV = 1;
+		bool was_within_threshold;
 
 		public override void Init()
 		{
@@ -91,6 +92,7 @@ namespace ThrottleControlledAvionics
 			CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 			Executor.Reset();
 			MinDeltaV = GLB.THR.MinDeltaV;
+			was_within_threshold = false;
 			VSL.Info.Countdown = 0;
 			VSL.Info.TTB = 0;
 			Working = false;
@@ -136,7 +138,11 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0]) { reset(); return; }
-			if(Executor.Execute(Node.GetBurnVector(VSL.orbit), MinDeltaV, StartCondition)) return;
+			if(Executor.Execute(Node.GetBurnVector(VSL.orbit), MinDeltaV, StartCondition)) 
+			{
+				was_within_threshold |= Executor.WithinThreshold;
+				if(!was_within_threshold || Executor.WithinThreshold) return;
+			}
 			Node.RemoveSelf();
 			reset();
 		}

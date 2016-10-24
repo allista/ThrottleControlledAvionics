@@ -22,6 +22,8 @@ namespace ThrottleControlledAvionics
 		public delegate bool ManeuverCondition(float dV);
 		readonly FuzzyThreshold<double> dVrem = new FuzzyThreshold<double>(1, 0.5f);
 
+		public bool WithinThreshold { get { return dVrem; } }
+
 		public ManeuverExecutor(ModuleTCA tca) : base(tca) { InitModuleFields(); }
 
 		public void Reset() { dVrem.Value = dVrem.Upper+1; }

@@ -58,11 +58,11 @@ namespace ThrottleControlledAvionics
 			CorrectThrottle = true;
 		}
 
-		static void set_engine_limit(EngineWrapper e, float errorF)
+		static void set_engine_limit(EngineWrapper e, float errorF, float max_lim)
 		{
 			if(e.Role == TCARole.MANEUVER || e.Role == TCARole.MANUAL) return;
 			if(e.Role == TCARole.BALANCE || e.Role == TCARole.UNBALANCE) e.PresetLimit(errorF);
-			else e.PresetLimit(Mathf.Lerp(errorF, 1, e.torqueRatio));
+			else e.PresetLimit(Mathf.Lerp(errorF, max_lim, e.torqueRatio));
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
@@ -75,7 +75,11 @@ namespace ThrottleControlledAvionics
 				if(CorrectThrottle)
 				{
 					var errorF = VSL.Controls.OffsetAlignmentFactor(THR.AttitudeDeadzone);
-				 	if(errorF < 1) VSL.Engines.Active.ForEach(e => set_engine_limit(e, errorF));
+				 	if(errorF < 1) 
+					{
+						var max_lim = Utils.Clamp(Mathf.Abs(VSL.Controls.Steering.MaxComponentF()), errorF, 1);
+						VSL.Engines.Active.ForEach(e => set_engine_limit(e, errorF, max_lim));
+					}
 				}
 			}
 			if(Throttle >= 0) 
