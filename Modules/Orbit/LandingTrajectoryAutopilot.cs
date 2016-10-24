@@ -182,7 +182,7 @@ namespace ThrottleControlledAvionics
 		double distance_from_ground(Orbit orb, double UT)
 		{
 			var pos = BodyRotationAtdT(Body, VSL.Physics.UT-UT)*orb.getRelativePositionAtUT(UT);
-			return pos.magnitude-VSL.Geometry.H*2-Body.Radius - Body.TerrainAltitude(pos.xzy+Body.position);
+			return pos.magnitude-VSL.Geometry.D-Body.Radius - Body.TerrainAltitude(pos.xzy+Body.position);
 		}
 
 		protected double obstacle_ahead(LandingTrajectory trj)
@@ -508,8 +508,6 @@ namespace ThrottleControlledAvionics
 				nose_to_target();
 				if(Working)
 				{
-					Status("white", "Final deceleration. Landing site error: {0}", 
-					       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
 					ATC.SetThrustDirW(correction_direction());
 					if(VSL.Altitude.Relative > GLB.LND.WideCheckAltitude)
 					{
@@ -522,7 +520,11 @@ namespace ThrottleControlledAvionics
 					else THR.Throttle = 1;
 					if(VSL.vessel.srfSpeed > LTRJ.BrakeEndSpeed) 
 					{
-						Working = THR.Throttle.Equals(1) || VSL.Info.Countdown < 10;
+						Working = THR.Throttle > 0.7 || VSL.Info.Countdown < 10;
+						if(Working)
+							Status("white", "Final deceleration. Landing site error: {0}", 
+							       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+						else THR.Throttle = 0;
 						break;
 					}
 				}
@@ -533,13 +535,16 @@ namespace ThrottleControlledAvionics
 					correct_landing_site();
 					VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
 					VSL.Info.Countdown -= VSL.Info.TTB+turn_time+LTRJ.FinalBrakeOffset;
-					if(VSL.Controls.InvAlignmentFactor > 0.5) 
-						Status("white", "Final deceleration: correcting attitude.\nLanding site error: {0}", 
-						       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
-					else 
-						Status("white", "Final deceleration: waiting for the burn.\nLanding site error: {0}", 
-						       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
 					Working = VSL.Info.Countdown <= 0 || VSL.vessel.srfSpeed < LTRJ.BrakeEndSpeed;
+					if(!Working)
+					{
+						if(VSL.Controls.InvAlignmentFactor > 0.5) 
+							Status("white", "Final deceleration: correcting attitude.\nLanding site error: {0}", 
+							       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+						else 
+							Status("white", "Final deceleration: waiting for the burn.\nLanding site error: {0}", 
+							       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+					}
 					break;
 				}
 				THR.Throttle = 0;
