@@ -83,7 +83,6 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(!preset_limit)
 				limit = best_limit = limit_tmp = 1f;
-			preset_limit = false;
 		}
 
 		public override void InitState()
@@ -221,7 +220,6 @@ namespace ThrottleControlledAvionics
 				limit = best_limit = thrustLimit;
 				break;
 			}
-			preset_limit = false;
 		}
 
 		public void UpdateThrustInfo()

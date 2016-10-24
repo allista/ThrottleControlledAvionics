@@ -90,6 +90,7 @@ namespace ThrottleControlledAvionics
 		{
 			var num_engines = engines.Count;
 			var zero_torque = needed_torque.IsZero();
+			var preset_limits = engines.Any(e => e.preset_limit);
 			TorqueAngle = TorqueError = -1f;
 			float error, angle;
 			var last_error = -1f;
@@ -128,20 +129,23 @@ namespace ThrottleControlledAvionics
 					break;
 				last_error = error;
 				//normalize limits of main and balanced engines before optimization
-				var limit_norm = 0f;
-				for(int j = 0; j < num_engines; j++) 
-				{ 
-					var e = engines[j];
-					if(e.Role == TCARole.MANEUVER) continue;
-					if(limit_norm < e.limit) limit_norm = e.limit; 
-				}
-				if(limit_norm > 0)
+				if(!preset_limits)
 				{
+					var limit_norm = 0f;
 					for(int j = 0; j < num_engines; j++) 
 					{ 
-						var e = engines[j]; 
+						var e = engines[j];
 						if(e.Role == TCARole.MANEUVER) continue;
-						e.limit = Mathf.Clamp01(e.limit / limit_norm); 
+						if(limit_norm < e.limit) limit_norm = e.limit; 
+					}
+					if(limit_norm > 0)
+					{
+						for(int j = 0; j < num_engines; j++) 
+						{ 
+							var e = engines[j]; 
+							if(e.Role == TCARole.MANEUVER) continue;
+							e.limit = Mathf.Clamp01(e.limit / limit_norm); 
+						}
 					}
 				}
 				//optimize limits
