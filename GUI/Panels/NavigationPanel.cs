@@ -125,8 +125,11 @@ namespace ThrottleControlledAvionics
 				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(false));
 			else if(CFG.Target != null)
 			{
-				if(GUILayout.Button(new GUIContent("Del Target", "Remove target point"), 
-			                        Styles.danger_button, GUILayout.ExpandWidth(false)))
+				if(CFG.AP2 || CFG.AP1 || CFG.Nav)
+					GUILayout.Label(new GUIContent("Del Target", "Target point is in use"),
+					                Styles.grey_button, GUILayout.ExpandWidth(false));
+				else if(GUILayout.Button(new GUIContent("Del Target", "Remove target point"), 
+				                         Styles.danger_button, GUILayout.ExpandWidth(false)))
 					VSL.SetTarget();
 			}
 			else if(GUILayout.Button(new GUIContent("Set Target", "Select target point"), 

@@ -82,7 +82,8 @@ namespace ThrottleControlledAvionics
 			var t = wp == null? null : wp.GetTarget();
 			if(t != null && IsActiveVessel) 
 				Utils.Message("Target: {0}", t.GetName());
-			Target = t;
+			if(t != null || vessel.targetObject is WayPoint)
+				Target = t;
 		}
 
 		public WayPoint TargetAsWP

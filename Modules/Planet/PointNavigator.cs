@@ -170,7 +170,7 @@ namespace ThrottleControlledAvionics
 			CFG.HF.OnIfNot(HFlight.Stop);
 			UnregisterFrom<Radar>();
 			reset_formation();
-			CFG.Target = null;
+			SetTarget();
 		}
 
 		bool on_arrival()
