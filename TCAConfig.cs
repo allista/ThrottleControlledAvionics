@@ -163,6 +163,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool AutoGear = true;
 		[Persistent] public bool AutoBrakes = true;
 		[Persistent] public bool StabilizeFlight = true;
+		[Persistent] public bool UseCPS = true;
 		[Persistent] public bool CorrectWithTranslation = true;
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();

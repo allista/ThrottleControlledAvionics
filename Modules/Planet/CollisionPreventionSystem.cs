@@ -41,7 +41,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
-			IsActive &= CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null; 
+			IsActive &= CFG.UseCPS && CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null; 
 			if(IsActive) return;
 			Correction = Vector3.zero;
 		}
@@ -257,6 +257,13 @@ namespace ThrottleControlledAvionics
 				catch { break; }
 				var v = vi.Current;
 				if(v == null || v.packed || !v.loaded || v == VSL.vessel) continue;
+				if(v.isEVA) //ignore kerbals on our own ladders
+				{
+					var eva = v.GetComponent<KerbalEVA>();
+					if(eva != null && eva.LadderPart != null && 
+					   eva.LadderPart.vessel == VSL.vessel)
+						continue;
+				}
 				Vector3d maneuver;
 				if(ComputeManeuver(v, out maneuver))
 					corrections.Add(maneuver);
