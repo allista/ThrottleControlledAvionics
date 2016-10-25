@@ -136,6 +136,7 @@ namespace ThrottleControlledAvionics
 		bool draw_forward_direction;
 		static readonly GUIContent X_cnt = new GUIContent("X", "Disable Bearing Control");
 		static readonly GUIContent Enable_cnt = new GUIContent("Bearing", "Enable Bearing Control");
+		static Color dir_color = new Color(0, 1, 0, 0.5f);
 		public override void Draw ()
 		{
 			if(CFG.BR[BearingMode.Auto] || !DirectionOverride.IsZero())
@@ -143,14 +144,14 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(false));
 				#if DEBUG
 				var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
-				Utils.GLVec(VSL.Controls.Transform.position, dir.normalized*2500, Color.green);
+				Utils.GLVec(VSL.Controls.Transform.position, dir.normalized*2500, dir_color);
 				#endif
 			}
 			else if(CFG.BR[BearingMode.User])
 			{
 				if(draw_forward_direction)
 				{
-					Utils.GLVec(VSL.Physics.wCoM, ForwardDirection.normalized*2500, Color.green);
+					Utils.GLVec(VSL.Physics.wCoM, ForwardDirection.normalized*2500, dir_color);
 					draw_forward_direction = !DirectionLineTimer.TimePassed;
 				}
 				if(Bearing.Draw("°", increment:10))
