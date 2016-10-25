@@ -320,7 +320,9 @@ namespace ThrottleControlledAvionics
 			if(!enabled) return;
 			updateCFG();
 			VSL = new VesselWrapper(this);
-			enable_module(VSL.Engines.All.Count > 0 || VSL.Engines.RCS.Count > 0);
+			enable_module(VSL.Engines.All.Count > 0 || 
+			              VSL.Engines.RCS.Count > 0 || 
+			              VSL.Torque.Wheels.Count > 0);
 			if(!enabled) { VSL = null; return; }
 			VSL.Init();
 			TCAModulesDatabase.InitModules(this);
