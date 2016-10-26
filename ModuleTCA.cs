@@ -431,7 +431,15 @@ namespace ThrottleControlledAvionics
 			if(!CFG.Enabled) return;
 			State = TCAState.Enabled;
 			localControlState = VesselControlState.None;
-			if(!VSL.Info.ElectricChargeAvailible) return;
+			if(!VSL.Info.ElectricChargeAvailible) 
+			{
+				if(VSL.Controls.WarpToTime > 0)
+				{
+					TimeWarp.SetRate(0, false);
+					VSL.Controls.StopWarp();
+				}
+				return;
+			}
 			localControlState = VesselControlState.ProbePartial;
 			SetState(TCAState.HaveEC);
 			ClearFrameState();
