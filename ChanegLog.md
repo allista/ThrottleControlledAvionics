@@ -2,7 +2,28 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.2.4**
+* **v3.2.5**
+	* TCA is now available on vessels that have only reaction wheels.
+    * **Waypoints**:
+    	* Integrated TCA waypoints and Stock/**WaypointManager** waypoints: currently active Stock waypoint can be used as a target for *Go To/Jump To* programs and added as TCA waypoint for *Follow Path* program.
+    	* Made TCA waypoints **draggable**: *point the mouse at a waypoint, leftclick-and-drag to change its location; release the left button to confirm; press the right button (while still pressing the left one) to cancel.*
+    	* Improved waypoints/path overlay: 
+    		* Waypoints now fade out with distance-along-the-path; but they also fade in with distance from the camera to the ship, so that when you zoom out from the ship the whole path becomes visible.
+    		* Added colored lines that connect waypoints along the path.
+    * **Integrated TCA with KerbNet**. TCA now acts as a stand-alone computer that can fly a ship out of signal. But TCA controls will become locked, so you can't control such a ship. *Squadron Mode* now also uses KerbNet to establish connection with controlled vessels.
+    * *Level* program and *VTOL Mode* do not take manual thrust into account anymore.
+    * Improved maneuver execution: Throttle Control now takes into account current steering request when applying differential thrust limit. Maneuver Autopilot automatically disables itself in case of inadequate thrusting near the end of the maneuver.
+    * Improved landing trajectory calculation and landing algorithm: better support of ships with low Thrust/Mass ratio; fixed rapid engine bursts during final deceleration.
+    * Added **CPS switch** in "advanced" pane to toggle Collision Prevention System.
+    	* Bugfix: a kerbal EVA does not trigger CPS response if it is on a ladder that belongs to the ship.
+    * Added **H-Translation** switch in "advanced" pane to disable TRA usage of translation for horizontal speed corrections.
+    * *Jump To* now also autosaves the game, like the *Land* program does.
+    * Fixed TCA part info updating in Editor.
+    * Added **Toggle Action Groups** and **Set Action Groups** macro actions.
+    * Fixed macro saving/loading.
+    * Moved ToolbarWrapper to AT_Utils and updated it.
+
+* v3.2.4
     * **Compatible with KSP-1.2**
     * ToOrbit Autopilots
         * Added user-definable slope parameter.
