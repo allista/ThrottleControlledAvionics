@@ -161,8 +161,9 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical();
 				int i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
-				var del = new HashSet<WayPoint>();
 				var col = GUI.contentColor;
+				WayPoint del = null;
+				WayPoint up = null;
 				foreach(var wp in CFG.Waypoints)
 				{
 					GUILayout.BeginHorizontal();
@@ -181,8 +182,11 @@ namespace ThrottleControlledAvionics
 						FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
-					if(GUILayout.Button("Edit", Styles.active_button))
+					if(GUILayout.Button("Edit", Styles.normal_button))
 						edit_waypoint(wp);
+					if(GUILayout.Button(new GUIContent("^", "Move up"), 
+					                    Styles.normal_button) && wp != CFG.Waypoints.Peek())
+						up = wp;
 					if(LND != null && 
 					   Utils.ButtonSwitch("Land", wp.Land, "Land on arrival"))
 						wp.Land = !wp.Land;
@@ -190,17 +194,22 @@ namespace ThrottleControlledAvionics
 						wp.Pause = !wp.Pause;
 					if(GUILayout.Button(new GUIContent("X", "Delete waypoint"), 
 					                    Styles.danger_button, GUILayout.Width(25))) 
-						del.Add(wp);
+						del = wp;
 					GUILayout.EndHorizontal();
 					i++;
 				}
 				GUI.contentColor = col;
 				if(GUILayout.Button("Clear", Styles.danger_button, GUILayout.ExpandWidth(true)))
 					CFG.Waypoints.Clear();
-				else if(del.Count > 0)
+				else if(del != null)
+					CFG.Waypoints = new Queue<WayPoint>(CFG.Waypoints.Where(wp => wp != del));
+				else if(up != null)
 				{
-					var edited = CFG.Waypoints.Where(wp => !del.Contains(wp)).ToList();
-					CFG.Waypoints = new Queue<WayPoint>(edited);
+					var waypoints = CFG.Waypoints.ToList();
+					var upi = waypoints.IndexOf(up);
+					waypoints[upi] = waypoints[upi-1];
+					waypoints[upi-1] = up;
+					CFG.Waypoints = new Queue<WayPoint>(waypoints);
 				}
 				if(CFG.Waypoints.Count == 0 && CFG.Nav) CFG.HF.XOn(HFlight.Stop);
 				GUILayout.EndVertical();
