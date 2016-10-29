@@ -167,7 +167,8 @@ namespace ThrottleControlledAvionics
 				{
 					GUILayout.BeginHorizontal();
 					GUI.contentColor = marker_color(i, num);
-					var label = string.Format("{0}) {1} [{2}]", 1+i, wp.GetName(), wp.Pos);
+					var label = string.Format("{0}) {1}", 1+i, wp.GetName());
+					if(wp == edited_waypoint) label += " *";
 					if(CFG.Target == wp)
 					{
 						var d = wp.DistanceTo(vessel);
@@ -175,12 +176,15 @@ namespace ThrottleControlledAvionics
 						if(vessel.horizontalSrfSpeed > 0.1)
 							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed)));
 					}
-					if(GUILayout.Button(new GUIContent(label, "Target this waypoint"), GUILayout.ExpandWidth(true)))
+					if(GUILayout.Button(new GUIContent(label, string.Format("{0}\nPush to target this waypoint", wp.SurfaceDescription(vessel))), 
+					                    GUILayout.ExpandWidth(true)))
 						FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
+					if(GUILayout.Button("Edit", Styles.active_button))
+						edit_waypoint(wp);
 					if(LND != null && 
-					   Utils.ButtonSwitch("Land", wp.Land, "Land on arrival", GUILayout.Width(50))) 
+					   Utils.ButtonSwitch("Land", wp.Land, "Land on arrival"))
 						wp.Land = !wp.Land;
 					if(Utils.ButtonSwitch("||", wp.Pause, "Pause on arrival", GUILayout.Width(25))) 
 						wp.Pause = !wp.Pause;
@@ -216,11 +220,26 @@ namespace ThrottleControlledAvionics
 		FloatField LatField = new FloatField(min: -90, max: 90);
 		FloatField LonField = new FloatField(min: -180, max: 180);
 		FloatField AltField = new FloatField();
+		static Color edited_color = new Color(177f/255, 0, 1);
 
 		WayPoint edited_waypoint;
 		string edited_waypoint_name = "";
 
-		void edit_waypoint(int windowID)
+		void edit_waypoint(WayPoint wp)
+		{
+			if(!wp.IsMovable) 
+			{
+				Utils.Message("{0} cannot be edited.", wp.Name);
+				return;
+			}
+			edited_waypoint = wp;
+			edited_waypoint_name = wp.Name;
+			LatField.Value = Utils.CenterAngle((float)wp.Pos.Lat);
+			LonField.Value = Utils.CenterAngle((float)wp.Pos.Lon);
+			AltField.Value = (float)wp.Pos.Alt;
+		}
+
+		void waypoint_editor(int windowID)
 		{
 			var close = false;
 			GUILayout.BeginVertical();
@@ -277,7 +296,7 @@ namespace ThrottleControlledAvionics
 			wp_editor_pos = 
 				GUILayout.Window(wp_editor_ID, 
 				                 wp_editor_pos, 
-				                 edit_waypoint, 
+				                 waypoint_editor, 
 				                 "Edit Waypoint",
 				                 GUILayout.Width(wp_edit_width),
 				                 GUILayout.Height(wp_edit_height)).clampToScreen();
@@ -341,13 +360,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			else if(Input.GetMouseButtonDown(1))
-			{
-				edited_waypoint = wp;
-				edited_waypoint_name = wp.Name;
-				LatField.Value = Utils.CenterAngle((float)wp.Pos.Lat);
-				LonField.Value = Utils.CenterAngle((float)wp.Pos.Lon);
-				AltField.Value = (float)wp.Pos.Alt;
-			}
+				edit_waypoint(wp);
 		}
 
 		//adapted from MechJeb
@@ -424,10 +437,13 @@ namespace ThrottleControlledAvionics
 						total_dist += (float)wp.DistanceTo(wp0, VSL.Body)/dist2cameraF;
 						dist = total_dist;
 					}
+					var r = IconSize;
 					var c = marker_color(i, num, dist);
 					if(wp0 == null) DrawPath(vessel, wp, c);
 					else DrawPath(vessel.mainBody, wp0, wp, c);
-					if(DrawGroundMarker(vessel.mainBody, wp, c, out worldPos))
+					if(wp == edited_waypoint) 
+					{ c = edited_color; r = IconSize*2; }
+					if(DrawGroundMarker(vessel.mainBody, wp, c, out worldPos, r))
 					{
 						DrawLabelAtPointer(wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
 						select_waypoint(wp);
