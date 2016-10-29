@@ -56,6 +56,18 @@ namespace ThrottleControlledAvionics
 			return String.Format("{0:0}°{1:00}'{2:00}\"", Math.Sign(angle)*d, m, s);
 		}
 
+		public static string LatToDMS(double lat)
+		{
+			lat = Utils.CenterAngle(lat);
+			return lat > 0? AngleToDMS(lat) + " N" : AngleToDMS(-lat) + " S";
+		}
+
+		public static string LonToDMS(double lon)
+		{
+			lon = Utils.CenterAngle(lon);
+			return lon > 0? AngleToDMS(lon) + " E" : AngleToDMS(-lon) + " W";
+		}
+
 		public double SurfaceAlt(CelestialBody body) { return body.TerrainAltitude(Lat, Lon); }
 		public string Biome(CelestialBody body) { return ScienceUtil.GetExperimentBiome(body, Lat, Lon); }
 
@@ -117,14 +129,14 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override string ToString()
-		{ 
-			return string.Format("Lat: {0} Lon: {1} Alt: {2}", 
-			                     AngleToDMS(Lat), AngleToDMS(Lon), 
-			                     Utils.formatBigValue((float)Alt, "m")); 
-		}
+		{ return string.Format("{0} {1}", LatToDMS(Lat), LonToDMS(Lon)); }
 
 		public string FullDescription(CelestialBody body)
-		{ return string.Format("{0}\n{1}", this, Biome(body)); }
+		{ 
+			return string.Format("{0}\nAlt: {1} {2}", this,
+			                     Utils.formatBigValue((float)Alt, "m"), 
+			                     Biome(body)); 
+		}
 
 		public string FullDescription(Vessel vsl) { return FullDescription(vsl.mainBody);}
 	}
