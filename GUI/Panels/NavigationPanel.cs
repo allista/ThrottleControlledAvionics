@@ -387,7 +387,11 @@ namespace ThrottleControlledAvionics
 								VSL.SetTarget(t);
 								MapView.ExitMapView();
 							}
-							else AddTargetDamper.Run(() => CFG.Waypoints.Enqueue(t));
+							else 
+							{
+								t.Name = "Waypoint "+(CFG.Waypoints.Count+1);
+								AddTargetDamper.Run(() => CFG.Waypoints.Enqueue(t));
+							}
 							CFG.ShowWaypoints = true;
 							clicked = false;
 						}
