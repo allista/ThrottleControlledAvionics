@@ -19,7 +19,7 @@ namespace ThrottleControlledAvionics
 		const int orb_height = 100;
 		static Rect orbit_editor = new Rect((Screen.width-orb_width)/2, 
 		                               		(Screen.height-orb_height)/2, 
-		                                	orb_width, orb_width);
+		                                    orb_width, orb_height);
 		readonly int orb_editor_ID;
 
 		public InOrbitPanel(ModuleTCA tca) : base(tca) 
