@@ -106,6 +106,9 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		void set_ascending_state()
+		{ if(VSL.VerticalSpeed.Absolute > 1 && CFG.VerticalCutoff > 1) SetState(TCAState.Ascending); }
+
 		protected override void Update()
 		{
 			if(!IsActive) return;
@@ -123,22 +126,18 @@ namespace ThrottleControlledAvionics
 			//correct for terrain altitude and radar data if following terrain
 			if(CFG.AltitudeAboveTerrain) 
 			{
-				var no_obstacle_ahead = false;
-				if(CFG.Target != null && CFG.Nav)
-				{
-					if(CFG.Target.Pos.Alt > VSL.Altitude.Ahead)
-					{
-						no_obstacle_ahead = alt-VSL.Altitude.Ahead > VSL.Geometry.H;
+				var obstacle_ahead = alt-VSL.Altitude.Ahead <= VSL.Geometry.H;
+				if(CFG.Target != null && CFG.Nav && 
+				   CFG.Target.Pos.Alt > VSL.Altitude.Ahead)
 						VSL.Altitude.Ahead = (float)CFG.Target.Pos.Alt;
-					}
-				}
 				if(VSL.Altitude.Ahead > VSL.Altitude.TerrainAltitude)
 				{
 					alt -= VSL.Altitude.Ahead;
 					if(alt <= VSL.Geometry.H) 
 					{
-						if(!no_obstacle_ahead)
+						if(obstacle_ahead) 
 							SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
+						else set_ascending_state();
 						if(RAD.TimeAhead > 0) 
 						{
 							CFG.VerticalCutoff = Mathf.Sqrt(2f*Utils.ClampL((VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute)*VSL.Physics.G, 0));
@@ -150,7 +149,7 @@ namespace ThrottleControlledAvionics
 							return;
 						}
 					}
-					else if(VSL.VerticalSpeed.Absolute > 1 && CFG.VerticalCutoff > 1) SetState(TCAState.Ascending);
+					else set_ascending_state();
 				}
 				else alt -= VSL.Altitude.TerrainAltitude;
 			}
