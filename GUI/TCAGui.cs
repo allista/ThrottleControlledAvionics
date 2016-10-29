@@ -525,6 +525,7 @@ namespace ThrottleControlledAvionics
 				                 GUILayout.Width(ControlsWidth),
 				                 GUILayout.Height(ControlsHeight)).clampToScreen();
 			InOrbitControls.OrbitEditorWindow();
+			NavigationControls.WaypointEditorWindow();
 			if(Event.current.type == EventType.Repaint)
 				NavigationControls.WaypointOverlay();
 		}

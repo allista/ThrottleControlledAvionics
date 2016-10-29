@@ -19,22 +19,22 @@ namespace ThrottleControlledAvionics
 	{
 		Vessel vessel { get { return TCA.vessel; } }
 
-		public NavigationPanel(ModuleTCA tca) : base(tca) {}
+		public NavigationPanel(ModuleTCA tca) : base(tca) 
+		{
+			var rnd = new System.Random();
+			wp_editor_ID = rnd.Next();
+		}
 
 		AutoLander LND;
 		PointNavigator PN;
 		BallisticJump BJ;
 
-		bool select_single;
-		WayPoint selected_waypoint;
-		Coordinates orig_coordinates;
-		public bool SelectingTarget { get; private set; }
+		static Camera current_camera 
+		{ get { return MapView.MapIsEnabled? PlanetariumCamera.Camera : FlightCamera.fetch.mainCamera; } }
+
 		Vector2 waypointsScroll;
-		readonly ActionDamper AddTargetDamper = new ActionDamper();
-		const string WPM_ICON = "ThrottleControlledAvionics/Icons/waypoint";
-		const string PN_ICON  = "ThrottleControlledAvionics/Icons/path-node";
-		const float  IconSize = 16;
-		static Texture2D WayPointMarker, PathNodeMarker;
+		public bool SelectingTarget { get; private set; }
+		bool select_single;
 
 		public static void OnAwake()
 		{
@@ -167,15 +167,15 @@ namespace ThrottleControlledAvionics
 				{
 					GUILayout.BeginHorizontal();
 					GUI.contentColor = marker_color(i, num);
-					var label = string.Format("{0}) {1}", 1+i, wp.GetName());
+					var label = string.Format("{0}) {1} [{2}]", 1+i, wp.GetName(), wp.Pos);
 					if(CFG.Target == wp)
 					{
 						var d = wp.DistanceTo(vessel);
-						label += string.Format(" <= {0}", Utils.formatBigValue((float)d, "m")); 
+						label += string.Format(" ◀ {0}", Utils.formatBigValue((float)d, "m")); 
 						if(vessel.horizontalSrfSpeed > 0.1)
 							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed)));
 					}
-					if(GUILayout.Button(label,GUILayout.ExpandWidth(true)))
+					if(GUILayout.Button(new GUIContent(label, "Target this waypoint"), GUILayout.ExpandWidth(true)))
 						FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
@@ -206,7 +206,96 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndVertical();
 		}
 
+		#region WaypointEditor
+		const int wp_edit_width = 350;
+		const int wp_edit_height = 100;
+		static Rect wp_editor_pos = new Rect((Screen.width-wp_edit_width)/2, 
+		                                     (Screen.height-wp_edit_height)/2, 
+		                                     wp_edit_width, wp_edit_height);
+		readonly int wp_editor_ID;
+		FloatField LatField = new FloatField(min: -90, max: 90);
+		FloatField LonField = new FloatField(min: -180, max: 180);
+		FloatField AltField = new FloatField();
+
+		WayPoint edited_waypoint;
+		string edited_waypoint_name = "";
+
+		void edit_waypoint(int windowID)
+		{
+			var close = false;
+			GUILayout.BeginVertical();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Name:", GUILayout.Width(70));
+			edited_waypoint_name = GUILayout.TextField(edited_waypoint_name, GUILayout.ExpandWidth(true));
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Latitude:", GUILayout.Width(70));
+			LatField.Draw("°", false, 1, "F1");
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Longitude:", GUILayout.Width(70));
+			LonField.Draw("°", false, 1, "F1");
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Altitude:", GUILayout.Width(70));
+			AltField.Draw("°", false, 100, "F0");
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			if(GUILayout.Button("Cancel", Styles.active_button)) close = true;
+			GUILayout.FlexibleSpace();
+			if(GUILayout.Button("Delete", Styles.danger_button))
+			{
+				CFG.Waypoints = new Queue<WayPoint>(CFG.Waypoints.Where(wp => wp != edited_waypoint));
+				close = true;
+			}
+			GUILayout.FlexibleSpace();
+			if(GUILayout.Button("Apply", Styles.confirm_button))
+			{
+				LatField.UpdateValue(); LonField.UpdateValue(); AltField.UpdateValue();
+				edited_waypoint.Name = edited_waypoint_name;
+				edited_waypoint.Pos.Lat = Utils.ClampAngle(LatField.Value);
+				edited_waypoint.Pos.Lon = Utils.ClampAngle(LonField.Value);
+				edited_waypoint.Pos.Alt = Math.Max(AltField.Value, 
+				                                   edited_waypoint.Pos.SurfaceAlt(vessel.mainBody));
+				edited_waypoint.Update(VSL);
+				close = true;
+			}
+			GUILayout.EndHorizontal();
+			GUILayout.EndVertical();
+			GUIWindowBase.TooltipsAndDragWindow(wp_editor_pos);
+			if(close) edited_waypoint = null;
+		}
+
+		public void WaypointEditorWindow()
+		{
+			if(edited_waypoint == null) 
+			{
+				Utils.LockIfMouseOver("TCAWaypointManager", wp_editor_pos, false);
+				return;
+			}
+			Utils.LockIfMouseOver("TCAWaypointManager", wp_editor_pos);
+			wp_editor_pos = 
+				GUILayout.Window(wp_editor_ID, 
+				                 wp_editor_pos, 
+				                 edit_waypoint, 
+				                 "Edit Waypoint",
+				                 GUILayout.Width(wp_edit_width),
+				                 GUILayout.Height(wp_edit_height)).clampToScreen();
+		}
+		#endregion
+
 		#region Waypoints Overlay
+		readonly ActionDamper AddTargetDamper = new ActionDamper();
+		const string WPM_ICON = "ThrottleControlledAvionics/Icons/waypoint";
+		const string PN_ICON  = "ThrottleControlledAvionics/Icons/path-node";
+		const float  IconSize = 16;
+		static Texture2D WayPointMarker, PathNodeMarker;
+
+		WayPoint selected_waypoint;
+		Coordinates orig_coordinates;
+		bool changing_altitude;
+		float last_mouse_y;
+
 		static float marker_alpha(float dist)
 		{
 			if(!MapView.MapIsEnabled && dist > 0)
@@ -239,7 +328,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(SelectingTarget || 
 			   selected_waypoint != null) return;
-			if(Input.GetMouseButtonDown(0)) 
+			if(Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(2)) 
 			{
 				if(!wp.IsMovable)
 					Utils.Message("{0} is not movable.", wp.Name);
@@ -247,7 +336,17 @@ namespace ThrottleControlledAvionics
 				{
 					selected_waypoint = wp;
 					orig_coordinates = wp.Pos.Copy();
+					changing_altitude = Input.GetMouseButtonDown(2);
+					if(changing_altitude) last_mouse_y = Input.mousePosition.y;
 				}
+			}
+			else if(Input.GetMouseButtonDown(1))
+			{
+				edited_waypoint = wp;
+				edited_waypoint_name = wp.Name;
+				LatField.Value = Utils.CenterAngle((float)wp.Pos.Lat);
+				LonField.Value = Utils.CenterAngle((float)wp.Pos.Lon);
+				AltField.Value = (float)wp.Pos.Alt;
 			}
 		}
 
@@ -256,7 +355,7 @@ namespace ThrottleControlledAvionics
 		DateTime clicked_time;
 		public void WaypointOverlay() //TODO: add waypoint editing by drag
 		{
-			if(TCA == null || !TCA.Available || !TCAGui.HUD_enabled) return;
+			if(TCA == null || !TCA.Available || !GUIWindowBase.HUD_enabled) return;
 			Vector3d worldPos;
 			if(SelectingTarget)
 			{
@@ -282,6 +381,7 @@ namespace ThrottleControlledAvionics
 							t.Movable = true;
 							if(select_single)
 							{
+								t.Name = "Target";
 								SelectingTarget = false;
 								select_single = false;
 								VSL.SetTarget(t);
@@ -300,14 +400,16 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			bool current_target_drawn = false;
-			var dist2camera = Mathf.Pow(Mathf.Max((FlightCamera.fetch.mainCamera.transform.position -
-			                                       VSL.vessel.transform.position).magnitude, 1), GLB.CameraFadeinPower);
+			var camera = current_camera;
 			if(CFG.ShowWaypoints)
 			{
 				var i = 0;
 				var num = (float)(CFG.Waypoints.Count-1);
 				WayPoint wp0 = null;
 				var total_dist = 0f;
+				var dist2cameraF = Mathf.Pow(Mathf.Max((camera.transform.position - 
+				                                        VSL.vessel.transform.position).magnitude, 1), 
+				                             GLB.CameraFadeinPower);
 				foreach(var wp in CFG.Waypoints)
 				{
 					current_target_drawn |= wp.Equals(CFG.Target);
@@ -315,7 +417,7 @@ namespace ThrottleControlledAvionics
 					var dist = -1f;
 					if(wp0 != null && wp != selected_waypoint)
 					{
-						total_dist += (float)wp.DistanceTo(wp0, VSL.Body)/dist2camera;
+						total_dist += (float)wp.DistanceTo(wp0, VSL.Body)/dist2cameraF;
 						dist = total_dist;
 					}
 					var c = marker_color(i, num, dist);
@@ -326,6 +428,8 @@ namespace ThrottleControlledAvionics
 						DrawLabelAtPointer(wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
 						select_waypoint(wp);
 					}
+					else if(wp == selected_waypoint)
+						DrawLabelAtPointer(wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
 					wp0 = wp; 
 					i++;
 				}
@@ -345,18 +449,35 @@ namespace ThrottleControlledAvionics
 			//modify the selected waypoint
 			if(!SelectingTarget && selected_waypoint != null)
 			{
-				var coords = MapView.MapIsEnabled? 
-					Coordinates.GetAtPointer(vessel.mainBody) :
-					Coordinates.GetAtPointerInFlight();
-				if(coords != null) 
-				{ 
-					selected_waypoint.Pos = coords;
+				if(changing_altitude)
+				{
+					var dist2camera = (selected_waypoint.GetTransform().position-camera.transform.position).magnitude;
+					var dy = (Input.mousePosition.y-last_mouse_y)/Screen.height *
+						dist2camera*Math.Tan(camera.fieldOfView*Mathf.Deg2Rad)*2;
+					last_mouse_y = Input.mousePosition.y;
+					selected_waypoint.Pos.Alt += dy;
 					selected_waypoint.Update(VSL);
 				}
-				if(Input.GetMouseButtonUp(0))
+				else
+				{
+					var coords = MapView.MapIsEnabled? 
+						Coordinates.GetAtPointer(vessel.mainBody) :
+						Coordinates.GetAtPointerInFlight();
+					if(coords != null) 
+					{ 
+						selected_waypoint.Pos = coords;
+						selected_waypoint.Update(VSL);
+					}
+				}
+				if(Input.GetMouseButtonUp(0) ||
+				   (changing_altitude && Input.GetMouseButtonUp(2)))
 				{ 
+					if(changing_altitude)
+						selected_waypoint.Pos.Alt = Math.Max(selected_waypoint.Pos.Alt, 
+						                                     selected_waypoint.Pos.SurfaceAlt(vessel.mainBody));
 					selected_waypoint = null;
 					orig_coordinates = null;
+					changing_altitude = false;
 				}
 				else if(Input.GetMouseButtonDown(1))
 				{ 
@@ -364,6 +485,7 @@ namespace ThrottleControlledAvionics
 					selected_waypoint.Update(VSL);
 					selected_waypoint = null;
 					orig_coordinates = null;
+					changing_altitude = false;
 				}
 			}
 			#if DEBUG
