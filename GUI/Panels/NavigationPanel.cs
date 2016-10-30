@@ -200,7 +200,7 @@ namespace ThrottleControlledAvionics
 				Waypoint selected = null;
 				foreach(var wp in WPM.Waypoints)
 				{
-					if(wp.celestialBody != vessel.mainBody) continue;
+					if(!wp.isNavigatable || wp.celestialBody != vessel.mainBody) continue;
 					if(GUILayout.Button(new GUIContent(wp.FullName, "Click to add this waypoint into the path"), 
 					                    Styles.boxed_label, GUILayout.ExpandWidth(true)))
 						selected = wp;
