@@ -209,41 +209,36 @@ namespace ThrottleControlledAvionics
 	[RequireModules(typeof(PointNavigator))]
 	public class FollowPathMacroNode : MacroNode
 	{
-		protected Queue<WayPoint> Waypoints = new Queue<WayPoint>();
-		protected bool waypoints_loaded;
+		protected NavPath Path = new NavPath();
+		protected bool path_loaded;
 
 		public override void Rewind()
-		{ base.Rewind(); waypoints_loaded = false; }
+		{ base.Rewind(); path_loaded = false; }
 
 		public override void Save(ConfigNode node)
 		{
 			base.Save(node);
-			var wpn = node.AddNode("Waypoints");
-			foreach(var wp in Waypoints)
-				wp.Save(wpn.AddNode(WayPoint.NODE_NAME));
+			Path.Save(node.AddNode(NavPath.NODE_NAME));
 		}
 
 		public override void Load(ConfigNode node)
 		{
 			base.Load(node);
-			Waypoints.Clear();
-			var wpn = node.GetNode("Waypoints");
-			if(wpn == null) return;
-			foreach(var n in wpn.GetNodes(WayPoint.NODE_NAME))
-				Waypoints.Enqueue(ConfigNodeObject.FromConfig<WayPoint>(n));
+			var path = node.GetNode(NavPath.NODE_NAME) ?? node.GetNode("Waypoints"); //deprecated: old config conversion
+			if(path != null) Path.Load(path);
 		}
 
 		protected override void DrawThis ()
 		{
 			var title = Name;
-			if(Waypoints.Count > 0) title += " (waypoints stored)";
+			if(Path.Count > 0) title += " (waypoints stored)";
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
 				Edit &= !GUILayout.Button(title, Styles.active_button, GUILayout.ExpandWidth(false));
 				if(EditedCFG != null && GUILayout.Button("Copy waypoints from Vessel", 
 				                                         Styles.active_button, GUILayout.ExpandWidth(false)))
-					Waypoints = new Queue<WayPoint>(EditedCFG.Waypoints);
+					Path = EditedCFG.Path.Copy();
 			}
 			else Edit |= GUILayout.Button(title, Styles.normal_button) && EditedCFG != null;
 			GUILayout.EndHorizontal();
@@ -251,13 +246,13 @@ namespace ThrottleControlledAvionics
 
 		protected override bool Action(VesselWrapper VSL)
 		{
-			if(!waypoints_loaded)
+			if(!path_loaded)
 			{
-				if(Waypoints.Count > 0)
-					VSL.CFG.Waypoints = new Queue<WayPoint>(Waypoints);
-				waypoints_loaded = true;
+				if(Path.Count > 0)
+					VSL.CFG.Path = Path.Copy();
+				path_loaded = true;
 			}
-			if(VSL.CFG.Waypoints.Count == 0) { Message("No Waypoints"); return false; }
+			if(VSL.CFG.Path.Count == 0) { Message("No Waypoints"); return false; }
 			VSL.CFG.Nav.XOnIfNot(Navigation.FollowPath);
 			return VSL.CFG.Nav[Navigation.FollowPath];
 		}

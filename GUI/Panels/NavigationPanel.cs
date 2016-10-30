@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using FinePrint;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -32,7 +33,6 @@ namespace ThrottleControlledAvionics
 		static Camera current_camera 
 		{ get { return MapView.MapIsEnabled? PlanetariumCamera.Camera : FlightCamera.fetch.mainCamera; } }
 
-		Vector2 waypointsScroll;
 		public bool SelectingTarget { get; private set; }
 		bool select_single;
 
@@ -83,24 +83,24 @@ namespace ThrottleControlledAvionics
 			else if(VSL.HasTarget && 
 			        (VSL.TargetIsNavPoint ||
 			        !VSL.TargetIsWayPoint && 
-			         (CFG.Waypoints.Count == 0 || VSL.Target != CFG.Waypoints.Peek().GetTarget())))
+			         (CFG.Path.Count == 0 || VSL.Target != CFG.Path.Peek().GetTarget())))
 			{
 				if(GUILayout.Button(new GUIContent("Add As Waypoint", "Add current target as a waypoint"), 
 				                    Styles.active_button, GUILayout.Width(120)))
 				{
 					var t = VSL.TargetAsWP;
 					VSL.SetTarget(t);
-					CFG.Waypoints.Enqueue(t);
-					CFG.ShowWaypoints = true;
+					CFG.Path.Enqueue(t);
+					CFG.ShowPath = true;
 				}
 			}
 			else if(GUILayout.Button(new GUIContent("Add Waypoint", "Select a new waypoint"), 
 			                         Styles.active_button, GUILayout.Width(120)))
 			{
 				SelectingTarget = true;
-				CFG.ShowWaypoints = true;
+				CFG.ShowPath = true;
 			}
-			if(CFG.Waypoints.Count > 0 && !CFG.Nav.Paused)
+			if(CFG.Path.Count > 0 && !CFG.Nav.Paused)
 			{
 				if(Utils.ButtonSwitch("Follow Route", CFG.Nav[Navigation.FollowPath], "", GUILayout.Width(90)))
 				{
@@ -118,6 +118,12 @@ namespace ThrottleControlledAvionics
 				apply_cfg(cfg => cfg.MaxNavSpeed = max_nav_speed);
 			GUILayout.EndHorizontal();
 		}
+
+		#region WaypointList
+		Vector2 waypointsScroll, pathsScroll, stockScroll;
+		string path_name = "";
+		bool show_path_library;
+		bool show_stock_waypoints;
 
 		public void AddSingleWaypointInMapView()
 		{
@@ -138,33 +144,127 @@ namespace ThrottleControlledAvionics
 				select_single = true;
 				SelectingTarget = true;
 				CFG.GUIVisible = true;
-				CFG.ShowWaypoints = true;
+				CFG.ShowPath = true;
 				MapView.EnterMapView();
+			}
+		}
+
+		void path_library()
+		{
+			if(show_path_library)
+			{
+				GUILayout.BeginVertical(Styles.white);
+				pathsScroll = GUILayout
+					.BeginScrollView(pathsScroll, 
+					                 GUILayout.Height(Utils.ClampH(TCAGui.LineHeight*(TCAScenario.Paths.Count+1), 
+					                                               TCAGui.ControlsHeight)));
+				var selected_path = "";
+				var delete_path = "";
+				foreach(var path in TCAScenario.Paths.Names)
+				{
+					GUILayout.BeginHorizontal();
+					if(GUILayout.Button(new GUIContent(path, "Click to load this path into ship's computer"), 
+					                    Styles.boxed_label, GUILayout.ExpandWidth(true)))
+						selected_path = path;
+					if(GUILayout.Button(new GUIContent("X", "Delete this path"), 
+					                    Styles.danger_button, GUILayout.Width(25))) 
+						delete_path = path;
+					GUILayout.EndHorizontal();
+				}
+				GUILayout.EndScrollView();
+				if(!string.IsNullOrEmpty(selected_path)) 
+				{
+					CFG.Path = TCAScenario.Paths.GetPath(selected_path);
+					path_name = CFG.Path.Name;
+					show_path_library = false;
+				}
+				else if(!string.IsNullOrEmpty(delete_path))
+				{
+					TCAScenario.Paths.Remove(delete_path);
+					show_path_library &= !TCAScenario.Paths.Empty;
+				}
+				GUILayout.EndVertical();
+			}
+		}
+
+		void stock_waypoints(WaypointManager WPM)
+		{
+			if(show_stock_waypoints && WPM != null)
+			{
+				GUILayout.BeginVertical(Styles.white);
+				stockScroll = GUILayout
+					.BeginScrollView(stockScroll, 
+					                 GUILayout.Height(Utils.ClampH(TCAGui.LineHeight*(TCAScenario.Paths.Count+1), 
+					                                               TCAGui.ControlsHeight)));
+				var displayed = 0;
+				Waypoint selected = null;
+				foreach(var wp in WPM.Waypoints)
+				{
+					if(wp.celestialBody != vessel.mainBody) continue;
+					if(GUILayout.Button(new GUIContent(wp.FullName, "Click to add this waypoint into the path"), 
+					                    Styles.boxed_label, GUILayout.ExpandWidth(true)))
+						selected = wp;
+					displayed++;
+				}
+				if(displayed == 0)
+					GUILayout.Label("No waypoints on this planet.", Styles.boxed_label, GUILayout.ExpandWidth(true));
+				GUILayout.EndScrollView();
+				if(displayed > 1 && 
+				   GUILayout.Button("Add All", Styles.enabled_button, GUILayout.ExpandWidth(true)))
+				{
+					WaypointManager.Instance().Waypoints.ForEach(wp => CFG.Path.Enqueue(new WayPoint(wp)));
+					show_stock_waypoints = false;
+				}
+				if(selected != null)
+					CFG.Path.Enqueue(new WayPoint(selected));
+				GUILayout.EndVertical();
 			}
 		}
 
 		public void WaypointList()
 		{
-			if(CFG.Waypoints.Count == 0) return;
+			var WPM = WaypointManager.Instance();
+			if(CFG.Path.Count == 0) 
+			{
+				GUILayout.BeginHorizontal();
+				if(TCAScenario.Paths.Count > 0)
+					Utils.ButtonSwitch("Navigation Paths", ref show_path_library, "", GUILayout.ExpandWidth(true));
+				if(WPM != null && WPM.Waypoints.Count > 0)
+					Utils.ButtonSwitch("Contract Waypoints", ref show_stock_waypoints, "", GUILayout.ExpandWidth(true));
+				GUILayout.EndHorizontal();
+				stock_waypoints(WPM);
+				path_library();
+				return;
+			}
 			GUILayout.BeginVertical();
-			if(GUILayout.Button(CFG.ShowWaypoints? "Hide Waypoints" : "Show Waypoints", 
+			GUILayout.BeginHorizontal();
+			if(GUILayout.Button(CFG.ShowPath? "Hide Waypoints" : "Show Waypoints", 
 			                    Styles.active_button,
 			                    GUILayout.ExpandWidth(true)))
-				CFG.ShowWaypoints = !CFG.ShowWaypoints;
-			if(CFG.ShowWaypoints)
+				CFG.ShowPath = !CFG.ShowPath;
+			if(TCAScenario.Paths.Empty)
+				GUILayout.Label("Load Path", Styles.inactive_button, GUILayout.ExpandWidth(false));
+			else Utils.ButtonSwitch("Load Path", ref show_path_library, "", GUILayout.ExpandWidth(false));
+			if(WPM == null || WPM.Waypoints.Count == 0)
+				GUILayout.Label("Add From Contracts", Styles.inactive_button, GUILayout.ExpandWidth(false));
+			else Utils.ButtonSwitch("Add From Contracts", ref show_stock_waypoints, "", GUILayout.ExpandWidth(false));
+			GUILayout.EndHorizontal();
+			stock_waypoints(WPM);
+			path_library();
+			if(CFG.ShowPath)
 			{
 				GUILayout.BeginVertical(Styles.white);
 				waypointsScroll = GUILayout
 					.BeginScrollView(waypointsScroll, 
-					                 GUILayout.Height(Utils.ClampH(TCAGui.LineHeight*(CFG.Waypoints.Count+1), 
+					                 GUILayout.Height(Utils.ClampH(TCAGui.LineHeight*(CFG.Path.Count+1), 
 					                                               TCAGui.ControlsHeight)));
 				GUILayout.BeginVertical();
 				int i = 0;
-				var num = (float)(CFG.Waypoints.Count-1);
+				var num = (float)(CFG.Path.Count-1);
 				var col = GUI.contentColor;
 				WayPoint del = null;
 				WayPoint up = null;
-				foreach(var wp in CFG.Waypoints)
+				foreach(var wp in CFG.Path)
 				{
 					GUILayout.BeginHorizontal();
 					GUI.contentColor = marker_color(i, num);
@@ -184,8 +284,7 @@ namespace ThrottleControlledAvionics
 					GUILayout.FlexibleSpace();
 					if(GUILayout.Button("Edit", Styles.normal_button))
 						edit_waypoint(wp);
-					if(GUILayout.Button(new GUIContent("^", "Move up"), 
-					                    Styles.normal_button) && wp != CFG.Waypoints.Peek())
+					if(GUILayout.Button(new GUIContent("^", "Move up"), Styles.normal_button))
 						up = wp;
 					if(LND != null && 
 					   Utils.ButtonSwitch("Land", wp.Land, "Land on arrival"))
@@ -199,25 +298,34 @@ namespace ThrottleControlledAvionics
 					i++;
 				}
 				GUI.contentColor = col;
-				if(GUILayout.Button("Clear", Styles.danger_button, GUILayout.ExpandWidth(true)))
-					CFG.Waypoints.Clear();
-				else if(del != null)
-					CFG.Waypoints = new Queue<WayPoint>(CFG.Waypoints.Where(wp => wp != del));
-				else if(up != null)
-				{
-					var waypoints = CFG.Waypoints.ToList();
-					var upi = waypoints.IndexOf(up);
-					waypoints[upi] = waypoints[upi-1];
-					waypoints[upi-1] = up;
-					CFG.Waypoints = new Queue<WayPoint>(waypoints);
-				}
-				if(CFG.Waypoints.Count == 0 && CFG.Nav) CFG.HF.XOn(HFlight.Stop);
+				if(del != null) CFG.Path.Remove(del);
+				else if(up != null) CFG.Path.MoveUp(up);
+				if(CFG.Path.Count == 0 && CFG.Nav) CFG.HF.XOn(HFlight.Stop);
 				GUILayout.EndVertical();
 				GUILayout.EndScrollView();
+				GUILayout.BeginHorizontal();
+				path_name = GUILayout.TextField(path_name, GUILayout.ExpandWidth(true));
+				if(string.IsNullOrEmpty(path_name))
+					GUILayout.Label("Save Path", Styles.inactive_button, GUILayout.Width(70));
+				else
+				{
+					var existing = TCAScenario.Paths.Contains(path_name);
+					if(GUILayout.Button(existing? "Overwrite" : "Save Path",
+					                    existing? Styles.danger_button : Styles.enabled_button,
+					                    GUILayout.Width(70)))
+					{
+						CFG.Path.Name = path_name;
+						TCAScenario.Paths.SavePath(CFG.Path);
+					}
+				}
+				if(GUILayout.Button("Clear Path", Styles.danger_button, GUILayout.ExpandWidth(false)))
+					CFG.Path.Clear();
+				GUILayout.EndHorizontal();
 				GUILayout.EndVertical();
 			}
 			GUILayout.EndVertical();
 		}
+		#endregion
 
 		#region WaypointEditor
 		const int wp_edit_width = 350;
@@ -273,7 +381,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.FlexibleSpace();
 			if(GUILayout.Button("Delete", Styles.danger_button))
 			{
-				CFG.Waypoints = new Queue<WayPoint>(CFG.Waypoints.Where(wp => wp != edited_waypoint));
+				CFG.Path.Remove(edited_waypoint);
 				close = true;
 			}
 			GUILayout.FlexibleSpace();
@@ -351,7 +459,6 @@ namespace ThrottleControlledAvionics
 		static void DrawLabelAtPointer(string text, double distance)
 		{ DrawLabelAtPointer(string.Format("{0}\nDistance: {1}", text, Utils.formatBigValue((float)distance, "m"))); }
 
-
 		void select_waypoint(WayPoint wp)
 		{
 			if(SelectingTarget || 
@@ -375,7 +482,7 @@ namespace ThrottleControlledAvionics
 		//adapted from MechJeb
 		bool clicked;
 		DateTime clicked_time;
-		public void WaypointOverlay() //TODO: add waypoint editing by drag
+		public void WaypointOverlay()
 		{
 			if(TCA == null || !TCA.Available || !GUIWindowBase.HUD_enabled) return;
 			Vector3d worldPos;
@@ -411,10 +518,10 @@ namespace ThrottleControlledAvionics
 							}
 							else 
 							{
-								t.Name = "Waypoint "+(CFG.Waypoints.Count+1);
-								AddTargetDamper.Run(() => CFG.Waypoints.Enqueue(t));
+								t.Name = "Waypoint "+(CFG.Path.Count+1);
+								AddTargetDamper.Run(() => CFG.Path.Enqueue(t));
 							}
-							CFG.ShowWaypoints = true;
+							CFG.ShowPath = true;
 							clicked = false;
 						}
 						if(Input.GetMouseButtonUp(1))
@@ -427,16 +534,16 @@ namespace ThrottleControlledAvionics
 			}
 			bool current_target_drawn = false;
 			var camera = current_camera;
-			if(CFG.ShowWaypoints)
+			if(CFG.ShowPath)
 			{
 				var i = 0;
-				var num = (float)(CFG.Waypoints.Count-1);
+				var num = (float)(CFG.Path.Count-1);
 				WayPoint wp0 = null;
 				var total_dist = 0f;
 				var dist2cameraF = Mathf.Pow(Mathf.Max((camera.transform.position - 
 				                                        VSL.vessel.transform.position).magnitude, 1), 
 				                             GLB.CameraFadeinPower);
-				foreach(var wp in CFG.Waypoints)
+				foreach(var wp in CFG.Path)
 				{
 					current_target_drawn |= wp.Equals(CFG.Target);
 					wp.UpdateCoordinates(vessel.mainBody);

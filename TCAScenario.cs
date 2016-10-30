@@ -53,14 +53,17 @@ namespace ThrottleControlledAvionics
 		public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
 		public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
 		public static bool ConfigsLoaded { get; private set; }
-		public static bool ModuleInstalled { get; private set; }
-		public static bool HavePersistentRotation { get; private set; }
+
+		public static PathDB Paths = new PathDB();
 
 		#region ModuleInfo
+		public static bool HasTCA { get { return !Globals.Instance.IntegrateIntoCareer || Utils.PartIsPurchased(Globals.TCA_PART); } }
 		public static bool HavePatchedConics { get; private set; }
+		public static bool ModuleInstalled { get; private set; }
+		public static bool HavePersistentRotation { get; private set; }
 		public static string ModuleStatusString()
 		{ return HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
-		public static bool HasTCA { get { return !Globals.Instance.IntegrateIntoCareer || Utils.PartIsPurchased(Globals.TCA_PART); } }
+
 		public static List<TCAPart> Parts = new List<TCAPart>();
 		#endregion
 
@@ -170,39 +173,16 @@ namespace ThrottleControlledAvionics
 					NamedConfigs[c].Save(n.AddNode(NamedConfig.NODE_NAME));
 			}
 		}
-
-		[Obsolete("Only needed for legacy config conversion")]
-		public static void LoadLegacyConfigs(ConfigNode node) 
-		{
-			Configs.Clear();
-			NamedConfigs.Clear();
-			foreach(var n in node.GetNodes())
-			{
-				if(n.name == HighLogic.CurrentGame.Title.Split()[0])
-				{
-					foreach(var c in n.GetNodes(VesselConfig.NODE_NAME))
-					{
-						var config = new VesselConfig();
-						config.Load(c);
-						Configs[config.VesselID] = config;
-					}
-				}
-				else if(n.name == NAMED_NODE)
-				{
-					foreach(var c in n.GetNodes(NamedConfig.NODE_NAME))
-					{
-						var config = new NamedConfig();
-						config.Load(c);
-						NamedConfigs[config.Name] = config;
-					}
-				}
-			}
-		}
 		#endregion
 
 		public override void OnLoad(ConfigNode node)
 		{ 
+			Globals.Load();
 			LoadConfigs(node);
+			//navigation paths
+			var paths = node.GetNode(PathDB.NODE_NAME);
+			if(paths != null) Paths.Load(paths);
+			else Paths.Clear();
 			//patched conics availability
 			HavePatchedConics = GameVariables.Instance
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) 
@@ -222,10 +202,13 @@ namespace ThrottleControlledAvionics
 			if(!ModuleInstalled) TCAManual.ShowStatus();
 			//check for PersistentRotation
 			HavePersistentRotation = AssemblyLoader.loadedAssemblies.FirstOrDefault(a => a.name == Globals.Instance.PersistentRotationName) != null;
-			Globals.Load();
 		}
 
-		public override void OnSave (ConfigNode node) { SaveConfigs(node); }
+		public override void OnSave(ConfigNode node) 
+		{ 
+			SaveConfigs(node);
+			Paths.Save(node.AddNode(PathDB.NODE_NAME));
+		}
 	}
 }
 

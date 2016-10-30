@@ -8,6 +8,9 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using System.Linq;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
@@ -51,6 +54,7 @@ namespace ThrottleControlledAvionics
 		public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
 		public WayPoint(double lat, double lon, double alt) : this(new Coordinates(lat,lon,alt)) {}
 		public WayPoint(Vector3d worldPos, CelestialBody body) : this(new Coordinates(worldPos, body)) {}
+		public WayPoint(FinePrint.Waypoint wp) : this(new Coordinates(wp.latitude, wp.longitude, wp.altitude+wp.height)) { Name = wp.FullName; }
 
 		//using Haversine formula (see http://www.movable-type.co.uk/scripts/latlong.html)
 		public double AngleTo(double lat, double lon)

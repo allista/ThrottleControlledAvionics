@@ -128,8 +128,8 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 			case Multiplexer.Command.On:
-				if(CFG.Waypoints.Count > 0)
-					start_to(CFG.Waypoints.Peek());
+				if(CFG.Path.Count > 0)
+					start_to(CFG.Path.Peek());
 				else finish();
 				break;
 
@@ -363,20 +363,20 @@ namespace ThrottleControlledAvionics
 					else VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
 					vel_is_set = true;
 				}
-				else if(CFG.Nav[Navigation.FollowPath] && CFG.Waypoints.Count > 0)
+				else if(CFG.Nav[Navigation.FollowPath] && CFG.Path.Count > 0)
 				{
-					if(CFG.Waypoints.Peek() == CFG.Target)
+					if(CFG.Path.Peek() == CFG.Target)
 					{
-						if(CFG.Waypoints.Count > 1)
+						if(CFG.Path.Count > 1)
 						{ 
-							CFG.Waypoints.Dequeue();
+							CFG.Path.Dequeue();
 							if(on_arrival()) return;
-							start_to(CFG.Waypoints.Peek());
+							start_to(CFG.Path.Peek());
 							return;
 						}
 						else if(ArrivedTimer.TimePassed)
 						{ 
-							CFG.Waypoints.Clear();
+							CFG.Path.Clear();
 							if(on_arrival()) return;
 							finish();
 							return;
@@ -385,7 +385,7 @@ namespace ThrottleControlledAvionics
 					else 
 					{ 
 						if(on_arrival()) return;
-						start_to(CFG.Waypoints.Peek()); 
+						start_to(CFG.Path.Peek()); 
 						return; 
 					}
 				}
@@ -411,12 +411,12 @@ namespace ThrottleControlledAvionics
 				//don't slow down on intermediate waypoints too much
 				var min_dist = PN.OnPathMinDistance*VSL.Geometry.R;
 				if(!CFG.Target.Land && CFG.Nav[Navigation.FollowPath] && 
-				   CFG.Waypoints.Count > 1 && distance < min_dist)
+				   CFG.Path.Count > 1 && distance < min_dist)
 				{
 					WayPoint next_wp = null;
-					if(CFG.Waypoints.Peek() == CFG.Target)
+					if(CFG.Path.Peek() == CFG.Target)
 					{
-						var iwp = CFG.Waypoints.GetEnumerator();
+						var iwp = CFG.Path.GetEnumerator();
 						try 
 						{ 
 							iwp.MoveNext(); iwp.MoveNext();
@@ -424,7 +424,7 @@ namespace ThrottleControlledAvionics
 						} 
 						catch {}
 					}
-					else next_wp = CFG.Waypoints.Peek();
+					else next_wp = CFG.Path.Peek();
 					if(next_wp != null)
 					{
 						next_wp.Update(VSL);

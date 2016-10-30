@@ -77,14 +77,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="TCAConfig.cs" />
     <Compile Include="TCAEngineInfo.cs" />
     <Compile Include="EngineWrapper.cs" />
     <Compile Include="VesselWrapper.cs" />
     <Compile Include="Modules\RCSOptimizer.cs" />
     <Compile Include="Modules\EngineOptimizer.cs" />
     <Compile Include="ModuleTCA.cs" />
-    <Compile Include="WayPoints.cs" />
     <Compile Include="EngineConfig.cs" />
     <Compile Include="TCAScenario.cs" />
     <Compile Include="GUI\TCAGui.cs" />
@@ -158,10 +156,15 @@
     <Compile Include="Modules\Orbit\Components\ToOrbitExecutor.cs" />
     <Compile Include="Modules\Orbit\Components\ManeuverExecutor.cs" />
     <Compile Include="Modules\Orbit\RendezvousAutopilot.cs" />
-    <Compile Include="Utils\Coordinates.cs" />
     <Compile Include="Modules\Orbit\Components\OrbitalComponent.cs" />
     <Compile Include="Modules\Orbit\Components\TrajectoryOptimizers.cs" />
     <Compile Include="Modules\Orbit\Trajectories\CurrentTrajectory.cs" />
+    <Compile Include="Navigation\NavPath.cs" />
+    <Compile Include="Navigation\WayPoint.cs" />
+    <Compile Include="Navigation\PathDB.cs" />
+    <Compile Include="Navigation\Coordinates.cs" />
+    <Compile Include="Globals.cs" />
+    <Compile Include="VesselConfig.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -176,6 +179,7 @@
     <Folder Include="Modules\Orbit\" />
     <Folder Include="Modules\Orbit\Trajectories\" />
     <Folder Include="Modules\Orbit\Components\" />
+    <Folder Include="Navigation\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AT_Utils\AT_Utils.csproj">
