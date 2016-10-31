@@ -80,9 +80,7 @@ namespace ThrottleControlledAvionics
 								var alt = tca.GetModule<AltitudeControl>();
 								if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
 							});
-					#if DEBUG
-//					RAD.DrawDebugLines();
-					#endif
+//					RAD.DrawDebugLines();//debug
 				}
 			}
 			if(CC != null)
