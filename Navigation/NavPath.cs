@@ -52,7 +52,7 @@ namespace ThrottleControlledAvionics
 		public virtual void Save(ConfigNode node)
 		{
 			node.AddValue("Name", Name);
-			this.ForEach(wp => wp.Save(node.AddNode(WayPoint.NODE_NAME)));
+			this.ForEach(wp => wp.SaveInto(node));
 		}
 
 		public virtual void Load(ConfigNode node)

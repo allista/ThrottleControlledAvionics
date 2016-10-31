@@ -207,7 +207,7 @@ namespace ThrottleControlledAvionics
 		public override void OnSave(ConfigNode node) 
 		{ 
 			SaveConfigs(node);
-			Paths.Save(node.AddNode(PathDB.NODE_NAME));
+			Paths.SaveInto(node);
 		}
 	}
 }

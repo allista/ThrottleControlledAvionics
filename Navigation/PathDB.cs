@@ -47,9 +47,7 @@ namespace ThrottleControlledAvionics
 		public override void Save(ConfigNode node)
 		{
 			base.Save(node);
-			var paths = DB.Values.ToList();
-			paths.Sort((a,b) => a.Name.CompareTo(b.Name));
-			paths.ForEach(p => p.Save(node.AddNode(NavPath.NODE_NAME)));
+			DB.ForEach(p => p.Value.Save(node.AddNode(NavPath.NODE_NAME)));
 		}
 	}
 }

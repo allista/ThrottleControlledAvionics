@@ -468,8 +468,7 @@ namespace ThrottleControlledAvionics
 
 		public override void Save(ConfigNode node)
 		{
-			foreach(var p in DB) 
-				p.Save(node.AddNode(EnginesProfile.NODE_NAME));
+			DB.ForEach(p => p.SaveInto(node));
 			base.Save(node);
 		}
 
