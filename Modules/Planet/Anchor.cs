@@ -99,6 +99,7 @@ namespace ThrottleControlledAvionics
 			pid.D = ANC.DistancePID.D*(2-AccelCorrection);
 			if(real_dist <= Mathf.Max(CFG.Anchor.AbsRadius-VSL.Geometry.R, 1)) 
 			{
+				VSL.Altitude.DontCorrectIfSlow();
 				distance = 0;
 				pid.D = 0;
 			}

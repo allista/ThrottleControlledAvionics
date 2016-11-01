@@ -101,11 +101,11 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
-		public void RadarBeam()
+		public void DrawDebugLines()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
-			Utils.GLVec(VSL.refT.position, VSL.HorizontalSpeed.NeededVector, Color.red);
-			Utils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H, VSL.HorizontalSpeed.Vector, Color.magenta);
+			Utils.GLVec(VSL.refT.position, VSL.HorizontalSpeed.NeededVector, Color.yellow);
+			Utils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H, VSL.HorizontalSpeed.Vector, Color.red);
 			Utils.GLVec(VSL.refT.position+VSL.Physics.Up*VSL.Geometry.H*1.1, CourseCorrection, Color.green);
 		}
 		#endif
@@ -265,6 +265,7 @@ namespace ThrottleControlledAvionics
 				}
 				else EnableManualTranslation(false);
 				if(thrust.IsZero()) thrust = VSL.Engines.CurrentMaxThrustDir;
+				if(CFG.HF[HFlight.Stop]) VSL.Altitude.DontCorrectIfSlow();
 			}
 			else 
 			{
