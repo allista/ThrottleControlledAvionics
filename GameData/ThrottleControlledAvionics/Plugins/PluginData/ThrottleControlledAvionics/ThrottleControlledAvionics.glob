@@ -117,9 +117,9 @@ ATCB
 {
 	PID
 	{
-		P = 10
-		I = 0.04
-		D = 0.5
+		P = 10, 10, 10
+		I = 0.04, 0.04, 0.04
+		D = 0.5, 0.5, 0.5
 	}
 	
 	MaxAA                  = 2
@@ -142,11 +142,12 @@ ATCB
 	DragResistanceF        = 10
 	
 	OD_low                 = 5   //Hz
-	OD_high                = 20  //Hz
+	OD_high                = 55  //Hz
 	OD_bins                = 50
-	OD_window              = 100 //samples
+	OD_window              = 50 //samples
 	OD_smoothing           = 0.1 //s
 	OD_Threshold           = 0.2
+	OD_memory              = 10  //s
 }
 
 ATC
