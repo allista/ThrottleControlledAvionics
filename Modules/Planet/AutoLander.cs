@@ -105,10 +105,13 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.Off:
-				CFG.VF.On(VFlight.AltitudeControl);
 				if(!VSL.LandedOrSplashed)
+				{
+					CFG.VF.On(VFlight.AltitudeControl);
 					CFG.DesiredAltitude = VSL.Altitude;
+				}
 				ClearStatus();
+				SetTarget();
 				break;
 			}
 		}
@@ -456,7 +459,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
-		public void RadarBeam()
+		public void DrawDebugLines()
 		{
 			if(!CFG.AP1[Autopilot1.Land]) return;
 			if(Nodes == null) return;
