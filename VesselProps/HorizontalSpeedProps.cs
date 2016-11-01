@@ -27,6 +27,8 @@ namespace ThrottleControlledAvionics
 		{
 			Vector = Vector3d.Exclude(VSL.Physics.Up, vessel.srf_velocity);
 			Absolute = (float)Vector.magnitude;
+			Mooving = Absolute > GLB.HSC.TranslationLowerThreshold;
+			MoovingFast = Absolute > GLB.RAD.MinClosingSpeed;
 		}
 
 		public Vector3d Predicted(float time) 
