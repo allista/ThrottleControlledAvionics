@@ -22,8 +22,19 @@ namespace ThrottleControlledAvionics
 		public float TerrainAltitude { get; private set; }
 		public bool  AboveGround { get; private set; }
 		public float Ahead = float.MinValue;
+		public float LowerThreshold = float.MinValue;
+		public bool  CorrectionAllowed = true;
 
 		public static implicit operator float(AltitudeProps alt) { return alt.Current; }
+
+		public override void ClearFrameState()
+		{
+			LowerThreshold = float.MinValue;
+			CorrectionAllowed = true;
+		}
+
+		public void DontCorrectIfSlow()
+		{ CorrectionAllowed = VSL.HorizontalSpeed.MoovingFast; }
 
 		public override void Update()
 		{
