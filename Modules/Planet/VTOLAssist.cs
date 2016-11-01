@@ -104,7 +104,7 @@ namespace ThrottleControlledAvionics
 					VSL.BrakesOn(false);
 					VSL.GearOn(false);
 					tookoff = false;
-				}, VSL.Altitude.Relative > TLA.GearOnAtH+VSL.Geometry.H);
+				}, VSL.Altitude.Relative > 2*VSL.Geometry.H);
 			}
 			//moving on the ground
 			else if(VSL.LandedOrSplashed)
