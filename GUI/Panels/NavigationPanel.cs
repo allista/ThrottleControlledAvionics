@@ -272,10 +272,13 @@ namespace ThrottleControlledAvionics
 					if(wp == edited_waypoint) label += " *";
 					if(CFG.Target == wp)
 					{
-						var d = wp.DistanceTo(vessel);
-						label += string.Format(" ◀ {0}", Utils.formatBigValue((float)d, "m")); 
-						if(vessel.horizontalSrfSpeed > 0.1)
-							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(d/vessel.horizontalSrfSpeed)));
+						var hd = (float)wp.DistanceTo(vessel);
+						var vd = (float)(wp.Pos.Alt-vessel.altitude);
+						label += string.Format(" ◀ {0} ▲ {1}", 
+						                       Utils.formatBigValue(hd, "m"),
+						                       Utils.formatBigValue(vd, "m"));
+						if(VSL.HorizontalSpeed.Absolute > 0.1)
+							label += string.Format(", ETA {0:c}", new TimeSpan(0,0,(int)(hd/VSL.HorizontalSpeed.Absolute)));
 					}
 					if(GUILayout.Button(new GUIContent(label, string.Format("{0}\nPush to target this waypoint", wp.SurfaceDescription(vessel))), 
 					                    GUILayout.ExpandWidth(true)))
@@ -561,11 +564,11 @@ namespace ThrottleControlledAvionics
 					{ c = edited_color; r = IconSize*2; }
 					if(DrawGroundMarker(vessel.mainBody, wp, c, out worldPos, r))
 					{
-						DrawLabelAtPointer(wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
+						DrawLabelAtPointer(wp.FullInfo(vessel), wp.DistanceTo(vessel));
 						select_waypoint(wp);
 					}
 					else if(wp == selected_waypoint)
-						DrawLabelAtPointer(wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
+						DrawLabelAtPointer(wp.FullInfo(vessel), wp.DistanceTo(vessel));
 					wp0 = wp; 
 					i++;
 				}
@@ -694,7 +697,7 @@ namespace ThrottleControlledAvionics
 			Vector3d worldPos;
 			if(DrawGroundMarker(vessel.mainBody, wp, c, out worldPos, r, texture))
 			{
-				DrawLabelAtPointer(label ?? wp.SurfaceDescription(vessel), wp.DistanceTo(vessel));
+				DrawLabelAtPointer(label ?? wp.FullInfo(vessel), wp.DistanceTo(vessel));
 				select_waypoint(wp);
 			}
 		}
