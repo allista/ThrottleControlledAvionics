@@ -488,9 +488,9 @@ namespace ThrottleControlledAvionics
 				//take into account vertical distance and obstacle
 				vdistance = Mathf.Max(vdistance, VSL.Altitude.Ahead-VSL.Altitude.Absolute);
 				if(vdistance > 0)
-					hdistance *= Utils.ClampL(0.5f - Mathf.Atan(vdistance/hdistance)/Mathf.PI, 0);
+					hdistance *= (float)Utils.ClampL(1 - Mathf.Atan(vdistance/hdistance)/Utils.HalfPI, 0);
 				//update the needed velocity
-				DistancePID.Update(hdistance*PN.DistanceFactor);
+				DistancePID.Update(hdistance/VSL.Geometry.R*PN.DistanceFactor);
 				var nV = vdir*DistancePID.Action;
 				//correcto for Follow Target program
 				if(CFG.Nav[Navigation.FollowTarget] && Vector3d.Dot(tvel, vdir) > 0) nV += tvel;
