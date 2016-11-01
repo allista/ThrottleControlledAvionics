@@ -61,6 +61,7 @@ namespace ThrottleControlledAvionics
 		public float    MaxAccel { get; private set; }
 		public float    ThrustDecelerationTime { get; private set; }
 		public float    ThrustAccelerationTime { get; private set; }
+		public bool     SlowThrust { get; private set; }
 
 		public float    TorqueResponseTime { get; private set; }
 		public bool     SlowTorque { get; private set; }
@@ -316,6 +317,7 @@ namespace ThrottleControlledAvionics
 			ManualMassFlow = 0f;
 			ThrustDecelerationTime = 0f;
 			ThrustAccelerationTime = 0f;
+			SlowThrust = false;
 			SlowTorque = false;
 			TorqueResponseTime = 0f;
 			var total_torque = 0f;
@@ -357,10 +359,9 @@ namespace ThrottleControlledAvionics
 				MassFlow += e.RealFuelFlow;
 			}
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
-			if(TorqueResponseTime > 0) TorqueResponseTime = total_torque/TorqueResponseTime;
-			if(ThrustDecelerationTime > 0) ThrustDecelerationTime /= total_thrust;
-			if(ThrustAccelerationTime > 0) ThrustAccelerationTime /= total_thrust;
-			SlowTorque = TorqueResponseTime > 0;
+			if(TorqueResponseTime > 0) { TorqueResponseTime = total_torque/TorqueResponseTime; SlowTorque = true; }
+			if(ThrustDecelerationTime > 0) { ThrustDecelerationTime /= total_thrust; SlowThrust = true; }
+			if(ThrustAccelerationTime > 0) { ThrustAccelerationTime /= total_thrust; SlowThrust = true; }
 			MaxThrustM = MaxThrust.magnitude;
 			MaxVe = MaxThrustM/MaxMassFlow;
 			MaxAccel = MaxThrustM/VSL.Physics.M;
