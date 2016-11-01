@@ -129,7 +129,7 @@ namespace ThrottleControlledAvionics
 			if((enabled || HighLogic.LoadedSceneIsEditor) && CFG != null)
 			{
 				AllModules.ForEach(m => m.SaveToConfig());
-				CFG.Save(node.AddNode(VesselConfig.NODE_NAME));
+				CFG.SaveInto(node);
 			}
 			base.OnSave(node);
 		}
@@ -175,7 +175,7 @@ namespace ThrottleControlledAvionics
 
 		void onVesselModify(Vessel vsl)
 		{ 
-			if(vsl != vessel) return;
+			if(vsl == null || vsl != vessel) return;
 			AllModules.ForEach(m => m.SaveToConfig());
 			check_priority();
 			enable_module(TCA_Active);
@@ -451,6 +451,7 @@ namespace ThrottleControlledAvionics
 			VSL.UpdateOnPlanetStats();
 			//update modules
 			ModulePipeline.ForEach(m => m.OnFixedUpdate());
+			VSL.OnModulesUpdated();
 			//handle engines
 			VSL.Engines.Tune();
 			if(VSL.Engines.NumActive > 0)
@@ -474,6 +475,7 @@ namespace ThrottleControlledAvionics
 			}
 			RCS.Steer();
 			VSL.Engines.SetControls();
+			VSL.FinalUpdate();
 		}
 	}
 }

@@ -83,7 +83,7 @@ namespace ThrottleControlledAvionics
 		float    DistanceAhead;
 		float    ClosingSpeed;
 		float    CollisionSpeed = -1;
-		Ray      ForwardRay;
+		Ray      VelocityRay;
 		readonly Sweep CurHit;
 		readonly Sweep BestHit;
 		readonly Sweep DetectedHit;
@@ -106,10 +106,11 @@ namespace ThrottleControlledAvionics
 		public void DrawDebugLines()
 		{
 			if(VSL == null || VSL.vessel == null || !IsActive) return;
-			ForwardRay.Draw();
+			VelocityRay.Draw();
 			Altimeter.Draw();
 			CurHit.Draw();
-			DetectedHit.Draw();
+			if(DetectedHit.Valid)
+				DetectedHit.Draw();
 		}
 		#endif
 
@@ -120,8 +121,6 @@ namespace ThrottleControlledAvionics
 			if(IsActive)
 			{
 				mode = Mode.Off;
-				VSL.HorizontalSpeed.Mooving = VSL.HorizontalSpeed > GLB.HSC.TranslationLowerThreshold;
-				VSL.HorizontalSpeed.MoovingFast = VSL.HorizontalSpeed > RAD.MinClosingSpeed;
 				if(CFG.HF && !CFG.HF[HFlight.Level])
 					mode |= Mode.Horizontal;
 				if(CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain)
@@ -149,7 +148,7 @@ namespace ThrottleControlledAvionics
 		{
 			CurHit.Reset();
 			BestHit.Reset();
-			ForwardRay.Reset();
+			VelocityRay.Reset();
 			ViewAngle = -RAD.UpViewAngle;
 			AngleDelta = RAD.AngleDelta;
 			LittleSteps = 0;
@@ -181,8 +180,11 @@ namespace ThrottleControlledAvionics
 			}
 			//calculate closing speed and initial ray direction
 			Dir = Vector3.zero;
-			var alt_threshold = VSL.Altitude.Absolute-Mathf.Min(CFG.DesiredAltitude, VSL.Geometry.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2));
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
+			var SurfaceVelocityDir = SurfaceVelocity.normalized;
+			var SurfaceSpeed = (float)SurfaceVelocity.magnitude;
+			var LookAheadTime = Utils.ClampL(RAD.LookAheadTime/VSL.OnPlanetParams.MaxTWR*VSL.Engines.ThrustAccelerationTime, 10);
+			var alt_threshold = VSL.Altitude.Absolute-Mathf.Min(CFG.DesiredAltitude, VSL.Geometry.H*RAD.MinAltitudeFactor*(CollisionSpeed < 0? 1 : 2));
 			if((DistanceAhead < 0 || DistanceAhead > RAD.MinDistanceAhead ||
 		        Vector3.Dot(RelObstaclePosition, NeededHorVelocity) < 0) &&
 			   (VSL.HorizontalSpeed >= RAD.MaxClosingSpeed ||
@@ -191,19 +193,30 @@ namespace ThrottleControlledAvionics
 			{
 				Dir = VSL.HorizontalSpeed.normalized;
 				if(VSL.IsStateSet(TCAState.LoosingAltitude))
-					Dir = Vector3.Lerp(Dir, SurfaceVelocity.normalized,
-					                   RAD.LookAheadTime/(VSL.Altitude/-VSL.VerticalSpeed.Relative)/VSL.OnPlanetParams.MaxDTWR);
+					Dir = Vector3.Lerp(Dir, SurfaceVelocityDir,
+					                   LookAheadTime/(VSL.Altitude/-VSL.VerticalSpeed.Relative)/VSL.OnPlanetParams.MaxDTWR);
 			}
 			else Dir = zero_needed? 
 					Vector3d.Exclude(VSL.Physics.Up, VSL.OnPlanetParams.Fwd).normalized : 
 					NeededHorVelocity.normalized;
 			Dir.Normalize();
-			ClosingSpeed = Utils.ClampL(Vector3.Dot(SurfaceVelocity, Dir), RAD.MinClosingSpeed);
-			//cast the sweep and the fwd ray
-			MaxDistance = (CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed)*RAD.LookAheadTime;
-			if(ViewAngle < 0) MaxDistance = MaxDistance/Mathf.Cos(ViewAngle*Mathf.Deg2Rad)*(1+ClosingSpeed/RAD.UpViewSlope*Utils.ClampL(-ViewAngle/RAD.UpViewAngle, 0));
+			ClosingSpeed = Utils.ClampL(SurfaceSpeed > NeededHorVelocity.magnitude? 
+			                            Vector3.Dot(SurfaceVelocity, Dir) : 
+			                            Vector3.Dot(NeededHorVelocity, Dir), 0);
+			//calculate ray length
+			var ray_speed = CollisionSpeed < ClosingSpeed? ClosingSpeed : CollisionSpeed;
+			if(VSL.Info.Destination.IsZero()) MaxDistance = ray_speed*LookAheadTime;
+			else MaxDistance = VSL.Info.Destination.magnitude + ray_speed*GLB.CPS.LookAheadTime;
+			if(ViewAngle < 0) 
+			{
+				MaxDistance /= Mathf.Cos(ViewAngle*Mathf.Deg2Rad);
+				if(ClosingSpeed > RAD.MinClosingSpeed)
+					MaxDistance *= Utils.ClampL((ClosingSpeed-RAD.MinClosingSpeed)/RAD.UpViewSlope*(-ViewAngle/RAD.UpViewAngle), 1);
+			}
+			MaxDistance = Mathf.Max(MaxDistance, VSL.Geometry.D);
+			//cast the sweep the velocity and direct path rays
 			CurHit.Cast(Dir, ViewAngle, MaxDistance);
-			ForwardRay.Cast(VSL.Physics.wCoM, SurfaceVelocity.normalized, (float)SurfaceVelocity.magnitude*GLB.CPS.LookAheadTime*3, VSL.Geometry.D);
+			VelocityRay.Cast(VSL.Physics.wCoM, SurfaceVelocityDir, SurfaceSpeed*GLB.CPS.LookAheadTime*3, VSL.Geometry.D);
 			//check the hit
 			if(CurHit.BeforeDestination(SurfaceVelocity))
 			{
@@ -248,9 +261,6 @@ namespace ThrottleControlledAvionics
 				LastHitValid = false;
 			}
 			if(AngleDelta < RAD.AngleDelta) LittleSteps++;
-			//if on side collision course, correct it
-			if(HSC != null && !SideManeuver.IsZero()) 
-				HSC.AddWeightedCorrection(SideManeuver);
 			//probe for surface height
 			Altimeter.ProbeHeightAhead(Dir);
 			//update collision info if detected something
@@ -261,14 +271,19 @@ namespace ThrottleControlledAvionics
 			if(Altimeter.BeforeDestination(SurfaceVelocity) && 
 			   DetectedHit.Obstacle < Altimeter.Obstacle)
 				Obstacle = Altimeter.Obstacle;
-			if(ForwardRay.Valid)
+			if(VelocityRay.Valid)
 			{
-				ForwardRay.ClaculateAltitude(VSL.Physics.Up, VSL.Altitude.Absolute);
-				if(ForwardRay.Altitude > Obstacle.Altitude || ForwardRay.Altitude > alt_threshold)
-					Obstacle = new TerrainPoint(ForwardRay.Altitude, ForwardRay.CollisionPoint);
+				VelocityRay.ClaculateAltitude(VSL.Physics.Up, VSL.Altitude.Absolute);
+				if(VelocityRay.Altitude > Obstacle.Altitude || VelocityRay.Altitude > alt_threshold)
+					Obstacle = new TerrainPoint(VelocityRay.Altitude, VelocityRay.CollisionPoint);
 			}
 			if(Obstacle.Valid) VSL.Altitude.Ahead = (float)Obstacle.Altitude;
-//			Log("\nCurHit {}\nBestHit {}\nDetectedHit {}\nRObstacle {}\nAObstacle {}\nForwardRay {}",
+			//if on side collision course, correct it
+			if(HSC != null && !SideManeuver.IsZero()) 
+				HSC.AddWeightedCorrection(SideManeuver);
+//			Log("Obstacle! {}, SrfSpeed {}, NeedeSpeed {}, ClosingSpeed {}, MaxDistance {}\n" +
+//				"CurHit {}\nBestHit {}\nDetectedHit {}\nRayObstacle {}\nAltObstacle {}\nForwardRay {}",
+//			    VSL.Altitude.Ahead > alt_threshold, SurfaceSpeed, NeededHorVelocity.magnitude, ClosingSpeed, MaxDistance,
 //			    CurHit, BestHit, DetectedHit, Obstacle, Altimeter.Obstacle, ForwardRay);//debug
 			//check for possible stright collision
 			if(VSL.Altitude.Ahead > alt_threshold) //deadzone of twice the detection height
@@ -276,13 +291,16 @@ namespace ThrottleControlledAvionics
 				if(CollisionSpeed < ClosingSpeed) CollisionSpeed = ClosingSpeed;
 				RelObstaclePosition = Vector3.ProjectOnPlane(Obstacle.RelPosition(VSL.Physics.wCoM), VSL.Physics.Up);
 				DistanceAhead = Utils.ClampL(RelObstaclePosition.magnitude-VSL.Geometry.R, 0.1f);
-				TimeAhead = DistanceAhead/Vector3.Dot(SurfaceVelocity, RelObstaclePosition.normalized);
+				TimeAhead = DistanceAhead/Utils.ClampL(Vector3.Dot(SurfaceVelocity, RelObstaclePosition.normalized), 1e-5f);
+//				Log("DistAhead {}, Speed {}, Time {}", DistanceAhead, 
+//				    Utils.ClampL(Vector3.Dot(SurfaceVelocity, RelObstaclePosition.normalized), 1e-5f),
+//				    TimeAhead);//debug
 				if(HSC != null)
 				{
 					Vector3d dV;
 					if(DistanceAhead > RAD.MinDistanceAhead)
 						dV = Vector3d.Project(SurfaceVelocity, RelObstaclePosition) *
-							-Math.Sqrt(1-Utils.ClampH(DistanceAhead/ClosingSpeed/RAD.LookAheadTime*VSL.OnPlanetParams.MaxTWR*RAD.NHVf, 1));
+							-Math.Sqrt(1-Utils.ClampH(DistanceAhead/ClosingSpeed/LookAheadTime*VSL.OnPlanetParams.MaxTWR*RAD.NHVf, 1));
 					else if(DistanceAhead > RAD.MinDistanceAhead/2)
 						dV = -NeededHorVelocity;
 					else if(Vector3d.Dot(SurfaceVelocity, RelObstaclePosition) > 0)

@@ -115,10 +115,11 @@ namespace ThrottleControlledAvionics
 			SetState(TCAState.AltitudeControl);
 			//calculate current altitude or apoapsis, if the vessel is moving upwards
 			var alt = VSL.Altitude.Absolute;
-			var ttAp = VSL.VerticalSpeed.Absolute/VSL.Physics.G;
+			var ttAp = 0f;
 			if(VSL.VerticalSpeed.Absolute > 0 && !VSL.LandedOrSplashed)
 			{
 				if(RAD != null && RAD.TimeAhead > 0 && RAD.TimeAhead < ttAp) ttAp = RAD.TimeAhead;
+				else ttAp = VSL.VerticalSpeed.Absolute/VSL.Physics.G;
 				alt = VSL.Altitude.Absolute+ttAp*(VSL.VerticalSpeed.Absolute - ttAp*VSL.Physics.G/2);
 //				CSV(CFG.DesiredAltitude, alt-VSL.Altitude.TerrainAltitude, VSL.Altitude.Relative, RAD.AltitudeAhead-VSL.Altitude.Absolute,
 //				    VSL.VSF, -VSL.Physics.G, ttAp, RAD.TimeAhead);//debug
@@ -126,32 +127,30 @@ namespace ThrottleControlledAvionics
 			//correct for terrain altitude and radar data if following terrain
 			if(CFG.AltitudeAboveTerrain) 
 			{
-				var obstacle_ahead = alt-VSL.Altitude.Ahead <= VSL.Geometry.H;
-				if(CFG.Target != null && CFG.Nav && 
-				   CFG.Target.Pos.Alt > VSL.Altitude.Ahead)
-						VSL.Altitude.Ahead = (float)CFG.Target.Pos.Alt;
-				if(VSL.Altitude.Ahead > VSL.Altitude.TerrainAltitude)
+				var obstacle_ahead = VSL.HorizontalSpeed.Mooving && alt-VSL.Altitude.Ahead <= VSL.Geometry.H;
+				if(obstacle_ahead) 
 				{
-					alt -= VSL.Altitude.Ahead;
-					if(alt <= VSL.Geometry.H) 
+					SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
+					if(VSL.Altitude.CorrectionAllowed && RAD.TimeAhead > 0) 
 					{
-						if(obstacle_ahead) 
-							SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
-						else set_ascending_state();
-						if(RAD.TimeAhead > 0) 
-						{
-							CFG.VerticalCutoff = Mathf.Sqrt(2f*Utils.ClampL((VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute)*VSL.Physics.G, 0));
-							ttAp = CFG.VerticalCutoff/VSL.Physics.G;
-							if(ttAp > RAD.TimeAhead) 
-								CFG.VerticalCutoff = (VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute)/RAD.TimeAhead+RAD.TimeAhead*VSL.Physics.G/2;
-//							Log("VSP {0}, ttAp {1}, TimeAhead {2}, ApA {3}, Obst {4}", CFG.VerticalCutoff, ttAp, RAD.TimeAhead, 
-//							    VSL.Altitude.Absolute+ttAp*(CFG.VerticalCutoff - ttAp*VSL.Physics.G/2), RAD.AltitudeAhead);//debug
-							return;
-						}
+						var G_A  = Utils.ClampL(VSL.Physics.G*(1-VSL.OnPlanetParams.DTWR), 1e-5f);
+						var dAlt = VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute;
+						CFG.VerticalCutoff = Mathf.Sqrt(2*Utils.ClampL(dAlt * G_A, 0));
+						ttAp = CFG.VerticalCutoff/G_A;
+						if(ttAp > RAD.TimeAhead)
+							CFG.VerticalCutoff = dAlt/RAD.TimeAhead+RAD.TimeAhead*G_A/2;
+						var dV = CFG.VerticalCutoff - VSL.VerticalSpeed.Absolute;
+						dV *= dV < 0 ? VSL.Engines.ThrustDecelerationTime : VSL.Engines.ThrustAccelerationTime;
+//						Log("VSF {}, vV {}, dV {}, hV {}, G_A {}, dAlt {}, ttAp {}, TimeAhead {}", 
+//						    CFG.VerticalCutoff, VSL.VerticalSpeed.Absolute, dV, VSL.HorizontalSpeed.Absolute, G_A, dAlt, ttAp, RAD.TimeAhead);//debug
+						CFG.VerticalCutoff += dV;
+						return;
 					}
-					else set_ascending_state();
 				}
-				else alt -= VSL.Altitude.TerrainAltitude;
+				var lower_threshold = Mathf.Max(VSL.Altitude.TerrainAltitude, VSL.Altitude.LowerThreshold);
+				if(VSL.Altitude.CorrectionAllowed) lower_threshold = Mathf.Max(VSL.Altitude.Ahead, lower_threshold);
+				alt -= lower_threshold;
+				if(alt < 0) set_ascending_state();
 			}
 			//calculate altitude error
 			var error = (CFG.DesiredAltitude-alt);
@@ -161,7 +160,7 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = -GLB.VSC.MaxSpeed;
 				return;
 			}
-			//update pid parameters and vertical speed setpoint
+			//calculate min/max speed
 			var min_speed = -ALT.MaxSpeedLow;
 			var max_speed =  ALT.MaxSpeedLow;
 			if(error < 0)
@@ -180,6 +179,7 @@ namespace ThrottleControlledAvionics
 			}
 			else if(error > 0) max_speed = alt <= VSL.Geometry.H? ALT.MaxSpeedHigh :
 				Utils.Clamp(ALT.MaxSpeedLow*(error-ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, ALT.MaxSpeedLow, ALT.MaxSpeedHigh);
+			//update pid parameters and vertical speed setpoint
 			if(VSL.OnPlanetParams.SlowThrust)
 			{
 				jets_pid.Min = min_speed;
@@ -189,6 +189,7 @@ namespace ThrottleControlledAvionics
 				                          ALT.JetsPID.P);
 				if(CFG.AltitudeAboveTerrain)
 					jets_pid.D = ALT.JetsPID.D/Utils.ClampL(VSL.HorizontalSpeed, 1);
+				jets_pid.D *= error < 0? 1+VSL.Engines.ThrustAccelerationTime : 1+VSL.Engines.ThrustDecelerationTime;
 				jets_pid.Update(error);
 				CFG.VerticalCutoff = jets_pid.Action;
 			}

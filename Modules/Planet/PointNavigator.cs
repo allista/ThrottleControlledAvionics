@@ -80,6 +80,7 @@ namespace ThrottleControlledAvionics
 		bool keep_formation;
 
 		HorizontalSpeedControl HSC;
+		AltitudeControl ALT;
 
 		public override void Init()
 		{
@@ -176,8 +177,20 @@ namespace ThrottleControlledAvionics
 		bool on_arrival()
 		{
 			if(CFG.Target == null) return false;
-			if(CFG.Target.Pause) { PauseMenu.Display(); CFG.Target.Pause = false; }
-			if(CFG.Target.Land)	{ CFG.AP1.XOn(Autopilot1.Land); return true; }
+			if(CFG.Target.Land)	
+			{ 
+				VSL.PauseWhenStopped = CFG.Target.Pause;
+				CFG.Target.Pause = false;
+				CFG.AP1.XOn(Autopilot1.Land);
+				return true; 
+			}
+			else if(CFG.Target.Pause) 
+			{ 
+				CFG.Target.Pause = false; 
+				CFG.HF.XOn(HFlight.Stop); 
+				VSL.PauseWhenStopped = true;
+				return true;
+			}
 			return false;
 		}
 
@@ -278,12 +291,19 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive || CFG.Target == null || CFG.Nav.Paused) return;
 			CFG.Target.Update(VSL);
-			//update things that are needed to fly in formation
+			//differentiate between flying in formation and going to the target
+			var vdistance = 0f; //vertical distance to the target
 			if(CFG.Nav[Navigation.FollowTarget]) update_formation_info();
-			else { tVSL = null; tPN = null; }
+			else 
+			{ 
+				VSL.Altitude.LowerThreshold = (float)CFG.Target.Pos.Alt;
+				if(ALT != null && CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain)
+					vdistance = VSL.Altitude.LowerThreshold+CFG.DesiredAltitude-VSL.Altitude.Absolute;
+				tVSL = null; tPN = null; 
+			}
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.Physics.wCoM, VSL.Physics.Up);
-			var distance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
+			var hdistance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
 			//update destination
 			if(tPN != null && !tPN.VSL.Info.Destination.IsZero()) 
 				VSL.Info.Destination = tPN.VSL.Info.Destination;
@@ -292,8 +312,8 @@ namespace ThrottleControlledAvionics
 			var tvel = Vector3.zero;
 			var vel_is_set = false;
 			var end_distance = CFG.Target.AbsRadius;
-			if(CFG.Target.Land) end_distance /= 4;
 			var dvel = VSL.HorizontalSpeed.Vector;
+			if(CFG.Target.Land) end_distance /= 4;
 			if(tVSL != null && tVSL.loaded)
 			{
 				if(formation_offset.IsZero()) end_distance *= all_followers.Count/2f;
@@ -305,7 +325,7 @@ namespace ThrottleControlledAvionics
 				var lat_dist = lat_dir.magnitude;
 				FormationBreakTimer.RunIf(() => keep_formation = false, 
 				                          tvel_m < PN.FormationSpeedCutoff);
-				Maneuvering = CanManeuver && lat_dist > CFG.Target.AbsRadius && distance < CFG.Target.AbsRadius*3;
+				Maneuvering = CanManeuver && lat_dist > CFG.Target.AbsRadius && hdistance < CFG.Target.AbsRadius*3;
 				if(keep_formation && tvel_m > 0 &&
 				   (!CanManeuver || 
 				    dir2vel_cos <= PN.BearingCutoffCos || 
@@ -314,45 +334,45 @@ namespace ThrottleControlledAvionics
 					if(CanManeuver) 
 						HSC.AddWeightedCorrection(lat_dir.normalized*Utils.ClampH(lat_dist/CFG.Target.AbsRadius, 1) * 
 						                          tvel_m*PN.FormationFactor*(Maneuvering? 1 : 0.5f));
-					distance = Utils.ClampL(Mathf.Abs(dir2vel_cos)*distance-VSL.Geometry.R, 0);
+					hdistance = Utils.ClampL(Mathf.Abs(dir2vel_cos)*hdistance-VSL.Geometry.R, 0);
 					if(dir2vel_cos < 0)
 					{
-						if(distance < CFG.Target.AbsRadius)
-							HSC.AddRawCorrection(tvel*Utils.Clamp(-distance/CFG.Target.AbsRadius*PN.FormationFactor, -PN.FormationFactor, 0));
+						if(hdistance < CFG.Target.AbsRadius)
+							HSC.AddRawCorrection(tvel*Utils.Clamp(-hdistance/CFG.Target.AbsRadius*PN.FormationFactor, -PN.FormationFactor, 0));
 						else if(Vector3.Dot(vdir, dvel) < 0 && 
 						        (dvel.magnitude > PN.FollowerMaxAwaySpeed ||
-						         distance > CFG.Target.AbsRadius*5))
+						         hdistance > CFG.Target.AbsRadius*5))
 						{
 							keep_formation = true;
 							VSL.HorizontalSpeed.SetNeeded(vdir);
 							return;
 						}
 						else HSC.AddRawCorrection(tvel*(PN.FormationFactor-1));
-						distance = 0;
+						hdistance = 0;
 					}
 					vdir = tvel;
 				}
 			}
-			//if the distance is greater that the threshold (in radians), use Great Circle navigation
-			if(distance/VSL.Body.Radius > PN.DirectNavThreshold)
+			//if the distance is greater that the threshold (in radians), use the Great Circle navigation
+			if(hdistance/VSL.Body.Radius > PN.DirectNavThreshold)
 			{
 				var next = CFG.Target.PointFrom(VSL.vessel, 0.1);
-				distance = (float)CFG.Target.DistanceTo(VSL.vessel);
+				hdistance = (float)CFG.Target.DistanceTo(VSL.vessel);
 				vdir = Vector3.ProjectOnPlane(VSL.Body.GetWorldSurfacePosition(next.Lat, next.Lon, VSL.vessel.altitude)
 				                              -VSL.vessel.transform.position, VSL.Physics.Up);
 				tvel = Vector3.zero;
 			}
-			else if(!VSL.IsActiveVessel && distance > GLB.UnpackDistance) 
-				VSL.SetUnpackDistance(distance*1.2f);
+			else if(!VSL.IsActiveVessel && hdistance > GLB.UnpackDistance) 
+				VSL.SetUnpackDistance(hdistance*1.2f);
 			vdir.Normalize();
 			//check if we have arrived to the target and stayed long enough
-			if(distance < end_distance)
+			if(hdistance < end_distance)
 			{
-				var prev_needed_speed = VSL.HorizontalSpeed.NeededVector.magnitude;
-				if(prev_needed_speed < 1 && !CFG.HF[HFlight.Move]) CFG.HF.OnIfNot(HFlight.Move);
-				else if(prev_needed_speed > 10 && !CFG.HF[HFlight.NoseOnCourse]) CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 				if(CFG.Nav[Navigation.FollowTarget])
 				{
+					var prev_needed_speed = VSL.HorizontalSpeed.NeededVector.magnitude;
+					if(prev_needed_speed < 1 && !CFG.HF[HFlight.Move]) CFG.HF.OnIfNot(HFlight.Move);
+					else if(prev_needed_speed > 10 && !CFG.HF[HFlight.NoseOnCourse]) CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 					if(tvel.sqrMagnitude > 1)
 					{
 						//set needed velocity and starboard to match that of the target
@@ -363,47 +383,55 @@ namespace ThrottleControlledAvionics
 					else VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
 					vel_is_set = true;
 				}
-				else if(CFG.Nav[Navigation.FollowPath] && CFG.Path.Count > 0)
+				else
 				{
-					if(CFG.Path.Peek() == CFG.Target)
+					VSL.Altitude.DontCorrectIfSlow();
+					CFG.HF.OnIfNot(HFlight.Move);
+					if(vdistance <= 0 && vdistance > -end_distance)
 					{
-						if(CFG.Path.Count > 1)
-						{ 
-							CFG.Path.Dequeue();
-							if(on_arrival()) return;
-							start_to(CFG.Path.Peek());
-							return;
+						if(CFG.Nav[Navigation.FollowPath] && CFG.Path.Count > 0)
+						{
+							if(CFG.Path.Peek() == CFG.Target)
+							{
+								if(CFG.Path.Count > 1)
+								{ 
+									CFG.Path.Dequeue();
+									if(on_arrival()) return;
+									start_to(CFG.Path.Peek());
+									return;
+								}
+								else if(ArrivedTimer.TimePassed)
+								{ 
+									CFG.Path.Clear();
+									if(on_arrival()) return;
+									finish();
+									return;
+								}
+							}
+							else 
+							{ 
+								if(on_arrival()) return;
+								start_to(CFG.Path.Peek()); 
+								return; 
+							}
 						}
-						else if(ArrivedTimer.TimePassed)
-						{ 
-							CFG.Path.Clear();
-							if(on_arrival()) return;
-							finish();
-							return;
-						}
-					}
-					else 
-					{ 
-						if(on_arrival()) return;
-						start_to(CFG.Path.Peek()); 
-						return; 
+						else if(ArrivedTimer.TimePassed) 
+						{ if(on_arrival()) return; finish(); return; }
 					}
 				}
-				else if(ArrivedTimer.TimePassed) { if(on_arrival()) return; finish(); return; }
 			}
 			else 
 			{
-				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 				ArrivedTimer.Reset();
-			}
-			//if we need to make a sharp turn, stop and turn, then go on
-			if(Vector3.Dot(vdir, VSL.OnPlanetParams.Fwd) < PN.BearingCutoffCos &&
-			   Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir) < PN.BearingCutoffCos)
-			{
-				VSL.HorizontalSpeed.SetNeeded(vdir);
 				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
-				Maneuvering = false;
-				vel_is_set = true;
+				//if we need to make a sharp turn, stop and turn, then go on
+				if(Vector3.Dot(vdir, VSL.OnPlanetParams.Fwd) < PN.BearingCutoffCos &&
+				Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir) < PN.BearingCutoffCos)
+				{
+					VSL.HorizontalSpeed.SetNeeded(vdir);
+					Maneuvering = false;
+					vel_is_set = true;
+				}
 			}
 			var cur_vel = (float)Vector3d.Dot(dvel, vdir);
 			if(!vel_is_set)
@@ -411,7 +439,7 @@ namespace ThrottleControlledAvionics
 				//don't slow down on intermediate waypoints too much
 				var min_dist = PN.OnPathMinDistance*VSL.Geometry.R;
 				if(!CFG.Target.Land && CFG.Nav[Navigation.FollowPath] && 
-				   CFG.Path.Count > 1 && distance < min_dist)
+				   CFG.Path.Count > 1 && hdistance < min_dist)
 				{
 					WayPoint next_wp = null;
 					if(CFG.Path.Peek() == CFG.Target)
@@ -431,12 +459,12 @@ namespace ThrottleControlledAvionics
 						var next_dist = Vector3.ProjectOnPlane(next_wp.GetTransform().position-CFG.Target.GetTransform().position, VSL.Physics.Up);
 						var angle2next = Vector3.Angle(vdir, next_dist);
 						var minD = Utils.ClampL(min_dist*(1-angle2next/180/VSL.Torque.MaxPitchRoll.AA_rad*PN.PitchRollAAf), CFG.Target.AbsRadius);
-						if(minD > distance) distance = minD;
+						if(minD > hdistance) hdistance = minD;
 					}
-					else distance = min_dist;
+					else hdistance = min_dist;
 				}
 				else if(CFG.Nav.Not(Navigation.FollowTarget))
-					distance = Utils.ClampL(distance-end_distance+VSL.Geometry.D, 0);
+					hdistance = Utils.ClampL(hdistance-end_distance+VSL.Geometry.D, 0);
 				//tune maximum speed and PID
 				if(CFG.MaxNavSpeed < 10) CFG.MaxNavSpeed = 10;
 				DistancePID.Min = 0;
@@ -445,7 +473,7 @@ namespace ThrottleControlledAvionics
 				{
 					var brake_thrust = Mathf.Max(VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude,
 					                             VSL.Physics.mg*VSL.OnPlanetParams.TWRf);
-					var eta = distance/cur_vel;
+					var eta = hdistance/cur_vel;
 					var max_speed = 0f;
 					if(brake_thrust > 0)
 					{
@@ -457,8 +485,12 @@ namespace ThrottleControlledAvionics
 					}
 					if(max_speed < CFG.MaxNavSpeed) DistancePID.Max = max_speed;
 				}
+				//take into account vertical distance and obstacle
+				vdistance = Mathf.Max(vdistance, VSL.Altitude.Ahead-VSL.Altitude.Absolute);
+				if(vdistance > 0)
+					hdistance *= Utils.ClampL(0.5f - Mathf.Atan(vdistance/hdistance)/Mathf.PI, 0);
 				//update the needed velocity
-				DistancePID.Update(distance*PN.DistanceFactor);
+				DistancePID.Update(hdistance*PN.DistanceFactor);
 				var nV = vdir*DistancePID.Action;
 				//correcto for Follow Target program
 				if(CFG.Nav[Navigation.FollowTarget] && Vector3d.Dot(tvel, vdir) > 0) nV += tvel;
