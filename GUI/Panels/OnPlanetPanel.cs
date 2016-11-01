@@ -45,6 +45,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(HSC != null)
 			{
+//				HSC.DrawDebugLines();//debug
 				if(Utils.ButtonSwitch("Stop", CFG.HF[HFlight.Stop], "Kill horizontal velocity", GUILayout.Width(50)))
 				{
 					if(CFG.HF[HFlight.Stop]) apply_cfg(cfg => cfg.HF.OffIfOn(HFlight.Stop));
@@ -59,7 +60,7 @@ namespace ThrottleControlledAvionics
 			}
 			if(LND != null)
 			{
-//				LND.RadarBeam();//debug
+//				LND.DrawDebugLines();//debug
 				if(Utils.ButtonSwitch("Land", CFG.AP1[Autopilot1.Land], "Try to land on a nearest flat surface", GUILayout.Width(50)))
 				{
 					var state = !CFG.AP1[Autopilot1.Land];
