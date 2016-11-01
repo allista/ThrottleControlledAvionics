@@ -52,6 +52,8 @@ namespace ThrottleControlledAvionics
 		public bool InOrbit { get; private set; }
 		public bool IsActiveVessel { get; private set; }
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
+		public bool PauseWhenStopped = false;
+
 		public ITargetable Target { get { return vessel.targetObject ?? NavWayPoint; } set { vessel.targetObject = value; } }
 		public Vessel TargetVessel { get { return vessel.targetObject == null? null : vessel.targetObject.GetVessel(); } }
 		public bool TargetIsNavPoint { get { return vessel.targetObject == null && NavWaypoint.fetch != null && NavWaypoint.fetch.IsActive; } }
@@ -278,6 +280,20 @@ namespace ThrottleControlledAvionics
 			HorizontalSpeed.Update();
 			OnPlanetParams.Update();
 		}
+
+		public void OnModulesUpdated()
+		{
+			if(PauseWhenStopped)
+			{
+				if(!(CFG.AP1 || CFG.AP2 || HorizontalSpeed.Mooving))
+				{
+					PauseWhenStopped = false;
+					PauseMenu.Display();
+				}
+			}
+		}
+
+		public void FinalUpdate() {}
 
 		public static bool AddModule<M>(PartModule m, List<M> db)  
 			where M : PartModule
