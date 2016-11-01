@@ -26,7 +26,7 @@ namespace ThrottleControlledAvionics
 		float Mass, DryMass, MinTWR, MaxTWR;
 
 		public static bool Available { get; private set; }
-		static bool HasMacroProcessor, HasVTOLAssist, HasFlightStabilizer, HasAltitudeControl, HasVTOLControls;
+		static Dictionary<Type,bool> Modules = new Dictionary<Type, bool>();
 
 		public override void Awake()
 		{
@@ -39,11 +39,8 @@ namespace ThrottleControlledAvionics
 			GameEvents.onEditorStarted.Add(Started);
 			Available = false;
 			//module availability
-			HasMacroProcessor = TCAModulesDatabase.ModuleAvailable(typeof(MacroProcessor));
-			HasVTOLAssist = TCAModulesDatabase.ModuleAvailable(typeof(VTOLAssist));
-			HasVTOLControls = TCAModulesDatabase.ModuleAvailable(typeof(VTOLControl));
-			HasFlightStabilizer = TCAModulesDatabase.ModuleAvailable(typeof(FlightStabilizer));
-			HasAltitudeControl = TCAModulesDatabase.ModuleAvailable(typeof(AltitudeControl));
+			TCAModulesDatabase.ValidModules
+				.ForEach(t => Modules.Add(t, TCAModulesDatabase.ModuleAvailable(t)));
 		}
 
 		public override void OnDestroy ()
@@ -180,7 +177,7 @@ namespace ThrottleControlledAvionics
 			if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f), 
 			              new GUIContent("?", "Help"))) TCAManual.Toggle();
 			GUILayout.BeginVertical();
-				if(HasMacroProcessor)
+			if(Modules[typeof(MacroProcessor)])
 				{
 					if(TCAMacroEditor.Editing)
 						GUILayout.Label("Edit Macros", Styles.inactive_button, GUILayout.ExpandWidth(true));
@@ -191,7 +188,7 @@ namespace ThrottleControlledAvionics
 					GUILayout.BeginVertical();
 						GUILayout.BeginHorizontal();
 							Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false));
-							if(HasAltitudeControl)
+							if(Modules[typeof(AltitudeControl)])
 							{
 								if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], 
 				                                      "Enable Altitude Control", GUILayout.ExpandWidth(false)))
@@ -201,18 +198,24 @@ namespace ThrottleControlledAvionics
 								Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
 				                                   "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
 							}
-							if(HasVTOLControls)
+							if(Modules[typeof(VTOLControl)])
 							{
 								if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL], 
 				                                      "Keyboard controls thrust direction instead of torque", GUILayout.ExpandWidth(false)))
 									CFG.CTRL.XToggle(ControlMode.VTOL);
 							}
-							if(HasVTOLAssist)
+							if(Modules[typeof(VTOLAssist)])
 								Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, 
 				                                   "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
-							if(HasFlightStabilizer)
+							if(Modules[typeof(FlightStabilizer)])
 								Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
 				                                   "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
+							if(Modules[typeof(HorizontalSpeedControl)])
+								Utils.ButtonSwitch("H-Translation", ref CFG.CorrectWithTranslation, 
+				                                   "Use translation to correct horizontal velocity", GUILayout.ExpandWidth(false));
+							if(Modules[typeof(CollisionPreventionSystem)]) 
+								Utils.ButtonSwitch("CPS", ref CFG.UseCPS, 
+				                                   "Enable Collistion Prevention System", GUILayout.ExpandWidth(false));
 						GUILayout.EndHorizontal();
 						GUILayout.BeginHorizontal();
 							Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear, 
