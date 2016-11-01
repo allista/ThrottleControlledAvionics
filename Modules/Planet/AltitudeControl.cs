@@ -32,8 +32,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float FallingTime       = 1f;
 			[Persistent] public float TimeAhead         = 5f;
 
-			[Persistent] public PID_Controller RocketPID = new PID_Controller(0.1f, 0.5f, 0.03f, -9.9f, -9.9f);
-			[Persistent] public PID_Controller JetsPID   = new PID_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
+			[Persistent] public PIDf_Controller2 RocketPID = new PIDf_Controller2(0.1f, 0.5f, 0.03f, -9.9f, -9.9f);
+			[Persistent] public PIDf_Controller JetsPID   = new PIDf_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
 
 			public override void Init()
 			{

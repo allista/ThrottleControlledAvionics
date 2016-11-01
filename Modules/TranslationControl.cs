@@ -19,7 +19,7 @@ namespace ThrottleControlledAvionics
 		public class Config : ModuleConfig
 		{
 			[Persistent] public float MinDeltaV         = 0.01f; //m/s
-			[Persistent] public PID_Controller TransPID = new PID_Controller(0.5f, 0.01f, 0.5f, 0, 1);
+			[Persistent] public PIDf_Controller TransPID = new PIDf_Controller(0.5f, 0.01f, 0.5f, 0, 1);
 		}
 		static Config TRA { get { return Globals.Instance.TRA; } }
 		public TranslationControl(ModuleTCA tca) : base(tca) {}

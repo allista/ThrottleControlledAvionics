@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float LookAheadTime = 2f;
 			[Persistent] public float SlowTorqueF   = 1f;
 			[Persistent] public float DistanceCurve = 2f;
-			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
+			[Persistent] public PIDf_Controller DistancePID = new PIDf_Controller(0.5f, 0f, 0.5f, 0, 100);
 		}
 		static Config ANC { get { return Globals.Instance.ANC; } }
 		public Anchor(ModuleTCA tca) : base(tca) {}

@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinAAf = 0.001f;
 			[Persistent] public float MaxAAf = 2;
 			[Persistent] public float ADf    = 0.1f;
-			[Persistent] public PID_Controller DirectionPID = new PID_Controller(0.5f, 0f, 0.5f, -175, 175);
+			[Persistent] public PIDf_Controller2 DirectionPID = new PIDf_Controller2(0.5f, 0f, 0.5f, -175, 175);
 		}
 		static Config BRC { get { return Globals.Instance.BRC; } }
 

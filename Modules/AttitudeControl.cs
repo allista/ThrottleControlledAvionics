@@ -17,7 +17,7 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : ModuleConfig
 		{
-			[Persistent] public PID_Controller PID = new PID_Controller(10f, 0.02f, 0.5f, -1, 1);
+			[Persistent] public PIDv_Controller2 PID = new PIDv_Controller2(10f, 0.02f, 0.5f, -1, 1);
 
 			[Persistent] public float MinAAf = 0.1f, MaxAAf  = 1f;
 			[Persistent] public float MaxAA   = 0.9f;
@@ -83,7 +83,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			return new OscillationDetectorD(ATCB.OD_low, ATCB.OD_high, 
 			                                ATCB.OD_bins, ATCB.OD_window, 
-			                                ATCB.OD_smoothing, ATCB.OD_Threshold); 
+			                                ATCB.OD_smoothing); 
 		}
 
 		public override void Init() 
