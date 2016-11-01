@@ -91,7 +91,7 @@ ALT
 	MaxSpeedLow    = 10
 	MaxSpeedHigh   = 300
 	ErrF           = 1 //altitude error coefficient
-	TWRd           = 2  //twr denominator
+	TWRd           = 0.5 //twr denominator
 	
 	RelAltitudeFactor = 50  //meters
 	RelVelocityErrF   = 1
@@ -275,7 +275,7 @@ RAD
 	DownViewAngle     = 40
 	MinAngleDelta     = 0.1
 	UpViewSlope       = 1
-	LookAheadTime     = 40
+	LookAheadTime     = 30
 	NumRays           = 30
 	MinAltitudeFactor = 2
 	MinClosingSpeed   = 4
