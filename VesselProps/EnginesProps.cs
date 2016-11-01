@@ -60,6 +60,7 @@ namespace ThrottleControlledAvionics
 		public float    MaxThrustM { get; private set; }
 		public float    MaxAccel { get; private set; }
 		public float    ThrustDecelerationTime { get; private set; }
+		public float    ThrustAccelerationTime { get; private set; }
 
 		public float    TorqueResponseTime { get; private set; }
 		public bool     SlowTorque { get; private set; }
@@ -314,9 +315,11 @@ namespace ThrottleControlledAvionics
 			MaxMassFlow = 0f;
 			ManualMassFlow = 0f;
 			ThrustDecelerationTime = 0f;
+			ThrustAccelerationTime = 0f;
 			SlowTorque = false;
 			TorqueResponseTime = 0f;
 			var total_torque = 0f;
+			var total_thrust = 0f;
 			for(int i = 0; i < NumActive; i++) 
 			{
 				var e = Active[i];
@@ -333,12 +336,16 @@ namespace ThrottleControlledAvionics
 				}
 				if(e.isVSC)
 				{
-					MaxThrust += e.wThrustDir*e.nominalCurrentThrust(1);
+					var thrust = e.nominalCurrentThrust(1);
+					MaxThrust += e.wThrustDir*thrust;
 					MaxMassFlow += e.MaxFuelFlow;
 					if(e.useEngineResponseTime && e.finalThrust > 0)
 					{
-						var decelT = 1f/e.engineDecelerationSpeed;
-						if(decelT > ThrustDecelerationTime) ThrustDecelerationTime = decelT;
+						total_thrust += thrust;
+						if(e.engineDecelerationSpeed > 0)
+							ThrustDecelerationTime += thrust*1/e.engineDecelerationSpeed;
+						if(e.engineAccelerationSpeed > 0)
+							ThrustAccelerationTime += thrust*1/e.engineAccelerationSpeed;
 					}
 				}
 				if(e.useEngineResponseTime && (e.Role == TCARole.MAIN || e.Role == TCARole.MANEUVER))
@@ -351,6 +358,8 @@ namespace ThrottleControlledAvionics
 			}
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
 			if(TorqueResponseTime > 0) TorqueResponseTime = total_torque/TorqueResponseTime;
+			if(ThrustDecelerationTime > 0) ThrustDecelerationTime /= total_thrust;
+			if(ThrustAccelerationTime > 0) ThrustAccelerationTime /= total_thrust;
 			SlowTorque = TorqueResponseTime > 0;
 			MaxThrustM = MaxThrust.magnitude;
 			MaxVe = MaxThrustM/MaxMassFlow;
