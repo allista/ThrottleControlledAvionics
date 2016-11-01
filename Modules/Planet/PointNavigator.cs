@@ -43,8 +43,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float PitchRollAAf         = 100f;
 			[Persistent] public float FollowerMaxAwaySpeed = 15f;
 
-			[Persistent] public PID_Controller DistancePID = new PID_Controller(0.5f, 0f, 0.5f, 0, 100);
-			[Persistent] public PID_Controller LateralPID = new PID_Controller(0.5f, 0f, 0.5f, -100, 100);
+			[Persistent] public PIDf_Controller DistancePID = new PIDf_Controller(0.5f, 0f, 0.5f, 0, 100);
+			[Persistent] public PIDvd_Controller LateralPID = new PIDvd_Controller(0.5f, 0f, 0.5f, -100, 100);
 
 			public float BearingCutoffCos;
 			public float FormationSpeedSqr;
@@ -500,7 +500,7 @@ namespace ThrottleControlledAvionics
 			var latV = -Vector3d.Exclude(vdir, VSL.HorizontalSpeed.Vector);
 			var latF = (float)Math.Min((latV.magnitude/Math.Max(VSL.HorizontalSpeed.Absolute, 0.1)), 1);
 			LateralPID.P = PN.LateralPID.P*latF;
-			LateralPID.I = Mathf.Min(PN.LateralPID.I, latF);
+			LateralPID.I = Math.Min(PN.LateralPID.I, latF);
 			LateralPID.D = PN.LateralPID.D*latF;
 			LateralPID.Update(latV);
 			HSC.AddWeightedCorrection(LateralPID.Action);

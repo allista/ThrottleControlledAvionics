@@ -45,7 +45,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float RotationMaxAngle           = 15f;
 
 			[Persistent] public float ManualTranslationIMinSpeed = 20f;
-			[Persistent] public PID_Controller ManualTranslationPID = new PID_Controller(0.5f, 0, 0.5f, 0, 1);
+			[Persistent] public PIDf_Controller ManualTranslationPID = new PIDf_Controller(0.5f, 0, 0.5f, 0, 1);
 
 			public float TranslationMaxCos;
 			public float RotationMaxCos;
