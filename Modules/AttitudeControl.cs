@@ -65,6 +65,7 @@ namespace ThrottleControlledAvionics
 		protected readonly LowPassFilterVd OD_memory = new LowPassFilterVd();
 		protected readonly Timer AuthorityTimer = new Timer();
 		protected readonly DifferentialF ErrorDif = new DifferentialF();
+		Vector3 OD_factor =  Vector3.one;
 
 		protected Vector3 fwd_axis
 		{ get { return VSL.OnPlanetParams.NoseUp? VSL.Controls.Transform.forward : VSL.Controls.Transform.up; } }
@@ -189,13 +190,16 @@ namespace ThrottleControlledAvionics
 			steering_pid.D = ATCB.PID.D.Scale(((Vector3.one*(2-Ef)-AA_clamped/ATCB.MaxAA).ClampComponentsH(1) +
 			                                   angularM*ATCB.AngularMf).ClampComponentsH(1),
 			                                  AAf,AAf, slow,slow);
-			steering_pid.D.Scale(OD_memory.Value);
-			Log("steering:\n{}\nOD_memory\n{}\nPIf {}, AAf {}\nslow: {}\nPID: {}", steering, OD_memory, PIf, AAf, slow, steering_pid);//debug
+			steering_pid.P.Scale(OD_memory.Value);
+			steering_pid.D.Scale(OD_factor);
+//			Log("steering:\n{}\nOD_memory\n{}\nAA {}, PIf {}, AAf {}\nslow: {}\nPID: {}", steering, OD_memory, AA, PIf, AAf, slow, steering_pid);//debug
 
 			//tune steering
-			var norm = AAi.CubeNorm();
+			var minI = steering.MinI();
+			var norm = AAi.Exclude(minI).CubeNorm();
+			norm[minI] = Utils.ClampH(Mathf.Abs(angularV[minI]*Mathf.Rad2Deg), 1);
 			steering = Vector3.Scale(steering, norm);
-			Log("norm:\n{}\nsteering*norm\n{}", norm, steering);//debug
+//			Log("minI {}\nnorm:\n{}\nsteering*norm:\n{}", minI, norm, steering);//debug
 
 			//add inertia to handle constantly changing needed direction
 			var inertia = Vector3.Scale(angularM.Sign(),
@@ -204,23 +208,22 @@ namespace ThrottleControlledAvionics
 				.ClampComponents(-Mathf.PI, Mathf.PI)/
 				Mathf.Lerp(ATCB.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATCB.MoIFactor);
 			steering = steering + inertia;
-			Log("inertia\n{}\nsteering+inertia\n{}", inertia, steering);//debug
+//			Log("inertia\n{}\nsteering+inertia\n{}", inertia, steering);//debug
 
 			//update PID
 			steering_pid.Update(steering, angularV);
 			steering = steering_pid.Action;
-			Log("pid.Act:\n{}", steering);//debug
+//			Log("pid.Act:\n{}", steering);//debug
+
+			OD.Update(steering, TimeWarp.fixedDeltaTime);
+			OD_factor = Vector3.one-OD.Value;
+			OD_memory.Update(OD_factor);
 
 			correct_steering();
-			OD.Update(steering, TimeWarp.fixedDeltaTime);
-			var OD_factor = Vector3d.one-OD.Value;
-			OD_memory.Update(OD_factor);
-			steering.Scale(OD_factor);
 
-			Log("final:\n{}", steering);//debug
-
-			CSV(steering.x, steering.y, steering.z, OD.Value.x, OD.Value.y, OD.Value.z);//debug
-			Log("{}", OD);//debug
+//			Log("final:\n{}", steering);//debug
+//			CSV(steering.x, steering.y, steering.z, OD.Value.x, OD.Value.y, OD.Value.z);//debug
+//			Log("{}", OD);//debug
 		}
 
 		protected void set_authority_flag()
