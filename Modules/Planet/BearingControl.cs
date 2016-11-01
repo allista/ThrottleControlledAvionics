@@ -142,10 +142,10 @@ namespace ThrottleControlledAvionics
 			if(CFG.BR[BearingMode.Auto] || !DirectionOverride.IsZero())
 			{
 				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(false));
-				#if DEBUG
-				var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
-				Utils.GLVec(VSL.Controls.Transform.position, dir.normalized*2500, dir_color);
-				#endif
+//				#if DEBUG
+//				var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
+//				Utils.GLVec(VSL.Controls.Transform.position, dir.normalized*2500, dir_color);
+//				#endif
 			}
 			else if(CFG.BR[BearingMode.User])
 			{
