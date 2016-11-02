@@ -119,19 +119,19 @@ ATCB
 	{
 		P = 10, 10, 10
 		I = 0.04, 0.04, 0.04
-		D = 0.5, 0.5, 0.5
+		D = 0.1, 0.1, 0.1
 	}
 	
-	MaxAA                  = 2
-	MinAAf                 = 0.2
-	MaxAAf                 = 2
+	MaxAA                  = 8
+	MinAAf                 = 0.5
+	MaxAAf                 = 8
 
 	AngularMf              = 0.001
 	InertiaFactor          = 10
 	MoIFactor              = 0.01
 	MinEf                  = 0.0001
 	MaxEf                  = 2
-	SlowTorqueF            = 0.08 //0.2
+	SlowTorqueF            = 0.1 //0.2
 	AALowPassF             = 1
 	MinSteeringThreshold   = 0.1
 	
@@ -194,8 +194,8 @@ VTOL
 
 BRC
 {
-	MaxAAf = 6
-	MinAAf = 0.2
+	MaxAAf = 8
+	MinAAf = 0.5
 	ADf    = 0.005
 	YawFactor = 60
 	DrawForwardDirection = true
