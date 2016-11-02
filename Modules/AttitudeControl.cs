@@ -59,13 +59,14 @@ namespace ThrottleControlledAvionics
 		protected AttitudeControlBase(ModuleTCA tca) : base(tca) {}
 
 		protected Vector3 steering;
+		protected Vector3 angle_error;
 		protected OscillationDetector3D OD;
 		protected readonly PIDv_Controller3 steering_pid = new PIDv_Controller3();
 		protected readonly LowPassFilterV AAf_filter = new LowPassFilterV();
 		protected readonly LowPassFilterVd OD_memory = new LowPassFilterVd();
 		protected readonly Timer AuthorityTimer = new Timer();
 		protected readonly DifferentialF ErrorDif = new DifferentialF();
-		Vector3 OD_factor =  Vector3.one;
+		[Persistent] public Vector3 OD_factor = Vector3.one;
 
 		protected Vector3 fwd_axis
 		{ get { return VSL.OnPlanetParams.NoseUp? VSL.Controls.Transform.forward : VSL.Controls.Transform.up; } }
@@ -88,7 +89,7 @@ namespace ThrottleControlledAvionics
 			                                ATCB.OD_bins, ATCB.OD_window, 
 			                                ATCB.OD_smoothing, ATCB.OD_Threshold); 
 			OD_memory.Tau = ATCB.OD_memory;
-			OD_memory.Set(Vector3d.one);
+			OD_memory.Set(OD_factor);
 			reset();
 		}
 
@@ -121,7 +122,15 @@ namespace ThrottleControlledAvionics
 			if(current.IsZero() || needed.IsZero())
 				Log("compute steering:\ncurrent {}\nneeded {}\ncurrent thrust {}", current, needed, VSL.Engines.CurrentThrustDir);
 			#endif
+			var direct_rotation = Quaternion.FromToRotation(needed, current);
+			//calculate angle error
+			angle_error = direct_rotation.eulerAngles;
+			angle_error = new Vector3(
+				Mathf.Abs(Utils.CenterAngle(angle_error.x)/180),
+				Mathf.Abs(Utils.CenterAngle(angle_error.y)/180),
+				Mathf.Abs(Utils.CenterAngle(angle_error.z)/180));
 			VSL.Controls.SetAttitudeError(Vector3.Angle(needed, current));
+			//calculate steering
 			if(VSL.Controls.AttitudeError > ATCB.AngleThreshold)
 			{
 				//rotational axis
@@ -150,7 +159,7 @@ namespace ThrottleControlledAvionics
 //				     "angle2: {}\n",
 //				     current_maxI, axis, axis1, axis2, current_cmp1, needed_cmp1, angle1, angle2);//debug
 			}
-			else steering = rotation2steering(Quaternion.FromToRotation(needed, current));
+			else steering = rotation2steering(direct_rotation);
 //			LogF("\nneeded {}\ncurrent {}\nangle {}\nsteering {}",
 //			     needed, current, Vector3.Angle(needed, current), DebugUtils.FormatSteering(steering));//debug
 
@@ -172,7 +181,7 @@ namespace ThrottleControlledAvionics
 		protected void tune_steering()
 		{
 			VSL.Controls.GimbalLimit = 0;
-			//calculate attitude error and Aligned state
+			//calculate attitude error
 			var Ef = Utils.Clamp(VSL.Controls.AttitudeError/180, ATCB.MinEf, 1);
 			//tune lowpass filter
 			AAf_filter.Tau = (1-Mathf.Sqrt(Ef))*ATCB.AALowPassF;
@@ -182,17 +191,18 @@ namespace ThrottleControlledAvionics
 			var AA = VSL.Torque.MaxCurrent.AA;
 			var AAi = AA.Inverse(0);
 			var slow = VSL.Engines.SlowTorque? Vector3.one+VSL.Engines.TorqueResponseTime*AA*ATCB.SlowTorqueF : Vector3.one;
-			var AAf = AAf_filter.Update(AAi.ClampComponents(ATCB.MinAAf, ATCB.MaxAAf));
-			var PIf = Vector3.Scale(AAf, Utils.ClampL(1-Ef, 1/ATCB.MaxEf)*ATCB.MaxEf*slow.Inverse(0));
-			var AA_clamped = AA.ClampComponents(float.MinValue, ATCB.MaxAA);
+			var AAf = AAf_filter.Update(AAi).ClampComponents(ATCB.MinAAf, ATCB.MaxAAf);
+			var PIf = AAf.ScaleChain((Vector3.one-angle_error).ClampComponentsL(1/ATCB.MaxEf)*ATCB.MaxEf, slow.Inverse(0));
+			var AA_clamped = AA.ClampComponentsH(ATCB.MaxAA);
 			steering_pid.P = Vector3.Scale(ATCB.PID.P, PIf);
 			steering_pid.I = Vector3.Scale(ATCB.PID.I, PIf);
-			steering_pid.D = ATCB.PID.D.Scale(((Vector3.one*(2-Ef)-AA_clamped/ATCB.MaxAA).ClampComponentsH(1) +
-			                                   angularM*ATCB.AngularMf).ClampComponentsH(1),
-			                                  AAf,AAf, slow,slow);
+			steering_pid.D = ATCB.PID.D.ScaleChain(((Vector3.one*2-angle_error-AA_clamped/ATCB.MaxAA).ClampComponentsH(1) +
+			                                        angularM*ATCB.AngularMf).ClampComponentsH(1),
+			                                       AAf,AAf, slow,slow);
 			steering_pid.P.Scale(OD_memory.Value);
-			steering_pid.D.Scale(OD_factor);
-//			Log("steering:\n{}\nOD_memory\n{}\nAA {}, PIf {}, AAf {}\nslow: {}\nPID: {}", steering, OD_memory, AA, PIf, AAf, slow, steering_pid);//debug
+			steering_pid.P.Scale(OD_factor);
+//			Log("steering: {}\nOD_memory\n{}\nerror {}\nAA {}, PIf {}, AAf {}\nslow: {}\nPID: {}", 
+//			    steering, OD_memory, angle_error, AA, PIf, AAf, slow, steering_pid);//debug
 
 			//tune steering
 			var minI = steering.MinI();
@@ -212,8 +222,9 @@ namespace ThrottleControlledAvionics
 
 			//update PID
 			steering_pid.Update(steering, angularV);
+//			CSV(angle_error, steering, steering_pid.Action);//debug
 			steering = steering_pid.Action;
-//			Log("pid.Act:\n{}", steering);//debug
+//			Log("pid.Act: {}", steering);//debug
 
 			OD.Update(steering, TimeWarp.fixedDeltaTime);
 			OD_factor = Vector3.one-OD.Value;
@@ -222,7 +233,6 @@ namespace ThrottleControlledAvionics
 			correct_steering();
 
 //			Log("final:\n{}", steering);//debug
-//			CSV(steering.x, steering.y, steering.z, OD.Value.x, OD.Value.y, OD.Value.z);//debug
 //			Log("{}", OD);//debug
 		}
 
