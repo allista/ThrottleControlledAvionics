@@ -81,6 +81,7 @@ namespace ThrottleControlledAvionics
 
 		HorizontalSpeedControl HSC;
 		AltitudeControl ALT;
+		Radar RAD;
 
 		public override void Init()
 		{
@@ -304,6 +305,7 @@ namespace ThrottleControlledAvionics
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.Physics.wCoM, VSL.Physics.Up);
 			var hdistance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
+			var bearing_threshold = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(VSL.Physics.Up), PN.BearingCutoffCos, 0.99f);
 			//update destination
 			if(tPN != null && !tPN.VSL.Info.Destination.IsZero()) 
 				VSL.Info.Destination = tPN.VSL.Info.Destination;
@@ -328,7 +330,7 @@ namespace ThrottleControlledAvionics
 				Maneuvering = CanManeuver && lat_dist > CFG.Target.AbsRadius && hdistance < CFG.Target.AbsRadius*3;
 				if(keep_formation && tvel_m > 0 &&
 				   (!CanManeuver || 
-				    dir2vel_cos <= PN.BearingCutoffCos || 
+				    dir2vel_cos <= bearing_threshold || 
 				    lat_dist < CFG.Target.AbsRadius*3))
 				{
 					if(CanManeuver) 
@@ -425,8 +427,8 @@ namespace ThrottleControlledAvionics
 				ArrivedTimer.Reset();
 				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 				//if we need to make a sharp turn, stop and turn, then go on
-				if(Vector3.Dot(vdir, VSL.OnPlanetParams.Fwd) < PN.BearingCutoffCos &&
-				Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir) < PN.BearingCutoffCos)
+				if(Vector3.Dot(vdir, VSL.OnPlanetParams.Fwd) < bearing_threshold &&
+				   Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir) < bearing_threshold)
 				{
 					VSL.HorizontalSpeed.SetNeeded(vdir);
 					Maneuvering = false;
@@ -486,11 +488,17 @@ namespace ThrottleControlledAvionics
 					if(max_speed < CFG.MaxNavSpeed) DistancePID.Max = max_speed;
 				}
 				//take into account vertical distance and obstacle
-				vdistance = Mathf.Max(vdistance, VSL.Altitude.Ahead-VSL.Altitude.Absolute);
+				var rel_ahead = VSL.Altitude.Ahead-VSL.Altitude.Absolute;
+//				Log("vdist {}, rel.ahead {}, vF {}, aF {}", vdistance, rel_ahead,
+//				    Utils.ClampL(1 - Mathf.Atan(vdistance/hdistance)/Utils.HalfPI, 0),
+//				    Utils.ClampL(1 - rel_ahead/RAD.DistanceAhead, 0));//debug
+				vdistance = Mathf.Max(vdistance, rel_ahead);
 				if(vdistance > 0)
 					hdistance *= (float)Utils.ClampL(1 - Mathf.Atan(vdistance/hdistance)/Utils.HalfPI, 0);
+				if(RAD != null && rel_ahead > 0 && RAD.DistanceAhead > 0)
+					hdistance *= (float)Utils.ClampL(1 - rel_ahead/RAD.DistanceAhead, 0);
 				//update the needed velocity
-				DistancePID.Update(hdistance/VSL.Geometry.R*PN.DistanceFactor);
+				DistancePID.Update(hdistance*PN.DistanceFactor);
 				var nV = vdir*DistancePID.Action;
 				//correcto for Follow Target program
 				if(CFG.Nav[Navigation.FollowTarget] && Vector3d.Dot(tvel, vdir) > 0) nV += tvel;
