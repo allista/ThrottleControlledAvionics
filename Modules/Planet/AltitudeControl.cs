@@ -127,23 +127,28 @@ namespace ThrottleControlledAvionics
 			//correct for terrain altitude and radar data if following terrain
 			if(CFG.AltitudeAboveTerrain) 
 			{
-				var obstacle_ahead = VSL.HorizontalSpeed.Mooving && alt-VSL.Altitude.Ahead <= VSL.Geometry.H;
+				var obstacle_ahead = VSL.HorizontalSpeed.MoovingFast && alt-VSL.Altitude.Ahead <= VSL.Geometry.H;
 				if(obstacle_ahead) 
 				{
+					var dAlt = VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute;
 					SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
-					if(VSL.Altitude.CorrectionAllowed && RAD.TimeAhead > 0) 
+					if(VSL.Altitude.CorrectionAllowed && RAD != null && 
+					   RAD.TimeAhead > 0 && dAlt/RAD.TimeAhead > GLB.VSC.MaxSpeed)
 					{
-						var G_A  = Utils.ClampL(VSL.Physics.G*(1-VSL.OnPlanetParams.DTWR), 1e-5f);
-						var dAlt = VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute;
-						CFG.VerticalCutoff = Mathf.Sqrt(2*Utils.ClampL(dAlt * G_A, 0));
-						ttAp = CFG.VerticalCutoff/G_A;
-						if(ttAp > RAD.TimeAhead)
-							CFG.VerticalCutoff = dAlt/RAD.TimeAhead+RAD.TimeAhead*G_A/2;
-						var dV = CFG.VerticalCutoff - VSL.VerticalSpeed.Absolute;
-						dV *= dV < 0 ? VSL.Engines.ThrustDecelerationTime : VSL.Engines.ThrustAccelerationTime;
-//						Log("VSF {}, vV {}, dV {}, hV {}, G_A {}, dAlt {}, ttAp {}, TimeAhead {}", 
-//						    CFG.VerticalCutoff, VSL.VerticalSpeed.Absolute, dV, VSL.HorizontalSpeed.Absolute, G_A, dAlt, ttAp, RAD.TimeAhead);//debug
-						CFG.VerticalCutoff += dV;
+						
+//						var G_A  = Utils.ClampL(VSL.Physics.G*(1-VSL.OnPlanetParams.DTWR), 1e-5f);
+//						CFG.VerticalCutoff = Mathf.Sqrt(2*Utils.ClampL(dAlt * G_A, 0));
+//						ttAp = CFG.VerticalCutoff/G_A;
+//						if(ttAp > RAD.TimeAhead)
+						CFG.VerticalCutoff = dAlt/Utils.ClampL(RAD.TimeAhead-GLB.CPS.LookAheadTime, 1e-5f);
+						if(VSL.Engines.SlowThrust)
+						{
+							var dV = CFG.VerticalCutoff - VSL.VerticalSpeed.Absolute;
+							dV *= dV < 0 ? VSL.Engines.ThrustDecelerationTime : VSL.Engines.ThrustAccelerationTime;
+							CFG.VerticalCutoff += dV;
+						}
+//						Log("VSF {}, vV {}, hV {}, G_A {}, dAlt {}, ttAp {}, TimeAhead {}", 
+//						    CFG.VerticalCutoff, VSL.VerticalSpeed.Absolute, VSL.HorizontalSpeed.Absolute, G_A, dAlt, ttAp, RAD.TimeAhead);//debug
 						return;
 					}
 				}
