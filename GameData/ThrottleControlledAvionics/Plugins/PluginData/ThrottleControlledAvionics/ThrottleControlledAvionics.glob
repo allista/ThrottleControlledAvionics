@@ -117,14 +117,14 @@ ATCB
 {
 	PID
 	{
-		P = 10, 10, 10
+		P = 5, 5, 5
 		I = 0.04, 0.04, 0.04
-		D = 0.1, 0.1, 0.1
+		D = 0.2, 0.2, 0.2
 	}
 	
-	MaxAA                  = 8
+	MaxAA                  = 2
 	MinAAf                 = 0.5
-	MaxAAf                 = 8
+	MaxAAf                 = 2
 
 	AngularMf              = 0.001
 	InertiaFactor          = 10
@@ -142,11 +142,10 @@ ATCB
 	DragResistanceF        = 10
 	
 	OD_low                 = 5   //Hz
-	OD_high                = 55  //Hz
-	OD_bins                = 50
-	OD_window              = 50 //samples
+	OD_high                = 45  //Hz; note that frequency that are multiples of the physics framerate will produce high values in the spectrum given constant signal!!!
+	OD_bins                = 58  //fitted value to eliminate physics framerate harmonics
+	OD_window              = 100 //samples
 	OD_smoothing           = 0.1 //s
-	OD_Threshold           = 0.2
 	OD_memory              = 10  //s
 }
 
@@ -194,7 +193,7 @@ VTOL
 
 BRC
 {
-	MaxAAf = 8
+	MaxAAf = 6
 	MinAAf = 0.5
 	ADf    = 0.005
 	YawFactor = 60
@@ -399,6 +398,9 @@ LTRJ
 	MaxDPressure       = 3     //kPa
 	MinDPressure       = 0.8   //kPa
 	MachThreshold      = 0.9
+	
+	MaxScanningCycles  = 50
+	PointsPerFrame     = 5
 }
 
 DEO

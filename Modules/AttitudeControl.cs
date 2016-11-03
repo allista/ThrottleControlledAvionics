@@ -42,7 +42,6 @@ namespace ThrottleControlledAvionics
 			[Persistent] public int   OD_bins                = 50;
 			[Persistent] public int   OD_window              = 250;  //samples
 			[Persistent] public float OD_smoothing           = 0.1f; //s
-			[Persistent] public float OD_Threshold           = 0.5f;
 			[Persistent] public float OD_memory              = 10f;
 		}
 		static Config ATCB { get { return Globals.Instance.ATCB; } }
@@ -87,7 +86,7 @@ namespace ThrottleControlledAvionics
 			steering_pid.setPID(ATCB.PID);
 			OD =  new OscillationDetector3D(ATCB.OD_low, ATCB.OD_high, 
 			                                ATCB.OD_bins, ATCB.OD_window, 
-			                                ATCB.OD_smoothing, ATCB.OD_Threshold); 
+			                                ATCB.OD_smoothing); 
 			OD_memory.Tau = ATCB.OD_memory;
 			OD_memory.Set(OD_factor);
 			reset();
@@ -197,43 +196,30 @@ namespace ThrottleControlledAvionics
 			steering_pid.P = Vector3.Scale(ATCB.PID.P, PIf);
 			steering_pid.I = Vector3.Scale(ATCB.PID.I, PIf);
 			steering_pid.D = ATCB.PID.D.ScaleChain(((Vector3.one*2-angle_error-AA_clamped/ATCB.MaxAA).ClampComponentsH(1) +
-			                                        angularM*ATCB.AngularMf).ClampComponentsH(1),
-			                                       AAf,AAf, slow,slow);
+			                                        angularM.AbsComponents()*ATCB.AngularMf).ClampComponentsH(1),
+			                                       AAf,AAf, slow,slow).ClampComponentsL(0);
 			steering_pid.P.Scale(OD_memory.Value);
 			steering_pid.P.Scale(OD_factor);
-//			Log("steering: {}\nOD_memory\n{}\nerror {}\nAA {}, PIf {}, AAf {}\nslow: {}\nPID: {}", 
-//			    steering, OD_memory, angle_error, AA, PIf, AAf, slow, steering_pid);//debug
-
-			//tune steering
-			var minI = steering.MinI();
-			var norm = AAi.Exclude(minI).CubeNorm();
-			norm[minI] = Utils.ClampH(Mathf.Abs(angularV[minI]*Mathf.Rad2Deg), 1);
-			steering = Vector3.Scale(steering, norm);
-//			Log("minI {}\nnorm:\n{}\nsteering*norm:\n{}", minI, norm, steering);//debug
-
+//			Log("steering: {}\nOD: {}\nOD_memory\n{}\nerror {}\nAA {}, PIf {}, AAf {}\nslow: {}\nPID: {}", 
+//			    steering, OD, OD_memory, angle_error, AA, PIf, AAf, slow, steering_pid);//debug
 			//add inertia to handle constantly changing needed direction
-			var inertia = Vector3.Scale(angularM.Sign(),
-			                            Vector3.Scale(Vector3.Scale(angularM, angularM),
-			                                          Vector3.Scale(VSL.Torque.MaxCurrent.Torque, VSL.Physics.MoI).Inverse(0)))
-				.ClampComponents(-Mathf.PI, Mathf.PI)/
-				Mathf.Lerp(ATCB.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATCB.MoIFactor);
-			steering = steering + inertia;
-//			Log("inertia\n{}\nsteering+inertia\n{}", inertia, steering);//debug
-
+			var inertia = angularM.Sign()
+				.ScaleChain(angularM, angularM, Vector3.Scale(VSL.Torque.MaxCurrent.Torque, VSL.Physics.MoI).Inverse(0))
+				.ClampComponents(-Mathf.PI, Mathf.PI)
+				/Mathf.Lerp(ATCB.InertiaFactor, 1, VSL.Physics.MoI.magnitude*ATCB.MoIFactor);
+			steering = (steering + inertia).ClampComponents(-1, 1);
+//			Log("inertia {}\nsteering+inertia {}", inertia, steering);//debug
 			//update PID
 			steering_pid.Update(steering, angularV);
-//			CSV(angle_error, steering, steering_pid.Action);//debug
+//			CSV(angle_error, steering, inertia, steering_pid.Action, steering_pid.P, steering_pid.I, steering_pid.D, PIf, AAf, OD_factor, OD_memory.Value);//debug
 			steering = steering_pid.Action;
 //			Log("pid.Act: {}", steering);//debug
-
+			//update oscillation detector
 			OD.Update(steering, TimeWarp.fixedDeltaTime);
-			OD_factor = Vector3.one-OD.Value;
+			OD_factor = Vector3d.one-OD.Value.ClampMagnitudeH(1);
 			OD_memory.Update(OD_factor);
-
+			//postprocessing by derived classes
 			correct_steering();
-
-//			Log("final:\n{}", steering);//debug
-//			Log("{}", OD);//debug
 		}
 
 		protected void set_authority_flag()

@@ -1169,7 +1169,6 @@ def analyzeCSV(filename, header, cols=None, x=None, axes=(), region = None):
         if region[0] == None: region[0] = 0
         if region[1] == None: region[1]  = df.L.last
         df = df[(df.L > region[0]) & (df.L <= region[1])]
-#     describe(df)
 #     print df.iloc[500]
     if cols is None:
         cols = list(df.keys())
@@ -1476,7 +1475,7 @@ class OscillationDetector(object):
         self._samples = deque(maxlen=window)
 
     def update(self, val, dt):
-        val /= self.bins
+        val /= self.window
         last, t0 = None, None
         if len(self._samples) >= self.window:
             last = self._samples.popleft()
@@ -1493,29 +1492,59 @@ class OscillationDetector(object):
                 self.spectrum[i] = self.spectrum[i] + val * np.cos(self.freqs[i] * t) - \
                                    last * np.cos(self.freqs[i] * t0)
 
-def test_OD():
-    time = np.arange(0, 40, dt)
-    freq = 2.153
+def test_OD(low, high, bins, window):
+    time = np.arange(0, 10, dt)
+    freq = 18.153
     signal = np.sin(time*freq*2*np.pi)*0.2+np.sin(time*freq*2.354*2*np.pi)*0.3
-    od = OscillationDetector(0.1, 10, 50, 500)
+    od = OscillationDetector(low, high, bins, window)
     for s in signal: od.update(s, dt)
-
     plt.plot(od.freqs/2/np.pi, np.abs(od.spectrum))
     plt.show()
 
+def find_OD_params(bmin, bmax, low, high, window, dts):
+    all_bins = range(bmin, bmax)
+    peaks = dict.fromkeys(all_bins, 0.0)
+    for dt in dts:
+        time = np.arange(0, 10, dt)
+        signal = np.ones(time.shape[0])
+        for bins in all_bins:
+            od = OscillationDetector(low, high, bins, window)
+            for s in signal: od.update(s, dt)
+            peaks[bins] += np.max(np.abs(od.spectrum))
+    for pair in sorted(peaks.items(), key=lambda p: p[1], reverse=True):
+        print pair
 
 
-dt = 0.01
+dt = 0.02
+
+gamedir = u'/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
+game = u'KSP_test_1.2'
+def gamefile(filename): return os.path.join(gamedir, game, filename)
 
 if __name__ == '__main__':
-    analyzeCSV('Tests/ATC.csv',
+    # test_OD(5, 45, 58, 100)
+    # find_OD_params(50, 100, 5, 45, 100, [0.02, 0.04, 0.06, 0.08])
+
+    analyzeCSV(gamefile('Honeybadger_Light.AttitudeControl'),
                (
-                   'x', 'y', 'z', 'Fx', 'Fy', 'Fz'
+                   'Ex', 'Ey', 'Ez',
+                   'Sx', 'Sy', 'Sz',
+                   'Inx', 'Iny', 'Inz',
+                   'Ax', 'Ay', 'Az',
+                   'Px', 'Py', 'Pz',
+                   'Ix', 'Iy', 'Iz',
+                   'PIfx', 'PIfy', 'PIfz',
+                   'AAfx', 'AAfy', 'AAfz',
+                   'Dx', 'Dy', 'Dz',
+                   'ODx', 'ODy', 'ODz',
+                   'ODmx', 'ODmy', 'ODmz',
                ),
                (
-                   'x', 'Fx',  'y', 'Fy', 'z', 'Fz'
+                   # 'Ex', 'Sx', 'Inx', 'ODx', 'ODmx', 'Px', 'Dx', 'Ax',
+                   'Ey', 'Sy', 'Iny', 'AAfy', 'PIfy', 'Py', 'Dy', 'Ay',
+                   # 'Sz', 'Inz', 'ODz', 'ODmz', 'Pz', 'Dz', 'Az',
                ),
-               # region=(34150,),
+               region=(11000,),
                )
 
 
