@@ -92,10 +92,8 @@ namespace ThrottleControlledAvionics
 
 		protected void CSV(params object[] args)
 		{
-			var tag = string.Format("{0}.{1}", VSL.vessel.vesselName, GetType().Name);
-			var args1 = new object[args.Length+1];
-			args1[0]= tag; args.CopyTo(args1, 1);
-			DebugUtils.CSV(args1);
+			var tag = string.Format("{0}.{1}.csv", VSL.vessel.vesselName, GetType().Name).Replace(' ', '_');
+			DebugUtils.CSV(tag, args);
 		}
 		#endif
 	}
