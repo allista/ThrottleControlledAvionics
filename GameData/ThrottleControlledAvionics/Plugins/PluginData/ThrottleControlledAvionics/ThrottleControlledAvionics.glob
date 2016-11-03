@@ -15,7 +15,8 @@ ActionListHeight     = 110
 MaxAAFilter          = 1
 
 PersistentRotationName = PersistentRotation
-PersistentRotationThreshold = 5e-8
+PersistentRotationThreshold = 1e-7
+NoPersistentRotationThreshold = 5e-6
 
 RCS
 {

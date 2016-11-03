@@ -17,7 +17,11 @@ namespace ThrottleControlledAvionics
 {
 	public class ControlProps : VesselProps
 	{
-		public ControlProps(VesselWrapper vsl) : base(vsl) {}
+		public ControlProps(VesselWrapper vsl) : base(vsl) 
+		{
+			av_threshold = TCAScenario.HavePersistentRotation? 
+				GLB.PersistentRotationThreshold : GLB.NoPersistentRotationThreshold;
+		}
 
 		public Transform Transform;
 		public Vector3 Steering { get; private set; }
@@ -26,8 +30,6 @@ namespace ThrottleControlledAvionics
 		public bool    TranslationAvailable { get; private set; }
 		public Vector3 ManualTranslation;
 		public Switch  ManualTranslationSwitch = new Switch();
-//		float gl;//debug
-//		public float   GimbalLimit { get { return gl; } set { gl = value; DebugUtils.Log("GimbalLimit set: {}", gl); } }//debug
 		public float   GimbalLimit = 100;
 		public bool    HaveControlAuthority = true;
 		public double  WarpToTime = -1;
@@ -38,6 +40,9 @@ namespace ThrottleControlledAvionics
 		public float MinAlignmentTime { get; private set; }
 		public float AlignmentFactor { get; private set; }
 		public float InvAlignmentFactor { get; private set; }
+
+		State<float> angular_vel = new State<float>(0);
+		float av_threshold = 1e-6f;
 
 		public float OffsetAlignmentFactor(float offset = 1)
 		{
@@ -51,10 +56,12 @@ namespace ThrottleControlledAvionics
 			AttitudeError = error;
 			Aligned &= AttitudeError < GLB.ATCB.MaxAttitudeError;
 			Aligned |= AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
+			angular_vel.current = VSL.vessel.angularVelocity.sqrMagnitude;
 			CanWarp = CFG.WarpToNode && 
 				(WarpToTime > VSL.Physics.UT || 
 				 VSL.Controls.Aligned && 
-				 VSL.vessel.angularVelocity.sqrMagnitude < (TCAScenario.HavePersistentRotation? 1e-6f : GLB.PersistentRotationThreshold));
+				 (angular_vel.current < av_threshold || 
+				  Mathf.Abs(angular_vel.current-angular_vel.old)/TimeWarp.fixedDeltaTime < angular_vel.current/100));
 			MinAlignmentTime = VSL.Torque.MaxCurrent.MinRotationTime(AttitudeError);
 			AlignmentFactor = Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0);
 			InvAlignmentFactor = Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1);
