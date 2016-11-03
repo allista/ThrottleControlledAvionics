@@ -15,7 +15,7 @@ namespace ThrottleControlledAvionics
 {
 	public class LandingTrajectory : TargetedTrajectory
 	{
-		public readonly double TargetAltitude;
+		public double TargetAltitude;
 		public WayPoint SurfacePoint { get; private set; }
 
 		public double VslStartLat { get; private set; }
@@ -56,6 +56,7 @@ namespace ThrottleControlledAvionics
 			AtTargetPos = orb.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = orb.getOrbitalVelocityAtUT(AtTargetUT);
 			SurfacePoint = new WayPoint((TrajectoryCalculator.BodyRotationAtdT(Body, -TimeToSurface)*AtTargetPos).xzy+Body.position, Body);
+			SurfacePoint.Pos.SetAlt2Surface(Body);
 			SurfacePoint.Name = "Landing Site";
 		}
 

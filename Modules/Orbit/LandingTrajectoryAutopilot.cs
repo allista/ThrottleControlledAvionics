@@ -340,6 +340,7 @@ namespace ThrottleControlledAvionics
 			if(scanner.FlatRegion != null)
 			{
 				CFG.Target.Pos = scanner.FlatRegion.Copy();
+				if(trajectory != null) trajectory.TargetAltitude = CFG.Target.Pos.Alt;
 				Utils.Message("Found flat region for landing.");
 			}
 		}
