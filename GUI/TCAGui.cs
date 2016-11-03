@@ -558,12 +558,18 @@ namespace ThrottleControlledAvionics
 					selecting_key = false;
 				}
 			}
-			else if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
-			if(CFG.Enabled && CFG.BlockThrottle && THR != null)
+			else if(!FlightDriver.Pause)
 			{
-				if(CFG.VF[VFlight.AltitudeControl]) 
-				{ if(ALT != null) ALT.ProcessKeys(); }
-				else if(VSC != null) VSC.ProcessKeys();
+				if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
+				if(CFG.Enabled)
+				{
+					if(CFG.BlockThrottle && THR != null)
+					{
+						if(CFG.VF[VFlight.AltitudeControl]) 
+						{ if(ALT != null) ALT.ProcessKeys(); }
+						else if(VSC != null) VSC.ProcessKeys();
+					}
+				}
 			}
 		}
 	}
