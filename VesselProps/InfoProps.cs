@@ -53,6 +53,13 @@ namespace ThrottleControlledAvionics
 			CustomMarkersWP.Add(wp);
 		}
 
+		public void AddCustopWaypoint(Coordinates pos, string name = "Custom WayPoint")
+		{
+			var wp = new WayPoint(pos);
+			wp.Name = name;
+			CustomMarkersWP.Add(wp);
+		}
+
 		public override void ClearFrameState()
 		{
 			CustomMarkersWP.Clear();
