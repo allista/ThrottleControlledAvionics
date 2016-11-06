@@ -432,7 +432,7 @@ namespace ThrottleControlledAvionics
 					CFG.Nav.OnIfNot(Navigation.Anchor);
 					CFG.VF.OnIfNot(VFlight.AltitudeControl);
 					if(VSL.Altitude.Relative-CFG.DesiredAltitude > 5 || VSL.VerticalSpeed.Absolute < -1) break;
-					CFG.VerticalCutoff = VSL.OnPlanetParams.SlowThrust? -0.5f : -1f;
+					CFG.VerticalCutoff = VSL.Engines.SlowThrust? -0.5f : -1f;
 					CFG.DesiredAltitude = -10;
 				}
 				CFG.VF.Off();
@@ -448,7 +448,7 @@ namespace ThrottleControlledAvionics
 					if(VSL.Altitude.Relative > LND.StopAtH*VSL.Geometry.H)
 						CFG.Nav.OnIfNot(Navigation.Anchor);
 					else CFG.HF.OnIfNot(HFlight.Stop);
-					CFG.SmoothSetVSC((VSL.OnPlanetParams.SlowThrust? -0.5f : -1f)*Utils.ClampL(1-VSL.HorizontalSpeed, 0.1f), -1, 0);
+					CFG.SmoothSetVSC((VSL.Engines.SlowThrust? -0.5f : -1f)*Utils.ClampL(1-VSL.HorizontalSpeed, 0.1f), -1, 0);
 				}
 				CutoffTimer.Reset();
 				break;

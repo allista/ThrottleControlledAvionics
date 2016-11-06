@@ -70,7 +70,7 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			SetState(TCAState.VerticalSpeedControl);
 			var upAF = -VSL.VerticalSpeed.Derivative
-				*(VSL.VerticalSpeed.Derivative < 0? VSL.OnPlanetParams.AccelSpeed : VSL.OnPlanetParams.DecelSpeed)*VSC.UpAf;
+				*(VSL.VerticalSpeed.Derivative < 0? VSL.OnPlanetParams.CurrentThrustAccelerationSpeed : VSL.OnPlanetParams.CurrentThrustDecelerationSpeed)*VSC.UpAf;
 			var setpoint = CFG.VerticalCutoff;
 			if(VSL.OnPlanetParams.MaxDTWR > 0)
 				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/VSL.OnPlanetParams.MaxDTWR;

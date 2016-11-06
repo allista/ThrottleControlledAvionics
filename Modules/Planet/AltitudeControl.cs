@@ -185,7 +185,7 @@ namespace ThrottleControlledAvionics
 			else if(error > 0) max_speed = alt <= VSL.Geometry.H? ALT.MaxSpeedHigh :
 				Utils.Clamp(ALT.MaxSpeedLow*(error-ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, ALT.MaxSpeedLow, ALT.MaxSpeedHigh);
 			//update pid parameters and vertical speed setpoint
-			if(VSL.OnPlanetParams.SlowThrust)
+			if(VSL.Engines.SlowThrust)
 			{
 				jets_pid.Min = min_speed;
 				jets_pid.Max = max_speed; 

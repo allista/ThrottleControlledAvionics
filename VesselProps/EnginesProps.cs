@@ -345,9 +345,9 @@ namespace ThrottleControlledAvionics
 					{
 						total_thrust += thrust;
 						if(e.engineDecelerationSpeed > 0)
-							ThrustDecelerationTime += thrust*1/e.engineDecelerationSpeed;
+							ThrustDecelerationTime += thrust/e.engineDecelerationSpeed;
 						if(e.engineAccelerationSpeed > 0)
-							ThrustAccelerationTime += thrust*1/e.engineAccelerationSpeed;
+							ThrustAccelerationTime += thrust/e.engineAccelerationSpeed;
 					}
 				}
 				if(e.useEngineResponseTime && (e.Role == TCARole.MAIN || e.Role == TCARole.MANEUVER))

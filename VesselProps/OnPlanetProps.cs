@@ -36,10 +36,10 @@ namespace ThrottleControlledAvionics
 		public float   MaxTWR { get; private set; }
 		public float   MaxDTWR { get; private set; }
 		public float   DTWR { get; private set; }
+		public LowPassFilterF DTWR_filter = new LowPassFilterF();
 
-		public float   AccelSpeed { get; private set; }
-		public float   DecelSpeed { get; private set; }
-		public bool    SlowThrust { get; private set; }
+		public float   CurrentThrustAccelerationSpeed { get; private set; }
+		public float   CurrentThrustDecelerationSpeed { get; private set; }
 
 		public float   VSF; //vertical speed factor
 		public float   GeeVSF; //the value of VSF that provides the thrust equal to the gravity force
@@ -49,11 +49,13 @@ namespace ThrottleControlledAvionics
 
 		public override void Update()
 		{
-			AccelSpeed = 0f; DecelSpeed = 0f; TWRf = 1; SlowThrust = false;
+			CurrentThrustAccelerationSpeed = 0f; CurrentThrustDecelerationSpeed = 0f; TWRf = 1;
 			//calculate total downward thrust and slow engines' corrections
 			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.mg;
 			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
 				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.mg : 0f;
+			DTWR_filter.Tau = Mathf.Max(VSL.Engines.ThrustAccelerationTime, VSL.Engines.ThrustDecelerationTime);
+			DTWR_filter.Update(DTWR);
 			GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
 			var mVSFtor = (VSL.Torque.MaxPitchRoll.AA_rad > 0)? 
 				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRoll.AA_rad, GLB.VSC.MaxVSFtwr*GeeVSF) : 0;
@@ -76,8 +78,8 @@ namespace ThrottleControlledAvionics
 						if(e.useEngineResponseTime && dthrust > 0) 
 						{
 							slow_thrust += dthrust;
-							AccelSpeed += e.engineAccelerationSpeed*dthrust;
-							DecelSpeed += e.engineDecelerationSpeed*dthrust;
+							CurrentThrustAccelerationSpeed += e.engineAccelerationSpeed*dthrust;
+							CurrentThrustDecelerationSpeed += e.engineDecelerationSpeed*dthrust;
 						}
 						else fast_thrust = dthrust;
 						down_thrust += dthrust;
@@ -96,13 +98,12 @@ namespace ThrottleControlledAvionics
 			if(controllable_thrust > 0)
 			{
 				//correct setpoint for current TWR and slow engines
-				if(AccelSpeed > 0) AccelSpeed = controllable_thrust/AccelSpeed*GLB.VSC.ASf;
-				if(DecelSpeed > 0) DecelSpeed = controllable_thrust/DecelSpeed*GLB.VSC.DSf;
-				SlowThrust = AccelSpeed > 0 || DecelSpeed > 0;
+				if(CurrentThrustAccelerationSpeed > 0) CurrentThrustAccelerationSpeed = controllable_thrust/CurrentThrustAccelerationSpeed*GLB.VSC.ASf;
+				if(CurrentThrustDecelerationSpeed > 0) CurrentThrustDecelerationSpeed = controllable_thrust/CurrentThrustDecelerationSpeed*GLB.VSC.DSf;
 				//TWR factor
 				var vsf = CFG.VSCIsActive && VSL.VerticalSpeed.Absolute < 0? 
 					Utils.Clamp(1-(Utils.ClampH(CFG.VerticalCutoff, 0)-VSL.VerticalSpeed.Absolute)/GLB.TDC.VSf, 1e-9f, 1) : 1;
-				var twr = SlowThrust? VSL.OnPlanetParams.DTWR : VSL.OnPlanetParams.MaxTWR*Utils.Sin45; //MaxTWR at 45deg
+				var twr = VSL.Engines.SlowThrust? DTWR_filter.Value : MaxTWR*Utils.Sin45; //MaxTWR at 45deg
 				TWRf = Utils.Clamp(twr/GLB.TDC.TWRf, 1e-9f, 1)*vsf;
 			}
 			//parachutes
