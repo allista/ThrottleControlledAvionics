@@ -42,9 +42,10 @@ namespace ThrottleControlledAvionics
 			[Persistent] public int   OD_bins                = 50;
 			[Persistent] public int   OD_window              = 250;  //samples
 			[Persistent] public float OD_smoothing           = 0.1f; //s
+			[Persistent] public float OD_gain                = 10f;
 			[Persistent] public float OD_memory              = 10f;
 		}
-		static Config ATCB { get { return Globals.Instance.ATCB; } }
+		protected static Config ATCB { get { return Globals.Instance.ATCB; } }
 
 		public struct Rotation 
 		{ 
@@ -62,7 +63,7 @@ namespace ThrottleControlledAvionics
 		protected OscillationDetector3D OD;
 		protected readonly PIDv_Controller3 steering_pid = new PIDv_Controller3();
 		protected readonly LowPassFilterV AAf_filter = new LowPassFilterV();
-		protected readonly LowPassFilterVd OD_memory = new LowPassFilterVd();
+		protected readonly ClampedAssymetricFilter3D OD_memory = new ClampedAssymetricFilter3D();
 		protected readonly Timer AuthorityTimer = new Timer();
 		protected readonly DifferentialF ErrorDif = new DifferentialF();
 		[Persistent] public Vector3 OD_factor = Vector3.one;
@@ -87,7 +88,9 @@ namespace ThrottleControlledAvionics
 			OD =  new OscillationDetector3D(ATCB.OD_low, ATCB.OD_high, 
 			                                ATCB.OD_bins, ATCB.OD_window, 
 			                                ATCB.OD_smoothing); 
-			OD_memory.Tau = ATCB.OD_memory;
+			OD_memory.Min = 0; OD_memory.Max = 1;
+			OD_memory.TauUp = ATCB.OD_memory*10;
+			OD_memory.TauDown = ATCB.OD_memory;
 			OD_memory.Set(OD_factor);
 			reset();
 		}
@@ -188,10 +191,9 @@ namespace ThrottleControlledAvionics
 			var angularV = VSL.vessel.angularVelocity;
 			var angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
 			var AA = VSL.Torque.MaxCurrent.AA;
-			var AAi = AA.Inverse(0);
-			var slow = VSL.Engines.SlowTorque? Vector3.one+VSL.Engines.TorqueResponseTime*AA*ATCB.SlowTorqueF : Vector3.one;
-			var AAf = AAf_filter.Update(AAi).ClampComponents(ATCB.MinAAf, ATCB.MaxAAf);
-			var PIf = AAf.ScaleChain((Vector3.one-angle_error).ClampComponentsL(1/ATCB.MaxEf)*ATCB.MaxEf, slow.Inverse(0));
+			var slow = VSL.Engines.SlowTorque? Vector3.one+VSL.Engines.TorqueResponseTime*ATCB.SlowTorqueF*AA.ClampComponentsL(1) : Vector3.one;
+			var AAf = AAf_filter.Update(AA.Inverse()).ClampComponents(ATCB.MinAAf, ATCB.MaxAAf);
+			var PIf = AAf.ScaleChain((Vector3.one-angle_error).ClampComponentsL(1/ATCB.MaxEf)*ATCB.MaxEf, slow.Inverse());
 			var AA_clamped = AA.ClampComponentsH(ATCB.MaxAA);
 			steering_pid.P = Vector3.Scale(ATCB.PID.P, PIf);
 			steering_pid.I = Vector3.Scale(ATCB.PID.I, PIf);
@@ -200,6 +202,10 @@ namespace ThrottleControlledAvionics
 			                                       AAf,AAf, slow,slow).ClampComponentsL(0);
 			steering_pid.P.Scale(OD_memory.Value);
 			steering_pid.P.Scale(OD_factor);
+			steering_pid.I.Scale(OD_memory.Value);
+			steering_pid.I.Scale(OD_factor);
+			steering_pid.D.Scale(OD_memory.Value);
+			steering_pid.D.Scale(OD_factor);
 //			Log("steering: {}\nOD: {}\nOD_memory\n{}\nerror {}\nAA {}, PIf {}, AAf {}\nslow: {}\nPID: {}", 
 //			    steering, OD, OD_memory, angle_error, AA, PIf, AAf, slow, steering_pid);//debug
 			//add inertia to handle constantly changing needed direction
@@ -211,12 +217,12 @@ namespace ThrottleControlledAvionics
 //			Log("inertia {}\nsteering+inertia {}", inertia, steering);//debug
 			//update PID
 			steering_pid.Update(steering, angularV);
-//			CSV(angle_error, steering, inertia, steering_pid.Action, steering_pid.P, steering_pid.I, steering_pid.D, PIf, AAf, OD_factor, OD_memory.Value);//debug
+			CSV(angle_error, steering, inertia, steering_pid.Action, steering_pid.P, steering_pid.I, steering_pid.D, AA, PIf, AAf, OD_factor, OD_memory.Value, slow);//debug
 			steering = steering_pid.Action;
 //			Log("pid.Act: {}", steering);//debug
 			//update oscillation detector
 			OD.Update(steering, TimeWarp.fixedDeltaTime);
-			OD_factor = Vector3d.one-OD.Value.ClampMagnitudeH(1);
+			OD_factor = (Vector3d.one-OD.Value*ATCB.OD_gain).ClampComponents(0, 1);
 			OD_memory.Update(OD_factor);
 			//postprocessing by derived classes
 			correct_steering();
@@ -269,6 +275,15 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			CFG.AT.SetSingleCallback(Enable);
 			roll_filter.Tau = ATC.RollFilter;
+			#if DEBUG
+			Pf.Value = ATCB.PID.P;
+			If.Value = ATCB.PID.I;
+			Df.Value = ATCB.PID.D;
+			SlowF.Value = ATCB.SlowTorqueF;
+			MinAA_F.Value = ATCB.MinAAf;
+			MaxAA_F.Value = ATCB.MaxAAf;
+			OD_gain_F.Value = ATCB.OD_gain;
+			#endif
 		}
 
 		protected override void UpdateState() 
@@ -454,12 +469,82 @@ namespace ThrottleControlledAvionics
 //			Utils.GLVec(VSL.refT.position, VSL.refT.forward*2, Color.blue);
 //			Utils.GLVec(VSL.refT.position, VSL.refT.up*2, Color.green);
 		}
+
+		public class Vector3Field
+		{
+			public FloatField Fx = new FloatField();
+			public FloatField Fy = new FloatField();
+			public FloatField Fz = new FloatField();
+
+			public Vector3 Value
+			{
+				get { return new Vector3(Fx.Value, Fy.Value, Fz.Value); }
+				set 
+				{
+					Fx.Value = value.x;
+					Fy.Value = value.y;
+					Fz.Value = value.z;
+				}
+			}
+
+			public bool UpdateValue()
+			{
+				var updated = false;
+				updated = Fx.UpdateValue() || updated;
+				updated = Fy.UpdateValue() || updated;
+				updated = Fz.UpdateValue() || updated;
+				return updated;
+			}
+
+			public bool Draw(string name, string suffix = "", bool show_set_button = true, float increment = 0, string iformat = "F1")
+			{
+				var ret = false;
+				GUILayout.BeginHorizontal();
+				GUILayout.Label(name, GUILayout.ExpandWidth(false));
+				ret = Fx.Draw("", false, increment, iformat) || ret;
+				ret = Fy.Draw("", false, increment, iformat) || ret;
+				ret = Fz.Draw(suffix, show_set_button, increment, iformat) || ret;
+				if(Fz.IsSet) ret = UpdateValue() || ret;
+				GUILayout.EndHorizontal();
+				return ret;
+			}
+		}
+
+		Vector3Field Pf = new Vector3Field();
+		Vector3Field If = new Vector3Field();
+		Vector3Field Df = new Vector3Field();
+		FloatField SlowF = new FloatField();
+		FloatField MinAA_F = new FloatField();
+		FloatField MaxAA_F = new FloatField();
+		FloatField OD_gain_F = new FloatField();
 		#endif
 
 		public override void Draw()
 		{
 			#if DEBUG
 			DrawDebugLines();
+			GUILayout.BeginVertical();
+			if(Pf.Draw("P")) ATCB.PID.P = Pf.Value;
+			if(If.Draw("I")) ATCB.PID.I = If.Value;
+			if(Df.Draw("D")) ATCB.PID.D = Df.Value;
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("SlowF", GUILayout.ExpandWidth(false));
+			if(SlowF.Draw()) ATCB.SlowTorqueF = SlowF.Value;
+			GUILayout.Label("MinAAf", GUILayout.ExpandWidth(false));
+			if(MinAA_F.Draw()) ATCB.MinAAf = MinAA_F.Value;
+			GUILayout.Label("MaxAAf", GUILayout.ExpandWidth(false));
+			if(MaxAA_F.Draw()) ATCB.MaxAAf = MaxAA_F.Value;
+			GUILayout.Label("OD Gain", GUILayout.ExpandWidth(false));
+			if(OD_gain_F.Draw()) ATCB.OD_gain = OD_gain_F.Value;
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label(string.Format("AA {0}, AAf {1}, Slow {2}, P {3}, I {4}, D {5}", 
+			                              VSL.Torque.MaxCurrent.AA, AAf_filter.Value.ClampComponents(ATCB.MinAAf, ATCB.MaxAAf),
+			                              VSL.Engines.SlowTorque? Vector3.one+VSL.Engines.TorqueResponseTime*VSL.Torque.MaxCurrent.AA*ATCB.SlowTorqueF : Vector3.one, 
+			                              steering_pid.P, steering_pid.I, steering_pid.D), 
+			                GUILayout.ExpandWidth(true));
+			GUILayout.EndHorizontal();
+			GUILayout.EndVertical();
 			#endif
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 

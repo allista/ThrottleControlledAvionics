@@ -147,6 +147,7 @@ ATCB
 	OD_bins                = 58  //fitted value to eliminate physics framerate harmonics
 	OD_window              = 100 //samples
 	OD_smoothing           = 0.1 //s
+	OD_gain                = 5
 	OD_memory              = 10  //s
 }
 
