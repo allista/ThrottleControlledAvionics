@@ -92,22 +92,21 @@ namespace ThrottleControlledAvionics
 		{
 			Part ref_part = null;
 			var command_parts = VSL.vessel.parts.Where(p => p.HasModule<ModuleCommand>()).ToList();
-			if(command_parts.Count == 0) ref_part = VSL.vessel.rootPart;
-			else if(command_parts.Count == 1) ref_part = command_parts[0];
-			else
-			{
-				
-				float max_ali = -1;
-				foreach(var p in command_parts)
-				{
-					var pos = (p.transform.position-VSL.Physics.wCoM).normalized;
-					var ali = Vector3.Dot(p.transform.up, pos);
-					if(ref_part == null ||  
-					   (Math.Abs(max_ali-ali) < 1e-5 && ref_part.mass < p.mass) ||
-					   max_ali < ali)
-					{ ref_part = p; max_ali = ali; }
-				}
-			}
+			ref_part = command_parts.Count == 1 ? command_parts[0] : VSL.vessel.rootPart;
+//			else
+//			{
+//				
+//				float max_ali = -1;
+//				foreach(var p in command_parts)
+//				{
+//					var pos = (p.transform.position-VSL.Physics.wCoM).normalized;
+//					var ali = Vector3.Dot(p.transform.up, pos);
+//					if(ref_part == null ||  
+//					   (Math.Abs(max_ali-ali) < 1e-5 && ref_part.mass < p.mass) ||
+//					   max_ali < ali)
+//					{ ref_part = p; max_ali = ali; }
+//				}
+//			}
 			CFG.ControlTransform = ref_part.flightID;
 			Transform = ref_part.transform;
 		}
