@@ -1494,8 +1494,10 @@ class OscillationDetector(object):
 
 def test_OD(low, high, bins, window):
     time = np.arange(0, 10, dt)
-    freq = 18.153
-    signal = np.sin(time*freq*2*np.pi)*0.2+np.sin(time*freq*2.354*2*np.pi)*0.3
+    freq = 8
+    signal = np.sin(time*freq*2*np.pi)*1\
+             # +np.sin(time*freq*2.354*2*np.pi)*0.3
+    # signal = np.ones(time.shape[0])
     od = OscillationDetector(low, high, bins, window)
     for s in signal: od.update(s, dt)
     plt.plot(od.freqs/2/np.pi, np.abs(od.spectrum))
@@ -1518,14 +1520,14 @@ def find_OD_params(bmin, bmax, low, high, window, dts):
 dt = 0.02
 
 gamedir = u'/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
-game = u'KSP_test_1.2'
+game = u'KSP_test_1.2.1'
 def gamefile(filename): return os.path.join(gamedir, game, filename)
 
 if __name__ == '__main__':
-    # test_OD(5, 45, 58, 100)
+    # test_OD(5, 45, 58, 500)
     # find_OD_params(50, 100, 5, 45, 100, [0.02, 0.04, 0.06, 0.08])
 
-    analyzeCSV(gamefile('Honeybadger_Light.AttitudeControl'),
+    analyzeCSV(gamefile('Jet_Hangar_Test.AttitudeControl.csv'),
                (
                    'Ex', 'Ey', 'Ez',
                    'Sx', 'Sy', 'Sz',
@@ -1533,18 +1535,21 @@ if __name__ == '__main__':
                    'Ax', 'Ay', 'Az',
                    'Px', 'Py', 'Pz',
                    'Ix', 'Iy', 'Iz',
+                   'Dx', 'Dy', 'Dz',
+                   'AAx', 'AAy', 'AAz',
                    'PIfx', 'PIfy', 'PIfz',
                    'AAfx', 'AAfy', 'AAfz',
-                   'Dx', 'Dy', 'Dz',
                    'ODx', 'ODy', 'ODz',
                    'ODmx', 'ODmy', 'ODmz',
+                   'Slx', 'Sly', 'Slz',
                ),
                (
                    # 'Ex', 'Sx', 'Inx', 'ODx', 'ODmx', 'Px', 'Dx', 'Ax',
-                   'Ey', 'Sy', 'Iny', 'AAfy', 'PIfy', 'Py', 'Dy', 'Ay',
+                   'Ex', 'Sx', 'Ax', 'Inx', 'AAx', 'Slx', 'AAfx', 'PIfx', 'Px', 'Dx', # 'ODx', 'ODmx',
+                   # 'Ey', 'Sy', 'Ay', 'Iny', 'AAy', 'Sly', 'AAfy', 'PIfy', 'Py', 'Dy',
                    # 'Sz', 'Inz', 'ODz', 'ODmz', 'Pz', 'Dz', 'Az',
                ),
-               region=(11000,),
+               # region=(1000,),
                )
 
 
