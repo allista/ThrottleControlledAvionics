@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.Awake();
 			width = 600;
-			height = 400;
+			height = 200;
 			GameEvents.onEditorShipModified.Add(OnShipModified);
 			GameEvents.onEditorLoad.Add(OnShipLoad);
 			GameEvents.onEditorRestart.Add(Reset);
@@ -195,8 +195,6 @@ namespace ThrottleControlledAvionics
 									CFG.VF.Toggle(VFlight.AltitudeControl);
 								Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
 				                                   "Enable follow terrain mode", GUILayout.ExpandWidth(false));
-								Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
-				                                   "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
 							}
 							if(Modules[typeof(VTOLControl)])
 							{
@@ -218,6 +216,8 @@ namespace ThrottleControlledAvionics
 				                                   "Enable Collistion Prevention System", GUILayout.ExpandWidth(false));
 						GUILayout.EndHorizontal();
 						GUILayout.BeginHorizontal();
+							Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
+			                                   "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(true));
 							Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear, 
 			                                   "Automatically deploy/retract landing gear when needed", GUILayout.ExpandWidth(true));
 							Utils.ButtonSwitch("AutoBrakes", ref CFG.AutoBrakes, 
