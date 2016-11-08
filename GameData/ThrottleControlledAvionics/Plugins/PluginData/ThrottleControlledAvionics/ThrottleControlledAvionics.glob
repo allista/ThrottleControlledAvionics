@@ -120,7 +120,7 @@ ATCB
 	{
 		P = 5, 5, 5
 		I = 0.04, 0.04, 0.04
-		D = 0.2, 0.2, 0.2
+		D = 5, 5, 5
 	}
 	
 	MaxAA                  = 2
@@ -132,9 +132,8 @@ ATCB
 	MoIFactor              = 0.01
 	MinEf                  = 0.0001
 	MaxEf                  = 2
-	SlowTorqueF            = 0.1 //0.2
+	SlowTorqueF            = 0.06 //0.2
 	AALowPassF             = 1
-	MinSteeringThreshold   = 0.1
 	
 	AngleThreshold         = 60 //deg
 	MaxAttitudeError       = 10 //deg
