@@ -59,10 +59,12 @@ namespace ThrottleControlledAvionics
 			//engines
 			EnginesLimits = Vector6.zero;
 			var MaxEnginesLimits = Vector6.zero;
+			var EnginesSpecificTorque = Vector6.zero;
 			for(int i = 0, count = VSL.Engines.Steering.Count; i < count; i++)
 			{
 				var e = VSL.Engines.Steering[i];
 				EnginesLimits.Add(e.currentTorque);
+				EnginesSpecificTorque.Add(e.specificTorque);
 				MaxEnginesLimits.Add(e.specificTorque*e.nominalCurrentThrust(1));
 			}
 			//wheels
@@ -77,6 +79,7 @@ namespace ThrottleControlledAvionics
 			}
 			//RCS
 			RCSLimits = Vector6.zero;
+			var RCSSpecificTorque = Vector6.zero;
 			for(int i = 0; i < VSL.Engines.NumActiveRCS; i++)
 			{
 				var r = VSL.Engines.ActiveRCS[i];
@@ -84,7 +87,9 @@ namespace ThrottleControlledAvionics
 				{
 					var t = r.rcs.thrusterTransforms[j];
 					if(t == null) continue;
-					RCSLimits.Add(refT.InverseTransformDirection(Vector3.Cross(t.position-VSL.Physics.wCoM, t.up)*r.rcs.thrusterPower));
+					var specificTorque = refT.InverseTransformDirection(Vector3.Cross(t.position-VSL.Physics.wCoM, t.up));
+					RCSLimits.Add(specificTorque*r.rcs.thrusterPower);
+					RCSSpecificTorque.Add(specificTorque);
 				}
 			}
 			//torque and angular acceleration
@@ -94,7 +99,15 @@ namespace ThrottleControlledAvionics
 			MaxCurrent.Update(NoEngines.Torque+Engines.Torque);
 			MaxPossible.Update(NoEngines.Torque+MaxEngines.Torque);
 			MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrustDir));
-
+			//specifc angular acceleration
+			Engines.SpecificTorque = EnginesSpecificTorque.Max;
+//			Log("Engines.SpecificTorque: {}, TorqueResponseTime: {}", Engines.SpecificTorque, VSL.Engines.TorqueResponseTime);//debug
+			NoEngines.SpecificTorque = RCSSpecificTorque.Max;
+			MaxEngines.SpecificTorque = Engines.SpecificTorque;
+			MaxCurrent.SpecificTorque = Engines.SpecificTorque+NoEngines.SpecificTorque;
+			MaxPossible.SpecificTorque = MaxCurrent.SpecificTorque;
+			MaxPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxCurrent.SpecificTorque, VSL.Engines.CurrentThrustDir);
+			//Max AA filter
 			if(MaxCurrent.AA_rad > 0)
 			{
 				MaxAAMod = MaxAAFilter.Update(MaxCurrent.AA_rad)/MaxCurrent.AA_rad;
@@ -127,6 +140,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 AA { get; private set; } //angular acceleration vector in radians
 		public float   AA_rad { get; private set; } = 0f ;//angular acceleration in radians
 		public float   TurnTime { get; private set; }
+		public Vector3 SpecificTorque; //change in angular acceleration per thrust
 
 		public float   AngularDragResistance 
 		{ 
