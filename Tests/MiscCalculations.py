@@ -242,7 +242,7 @@ class PID2(PID):
         self.ierror = clamp(self.ierror + self.ki * err * dt if abs(d) < 0.6*self.max else 0.9 * self.ierror, self.min, self.max)
         self.perror = err
         self.action = clamp(self.kp*err + self.ierror + d, self.min, self.max)
-#         print '%f %+f %+f' % (self.kp*err, self.ierror, d)
+#         print '%f %+f %+f' % (self.P*err, self.ierror, d)
         return self.action
 
 class VSF_sim(object):
@@ -554,29 +554,29 @@ def sim_PIDf():
 #      ]
 
 # Quadro_Manual = [
-#                     engine(vec(-0.8, 0.0, 0.0),  min_thrust=0.0, max_thrust=18.0, manual=True),
-#                     engine(vec(1.8, 0.0, 1.8),   min_thrust=0.0, max_thrust=40.0),# maneuver=True),
-#                     engine(vec(1.8, 0.0, -1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
-#                     engine(vec(-1.8, 0.0, -1.8), min_thrust=0.0, max_thrust=40.0),# maneuver=True),
-#                     engine(vec(-1.8, 0.0, 1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+#                     engineF(vec(-0.8, 0.0, 0.0),  min_thrust=0.0, max_thrust=18.0, manual=True),
+#                     engineF(vec(1.8, 0.0, 1.8),   min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+#                     engineF(vec(1.8, 0.0, -1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+#                     engineF(vec(-1.8, 0.0, -1.8), min_thrust=0.0, max_thrust=40.0),# maneuver=True),
+#                     engineF(vec(-1.8, 0.0, 1.8),  min_thrust=0.0, max_thrust=40.0),# maneuver=True),
 #                  ]
 #
 # VTOL_Test = [
-#                 engine(vec(-3.4, -2.0, 0.0), min_thrust=0.0, max_thrust=250.0),
-#                 engine(vec(-3.4, 2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
-#                 engine(vec(3.5, -2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
-#                 engine(vec(1.5, 2.0, 0.0),   min_thrust=0.0, max_thrust=250.0),
-#                 engine(vec(1.3, 2.0, 1.6),   min_thrust=0.0, max_thrust=20.0, maneuver=True),
-#                 engine(vec(3.1, -2.0, -3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
-#                 engine(vec(-3.1, -2.0, 3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
-#                 engine(vec(-2.4, 2.0, -2.9), min_thrust=0.0, max_thrust=20.0, maneuver=True),
+#                 engineF(vec(-3.4, -2.0, 0.0), min_thrust=0.0, max_thrust=250.0),
+#                 engineF(vec(-3.4, 2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
+#                 engineF(vec(3.5, -2.0, 0.0),  min_thrust=0.0, max_thrust=250.0),
+#                 engineF(vec(1.5, 2.0, 0.0),   min_thrust=0.0, max_thrust=250.0),
+#                 engineF(vec(1.3, 2.0, 1.6),   min_thrust=0.0, max_thrust=20.0, maneuver=True),
+#                 engineF(vec(3.1, -2.0, -3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
+#                 engineF(vec(-3.1, -2.0, 3.7), min_thrust=0.0, max_thrust=20.0, maneuver=True),
+#                 engineF(vec(-2.4, 2.0, -2.9), min_thrust=0.0, max_thrust=20.0, maneuver=True),
 #              ]
 #
 # Hover_Test = [
-#                 engine(vec(-6.2, 6.4, 0.6),   max_thrust=450),
-#                 engine(vec(-6.2, -6.4, -0.6), max_thrust=450),
-#                 engine(vec(3.9, 7.4, 0.6),    max_thrust=450),
-#                 engine(vec(3.9, -6.4, -0.6),  max_thrust=450)
+#                 engineF(vec(-6.2, 6.4, 0.6),   max_thrust=450),
+#                 engineF(vec(-6.2, -6.4, -0.6), max_thrust=450),
+#                 engineF(vec(3.9, 7.4, 0.6),    max_thrust=450),
+#                 engineF(vec(3.9, -6.4, -0.6),  max_thrust=450)
 #             ]
 
 Uneven_Test = [
@@ -1517,8 +1517,6 @@ def find_OD_params(bmin, bmax, low, high, window, dts):
         print pair
 
 
-dt = 0.02
-
 gamedir = u'/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
 game = u'KSP_test_1.2.1'
 def gamefile(filename): return os.path.join(gamedir, game, filename)
@@ -1527,11 +1525,16 @@ if __name__ == '__main__':
     # test_OD(5, 45, 58, 500)
     # find_OD_params(50, 100, 5, 45, 100, [0.02, 0.04, 0.06, 0.08])
 
-    analyzeCSV(gamefile('Jet_Hangar_Test.AttitudeControl.csv'),
+    analyzeCSV(
+               # gamefile('Jet_Hangar_Test.AttitudeControl.csv'),
+               gamefile('Jet_Hangar_Test.VTOLControl.csv'),
+               # gamefile('JetTest.AttitudeControl.csv'),
                (
+                   'Alt',
                    'Ex', 'Ey', 'Ez',
                    'Sx', 'Sy', 'Sz',
-                   'Inx', 'Iny', 'Inz',
+                   'AVx', 'AVy', 'AVz',
+                   'INx', 'INy', 'INz',
                    'Ax', 'Ay', 'Az',
                    'Px', 'Py', 'Pz',
                    'Ix', 'Iy', 'Iz',
@@ -1539,17 +1542,18 @@ if __name__ == '__main__':
                    'AAx', 'AAy', 'AAz',
                    'PIfx', 'PIfy', 'PIfz',
                    'AAfx', 'AAfy', 'AAfz',
+                   'SLx', 'SLy', 'SLz',
                    'ODx', 'ODy', 'ODz',
                    'ODmx', 'ODmy', 'ODmz',
-                   'Slx', 'Sly', 'Slz',
                ),
                (
-                   # 'Ex', 'Sx', 'Inx', 'ODx', 'ODmx', 'Px', 'Dx', 'Ax',
-                   'Ex', 'Sx', 'Ax', 'Inx', 'AAx', 'Slx', 'AAfx', 'PIfx', 'Px', 'Dx', # 'ODx', 'ODmx',
-                   # 'Ey', 'Sy', 'Ay', 'Iny', 'AAy', 'Sly', 'AAfy', 'PIfy', 'Py', 'Dy',
-                   # 'Sz', 'Inz', 'ODz', 'ODmz', 'Pz', 'Dz', 'Az',
+                   'Alt', 'Ex', 'Sx', 'AVx', 'Ax', #'INx',
+                   'AAx', 'AAfx', 'PIfx', 'SLx',
+                   'Px', 'Dx',
+                   # 'ODx', 'ODmx',
                ),
-               # region=(1000,),
+               region=(15,2000),
+               #  region=(0,490),
                )
 
 
