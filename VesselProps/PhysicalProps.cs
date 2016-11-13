@@ -13,7 +13,6 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-
 	public class PhysicalProps : VesselProps
 	{
 		public PhysicalProps(VesselWrapper vsl) : base(vsl) {}
