@@ -38,6 +38,9 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxDPressure       = 3f;    //kPa
 			[Persistent] public float MinDPressure       = 1f;    //kPa
 			[Persistent] public float MachThreshold      = 0.9f;
+
+			[Persistent] public int   MaxScanningCycles  = 50;
+			[Persistent] public int   PointsPerFrame     = 5;
 		}
 		protected static Config LTRJ { get { return Globals.Instance.LTRJ; } }
 
@@ -50,6 +53,7 @@ namespace ThrottleControlledAvionics
 		protected Timer CollisionTimer = new Timer(1);
 		protected Timer StageTimer = new Timer(5);
 		protected ManeuverExecutor Executor;
+		protected PQS_Scanner scanner;
 		protected AtmoSim sim;
 		protected double PressureASL;
 
@@ -64,6 +68,7 @@ namespace ThrottleControlledAvionics
 		protected AttitudeControl ATC;
 		protected ThrottleControl THR;
 		protected BearingControl  BRC;
+		protected AutoLander      LND;
 
 		protected double TargetAltitude { get { return CFG.Target.SurfaceAlt(Body); } }
 
@@ -90,14 +95,17 @@ namespace ThrottleControlledAvionics
 				dP_threshold = Utils.ClampH(dP_threshold * 1.1, LTRJ.MaxDPressure);
 				last_dP = VSL.vessel.dynamicPressurekPa;
 			};
-			sim = new AtmoSim(Body, VSL);
+			sim = new AtmoSim(VSL);
 			Executor = new ManeuverExecutor(TCA);
+			scanner = new PQS_Scanner(VSL);
+			scanner.MaxUnevennes = GLB.LND.MaxUnevenness/3;
 		}
 
 		protected override void reset()
 		{
 			base.reset();
 			landing_stage = LandingStage.None;
+			scanner.Reset();
 			DecelerationTimer.Reset();
 			dP_up_timer.Reset();
 			dP_down_timer.Reset();
@@ -112,15 +120,16 @@ namespace ThrottleControlledAvionics
 		protected bool check_initial_trajectory()
 		{
 			var fuel_needed = VSL.Engines.FuelNeeded((float)trajectory.ManeuverDeltaV.magnitude) +
-				VSL.Engines.FuelNeededAtAlt((float)trajectory.AtTargetVel.magnitude, 
-				                                    (float)(trajectory.AtTargetPos.magnitude-Body.Radius));
+				VSL.Engines.FuelNeededAtAlt((float)(trajectory.AtTargetVel.magnitude+trajectory.BrakeDeltaV.magnitude), 
+				                            (float)(trajectory.AtTargetPos.magnitude-Body.Radius));
 			var fuel_available = VSL.Engines.GetAvailableFuelMass();
 			var hover_time = fuel_needed < fuel_available? VSL.Engines.MaxHoverTimeASL(fuel_available-fuel_needed) : 0;
 			var status = "";
-			if(trajectory.DistanceToTarget < LTRJ.Dtol && hover_time > LTRJ.HoverTimeThreshold) return true;
+			var enough_fuel = hover_time > LTRJ.HoverTimeThreshold || CheatOptions.InfinitePropellant;
+			if(trajectory.DistanceToTarget < LTRJ.Dtol && enough_fuel) return true;
 			else
 			{
-				if(hover_time < LTRJ.HoverTimeThreshold)
+				if(!enough_fuel)
 				{
 					status += "WARNING: Not enough fuel for powered landing.\n";
 					if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
@@ -129,7 +138,7 @@ namespace ThrottleControlledAvionics
 				}
 				if(trajectory.DistanceToTarget > LTRJ.Dtol)
 					status += string.Format("WARNING: Predicted landing site is too far from the target.\n" +
-					                        "Error is <color=magenta><b>{0}</b></color>", 
+					                        "Error is <color=magenta><b>{0}</b></color>\n", 
 					                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
 				status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
 				Status("yellow", status);
@@ -234,6 +243,8 @@ namespace ThrottleControlledAvionics
 
 		void land()
 		{
+			if(CFG.Target != null && !CFG.Target.IsVessel)
+				LND.StartFromTarget();
 			CFG.AP1.On(Autopilot1.Land);
 			landing_stage = LandingStage.Land;
 		}
@@ -324,6 +335,20 @@ namespace ThrottleControlledAvionics
 		void set_destination_vector()
 		{ VSL.Info.Destination = CFG.Target.WorldPos(Body)-VSL.Physics.wCoM; }
 
+		void scan_for_landing_site()
+		{
+			if(scanner.FlatRegion != null) return;
+			if(scanner.Idle) scanner.Start(CFG.Target.Pos, LTRJ.MaxScanningCycles, LTRJ.PointsPerFrame);
+			Status("Scanning for <b>flat</b> surface to land: {0:P1}", scanner.Progress);
+			if(scanner.Scan()) return;
+			if(scanner.FlatRegion != null && !scanner.FlatRegion.Equals(CFG.Target.Pos))
+			{
+				CFG.Target = new WayPoint(scanner.FlatRegion);
+				if(trajectory != null) trajectory.TargetAltitude = CFG.Target.Pos.Alt;
+				Utils.Message("Found flat region for landing.");
+			}
+		}
+
 		protected bool do_land()
 		{
 			if(VSL.LandedOrSplashed) 
@@ -374,11 +399,12 @@ namespace ThrottleControlledAvionics
 				if(VSL.Controls.CanWarp) 
 					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else VSL.Controls.StopWarp();
+				if(VSL.Info.Countdown < LTRJ.CorrectionOffset) scan_for_landing_site();
 				break;
 			case LandingStage.Decelerate:
 				rel_altitude_if_needed();
 				update_trajectory();
-				nose_to_target();
+				CFG.BR.Off();
 				if(Working)
 				{
 					Status("red", "Possible collision detected.");
@@ -393,6 +419,7 @@ namespace ThrottleControlledAvionics
 				{
 					Status("white", "Decelerating. Landing site error: {0}", 
 					       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+					scan_for_landing_site();
 					compute_terminal_velocity();
 					if(VSL.Controls.HaveControlAuthority) DecelerationTimer.Reset();
 					if(Vector3d.Dot(VSL.HorizontalSpeed.Vector, CFG.Target.WorldPos(Body)-VSL.Physics.wCoM) < 0)
@@ -505,7 +532,7 @@ namespace ThrottleControlledAvionics
 				update_trajectory();
 				setup_for_deceleration();
 				compute_terminal_velocity();
-				nose_to_target();
+				CFG.BR.Off();
 				if(Working)
 				{
 					ATC.SetThrustDirW(correction_direction());
@@ -593,6 +620,126 @@ namespace ThrottleControlledAvionics
 			}
 		}
 		#endif
+	}
+
+	public class PQS_Scanner
+	{
+		readonly VesselWrapper VSL;
+
+		int max_cycles, cycle;
+		int points_in_cycle, points_per_side, side, cycle_point;
+		int points_per_frame;
+		int point, total_points;
+
+		Coordinates current_point;
+		double delta, half;
+
+		public double MaxUnevennes;
+		public Coordinates FlatRegion { get; private set; }
+		public bool Idle { get { return current_point == null; } }
+		public float Progress { get { return point/(float)total_points; } }
+
+		public PQS_Scanner(VesselWrapper vsl) { VSL = vsl; }
+
+		public void Reset()
+		{
+			FlatRegion = null;
+			current_point = null;
+			cycle = side = cycle_point = point = 0;
+			points_in_cycle = 1;
+			points_per_side = 1;
+		}
+
+		public void Start(Coordinates pos, int num_cycles, int num_points_per_frame)
+		{
+			Reset();
+			current_point = pos.Copy();
+			max_cycles = num_cycles;
+			total_points = 1+num_cycles*(num_cycles+1)*4;
+			points_per_frame = num_points_per_frame;
+			delta = VSL.Geometry.D/VSL.Body.Radius*Mathf.Rad2Deg;
+			half = delta/2;
+		}
+
+		double altitude_delta(double lat, double lon)
+		{ return Math.Abs(new Coordinates(lat, lon, 0).SurfaceAlt(VSL.Body)-current_point.Alt); }
+
+		bool scan_current_point()
+		{
+			#if DEBUG
+			VSL.Info.AddCustopWaypoint(current_point, "Checking...");
+			#endif
+			current_point.SetAlt2Surface(VSL.Body);
+			var alt_delta = altitude_delta(current_point.Lat-half, current_point.Lon-half);
+			alt_delta += altitude_delta(current_point.Lat+half, current_point.Lon-half);
+			alt_delta += altitude_delta(current_point.Lat+half, current_point.Lon+half);
+			alt_delta += altitude_delta(current_point.Lat-half, current_point.Lon+half);
+			if(alt_delta/VSL.Geometry.D < MaxUnevennes) 
+			{
+				FlatRegion = current_point.Copy();
+				current_point = null;
+				return true;
+			}
+			return false;
+		}
+
+		void move_to_next_point()
+		{
+			point++;
+			cycle_point++;
+			side = cycle_point/points_per_side;
+			switch(side)
+			{
+			case 0:
+				current_point.Lon += delta;
+				break;
+			case 1:
+				current_point.Lat += delta;
+				break;
+			case 2:
+				current_point.Lon -= delta;
+				break;
+			case 3:
+				current_point.Lat -= delta;
+				break;
+			}
+		}
+
+		void start_next_cycle()
+		{
+			cycle++;
+			points_per_side = cycle*2;
+			points_in_cycle = cycle*8;
+			current_point.Lat -= delta;
+			side = 0;
+			cycle_point = 0;
+		}
+
+		public bool Scan()
+		{
+			if(current_point == null) return false;
+			bool working = true;
+			for(int i = 0; i < points_per_frame; i++)
+			{
+				if(cycle_point < points_in_cycle)
+				{
+					if(scan_current_point())
+					{
+						working = false;
+						break;
+					}
+					move_to_next_point();
+				}
+				else
+				{
+					start_next_cycle();
+					if(cycle < max_cycles) continue;
+					working = false;
+					break;
+				}
+			}
+			return working;
+		}
 	}
 }
 

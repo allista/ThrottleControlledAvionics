@@ -47,6 +47,7 @@ namespace ThrottleControlledAvionics
 
 		public abstract void InitLimits();
 		public abstract void InitState();
+		public abstract void UpdateCurrentTorque(float throttle);
 
 		//needed for autopilots that are executed before FixedUpdate
 		public void PresetLimit(float lim)
@@ -55,11 +56,14 @@ namespace ThrottleControlledAvionics
 			preset_limit = true;
 		}
 
-		public virtual  void InitTorque(VesselWrapper VSL, float ratio_factor)
+		public void InitTorque(VesselWrapper VSL, float ratio_factor)
+		{ InitTorque(VSL.refT, VSL.Physics.wCoM, ratio_factor); }
+
+		public void InitTorque(Transform vesselTransform, Vector3 CoM, float ratio_factor)
 		{
-			wThrustLever = wThrustPos-VSL.Physics.wCoM;
-			thrustDirection = VSL.refT.InverseTransformDirection(wThrustDir);
-			specificTorque = VSL.refT.InverseTransformDirection(Vector3.Cross(wThrustLever, wThrustDir));
+			wThrustLever = wThrustPos-CoM;
+			thrustDirection = vesselTransform.InverseTransformDirection(wThrustDir);
+			specificTorque = vesselTransform.InverseTransformDirection(Vector3.Cross(wThrustLever, wThrustDir));
 			torqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(wThrustLever.normalized, wThrustDir))), ratio_factor);
 		}
 	}
@@ -107,6 +111,12 @@ namespace ThrottleControlledAvionics
 			current_max_thrust = current_sthrust*rcs.thrusterPower*thrustMod;
 			current_thrust = current_sthrust*rcs.thrustPercentage*0.01f*rcs.thrusterPower*thrustMod;
 			InitLimits();
+		}
+
+		public override void UpdateCurrentTorque(float throttle)
+		{
+			currentTorque = Torque(throttle);
+			currentTorque_m = currentTorque.magnitude;
 		}
 
 		public override Vessel vessel { get { return rcs.vessel; } }
@@ -180,15 +190,15 @@ namespace ThrottleControlledAvionics
 
 		public EngineWrapper(ModuleEngines engine) 
 		{
-			//init
-			thrustController.setMaster(ThrustPI);
-			zeroIsp = engine.atmosphereCurve.Evaluate(0f);
+			//generate engine ID
+			this.engine = engine;
 			name = Utils.ParseCamelCase(engine.part.Title());
 			if(engine.engineID.Length > 0 && engine.engineID != "Engine") 
 				name += " (" + engine.engineID + ")";
-			//generate engine ID
-			this.engine = engine;
 			ID = new EngineID(this);
+			//init
+			thrustController.setMaster(ThrustPI);
+			zeroIsp = GetIsp(0,0,0);
 			//get info
 			info = engine.part.Modules.GetModule<TCAEngineInfo>();
 			//find gimbal
@@ -253,6 +263,13 @@ namespace ThrottleControlledAvionics
 //			          engine.multIsp, engine.multFlow);//debug
 		}
 
+		public override void UpdateCurrentTorque(float throttle)
+		{
+			this.throttle = throttle;
+			currentTorque = Torque(throttle);
+			currentTorque_m = currentTorque.magnitude;
+		}
+
 		public override Vector3 Thrust(float throttle)
 		{
 			return thrustDirection * 
@@ -306,13 +323,12 @@ namespace ThrottleControlledAvionics
 
 		public float ThrustAtAlt(float vel, float alt, out float mFlow) 
 		{
-			mFlow = 0;
-			if(!vessel.mainBody.atmosphere) return zeroIsp;
+			mFlow = engine.maxFuelFlow;
 			var atm = vessel.mainBody.AtmoParamsAtAltitude(alt);
 			var rel_density = (float)(atm.Rho/1.225);
-			var vel_mach = (float)(vel/atm.Mach1);
+			var vel_mach = atm.Mach1 > 0? (float)(vel/atm.Mach1) : 0;
 			var Ve = GetIsp((float)(atm.P/1013.25), rel_density, vel_mach) * Utils.G0;
-			mFlow = engine.maxFuelFlow * GetFlowMod(rel_density, vel_mach);
+			mFlow *= GetFlowMod(rel_density, vel_mach);
 			return mFlow * Ve;
 		}
 
@@ -357,12 +373,17 @@ namespace ThrottleControlledAvionics
 
 		public override string ToString()
 		{
-			return Utils.Format("[EngineWrapper: name={}, ID={}, flightID={}, Stage={}, Role={}, Group={},\n" + 
-			                    "useEngineResponseTime={}, engineAccelerationSpeed={}, engineDecelerationSpeed={},\n" + 
-			                    "finalThrust={}, thrustLimit={}, isOperational={}]", 
+			return Utils.Format("EngineWrapper[{}, ID {}, flightID {}, Stage {}, Role {}, Group {}]\n" + 
+			                    "useEngineResponseTime: {}, engineAccelerationSpeed={}, engineDecelerationSpeed={}\n" + 
+			                    "finalThrust: {}, thrustLimit: {}, isOperational: {}\n" +
+			                    "limit: {}, best_limit: {}, limit_tmp: {}\n" +
+			                    "thrust: {}\nlever: {}\ntorque: {}\ntorqueRatio: {}\n", 
 			                    name, ID, flightID, part.inverseStage, Role, Group, 
 			                    useEngineResponseTime, engineAccelerationSpeed, engineDecelerationSpeed, 
-			                    finalThrust, thrustLimit, isOperational);
+			                    finalThrust, thrustLimit, isOperational, 
+			                    limit, best_limit, limit_tmp,
+			                    nominalCurrentThrust(1), wThrustLever, currentTorque, torqueRatio
+			                   );
 		}
 	}
 }

@@ -34,7 +34,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public float ExhaustSafeDist      = 1.1f;
 
 		[Persistent] public string PersistentRotationName = "PersistentRotation";
-		[Persistent] public float PersistentRotationThreshold = 5e-8f;
+		[Persistent] public float PersistentRotationThreshold = 5e-7f;
+		[Persistent] public float NoPersistentRotationThreshold = 5e-7f;
 
 		[Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
 		[Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();

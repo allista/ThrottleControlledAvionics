@@ -131,7 +131,7 @@ namespace ThrottleControlledAvionics
 				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(false));
 			else if(CFG.Target != null)
 			{
-				if(CFG.AP2 || CFG.AP1 || CFG.Nav)
+				if(CFG.AP2 || CFG.AP1 || CFG.Nav && VSL.OnPlanet)
 					GUILayout.Label(new GUIContent("Del Target", "Target point is in use"),
 					                Styles.grey_button, GUILayout.ExpandWidth(false));
 				else if(GUILayout.Button(new GUIContent("Del Target", "Remove target point"), 
@@ -380,14 +380,19 @@ namespace ThrottleControlledAvionics
 			AltField.Draw("°", false, 100, "F0");
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
-			if(GUILayout.Button("Cancel", Styles.active_button)) close = true;
-			GUILayout.FlexibleSpace();
 			if(GUILayout.Button("Delete", Styles.danger_button))
 			{
 				CFG.Path.Remove(edited_waypoint);
 				close = true;
 			}
 			GUILayout.FlexibleSpace();
+			if(GUILayout.Button("Cancel", Styles.active_button)) close = true;
+			GUILayout.FlexibleSpace();
+			if(LND != null && 
+			   Utils.ButtonSwitch("Land", edited_waypoint.Land, "Land on arrival"))
+				edited_waypoint.Land = !edited_waypoint.Land;
+			if(Utils.ButtonSwitch("||", edited_waypoint.Pause, "Pause on arrival", GUILayout.Width(25))) 
+				edited_waypoint.Pause = !edited_waypoint.Pause;
 			if(GUILayout.Button("Apply", Styles.confirm_button))
 			{
 				LatField.UpdateValue(); LonField.UpdateValue(); AltField.UpdateValue();
@@ -562,6 +567,7 @@ namespace ThrottleControlledAvionics
 					else DrawPath(vessel.mainBody, wp0, wp, c);
 					if(wp == edited_waypoint) 
 					{ c = edited_color; r = IconSize*2; }
+					else if(wp.Land) r = IconSize*2;
 					if(DrawGroundMarker(vessel.mainBody, wp, c, out worldPos, r))
 					{
 						DrawLabelAtPointer(wp.FullInfo(vessel), wp.DistanceTo(vessel));

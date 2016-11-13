@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
 			var pos = old.getRelativePositionAtUT(UT);
 			var vel = old.getOrbitalVelocityAtUT(UT)+dV;
 			obt.UpdateFromStateVectors(pos, vel, old.referenceBody, UT);
-			if(obt.eccentricity < 0.01) //TODO: is it still needed?
+			if(obt.eccentricity < 0.01) //TODO: is it still needed? it seems not...
 			{
 				var T   = UT;
 				var v   = obt.getOrbitalVelocityAtUT(UT);

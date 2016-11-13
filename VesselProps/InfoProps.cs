@@ -46,6 +46,20 @@ namespace ThrottleControlledAvionics
 		public List<Vector3d> CustomMarkersVec = new List<Vector3d>();
 		public List<WayPoint> CustomMarkersWP  = new List<WayPoint>();
 
+		public void AddCustopWaypoint(Vector3d pos, string name = "Custom WayPoint")
+		{
+			var wp = new WayPoint(pos, VSL.vessel.mainBody);
+			wp.Name = name;
+			CustomMarkersWP.Add(wp);
+		}
+
+		public void AddCustopWaypoint(Coordinates pos, string name = "Custom WayPoint")
+		{
+			var wp = new WayPoint(pos);
+			wp.Name = name;
+			CustomMarkersWP.Add(wp);
+		}
+
 		public override void ClearFrameState()
 		{
 			CustomMarkersWP.Clear();

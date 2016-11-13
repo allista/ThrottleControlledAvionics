@@ -18,7 +18,8 @@ namespace ThrottleControlledAvionics
 	[CareerPart]
 	[RequireModules(typeof(HorizontalSpeedControl))]
 	[OptionalModules(typeof(VerticalSpeedControl))]
-	[OverrideModules(typeof(AltitudeControl))]
+	[OverrideModules(typeof(AltitudeControl),
+	                 typeof(VTOLAssist))]
 	public class CollisionPreventionSystem : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -37,6 +38,7 @@ namespace ThrottleControlledAvionics
 		public CollisionPreventionSystem(ModuleTCA tca) : base(tca) {}
 
 		HorizontalSpeedControl HSC;
+		VerticalSpeedControl VSC;
 
 		protected override void UpdateState() 
 		{ 
@@ -310,10 +312,11 @@ namespace ThrottleControlledAvionics
 			if(CFG.VF[VFlight.AltitudeControl])
 			{
 				var dVSP = (float)Vector3d.Dot(filter.Value, VSL.Physics.Up);
-				if(dVSP > 0 || 
-				   VSL.Altitude.Relative-VSL.Geometry.H +
-				   (dVSP+VSL.VerticalSpeed.Relative)*CPS.LookAheadTime > 0)
-					CFG.VerticalCutoff += dVSP;
+				if(VSC != null &&
+				   (dVSP > 0 || 
+				    VSL.Altitude.Relative-VSL.Geometry.H +
+				    (dVSP+VSL.VerticalSpeed.Relative)*CPS.LookAheadTime > 0))
+					VSC.SetpointOverride = CFG.VerticalCutoff+dVSP;
 //				else dVSP = 0;//debug
 //				Log("\nCorrection {}\nAction {}\ndVSP {}\ncorrectins: {}", 
 //				    Correction, filter.Value, dVSP,

@@ -35,6 +35,14 @@ namespace ThrottleControlledAvionics
 
 		public VerticalSpeedControl(ModuleTCA tca) : base(tca) {}
 
+		bool overriden;
+		float setpoint_override;
+		public float SetpointOverride 
+		{ 
+			get { return setpoint_override; }
+			set { setpoint_override = value; overriden = true; }
+		}
+
 		float old_accel, accelV;
 		readonly EWA setpoint_correction = new EWA();
 		readonly Timer Falling = new Timer();
@@ -57,6 +65,7 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
+			overriden = false;
 			Falling.Period = VSC.FallingTime;
 			if(VSL.LandedOrSplashed && 
 			   CFG.VerticalCutoff >= 0 && 
@@ -68,21 +77,22 @@ namespace ThrottleControlledAvionics
 		{
 			VSL.OnPlanetParams.VSF = 1f;
 			if(!IsActive) return;
+			var raw_setpoint = overriden? SetpointOverride : CFG.VerticalCutoff;
+			var setpoint = raw_setpoint;
 			SetState(TCAState.VerticalSpeedControl);
 			var upAF = -VSL.VerticalSpeed.Derivative
-				*(VSL.VerticalSpeed.Derivative < 0? VSL.OnPlanetParams.AccelSpeed : VSL.OnPlanetParams.DecelSpeed)*VSC.UpAf;
-			var setpoint = CFG.VerticalCutoff;
+				*(VSL.VerticalSpeed.Derivative < 0? VSL.OnPlanetParams.CurrentThrustAccelerationTime : VSL.OnPlanetParams.CurrentThrustDecelerationTime)*VSC.UpAf;
 			if(VSL.OnPlanetParams.MaxDTWR > 0)
-				setpoint = CFG.VerticalCutoff+(VSC.TWRf+upAF)/VSL.OnPlanetParams.MaxDTWR;
+				setpoint += (VSC.TWRf+upAF)/VSL.OnPlanetParams.MaxDTWR;
 			//calculate new VSF
 			if(!VSL.LandedOrSplashed)
 			{
 				accelV = (VSL.VerticalSpeed.Derivative-old_accel)/TimeWarp.fixedDeltaTime;
 				old_accel = VSL.VerticalSpeed.Derivative;
-				var missed = VSL.VerticalSpeed.Absolute > CFG.VerticalCutoff && VSL.VerticalSpeed.Absolute < CFG.VerticalCutoff+setpoint_correction && VSL.VerticalSpeed.Derivative > 0 ||
-					VSL.VerticalSpeed.Absolute < CFG.VerticalCutoff && VSL.VerticalSpeed.Absolute > CFG.VerticalCutoff+setpoint_correction && VSL.VerticalSpeed.Derivative < 0;
+				var missed = VSL.VerticalSpeed.Absolute > raw_setpoint && VSL.VerticalSpeed.Absolute < raw_setpoint+setpoint_correction && VSL.VerticalSpeed.Derivative > 0 ||
+					VSL.VerticalSpeed.Absolute < raw_setpoint && VSL.VerticalSpeed.Absolute > raw_setpoint+setpoint_correction && VSL.VerticalSpeed.Derivative < 0;
 				if(missed || Mathf.Abs(VSL.VerticalSpeed.Derivative) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
-					setpoint_correction.Update(Utils.ClampL(CFG.VerticalCutoff-VSL.VerticalSpeed.Absolute+setpoint_correction, 0));
+					setpoint_correction.Update(Utils.ClampL(raw_setpoint-VSL.VerticalSpeed.Absolute+setpoint_correction, 0));
 			}
 			var err = setpoint-VSL.VerticalSpeed.Absolute+setpoint_correction;
 			var K = Mathf.Clamp01(err
@@ -91,19 +101,19 @@ namespace ThrottleControlledAvionics
 			                      +upAF);
 			VSL.OnPlanetParams.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.OnPlanetParams.MinVSF);
 //			Log("VSP {0}, setpoint {1}, setpoint correction {2}, err {3}, K {4}, VSF {5}, DTWR {6}, MinVSF {7}, G {8}",
-//			    CFG.VerticalCutoff, setpoint, setpoint_correction, err, K, VSL.VSF, VSL.OnPlanetParams.DTWR, VSL.MinVSF, VSL.Physics.G);//debug
+//			    raw_setpoint, setpoint, setpoint_correction, err, K, VSL.VSF, VSL.OnPlanetParams.DTWR, VSL.MinVSF, VSL.Physics.G);//debug
+			overriden = false;
 			if(VSL.LandedOrSplashed) return;
 			//loosing altitude alert
 			if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
-				        		      VSL.VerticalSpeed.Absolute < 0 && VSL.CFG.VerticalCutoff-VSL.VerticalSpeed.Absolute > VSC.MaxDeltaV);
+				        		      VSL.VerticalSpeed.Absolute < 0 && raw_setpoint-VSL.VerticalSpeed.Absolute > VSC.MaxDeltaV);
 //			CSV(VSL.Altitude, VSL.Altitude.TerrainAltitude, VSL.VerticalSpeed.Relative,
-//			               VSL.VerticalSpeed, CFG.VerticalCutoff, setpoint, setpoint_correction, 
+//			               VSL.VerticalSpeed, raw_setpoint, setpoint, setpoint_correction, 
 //			               VSL.VerticalSpeed.Derivative, upAF, K, VSL.VSF);//debug
 		}
 
 		public override void ProcessKeys()
 		{
-			if(!IsActive) return;
 			var cutoff = CFG.VerticalCutoff;
 			if(GameSettings.THROTTLE_UP.GetKey())
 				cutoff = Mathf.Lerp(CFG.VerticalCutoff, 

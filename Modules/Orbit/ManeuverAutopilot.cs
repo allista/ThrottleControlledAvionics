@@ -31,11 +31,14 @@ namespace ThrottleControlledAvionics
 		ThrottleControl THR;
 
 		ManeuverNode Node;
+		double InitialDeltaV;
+		double ThresholdDeltaV;
 		PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
 
 		ManeuverExecutor Executor;
 		public float MinDeltaV = 1;
-		bool was_within_threshold;
+		bool within_threshold;
+		double min_deltaV = double.MaxValue;
 
 		public override void Init()
 		{
@@ -69,7 +72,11 @@ namespace ThrottleControlledAvionics
 				VSL.Controls.StopWarp();
 				CFG.AT.On(Attitude.ManeuverNode);
 				Node = Solver.maneuverNodes[0];
-				if(VSL.Engines.MaxDeltaV < (float)Node.DeltaV.magnitude)
+				InitialDeltaV = Node.DeltaV.magnitude;
+				ThresholdDeltaV = Math.Min(InitialDeltaV, 10);
+				min_deltaV = double.MaxValue;
+				within_threshold = false;
+				if(VSL.Engines.MaxDeltaV < InitialDeltaV)
 					Status("yellow", "WARNING: there may be not enough propellant for the maneuver");
 				THR.Throttle = 0;
 				CFG.DisableVSC();
@@ -92,7 +99,8 @@ namespace ThrottleControlledAvionics
 			CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 			Executor.Reset();
 			MinDeltaV = GLB.THR.MinDeltaV;
-			was_within_threshold = false;
+			min_deltaV = double.MaxValue;
+			within_threshold = false;
 			VSL.Info.Countdown = 0;
 			VSL.Info.TTB = 0;
 			Working = false;
@@ -140,8 +148,14 @@ namespace ThrottleControlledAvionics
 			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0]) { reset(); return; }
 			if(Executor.Execute(Node.GetBurnVector(VSL.orbit), MinDeltaV, StartCondition)) 
 			{
-				was_within_threshold |= Executor.WithinThreshold;
-				if(!was_within_threshold || Executor.WithinThreshold) return;
+				within_threshold |= Executor.RemainingDeltaV < ThresholdDeltaV;
+				if(within_threshold)
+				{
+					var dV = Executor.RemainingDeltaV;
+					if(dV < min_deltaV) { min_deltaV = dV; return; }
+					else if(dV-min_deltaV < GLB.THR.MinDeltaV) return;
+				}
+				else return;
 			}
 			Node.RemoveSelf();
 			reset();

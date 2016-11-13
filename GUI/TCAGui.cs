@@ -528,6 +528,10 @@ namespace ThrottleControlledAvionics
 			NavigationControls.WaypointEditorWindow();
 			if(Event.current.type == EventType.Repaint)
 				NavigationControls.WaypointOverlay();
+			#if DEBUG
+			var time_rect = new Rect(Screen.width*0.75f, 0, 100, 25).clampToScreen();
+			GUI.Label(time_rect, string.Format("{0:HH:mm:ss.fff}", DateTime.Now), Styles.boxed_label);
+			#endif
 		}
 
 		public void Update()
@@ -558,12 +562,18 @@ namespace ThrottleControlledAvionics
 					selecting_key = false;
 				}
 			}
-			else if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
-			if(CFG.Enabled && CFG.BlockThrottle && THR != null)
+			else if(!FlightDriver.Pause)
 			{
-				if(CFG.VF[VFlight.AltitudeControl]) 
-				{ if(ALT != null) ALT.ProcessKeys(); }
-				else if(VSC != null) VSC.ProcessKeys();
+				if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
+				if(CFG.Enabled)
+				{
+					if(CFG.BlockThrottle && THR != null)
+					{
+						if(CFG.VF[VFlight.AltitudeControl]) 
+						{ if(ALT != null) ALT.ProcessKeys(); }
+						else if(VSC != null) VSC.ProcessKeys();
+					}
+				}
 			}
 		}
 	}

@@ -19,17 +19,15 @@ namespace ThrottleControlledAvionics
 		static Globals GLB { get { return Globals.Instance; } }
 		static double Cd;
 
-		readonly CelestialBody Body;
 		readonly VesselWrapper VSL;
+		CelestialBody Body { get { return VSL.Body; } }
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="ThrottleControlledAvionics.AtmoSim"/> class.
 		/// </summary>
-		/// <param name="body">Planetary body.</param>
 		/// <param name="vsl">VesselWrapper.</param>
-		public AtmoSim(CelestialBody body, VesselWrapper vsl)
+		public AtmoSim(VesselWrapper vsl)
 		{
-			Body = body;
 			VSL = vsl;
 			//0.0005 converts dynamic pressure to kPa and divides area by 2: Drag = dP * Cd * S/2.
 			Cd = 0.0005 * Globals.Instance.ORB.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
@@ -69,7 +67,7 @@ namespace ThrottleControlledAvionics
 			return H;
 		}
 
-		public double FreeFallTime(out double terminal_velocity)
+		public double FreeFallTime(double end_altitude, out double terminal_velocity)
 		{
 			var t = 0.0;
 			var v = (double)VSL.VerticalSpeed.Absolute;
@@ -79,18 +77,21 @@ namespace ThrottleControlledAvionics
 			var s = VSL.Geometry.AreaInDirection(VSL.Physics.UpL);
 			var dt = v < 0? Math.Abs(h/v/10) : 1;
 			if(dt > DeltaTime) dt = DeltaTime;
-			while(h > VSL.Geometry.H)
+			while(h > end_altitude)
 			{
 				h += v*dt;
 				var ah = h+th;
 				v = Utils.ClampH(v-(StG(ah) - drag(s, ah, v)/m)*dt, -0.1);
 				t += dt;
-				dt = Math.Max(Math.Min(dt, (VSL.Geometry.H-h)/v*0.9), 0.01);
+				dt = Math.Max(Math.Min(dt, (end_altitude-h)/v*0.9), 0.01);
 //				Utils.Log("h {}, v {}, t {}", h, v, t);//debug
 			}
 			terminal_velocity = Math.Abs(v);
 			return t;
 		}
+
+		public double FreeFallTime(out double terminal_velocity)
+		{ return FreeFallTime(VSL.Geometry.H, out terminal_velocity); }
 
 		public double FromSurfaceTTA(double ApA, double alpha, double gturn_curve, double surface_vel)
 		{
@@ -101,10 +102,10 @@ namespace ThrottleControlledAvionics
 			var eStats = VSL.Engines.NoActiveEngines? 
 				VSL.Engines.GetNearestEnginedStageStats() :
 				VSL.Engines.GetEnginesStats(VSL.Engines.Active);
-			var mT = eStats.Thrust;
-			var mflow = eStats.MassFlow;
+			var mT = eStats.MaxThrust;
+			var mflow = eStats.MaxMassFlow;
 			var mTm = mT.magnitude*Mathfx.Lerp(0.6, 0.95, Utils.ClampH(
-				VSL.Torque.AngularAcceleration(eStats.TorqueLimits.Max+VSL.Torque.RCSLimits.Max+VSL.Torque.WheelsLimits.Max).magnitude, 1));
+				VSL.Torque.AngularAcceleration(eStats.TorqueInfo.Torque+VSL.Torque.RCSLimits.Max+VSL.Torque.WheelsLimits.Max).magnitude, 1));
 			var s = VSL.Geometry.AreaInDirection(mT);
 			var R = Body.Radius;
 			var thrust = true;
@@ -162,7 +163,7 @@ namespace ThrottleControlledAvionics
 
 		public static double FromSurfaceTTA(VesselWrapper VSL, double ApA, double alpha, double gturn_curve, double surface_vel)
 		{
-			var sim = new AtmoSim(VSL.Body, VSL);
+			var sim = new AtmoSim(VSL);
 			return sim.FromSurfaceTTA(ApA, alpha, gturn_curve, surface_vel);
 		}
 

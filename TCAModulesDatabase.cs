@@ -20,7 +20,17 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.Instantly, false)]
 	public class TCAModulesDatabase : MonoBehaviour
 	{
-		public static readonly Type[] ValidModules = Assembly.GetExecutingAssembly().GetTypes().Where(ValidModule).ToArray();
+		static Type[] tca_modules = null;
+		public static Type[] ValidModules
+		{
+			get 
+			{
+				if(tca_modules == null)
+					tca_modules = Assembly.GetExecutingAssembly().GetTypes().Where(ValidModule).ToArray();
+				return tca_modules;
+			}
+		}
+
 		public static readonly Dictionary<Type, ModuleMeta> RegisteredModules = new Dictionary<Type, ModuleMeta>();
 		public static readonly List<Type> Pipeline = new List<Type>();
 		public static readonly Dictionary<string, TCAPart> TechTreeParts = new Dictionary<string, TCAPart>();

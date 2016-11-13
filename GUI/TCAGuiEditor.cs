@@ -17,28 +17,38 @@ using AT_Utils;
 namespace ThrottleControlledAvionics
 {
 	[KSPAddon(KSPAddon.Startup.EditorAny, false)]
-	public class EnginesProfileEditor : AddonWindowBase<EnginesProfileEditor>
+	public class TCAGuiEditor : AddonWindowBase<TCAGuiEditor>
 	{
 		const string DefaultConstractName = "Untitled Space Craft";
 
-		NamedConfig CFG;
-		readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
-		float Mass, DryMass, MinTWR, MaxTWR;
-
 		public static bool Available { get; private set; }
 		static Dictionary<Type,bool> Modules = new Dictionary<Type, bool>();
+
+		NamedConfig CFG;
+		readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
+		readonly EnginesProps.EnginesDB ActiveEngines = new EnginesProps.EnginesDB();
+		static bool HaveSelectedPart { get { return EditorLogic.SelectedPart != null && EditorLogic.SelectedPart.potentialParent != null; } }
+
+		float Mass, DryMass, MinTWR, MaxTWR, MinLimit;
+		Vector3 CoM = Vector3.zero;
+		Matrix3x3f InertiaTensor = new Matrix3x3f();
+		Vector3 MoI { get { return new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]); } }
+
+		bool show_imbalance, parts_highlighted;
 
 		public override void Awake()
 		{
 			base.Awake();
 			width = 600;
-			height = 400;
+			height = 100;
 			GameEvents.onEditorShipModified.Add(OnShipModified);
 			GameEvents.onEditorLoad.Add(OnShipLoad);
 			GameEvents.onEditorRestart.Add(Reset);
 			GameEvents.onEditorStarted.Add(Started);
 			Available = false;
+			show_imbalance = false;
 			//module availability
+			Modules.Clear();
 			TCAModulesDatabase.ValidModules
 				.ForEach(t => Modules.Add(t, TCAModulesDatabase.ModuleAvailable(t)));
 		}
@@ -75,8 +85,12 @@ namespace ThrottleControlledAvionics
 		void OnShipLoad(ShipConstruct ship, CraftBrowserDialog.LoadType load_type)
 		{ init_engines = load_type == CraftBrowserDialog.LoadType.Normal; }
 
-		bool GetCFG(ShipConstruct ship)
+		void OnShipModified(ShipConstruct ship) 
+		{ update_engines = true; }
+
+		bool GetCFG()
 		{
+			var ship = EditorLogic.fetch.ship;
 			var TCA_Modules = ModuleTCA.AllTCA(ship);
 			if(TCA_Modules.Count == 0) { Reset(); return false; }
 			CFG = null;
@@ -100,52 +114,142 @@ namespace ThrottleControlledAvionics
 		void UpdateCFG(IList<ModuleTCA> TCA_Modules)
 		{
 			if(CFG == null || TCA_Modules.Count == 0) return;
-			TCA_Modules.ForEach(m => m.CFG = null);
+			TCA_Modules.ForEach(m => { m.CFG = null; m.TCA_Active = false; });
 			TCA_Modules[0].CFG = CFG;
+			TCA_Modules[0].TCA_Active = true;
 		}
-		void UpdateCFG(ShipConstruct ship)
-		{ UpdateCFG(ModuleTCA.AllTCA(ship)); }
+		void UpdateCFG() { UpdateCFG(ModuleTCA.AllTCA(EditorLogic.fetch.ship)); }
 
-		bool UpdateEngines(ShipConstruct ship)
+		void compute_inertia_tensor()
+		{
+			InertiaTensor = new Matrix3x3f();
+			if(EditorLogic.RootPart)
+				update_inertia_tensor(EditorLogic.RootPart);
+		}
+
+		void update_inertia_tensor(Part part)
+		{
+			if(!EditorLogic.RootPart) return;
+			float partMass = part.mass + part.GetResourceMass();
+			Vector3 partPosition = EditorLogic.RootPart.transform
+				.InverseTransformDirection(part.transform.position + part.transform.rotation * part.CoMOffset - CoM);
+			for(int i = 0; i < 3; i++)
+			{
+				InertiaTensor.Add(i, i, partMass * partPosition.sqrMagnitude);
+				for(int j = 0; j < 3; j++)
+					InertiaTensor.Add(i, j, -partMass * partPosition[i] * partPosition[j]);
+			}
+			part.children.ForEach(update_inertia_tensor);
+		}
+
+		void find_engines_recursively(Part part, List<EngineWrapper> engines)
+		{
+			if(part.Modules != null)
+			{
+				engines.AddRange(part.Modules.GetModules<ModuleEngines>()
+				                 .Select(m => new EngineWrapper(m)));
+			}
+			part.children.ForEach(p => find_engines_recursively(p, engines));
+		}
+
+		bool UpdateEngines()
 		{
 			Engines.Clear();
-			var thrust = Vector3.zero;
-			Mass = DryMass = MinTWR = MaxTWR = 0f;
-			ship.GetShipMass(out DryMass, out Mass);
-			Mass += DryMass;
-			if(TCAScenario.HasTCA && ship.Parts != null) 
-			{ 
-				(from p in ship.Parts where p.Modules != null
-				 from m in p.Modules.GetModules<ModuleEngines>() select m)
-					.ForEach(m =>
-					{
-						var e = new EngineWrapper(m);
-						Engines.Add(e);
-						e.UpdateThrustInfo();
-						if(CFG != null)
-						{
-							var ecfg = CFG.ActiveProfile.GetConfig(e);
-							if(ecfg == null || ecfg.On)
-								thrust += e.wThrustDir*e.thrustInfo.thrust;
-						}
-					});
-				var T = thrust.magnitude/Utils.G0;
-				MinTWR = T/Mass;
-				MaxTWR = T/DryMass;
-			}
+			if(TCAScenario.HasTCA && EditorLogic.RootPart) 
+				find_engines_recursively(EditorLogic.RootPart, Engines);
 			var ret = Engines.Count > 0;
 			if(!ret) Reset();
 			return ret;
 		}
 
-		void OnShipModified(ShipConstruct ship) { update_engines = true; }
+		void process_active_engine(EngineWrapper e)
+		{
+			e.throttle = e.VSF = e.thrustMod = 1;
+			e.UpdateThrustInfo();
+			e.InitLimits();
+			e.InitTorque(EditorLogic.RootPart.transform, CoM,
+			             Globals.Instance.ENG.TorqueRatioFactor);
+			e.UpdateCurrentTorque(1);
+		}
 
-		bool update_engines, init_engines, reset;
+		void UpdateShipStats()
+		{
+			var thrust = Vector3.zero;
+			var ship = EditorLogic.fetch.ship;
+			Mass = DryMass = MinTWR = MaxTWR = 0;
+			ship.GetShipMass(out DryMass, out Mass);
+			Mass += DryMass;
+			MinLimit = 0;
+			if(CFG != null && Engines.Count > 0)
+			{
+				ActiveEngines.Clear();
+				CoM = EditorMarker_CoM.findCenterOfMass(EditorLogic.RootPart);
+				for(int i = 0, EnginesCount = Engines.Count; i < EnginesCount; i++)
+				{
+					var e = Engines[i];
+					var ecfg = CFG.ActiveProfile.GetConfig(e);
+					if(ecfg == null || ecfg.On) ActiveEngines.Add(e);
+				}
+				if(HaveSelectedPart && !EditorLogic.fetch.ship.Contains(EditorLogic.SelectedPart))
+				{
+					var selected_engines = new List<EngineWrapper>();
+					find_engines_recursively(EditorLogic.SelectedPart, selected_engines);
+					EditorLogic.SelectedPart.symmetryCounterparts.ForEach(p => find_engines_recursively(p, selected_engines));
+					ActiveEngines.AddRange(selected_engines);
+				}
+				if(ActiveEngines.Count > 0)
+				{
+					ActiveEngines.ForEach(process_active_engine);
+					compute_inertia_tensor();
+					if(HaveSelectedPart && !ship.Contains(EditorLogic.SelectedPart))
+					{
+						update_inertia_tensor(EditorLogic.SelectedPart);
+						EditorLogic.SelectedPart.symmetryCounterparts.ForEach(update_inertia_tensor);
+					}
+					ActiveEngines.SortByRole();
+					float max_limit, torque_error, angle_error;
+					var imbalance = TorqueProps.CalculateImbalance(ActiveEngines.Manual, ActiveEngines.UnBalanced);
+					if(ActiveEngines.Balanced.Count > 0)
+					{
+						EngineOptimizer.OptimizeLimitsForTorque(ActiveEngines.Balanced, Vector3.zero, imbalance, MoI, 
+						                                        out max_limit, out torque_error, out angle_error);
+						imbalance = TorqueProps.CalculateImbalance(ActiveEngines.Manual, ActiveEngines.UnBalanced, ActiveEngines.Balanced);
+					}
+					if(ActiveEngines.Steering.Count > 0)
+					{
+						if(!EngineOptimizer.OptimizeLimitsForTorque(ActiveEngines.Steering, Vector3.zero, imbalance, MoI, 
+						                                            out max_limit, out torque_error, out angle_error))
+						{
+							ActiveEngines.Steering.ForEach(e => e.limit = 0);
+							ActiveEngines.Balanced.ForEach(e => e.limit = 0);
+						}
+					}
+					MinLimit = 1;
+					for(int i = 0, ActiveEnginesCount = ActiveEngines.Count; i < ActiveEnginesCount; i++)
+					{
+						var e = ActiveEngines[i];
+						thrust += e.wThrustDir * e.nominalCurrentThrust(e.limit);
+						if(e.Role != TCARole.MANUAL &&
+						   e.Role != TCARole.MANEUVER &&
+						   MinLimit > e.limit) MinLimit = e.limit;
+						e.forceThrustPercentage(e.limit*100);
+					}
+					var T = thrust.magnitude/Utils.G0;
+					MinTWR = T/Mass;
+					MaxTWR = T/DryMass;
+				}
+			}
+		}
+
+
+		bool reset, init_engines, update_engines, update_stats;
 		void Update()
 		{
-			if(EditorLogic.fetch == null) return;
+			if(EditorLogic.fetch == null || EditorLogic.fetch.ship == null) return;
+			update_stats |= HaveSelectedPart;
 			if(reset)
 			{
+				reset_highlightig();
 				Available = false;
 				Engines.Clear();
 				CFG = null;
@@ -153,20 +257,24 @@ namespace ThrottleControlledAvionics
 			}
 			if(init_engines)
 			{
-				if(UpdateEngines(EditorLogic.fetch.ship))
-					GetCFG(EditorLogic.fetch.ship);
+				reset_highlightig();
+				if(UpdateEngines()) GetCFG();
+				update_stats = true;
 				init_engines = false;
 			}
 			if(update_engines)
 			{
-				if(UpdateEngines(EditorLogic.fetch.ship))
+				reset_highlightig();
+				if(UpdateEngines())
 				{
-					if(CFG != null) UpdateCFG(EditorLogic.fetch.ship);
-					else GetCFG(EditorLogic.fetch.ship);
+					if(CFG != null) UpdateCFG();
+					else GetCFG();
 					if(CFG != null) CFG.ActiveProfile.Update(Engines);
 				}
+				update_stats = true;
 				update_engines = false;
 			}
+			if(update_stats) UpdateShipStats();
 			Available |= CFG != null && Engines.Count > 0;
 			if(Available) CFG.GUIVisible = CFG.Enabled;
 		}
@@ -195,8 +303,6 @@ namespace ThrottleControlledAvionics
 									CFG.VF.Toggle(VFlight.AltitudeControl);
 								Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
 				                                   "Enable follow terrain mode", GUILayout.ExpandWidth(false));
-								Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
-				                                   "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(false));
 							}
 							if(Modules[typeof(VTOLControl)])
 							{
@@ -218,6 +324,8 @@ namespace ThrottleControlledAvionics
 				                                   "Enable Collistion Prevention System", GUILayout.ExpandWidth(false));
 						GUILayout.EndHorizontal();
 						GUILayout.BeginHorizontal();
+							Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
+			                                   "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(true));
 							Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear, 
 			                                   "Automatically deploy/retract landing gear when needed", GUILayout.ExpandWidth(true));
 							Utils.ButtonSwitch("AutoBrakes", ref CFG.AutoBrakes, 
@@ -239,7 +347,15 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label("Ship Info:");
 					GUILayout.FlexibleSpace();
 					GUILayout.Label(string.Format("Mass: {0} ► {1}", Utils.formatMass(Mass), Utils.formatMass(DryMass)), Styles.boxed_label);
-					GUILayout.Label(string.Format("TWR: {0:F2} ► {1:F2}", MinTWR, MaxTWR), Styles.boxed_label);
+					if(ActiveEngines.Count > 0)
+					{
+						GUILayout.Label(string.Format("TWR: {0:F2} ► {1:F2}", MinTWR, MaxTWR), Styles.fracStyle(Utils.Clamp(MinTWR-1, 0, 1)));
+						GUILayout.Label(new GUIContent(string.Format("Balanced: {0:P1}", MinLimit),
+						                               "The efficacy of the least efficient of balanced engines"),
+						                Styles.fracStyle(MinLimit));
+						Utils.ButtonSwitch("HL", ref show_imbalance, "Highlight engines with low efficacy deu to balancing");
+					}
+					else GUILayout.Label("No active engines", Styles.boxed_label);
 				GUILayout.EndHorizontal();
 			GUILayout.EndVertical();
 			TooltipsAndDragWindow(WindowPos);
@@ -247,6 +363,26 @@ namespace ThrottleControlledAvionics
 
 		protected override bool can_draw()
 		{ return Engines.Count > 0 && CFG != null; }
+
+		static void highlight_engine(ThrusterWrapper e)
+		{
+			if(e.limit < 1) 
+			{
+				var lim = e.limit * e.limit;
+				var c = lim < 0.5f? 
+					Color.Lerp(Color.magenta, Color.yellow, lim/0.5f) :
+					Color.Lerp(Color.yellow, Color.cyan, (lim-0.5f)/0.5f);
+				e.part.SetHighlightColor(c);
+				e.part.SetHighlight(true, false);
+			}
+		}
+
+		static void reset_highlightig()
+		{
+			EditorLogic.fetch.ship.Parts
+				.Where(p => p.Modules.Contains<ModuleEngines>())
+				.ForEach(p => p.SetHighlightDefault());
+		}
 
 		protected override void draw_gui()
 		{
@@ -258,6 +394,17 @@ namespace ThrottleControlledAvionics
 				                 Title,
 				                 GUILayout.Width(width),
 				                 GUILayout.Height(height)).clampToScreen();
+			if(show_imbalance && ActiveEngines.Count > 0)
+			{
+				ActiveEngines.Balanced.ForEach(highlight_engine);
+				ActiveEngines.Main.ForEach(highlight_engine);
+				parts_highlighted = true;
+			}
+			else if(parts_highlighted)
+			{
+				reset_highlightig();
+				parts_highlighted = false;
+			}
 		}
 	}
 }
