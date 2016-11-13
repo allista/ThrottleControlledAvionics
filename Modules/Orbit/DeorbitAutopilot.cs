@@ -100,7 +100,7 @@ namespace ThrottleControlledAvionics
 
 		void compute_landing_trajectory()
 		{
-			//FIXME: sometimes the resulting trajectory still fails to account for CB rotation
+			//FIXME: sometimes the resulting trajectory still fails to account for CB rotation; may be connected to HyperEdit
 			trajectory = null;
 			MAN.MinDeltaV = 1;
 			Dtol = LTRJ.Dtol;
@@ -215,8 +215,11 @@ namespace ThrottleControlledAvionics
 				if(!trajectory_computed()) break;
 				if(trajectory.DistanceToTarget < LTRJ.Dtol || currentEcc < 1e-10)
 				{
-					SaveGame("before_landing");
-					if(check_initial_trajectory()) deorbit();
+					if(check_initial_trajectory()) 
+					{
+						SaveGame("before_landing");
+						deorbit();
+					}
 					else stage = Stage.Wait;
 				}
 				else 
@@ -229,6 +232,7 @@ namespace ThrottleControlledAvionics
 			case Stage.Wait:
 				VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
 				if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
+				SaveGame("before_landing");
 				deorbit();
 				break;
 			case Stage.Deorbit:
