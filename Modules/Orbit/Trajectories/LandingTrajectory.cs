@@ -66,10 +66,15 @@ namespace ThrottleControlledAvionics
 			//correct for brake maneuver
 			if(with_brake)
 			{
+				//calculate vertical brake time
 				var dV = (float)Vector3d.Project(AtTargetVel, AtTargetPos).magnitude;
 				BrakeDuration = VSL.Engines.TTB(dV, 
 				                                Utils.ClampL(VSL.Engines.MaxThrustM - VSL.Physics.StG*VSL.Physics.M, 0.1f), 
 				                                VSL.Engines.MaxMassFlow, ThrottleControl.NextThrottle(dV, 1, VSL));
+				//add 90deg turn time to face the ground
+				BrakeDuration += VSL.Torque.NoEngines? 
+					VSL.Torque.NoEngines.MinRotationTime(90) :
+					VSL.Torque.MaxEngines.RotationTime(90, 0.1f);
 				BrakeEndUT = AtTargetUT-Mathf.Max(GLB.LTRJ.CorrectionOffset, BrakeDuration*2);
 				BrakeStartUT = BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)AtTargetVel.magnitude, VSL, out BrakeDuration);
 				brake_delta_v = -0.9*Orbit.getOrbitalVelocityAtUT(BrakeEndUT);
