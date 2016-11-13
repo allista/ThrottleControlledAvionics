@@ -23,11 +23,11 @@ namespace ThrottleControlledAvionics
 				GLB.PersistentRotationThreshold : GLB.NoPersistentRotationThreshold;
 		}
 
-		public Transform Transform;
+//		public Transform Transform;
 		public Vector3 Steering { get; private set; }
 		public Vector3 Translation { get; private set; }
 		public Vector3 AutopilotSteering;
-		public bool    TranslationAvailable { get; private set; }
+		public bool    TranslationAvailable;
 		public Vector3 ManualTranslation;
 		public Switch  ManualTranslationSwitch = new Switch();
 		public float   GimbalLimit = 100;
@@ -41,6 +41,7 @@ namespace ThrottleControlledAvionics
 		public float AlignmentFactor { get; private set; }
 		public float InvAlignmentFactor { get; private set; }
 
+		Timer constant_AV_timer = new Timer();
 		State<float> angular_vel = new State<float>(0);
 		float av_threshold = 1e-6f;
 
@@ -57,11 +58,11 @@ namespace ThrottleControlledAvionics
 			Aligned &= AttitudeError < GLB.ATCB.MaxAttitudeError;
 			Aligned |= AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
 			angular_vel.current = VSL.vessel.angularVelocity.sqrMagnitude;
+			constant_AV_timer.StartIf(Mathf.Abs(angular_vel.current-angular_vel.old)/TimeWarp.fixedDeltaTime < av_threshold*100);
 			CanWarp = CFG.WarpToNode && 
 				(WarpToTime > VSL.Physics.UT || 
 				 VSL.Controls.Aligned && 
-				 (angular_vel.current < av_threshold || 
-				  Mathf.Abs(angular_vel.current-angular_vel.old)/TimeWarp.fixedDeltaTime < angular_vel.current/100));
+				 (angular_vel.current < av_threshold || constant_AV_timer.TimePassed));
 			MinAlignmentTime = VSL.Torque.MaxCurrent.MinRotationTime(AttitudeError);
 			AlignmentFactor = Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0);
 			InvAlignmentFactor = Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1);
@@ -75,7 +76,6 @@ namespace ThrottleControlledAvionics
 			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
 			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
-			TranslationAvailable = VSL.Engines.Maneuver.Count > 0 || VSL.Engines.NumActiveRCS > 0;
 		}
 
 		public bool RCSAvailableInDirection(Vector3 wDir)
@@ -88,11 +88,11 @@ namespace ThrottleControlledAvionics
 			return thrust.magnitude/VSL.Physics.M > GLB.TRA.MinDeltaV/2;
 		}
 
-		void select_retT()
-		{
-			Part ref_part = null;
-			var command_parts = VSL.vessel.parts.Where(p => p.HasModule<ModuleCommand>()).ToList();
-			ref_part = command_parts.Count == 1 ? command_parts[0] : VSL.vessel.rootPart;
+//		void select_retT()
+//		{
+//			Part ref_part = null;
+//			var command_parts = VSL.vessel.parts.Where(p => p.HasModule<ModuleCommand>()).ToList();
+//			ref_part = command_parts.Count == 1 ? command_parts[0] : VSL.vessel.rootPart;
 //			else
 //			{
 //				
@@ -107,20 +107,20 @@ namespace ThrottleControlledAvionics
 //					{ ref_part = p; max_ali = ali; }
 //				}
 //			}
-			CFG.ControlTransform = ref_part.flightID;
-			Transform = ref_part.transform;
-		}
+//			CFG.ControlTransform = ref_part.flightID;
+//			Transform = ref_part.transform;
+//		}
 
-		public void UpdateRefTransform()
-		{
-			if(CFG.ControlTransform == 0) select_retT();
-			else
-			{
-				var ref_part = VSL.vessel.parts.Find(p => p.flightID == CFG.ControlTransform);
-				if(ref_part == null) select_retT();
-				else Transform = ref_part.transform;
-			}
-		}
+//		public void UpdateRefTransform()
+//		{
+//			if(CFG.ControlTransform == 0) select_retT();
+//			else
+//			{
+//				var ref_part = VSL.vessel.parts.Find(p => p.flightID == CFG.ControlTransform);
+//				if(ref_part == null) select_retT();
+//				else Transform = ref_part.transform;
+//			}
+//		}
 
 		public void SetSteering(Vector3 steering)
 		{ AutopilotSteering = steering.ClampComponents(-1, 1); }

@@ -175,7 +175,7 @@ namespace ThrottleControlledAvionics
 
 		public void Init()
 		{
-			Controls.UpdateRefTransform();
+//			Controls.UpdateRefTransform();
 			UpdateCommons();
 			OnPlanetParams.Update();
 			Geometry.Update();
@@ -262,10 +262,10 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateCommons()
 		{
+			Controls.Update();
 			Engines.Sort();
 			Engines.Update();
 			Torque.Update();
-			Controls.Update();
 		}
 
 		public void ClearFrameState()
@@ -307,9 +307,10 @@ namespace ThrottleControlledAvionics
 		public void UpdateParts()
 		{
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
-			Engines.Clear(); Torque.Wheels.Clear();
-			OnPlanetParams.Parachutes.Clear();
+			Engines.Clear(); 
+			Torque.Wheels.Clear();
 			Physics.AngularDrag = 0;
+			OnPlanetParams.Clear();
 			var drag_parts = 0;
 			var parts_count = vessel.Parts.Count;
 			for(int i = 0; i < parts_count; i++)
@@ -323,6 +324,7 @@ namespace ThrottleControlledAvionics
 					if(Engines.Add(module as ModuleRCS)) continue;
 					if(AddModule(module, Torque.Wheels)) continue;
 					if(AddModule(module, OnPlanetParams.Parachutes)) continue;
+					if(OnPlanetParams.AddGear(module)) continue;
 				}
 			}
 			Physics.AngularDrag /= drag_parts;

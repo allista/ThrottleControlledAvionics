@@ -109,8 +109,8 @@ namespace ThrottleControlledAvionics
 		static void onToolbarToggle(ClickEvent e) 
 		{ 
 			if(TCA != null) TCAGui.Toggle();
-			else if(HighLogic.LoadedSceneIsEditor && EnginesProfileEditor.Available)
-				EnginesProfileEditor.Toggle();
+			else if(HighLogic.LoadedSceneIsEditor && TCAGuiEditor.Available)
+				TCAGuiEditor.Toggle();
 			else TCAManual.Toggle();
 		}
 		static void onAppLaunchToggleOn() { onToolbarToggle(null); }
@@ -145,7 +145,7 @@ namespace ThrottleControlledAvionics
 					else TCAButton.SetTexture(textureOff);
 				}
 			}
-			else if(HighLogic.LoadedSceneIsEditor && EnginesProfileEditor.Available)
+			else if(HighLogic.LoadedSceneIsEditor && TCAGuiEditor.Available)
 			{
 				if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = ICON_OFF;
 				if(TCAButton != null) TCAButton.SetTexture(textureOff);

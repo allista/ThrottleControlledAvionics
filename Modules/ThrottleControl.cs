@@ -32,10 +32,10 @@ namespace ThrottleControlledAvionics
 		public bool CorrectThrottle = true;
 
 		public float NextThrottle(float dV, float throttle)
-		{ return NextThrottle(dV, throttle, VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Engines.ThrustDecelerationTime); }
+		{ return NextThrottle(dV, throttle, VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Engines.DecelerationTime); }
 
 		public static float NextThrottle(float dV, float throttle, VesselWrapper VSL)
-		{ return NextThrottle(dV, throttle, VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Engines.ThrustDecelerationTime); }
+		{ return NextThrottle(dV, throttle, VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Engines.DecelerationTime); }
 
 		public static float NextThrottle(float dV, float throttle, float mass, float thrust, float deceleration_time)
 		{

@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 		readonly FuzzyThreshold<double> dVrem = new FuzzyThreshold<double>(1, 0.5f);
 
 		public bool WithinThreshold { get { return dVrem; } }
+		public double RemainingDeltaV { get { return dVrem; } }
 
 		public ManeuverExecutor(ModuleTCA tca) : base(tca) { InitModuleFields(); }
 

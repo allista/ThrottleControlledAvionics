@@ -8,13 +8,16 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
+using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
 	[CareerPart]
 	[RequireModules(typeof(HorizontalSpeedControl))]
-	[OptionalModules(typeof(PointNavigator))]
+	[OptionalModules(typeof(PointNavigator),
+	                 typeof(VerticalSpeedControl),
+	                 typeof(AttitudeControl))]
 	public class VTOLAssist : TCAModule
 	{
 		public class Config : ModuleConfig
@@ -35,7 +38,14 @@ namespace ThrottleControlledAvionics
 		static Config TLA { get { return Globals.Instance.TLA; } }
 		public VTOLAssist(ModuleTCA tca) : base(tca) {}
 
-		bool last_state, landed, tookoff;
+		VerticalSpeedControl VSC;
+		AttitudeControl ATC;
+
+		enum Stage { Landed, Flying, JustLanded1, JustLanded2, JustTookoff }
+		Stage stage;
+
+		bool was_landed;
+		Vector3 srf_normal;
 		readonly Timer GearTimer   = new Timer();
 		readonly Timer LandedTimer = new Timer();
 		readonly SingleAction StopAction = new SingleAction();
@@ -58,8 +68,8 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			last_state = VSL.LandedOrSplashed;
-			landed = tookoff = false;
+			was_landed = VSL.LandedOrSplashed;
+			stage = was_landed ? Stage.Landed : Stage.Flying;
 			GearTimer.Period = TLA.GearTimer;
 			LandedTimer.Period = TLA.LandedTimer;
 			StopAction.action = () => CFG.HF.OnIfNot(HFlight.Stop);
@@ -71,8 +81,8 @@ namespace ThrottleControlledAvionics
 			base.UpdateState();
 			IsActive &= VSL.OnPlanet && CFG.VTOLAssistON; 
 			if(IsActive) return;
-			last_state = VSL.LandedOrSplashed;
-			landed = tookoff = false;
+			was_landed = VSL.LandedOrSplashed;
+			stage = was_landed ? Stage.Landed : Stage.Flying;
 			working(false);
 		}
 
@@ -80,63 +90,93 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			//update state
-			if(last_state && !VSL.LandedOrSplashed) 
-			{ tookoff = true; landed = false; GearTimer.Reset(); StopAction.Reset(); }
-			else if(VSL.LandedOrSplashed && !last_state) 
-			{ landed = true; tookoff = false; }
-			last_state = VSL.LandedOrSplashed;
-			//just landed
-			if(landed)
+			if(was_landed && !VSL.LandedOrSplashed) 
+			{ stage = Stage.JustTookoff; GearTimer.Reset(); StopAction.Reset(); }
+			else if(VSL.LandedOrSplashed && !was_landed) stage = Stage.JustLanded1;
+			was_landed = VSL.LandedOrSplashed;
+			switch(stage)
 			{
+			case Stage.JustLanded1:
 				working();
+				srf_normal = Vector3.zero;
 				CFG.HF.OnIfNot(HFlight.Level);
 				VSL.BrakesOn();
-				LandedTimer.RunIf(() => landed = false,
+				LandedTimer.RunIf(() => stage = Stage.JustLanded2,
 				                  VSL.HorizontalSpeed < TLA.MinHSpeed);
-			}
-			//just took off
-			else if(tookoff)
-			{
+				break;
+			case Stage.JustLanded2:
+				if(ATC != null)
+				{
+					if(srf_normal.IsZero())
+					{
+						RaycastHit hit;
+						if(Physics.Raycast(VSL.Physics.wCoM, -VSL.Physics.Up, out hit, VSL.Geometry.D, Radar.RadarMask))
+						{
+							if(hit.collider != null && !hit.normal.IsZero())
+							{
+								srf_normal = -hit.normal;
+								break;
+							}
+						}
+						stage = Stage.Landed;
+						break;
+					}
+					working();
+					CFG.HF.Off();
+					CFG.AT.OnIfNot(Attitude.Custom);
+					ATC.SetThrustDirW(srf_normal);
+					LandedTimer.RunIf(() => { stage = Stage.Landed; CFG.AT.Off(); }, VSL.Controls.AttitudeError < 1);
+					break;
+				}
+				stage = Stage.Landed;
+				break;
+			case Stage.JustTookoff:
 				working();
 				StopAction.Run();
 				GearTimer.RunIf(() =>
 				{ 
 					VSL.BrakesOn(false);
 					VSL.GearOn(false);
-					tookoff = false;
+					stage = Stage.Flying;
 				}, VSL.Altitude.Relative > 2*VSL.Geometry.H);
-			}
-			//moving on the ground
-			else if(VSL.LandedOrSplashed)
-			{
-				var avSqr = VSL.vessel.angularVelocity.sqrMagnitude;
-				if(VSL.HorizontalSpeed < TLA.MaxHSpeed &&
-				   avSqr > TLA.MinAngularVelocity)
+				break;
+			case Stage.Landed:
+				if(CFG.VerticalCutoff <= 0) working(false);
+				else
 				{
-					working();
-					CFG.HF.OnIfNot(HFlight.Level);
-					if(avSqr > TLA.GearOffAngularVelocity && 
-					   VSL.OnPlanetParams.DTWR > TLA.MinDTWR)
-						VSL.GearOn(false);
+					var avSqr = VSL.vessel.angularVelocity.sqrMagnitude;
+					if(VSL.HorizontalSpeed < TLA.MaxHSpeed &&
+					   avSqr > TLA.MinAngularVelocity)
+					{
+						working();
+						CFG.HF.OnIfNot(HFlight.Level);
+						if(avSqr > TLA.GearOffAngularVelocity && 
+						   VSL.OnPlanetParams.DTWR > TLA.MinDTWR)
+							VSL.GearOn(false);
+					}
+					else working(false);
 				}
-				else working(false);
-			}
-			//if flying, check if trying to land and deploy the gear
-			else 
-			{
+				break;
+			case Stage.Flying:
 				working(false);
-				//if the gear is on, nothing to do; and autopilot takes precedence
 				if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear])
 				{
-					//check boundary conditions
-					GearTimer.RunIf(() => 
+					if(VSL.VerticalSpeed.Relative < 0 &&
+					   VSL.HorizontalSpeed < TLA.GearOnMaxHSpeed &&
+					   (!CFG.AT || !VSL.Altitude.AboveGround || VSL.Engines.Thrust.IsZero()) &&
+					   VSL.Altitude.Relative+
+					   VSL.VerticalSpeed.Relative*(VSL.OnPlanetParams.GearDeployTime+TLA.GearOnTime) 
+					   < TLA.GearOnAtH*VSL.Geometry.H)
 					{
 						VSL.GearOn(); 
 						VSL.BrakesOn();
-					},
-					                VSL.VerticalSpeed.Relative < 0 &&
-					                VSL.HorizontalSpeed < TLA.GearOnMaxHSpeed &&
-					                VSL.Altitude.Relative+VSL.VerticalSpeed.Relative*(TLA.GearOnTime+TLA.GearTimer) < TLA.GearOnAtH*VSL.Geometry.H);
+					}
+				}
+				else if(VSL.OnPlanetParams.GearDeploying)
+				{
+					if(VSC != null) 
+						VSC.SetpointOverride = Utils.ClampH((TLA.GearOnAtH*VSL.Geometry.H-VSL.Altitude.Relative)/
+						                                    (VSL.OnPlanetParams.GearDeployTime+TLA.GearOnTime), 0);
 				}
 				else GearTimer.RunIf(() => 
 				{
@@ -146,6 +186,7 @@ namespace ThrottleControlledAvionics
 				                     VSL.VerticalSpeed.Relative > 5 ||
 				                     VSL.HorizontalSpeed > TLA.GearOnMaxHSpeed || 
 				                     VSL.VerticalSpeed.Relative > 0 && VSL.Altitude.Relative > VSL.Geometry.H*5);
+				break;
 			}
 		}
 	}

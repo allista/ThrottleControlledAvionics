@@ -1,3 +1,4 @@
+
 //  Author:
 //       Allis Tauri <allista@gmail.com>
 //
@@ -70,7 +71,7 @@ namespace ThrottleControlledAvionics
 		public float TimeAhead { get; private set; }
 		public float DistanceAhead { get; private set; }
 
-		static   int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery"));
+		public static readonly int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery"));
 		//normal radar
 		Mode     mode;
 		Vector3  Dir;
@@ -186,7 +187,7 @@ namespace ThrottleControlledAvionics
 			}
 			//calculate closing speed and initial ray direction
 			Dir = Vector3.zero;
-			LookAheadTime = Utils.ClampL(RAD.LookAheadTime/VSL.OnPlanetParams.MaxTWR*VSL.Engines.ThrustAccelerationTime, 10);
+			LookAheadTime = Utils.ClampL(RAD.LookAheadTime/VSL.OnPlanetParams.MaxTWR*VSL.Engines.AccelerationTime, 10);
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
 			var SurfaceVelocityDir = SurfaceVelocity.normalized;
 			var SurfaceSpeed = (float)SurfaceVelocity.magnitude;

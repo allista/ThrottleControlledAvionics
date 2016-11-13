@@ -125,7 +125,7 @@ ATCB
 	
 	MaxAA                  = 2
 	MinAAf                 = 0.5
-	MaxAAf                 = 2
+	MaxAAf                 = 2.5
 
 	AngularMf              = 0.001
 	InertiaFactor          = 10
@@ -133,6 +133,7 @@ ATCB
 	MinEf                  = 0.0001
 	MaxEf                  = 2
 	SlowTorqueF            = 0.06 //0.2
+	MaxSlowF               = 3
 	AALowPassF             = 1
 	
 	AngleThreshold         = 60 //deg
@@ -185,6 +186,7 @@ HSC
 	SlowTorqueF        = 1
 	LowPassF           = 0.1
 	CorrectionWeight   = 100
+	
 }
 
 VTOL
@@ -194,9 +196,9 @@ VTOL
 
 BRC
 {
-	MaxAAf = 6
-	MinAAf = 0.5
-	ADf    = 0.005
+	MaxAAf = 3
+	MinAAf = 1
+	ADf    = 0.011
 	YawFactor = 60
 	DrawForwardDirection = true
 	
@@ -234,7 +236,7 @@ PN
 	MaxSpeed             = 500
 
 	LookAheadTime        = 3
-	BearingCutoff        = 80
+	BearingCutoff        = 45
 	FormationSpeedCutoff = 10
 	FormationFactor      = 0.2
 	FormationBreakTime   = 10
@@ -310,7 +312,7 @@ TLA
 	MaxHSpeed = 10
 	MinVSpeed = 1
 	GearTimer = 1
-	LandedTimer = 2
+	LandedTimer = 1
 	MinDTWR     = 0.5
 	MinAngularVelocity = 0.001 //(rad/s)^2 ~= 1.8deg/s
 	GearOffAngularVelocity = 0.01 //(rad/s)^2 ~= 5.73deg/s

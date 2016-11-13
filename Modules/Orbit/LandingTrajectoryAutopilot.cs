@@ -68,6 +68,7 @@ namespace ThrottleControlledAvionics
 		protected AttitudeControl ATC;
 		protected ThrottleControl THR;
 		protected BearingControl  BRC;
+		protected AutoLander      LND;
 
 		protected double TargetAltitude { get { return CFG.Target.SurfaceAlt(Body); } }
 
@@ -94,7 +95,7 @@ namespace ThrottleControlledAvionics
 				dP_threshold = Utils.ClampH(dP_threshold * 1.1, LTRJ.MaxDPressure);
 				last_dP = VSL.vessel.dynamicPressurekPa;
 			};
-			sim = new AtmoSim(Body, VSL);
+			sim = new AtmoSim(VSL);
 			Executor = new ManeuverExecutor(TCA);
 			scanner = new PQS_Scanner(VSL);
 			scanner.MaxUnevennes = GLB.LND.MaxUnevenness/3;
@@ -119,15 +120,16 @@ namespace ThrottleControlledAvionics
 		protected bool check_initial_trajectory()
 		{
 			var fuel_needed = VSL.Engines.FuelNeeded((float)trajectory.ManeuverDeltaV.magnitude) +
-				VSL.Engines.FuelNeededAtAlt((float)trajectory.AtTargetVel.magnitude, 
-				                                    (float)(trajectory.AtTargetPos.magnitude-Body.Radius));
+				VSL.Engines.FuelNeededAtAlt((float)(trajectory.AtTargetVel.magnitude+trajectory.BrakeDeltaV.magnitude), 
+				                            (float)(trajectory.AtTargetPos.magnitude-Body.Radius));
 			var fuel_available = VSL.Engines.GetAvailableFuelMass();
 			var hover_time = fuel_needed < fuel_available? VSL.Engines.MaxHoverTimeASL(fuel_available-fuel_needed) : 0;
 			var status = "";
-			if(trajectory.DistanceToTarget < LTRJ.Dtol && hover_time > LTRJ.HoverTimeThreshold) return true;
+			var enough_fuel = hover_time > LTRJ.HoverTimeThreshold || CheatOptions.InfinitePropellant;
+			if(trajectory.DistanceToTarget < LTRJ.Dtol && enough_fuel) return true;
 			else
 			{
-				if(hover_time < LTRJ.HoverTimeThreshold)
+				if(!enough_fuel)
 				{
 					status += "WARNING: Not enough fuel for powered landing.\n";
 					if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
@@ -136,7 +138,7 @@ namespace ThrottleControlledAvionics
 				}
 				if(trajectory.DistanceToTarget > LTRJ.Dtol)
 					status += string.Format("WARNING: Predicted landing site is too far from the target.\n" +
-					                        "Error is <color=magenta><b>{0}</b></color>", 
+					                        "Error is <color=magenta><b>{0}</b></color>\n", 
 					                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
 				status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
 				Status("yellow", status);
@@ -241,6 +243,8 @@ namespace ThrottleControlledAvionics
 
 		void land()
 		{
+			if(CFG.Target != null && !CFG.Target.IsVessel)
+				LND.StartFromTarget();
 			CFG.AP1.On(Autopilot1.Land);
 			landing_stage = LandingStage.Land;
 		}
@@ -337,9 +341,9 @@ namespace ThrottleControlledAvionics
 			if(scanner.Idle) scanner.Start(CFG.Target.Pos, LTRJ.MaxScanningCycles, LTRJ.PointsPerFrame);
 			Status("Scanning for <b>flat</b> surface to land: {0:P1}", scanner.Progress);
 			if(scanner.Scan()) return;
-			if(scanner.FlatRegion != null)
+			if(scanner.FlatRegion != null && !scanner.FlatRegion.Equals(CFG.Target.Pos))
 			{
-				CFG.Target.Pos = scanner.FlatRegion.Copy();
+				CFG.Target = new WayPoint(scanner.FlatRegion);
 				if(trajectory != null) trajectory.TargetAltitude = CFG.Target.Pos.Alt;
 				Utils.Message("Found flat region for landing.");
 			}
@@ -400,7 +404,7 @@ namespace ThrottleControlledAvionics
 			case LandingStage.Decelerate:
 				rel_altitude_if_needed();
 				update_trajectory();
-				nose_to_target();
+				CFG.BR.Off();
 				if(Working)
 				{
 					Status("red", "Possible collision detected.");
@@ -528,7 +532,7 @@ namespace ThrottleControlledAvionics
 				update_trajectory();
 				setup_for_deceleration();
 				compute_terminal_velocity();
-				nose_to_target();
+				CFG.BR.Off();
 				if(Working)
 				{
 					ATC.SetThrustDirW(correction_direction());
@@ -663,7 +667,7 @@ namespace ThrottleControlledAvionics
 		bool scan_current_point()
 		{
 			#if DEBUG
-			VSL.Info.AddCustopWaypoint(current_point, "Checking...");//debug
+			VSL.Info.AddCustopWaypoint(current_point, "Checking...");
 			#endif
 			current_point.SetAlt2Surface(VSL.Body);
 			var alt_delta = altitude_delta(current_point.Lat-half, current_point.Lon-half);

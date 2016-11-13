@@ -67,6 +67,7 @@ namespace ThrottleControlledAvionics
 		readonly PIDf_Controller DistancePID = new PIDf_Controller();
 		readonly PIDvd_Controller LateralPID = new PIDvd_Controller();
 		readonly Timer ArrivedTimer = new Timer();
+		readonly Timer SharpTurnTimer = new Timer();
 
 		Vessel tVSL;
 		ModuleTCA tTCA;
@@ -79,8 +80,10 @@ namespace ThrottleControlledAvionics
 		Timer FormationUpdateTimer = new Timer();
 		bool keep_formation;
 
+
 		HorizontalSpeedControl HSC;
 		AltitudeControl ALT;
+		AutoLander LND;
 		Radar RAD;
 
 		public override void Init()
@@ -178,8 +181,10 @@ namespace ThrottleControlledAvionics
 		bool on_arrival()
 		{
 			if(CFG.Target == null) return false;
-			if(CFG.Target.Land)	
+			if(CFG.Target.Land && LND != null)	
 			{ 
+				if(!CFG.Target.IsVessel)
+					LND.StartFromTarget();
 				VSL.PauseWhenStopped = CFG.Target.Pause;
 				CFG.Target.Pause = false;
 				CFG.AP1.XOn(Autopilot1.Land);
@@ -305,7 +310,8 @@ namespace ThrottleControlledAvionics
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.Physics.wCoM, VSL.Physics.Up);
 			var hdistance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
-			var bearing_threshold = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(VSL.Physics.Up), PN.BearingCutoffCos, 0.99f);
+			var bearing_threshold = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(VSL.Engines.CurrentMaxThrustDir), 
+			                                    PN.BearingCutoffCos, 0.98480775f); //10deg yaw error
 			//update destination
 			if(tPN != null && !tPN.VSL.Info.Destination.IsZero()) 
 				VSL.Info.Destination = tPN.VSL.Info.Destination;
@@ -427,13 +433,25 @@ namespace ThrottleControlledAvionics
 				ArrivedTimer.Reset();
 				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 				//if we need to make a sharp turn, stop and turn, then go on
-				if(Vector3.Dot(vdir, VSL.OnPlanetParams.Fwd) < bearing_threshold &&
-				   Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir) < bearing_threshold)
+				var heading_dir = Vector3.Dot(VSL.OnPlanetParams.Heading, vdir);
+				var hvel_dir = Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir);
+				if(heading_dir < bearing_threshold && hvel_dir < bearing_threshold)
+					SharpTurnTimer.Start();
+				if(SharpTurnTimer.Started)
 				{
 					VSL.HorizontalSpeed.SetNeeded(vdir);
 					Maneuvering = false;
 					vel_is_set = true;
+					if(heading_dir < bearing_threshold ||
+					   VSL.HorizontalSpeed.Absolute > 1 && Math.Abs(hvel_dir) < PN.BearingCutoffCos)
+						SharpTurnTimer.Restart();
+					else if(SharpTurnTimer.TimePassed) 
+						SharpTurnTimer.Reset();
 				}
+//				Log("timer: {}\nheading*dir {} < {}, vel {} > 1, vel*dir {} < {}",
+//				    SharpTurnTimer,
+//				    Vector3.Dot(VSL.OnPlanetParams.Heading, vdir), bearing_threshold,
+//				    VSL.HorizontalSpeed.Absolute, Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir), bearing_threshold);//debug
 			}
 			var cur_vel = (float)Vector3d.Dot(dvel, vdir);
 			if(!vel_is_set)
@@ -473,15 +491,14 @@ namespace ThrottleControlledAvionics
 				DistancePID.Max = CFG.MaxNavSpeed;
 				if(cur_vel > 0)
 				{
-					var brake_thrust = Mathf.Max(VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude,
-					                             VSL.Physics.mg*VSL.OnPlanetParams.TWRf);
+					var brake_thrust = Mathf.Max(VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude, VSL.Physics.mg);
 					var eta = hdistance/cur_vel;
 					var max_speed = 0f;
 					if(brake_thrust > 0)
 					{
 						var brake_accel = brake_thrust/VSL.Physics.M;
 						var brake_time = cur_vel/brake_accel;
-						max_speed = brake_accel*eta;
+						max_speed = Utils.ClampL(brake_accel*eta, 1);
 						if(eta <= brake_time*PN.BrakeOffset)
 							HSC.AddRawCorrection((eta/brake_time/PN.BrakeOffset-1)*VSL.HorizontalSpeed.Vector);
 					}

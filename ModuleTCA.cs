@@ -108,6 +108,7 @@ namespace ThrottleControlledAvionics
 		public override void OnAwake()
 		{
 			base.OnAwake();
+			GameEvents.onEditorShipModified.Add(onEditorShipModified);
 			GameEvents.onVesselWasModified.Add(onVesselModify);
 			GameEvents.onStageActivate.Add(onStageActive);
 			GameEvents.onVesselGoOffRails.Add(onVesselGoOffRails);
@@ -118,6 +119,7 @@ namespace ThrottleControlledAvionics
 			if(vessel != null && vessel.connection != null)
 				vessel.connection.UnregisterCommandSource(this);
 			GameEvents.CommNet.OnNetworkInitialized.Remove(OnNetworkInitialised);
+			GameEvents.onEditorShipModified.Remove(onEditorShipModified);
 			GameEvents.onVesselWasModified.Remove(onVesselModify);
 			GameEvents.onStageActivate.Remove(onStageActive);
 			GameEvents.onVesselGoOffRails.Remove(onVesselGoOffRails);
@@ -188,6 +190,9 @@ namespace ThrottleControlledAvionics
 				StartCoroutine(updateUnpackDistance());
 			}
 		}
+
+		void onEditorShipModified(IShipconstruct ship)
+		{ check_priority(ship); }
 
 		void onStageActive(int stage)
 		{ 
@@ -459,18 +464,11 @@ namespace ThrottleControlledAvionics
 				//:preset manual limits for translation if needed
 				if(VSL.Controls.ManualTranslationSwitch.On)
 				{
-					ENG.PresetLimitsForTranslation(VSL.Engines.Manual, VSL.Controls.ManualTranslation);
-					if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.Engines.Manual, VSL.Physics.UpL);
+					ENG.PresetLimitsForTranslation(VSL.Engines.Active.Manual, VSL.Controls.ManualTranslation);
+					if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.Engines.Active.Manual, VSL.Physics.UpL);
 				}
-				//:balance-only engines
-				if(VSL.Engines.Balanced.Count > 0)
-				{
-					VSL.Torque.UpdateImbalance(VSL.Engines.Manual, VSL.Engines.UnBalanced);
-					ENG.OptimizeLimitsForTorque(VSL.Engines.Balanced, Vector3.zero);
-				}
-				VSL.Torque.UpdateImbalance(VSL.Engines.Manual, VSL.Engines.UnBalanced, VSL.Engines.Balanced);
 				//:optimize limits for steering
-				ENG.PresetLimitsForTranslation(VSL.Engines.Maneuver, VSL.Controls.Translation);
+				ENG.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, VSL.Controls.Translation);
 				ENG.Steer();
 			}
 			RCS.Steer();

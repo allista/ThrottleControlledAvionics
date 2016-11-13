@@ -14,7 +14,7 @@ using AT_Utils;
 namespace ThrottleControlledAvionics
 {
 	//adapted from MechJeb
-	public class Coordinates : ConfigNodeObject
+	public class Coordinates : ConfigNodeObject, IEquatable<Coordinates>
 	{
 		[Persistent] public double Lat;
 		[Persistent] public double Lon;
@@ -138,6 +138,11 @@ namespace ThrottleControlledAvionics
 			                     Biome(body)); 
 		}
 
-		public string FullDescription(Vessel vsl) { return FullDescription(vsl.mainBody);}
+		public string FullDescription(Vessel vsl) { return FullDescription(vsl.mainBody); }
+
+		#region IEquatable implementation
+		public bool Equals(Coordinates other)
+		{ return Lat.Equals(other.Lat) && Lon.Equals(other.Lon) && Alt.Equals(other.Alt); }
+		#endregion
 	}
 }

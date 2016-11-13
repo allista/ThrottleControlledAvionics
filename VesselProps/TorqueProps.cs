@@ -31,18 +31,24 @@ namespace ThrottleControlledAvionics
 		public TorqueInfo MaxPossible; //theoretical maximum torque from active engines, wheels and RCS
 		public TorqueInfo MaxEngines; //theoretical maximum torque from active engines
 
+		public Vector3  EnginesResponseTime { get; private set; }
+		public float    EnginesResponseTimeM { get; private set; }
+
 		public float MaxAAMod { get; private set; }
 
 		public TorqueProps(VesselWrapper vsl) : base(vsl) 
 		{ MaxAAFilter.Tau = GLB.MaxAAFilter; }
 
-		public Vector3 AngularAcceleration(Vector3 torque)
+		public static Vector3 AngularAcceleration(Vector3 torque, Vector3 MoI)
 		{
 			return new Vector3
-				(VSL.Physics.MoI.x.Equals(0)? float.MaxValue : torque.x/VSL.Physics.MoI.x,
-				 VSL.Physics.MoI.y.Equals(0)? float.MaxValue : torque.y/VSL.Physics.MoI.y,
-				 VSL.Physics.MoI.z.Equals(0)? float.MaxValue : torque.z/VSL.Physics.MoI.z);
+				(MoI.x.Equals(0)? float.MaxValue : torque.x/MoI.x,
+				 MoI.y.Equals(0)? float.MaxValue : torque.y/MoI.y,
+				 MoI.z.Equals(0)? float.MaxValue : torque.z/MoI.z);
 		}
+
+		public Vector3 AngularAcceleration(Vector3 torque)
+		{ return AngularAcceleration(torque, VSL.Physics.MoI); }
 
 		public bool HavePotentialControlAuthority
 		{ 
@@ -57,22 +63,31 @@ namespace ThrottleControlledAvionics
 		public override void Update()
 		{
 			//engines
+			EnginesResponseTime = Vector3.zero;
+			EnginesResponseTimeM = 0f;
 			EnginesLimits = Vector6.zero;
 			var MaxEnginesLimits = Vector6.zero;
 			var EnginesSpecificTorque = Vector6.zero;
-			for(int i = 0, count = VSL.Engines.Steering.Count; i < count; i++)
+			var TorqueResponseSpeed = Vector6.zero;
+			var TotalSlowTorque = Vector6.zero;
+			for(int i = 0, count = VSL.Engines.Active.Steering.Count; i < count; i++)
 			{
-				var e = VSL.Engines.Steering[i];
+				var e = VSL.Engines.Active.Steering[i];
 				EnginesLimits.Add(e.currentTorque);
 				EnginesSpecificTorque.Add(e.specificTorque);
 				MaxEnginesLimits.Add(e.specificTorque*e.nominalCurrentThrust(1));
+				if(e.useEngineResponseTime && (e.Role == TCARole.MAIN || e.Role == TCARole.MANEUVER))
+				{
+					TotalSlowTorque.Add(e.currentTorque);
+					TorqueResponseSpeed.Add(e.currentTorque*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
+				}
 			}
 			//wheels
 			WheelsLimits = Vector6.zero;
 			for(int i = 0, count = Wheels.Count; i < count; i++)
 			{
 				var w = Wheels[i];
-				if(!w.operational) continue;
+				if(w.State != ModuleReactionWheel.WheelState.Active) continue;
 				var torque = new Vector3(w.PitchTorque, w.RollTorque, w.YawTorque);
 				WheelsLimits.Add(torque);
 				WheelsLimits.Add(-torque);
@@ -107,6 +122,14 @@ namespace ThrottleControlledAvionics
 			MaxCurrent.SpecificTorque = Engines.SpecificTorque+NoEngines.SpecificTorque;
 			MaxPossible.SpecificTorque = MaxCurrent.SpecificTorque;
 			MaxPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxCurrent.SpecificTorque, VSL.Engines.CurrentThrustDir);
+			//torque response time
+			if(!TorqueResponseSpeed.IsZero()) 
+			{ 
+				var slow_torque = TotalSlowTorque.Max;
+				EnginesResponseTime = Vector3.Scale(slow_torque, TorqueResponseSpeed.Max.Inverse(0));
+				EnginesResponseTime = EnginesResponseTime.ScaleChain(slow_torque, MaxCurrent.Torque.Inverse(0));
+				EnginesResponseTimeM = EnginesResponseTime.MaxComponentF();
+			}
 			//Max AA filter
 			if(MaxCurrent.AA_rad > 0)
 			{
@@ -118,6 +141,12 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateImbalance(params IList<EngineWrapper>[] engines)
 		{
+			var torque = CalculateImbalance(engines);
+			Imbalance.Update(EnginesLimits.Clamp(torque));
+		}
+
+		public static Vector3 CalculateImbalance(params IList<EngineWrapper>[] engines)
+		{
 			var torque = Vector3.zero;
 			for(int i = 0; i < engines.Length; i++)
 			{
@@ -127,7 +156,7 @@ namespace ThrottleControlledAvionics
 					torque += e.Torque(e.throttle * e.limit);
 				}
 			}
-			Imbalance.Update(EnginesLimits.Clamp(torque));
+			return torque;
 		}
 	}
 
@@ -172,6 +201,9 @@ namespace ThrottleControlledAvionics
 		public float MinRotationTime(float angle)
 		{ return 2*Mathf.Sqrt(angle/AA_rad/Mathf.Rad2Deg); }
 
+		public float RotationTime(float angle, float throttle)
+		{ return 2*Mathf.Sqrt(angle/AA_rad/throttle/Mathf.Rad2Deg); }
+
 
 		public void Update(Vector3 torque)
 		{
@@ -180,6 +212,8 @@ namespace ThrottleControlledAvionics
 			AA_rad = AA.magnitude;
 			TurnTime = MinRotationTime(180);
 		}
+
+		public static implicit operator bool(TorqueInfo info) { return info.AA_rad > 0; }
 	}
 }
 

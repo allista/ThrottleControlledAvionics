@@ -83,45 +83,41 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
-		public bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque)
-		{ float max_limit; return OptimizeLimitsForTorque(engines, needed_torque, out max_limit); }
-
-		public bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque, out float max_limit)
+		public static bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque, Vector3 start_imbalance, Vector3 MoI, 
+		                                           out float max_limit, out float torque_error, out float angle_error)
 		{
 			var num_engines = engines.Count;
 			var zero_torque = needed_torque.IsZero();
 			var preset_limits = engines.Any(e => e.preset_limit);
-			TorqueAngle = TorqueError = -1f;
 			float error, angle;
 			var last_error = -1f;
-			Vector3 cur_imbalance = VSL.Torque.Imbalance.Torque, target;
-//			Log("=============================== Optimization ===============================\n" +
-//			    "needed_torque {}\n" +
-//			    "OnPlanet.VSF {}, GeeVSF {}, MaxTWR {}\n" +
-//			    "Physics.M {}, G {}\n" +
-//			    "Engines.MaxThrust {}\n" +
-//			    "Control.AttitudeError {}, InvFactor {}\n", 
-//			    needed_torque, 
-//			    VSL.OnPlanetParams.VSF, VSL.OnPlanetParams.GeeVSF, VSL.OnPlanetParams.MaxTWR, 
-//			    VSL.Physics.M, VSL.Physics.G,
-//			    VSL.Engines.MaxThrust,
-//			    VSL.Controls.AttitudeError, VSL.Controls.InvAlignmentFactor);//debug
+			Vector3 cur_imbalance = start_imbalance;
+			Vector3 target;
+			torque_error = -1f;
+			angle_error = -1f;
+//			Utils.Log("=============================== Optimization ===============================\n" +
+//			          "needed torque {}\n" +
+//			          "start imbalance {}\n" +
+//			          "MoI {}\n" +
+//			          "engines:\n{}", 
+//			          needed_torque, start_imbalance, MoI, engines);//debug
 			for(int i = 0; i < ENG.MaxIterations; i++)
 			{
 				//calculate current errors and target
-				cur_imbalance = VSL.Torque.Imbalance.Torque;
+				cur_imbalance = start_imbalance;
 				for(int j = 0; j < num_engines; j++) 
 				{ var e = engines[j]; cur_imbalance += e.Torque(e.throttle * e.limit); }
 				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);
 				target = needed_torque-cur_imbalance;
-				error  = VSL.Torque.AngularAcceleration(target).magnitude;
+				error  = TorqueProps.AngularAcceleration(target, MoI).magnitude;
+//				Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision);//debug
 				//remember the best state
-				if(angle <= 0f && error < TorqueError || angle+error < TorqueAngle+TorqueError || TorqueAngle < 0) 
+				if(angle <= 0 && error < torque_error || angle+error < angle_error+torque_error || angle_error < 0) 
 				{ 
 					for(int j = 0; j < num_engines; j++) 
 					{ var e = engines[j]; e.best_limit = e.limit; }
-					TorqueAngle = angle;
-					TorqueError = error;
+					angle_error = angle;
+					torque_error = error;
 				}
 				//check convergence conditions
 				if(error < ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision || 
@@ -149,14 +145,14 @@ namespace ThrottleControlledAvionics
 					}
 				}
 				//optimize limits
-				if(!optimization_for_torque_pass(engines, num_engines, target, error, ENG.OptimizationPrecision)) 
+				if(!optimization_for_torque_pass(engines, num_engines, target, target.magnitude, ENG.OptimizationPrecision)) 
 					break;
 			}
-			var optimized = TorqueError < ENG.OptimizationTorqueCutoff || 
-				(!zero_torque && TorqueAngle < ENG.OptimizationAngleCutoff);
-//			Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}\nlimits:\n{}\n" +
+			var optimized = torque_error < ENG.OptimizationTorqueCutoff || 
+				(!zero_torque && angle_error < ENG.OptimizationAngleCutoff);
+//			Utils.Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}\nlimits:\n{}\n" +
 //				"-------------------------------------------------------------------------------------------------", 
-//			    num_engines, optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance,
+//			    num_engines, optimized, torque_error, angle_error, needed_torque, cur_imbalance,
 //			    engines.Aggregate("", (s, e) => s+string.Format("{0}: VSF {1:P1}, throttle {2:P1}, best limit {3:P1}\n", 
 //			                                                    e.name, e.VSF, e.throttle, e.best_limit)));//debug
 			//treat single-engine crafts specially
@@ -177,6 +173,19 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			return optimized;
+		}
+
+		public bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque)
+		{ float max_limit; return OptimizeLimitsForTorque(engines, needed_torque, out max_limit); }
+
+		public bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque, out float max_limit)
+		{
+			float torque_error, angle_error;
+			var ret = OptimizeLimitsForTorque(engines, needed_torque, VSL.Torque.Imbalance.Torque, VSL.Physics.MoI, 
+			                                  out max_limit, out torque_error, out angle_error);
+			TorqueError = torque_error;
+			TorqueAngle = angle_error;
+			return ret;
 		}
 
 		public void PresetLimitsForTranslation(IList<EngineWrapper> engines, Vector3 translation)
@@ -203,7 +212,8 @@ namespace ThrottleControlledAvionics
 
 		public void Steer()
 		{
-			var num_engines = VSL.Engines.Steering.Count;
+			var engines = VSL.Engines.Active.Steering;
+			var num_engines = engines.Count;
 			if(num_engines == 0) return;
 			//calculate steering
 			if(CFG.AutoTune) tune_steering_params();
@@ -218,7 +228,7 @@ namespace ThrottleControlledAvionics
 				//calculate needed torque
 				for(int i = 0; i < num_engines; i++)
 				{
-					var e = VSL.Engines.Steering[i];
+					var e = engines[i];
 					if(Vector3.Dot(e.currentTorque, Steering) > 0)
 						needed_torque += e.currentTorque;
 				}
@@ -227,13 +237,15 @@ namespace ThrottleControlledAvionics
 			}
 			//optimize engines; if failed, set the flag and kill torque if requested
 			float max_limit;
-			if(!OptimizeLimitsForTorque(VSL.Engines.Steering, needed_torque, out max_limit) && !needed_torque.IsZero())
+			if(!OptimizeLimitsForTorque(engines, needed_torque, out max_limit) && !needed_torque.IsZero())
 			{
-				for(int j = 0; j < num_engines; j++) VSL.Engines.Steering[j].InitLimits();
-				OptimizeLimitsForTorque(VSL.Engines.Steering, Vector3.zero, out max_limit);
+				for(int j = 0; j < num_engines; j++) engines[j].InitLimits();
+				OptimizeLimitsForTorque(engines, Vector3.zero, out max_limit);
 				SetState(TCAState.Unoptimized);
 			}
-			if(VSL.Engines.HaveMainEngines && max_limit < VSL.vessel.ctrlState.mainThrottle*0.05f) 
+			if(VSL.Engines.HaveMainEngines && 
+			   max_limit < VSL.vessel.ctrlState.mainThrottle*0.05f && 
+			   !engines.Any(e => e.preset_limit)) 
 				Status(0.1, "red", "Thrust is disabled because engines cannot be balanced.");
 		}
 

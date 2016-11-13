@@ -90,8 +90,7 @@ namespace ThrottleControlledAvionics
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
-			if(!(CFG.Enabled && IsActive && VSL.refT != null))
-			{ DirectionOverride = Vector3d.zero; return; }
+			if(!(CFG.Enabled && IsActive && VSL.refT != null)) goto end;
 			//allow user to intervene
 			if(VSL.HasUserInput)
 			{
@@ -108,29 +107,41 @@ namespace ThrottleControlledAvionics
 					s.yaw = 0;
 				}
 			}
-			if(VSL.AutopilotDisabled) 
-			{ DirectionOverride = Vector3d.zero; return; }
+			if(VSL.AutopilotDisabled) goto end;
 			//turn ship's nose in the direction of needed velocity
-			var axis  = up_axis;
-			var laxis = VSL.LocalDir(axis);
-			var cDir  = H(VSL.OnPlanetParams.Fwd);
 			var nDir  = DirectionOverride.IsZero()? H(ForwardDirection) : H(DirectionOverride);
+			if(nDir.IsZero()) goto end;
+			var axis  = VSL.Engines.refT_thrust_axis;
+			var laxis = VSL.LocalDir(axis);
+			var cDir  = VSL.OnPlanetParams.Heading;
 			var angle = Vector3.Angle(cDir, nDir)*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
-			var eff   = Mathf.Abs(Vector3.Dot(VSL.Engines.CurrentMaxThrustDir.normalized, VSL.Physics.Up));
+			var eff   = Utils.ClampL(Mathf.Abs(Vector3.Dot(VSL.Engines.CurrentMaxThrustDir.normalized, VSL.Physics.Up)), 0.1f);
 			var ADf   = (float)VSL.vessel.staticPressurekPa/VSL.Torque.MaxCurrent.AngularDragResistanceAroundAxis(laxis)*BRC.ADf+1;
-			var AAf   = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis)/ADf, BRC.MinAAf, BRC.MaxAAf);
+			var AAf   = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis)/ADf*(1-angle/180), BRC.MinAAf, BRC.MaxAAf);
 			bearing_pid.P = BRC.DirectionPID.P;
-			bearing_pid.D = BRC.DirectionPID.D*AAf;
+			bearing_pid.D = BRC.DirectionPID.D*AAf*AAf;
 			bearing_pid.Update(angle*eff, Vector3.Dot(VSL.vessel.angularVelocity, laxis)*Mathf.Rad2Deg);
-			steering = rotation2steering(world2local_rotation(Quaternion.AngleAxis(bearing_pid.Action, axis)));
+			steering = rotation2steering(world2local_rotation(Quaternion.AngleAxis(bearing_pid.Action, axis)))/Mathf.PI;
 			VSL.Controls.AddSteering(steering);
 //			if(VSL.IsActiveVessel)
 //				TCAGui.DebugMessage = 
-//					Utils.Format("angle {}deg, action {}deg, action*eff {}deg\n" +
-//					             "AAf {}, ADf {}, result {}",
-//					              angle, bearing_pid.Action, bearing_pid.Action*eff, 
-//					             1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis), ADf, AAf);//debug
+//					Utils.Format("BearingControl: {}\nforward {}\noverride {}\nnDir {}\n" +
+//					             "angle {}deg, action {}deg, action*eff {}deg\n" +
+//					             "AAf {}, ADf {}, result {}\n" +
+//					             "steering {}\nresult steering: {}", CFG.BR.state,
+//					             ForwardDirection, DirectionOverride, nDir,
+//					             angle, bearing_pid.Action, bearing_pid.Action*eff, 
+//					             1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis), ADf, AAf, 
+//					             steering, VSL.Controls.AutopilotSteering);//debug
+			end: 
 			DirectionOverride = Vector3d.zero;
+//			if(VSL.IsActiveVessel && string.IsNullOrEmpty(TCAGui.DebugMessage))
+//				TCAGui.DebugMessage = 
+//					Utils.Format("forward {}\noverride {}\nnDir {}\n" +
+//					             "AutopilotDisabled {}, IsActive {}",
+//					             ForwardDirection, DirectionOverride, 
+//					             DirectionOverride.IsZero()? H(ForwardDirection) : H(DirectionOverride),
+//					             VSL.AutopilotDisabled, IsActive);//debug
 		}
 
 		bool draw_forward_direction;
@@ -139,13 +150,16 @@ namespace ThrottleControlledAvionics
 		static Color dir_color = new Color(0, 1, 0, 0.5f);
 		public override void Draw ()
 		{
+//			#if DEBUG
+//			var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
+//			Utils.GLVec(VSL.refT.position, dir.normalized*2500, dir_color);
+//			Utils.GLVec(VSL.refT.position, refT_thrust_axis*5, Color.red);
+//			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Fwd*5, Color.yellow);
+//			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading*5, Color.magenta);
+//			#endif
 			if(CFG.BR[BearingMode.Auto] || !DirectionOverride.IsZero())
 			{
 				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(false));
-//				#if DEBUG
-//				var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
-//				Utils.GLVec(VSL.Controls.Transform.position, dir.normalized*2500, dir_color);
-//				#endif
 			}
 			else if(CFG.BR[BearingMode.User])
 			{

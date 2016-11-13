@@ -158,9 +158,9 @@ namespace ThrottleControlledAvionics
 			VSL.Controls.ManualTranslationSwitch.Set(enable);
 			if(VSL.Controls.ManualTranslationSwitch.On) return;
 			var Changed = false;
-			for(int i = 0, count = VSL.Engines.Manual.Count; i < count; i++)
+			for(int i = 0, count = VSL.Engines.Active.Manual.Count; i < count; i++)
 			{
-				var e = VSL.Engines.Manual[i];
+				var e = VSL.Engines.Active.Manual[i];
 				if(!e.engine.thrustPercentage.Equals(0))
 				{
 					Changed = true;
@@ -198,9 +198,10 @@ namespace ThrottleControlledAvionics
 				//if the manual translation can and should be used
 				var rV  = hV; //velocity that is needed to be handled by attitude control of the total thrust
 				var fV  = Vector3d.zero; //forward-backward velocity with respect to the manual thrust vector
-				var with_manual_thrust = VSL.Engines.Manual.Count > 0 && (nVm >= HSC.TranslationUpperThreshold ||
-				                                                          hVm >= HSC.TranslationUpperThreshold ||
-				                                                          CourseCorrection.magnitude >= HSC.TranslationUpperThreshold);
+				var with_manual_thrust = VSL.Engines.Active.Manual.Count > 0 && 
+					(nVm >= HSC.TranslationUpperThreshold ||
+					 hVm >= HSC.TranslationUpperThreshold ||
+					 CourseCorrection.magnitude >= HSC.TranslationUpperThreshold);
 				var manual_thrust = Vector3.ProjectOnPlane(VSL.Engines.ManualThrust, VSL.Physics.Up);
 				var zero_manual_thrust = manual_thrust.IsZero();
 				if(with_manual_thrust &&
@@ -221,6 +222,7 @@ namespace ThrottleControlledAvionics
 					var GeeF  = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
 					var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
 					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / VSL.OnPlanetParams.TWRf;
+//					if(rVm > HSC.TranslationLowerThreshold) upF /= Utils.Clamp(VSL.Torque.MaxPitchRoll.AA_rad, 0.1f, 1);
 					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
 				}
 				//try to use translation controls (maneuver engines and RCS)
@@ -274,8 +276,8 @@ namespace ThrottleControlledAvionics
 			}
 			needed_thrust_dir.Normalize();
 			//tune filter
-			filter.Tau = VSL.Engines.SlowTorque ? 
-				HSC.LowPassF / (1 + VSL.Engines.TorqueResponseTime * HSC.SlowTorqueF) : 
+			filter.Tau = VSL.Engines.Slow ? 
+				HSC.LowPassF / (1 + VSL.Torque.EnginesResponseTimeM * HSC.SlowTorqueF) : 
 				HSC.LowPassF;
 			ATC.SetCustomRotationW(thrust, filter.Update(needed_thrust_dir).normalized);
 

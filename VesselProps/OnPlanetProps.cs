@@ -8,8 +8,10 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using ModuleWheels;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -21,6 +23,7 @@ namespace ThrottleControlledAvionics
 
 		public List<ModuleParachute> Parachutes = new List<ModuleParachute>();
 		public List<ModuleParachute> UnusedParachutes = new List<ModuleParachute>();
+		public List<ModuleWheelDeployment> LandingGear = new List<ModuleWheelDeployment>();
 		public bool HaveParachutes { get; private set; }
 		public bool HaveUsableParachutes { get; private set; }
 		public bool ParachutesActive { get; private set; }
@@ -36,25 +39,66 @@ namespace ThrottleControlledAvionics
 		public float   MaxTWR { get; private set; }
 		public float   MaxDTWR { get; private set; }
 		public float   DTWR { get; private set; }
-		public LowPassFilterF DTWR_filter = new LowPassFilterF();
+		public float   DTWRf { get { return DTWR_filter.Value; } }
+		LowPassFilterF DTWR_filter = new LowPassFilterF();
 
-		public float   CurrentThrustAccelerationSpeed { get; private set; }
-		public float   CurrentThrustDecelerationSpeed { get; private set; }
+		public float   CurrentThrustAccelerationTime { get; private set; }
+		public float   CurrentThrustDecelerationTime { get; private set; }
 
 		public float   VSF; //vertical speed factor
 		public float   GeeVSF; //the value of VSF that provides the thrust equal to the gravity force
 		public float   MinVSF; //minimum allowable VSF to have enough control authority
-		public float   TWRf { get; private set; }
 
+		public float   TWRf { get; private set; } //all VSC engines should be pointed down when this is low: [1e-9, 1]
+
+		public bool    HaveLandingGear { get; private set; }
+		public float   GearDeployTime { get; private set; }
+
+		public bool    GearDeploying
+		{ get { return LandingGear.Count > 0 && LandingGear.All(g => g.fsm.CurrentState == g.st_deploying); } }
+
+		public bool    GearDeployed
+		{ get { return LandingGear.Count == 0 || LandingGear.All(g => g.fsm.CurrentState == g.st_deployed); } }
+
+		public bool    GearRetracting
+		{ get { return LandingGear.Count > 0 && LandingGear.All(g => g.fsm.CurrentState == g.st_retracting); } }
+
+		public bool    GearRetracted
+		{ get { return LandingGear.Count == 0 || LandingGear.All(g => g.fsm.CurrentState == g.st_retracted); } }
+
+		public bool AddGear(PartModule pm)
+		{
+			var wheel = pm as ModuleWheelDeployment;
+			if(wheel != null)
+			{
+				var animator = wheel.part.FindModelAnimator(wheel.animationTrfName, wheel.animationStateName);
+				if(animator != null)
+				{
+					LandingGear.Add(wheel);
+					GearDeployTime = Mathf.Max(GearDeployTime, animator.clip.length);
+					HaveLandingGear = true;
+				}
+				return true;
+			}
+			return false;
+		}
+
+		public override void Clear()
+		{
+			HaveLandingGear = false;
+			GearDeployTime = 0;
+			LandingGear.Clear();
+			Parachutes.Clear();
+		}
 
 		public override void Update()
 		{
-			CurrentThrustAccelerationSpeed = 0f; CurrentThrustDecelerationSpeed = 0f; TWRf = 1;
+			CurrentThrustAccelerationTime = 0f; CurrentThrustDecelerationTime = 0f; TWRf = 1;
 			//calculate total downward thrust and slow engines' corrections
 			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.mg;
 			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
 				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.mg : 0f;
-			DTWR_filter.Tau = Mathf.Max(VSL.Engines.ThrustAccelerationTime, VSL.Engines.ThrustDecelerationTime);
+			DTWR_filter.Tau = Mathf.Max(VSL.Engines.AccelerationTime, VSL.Engines.DecelerationTime);
 			DTWR_filter.Update(DTWR);
 			GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
 			var mVSFtor = (VSL.Torque.MaxPitchRoll.AA_rad > 0)? 
@@ -78,8 +122,8 @@ namespace ThrottleControlledAvionics
 						if(e.useEngineResponseTime && dthrust > 0) 
 						{
 							slow_thrust += dthrust;
-							CurrentThrustAccelerationSpeed += e.engineAccelerationSpeed*dthrust;
-							CurrentThrustDecelerationSpeed += e.engineDecelerationSpeed*dthrust;
+							CurrentThrustAccelerationTime += e.engineAccelerationSpeed*dthrust;
+							CurrentThrustDecelerationTime += e.engineDecelerationSpeed*dthrust;
 						}
 						else fast_thrust = dthrust;
 						down_thrust += dthrust;
@@ -89,21 +133,22 @@ namespace ThrottleControlledAvionics
 			MaxDTWR = Utils.EWA(MaxDTWR, down_thrust/VSL.Physics.mg, 0.1f);
 			if(refT != null)
 			{
-				Fwd = Vector3.Cross(VSL.Controls.Transform.right, -VSL.Engines.MaxThrust).normalized;
+				Fwd = Vector3.Cross(VSL.refT.right, -VSL.Engines.MaxThrust).normalized;
 				FwdL = refT.InverseTransformDirection(Fwd);
-				NoseUp = Vector3.Dot(Fwd, VSL.Controls.Transform.forward) >= 0.9;
+				NoseUp = Mathf.Abs(Vector3.Dot(Fwd, VSL.refT.forward)) >= 0.9;
 				Heading = Vector3.ProjectOnPlane(Fwd, VSL.Physics.Up).normalized;
 			}
 			var controllable_thrust = slow_thrust+fast_thrust;
 			if(controllable_thrust > 0)
 			{
 				//correct setpoint for current TWR and slow engines
-				if(CurrentThrustAccelerationSpeed > 0) CurrentThrustAccelerationSpeed = controllable_thrust/CurrentThrustAccelerationSpeed*GLB.VSC.ASf;
-				if(CurrentThrustDecelerationSpeed > 0) CurrentThrustDecelerationSpeed = controllable_thrust/CurrentThrustDecelerationSpeed*GLB.VSC.DSf;
+				var rel_slow_thrust = slow_thrust*slow_thrust/controllable_thrust;
+				if(CurrentThrustAccelerationTime > 0) CurrentThrustAccelerationTime = rel_slow_thrust/CurrentThrustAccelerationTime*GLB.VSC.ASf;
+				if(CurrentThrustDecelerationTime > 0) CurrentThrustDecelerationTime = rel_slow_thrust/CurrentThrustDecelerationTime*GLB.VSC.DSf;
 				//TWR factor
 				var vsf = CFG.VSCIsActive && VSL.VerticalSpeed.Absolute < 0? 
 					Utils.Clamp(1-(Utils.ClampH(CFG.VerticalCutoff, 0)-VSL.VerticalSpeed.Absolute)/GLB.TDC.VSf, 1e-9f, 1) : 1;
-				var twr = VSL.Engines.SlowThrust? DTWR_filter.Value : MaxTWR*Utils.Sin45; //MaxTWR at 45deg
+				var twr = VSL.Engines.Slow? DTWR_filter.Value : MaxTWR*Utils.Sin45; //MaxTWR at 45deg
 				TWRf = Utils.Clamp(twr/GLB.TDC.TWRf, 1e-9f, 1)*vsf;
 			}
 			//parachutes

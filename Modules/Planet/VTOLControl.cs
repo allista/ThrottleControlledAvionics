@@ -75,9 +75,9 @@ namespace ThrottleControlledAvionics
 				var angle = VTOL.MaxAngle*VSL.OnPlanetParams.TWRf;
 				var pitch_roll = Mathf.Abs(s.pitch)+Mathf.Abs(s.roll);
 				if(!s.pitch.Equals(0)) 
-					rot = Quaternion.AngleAxis(Mathf.Abs(s.pitch)/pitch_roll*s.pitch*angle, VSL.Controls.Transform.right) * rot;
+					rot = Quaternion.AngleAxis(Mathf.Abs(s.pitch)/pitch_roll*s.pitch*angle, VSL.refT.right) * rot;
 				if(!s.roll.Equals(0)) 
-					rot = Quaternion.AngleAxis(Mathf.Abs(s.roll)/pitch_roll*s.roll*angle, fwd_axis) * rot;
+					rot = Quaternion.AngleAxis(Mathf.Abs(s.roll)/pitch_roll*s.roll*angle, VSL.Engines.refT_forward_axis) * rot;
 				if(!s.yaw.Equals(0))
 					rot = Quaternion.AngleAxis(s.yaw*60, VSL.Engines.CurrentMaxThrustDir) * rot;
 				rot *= Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.CurrentMaxThrustDir);
@@ -120,9 +120,9 @@ namespace ThrottleControlledAvionics
 			if(!steering.IsZero())
 				Utils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(steering.normalized*20), Color.cyan);
 			
-			Utils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.up*3, Color.green);
-			Utils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.forward*3, Color.blue);
-			Utils.GLVec(VSL.Physics.wCoM, VSL.Controls.Transform.right*3, Color.red);
+			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.up*3, Color.green);
+			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.forward*3, Color.blue);
+			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.right*3, Color.red);
 		}
 		#endif
 	}
