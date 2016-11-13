@@ -2,7 +2,48 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.2.5**
+* **v3.3.0**
+    * **In-Editor engines balancing with visualization** to help building balanced crafts:
+    	* The thrust limiters of balanced engines are set automatically, so you can see the projected in-flight performance of an engine directly in the right-click menu.
+    	* The TCA Editor UI now has a "Balanced: N%" indicator at the bottom that shows the thrust limiter of the most down-throttled engine. And the "HL" button to highlight engines according to their efficacy (0% magenta > 50% yellow > 99% cyan > 100% no highliting).
+    	* When you pick up an engine and move it, trying to attach to a ship, TCA rebalances and indicates the results (as descrived above) in real time; so you can easily achive decent initial balancing.
+    	* Note, that only the initial (wet) mass is used for balancing. For now.
+    * **Waypoints**:
+        * Implemented **full, one-way** integration with Stock/WaypointManager waypoints: Stock waypoints may be viewed as a list in TCA window and added to the navigation path (one by one or all at once). *Note, that only the navigatable waypoints on current planet are shown in the list.*
+        * Implemented scenario-wide **repository of navigation paths**.
+        * Implemented **full waypoint editing + altitude change by mouse**.
+        	* Including Name, Altitude, Latitude and Longitude, Land and Pause states.
+        	* Added Edit button to waypoint list. A currently edited waypoint is highlited by size and color.
+        * Implemented **waypoints sorting** in the navigation path using **^** (up) button.
+        * Cosmetics:
+        	* Waypoints added by mouse use sequential numbers in names: "Waypoint 1", "Waypoint 2"...
+        	* Coordinates are now displayed as N/S, E/W instead of counterintuitive angle between 0-360 deg.
+        	* Displaying vertical distance to the next waypoint in  the List.
+        	* A waypoint set to "Land" is highlighted with size.
+    * Improved **Landing from Orbit**:
+    	* *Before* the main deceleration burn the autopilot now scans the surface around the target in search of a flat patch to land on. If it is found, the target is automatically corrected, which saves the fuel later, as the need to fly around after deceleration and physically search where to land is almost completely eliminated.
+    	* The time a ship will need to turn from almost-horizontal to vertical orientation during deceleration is now taken into account during landing trajectory calculation. This prevents crashes of very bulky ships.
+    	* Corrected calculations of the amount of the fuel needed for powered landing. Fuel shortage should not come as a surprize anymore.
+    * Improved **VTOL Assist**:
+        * Improved support for very small vessels.
+        * Landing gear is not deployed if a user/autopilot does not intend to land (checked by desired altitude and engines' state).
+        * The deployment time of the landing gear/wheels is now taken into account; and Assist overrides vertical velocity and holds the ship's descend (if needed) untill the gear is deployed.
+        * After landing it smoothly corrects ship's attitude to place it on a tilted surface (if the ship have enough control authority).
+    * Improved the way **Radar + Altitude Control + Point Navigation** work together:
+    	* Ships are allowd to **fly through holes** in scenery if they're small enough.
+    	* Altitude Control and Point Navigator now properly take into account target's altitude.
+        * Point Navigator also takes into account the value of altitude ahead (as calculated by Radar).
+        * Changed the meaning of Waypoint's Pause button: now the ship Stops first, then pauses the game.
+        * And if both Land and Pause are toggled, the ship will first land, then pause the game.
+    * Improved **Maneuver Autopilot**:
+    	* Now it correctly catches the moment when the control authority becomes too low to pursue that last bit of dV.
+    	* Added in-flight engines' prebalancing to correctly calculate maximum thrust on unbalanced ships.
+    * Improved Bearing Control and Attitude Control performance.
+    * Added **CPS** (Collision Prevention System) and **H-Translation** (Use RCS for horizontal speed corrections) toggles to "advanced" and TCA Editor UI.
+    * When the game is paused TCA will not process keyboard events. No more disabling TCA while typing in a savegame name.
+    * Many bugfixes.
+
+* v3.2.5
 	* TCA is now available on vessels that have only reaction wheels.
     * **Waypoints**:
     	* Integrated TCA waypoints and Stock/**WaypointManager** waypoints: currently active Stock waypoint can be used as a target for *Go To/Jump To* programs and added as TCA waypoint for *Follow Path* program.
