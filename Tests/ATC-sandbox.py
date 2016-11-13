@@ -188,6 +188,7 @@ class ATC(object):
         self.engineF.limit = base_level
         self.engineF.thrust = self.engineF.maxThrust*base_level
         self.engineR = self.engineF.clone()
+        self.instant = self.engineF.acceleration == 0 and self.engineF.deceleration == 0
         self.MoI = MoI
         self.MaxAA = self.engineF.maxThrust*self.engineF.lever/self.MoI
         self.AV = 0
@@ -228,7 +229,7 @@ class ATC(object):
             self.speed = speed
             self.desc = desc or 'Speed'
             self.units = units
-            self.metric = self.time+self.speed*50
+            self.metric = self.time+self.speed*100
 
         def __str__(self):
             return ('Zero at: %f s\n'
@@ -278,6 +279,7 @@ class ATC(object):
         best_stats = None
         for p in np.linspace(P[0], P[1], step):
             for i in np.linspace(I[0], I[1], step):
+                if self.instant: D = (0,0)
                 for d in np.linspace(D[0], D[1], step):
                     self.avPID.setPID(p,i,d)
                     time, error, thrust, zero_stats = self.simulate_constant_angular_velocity(needed_av, end_time, True)
@@ -287,7 +289,7 @@ class ATC(object):
                         best_pid = (p,i,d)
         if best_stats and best_stats.speed < aa_threshold:
             self.avPID.setPID(*best_pid)
-            # print 'avPID: %s\n%s\n' % (best_pid, best_stats)
+            print 'avPID: %s\n%s\n' % (best_pid, best_stats)
             # self.analyze_results(self.simulate_constant_angular_velocity(needed_av, end_time*2))
             return best_pid
         return None
@@ -328,26 +330,25 @@ class Main(MPMain):
     class Craft(object):
         lever = 4
         maxThrust = 120
-        def __init__(self, maxAA, accelSpeed, decelSpeed):
+        def __init__(self, maxAA, accelSpeed):
             at_pid = PID2(0, 0, 0, -1, 1)
             av_pid = PID2(0, 0, 0, -3, 3)
-            engine = Engine(self.maxThrust, accelSpeed, decelSpeed)
-            self.atc = ATC(engine, self.lever, self.maxThrust*self.lever/maxAA, at_pid, av_pid, 0.8)
+            engine = Engine(self.maxThrust, accelSpeed, accelSpeed*2)
+            self.atc = ATC(engine, self.lever, self.maxThrust*self.lever/maxAA*2, at_pid, av_pid, 0.8)
 
         def optimize(self):
-            if not self.atc.optimize_av_PID(0.5, 0.06, 10, 10, (0.1, 2), (0, 0.2), (0, 2)): return False
-            if not self.atc.optimize_at_PID(5, ATC.tenth_deg, 10, 10, (0.1, 2), (0, 0.2), (0, 2)): return False
+            if not self.atc.optimize_av_PID(0.5, 0.06, 10, 10, (0.1, 2), (0, 0), (0, 2)): return False
+            if not self.atc.optimize_at_PID(5, ATC.tenth_deg, 10, 10, (0.1, 2), (0, 0.1), (0, 2)): return False
             return True
 
         def pack(self):
-            return ([self.atc.MaxAA, self.atc.engineF.acceleration, self.atc.engineF.deceleration]+
+            return ([self.atc.MaxAA, self.atc.engineF.acceleration]+
                     self.atc.avPID.pack() + self.atc.atPID.pack())
 
 
     def _main(self):
-        maxAA = np.linspace(0.1, 10, 10)
-        accelSpeed = np.linspace(0, 1, 10)
-        decelSpeed = np.linspace(0, 1, 10)
+        maxAA = np.linspace(0.2, 10, 100)
+        accelSpeed = np.linspace(0, 0.1, 2)
         def mapper(index, params):
             print '%d ' % index
             craft = self.Craft(*params[index])
@@ -355,17 +356,17 @@ class Main(MPMain):
                 pack = craft.pack()
                 return pack
             return None
-        work = np.array(np.meshgrid(maxAA, accelSpeed, decelSpeed)).T.reshape(-1, 3)
+        work = np.array(np.meshgrid(maxAA, accelSpeed)).T.reshape(-1, 2)
         print 'Checking %d craft configurations...' % work.shape[0]
         results = parallelize_work(self.abort_event, True, 1, mapper, range(0, work.shape[0]), work)
         if results:
             with open('ATC-stats.csv', 'wb') as out:
                 writer = csv.writer(out)
-                writer.writerow(('maxAA', 'accelSpeed', 'decelSpeed', 'AV P', 'AV I', 'AV D', 'AT P', 'AT I', 'AT D'))
+                writer.writerow(('maxAA', 'accelSpeed', 'AV_P', 'AV_I', 'AV_D', 'AT_P', 'AT_I', 'AT_D'))
                 writer.writerows((r for r in results if r is not None))
         return 0
 
-stage = 1
+stage = 2
 if __name__ == '__main__':
     if stage == 0:
         ###############################################################################################
@@ -425,11 +426,13 @@ if __name__ == '__main__':
         Main(run=True)
     else:
         from sklearn.decomposition import PCA
+        from scipy.optimize import curve_fit
         import pandas as pd
-        df = pd.read_csv('ATC-stats-10.csv')
-        params = df.ix[:,0:3]
-        av_pids = df.ix[:,3:6]
-        at_pids = df.ix[:, 6:]
+
+        df = pd.read_csv('ATC-stats.csv')
+        params = df.ix[:,0:2]
+        av_pids = df.ix[:,2:5]
+        at_pids = df.ix[:, 5:]
 
         def do_pca(data, y):
             pca = PCA(whiten=False)
@@ -444,5 +447,19 @@ if __name__ == '__main__':
             plt.scatter(data_r[:, 0], data_r[:, 1], c=[color(_y) for _y in y])
             plt.show()
 
-        do_pca(av_pids, df['maxAA'])
-        do_pca(at_pids, df['maxAA'])
+        rocket = df[df.accelSpeed == 0]
+        jets = df[df.accelSpeed > 0]
+        rocket_prim = rocket[rocket.maxAA > 2][rocket.maxAA < 9.5]
+        def model(x, a,b,c): return a**(b*x+c)
+        abc, conv = curve_fit(model, rocket_prim.maxAA, rocket_prim['AV P'])
+        plt.plot(rocket_prim.maxAA, rocket_prim['AV P'], '.')
+        plt.plot(np.linspace(2, 9.5, 20), model(np.linspace(0.1, 10, 20), *abc))
+
+        # plt.plot(df[df.accelSpeed > 0].maxAA, df[df.accelSpeed > 0]['AV P'])
+        # plt.plot(df[df.accelSpeed > 0].maxAA, df[df.accelSpeed > 0]['AV D'])
+
+        plt.show()
+
+        # do_pca(av_pids, (df['accelSpeed'] == 0))
+        # do_pca(at_pids, df['maxAA'])
+        # do_pca(df.ix[:,2:][df.accelSpeed == 0], df['maxAA'])
