@@ -83,7 +83,7 @@ namespace ThrottleControlledAvionics
 			else
 			{
 				brake_delta_v = -(AtTargetVel + Vector3d.Cross(Body.zUpAngularVelocity, AtTargetPos));
-				BrakeEndUT = TrajectoryCalculator.FlyAboveUT(Orbit, Target.RelSurfPos(Body).xzy, StartUT);
+				BrakeEndUT = TrajectoryCalculator.FlyAboveUT(Orbit, Target.RelOrbPos(Body), StartUT);
 				BrakeStartUT = BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration);
 			}
 			//compute vessel coordinates at maneuver start
