@@ -200,7 +200,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool Equals(WayPoint wp)
-		{ return wp != null && Math.Abs(Pos.Lat-wp.Pos.Lat) < 1e-6 && Math.Abs(Pos.Lon-wp.Pos.Lon) < 1e-6; }
+		{ return wp != null && Pos.Equals(wp.Pos); }
 	}
 }
 
