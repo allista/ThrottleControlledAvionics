@@ -161,7 +161,6 @@
     <Compile Include="Navigation\NavPath.cs" />
     <Compile Include="Navigation\WayPoint.cs" />
     <Compile Include="Navigation\PathDB.cs" />
-    <Compile Include="Navigation\Coordinates.cs" />
     <Compile Include="Globals.cs" />
     <Compile Include="VesselConfig.cs" />
     <Compile Include="GUI\TCAGuiEditor.cs" />

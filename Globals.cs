@@ -8,6 +8,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -16,6 +17,10 @@ namespace ThrottleControlledAvionics
 	{
 		public const string TCA_PART = "ThrottleControlledAvionics";
 		public const string INSTRUCTIONS = "INSTRUCTIONS.md";
+
+		public const string RADIATION_ICON = "ThrottleControlledAvionics/Icons/waypoint";
+		public const string CIRCLE_ICON = "ThrottleControlledAvionics/Icons/path-node";
+		public Texture2D RadiationIcon, CircleIcon;
 
 		[Persistent] public bool  IntegrateIntoCareer   = true;
 		[Persistent] public bool  RoleSymmetryInFlight  = true;
@@ -91,6 +96,9 @@ namespace ThrottleControlledAvionics
 				if(method == null) continue;
 				method.Invoke(fi.GetValue(this), null);
 			}
+			//init icons
+			RadiationIcon = GameDatabase.Instance.GetTexture(RADIATION_ICON, false);
+			CircleIcon = GameDatabase.Instance.GetTexture(CIRCLE_ICON, false);
 		}
 	}
 

@@ -8,8 +8,6 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
-using System.Linq;
-using System.Collections.Generic;
 using UnityEngine;
 using FinePrint;
 using AT_Utils;
@@ -30,16 +28,13 @@ namespace ThrottleControlledAvionics
 		PointNavigator PN;
 		BallisticJump BJ;
 
-		static Camera current_camera 
-		{ get { return MapView.MapIsEnabled? PlanetariumCamera.Camera : FlightCamera.fetch.mainCamera; } }
-
 		public bool SelectingTarget { get; private set; }
 		bool select_single;
 
 		public static void OnAwake()
 		{
-			WayPointMarker = GameDatabase.Instance.GetTexture(WPM_ICON, false);
-			PathNodeMarker = GameDatabase.Instance.GetTexture(PN_ICON, false);
+			WayPointMarker = Globals.Instance.RadiationIcon;
+			PathNodeMarker = Globals.Instance.CircleIcon;
 		}
 
 		public override void Draw()
@@ -430,9 +425,6 @@ namespace ThrottleControlledAvionics
 
 		#region Waypoints Overlay
 		readonly ActionDamper AddTargetDamper = new ActionDamper();
-		const string WPM_ICON = "ThrottleControlledAvionics/Icons/waypoint";
-		const string PN_ICON  = "ThrottleControlledAvionics/Icons/path-node";
-		const float  IconSize = 16;
 		static Texture2D WayPointMarker, PathNodeMarker;
 
 		WayPoint selected_waypoint;
@@ -461,11 +453,8 @@ namespace ThrottleControlledAvionics
 			return c;
 		}
 
-		static void DrawLabelAtPointer(string text)
-		{ GUI.Label(new Rect(Input.mousePosition.x + 15, Screen.height - Input.mousePosition.y, 300, 200), text); }
-
 		static void DrawLabelAtPointer(string text, double distance)
-		{ DrawLabelAtPointer(string.Format("{0}\nDistance: {1}", text, Utils.formatBigValue((float)distance, "m"))); }
+		{ Markers.DrawLabelAtPointer(string.Format("{0}\nDistance: {1}", text, Utils.formatBigValue((float)distance, "m"))); }
 
 		void select_waypoint(WayPoint wp)
 		{
@@ -493,7 +482,6 @@ namespace ThrottleControlledAvionics
 		public void WaypointOverlay()
 		{
 			if(TCA == null || !TCA.Available || !GUIWindowBase.HUD_enabled) return;
-			Vector3d worldPos;
 			if(SelectingTarget)
 			{
 				var coords = MapView.MapIsEnabled? 
@@ -502,7 +490,7 @@ namespace ThrottleControlledAvionics
 				if(coords != null)
 				{
 					var t = new WayPoint(coords);
-					DrawGroundMarker(vessel.mainBody, coords, new Color(1.0f, 0.56f, 0.0f), out worldPos);
+					Markers.DrawCBMarker(vessel.mainBody, coords, new Color(1.0f, 0.56f, 0.0f), WayPointMarker);
 					DrawLabelAtPointer(coords.FullDescription(vessel), t.DistanceTo(vessel));
 					if(!clicked)
 					{ 
@@ -541,7 +529,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			bool current_target_drawn = false;
-			var camera = current_camera;
+			var camera = Markers.CurrentCamera;
 			if(CFG.ShowPath)
 			{
 				var i = 0;
@@ -561,14 +549,14 @@ namespace ThrottleControlledAvionics
 						total_dist += (float)wp.DistanceTo(wp0, VSL.Body)/dist2cameraF;
 						dist = total_dist;
 					}
-					var r = IconSize;
+					var r = Markers.DefaultIconSize;
 					var c = marker_color(i, num, dist);
 					if(wp0 == null) DrawPath(vessel, wp, c);
 					else DrawPath(vessel.mainBody, wp0, wp, c);
 					if(wp == edited_waypoint) 
-					{ c = edited_color; r = IconSize*2; }
-					else if(wp.Land) r = IconSize*2;
-					if(DrawGroundMarker(vessel.mainBody, wp, c, out worldPos, r))
+					{ c = edited_color; r = Markers.DefaultIconSize*2; }
+					else if(wp.Land) r = Markers.DefaultIconSize*2;
+					if(DrawWayPoint(wp, c, size:r))
 					{
 						DrawLabelAtPointer(wp.FullInfo(vessel), wp.DistanceTo(vessel));
 						select_waypoint(wp);
@@ -590,7 +578,7 @@ namespace ThrottleControlledAvionics
 				DrawWayPoint(CFG.Target, Color.magenta, "Target");
 			//custom markers
 			VSL.Info.CustomMarkersWP.ForEach(m => DrawWayPoint(m, Color.red, m.Name));
-			VSL.Info.CustomMarkersVec.ForEach(m => DrawWorldMarker(m, Color.red, "Custom WayPoint"));
+			VSL.Info.CustomMarkersVec.ForEach(m => Markers.DrawWorldMarker(m, Color.red, "Custom WayPoint", WayPointMarker));
 			//modify the selected waypoint
 			if(!SelectingTarget && selected_waypoint != null)
 			{
@@ -640,75 +628,20 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
-		static Material _icon_material;
-		static Material IconMaterial
-		{
-			get
-			{
-				if(_icon_material == null) 
-					_icon_material = new Material(Shader.Find("Particles/Additive"));
-				return _icon_material;
-			}
-		}
-
-		static Rect texture_rect = new Rect(0f, 0f, 1f, 1f);
-		static bool DrawMarker(Vector3 icon_center, Color c, float r, Texture2D texture)
-		{
-			if(c.a.Equals(0)) return false;
-			if(texture == null) texture = WayPointMarker;
-			var icon_rect = new Rect(icon_center.x - r * 0.5f, (float)Screen.height - icon_center.y - r * 0.5f, r, r);
-			Graphics.DrawTexture(icon_rect, texture, texture_rect, 0, 0, 0, 0, c, IconMaterial);
-			return icon_rect.Contains(Event.current.mousePosition);
-		}
-
-		static bool DrawGroundMarker(CelestialBody body, Coordinates pos, Color c, out Vector3d worldPos, float r = IconSize, Texture2D texture = null)
-		{
-			worldPos = Vector3d.zero;
-			if(c.a.Equals(0)) return false;
-			Camera camera;
-			Vector3d point;
-			if(MapView.MapIsEnabled)
-			{
-				//TODO: cache local center coordinates of the marker
-				camera = PlanetariumCamera.Camera;
-				worldPos = body.position + (pos.Alt+body.Radius) * body.GetSurfaceNVector(pos.Lat, pos.Lon);
-				if(IsOccluded(worldPos, body)) return false;
-				point = ScaledSpace.LocalToScaledSpace(worldPos);
-			}
-			else
-			{
-				camera = FlightCamera.fetch.mainCamera;
-				worldPos = body.GetWorldSurfacePosition(pos.Lat, pos.Lon, pos.Alt);
-				if(camera.transform.InverseTransformPoint(worldPos).z <= 0) return false;
-				point = worldPos;
-			}
-			return DrawMarker(camera.WorldToScreenPoint(point), c, r, texture);
-		}
-
-		static bool DrawGroundMarker(CelestialBody body, WayPoint wp, Color c, out Vector3d worldPos, float r = IconSize, Texture2D texture = null)
-		{ return DrawGroundMarker(body, wp.Pos, c, out worldPos, r, texture); }
-
-		static void DrawWorldMarker(Vector3d wPos, Color c, string label = "", float r = IconSize, Texture2D texture = null)
-		{
-			if(c.a.Equals(0)) return;
-			var camera = MapView.MapIsEnabled ? PlanetariumCamera.Camera : FlightCamera.fetch.mainCamera;
-			if(camera.transform.InverseTransformPoint(wPos).z <= 0) return;
-			if(DrawMarker(camera.WorldToScreenPoint(MapView.MapIsEnabled? ScaledSpace.LocalToScaledSpace(wPos) : wPos), c, r, texture) &&
-			   !string.IsNullOrEmpty(label)) DrawLabelAtPointer(label);
-
-		}
-
-		void DrawWayPoint(WayPoint wp, Color c, string label = null, float r = IconSize, Texture2D texture = null)
+		public bool DrawWayPoint(WayPoint wp, Color c, string label = null, float size = Markers.DefaultIconSize)
 		{
 			Vector3d worldPos;
-			if(DrawGroundMarker(vessel.mainBody, wp, c, out worldPos, r, texture))
+			if(Markers.DrawCBMarker(vessel.mainBody, wp.Pos, c, out worldPos, WayPointMarker, size))
 			{
 				DrawLabelAtPointer(label ?? wp.FullInfo(vessel), wp.DistanceTo(vessel));
 				select_waypoint(wp);
+				return true;
 			}
+			return false;
 		}
 
-		static void DrawPath(CelestialBody body, WayPoint wp0, WayPoint wp1, Color c, float alpha = -1)
+		static readonly float path_point_size = Markers.DefaultIconSize/2;
+		public static void DrawPath(CelestialBody body, WayPoint wp0, WayPoint wp1, Color c, float alpha = -1)
 		{
 			if(alpha >= 0) c.a = alpha;
 			if(c.a.Equals(0)) return;
@@ -723,24 +656,15 @@ namespace ThrottleControlledAvionics
 			{
 				var p = wp0.PointBetween(wp1, dD*i);
 				p.SetAlt2Surface(body);
-				DrawGroundMarker(body, p, c, out point, IconSize/2, PathNodeMarker);
+				Markers.DrawCBMarker(body, p, c, out point, PathNodeMarker, path_point_size);
 				Utils.GLLine(last_point, point, line_color);
 				last_point = point;
 			}
 			Utils.GLLine(last_point, wp1.WorldPos(body), line_color);
 		}
 
-		static void DrawPath(Vessel v, WayPoint wp1, Color c)
+		public static void DrawPath(Vessel v, WayPoint wp1, Color c)
 		{ DrawPath(v.mainBody, new WayPoint(v.latitude, v.longitude, v.altitude), wp1, c, 1); }
-
-		//Tests if byBody occludes worldPosition, from the perspective of the planetarium camera
-		static bool IsOccluded(Vector3d worldPosition, CelestialBody byBody)
-		{
-			var c_pos = MapView.MapIsEnabled? 
-				ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) :
-				(Vector3d)FlightCamera.fetch.mainCamera.transform.position;
-			return Vector3d.Angle(c_pos-worldPosition, byBody.position-worldPosition) <= 90.0;
-		}
 		#endregion
 	}
 }
