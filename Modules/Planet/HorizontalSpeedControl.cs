@@ -163,9 +163,9 @@ namespace ThrottleControlledAvionics
 				var e = VSL.Engines.Active.Manual[i];
 				if(!e.engine.thrustPercentage.Equals(0))
 				{
-					Changed = true;
-					e.limit = e.best_limit = 0;
+					e.limit = 0;
 					e.forceThrustPercentage(0);
+					Changed = true;
 				}
 			}
 			if(Changed && TCA.ProfileSyncAllowed) 

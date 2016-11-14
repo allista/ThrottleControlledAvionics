@@ -24,8 +24,8 @@ namespace ThrottleControlledAvionics
 		public float   currentTorque_m;
 		public float   torqueRatio;
 		public float   limit, best_limit, limit_tmp;
+		public float   preset_limit = -1;
 		public float   thrustMod;
-		public bool    preset_limit;
 		protected float zeroIsp;
 
 		public abstract Vessel vessel { get; }
@@ -50,11 +50,7 @@ namespace ThrottleControlledAvionics
 		public abstract void UpdateCurrentTorque(float throttle);
 
 		//needed for autopilots that are executed before FixedUpdate
-		public void PresetLimit(float lim)
-		{
-			limit = best_limit = limit_tmp = lim;
-			preset_limit = true;
-		}
+		public void ApplyPreset() { if(preset_limit >= 0) limit = best_limit = limit_tmp = preset_limit; }
 
 		public void InitTorque(VesselWrapper VSL, float ratio_factor)
 		{ InitTorque(VSL.refT, VSL.Physics.wCoM, ratio_factor); }
@@ -84,10 +80,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override void InitLimits()
-		{ 
-			if(!preset_limit)
-				limit = best_limit = limit_tmp = 1f;
-		}
+		{ limit = best_limit = limit_tmp = 1f; }
 
 		public override void InitState()
 		{
@@ -216,14 +209,12 @@ namespace ThrottleControlledAvionics
 			case TCARole.MAIN:
 			case TCARole.BALANCE:
 			case TCARole.UNBALANCE:
-				if(!preset_limit)
-					limit = best_limit = 1f;
+				limit = best_limit = 1f;
 				isSteering = Role == TCARole.MAIN;
 				isVSC = true;
 				break;
 			case TCARole.MANEUVER:
-				if(!preset_limit)
-					limit = best_limit = 0f;
+				limit = best_limit = 0f;
 				isSteering = true;
 				break;
 			case TCARole.MANUAL:
@@ -373,15 +364,15 @@ namespace ThrottleControlledAvionics
 
 		public override string ToString()
 		{
-			return Utils.Format("EngineWrapper[{}, ID {}, flightID {}, Stage {}, Role {}, Group {}]\n" + 
+			return Utils.Format("[{}, ID {}, flightID {}, Stage {}, Role {}, Group {}]\n" + 
 			                    "useEngineResponseTime: {}, engineAccelerationSpeed={}, engineDecelerationSpeed={}\n" + 
 			                    "finalThrust: {}, thrustLimit: {}, isOperational: {}\n" +
-			                    "limit: {}, best_limit: {}, limit_tmp: {}\n" +
+			                    "limit: {}, best_limit: {}, limit_tmp: {}, preset: {}\n" +
 			                    "thrust: {}\nlever: {}\ntorque: {}\ntorqueRatio: {}\n", 
 			                    name, ID, flightID, part.inverseStage, Role, Group, 
 			                    useEngineResponseTime, engineAccelerationSpeed, engineDecelerationSpeed, 
 			                    finalThrust, thrustLimit, isOperational, 
-			                    limit, best_limit, limit_tmp,
+			                    limit, best_limit, limit_tmp, preset_limit,
 			                    nominalCurrentThrust(1), wThrustLever, currentTorque, torqueRatio
 			                   );
 		}

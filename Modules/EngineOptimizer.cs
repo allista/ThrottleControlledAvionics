@@ -88,7 +88,7 @@ namespace ThrottleControlledAvionics
 		{
 			var num_engines = engines.Count;
 			var zero_torque = needed_torque.IsZero();
-			var preset_limits = engines.Any(e => e.preset_limit);
+			var preset_limits = engines.Any(e => e.preset_limit >= 0);
 			float error, angle;
 			var last_error = -1f;
 			Vector3 cur_imbalance = start_imbalance;
@@ -245,7 +245,7 @@ namespace ThrottleControlledAvionics
 			}
 			if(VSL.Engines.HaveMainEngines && 
 			   max_limit < VSL.vessel.ctrlState.mainThrottle*0.05f && 
-			   !engines.Any(e => e.preset_limit)) 
+			   !engines.Any(e => e.preset_limit >= 0)) 
 				Status(0.1, "red", "Thrust is disabled because engines cannot be balanced.");
 		}
 

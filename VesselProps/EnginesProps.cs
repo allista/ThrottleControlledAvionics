@@ -398,6 +398,7 @@ namespace ThrottleControlledAvionics
 				if(NoActiveRCS) continue;
 				t.InitTorque(VSL, GLB.RCS.TorqueRatioFactor);
 				t.UpdateCurrentTorque(1);
+				t.ApplyPreset();
 			}
 			if(!MaxThrustRCS.IsZero())
 				MaxThrustRCS.Scale(new Vector6(
@@ -443,6 +444,7 @@ namespace ThrottleControlledAvionics
 			{
 				var e = Active[i];
 				e.UpdateCurrentTorque(e.isVSC? vsc_throttle : throttle);
+				e.ApplyPreset();
 			}
 		}
 
@@ -508,7 +510,7 @@ namespace ThrottleControlledAvionics
 					e.forceThrustPercentage(e.limit*100);
 				else if(VSL.Controls.ManualTranslationSwitch.WasSet)
 					e.forceThrustPercentage(0);
-				e.preset_limit = false;
+				e.preset_limit = -1;
 			}
 			VSL.Controls.ManualTranslationSwitch.Checked();
 			if(NoActiveRCS) return;
@@ -516,7 +518,7 @@ namespace ThrottleControlledAvionics
 			{
 				var t = ActiveRCS[i];
 				t.thrustLimit = Mathf.Clamp01(t.limit);
-				t.preset_limit = false;
+				t.preset_limit = -1;
 			}
 		}
 

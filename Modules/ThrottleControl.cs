@@ -61,8 +61,8 @@ namespace ThrottleControlledAvionics
 		static void set_engine_limit(EngineWrapper e, float errorF, float max_lim)
 		{
 			if(e.Role == TCARole.MANEUVER || e.Role == TCARole.MANUAL) return;
-			if(e.Role == TCARole.BALANCE || e.Role == TCARole.UNBALANCE) e.PresetLimit(errorF);
-			else e.PresetLimit(Mathf.Lerp(errorF, max_lim, e.torqueRatio));
+			if(e.Role == TCARole.BALANCE || e.Role == TCARole.UNBALANCE) e.preset_limit = errorF;
+			else e.preset_limit = Mathf.Lerp(errorF, max_lim, e.torqueRatio);
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
