@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 
 		public static bool Available { get; private set; }
 		static Dictionary<Type,bool> Modules = new Dictionary<Type, bool>();
+		static Texture2D CoM_Icon;
 
 		NamedConfig CFG;
 		readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
@@ -35,6 +36,7 @@ namespace ThrottleControlledAvionics
 		Vector3 MoI { get { return new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]); } }
 
 		bool show_imbalance, parts_highlighted;
+		bool use_wet_mass = true;
 
 		public override void Awake()
 		{
@@ -47,10 +49,13 @@ namespace ThrottleControlledAvionics
 			GameEvents.onEditorStarted.Add(Started);
 			Available = false;
 			show_imbalance = false;
+			use_wet_mass = true;
 			//module availability
 			Modules.Clear();
 			TCAModulesDatabase.ValidModules
 				.ForEach(t => Modules.Add(t, TCAModulesDatabase.ModuleAvailable(t)));
+			//icons
+			CoM_Icon = Globals.Instance.RadiationIcon;
 		}
 
 		public override void OnDestroy ()
@@ -130,7 +135,8 @@ namespace ThrottleControlledAvionics
 		void update_inertia_tensor(Part part)
 		{
 			if(!EditorLogic.RootPart) return;
-			float partMass = part.mass + part.GetResourceMass();
+			var partMass = part.mass;
+			if(use_wet_mass) partMass += part.GetResourceMass();
 			Vector3 partPosition = EditorLogic.RootPart.transform
 				.InverseTransformDirection(part.transform.position + part.transform.rotation * part.CoMOffset - CoM);
 			for(int i = 0; i < 3; i++)
@@ -142,13 +148,27 @@ namespace ThrottleControlledAvionics
 			part.children.ForEach(update_inertia_tensor);
 		}
 
+		void update_mass_and_CoM(Part part)
+		{
+			var dryMass = part.mass;
+			var wetMass = dryMass+part.GetResourceMass();
+			var partMass = use_wet_mass? wetMass : dryMass;
+			if (part.physicalSignificance == Part.PhysicalSignificance.FULL)
+				CoM += (part.transform.position + part.transform.rotation * part.CoMOffset) * partMass;
+			else if(part.parent != null)
+				CoM += (part.parent.transform.position + part.parent.transform.rotation * part.parent.CoMOffset) * partMass;
+			else if (part.potentialParent != null)
+				CoM += (part.potentialParent.transform.position + part.potentialParent.transform.rotation * part.potentialParent.CoMOffset) * partMass;
+			Mass += wetMass;
+			DryMass += dryMass;
+			part.children.ForEach(update_mass_and_CoM);
+		}
+
 		void find_engines_recursively(Part part, List<EngineWrapper> engines)
 		{
 			if(part.Modules != null)
-			{
 				engines.AddRange(part.Modules.GetModules<ModuleEngines>()
 				                 .Select(m => new EngineWrapper(m)));
-			}
 			part.children.ForEach(p => find_engines_recursively(p, engines));
 		}
 
@@ -175,37 +195,38 @@ namespace ThrottleControlledAvionics
 		void UpdateShipStats()
 		{
 			var thrust = Vector3.zero;
-			var ship = EditorLogic.fetch.ship;
 			Mass = DryMass = MinTWR = MaxTWR = 0;
-			ship.GetShipMass(out DryMass, out Mass);
-			Mass += DryMass;
+			CoM = Vector3.zero;
 			MinLimit = 0;
+			var selected_parts = new List<Part>();
+			if(HaveSelectedPart && !EditorLogic.fetch.ship.Contains(EditorLogic.SelectedPart))
+			{
+				selected_parts.Add(EditorLogic.SelectedPart);
+				selected_parts.AddRange(EditorLogic.SelectedPart.symmetryCounterparts);
+			}
+			update_mass_and_CoM(EditorLogic.RootPart);
+			selected_parts.ForEach(update_mass_and_CoM);
+			CoM /= use_wet_mass? Mass : DryMass;
 			if(CFG != null && Engines.Count > 0)
 			{
 				ActiveEngines.Clear();
-				CoM = EditorMarker_CoM.findCenterOfMass(EditorLogic.RootPart);
 				for(int i = 0, EnginesCount = Engines.Count; i < EnginesCount; i++)
 				{
 					var e = Engines[i];
 					var ecfg = CFG.ActiveProfile.GetConfig(e);
 					if(ecfg == null || ecfg.On) ActiveEngines.Add(e);
 				}
-				if(HaveSelectedPart && !EditorLogic.fetch.ship.Contains(EditorLogic.SelectedPart))
+				if(selected_parts.Count > 0)
 				{
 					var selected_engines = new List<EngineWrapper>();
-					find_engines_recursively(EditorLogic.SelectedPart, selected_engines);
-					EditorLogic.SelectedPart.symmetryCounterparts.ForEach(p => find_engines_recursively(p, selected_engines));
+					selected_parts.ForEach(p => find_engines_recursively(p, selected_engines));
 					ActiveEngines.AddRange(selected_engines);
 				}
 				if(ActiveEngines.Count > 0)
 				{
 					ActiveEngines.ForEach(process_active_engine);
 					compute_inertia_tensor();
-					if(HaveSelectedPart && !ship.Contains(EditorLogic.SelectedPart))
-					{
-						update_inertia_tensor(EditorLogic.SelectedPart);
-						EditorLogic.SelectedPart.symmetryCounterparts.ForEach(update_inertia_tensor);
-					}
+					selected_parts.ForEach(update_inertia_tensor);
 					ActiveEngines.SortByRole();
 					float max_limit, torque_error, angle_error;
 					var imbalance = TorqueProps.CalculateImbalance(ActiveEngines.Manual, ActiveEngines.UnBalanced);
@@ -285,7 +306,8 @@ namespace ThrottleControlledAvionics
 			if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f), 
 			              new GUIContent("?", "Help"))) TCAManual.Toggle();
 			GUILayout.BeginVertical();
-			if(Modules[typeof(MacroProcessor)])
+			{
+				if(Modules[typeof(MacroProcessor)])
 				{
 					if(TCAMacroEditor.Editing)
 						GUILayout.Label("Edit Macros", Styles.inactive_button, GUILayout.ExpandWidth(true));
@@ -293,8 +315,11 @@ namespace ThrottleControlledAvionics
 						TCAMacroEditor.Edit(CFG);
 				}
 				GUILayout.BeginHorizontal();
+				{
 					GUILayout.BeginVertical();
+					{
 						GUILayout.BeginHorizontal();
+						{
 							Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false));
 							if(Modules[typeof(AltitudeControl)])
 							{
@@ -322,8 +347,10 @@ namespace ThrottleControlledAvionics
 							if(Modules[typeof(CollisionPreventionSystem)]) 
 								Utils.ButtonSwitch("CPS", ref CFG.UseCPS, 
 				                                   "Enable Collistion Prevention System", GUILayout.ExpandWidth(false));
+						}
 						GUILayout.EndHorizontal();
 						GUILayout.BeginHorizontal();
+						{
 							Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
 			                                   "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(true));
 							Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear, 
@@ -334,8 +361,11 @@ namespace ThrottleControlledAvionics
 							                   "Automatically activate next stage when previous falmeouted", GUILayout.ExpandWidth(true));
 							Utils.ButtonSwitch("AutoChute", ref CFG.AutoParachutes, 
 							                   "Automatically activate parachutes when needed", GUILayout.ExpandWidth(true));
+						}
 						GUILayout.EndHorizontal();
+					}
 					GUILayout.EndVertical();
+				}
 				GUILayout.EndHorizontal();
 				CFG.EnginesProfiles.Draw(height);
 				if(CFG.ActiveProfile.Changed)
@@ -344,9 +374,18 @@ namespace ThrottleControlledAvionics
 					update_engines = true;
 				}
 				GUILayout.BeginHorizontal(Styles.white);
+				{
 					GUILayout.Label("Ship Info:");
 					GUILayout.FlexibleSpace();
-					GUILayout.Label(string.Format("Mass: {0} ► {1}", Utils.formatMass(Mass), Utils.formatMass(DryMass)), Styles.boxed_label);
+					GUILayout.Label("Mass:", Styles.boxed_label);
+					if(Utils.ButtonSwitch(Utils.formatMass(Mass), ref use_wet_mass, "Balance engines using Wet Mass"))
+						update_stats = true;
+					GUILayout.Label("►");
+					if(Utils.ButtonSwitch(Utils.formatMass(DryMass), !use_wet_mass, "Balance engines using Dry Mass")) 
+					{
+						use_wet_mass = !use_wet_mass;
+						update_stats = true;
+					}
 					if(ActiveEngines.Count > 0)
 					{
 						GUILayout.Label(string.Format("TWR: {0:F2} ► {1:F2}", MinTWR, MaxTWR), Styles.fracStyle(Utils.Clamp(MinTWR-1, 0, 1)));
@@ -356,7 +395,9 @@ namespace ThrottleControlledAvionics
 						Utils.ButtonSwitch("HL", ref show_imbalance, "Highlight engines with low efficacy deu to balancing");
 					}
 					else GUILayout.Label("No active engines", Styles.boxed_label);
+				}
 				GUILayout.EndHorizontal();
+			}
 			GUILayout.EndVertical();
 			TooltipsAndDragWindow(WindowPos);
 		}
@@ -369,11 +410,11 @@ namespace ThrottleControlledAvionics
 			if(e.limit < 1) 
 			{
 				var lim = e.limit * e.limit;
-				var c = lim < 0.5f? 
+				e.part.RecurseHighlight = false;
+				e.part.highlightColor = lim < 0.5f? 
 					Color.Lerp(Color.magenta, Color.yellow, lim/0.5f) :
 					Color.Lerp(Color.yellow, Color.cyan, (lim-0.5f)/0.5f);
-				e.part.SetHighlightColor(c);
-				e.part.SetHighlight(true, false);
+				e.part.SetHighlightType(Part.HighlightType.AlwaysOn);
 			}
 		}
 
@@ -396,6 +437,11 @@ namespace ThrottleControlledAvionics
 				                 GUILayout.Height(height)).clampToScreen();
 			if(show_imbalance && ActiveEngines.Count > 0)
 			{
+				Markers.DrawWorldMarker(CoM, 
+				                        use_wet_mass? Color.yellow : Color.red, 
+				                        use_wet_mass? "Center of Mass" : "Center of Dry Mass",
+				                        CoM_Icon);
+				Engines.ForEach(e => e.part.SetHighlightDefault());
 				ActiveEngines.Balanced.ForEach(highlight_engine);
 				ActiveEngines.Main.ForEach(highlight_engine);
 				parts_highlighted = true;
