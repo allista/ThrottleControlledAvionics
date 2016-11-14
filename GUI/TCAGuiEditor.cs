@@ -55,7 +55,7 @@ namespace ThrottleControlledAvionics
 			TCAModulesDatabase.ValidModules
 				.ForEach(t => Modules.Add(t, TCAModulesDatabase.ModuleAvailable(t)));
 			//icons
-			CoM_Icon = Globals.Instance.RadiationIcon;
+			CoM_Icon = GameDatabase.Instance.GetTexture(Globals.RADIATION_ICON, false);
 		}
 
 		public override void OnDestroy ()
