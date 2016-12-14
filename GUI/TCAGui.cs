@@ -268,6 +268,14 @@ namespace ThrottleControlledAvionics
 					if(SQD == null) TCA.ToggleTCA();
 					else SQD.Apply(tca => tca.ToggleTCA());
 				}
+				#if DEBUG
+				if(GUILayout.Button("ReGlobals", Styles.active_button, GUILayout.ExpandWidth(false))) 
+				{
+					Globals.Load();
+					Styles.ConfigureButtons();
+					TCA.OnReloadGlobals();
+				}
+				#endif
 				//squad mode switch
 				SquadControls.Draw();
 				GUILayout.FlexibleSpace();
