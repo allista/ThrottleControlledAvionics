@@ -71,7 +71,8 @@ namespace ThrottleControlledAvionics
 		public double AngleTo(WayPoint wp) { return AngleTo(wp.Pos); }
 		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
 		public double AngleTo(VesselWrapper vsl) { return AngleTo(vsl.vessel.latitude, vsl.vessel.longitude); }
-		public float  DirectDistanceTo(Vessel vsl) { return (vsl.transform.position-GetTransform().position).magnitude; }
+		public Vector3 VectorTo(Vessel vsl) { return vsl.transform.position-GetTransform().position; }
+		public float  DirectDistanceTo(Vessel vsl) { return VectorTo(vsl).magnitude; }
 		public double DistanceTo(WayPoint wp, CelestialBody body) { return AngleTo(wp)*body.Radius; }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
 		public double DistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius; }
