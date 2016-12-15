@@ -17,11 +17,7 @@ namespace ThrottleControlledAvionics
 {
 	public class ControlProps : VesselProps
 	{
-		public ControlProps(VesselWrapper vsl) : base(vsl) 
-		{
-			av_threshold = TCAScenario.HavePersistentRotation? 
-				GLB.PersistentRotationThreshold : GLB.NoPersistentRotationThreshold;
-		}
+		public ControlProps(VesselWrapper vsl) : base(vsl) {}
 
 //		public Transform Transform;
 		public Vector3 Steering { get; private set; }
@@ -41,10 +37,6 @@ namespace ThrottleControlledAvionics
 		public float AlignmentFactor { get; private set; }
 		public float InvAlignmentFactor { get; private set; }
 
-		Timer constant_AV_timer = new Timer();
-		State<float> angular_vel = new State<float>(0);
-		float av_threshold = 1e-6f;
-
 		public float OffsetAlignmentFactor(float offset = 1)
 		{
 			var err = Utils.ClampL(AttitudeError-offset, 0);
@@ -57,12 +49,10 @@ namespace ThrottleControlledAvionics
 			AttitudeError = error;
 			Aligned &= AttitudeError < GLB.ATCB.MaxAttitudeError;
 			Aligned |= AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
-			angular_vel.current = VSL.vessel.angularVelocity.sqrMagnitude;
-			constant_AV_timer.StartIf(Mathf.Abs(angular_vel.current-angular_vel.old)/TimeWarp.fixedDeltaTime < av_threshold*100);
 			CanWarp = CFG.WarpToNode && 
 				(WarpToTime > VSL.Physics.UT || 
 				 VSL.Controls.Aligned && 
-				 (angular_vel.current < av_threshold || constant_AV_timer.TimePassed));
+				 (VSL.Physics.NoRotation || VSL.Physics.ConstantRotation));
 			MinAlignmentTime = VSL.Torque.MaxCurrent.MinRotationTime(AttitudeError);
 			AlignmentFactor = Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0);
 			InvAlignmentFactor = Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1);

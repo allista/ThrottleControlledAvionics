@@ -15,7 +15,11 @@ namespace ThrottleControlledAvionics
 {
 	public class PhysicalProps : VesselProps
 	{
-		public PhysicalProps(VesselWrapper vsl) : base(vsl) {}
+		public PhysicalProps(VesselWrapper vsl) : base(vsl) 
+		{
+			av_threshold = TCAScenario.HavePersistentRotation? 
+				GLB.PersistentRotationThreshold : GLB.NoPersistentRotationThreshold;
+		}
 
 		public Vector3d   Radial { get; private set; }  //up unit vector in world space
 		public Vector3d   Up { get; private set; }  //up unit vector in world space
@@ -28,9 +32,18 @@ namespace ThrottleControlledAvionics
 		public Vector3    wCoM { get; private set; } //center of mass in world space
 		public Vector3    MoI { get; private set; } = Vector3.one; //main diagonal of inertia tensor
 		public Matrix3x3f InertiaTensor { get; private set; }
+		public double     MinMaxTemperature;
+		public double     MMT_ThermalMass;
 		public float      AngularDrag;
 
-		public double     UT { get; private set; } //Planetarium.GetUniversalTime
+		public double     UT { get; private set; }
+
+		public bool       NoRotation { get; private set; }
+		public bool       ConstantRotation { get; private set; }
+
+		Timer constant_AV_timer = new Timer();
+		State<float> angular_vel = new State<float>(0);
+		float av_threshold = 1e-6f;
 
 		public void UpdateCoM() { wCoM = vessel.CoM; }
 
@@ -48,6 +61,39 @@ namespace ThrottleControlledAvionics
 		public double GetSoundSpeed()
 		{ return GetSoundSpeed(VSL.Altitude.Absolute); }
 
+		public void UpdateMaxTemp(Part p)
+		{
+			var skinE = p.skinThermalMass * p.skinMaxTemp;
+			var coreE = p.thermalMass * p.maxTemp;
+			var minE = MinMaxTemperature * MMT_ThermalMass;
+			if(skinE <= coreE && skinE < minE)
+			{
+				MinMaxTemperature = p.skinMaxTemp;
+				MMT_ThermalMass = p.skinThermalMass;
+				return;
+			}
+			if(coreE <= skinE && coreE < minE)
+			{
+				MinMaxTemperature = p.maxTemp;
+				MMT_ThermalMass = p.thermalMass;
+				return;
+			}
+		}
+
+		public double FinalTemp(double start_T, double heating_T, double heating_time)
+		{
+			if(heating_T < start_T) return start_T;
+			if(heating_T < MinMaxTemperature) return heating_T;
+			return (start_T-heating_T)*Math.Exp(-MMT_ThermalMass*heating_time)+heating_T;
+		}
+
+		public override void Clear()
+		{
+			AngularDrag = 0;
+			MinMaxTemperature = double.MaxValue;
+			MMT_ThermalMass = 1;
+		}
+
 		public override void Update()
 		{
 			UT     = Planetarium.GetUniversalTime();
@@ -60,6 +106,11 @@ namespace ThrottleControlledAvionics
 			StG    = (float)GeeAt(Radial.sqrMagnitude);
 			G      = Utils.ClampL(StG-(float)FlightGlobals.getCentrifugalAcc(wCoM, VSL.Body).magnitude, 1e-5f);
 			mg     = M*G;
+			//compute rotational stats
+			angular_vel.current = VSL.vessel.angularVelocity.sqrMagnitude;
+			constant_AV_timer.StartIf(Mathf.Abs(angular_vel.current-angular_vel.old)/TimeWarp.fixedDeltaTime < av_threshold*100);
+			NoRotation = angular_vel.current < av_threshold;
+			ConstantRotation = constant_AV_timer.TimePassed;
 		}
 
 		public Vector3d NorthDirW { get { return Vector3.ProjectOnPlane(VSL.Body.position+VSL.Body.transform.up*(float)VSL.Body.Radius-wCoM, Up).normalized; } }

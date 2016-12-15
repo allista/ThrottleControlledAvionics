@@ -125,7 +125,8 @@ namespace ThrottleControlledAvionics
 					CFG.HF.Off();
 					CFG.AT.OnIfNot(Attitude.Custom);
 					ATC.SetThrustDirW(srf_normal);
-					LandedTimer.RunIf(() => { stage = Stage.Landed; CFG.AT.Off(); }, VSL.Controls.AttitudeError < 1);
+					LandedTimer.RunIf(() => { stage = Stage.Landed; CFG.AT.Off(); }, 
+					                  VSL.Physics.NoRotation || VSL.Controls.AttitudeError < 1);
 					break;
 				}
 				stage = Stage.Landed;
