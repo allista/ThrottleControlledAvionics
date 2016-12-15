@@ -57,11 +57,13 @@ namespace ThrottleControlledAvionics
 			                               "Countdown" ),
 			                VSL.Info.Countdown > 10? Styles.white : Styles.red, 
 			                GUILayout.ExpandWidth(true));
-			GUILayout.Label(new GUIContent(VSL.Info.TTB >= 0? 
+			GUILayout.Label(new GUIContent(VSL.Info.TTB >= 0 && VSL.Info.TTB < float.MaxValue? 
 			                               string.Format("{0:F1}s", VSL.Info.TTB) : "",
 			                               "Thrust Duration"), 
 			                Styles.yellow, GUILayout.ExpandWidth(true));
 			GUILayout.EndHorizontal();
+			if(DEO != null && CFG.AP2[Autopilot2.Deorbit])
+				DEO.DrawDeorbitSettings();
 		}
 
 		void draw_orbit_editor(int windowID)

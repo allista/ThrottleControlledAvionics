@@ -112,6 +112,8 @@ namespace ThrottleControlledAvionics
 			if(Mathf.Abs(max_nav_speed-CFG.MaxNavSpeed) > 1e-5)
 				apply_cfg(cfg => cfg.MaxNavSpeed = max_nav_speed);
 			GUILayout.EndHorizontal();
+			if(BJ != null && CFG.AP2[Autopilot2.BallisticJump])
+				BJ.DrawDeorbitSettings();
 		}
 
 		#region WaypointList

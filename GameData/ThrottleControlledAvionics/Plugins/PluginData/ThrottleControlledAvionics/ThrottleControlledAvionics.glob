@@ -388,12 +388,14 @@ LTRJ
 	BrakeEndSpeed      = 10   //m/s
 	MinBrakeOffset     = 10   //s
 	FinalBrakeOffset   = 3    //s
+	ParachutesDeployOffset = 10 //s
 	
 	CorrectionOffset   = 20   //s
 	CorrectionTimer    = 30   //s
 	CorrectionMinDv    = 1    //m/s
 	CorrectionThrustF  = 4
 	CorrectionTimeF    = 2
+	CorrectionDirF     = 10
 	
 	ObstacleBrakeF     = 1.1
 	HoverTimeThreshold = 60    //s
@@ -408,10 +410,10 @@ LTRJ
 
 DEO
 {
-	StartEcc           = 0.5
-	MaxEcc             = 0.8
+	MinLandingAngle    = 20
+	MaxDynPressure     = 8
 	EccSteps           = 10
-	AngularDragF       = 0.14
+	HeatingCoefficient = 0.02
 }
 
 BJ

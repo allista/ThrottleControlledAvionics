@@ -24,6 +24,8 @@ namespace ThrottleControlledAvionics
 		public double TimeToStart { get; protected set; }
 		public Vector3d ManeuverDeltaV { get; protected set; }
 		public double ManeuverDuration { get; protected set; }
+		public float  ManeuverFuel { get; protected set; }
+		public bool   NotEnoughFuel { get; protected set; }
 
 		public Vector3d StartPos { get; protected set; }
 		public Vector3d StartVel { get; protected set; }
@@ -31,8 +33,19 @@ namespace ThrottleControlledAvionics
 		protected BaseTrajectory(VesselWrapper vsl, Vector3d dV, double startUT)
 		{
 			VSL = vsl;
+			var dVm = (float)dV.magnitude;
 			ManeuverDeltaV = dV;
-			ManeuverDuration = VSL.Engines.TTB((float)ManeuverDeltaV.magnitude);
+			if(dVm > 0) 
+			{
+				ManeuverFuel = VSL.Engines.FuelNeeded(dVm);
+				NotEnoughFuel = ManeuverFuel > VSL.Engines.GetAvailableFuelMass();
+				ManeuverDuration = VSL.Engines.TTB(dVm);
+			}
+			else 
+			{
+				ManeuverFuel = 0;
+				ManeuverDuration = 0;
+			}
 			StartUT = startUT;
 			TimeToStart = startUT-VSL.Physics.UT;
 			Body = VSL.vessel.orbitDriver.orbit.referenceBody;
@@ -49,6 +62,7 @@ namespace ThrottleControlledAvionics
 			TimeToStart = 0;
 			ManeuverDeltaV = Vector3d.zero;
 			ManeuverDuration = 0;
+			NotEnoughFuel = false;
 			StartPos = Orbit.pos;
 			StartVel = Orbit.vel;
 		}
@@ -56,12 +70,15 @@ namespace ThrottleControlledAvionics
 		public override string ToString()
 		{
 			return Utils.Format("[{}]\n" +
-			                     "OrigOrbit:\n{}\n" +
-			                     "NewOrbit:\n{}\n" +
-			                     "StartUT: {} s, TimeToStart: {} s, ManeuverDuration: {} s\n" +
-			                     "ManeuverDeltaV: {}", 
-			                     GetType().Name, OrigOrbit, Orbit, 
-			                     StartUT, TimeToStart, ManeuverDuration, ManeuverDeltaV);
+			                    "OrigOrbit:\n{}\n" +
+			                    "NewOrbit:\n{}\n" +
+			                    "StartUT: {} s, TimeToStart: {} s, ManeuverDuration: {} s\n" +
+			                    "ManeuverDeltaV: {}\n" +
+			                    "ManeuverFuel: {}, NotEnough: {}", 
+			                    GetType().Name, OrigOrbit, Orbit, 
+			                    StartUT, TimeToStart, 
+			                    ManeuverDuration, ManeuverDeltaV, 
+			                    ManeuverFuel, NotEnoughFuel);
 		}
 	}
 
@@ -91,7 +108,7 @@ namespace ThrottleControlledAvionics
 
 	public abstract class TargetedTrajectory : TargetedTrajectoryBase
 	{
-		public readonly WayPoint Target;
+		public WayPoint Target;
 
 		protected TargetedTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target) 
 			: base(vsl, dV, startUT) { Target = target; }

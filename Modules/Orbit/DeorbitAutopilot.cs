@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
@@ -23,18 +24,10 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : TCAModule.ModuleConfig
 		{
-			[Persistent] public float StartEcc     = 0.5f;
-			[Persistent] public int   EccSteps     = 10;
-			[Persistent] public float MaxEcc       = 0.8f; 
-			[Persistent] public float AngularDragF = 0.5f;
-
-			public float dEcc;
-
-			public override void Init()
-			{
-				base.Init();
-				dEcc = StartEcc/EccSteps;
-			}
+			[Persistent] public float MinLandingAngle    = 20f;
+			[Persistent] public float MaxDynPressure     = 7f;
+			[Persistent] public int   EccSteps           = 10;
+			[Persistent] public float HeatingCoefficient = 5f;
 		}
 		static Config DEO { get { return Globals.Instance.DEO; } }
 
@@ -46,9 +39,10 @@ namespace ThrottleControlledAvionics
 			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
 		}
 
-		public enum Stage { None, Compute, Deorbit, Correct, Coast, Wait }
+		public enum Stage { None, Precalculate, Compute, Deorbit, Correct, Coast, Wait }
 		[Persistent] public Stage stage;
 		double currentEcc;
+		double dEcc;
 
 
 		Vector3d PlaneCorrection(TargetedTrajectoryBase old)
@@ -123,8 +117,76 @@ namespace ThrottleControlledAvionics
 		{
 			base.reset();
 			stage = Stage.None;
-			currentEcc = DEO.StartEcc;
 			CFG.AP1.Off();
+		}
+
+		double final_temp(double start_T, AtmosphericConditions cond)
+		{
+			if(cond.ShockTemperature < start_T) return start_T;
+			var K = VSL.Physics.MMT_ThermalMass > cond.ConvectiveCoefficient? 
+				-cond.ConvectiveCoefficient/VSL.Physics.MMT_ThermalMass : -1;
+			return cond.ShockTemperature + (start_T-cond.ShockTemperature) * Math.Exp(K*DEO.HeatingCoefficient*cond.Duration);
+		}
+
+		bool will_overheat(IList<AtmosphericConditions> conditions)
+		{
+			if(conditions == null || conditions.Count == 0) return false;
+			var start_T = VSL.vessel.atmosphericTemperature;
+			for(int i = 0, count = conditions.Count; i < count; i++)
+			{
+				var c = conditions[i];
+				if(start_T > VSL.Physics.MinMaxTemperature) break;
+				if(c.Duration.Equals(0)) continue;
+				start_T = final_temp(start_T, c);
+			}
+//			Log("Final Temprerature: {} > {}", start_T, VSL.Physics.MinMaxTemperature);//debug
+			return start_T > VSL.Physics.MinMaxTemperature;
+		}
+
+
+		IEnumerator<YieldInstruction> eccentricity_calculator = null;
+		IEnumerator<YieldInstruction> compute_initial_eccentricity()
+		{
+//			Log("Calculating initial orbit eccentricity...");//debug
+			var tPos = CFG.Target.RelOrbPos(Body);
+			var UT = VSL.Physics.UT +
+				AngleDelta(VesselOrbit, tPos, VSL.Physics.UT)/360*VesselOrbit.period;
+			var vPos = VesselOrbit.getRelativePositionAtUT(UT);
+			var vVel = VesselOrbit.getOrbitalVelocityAtUT(UT);
+			var dir = Vector3d.Exclude(vPos, vVel);
+			var ini_orb = VesselOrbit.eccentricity > 1e-3? CircularOrbit(dir, UT) : VesselOrbit;
+			var dV4P = dV4Pe(ini_orb, (Body.Radius+TargetAltitude)*0.999, UT);
+			var ini_dV = ini_orb.getOrbitalVelocityAtUT(UT)-vVel + dV4P;
+//			Log("ini orbit:\n{}\nvsl orbit:\n{}\nini vel {}\nvsl vel {}\n dV4Pe {}",
+//			    ini_orb, VesselOrbit, ini_orb.getOrbitalVelocityAtUT(UT), vVel, dV4P);//debug
+			var trj = new LandingTrajectory(VSL, ini_dV, UT, CFG.Target, TargetAltitude);
+			var atmo_curve = trj.GetAtmosphericCurve(5);
+			var maxV = vVel.magnitude;
+			var minV = 0.0;
+			var dV = 0.0;
+			dir = -dir.normalized;
+			var in_plane = Math.Abs(90-Vector3.Angle(tPos, VesselOrbit.GetOrbitNormal())) < 5;
+//			Log("in plane {}, ini dV {}\nini trj:\n{}", in_plane, ini_dV, trj);//debug
+			yield return null;
+			while(maxV-minV > 1)
+			{
+				dV = (maxV+minV)/2;
+				trj = new LandingTrajectory(VSL, ini_dV+dir*dV, UT, CFG.Target, trj.TargetAltitude);
+				atmo_curve = trj.GetAtmosphericCurve(5);
+//				Log("dV: {} : {} : {} m/s\ntrj:\n{}", minV, dV, maxV, trj);//debug
+				if(!trj.NotEnoughFuel && (in_plane || trj.DeltaR < 0) &&
+				   (atmo_curve != null &&
+				    (will_overheat(atmo_curve) ||
+				     atmo_curve[atmo_curve.Count-1].DynamicPressure > DEO.MaxDynPressure) ||
+				    !Body.atmosphere && trj.LandingAngle < DEO.MinLandingAngle))
+					minV = dV;
+				else maxV = dV;
+				yield return null;
+			}
+			currentEcc = trj.Orbit.eccentricity;
+			dEcc = currentEcc/DEO.EccSteps;
+			if(trj.DeltaR > 0) currentEcc = Utils.ClampL(currentEcc - dEcc, dEcc);
+//			Log("currentEcc: {}, dEcc {}", currentEcc, dEcc);//debug
 		}
 
 		public void DeorbitCallback(Multiplexer.Command cmd)
@@ -132,9 +194,9 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-//				Utils.Log("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
 				if(!check_patched_conics()) return;
 				NeedRadarWhenMooving();
+				if(trajectory == null) update_trajectory();
 				if(stage == Stage.None && !landing) 
 					goto case Multiplexer.Command.On;
 				else if(VSL.HasManeuverNode) 
@@ -152,33 +214,8 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
-//					Log("Calculating initial orbit eccentricity...");//debug
-					var tPos = CFG.Target.RelOrbPos(Body);
-					var UT = VSL.Physics.UT +
-						AngleDelta(VesselOrbit, tPos, VSL.Physics.UT)/360*VesselOrbit.period;
-					var vPos = VesselOrbit.getRelativePositionAtUT(UT);
-					var dir = Vector3d.Exclude(vPos, tPos-vPos);
-					var ini_orb = CircularOrbit(dir, UT);
-					var ini_dV = ini_orb.getOrbitalVelocityAtUT(UT)-VesselOrbit.getOrbitalVelocityAtUT(UT) + dV4Pe(ini_orb, Body.Radius*0.9, UT);
-					var trj = new LandingTrajectory(VSL, ini_dV, UT, CFG.Target, TargetAltitude);
-					var dV = 10.0;
-					dir = -dir.normalized;
-					while(trj.Orbit.eccentricity < DEO.StartEcc)
-					{
-//						Log("\ndV: {}m/s\nini trj:\n{}", dV, trj);//debug
-						if(trj.DeltaR > 0) break;
-						trj = new LandingTrajectory(VSL, ini_dV+dir*dV, UT, CFG.Target, trj.TargetAltitude);
-						dV += 10;
-					}
-					if(trj.Orbit.eccentricity > DEO.StartEcc)
-					{
-						currentEcc = DEO.StartEcc;
-						if(Body.atmosphere) currentEcc = 
-							Utils.ClampH(currentEcc*(2.1-Utils.ClampH(VSL.Torque.MaxPossible.AngularDragResistance/Body.atmDensityASL*DEO.AngularDragF, 1)), DEO.MaxEcc);
-					}
-					else currentEcc = Utils.ClampL(trj.Orbit.eccentricity - DEO.dEcc, DEO.dEcc);
-//					Log("currentEcc: {}, dEcc {}", currentEcc, DEO.dEcc);//debug
-					compute_landing_trajectory();
+					eccentricity_calculator = compute_initial_eccentricity();
+					stage = Stage.Precalculate;
 				}
 				goto case Multiplexer.Command.Resume;
 
@@ -211,6 +248,13 @@ namespace ThrottleControlledAvionics
 			if(landing) { do_land(); return; }
 			switch(stage)
 			{
+			case Stage.Precalculate:
+				Status("Computing trajectory...");
+				if(eccentricity_calculator != null &&
+				   eccentricity_calculator.MoveNext()) break;
+				eccentricity_calculator = null;
+				compute_landing_trajectory();
+				break;
 			case Stage.Compute:
 				if(!trajectory_computed()) break;
 				if(trajectory.DistanceToTarget < LTRJ.Dtol || currentEcc < 1e-10)
@@ -224,7 +268,7 @@ namespace ThrottleControlledAvionics
 				}
 				else 
 				{
-					currentEcc -= DEO.dEcc;
+					currentEcc -= dEcc;
 					if(currentEcc > 1e-10) 
 						compute_landing_trajectory();
 				}
@@ -239,11 +283,15 @@ namespace ThrottleControlledAvionics
 				Status("Executing deorbit burn...");
 				VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
+				#if DEBUG
+				PauseMenu.Display();
+				#endif
 				fine_tune_approach();
 				break;
 			case Stage.Correct:
 				if(!trajectory_computed()) break;
-				add_correction_node_if_needed();
+				if(!will_overheat(trajectory.GetAtmosphericCurve(5)))
+					add_correction_node_if_needed();
 				stage = Stage.Coast; 
 				break;
 			case Stage.Coast:
@@ -251,7 +299,9 @@ namespace ThrottleControlledAvionics
 				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-TRJ.ManeuverOffset;
 				if(CFG.AP1[Autopilot1.Maneuver]) 
 				{ 
-					if(VSL.Info.Countdown > 0)
+					if(VSL.Info.Countdown > 0 ||
+					   trajectory.BrakeStartUT-Math.Max(MAN.NodeUT, VSL.Physics.UT)-VSL.Info.TTB -
+					   VSL.Torque.NoEngines.MinRotationTime(Vector3.Angle(VesselOrbit.vel, MAN.NodeDeltaV)) > LTRJ.CorrectionOffset)
 					{
 						Status("Correcting trajectory..."); 
 						break; 
