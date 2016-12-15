@@ -442,9 +442,9 @@ namespace ThrottleControlledAvionics
 		#if DEBUG
 		public void DrawDebugLines()
 		{
-			if(VSL == null || VSL.vessel == null || VSL.refT == null) return;
+			if(!CFG.AT || VSL == null || VSL.vessel == null || VSL.refT == null) return;
 //			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
-			Utils.GLVec(VSL.refT.position, VSL.Engines.CurrentThrustDir*20, Color.cyan);
+			Utils.GLVec(VSL.refT.position, VSL.WorldDir(lthrust.normalized)*20, Color.cyan);
 			Utils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized)*20, Color.green);
 //			Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.green);
 //			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
