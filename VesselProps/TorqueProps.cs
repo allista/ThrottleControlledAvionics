@@ -197,6 +197,13 @@ namespace ThrottleControlledAvionics
 		public float AngularAccelerationAroundAxis(Vector3 axis)
 		{ return Mathf.Abs(Vector3.Dot(AA, axis.AbsComponents().normalized)); }
 
+		public float MinStopTime()
+		{
+			if(VSL.Physics.NoRotation) return 0;
+			var aa = AngularAccelerationAroundAxis(VSL.vessel.angularVelocity);
+			return aa.Equals(0) ? float.MaxValue : VSL.vessel.angularVelocity.magnitude / aa;
+		}
+
 		//rotation with zero start and end angular velocities and constant angular acceleration
 		public float MinRotationTime(float angle)
 		{ return 2*Mathf.Sqrt(angle/AA_rad/Mathf.Rad2Deg); }
