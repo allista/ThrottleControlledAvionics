@@ -96,10 +96,48 @@ namespace ThrottleControlledAvionics
 				case 1:
 					return VSL.refT.up;
 				case 2:
-					return -VSL.refT.forward;
+					return VSL.refT.forward;
 				default:
 					return VSL.refT.up;
 				}
+			}
+		}
+
+		public Vector3 MaxDragDirection
+		{
+			get
+			{
+				float[] drag = new float[6];
+				for(int i = 0, parts = VSL.vessel.Parts.Count; i < parts; i++)
+				{
+					var p = VSL.vessel.Parts[i];
+					for(int f = 0; f < 6; f++)
+						drag[f] += p.DragCubes.WeightedDrag[f];
+				}
+				int maxI = 0;
+				float max = 0;
+				for(int f = 0; f < 6; f++)
+				{
+					if(drag[f] > max)
+					{
+						max = drag[f];
+						maxI = f;
+					}
+				}
+				switch((DragCube.DragFace)maxI)
+				{
+				case DragCube.DragFace.XP:
+					return VSL.refT.right;
+				case DragCube.DragFace.XN:
+					return -VSL.refT.right;
+				case DragCube.DragFace.YP:
+					return VSL.refT.up;
+				case DragCube.DragFace.YN:
+					return -VSL.refT.up;
+				case DragCube.DragFace.ZP:
+					return VSL.refT.forward;
+				}
+				return -VSL.refT.forward;
 			}
 		}
 	}
