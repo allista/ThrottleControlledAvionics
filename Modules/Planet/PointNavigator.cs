@@ -175,7 +175,8 @@ namespace ThrottleControlledAvionics
 			CFG.HF.OnIfNot(HFlight.Stop);
 			UnregisterFrom<Radar>();
 			reset_formation();
-			SetTarget();
+			if(!CFG.AP1 && !CFG.AP2)
+				SetTarget();
 		}
 
 		bool on_arrival()
@@ -296,7 +297,6 @@ namespace ThrottleControlledAvionics
 		protected override void Update()
 		{
 			if(!IsActive || CFG.Target == null || CFG.Nav.Paused) return;
-			CFG.Target.Update(VSL);
 			//differentiate between flying in formation and going to the target
 			var vdistance = 0f; //vertical distance to the target
 			if(CFG.Nav[Navigation.FollowTarget]) update_formation_info();
