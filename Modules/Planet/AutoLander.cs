@@ -34,7 +34,6 @@ namespace ThrottleControlledAvionics
 			[Persistent] public int   WideCheckLevel       = 5;
 			[Persistent] public float NodeTargetRange      = 1;
 			[Persistent] public float NodeAnchorF          = 0.5f;
-			[Persistent] public float GearOnAtH            = 5;
 			[Persistent] public float StopAtH              = 2;
 			[Persistent] public float StopTimer            = 2;
 			[Persistent] public float CutoffTimer          = 2;
@@ -103,7 +102,6 @@ namespace ThrottleControlledAvionics
 				if(VSL.LandedOrSplashed) { CFG.AP1.Off(); break; }
 				CFG.HF.On(HFlight.Stop);
 				set_initial_altitude();
-				CFG.AltitudeAboveTerrain = true;
 				TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
 				break;
 
@@ -240,7 +238,7 @@ namespace ThrottleControlledAvionics
 			CFG.AltitudeAboveTerrain = true;
 			VSL.Altitude.Update();
 			CFG.DesiredAltitude = Utils.Clamp(VSL.Altitude.Relative+VSL.VerticalSpeed.Absolute*3, 
-			                              VSL.Geometry.H*2, LND.MaxStartAltitude);
+			                                  VSL.Geometry.H*2, LND.MaxStartAltitude);
 		}
 
 		bool altitude_changed
@@ -356,7 +354,7 @@ namespace ThrottleControlledAvionics
 			CFG.Anchor.Radius = LND.NodeTargetRange;
 			CFG.Target = CFG.Anchor;
 			CFG.Nav.OnIfNot(Navigation.Anchor);
-			CFG.DesiredAltitude = VSL.Geometry.H*LND.GearOnAtH;
+			CFG.DesiredAltitude = VSL.Geometry.H*(LND.StopAtH+1);
 			apply_cfg(cfg => cfg.AP1.XOnIfNot(Autopilot1.Land));
 			stage = Stage.Land;
 		}
