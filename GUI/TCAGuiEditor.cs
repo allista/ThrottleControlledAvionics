@@ -32,6 +32,8 @@ namespace ThrottleControlledAvionics
 
 		float Mass, DryMass, MinTWR, MaxTWR, MinLimit;
 		Vector3 CoM = Vector3.zero;
+		Vector3 WetCoM = Vector3.zero;
+		Vector3 DryCoM = Vector3.zero;
 		Matrix3x3f InertiaTensor = new Matrix3x3f();
 		Vector3 MoI { get { return new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]); } }
 
@@ -152,13 +154,15 @@ namespace ThrottleControlledAvionics
 		{
 			var dryMass = part.mass;
 			var wetMass = dryMass+part.GetResourceMass();
-			var partMass = use_wet_mass? wetMass : dryMass;
+			Vector3 pos = Vector3.zero;
 			if (part.physicalSignificance == Part.PhysicalSignificance.FULL)
-				CoM += (part.transform.position + part.transform.rotation * part.CoMOffset) * partMass;
+				pos = part.transform.position + part.transform.rotation * part.CoMOffset;
 			else if(part.parent != null)
-				CoM += (part.parent.transform.position + part.parent.transform.rotation * part.parent.CoMOffset) * partMass;
+				pos = part.parent.transform.position + part.parent.transform.rotation * part.parent.CoMOffset;
 			else if (part.potentialParent != null)
-				CoM += (part.potentialParent.transform.position + part.potentialParent.transform.rotation * part.potentialParent.CoMOffset) * partMass;
+				pos = part.potentialParent.transform.position + part.potentialParent.transform.rotation * part.potentialParent.CoMOffset;
+			WetCoM += pos * wetMass;
+			DryCoM += pos * dryMass;
 			Mass += wetMass;
 			DryMass += dryMass;
 			part.children.ForEach(update_mass_and_CoM);
@@ -196,7 +200,7 @@ namespace ThrottleControlledAvionics
 		{
 			var thrust = Vector3.zero;
 			Mass = DryMass = MinTWR = MaxTWR = 0;
-			CoM = Vector3.zero;
+			CoM = WetCoM = DryCoM = Vector3.zero;
 			MinLimit = 0;
 			var selected_parts = new List<Part>();
 			if(HaveSelectedPart && !EditorLogic.fetch.ship.Contains(EditorLogic.SelectedPart))
@@ -206,7 +210,8 @@ namespace ThrottleControlledAvionics
 			}
 			update_mass_and_CoM(EditorLogic.RootPart);
 			selected_parts.ForEach(update_mass_and_CoM);
-			CoM /= use_wet_mass? Mass : DryMass;
+			WetCoM /= Mass; DryCoM /= DryMass;
+			CoM = use_wet_mass? WetCoM : DryCoM;
 			if(CFG != null && Engines.Count > 0)
 			{
 				ActiveEngines.Clear();
@@ -295,7 +300,11 @@ namespace ThrottleControlledAvionics
 				update_stats = true;
 				update_engines = false;
 			}
-			if(update_stats) UpdateShipStats();
+			if(update_stats) 
+			{
+				UpdateShipStats();
+				update_stats = false;
+			}
 			Available |= CFG != null && Engines.Count > 0;
 			if(Available) CFG.GUIVisible = CFG.Enabled;
 		}
@@ -437,10 +446,8 @@ namespace ThrottleControlledAvionics
 				                 GUILayout.Height(height)).clampToScreen();
 			if(show_imbalance && ActiveEngines.Count > 0)
 			{
-				Markers.DrawWorldMarker(CoM, 
-				                        use_wet_mass? Color.yellow : Color.red, 
-				                        use_wet_mass? "Center of Mass" : "Center of Dry Mass",
-				                        CoM_Icon);
+				Markers.DrawWorldMarker(WetCoM, Color.yellow, "Center of Mass", CoM_Icon);
+				Markers.DrawWorldMarker(DryCoM, Color.red, "Center of Dry Mass", CoM_Icon);
 				Engines.ForEach(e => e.part.SetHighlightDefault());
 				ActiveEngines.Balanced.ForEach(highlight_engine);
 				ActiveEngines.Main.ForEach(highlight_engine);
