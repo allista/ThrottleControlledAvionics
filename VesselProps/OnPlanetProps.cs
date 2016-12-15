@@ -21,15 +21,15 @@ namespace ThrottleControlledAvionics
 	{
 		public OnPlanetProps(VesselWrapper vsl) : base(vsl) {}
 
-		public List<ModuleParachute> Parachutes = new List<ModuleParachute>();
-		public List<ModuleParachute> UnusedParachutes = new List<ModuleParachute>();
+		public List<Parachute> Parachutes = new List<Parachute>();
+		public List<Parachute> UnusedParachutes = new List<Parachute>();
+		public List<Parachute> ActiveParachutes = new List<Parachute>();
 		public List<ModuleWheelDeployment> LandingGear = new List<ModuleWheelDeployment>();
 		public bool HaveParachutes { get; private set; }
 		public bool HaveUsableParachutes { get; private set; }
 		public bool ParachutesActive { get; private set; }
 		public bool ParachutesDeployed { get; private set; }
 		public int  NearestParachuteStage { get; private set; }
-		readonly ActionDamper parachute_cooldown = new ActionDamper(0.5);
 
 		public Vector3 Fwd { get; private set; }  //fwd unit vector of the Control module in world space
 		public Vector3 FwdL { get; private set; }  //fwd unit vector of the Control module in local space
@@ -83,12 +83,46 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
+		public bool AddParachute(PartModule pm)
+		{
+			var parachute = pm as ModuleParachute;
+			if(parachute != null) 
+			{
+				Parachutes.Add(new Parachute(VSL, parachute));
+				return true;
+			}
+			return false;
+		}
+
 		public override void Clear()
 		{
 			HaveLandingGear = false;
 			GearDeployTime = 0;
 			LandingGear.Clear();
 			Parachutes.Clear();
+		}
+
+		static void update_aero_forces(Part p, ref Vector3 lift, ref Vector3 drag)
+		{
+			drag += p.dragVector;
+			if(!p.hasLiftModule)
+				lift += p.partTransform.InverseTransformDirection(p.bodyLiftLocalVector);
+			var lift_srf = p.Modules.GetModules<ModuleLiftingSurface>();
+			if(lift_srf.Count > 0)
+			{
+				var srf_lift = Vector3.zero;
+				var srf_drag = Vector3.zero;
+				lift_srf.ForEach(m => { srf_lift += m.liftForce; srf_drag += m.dragForce; });
+				lift += srf_lift; drag += srf_drag;
+			}
+		}
+
+		public Vector3 MainAeroForce()
+		{
+			var lift = Vector3.zero;
+			var drag = Vector3.zero;
+			VSL.vessel.Parts.ForEach(p => update_aero_forces(p, ref lift, ref drag));
+			return lift.sqrMagnitude > drag.sqrMagnitude? lift : VSL.Geometry.MaxAreaDirection;
 		}
 
 		public override void Update()
@@ -118,7 +152,7 @@ namespace ThrottleControlledAvionics
 					if(dcomponent <= 0) e.VSF = VSL.HasUserInput? 0 : GeeVSF*VSL.Controls.InvAlignmentFactor;
 					else 
 					{
-						var dthrust = e.nominalCurrentThrust(e.best_limit)*dcomponent;
+						var dthrust = e.nominalCurrentThrust(e.limit)*dcomponent;
 						if(e.useEngineResponseTime && dthrust > 0) 
 						{
 							slow_thrust += dthrust;
@@ -153,36 +187,155 @@ namespace ThrottleControlledAvionics
 			}
 			//parachutes
 			UnusedParachutes.Clear();
+			ActiveParachutes.Clear();
 			ParachutesActive = false;
 			ParachutesDeployed = false;
 			NearestParachuteStage = 0;
 			for(int i = 0, count = Parachutes.Count; i < count; i++)
 			{
 				var p = Parachutes[i];
-				if(p.part.inverseStage > NearestParachuteStage) 
-					NearestParachuteStage = p.part.inverseStage;
-				ParachutesActive |= 
-					p.deploymentState == ModuleParachute.deploymentStates.ACTIVE ||
-					p.deploymentState == ModuleParachute.deploymentStates.SEMIDEPLOYED ||
-					p.deploymentState == ModuleParachute.deploymentStates.DEPLOYED;
-				ParachutesDeployed |= p.deploymentState == ModuleParachute.deploymentStates.DEPLOYED && p.part.maximum_drag/p.fullyDeployedDrag > 0.9;
-				if(p.part != null && !p.part.ShieldedFromAirstream && p.deploymentState == ModuleParachute.deploymentStates.STOWED)
-					UnusedParachutes.Add(p);
+				if(!p.Valid) continue;
+				p.Update();
+				if(p.Active) ActiveParachutes.Add(p);
+				if(p.Usable) UnusedParachutes.Add(p);
+				if(p.Stage > NearestParachuteStage) 
+					NearestParachuteStage = p.Stage;
+				ParachutesDeployed |= p.Deployed;
 			}
+			ParachutesActive = ActiveParachutes.Count > 0;
 			HaveUsableParachutes = UnusedParachutes.Count > 0;
 			HaveParachutes = HaveUsableParachutes || ParachutesActive;
 		}
 
-		public void ActivateParachutes()
+		public delegate bool ParachuteCondition(Parachute p);
+		void activate_parachutes(ParachuteCondition cond = null)
 		{
-			if(!CFG.AutoParachutes) return;
+			var P = vessel.staticPressurekPa*Parachute.Atm; //atm
 			for(int i = 0, count = UnusedParachutes.Count; i < count; i++)
 			{
-				var p = Parachutes[i];
-				if(p.deploymentSafeState == ModuleParachute.deploymentSafeStates.SAFE &&
-				   VSL.Altitude.Relative < p.deployAltitude
-				   +Mathf.Abs(VSL.VerticalSpeed.Absolute)*(1/Utils.ClampL(p.semiDeploymentSpeed, 0.1f)+10))
-					parachute_cooldown.Run(p.Deploy);
+				var p = UnusedParachutes[i];
+				if(p.CanBeDeployed(P) && (cond == null || cond(p)))
+					p.parachute.Deploy();
+			}
+		}
+
+		public void ActivateParachutesAtDeplyomentAltitude()
+		{
+			if(!CFG.AutoParachutes) return;
+			activate_parachutes(p => p.AtDeploymentAltitude);
+		}
+
+		public void ActivateParachutesBeforeUnsafe()
+		{
+			if(!CFG.AutoParachutes) return;
+			activate_parachutes(p => p.SafetyState == Parachute.State.BeforeUnsafe || 
+			                    p.AtDeploymentAltitude);
+		}
+
+		public void ActivateParachutesASAP()
+		{
+			if(!CFG.AutoParachutes) return;
+			activate_parachutes();
+		}
+
+		public void CutActiveParachutes()
+		{
+			if(!CFG.AutoParachutes || ActiveParachutes.Count == 0) return;
+			ActiveParachutes.ForEach(p => p.parachute.CutParachute());
+			ActiveParachutes.Clear();
+			ParachutesActive = false;
+		}
+
+		public class Parachute : VesselProps
+		{
+			public const double Atm = 0.0098692326671601278; //kPa => atmposhere: 1/1013.25kPa
+
+			public enum State { None, Unsafe, AfterUnsafe, Safe, BeforeUnsafe };
+			public State SafetyState { get; private set; }
+
+			public readonly ModuleParachute parachute;
+
+			public Parachute(VesselWrapper VSL, ModuleParachute p) : base(VSL)
+			{ parachute = p; }
+
+			public int Stage { get { return parachute.part.inverseStage; } }
+
+			public bool Valid { get { return parachute != null && parachute.part != null && parachute.vessel != null; } }
+
+			public bool Usable
+			{
+				get
+				{
+					return !parachute.part.ShieldedFromAirstream && 
+						parachute.deploymentState == ModuleParachute.deploymentStates.STOWED;
+				}
+			}
+
+			public bool Deployed
+			{
+				get
+				{
+					return parachute.deploymentState == ModuleParachute.deploymentStates.DEPLOYED && 
+						parachute.part.maximum_drag/parachute.fullyDeployedDrag > 0.9;
+				}
+			}
+
+			public bool Active
+			{
+				get
+				{
+					return parachute.deploymentState == ModuleParachute.deploymentStates.ACTIVE ||
+						parachute.deploymentState == ModuleParachute.deploymentStates.SEMIDEPLOYED ||
+						parachute.deploymentState == ModuleParachute.deploymentStates.DEPLOYED;
+				}
+			}
+
+			public bool CanBeDeployed(double pressure)
+			{
+				return parachute.deploymentSafeState == ModuleParachute.deploymentSafeStates.SAFE &&
+					pressure >= parachute.minAirPressureToOpen;
+			}
+
+			public bool AtDeploymentAltitude
+			{
+				get
+				{
+					return VSL.Altitude.Relative < parachute.deployAltitude
+						+Mathf.Abs(VSL.VerticalSpeed.Absolute)*(1/Utils.ClampL(parachute.semiDeploymentSpeed, 0.1f)+10);
+				}
+			}
+
+			public override void Update()
+			{
+				switch(parachute.deploymentSafeState)
+				{
+				case ModuleParachute.deploymentSafeStates.SAFE:
+					if(SafetyState == State.Unsafe)
+						SafetyState = State.AfterUnsafe;
+					else if(SafetyState == State.AfterUnsafe)
+					{
+						if(parachute.shockTemp < parachute.chuteMaxTemp * parachute.safeMult * 0.9f)
+							SafetyState = State.Safe;
+					}
+					else if(SafetyState == State.Safe)
+					{
+						if(parachute.shockTemp > parachute.chuteMaxTemp * parachute.safeMult * 0.9f)
+							SafetyState = State.BeforeUnsafe;
+					}
+					else SafetyState = State.Safe;
+					break;
+				case ModuleParachute.deploymentSafeStates.RISKY:
+				case ModuleParachute.deploymentSafeStates.UNSAFE:
+					SafetyState = State.Unsafe;
+					break;
+				}
+			}
+
+			public override string ToString()
+			{
+				if(!Valid) return Utils.Format("Invalid Parachute: {}", parachute);
+				return Utils.Format("{}[{}], Stage {}, Usable {}, Deployed {}, Active {}, AtDeploymentAltitude {}", 
+				                    parachute, SafetyState, Stage, Usable, Deployed, Active, AtDeploymentAltitude);
 			}
 		}
 	}

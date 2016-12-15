@@ -114,16 +114,20 @@ namespace ThrottleControlledAvionics
 		public float    MaxVe { get; private set; } //Specific impulse in m/s, aka effective exhaust velocity
 
 		public override void Clear() { All.Clear(); RCS.Clear(); }
-		public bool Add(ModuleEngines m) 
+
+		public bool AddEngine(PartModule pm) 
 		{ 
-			if(m == null) return false;
-			All.Add(new EngineWrapper(m));
+			var engine = pm as ModuleEngines;
+			if(engine == null) return false;
+			All.Add(new EngineWrapper(engine));
 			return true;
 		}
-		public bool Add(ModuleRCS m)
+
+		public bool AddRCS(PartModule pm)
 		{ 
-			if(m == null) return false;
-			RCS.Add(new RCSWrapper(m));
+			var rcs = pm as ModuleRCS;
+			if(rcs == null) return false;
+			RCS.Add(new RCSWrapper(rcs));
 			return true;
 		}
 

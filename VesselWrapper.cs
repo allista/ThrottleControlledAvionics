@@ -309,22 +309,23 @@ namespace ThrottleControlledAvionics
 			EngineWrapper.ThrustPI.setMaster(CFG.Engines);
 			Engines.Clear(); 
 			Torque.Wheels.Clear();
-			Physics.AngularDrag = 0;
+			Physics.Clear();
 			OnPlanetParams.Clear();
 			var drag_parts = 0;
 			var parts_count = vessel.Parts.Count;
 			for(int i = 0; i < parts_count; i++)
 			{
 				Part p = vessel.Parts[i];
+				Physics.UpdateMaxTemp(p);
 				if(p.angularDragByFI) { Physics.AngularDrag += p.angularDrag; drag_parts += 1; }
 				for(int j = 0, pModulesCount = p.Modules.Count; j < pModulesCount; j++)
 				{
 					var module = p.Modules[j];
-					if(Engines.Add(module as ModuleEngines)) continue;
-					if(Engines.Add(module as ModuleRCS)) continue;
-					if(AddModule(module, Torque.Wheels)) continue;
-					if(AddModule(module, OnPlanetParams.Parachutes)) continue;
+					if(Engines.AddEngine(module)) continue;
+					if(Engines.AddRCS(module)) continue;
+					if(OnPlanetParams.AddParachute(module)) continue;
 					if(OnPlanetParams.AddGear(module)) continue;
+					if(AddModule(module, Torque.Wheels)) continue;
 				}
 			}
 			Physics.AngularDrag /= drag_parts;
