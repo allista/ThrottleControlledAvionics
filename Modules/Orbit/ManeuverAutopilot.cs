@@ -35,6 +35,9 @@ namespace ThrottleControlledAvionics
 		double ThresholdDeltaV;
 		PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
 
+		public double NodeUT { get { return Node != null? Node.UT : -1; } }
+		public Vector3d NodeDeltaV { get; private set; }
+
 		ManeuverExecutor Executor;
 		public float MinDeltaV = 1;
 		bool within_threshold;
@@ -74,6 +77,7 @@ namespace ThrottleControlledAvionics
 				Node = Solver.maneuverNodes[0];
 				InitialDeltaV = Node.DeltaV.magnitude;
 				ThresholdDeltaV = Math.Min(InitialDeltaV, 10);
+				NodeDeltaV = Node.GetBurnVector(VSL.orbit);
 				min_deltaV = double.MaxValue;
 				within_threshold = false;
 				if(VSL.Engines.MaxDeltaV < InitialDeltaV)
@@ -98,6 +102,7 @@ namespace ThrottleControlledAvionics
 				CFG.AT.On(Attitude.KillRotation);
 			CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 			Executor.Reset();
+			NodeDeltaV = Vector3d.zero;
 			MinDeltaV = GLB.THR.MinDeltaV;
 			min_deltaV = double.MaxValue;
 			within_threshold = false;
@@ -146,7 +151,8 @@ namespace ThrottleControlledAvionics
 		{
 			if(!IsActive) return;
 			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0]) { reset(); return; }
-			if(Executor.Execute(Node.GetBurnVector(VSL.orbit), MinDeltaV, StartCondition)) 
+			NodeDeltaV = Node.GetBurnVector(VSL.orbit);
+			if(Executor.Execute(NodeDeltaV, MinDeltaV, StartCondition)) 
 			{
 				within_threshold |= Executor.RemainingDeltaV < ThresholdDeltaV;
 				if(within_threshold)
