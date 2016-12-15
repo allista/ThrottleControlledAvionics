@@ -56,38 +56,38 @@ namespace ThrottleControlledAvionics
 			var pos = old.getRelativePositionAtUT(UT);
 			var vel = old.getOrbitalVelocityAtUT(UT)+dV;
 			obt.UpdateFromStateVectors(pos, vel, old.referenceBody, UT);
-			if(obt.eccentricity < 0.01) //TODO: is it still needed? it seems not...
-			{
-				var T   = UT;
-				var v   = obt.getOrbitalVelocityAtUT(UT);
-				var D   = (vel-v).sqrMagnitude;
-				var Dot = Vector3d.Dot(vel, v);
-				var dT  = obt.period/10;
-				while(D > 1e-4 && Math.Abs(dT) > 0.01)
-				{
-					T += dT;
-					v = obt.getOrbitalVelocityAtUT(T);
-					var dot = Vector3d.Dot(vel, v);
-					if(dot > 0)
-					{
-						D = (vel-v).sqrMagnitude;
-						if(dot < Dot) dT /= -2;
-						Dot = dot;
-					}
-				}
-				Utils.Log2File("NewOrbit-dT.log", (T-UT).ToString());//debug
-				if(!T.Equals(UT))
-				{
-					var dP = (T-UT)/obt.period;
-					obt.argumentOfPeriapsis = (obt.argumentOfPeriapsis-dP*360)%360;
-					obt.meanAnomaly = (obt.meanAnomaly+dP*Utils.TwoPI)%Utils.TwoPI;
-					obt.meanAnomalyAtEpoch = obt.meanAnomaly;
-					obt.orbitPercent = obt.meanAnomaly/Utils.TwoPI;
-					obt.eccentricAnomaly = obt.solveEccentricAnomaly(obt.meanAnomaly, obt.eccentricity, 1e-7, 8);
-					obt.trueAnomaly = obt.GetTrueAnomaly(obt.eccentricAnomaly)/Math.PI*180;
-					obt.ObT = obt.ObTAtEpoch = T;
-				}
-			}
+//			if(obt.eccentricity < 0.01) //TODO: is it still needed? it seems not...
+//			{
+//				var T   = UT;
+//				var v   = obt.getOrbitalVelocityAtUT(UT);
+//				var D   = (vel-v).sqrMagnitude;
+//				var Dot = Vector3d.Dot(vel, v);
+//				var dT  = obt.period/10;
+//				while(D > 1e-4 && Math.Abs(dT) > 0.01)
+//				{
+//					T += dT;
+//					v = obt.getOrbitalVelocityAtUT(T);
+//					var dot = Vector3d.Dot(vel, v);
+//					if(dot > 0)
+//					{
+//						D = (vel-v).sqrMagnitude;
+//						if(dot < Dot) dT /= -2;
+//						Dot = dot;
+//					}
+//				}
+//				Utils.Log2File("NewOrbit-dT.log", (T-UT).ToString());//debug
+//				if(!T.Equals(UT))
+//				{
+//					var dP = (T-UT)/obt.period;
+//					obt.argumentOfPeriapsis = (obt.argumentOfPeriapsis-dP*360)%360;
+//					obt.meanAnomaly = (obt.meanAnomaly+dP*Utils.TwoPI)%Utils.TwoPI;
+//					obt.meanAnomalyAtEpoch = obt.meanAnomaly;
+//					obt.orbitPercent = obt.meanAnomaly/Utils.TwoPI;
+//					obt.eccentricAnomaly = obt.solveEccentricAnomaly(obt.meanAnomaly, obt.eccentricity, 1e-7, 8);
+//					obt.trueAnomaly = obt.GetTrueAnomaly(obt.eccentricAnomaly)/Math.PI*180;
+//					obt.ObT = obt.ObTAtEpoch = T;
+//				}
+//			}
 			return obt;
 		}
 
@@ -116,6 +116,7 @@ namespace ThrottleControlledAvionics
 			var dVdir  = vel.normalized * (up? 1 : -1);
 			var min_dV = 0.0;
 			var max_dV = 0.0;
+//			Utils.Log("up: {}, PeR {} < R {}", up, old.PeR, R);//debug
 			if(up)
 			{
 				max_dV = 10;
@@ -124,15 +125,18 @@ namespace ThrottleControlledAvionics
 				while(max_dV < 100000)
 				{ 
 					var orb = NewOrbit(old, dVdir*max_dV, UT);
+//					Utils.Log("max dV: {}\norb\n{}", max_dV, orb);//debug
 					if(orb.eccentricity >= 1 || orb.PeR > R) break;
 					max_dV *= 2;
 				}
 			}
 			else max_dV = vel.magnitude+add_dV.magnitude;
+//			Utils.Log("min dV: {}, max dV: {}", min_dV, max_dV);//debug
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
 				var dV = (max_dV+min_dV)/2;
 				var orb = NewOrbit(old, dVdir*dV+add_dV, UT);
+//				Utils.Log("dV: {}\norb\n{}", dV, orb);//debug
 				if(up && (orb.eccentricity >= 1 || orb.PeR > R) || 
 				   !up && orb.PeR < R) 
 					max_dV = dV;
