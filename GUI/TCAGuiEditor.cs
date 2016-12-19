@@ -212,7 +212,7 @@ namespace ThrottleControlledAvionics
 			selected_parts.ForEach(update_mass_and_CoM);
 			WetCoM /= Mass; DryCoM /= DryMass;
 			CoM = use_wet_mass? WetCoM : DryCoM;
-			if(CFG != null && Engines.Count > 0)
+			if(CFG != null && CFG.Enabled && Engines.Count > 0)
 			{
 				ActiveEngines.Clear();
 				for(int i = 0, EnginesCount = Engines.Count; i < EnginesCount; i++)
@@ -395,15 +395,19 @@ namespace ThrottleControlledAvionics
 						use_wet_mass = !use_wet_mass;
 						update_stats = true;
 					}
-					if(ActiveEngines.Count > 0)
+					if(CFG.Enabled)
 					{
-						GUILayout.Label(string.Format("TWR: {0:F2} ► {1:F2}", MinTWR, MaxTWR), Styles.fracStyle(Utils.Clamp(MinTWR-1, 0, 1)));
-						GUILayout.Label(new GUIContent(string.Format("Balanced: {0:P1}", MinLimit),
-						                               "The efficacy of the least efficient of balanced engines"),
-						                Styles.fracStyle(MinLimit));
-						Utils.ButtonSwitch("HL", ref show_imbalance, "Highlight engines with low efficacy deu to balancing");
+						if(ActiveEngines.Count > 0)
+						{
+							GUILayout.Label(string.Format("TWR: {0:F2} ► {1:F2}", MinTWR, MaxTWR), Styles.fracStyle(Utils.Clamp(MinTWR-1, 0, 1)));
+							GUILayout.Label(new GUIContent(string.Format("Balanced: {0:P1}", MinLimit),
+							                               "The efficacy of the least efficient of balanced engines"),
+							                Styles.fracStyle(MinLimit));
+							Utils.ButtonSwitch("HL", ref show_imbalance, "Highlight engines with low efficacy deu to balancing");
+						}
+						else GUILayout.Label("No active engines", Styles.boxed_label);
 					}
-					else GUILayout.Label("No active engines", Styles.boxed_label);
+					else GUILayout.Label("TCA is disabled", Styles.boxed_label);
 				}
 				GUILayout.EndHorizontal();
 			}
