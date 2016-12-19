@@ -162,8 +162,8 @@ namespace ThrottleControlledAvionics
 				{
 					if(current_vessels.Contains(c.VesselID))
 						c.Save(n.AddNode(VesselConfig.NODE_NAME));
-					else Utils.Log("TCAScenario: SaveConfigs: vessel {} is not present in the game. " +
-					               "Removing orphan configuration.", c.VesselID);
+//					else Utils.Log("TCAScenario: SaveConfigs: vessel {} is not present in the game. " +
+//					               "Removing orphan configuration.", c.VesselID);
 				}
 			}
 			if(NamedConfigs.Count > 0)
