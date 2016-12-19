@@ -27,7 +27,7 @@ using AT_Utils;
 // The form "{Major}.{Minor}.*" will automatically update the build and revision,
 // and "{Major}.{Minor}.{Build}.*" will update just the revision.
 
-[assembly: AssemblyVersion("3.3.0.0")]
+[assembly: AssemblyVersion("3.3.1.0")]
 [assembly: KSPAssembly("ThrottleControlledAvionics", 3, 3)]
 
 // The following attributes are used to specify the signing key for the assembly, 
@@ -42,8 +42,8 @@ namespace ThrottleControlledAvionics
 	{
 		public ModInfo()
 		{
-			MinKSPVersion = new Version(1,2,1);
-			MaxKSPVersion = new Version(1,2,1);
+			MinKSPVersion = new Version(1,2,2);
+			MaxKSPVersion = new Version(1,2,2);
 
 			VersionURL   = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
 			UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
