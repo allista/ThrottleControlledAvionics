@@ -2,7 +2,19 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.3.0**
+* **v3.3.1**
+    * Compiled against **KSP-1.2.2**
+    * Fixed the "**black kraken**" bug.
+    * **In-Editor engines' balancing:**
+    	* Added "Wet CoM" and "Dry CoM" markers. Added switching between wet/dry mass for engines' balancing.
+    	* When TCA is disabled InEditor, balancing is also disabled and thrust limiters are reset to 100%.
+    * **Deorbit Autopilot**:
+    	* Now aware of reentry heating and tries to avoid it (tested on Eve).
+    	* Can automatically use brakes and/or parachutes during deceleration to conserve fuel.
+        * Has configurable "**Landing Settings**": Use Brakes, Use Chutes, Correct Target, Land ASAP.
+    * Minor bugfixes.
+
+* v3.3.0
     * **In-Editor engines balancing with visualization** to help building balanced crafts:
     	* The thrust limiters of balanced engines are set automatically, so you can see the projected in-flight performance of an engine directly in the right-click menu.
     	* The TCA Editor UI now has a "Balanced: N%" indicator at the bottom that shows the thrust limiter of the most down-throttled engine. And the "HL" button to highlight engines according to their efficacy (0% magenta > 50% yellow > 99% cyan > 100% no highliting).
