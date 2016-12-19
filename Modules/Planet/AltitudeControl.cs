@@ -164,6 +164,7 @@ namespace ThrottleControlledAvionics
 			//turn off the engines if landed
 			if(VSL.LandedOrSplashed && error < 0 && VSL.Altitude.Relative <= VSL.Geometry.R)
 			{
+//				Log("nAlt {}, alt {}, error {}, VSF {}", CFG.DesiredAltitude, alt, error, CFG.VerticalCutoff);//debug
 				CFG.VerticalCutoff = -GLB.VSC.MaxSpeed;
 				return;
 			}
@@ -198,20 +199,26 @@ namespace ThrottleControlledAvionics
 				jets_pid.P = Utils.ClampH(ALT.JetsPID.P/VSL.OnPlanetParams.MaxTWR/ALT.TWRd*
 				                          Mathf.Clamp(Mathf.Abs(1/VSL.VerticalSpeed.Absolute)*ALT.ErrF, 1, VSL.OnPlanetParams.MaxTWR*ALT.TWRd), 
 				                          ALT.JetsPID.P);
+				jets_pid.D = ALT.JetsPID.D;
 				if(CFG.AltitudeAboveTerrain)
-					jets_pid.D = ALT.JetsPID.D/Utils.ClampL(VSL.HorizontalSpeed, 1);
+					jets_pid.D /= Utils.ClampL(VSL.HorizontalSpeed, 1);
 				jets_pid.D *= error < 0? 1+VSL.Engines.AccelerationTime : 1+VSL.Engines.DecelerationTime;
 				jets_pid.Update(error);
 				CFG.VerticalCutoff = jets_pid.Action;
+//				Log("nAlt {}, alt {}, error {}, hV {}, VSF {}\njPID: {}", 
+//				    CFG.DesiredAltitude, alt, error, VSL.HorizontalSpeed, CFG.VerticalCutoff, jets_pid);//debug
 			}
 			else 
 			{
 				rocket_pid.Min = min_speed;
 				rocket_pid.Max = max_speed;
+				rocket_pid.D = ALT.RocketPID.D;
 				if(CFG.AltitudeAboveTerrain)
-					rocket_pid.D = ALT.RocketPID.D/Utils.ClampL(VSL.HorizontalSpeed, 1);
+					rocket_pid.D /= Utils.ClampL(VSL.HorizontalSpeed, 1);
 				rocket_pid.Update(error);
 				CFG.VerticalCutoff = rocket_pid.Action;
+//				Log("nAlt {}, alt {}, error {}, hV {}, VSF {}\nrPID: {}", 
+//				    CFG.DesiredAltitude, alt, error, VSL.HorizontalSpeed, CFG.VerticalCutoff, rocket_pid);//debug
 			}
 			//correct for relative vertical speed
 			//if following the terrain and flying below desired altitude
