@@ -329,7 +329,11 @@ namespace ThrottleControlledAvionics
 					{
 						GUILayout.BeginHorizontal();
 						{
-							Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false));
+							if(Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false)))
+							{
+								if(!CFG.Enabled) 
+									Engines.ForEach(e => e.forceThrustPercentage(100));
+							}
 							if(Modules[typeof(AltitudeControl)])
 							{
 								if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], 
