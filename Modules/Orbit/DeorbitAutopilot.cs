@@ -49,6 +49,7 @@ namespace ThrottleControlledAvionics
 		{
 			var angle = old.DeltaFi;
 			angle *= Math.Sin(old.TransferTime/old.Orbit.period*2*Math.PI);
+			angle *= Math.Sign(Utils.ProjectionAngle(old.StartPos, old.AtTargetPos, old.StartVel));
 			var rot = QuaternionD.AngleAxis(angle, old.StartPos);
 			return Orbit2NodeDeltaV((rot*old.StartVel)-old.StartVel, old.StartUT);
 		}
@@ -60,7 +61,7 @@ namespace ThrottleControlledAvionics
 			if(old != null) 
 			{
 				targetAlt = old.TargetAltitude;
-				StartUT = AngleDelta2StartUT(old, Math.Abs(VesselOrbit.inclination) <= 45 ? old.DeltaLon : old.DeltaLat, 
+				StartUT = AngleDelta2StartUT(old, Math.Abs(90-VesselOrbit.inclination) > 45 ? old.DeltaLon : old.DeltaLat, 
 				                             TRJ.ManeuverOffset, VesselOrbit.period, VesselOrbit.period);
 				NodeDeltaV += PlaneCorrection(old);
 				if(old.BrakeEndDeltaAlt < LTRJ.FlyOverAlt) //correct fly-over altitude
@@ -72,7 +73,7 @@ namespace ThrottleControlledAvionics
 				targetAlt = TargetAltitude;
 			}
 			return new LandingTrajectory(VSL, 
-			                             dV4Ecc(VesselOrbit, ecc, StartUT, Body.Radius*0.9)+
+			                             dV4Ecc(VesselOrbit, ecc, StartUT, Body.Radius+targetAlt-10)+
 			                             Node2OrbitDeltaV(NodeDeltaV, StartUT), 
 			                             StartUT, CFG.Target, targetAlt);
 		}
