@@ -107,7 +107,11 @@ namespace ThrottleControlledAvionics
 			TargetOrbit.ApA.Min = (float)(MinPeR-Body.Radius)/1000;
 			TargetOrbit.ApA.Max = (float)(Body.sphereOfInfluence-Body.Radius)/1000;
 			TargetOrbit.ApA.Value = Utils.Clamp(TargetOrbit.ApA.Value, TargetOrbit.ApA.Min, TargetOrbit.ApA.Max);
+			update_inclination_limits();
+		}
 
+		void update_inclination_limits()
+		{
 			//pos x [fwd x pos] = fwd(pos*pos) - pos(fwd*pos)
 			var h = Vector3d.forward*VesselOrbit.pos.sqrMagnitude - VesselOrbit.pos * VesselOrbit.pos.z; 
 			TargetOrbit.Inclination.Min = (float)Math.Acos(h.z/h.magnitude)*Mathf.Rad2Deg;
@@ -134,8 +138,8 @@ namespace ThrottleControlledAvionics
 
 		double inclination_correction(double inclination, double chord)
 		{ 
-			return chord*Math.Tan(inclination_error(inclination)*Mathf.Deg2Rad)
-				/VesselOrbit.radius*Mathf.Rad2Deg; 
+			return Utils.Clamp(chord*Math.Tan(inclination_error(inclination)*Mathf.Deg2Rad)
+			                   /VesselOrbit.radius*Mathf.Rad2Deg, -10, 10);
 		}
 
 		Vector3d correct_dV(Vector3d dV, double UT)
@@ -175,6 +179,8 @@ namespace ThrottleControlledAvionics
 				stage = Stage.GravityTurn;
 				break;
 			case Stage.GravityTurn:
+				update_inclination_limits();
+				var norm = VesselOrbit.GetOrbitNormal();
 				var ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp);
 				var arcT = AngleDelta(VesselOrbit, ToOrbit.Target);
 				if(arcT > 0 && arcT < AngleDelta(VesselOrbit, ApV))
@@ -182,16 +188,16 @@ namespace ThrottleControlledAvionics
 					ApV.Normalize();
 					var chord = ApV*VesselOrbit.radius - VesselOrbit.pos;
 					var alpha = inclination_correction(VesselOrbit.inclination, chord.magnitude);
-					ToOrbit.Target = QuaternionD.AngleAxis(alpha, Vector3d.Cross(VesselOrbit.GetOrbitNormal(), ApV))
+					ToOrbit.Target = QuaternionD.AngleAxis(alpha, Vector3d.Cross(norm, ApV))
 						*ApV*ToOrbit.TargetR;
 				}
 				else
 				{
-					var n = Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target);
+					var n = Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target.normalized);
 					var inclination = Math.Acos(n.z/n.magnitude)*Mathf.Rad2Deg;
-					var chord = ToOrbit.Target.normalized*VesselOrbit.radius - VesselOrbit.pos;
+					var chord = Vector3d.Exclude(norm, ToOrbit.Target).normalized*VesselOrbit.radius - VesselOrbit.pos;
 					var alpha = inclination_correction(inclination, chord.magnitude);
-					ToOrbit.Target = QuaternionD.AngleAxis(alpha, Vector3d.Cross(VesselOrbit.GetOrbitNormal(), VesselOrbit.pos))
+					ToOrbit.Target = QuaternionD.AngleAxis(alpha, Vector3d.Cross(norm, VesselOrbit.pos))
 						*ToOrbit.Target;
 				}
 				if(ToOrbit.GravityTurn(TRJ.ManeuverOffset, ORB.GTurnCurve, ORB.Dist2VelF, ORB.Dtol)) break;
