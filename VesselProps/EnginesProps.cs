@@ -104,6 +104,7 @@ namespace ThrottleControlledAvionics
 		public Vector6  ManualThrustLimits { get; private set; } = Vector6.zero;
 		public float    MaxThrustM { get; private set; }
 		public float    MaxAccel { get; private set; }
+		public float    TWM { get; private set; }
 		public float    DecelerationTime { get; private set; }
 		public float    AccelerationTime { get; private set; }
 		public bool     Slow { get; private set; }
@@ -173,8 +174,36 @@ namespace ThrottleControlledAvionics
 			        VSL.Physics.M/thrust*dV : FuelNeeded(dV, thrust/mflow)/mflow) / throttle;
 		}
 
-		public float TTB(float dV)
-		{ return TTB(dV, MaxThrustM, MaxMassFlow, ThrottleControl.NextThrottle(dV, 1, VSL)); }
+		public float TTB(float dV, float throttle = -1)
+		{ 
+			if(throttle < 0) throttle = ThrottleControl.NextThrottle(dV, 1, VSL);
+			return TTB(dV, MaxThrustM, MaxMassFlow, throttle); 
+		}
+
+
+		public float AntigravTTB(float vertical_V, float throttle = -1)
+		{
+			if(throttle < 0) throttle = ThrottleControl.NextThrottle(vertical_V, 1, VSL);
+			return VSL.Engines.TTB(vertical_V, 
+			                       Utils.ClampL(MaxThrustM - VSL.Physics.StG*VSL.Physics.M, 1e-5f), 
+			                       MaxMassFlow, throttle);
+		}
+
+		public float OnPlanetTTB(Vector3 dV, Vector3 up, float alt = float.MinValue)
+		{
+			var Vm = dV.sqrMagnitude;
+			var vV = Mathf.Abs(Vector3.Dot(dV, up));
+			var hV = Mathf.Sqrt(Vm-vV*vV);
+			Vm = Mathf.Sqrt(Vm);
+			var vT = vV/Vm;
+			var hT = hV/Vm;
+			var mflow = MaxMassFlow;
+			var thrust = MaxThrustM;
+			if(VSL.vessel.mainBody.atmosphere && !alt.Equals(float.MinValue))
+				thrust = ThrustAtAlt(Vm, alt, out mflow);
+			return TTB(hV, thrust, mflow, hT) +
+				VSL.Engines.TTB(vV, Utils.ClampL(thrust - VSL.Physics.StG*VSL.Physics.M, 0.1f), mflow, vT);
+		}
 
 		public float FuelNeeded(float dV, float Ve) { return VSL.Physics.M*(1-Mathf.Exp(-dV/Ve)); }
 		public float FuelNeeded(float dV) { return FuelNeeded(dV, MaxVe); }
@@ -373,6 +402,7 @@ namespace ThrottleControlledAvionics
 			MaxThrustM = MaxThrust.magnitude;
 			MaxVe = MaxThrustM/MaxMassFlow;
 			MaxAccel = MaxThrustM/VSL.Physics.M;
+			TWM = MaxAccel/Utils.G0;
 		}
 
 		void update_RCS()
