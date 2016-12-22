@@ -49,7 +49,7 @@ namespace ThrottleControlledAvionics
 			AttitudeError = error;
 			Aligned &= AttitudeError < GLB.ATCB.MaxAttitudeError;
 			Aligned |= AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
-			CanWarp = CFG.WarpToNode && 
+			CanWarp = CFG.WarpToNode && TimeWarp.WarpMode == TimeWarp.Modes.HIGH &&
 				(WarpToTime > VSL.Physics.UT || 
 				 VSL.Controls.Aligned && 
 				 (VSL.Physics.NoRotation || VSL.Physics.ConstantRotation));
