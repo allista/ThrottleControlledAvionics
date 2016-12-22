@@ -309,6 +309,7 @@ namespace ThrottleControlledAvionics
 					}
 				}
 				Status("Coasting...");
+				WRP.NoDewarpOffset = true;
 				if(VSL.Info.Countdown > 0 && !correct_trajectory()) break;
 				CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 				stage = Stage.None;
