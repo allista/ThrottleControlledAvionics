@@ -104,7 +104,7 @@ namespace ThrottleControlledAvionics
 		public Vector6  ManualThrustLimits { get; private set; } = Vector6.zero;
 		public float    MaxThrustM { get; private set; }
 		public float    MaxAccel { get; private set; }
-		public float    TWM { get; private set; }
+		public float    TMR { get; private set; }
 		public float    DecelerationTime { get; private set; }
 		public float    AccelerationTime { get; private set; }
 		public bool     Slow { get; private set; }
@@ -402,7 +402,7 @@ namespace ThrottleControlledAvionics
 			MaxThrustM = MaxThrust.magnitude;
 			MaxVe = MaxThrustM/MaxMassFlow;
 			MaxAccel = MaxThrustM/VSL.Physics.M;
-			TWM = MaxAccel/Utils.G0;
+			TMR = MaxAccel/Utils.G0;
 		}
 
 		void update_RCS()
