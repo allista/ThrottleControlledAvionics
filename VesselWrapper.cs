@@ -202,7 +202,8 @@ namespace ThrottleControlledAvionics
 		bool _InOrbit()
 		{
 			return vessel.situation == Vessel.Situations.ORBITING ||
-				vessel.situation == Vessel.Situations.SUB_ORBITAL;
+				vessel.situation == Vessel.Situations.SUB_ORBITAL ||
+				vessel.situation == Vessel.Situations.ESCAPING;
 		}
 
 		public bool AutopilotDisabled;
