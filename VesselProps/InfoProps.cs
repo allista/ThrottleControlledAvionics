@@ -10,6 +10,7 @@
 
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -70,6 +71,19 @@ namespace ThrottleControlledAvionics
 		}
 
 		public override void Update() {}
+
+		public void Draw()
+		{
+			GUILayout.Label(new GUIContent(VSL.Info.Countdown >= 0? 
+			                               string.Format("{0:F1}s", VSL.Info.Countdown) : "", 
+			                               "Countdown" ),
+			                VSL.Info.Countdown > 10? Styles.white : Styles.red, 
+			                GUILayout.ExpandWidth(true));
+			GUILayout.Label(new GUIContent(VSL.Info.TTB >= 0 && VSL.Info.TTB < float.MaxValue? 
+			                               string.Format("{0:F1}s", VSL.Info.TTB) : "",
+			                               "Thrust Duration"), 
+			                Styles.yellow, GUILayout.ExpandWidth(true));
+		}
 	}
 }
 

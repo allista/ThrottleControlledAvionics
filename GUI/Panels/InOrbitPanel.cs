@@ -51,16 +51,9 @@ namespace ThrottleControlledAvionics
 			   TrajectoryCalculator.setp_by_step_computation)
 				MapView.EnterMapView();
 			#endif
-			if(PN  != null) TCAGui.NavigationControls.AddSingleWaypointInMapView();
-			GUILayout.Label(new GUIContent(VSL.Info.Countdown >= 0? 
-			                               string.Format("{0:F1}s", VSL.Info.Countdown) : "", 
-			                               "Countdown" ),
-			                VSL.Info.Countdown > 10? Styles.white : Styles.red, 
-			                GUILayout.ExpandWidth(true));
-			GUILayout.Label(new GUIContent(VSL.Info.TTB >= 0 && VSL.Info.TTB < float.MaxValue? 
-			                               string.Format("{0:F1}s", VSL.Info.TTB) : "",
-			                               "Thrust Duration"), 
-			                Styles.yellow, GUILayout.ExpandWidth(true));
+			if(PN  != null) 
+				TCAGui.NavigationControls.AddSingleWaypointInMapView();
+			VSL.Info.Draw();
 			GUILayout.EndHorizontal();
 			if(DEO != null && CFG.AP2[Autopilot2.Deorbit])
 				DEO.DrawDeorbitSettings();
