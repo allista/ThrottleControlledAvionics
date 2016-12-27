@@ -105,10 +105,15 @@ namespace ThrottleControlledAvionics
 
 		protected void compute_steering(Vector3 current, Vector3 needed)
 		{
-			#if DEBUG
-			if(current.IsZero() || needed.IsZero())
-				Log("compute steering:\ncurrent {}\nneeded {}\ncurrent thrust {}", current, needed, VSL.Engines.CurrentThrustDir);
-			#endif
+			var cur_inv = current.IsInvalid() || current.IsZero();
+			var ned_inv = needed.IsInvalid() || needed.IsZero();
+			if(cur_inv || ned_inv)
+			{
+				Log("compute_steering: Invalid argumetns:\ncurrent {}\nneeded {}\ncurrent thrust {}", 
+				    current, needed, VSL.Engines.CurrentThrustDir);
+				steering = Vector3.zero;
+				return;
+			}
 			var direct_rotation = Quaternion.FromToRotation(needed, current);
 			update_angular_error(direct_rotation);
 			VSL.Controls.SetAttitudeError(Vector3.Angle(needed, current));
