@@ -491,13 +491,25 @@ namespace ThrottleControlledAvionics
 				DistancePID.Max = CFG.MaxNavSpeed;
 				if(cur_vel > 0)
 				{
-					var brake_thrust = Mathf.Max(VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude, VSL.Physics.mg);
+					var brake_thrust = Mathf.Min(VSL.Physics.mg, VSL.Engines.MaxThrustM/2*VSL.OnPlanetParams.TWRf);
+					var manual_thrust = VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
+					if(manual_thrust > brake_thrust) brake_thrust = manual_thrust;
+					else manual_thrust = -1;
 					var eta = hdistance/cur_vel;
 					var max_speed = 0f;
 					if(brake_thrust > 0)
 					{
 						var brake_accel = brake_thrust/VSL.Physics.M;
 						var brake_time = cur_vel/brake_accel;
+						if(manual_thrust < 0) 
+						{
+							var brake_angle = Vector3.Angle(VSL.Engines.CurrentMaxThrustDir, vdir)-45;
+							if(brake_angle > 0)
+							{
+								if(VSL.Engines.Slow) brake_time += VSL.Torque.NoEngines.MinRotationTime(brake_angle);
+								else brake_time += VSL.Torque.MaxCurrent.RotationTime(brake_angle, VSL.OnPlanetParams.GeeVSF);
+							}
+						}
 						max_speed = Utils.ClampL(brake_accel*eta, 1);
 						if(eta <= brake_time*PN.BrakeOffset)
 							HSC.AddRawCorrection((eta/brake_time/PN.BrakeOffset-1)*VSL.HorizontalSpeed.Vector);
