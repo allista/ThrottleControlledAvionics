@@ -152,6 +152,7 @@ namespace ThrottleControlledAvionics
 
 		void update_mass_and_CoM(Part part)
 		{
+			if(part == null) return;
 			var dryMass = part.mass;
 			var wetMass = dryMass+part.GetResourceMass();
 			Vector3 pos = Vector3.zero;
