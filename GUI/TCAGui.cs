@@ -299,6 +299,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical();
 				GUILayout.BeginHorizontal();
 				GUILayout.FlexibleSpace();
+				VSL.Info.Draw();
 				StatusString();
 				GUILayout.EndHorizontal();
 				GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
