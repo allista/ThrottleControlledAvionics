@@ -40,7 +40,7 @@ namespace ThrottleControlledAvionics
 		public float   MaxDTWR { get; private set; }
 		public float   DTWR { get; private set; }
 		public float   DTWRf { get { return DTWR_filter.Value; } }
-		LowPassFilterF DTWR_filter = new LowPassFilterF();
+		AsymmetricFiterF DTWR_filter = new AsymmetricFiterF();
 
 		public float   CurrentThrustAccelerationTime { get; private set; }
 		public float   CurrentThrustDecelerationTime { get; private set; }
@@ -132,7 +132,8 @@ namespace ThrottleControlledAvionics
 			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.mg;
 			DTWR = Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up) < 0? 
 				Vector3.Project(VSL.Engines.Thrust, VSL.Physics.Up).magnitude/VSL.Physics.mg : 0f;
-			DTWR_filter.Tau = Mathf.Max(VSL.Engines.AccelerationTime, VSL.Engines.DecelerationTime);
+			DTWR_filter.TauUp = VSL.Engines.AccelerationTime;
+			DTWR_filter.TauDown = VSL.Engines.DecelerationTime;
 			DTWR_filter.Update(DTWR);
 			GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
 			var mVSFtor = (VSL.Torque.MaxPitchRoll.AA_rad > 0)? 
