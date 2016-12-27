@@ -83,11 +83,12 @@ namespace ThrottleControlledAvionics
 		protected void Status(string color, string msg, params object[] args) 
 		{ Status(-1, color, msg, args); }
 
-		#if DEBUG
 		protected string LogTemplate(string msg)
 		{ return string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg); }
 
 		protected void Log(string msg, params object[] args) { Utils.Log(LogTemplate(msg), args); }
+
+		#if DEBUG
 		protected void LogFST(string msg, params object[] args) { DebugUtils.Log(LogTemplate(msg), args); }
 
 		protected void CSV(params object[] args)
