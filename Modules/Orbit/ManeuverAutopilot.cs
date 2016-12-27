@@ -159,7 +159,7 @@ namespace ThrottleControlledAvionics
 				{
 					var dV = Executor.RemainingDeltaV;
 					if(dV < min_deltaV) { min_deltaV = dV; return; }
-					else if(dV-min_deltaV < GLB.THR.MinDeltaV) return;
+					if(dV-min_deltaV < GLB.THR.MinDeltaV) return;
 				}
 				else return;
 			}
