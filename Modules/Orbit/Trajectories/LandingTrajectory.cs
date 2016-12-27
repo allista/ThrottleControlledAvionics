@@ -35,6 +35,7 @@ namespace ThrottleControlledAvionics
 		public override Vector3d BrakeDeltaV { get { return brake_delta_v; } }
 		public float  BrakeFuel { get; protected set; }
 		public float  BrakeDuration;
+		public float  BrakeOffset;
 		public double BrakeStartUT { get; private set; }
 		public double BrakeEndUT { get; private set; }
 		public double BrakeEndDeltaAlt { get; private set; }
@@ -114,9 +115,7 @@ namespace ThrottleControlledAvionics
 				if(BrakeFuel > 0)
 				{
 					var dV = (float)brake_delta_v.magnitude;
-					BrakeDuration = VSL.Engines.TTB(dV, 
-					                                Utils.ClampL(VSL.Engines.MaxThrustM - VSL.Physics.StG*VSL.Physics.M, 0.1f), 
-					                                VSL.Engines.MaxMassFlow, ThrottleControl.NextThrottle(dV, 1, VSL));
+					BrakeDuration = VSL.Engines.AntigravTTB(dV);
 					//add 90deg turn time to face the ground
 					BrakeDuration += rotation_time;
 					SetBrakeEndUT(Math.Max(AtTargetUT-Mathf.Max(GLB.LTRJ.CorrectionOffset, BrakeDuration*1.1f), StartUT));
@@ -132,17 +131,20 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				BrakeEndUT = TrajectoryCalculator.FlyAboveUT(Orbit, Target.RelOrbPos(Body), StartUT);
-				var tPos = Orbit.getRelativePositionAtUT(BrakeEndUT).normalized*(Body.Radius+TargetAltitude);
-				SetBrakeDeltaV(-(Orbit.getOrbitalVelocityAtUT(BrakeEndUT) + Vector3d.Cross(Body.zUpAngularVelocity, tPos)));
+				SetBrakeEndUT(TrajectoryCalculator.FlyAboveUT(Orbit, Target.RelOrbPos(Body), StartUT));
+				SetBrakeDeltaV(-(AtTargetVel + Vector3d.Cross(Body.zUpAngularVelocity, AtTargetPos)));
 				if(BrakeFuel > 0)
-					BrakeStartUT = BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration);
+				{
+					var offset = MatchVelocityAutopilot.BrakingOffset((float)brake_delta_v.magnitude, VSL, out BrakeDuration);
+					BrakeStartUT = Math.Max(BrakeEndUT-offset, StartUT);
+				}
 				else
 				{
 					BrakeStartUT = BrakeEndUT;
 					BrakeDuration = 0;
 				}
 			}
+			BrakeOffset = (float)Utils.ClampL(BrakeEndUT-BrakeStartUT, 0);
 			//compute vessel coordinates at maneuver start
 			if(VSL.LandedOrSplashed)
 			{
@@ -159,9 +161,9 @@ namespace ThrottleControlledAvionics
 			DistanceToTarget = Target.AngleTo(SurfacePoint)*Body.Radius;
 			//compute distance in lat-lon coordinates
 			DeltaLat = Utils.AngleDelta(SurfacePoint.Pos.Lat, Target.Pos.Lat)*
-				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLat), SurfacePoint.Pos.Lat));
+				Math.Sign(Utils.AngleDelta(VslStartLat, SurfacePoint.Pos.Lat));
 			DeltaLon = Utils.AngleDelta(SurfacePoint.Pos.Lon, Target.Pos.Lon)*
-				Math.Sign(Utils.AngleDelta(Utils.ClampAngle(VslStartLon), SurfacePoint.Pos.Lon));
+				Math.Sign(Utils.AngleDelta(VslStartLon, SurfacePoint.Pos.Lon));
 			//compute distance in radial coordinates
 			DeltaFi = 90-Vector3d.Angle(Orbit.GetOrbitNormal(),
 			                            TrajectoryCalculator.BodyRotationAtdT(Body, TimeToSurface) * 
@@ -169,15 +171,16 @@ namespace ThrottleControlledAvionics
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 		}
 
-		public List<AtmosphericConditions> GetAtmosphericCurve(double dT)
+		public List<AtmosphericConditions> GetAtmosphericCurve(double dT, double endUT = -1)
 		{
 			if(!Body.atmosphere) return null;
 			var atmoR = Body.Radius+Body.atmosphereDepth;
 			var startUT = StartPos.magnitude < atmoR? StartUT : TrajectoryCalculator.NearestRadiusUT(Orbit, atmoR, StartUT);
-			if(startUT > BrakeEndUT) return null;
-			var samples = (int)Math.Ceiling((BrakeEndUT-startUT)/dT)+1;
+			if(endUT < 0) endUT = BrakeEndUT;
+			if(startUT > endUT) return null;
+			var samples = (int)Math.Ceiling((endUT-startUT)/dT)+1;
 			var curve = new List<AtmosphericConditions>(samples);
-			dT = (BrakeEndUT-startUT)/samples;
+			dT = (endUT-startUT)/samples;
 			for(int i = 1; i <= samples; i++)
 			{
 				var cond = new AtmosphericConditions(Orbit, startUT+dT*i);

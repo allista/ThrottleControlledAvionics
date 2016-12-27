@@ -196,7 +196,7 @@ VTOL
 
 BRC
 {
-	MaxAAf = 3
+	MaxAAf = 4
 	MinAAf = 1
 	ADf    = 0.011
 	YawFactor = 60
@@ -406,6 +406,8 @@ LTRJ
 	
 	MaxScanningCycles  = 50
 	PointsPerFrame     = 5
+	
+	HeatingCoefficient = 0.02
 }
 
 DEO
@@ -413,7 +415,6 @@ DEO
 	MinLandingAngle    = 20
 	MaxDynPressure     = 8
 	EccSteps           = 10
-	HeatingCoefficient = 0.02
 }
 
 BJ

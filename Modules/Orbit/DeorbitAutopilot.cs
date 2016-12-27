@@ -27,7 +27,6 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MinLandingAngle    = 20f;
 			[Persistent] public float MaxDynPressure     = 7f;
 			[Persistent] public int   EccSteps           = 10;
-			[Persistent] public float HeatingCoefficient = 5f;
 		}
 		static Config DEO { get { return Globals.Instance.DEO; } }
 
@@ -120,30 +119,6 @@ namespace ThrottleControlledAvionics
 			stage = Stage.None;
 			CFG.AP1.Off();
 		}
-
-		double final_temp(double start_T, AtmosphericConditions cond)
-		{
-			if(cond.ShockTemperature < start_T) return start_T;
-			var K = VSL.Physics.MMT_ThermalMass > cond.ConvectiveCoefficient? 
-				-cond.ConvectiveCoefficient/VSL.Physics.MMT_ThermalMass : -1;
-			return cond.ShockTemperature + (start_T-cond.ShockTemperature) * Math.Exp(K*DEO.HeatingCoefficient*cond.Duration);
-		}
-
-		bool will_overheat(IList<AtmosphericConditions> conditions)
-		{
-			if(conditions == null || conditions.Count == 0) return false;
-			var start_T = VSL.vessel.atmosphericTemperature;
-			for(int i = 0, count = conditions.Count; i < count; i++)
-			{
-				var c = conditions[i];
-				if(start_T > VSL.Physics.MinMaxTemperature) break;
-				if(c.Duration.Equals(0)) continue;
-				start_T = final_temp(start_T, c);
-			}
-//			Log("Final Temprerature: {} > {}", start_T, VSL.Physics.MinMaxTemperature);//debug
-			return start_T > VSL.Physics.MinMaxTemperature;
-		}
-
 
 		IEnumerator<YieldInstruction> eccentricity_calculator = null;
 		IEnumerator<YieldInstruction> compute_initial_eccentricity()
