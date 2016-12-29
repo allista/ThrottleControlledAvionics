@@ -2,7 +2,15 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.3.1**
+* **v.3.3.2**
+    * Fixed ToOrbit Autopilot for ~0 inclination target orbits.
+    * Fixed Deorbit Autopilot for retrograde orbits.
+    * Improved ETA and brake time calculation in Point Navigator. Should help with overshooting problem in low gravity and with slow engines.
+    * Improved LandingAutopilot performance for low-thrust ships.
+    * Maneuver Autopilot now aborts the maneuver if no fuel left.
+    * Show Countdown and Thrust Duration for uncontrollable ships too.
+    * Various bugfixes.
+* v3.3.1
     * Compiled against **KSP-1.2.2**
     * Fixed the "**black kraken**" bug.
     * **In-Editor engines' balancing:**
