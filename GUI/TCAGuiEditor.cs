@@ -25,10 +25,13 @@ namespace ThrottleControlledAvionics
 		static Dictionary<Type,bool> Modules = new Dictionary<Type, bool>();
 		static Texture2D CoM_Icon;
 
+		ModuleTCA TCA;
 		NamedConfig CFG;
 		readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
 		readonly EnginesProps.EnginesDB ActiveEngines = new EnginesProps.EnginesDB();
 		static bool HaveSelectedPart { get { return EditorLogic.SelectedPart != null && EditorLogic.SelectedPart.potentialParent != null; } }
+
+		HighlightSwitcher TCA_highlight, Engines_highlight;
 
 		float Mass, DryMass, MinTWR, MaxTWR, MinLimit;
 		Vector3 CoM = Vector3.zero;
@@ -37,7 +40,7 @@ namespace ThrottleControlledAvionics
 		Matrix3x3f InertiaTensor = new Matrix3x3f();
 		Vector3 MoI { get { return new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]); } }
 
-		bool show_imbalance, parts_highlighted;
+		bool show_imbalance;
 		bool use_wet_mass = true;
 
 		public override void Awake()
@@ -58,6 +61,10 @@ namespace ThrottleControlledAvionics
 				.ForEach(t => Modules.Add(t, TCAModulesDatabase.ModuleAvailable(t)));
 			//icons
 			CoM_Icon = GameDatabase.Instance.GetTexture(Globals.RADIATION_ICON, false);
+			//highlighters
+			TCA_highlight = new HighlightSwitcher(highlight_TCA, reset_TCA_highlighting);
+			Engines_highlight = new HighlightSwitcher(highlight_engines, reset_engines_highlightig);
+
 		}
 
 		public override void OnDestroy ()
@@ -121,9 +128,11 @@ namespace ThrottleControlledAvionics
 		void UpdateCFG(IList<ModuleTCA> TCA_Modules)
 		{
 			if(CFG == null || TCA_Modules.Count == 0) return;
+			TCA_highlight.Reset();
 			TCA_Modules.ForEach(m => { m.CFG = null; m.TCA_Active = false; });
-			TCA_Modules[0].CFG = CFG;
-			TCA_Modules[0].TCA_Active = true;
+			TCA = TCA_Modules[0];
+			TCA.CFG = CFG;
+			TCA.TCA_Active = true;
 		}
 		void UpdateCFG() { UpdateCFG(ModuleTCA.AllTCA(EditorLogic.fetch.ship)); }
 
@@ -179,6 +188,7 @@ namespace ThrottleControlledAvionics
 
 		bool UpdateEngines()
 		{
+			Engines_highlight.Reset();
 			Engines.Clear();
 			if(TCAScenario.HasTCA && EditorLogic.RootPart) 
 				find_engines_recursively(EditorLogic.RootPart, Engines);
@@ -276,7 +286,6 @@ namespace ThrottleControlledAvionics
 			update_stats |= HaveSelectedPart;
 			if(reset)
 			{
-				reset_highlightig();
 				Available = false;
 				Engines.Clear();
 				CFG = null;
@@ -284,14 +293,12 @@ namespace ThrottleControlledAvionics
 			}
 			if(init_engines)
 			{
-				reset_highlightig();
 				if(UpdateEngines()) GetCFG();
 				update_stats = true;
 				init_engines = false;
 			}
 			if(update_engines)
 			{
-				reset_highlightig();
 				if(UpdateEngines())
 				{
 					if(CFG != null) UpdateCFG();
@@ -307,7 +314,8 @@ namespace ThrottleControlledAvionics
 				update_stats = false;
 			}
 			Available |= CFG != null && Engines.Count > 0;
-			if(Available) CFG.GUIVisible = CFG.Enabled;
+			TCA_highlight.Update(Available && do_show);
+			Engines_highlight.Update(Available && do_show && show_imbalance && ActiveEngines.Count > 0);
 		}
 
 		void DrawMainWindow(int windowID)
@@ -420,27 +428,50 @@ namespace ThrottleControlledAvionics
 			TooltipsAndDragWindow(WindowPos);
 		}
 
-		protected override bool can_draw()
-		{ return Engines.Count > 0 && CFG != null; }
+		protected override bool can_draw() { return Available; }
+
+		static void highlight_part(Part p, Color c)
+		{
+			p.highlightColor = c;
+			p.RecurseHighlight = false;
+			p.SetHighlightType(Part.HighlightType.AlwaysOn);
+		}
 
 		static void highlight_engine(ThrusterWrapper e)
 		{
 			if(e.limit < 1) 
 			{
 				var lim = e.limit * e.limit;
-				e.part.RecurseHighlight = false;
-				e.part.highlightColor = lim < 0.5f? 
-					Color.Lerp(Color.magenta, Color.yellow, lim/0.5f) :
-					Color.Lerp(Color.yellow, Color.cyan, (lim-0.5f)/0.5f);
-				e.part.SetHighlightType(Part.HighlightType.AlwaysOn);
+				highlight_part(e.part, lim < 0.5f? 
+				               Color.Lerp(Color.magenta, Color.yellow, lim/0.5f) :
+				               Color.Lerp(Color.yellow, Color.cyan, (lim-0.5f)/0.5f));
 			}
 		}
 
-		static void reset_highlightig()
+		void highlight_engines()
+		{
+			Engines.ForEach(e => e.part.SetHighlightDefault());
+			ActiveEngines.Balanced.ForEach(highlight_engine);
+			ActiveEngines.Main.ForEach(highlight_engine);
+		}
+
+		static void reset_engines_highlightig()
 		{
 			EditorLogic.fetch.ship.Parts
 				.Where(p => p.Modules.Contains<ModuleEngines>())
 				.ForEach(p => p.SetHighlightDefault());
+		}
+
+		void highlight_TCA()
+		{
+			if(TCA != null && TCA.part != null ) 
+				highlight_part(TCA.part, Color.green);
+		}
+
+		void reset_TCA_highlighting()
+		{
+			if(TCA != null && TCA.part != null) 
+				TCA.part.SetHighlightDefault();
 		}
 
 		protected override void draw_gui()
@@ -457,16 +488,36 @@ namespace ThrottleControlledAvionics
 			{
 				Markers.DrawWorldMarker(WetCoM, Color.yellow, "Center of Mass", CoM_Icon);
 				Markers.DrawWorldMarker(DryCoM, Color.red, "Center of Dry Mass", CoM_Icon);
-				Engines.ForEach(e => e.part.SetHighlightDefault());
-				ActiveEngines.Balanced.ForEach(highlight_engine);
-				ActiveEngines.Main.ForEach(highlight_engine);
-				parts_highlighted = true;
 			}
-			else if(parts_highlighted)
+		}
+
+		class HighlightSwitcher
+		{
+			bool enabled;
+			public Action Enable = delegate {};
+			public Action Disable = delegate {};
+
+			public HighlightSwitcher(Action highlight, Action disable_highliting)
 			{
-				reset_highlightig();
-				parts_highlighted = false;
+				Enable = highlight;
+				Disable = disable_highliting;
 			}
+
+			public void Update(bool predicate)
+			{
+				if(predicate)
+				{
+					Enable();
+					enabled = true;
+				}
+				else if(enabled)
+				{
+					Disable();
+					enabled = false;
+				}
+			}
+
+			public void Reset() { Update(false); }
 		}
 	}
 }
