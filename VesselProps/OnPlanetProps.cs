@@ -146,7 +146,6 @@ namespace ThrottleControlledAvionics
 			{
 				var e = VSL.Engines.Active[i];
 				e.VSF = 1;
-				if(e.thrustInfo == null) continue;
 				if(e.isVSC)
 				{
 					var dcomponent = -Vector3.Dot(e.wThrustDir, VSL.Physics.Up);

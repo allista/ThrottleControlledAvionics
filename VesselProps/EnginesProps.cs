@@ -99,8 +99,10 @@ namespace ThrottleControlledAvionics
 		public KSPActionGroup ActionGroups  { get; private set; } = KSPActionGroup.None;
 
 		public Vector3  Thrust { get; private set; } //current total thrust
+		public Vector3  DefThrust { get; private set; }
 		public Vector3  MaxThrust { get; private set; }
-		public Vector3  ManualThrust { get; private set; }
+		public Vector3  MaxDefThrust { get; private set; }
+		public Vector3  DefManualThrust { get; private set; }
 		public Vector6  ManualThrustLimits { get; private set; } = Vector6.zero;
 		public float    MaxThrustM { get; private set; }
 		public float    MaxAccel { get; private set; }
@@ -138,16 +140,20 @@ namespace ThrottleControlledAvionics
 		public Vector3 refT_thrust_axis
 		{ get { return VSL.OnPlanetParams.NoseUp? VSL.refT.up : VSL.refT.forward; } }
 
-		public Vector3 CurrentMaxThrustDir 
+		public Vector3 FallbackThrustDir
 		{
-			get
+			get 
 			{
-				var thrust = MaxThrust;
-				if(thrust.IsZero()) thrust =  NearestEnginedStageMaxThrust;
-				if(thrust.IsZero()) thrust = -refT_thrust_axis;
-				return thrust.normalized;
+				var thrust =  NearestEnginedStageMaxThrust;
+				return thrust.IsZero()? -refT_thrust_axis : thrust.normalized;
 			}
 		}
+
+		public Vector3 CurrentDefThrustDir 
+		{ get { return MaxDefThrust.IsZero()? FallbackThrustDir : MaxDefThrust.normalized; } }
+
+		public Vector3 CurrentMaxThrustDir 
+		{ get { return MaxThrust.IsZero()? FallbackThrustDir : MaxThrust.normalized; } }
 
 		public Vector3 CurrentThrustDir 
 		{ get { return Thrust.IsZero()? CurrentMaxThrustDir : Thrust.normalized; } }
@@ -372,6 +378,7 @@ namespace ThrottleControlledAvionics
 			}
 			DecelerationTime = 0f;
 			AccelerationTime = 0f;
+			MaxDefThrust = Vector3.zero;
 			MaxThrust = Vector3.zero;
 			MaxMassFlow = 0f;
 			Slow = false;
@@ -384,6 +391,7 @@ namespace ThrottleControlledAvionics
 				{
 					var thrust = e.nominalCurrentThrust(e.limit);
 					total_thrust += thrust;
+					MaxDefThrust += e.defThrustDir*thrust;
 					MaxThrust += e.wThrustDir*thrust;
 					MaxMassFlow += e.MaxFuelFlow*e.limit;
 					if(e.useEngineResponseTime && e.finalThrust > 0)
@@ -448,7 +456,8 @@ namespace ThrottleControlledAvionics
 		{
 			//init engine wrappers, update thrust and torque information
 			Thrust = Vector3.zero;
-			ManualThrust = Vector3.zero;
+			DefThrust = Vector3.zero;
+			DefManualThrust = Vector3.zero;
 			ManualThrustLimits = Vector6.zero;
 			MassFlow = 0f;
 			ManualMassFlow = 0f;
@@ -460,10 +469,13 @@ namespace ThrottleControlledAvionics
 				e.UpdateCurrentTorque(1);
 				//do not include maneuver engines' thrust into the total to break the feedback loop with HSC
 				if(e.Role != TCARole.MANEUVER) 
+				{
 					Thrust += e.wThrustDir*e.finalThrust;
+					DefThrust += e.defThrustDir*e.finalThrust;
+				}
 				if(e.Role == TCARole.MANUAL)
 				{
-					ManualThrust += e.wThrustDir*e.finalThrust;
+					DefManualThrust += e.defThrustDir*e.finalThrust;
 					ManualMassFlow += e.RealFuelFlow;
 					ManualThrustLimits.Add(e.thrustDirection*e.nominalCurrentThrust(1));
 				}
@@ -536,7 +548,7 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < NumActive; i++)
 			{
 				var e = Active[i];
-				if(e.gimbal != null)
+				if(e.gimbal != null && e.Role != TCARole.MANEUVER)
 					e.gimbal.gimbalLimiter = VSL.Controls.GimbalLimit;
 				if(!Equals(e.Role, TCARole.MANUAL))
 					e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);

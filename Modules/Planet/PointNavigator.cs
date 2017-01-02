@@ -310,7 +310,7 @@ namespace ThrottleControlledAvionics
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.Physics.wCoM, VSL.Physics.Up);
 			var hdistance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
-			var bearing_threshold = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(VSL.Engines.CurrentMaxThrustDir), 
+			var bearing_threshold = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(VSL.Engines.CurrentDefThrustDir), 
 			                                    PN.BearingCutoffCos, 0.98480775f); //10deg yaw error
 			//update destination
 			if(tPN != null && !tPN.VSL.Info.Destination.IsZero()) 
@@ -503,7 +503,7 @@ namespace ThrottleControlledAvionics
 						var brake_time = cur_vel/brake_accel;
 						if(manual_thrust < 0) 
 						{
-							var brake_angle = Vector3.Angle(VSL.Engines.CurrentMaxThrustDir, vdir)-45;
+							var brake_angle = Vector3.Angle(VSL.Engines.CurrentDefThrustDir, vdir)-45;
 							if(brake_angle > 0)
 							{
 								if(VSL.Engines.Slow) brake_time += VSL.Torque.NoEngines.MinRotationTime(brake_angle);

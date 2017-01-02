@@ -10,6 +10,7 @@
 // Original idea of EngineWrapper came from HoneyFox's EngineIgnitor mod: https://github.com/HoneyFox/EngineIgnitor
 
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
@@ -179,7 +180,30 @@ namespace ThrottleControlledAvionics
 		public bool    isSteering;
 		public TCARole Role { get { return info.Role; } }
 		public int     Group { get { return info.Group; } }
-		public CenterOfThrustQuery thrustInfo;
+
+		Vector3 act_thrust_dir;
+		Vector3 act_thrust_pos;
+		public Vector3 defThrustDir { get; private set; }
+		public override Vector3 wThrustDir { get { return act_thrust_dir; } }
+		public override Vector3 wThrustPos { get { return act_thrust_pos; } }
+
+		class GimbalInfo
+		{
+			public Transform transform;
+			public Quaternion iniRot;
+			public Vector3 localThrustDir;
+
+			public GimbalInfo(Transform thrustTransform, Transform gimbalTransform, Quaternion initialRotation)
+			{
+				transform = gimbalTransform;
+				iniRot = initialRotation;
+				localThrustDir = transform.InverseTransformDirection(thrustTransform.forward);
+			}
+
+			public Vector3 defaultThrustDir()
+			{ return transform.TransformDirection(iniRot * transform.localRotation.Inverse() * localThrustDir); }
+		}
+		List<GimbalInfo> gimbals;
 
 		public EngineWrapper(ModuleEngines engine) 
 		{
@@ -196,6 +220,24 @@ namespace ThrottleControlledAvionics
 			info = engine.part.Modules.GetModule<TCAEngineInfo>();
 			//find gimbal
 			gimbal = engine.part.Modules.GetModule<ModuleGimbal>();
+			gimbals = new List<GimbalInfo>(engine.thrustTransforms.Count);
+			if(gimbal != null)
+			{
+				for(int i = 0, eCount = engine.thrustTransforms.Count; i < eCount; i++)
+				{
+					var eT = engine.thrustTransforms[i];
+					for(int j = 0, gCount = gimbal.gimbalTransforms.Count; j < gCount; j++)
+					{
+						var gT = gimbal.gimbalTransforms[j];
+						if(Part.FindTransformInChildrenExplicit(gT, eT))
+						{
+							gimbals.Add(new GimbalInfo(eT, gT, gimbal.initRots[j]));
+							break;
+						}
+					}
+					if(gimbals.Count == i) gimbals.Add(null);
+				}
+			}
 		}
 
 		#region methods
@@ -225,9 +267,25 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateThrustInfo()
 		{
-			thrustInfo = new CenterOfThrustQuery();
-			engine.OnCenterOfThrustQuery(thrustInfo);
-			thrustInfo.dir.Normalize();
+			defThrustDir = Vector3.zero;
+			act_thrust_dir = Vector3.zero;
+			act_thrust_pos = Vector3.zero;
+			int count = engine.thrustTransforms.Count;
+			for(int i = 0; i < count; i++)
+			{
+				Transform transform = engine.thrustTransforms[i];
+				var mult = engine.thrustTransformMultipliers[i];
+				var act_dir = transform.transform.forward * mult;
+				if(gimbal != null)
+				{
+					var gi = gimbals[i];
+					if(gi != null) defThrustDir += gi.defaultThrustDir() * mult;
+					else defThrustDir += act_dir;
+				}
+				act_thrust_dir += act_dir;
+				act_thrust_pos += transform.transform.position * mult;
+			}
+			if(gimbal == null) defThrustDir = act_thrust_dir;
 		}
 
 		public override void InitState()
@@ -330,9 +388,6 @@ namespace ThrottleControlledAvionics
 		#region Accessors
 		public override Vessel vessel { get { return engine.vessel; } }
 		public override Part part { get { return engine.part; } }
-
-		public override Vector3 wThrustDir { get { return thrustInfo.dir; } }
-		public override Vector3 wThrustPos { get { return thrustInfo.pos; } }
 
 		public bool  useEngineResponseTime { get { return engine.useEngineResponseTime; } }
 		public float engineAccelerationSpeed { get { return engine.engineAccelerationSpeed; } }

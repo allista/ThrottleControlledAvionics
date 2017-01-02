@@ -178,7 +178,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.AutopilotDisabled) { filter.Reset(); return; }
 			CFG.AT.OnIfNot(Attitude.Custom);
 			//calculate prerequisites
-			var thrust = VSL.Engines.Thrust;
+			var thrust = VSL.Engines.DefThrust;
 			needed_thrust_dir = -VSL.Physics.Up;
 			if(!CFG.HF[HFlight.Level])
 			{
@@ -202,7 +202,7 @@ namespace ThrottleControlledAvionics
 					(nVm >= HSC.TranslationUpperThreshold ||
 					 hVm >= HSC.TranslationUpperThreshold ||
 					 CourseCorrection.magnitude >= HSC.TranslationUpperThreshold);
-				var manual_thrust = Vector3.ProjectOnPlane(VSL.Engines.ManualThrust, VSL.Physics.Up);
+				var manual_thrust = Vector3.ProjectOnPlane(VSL.Engines.DefManualThrust, VSL.Physics.Up);
 				var zero_manual_thrust = manual_thrust.IsZero();
 				if(with_manual_thrust &&
 				   !zero_manual_thrust &&
@@ -266,12 +266,12 @@ namespace ThrottleControlledAvionics
 					EnableManualTranslation(translation_pid.Action > 0);
 				}
 				else EnableManualTranslation(false);
-				if(thrust.IsZero()) thrust = VSL.Engines.CurrentMaxThrustDir;
+				if(thrust.IsZero()) thrust = VSL.Engines.CurrentDefThrustDir;
 				if(CFG.HF[HFlight.Stop]) VSL.Altitude.DontCorrectIfSlow();
 			}
 			else 
 			{
-				thrust = VSL.Engines.CurrentMaxThrustDir;
+				thrust = VSL.Engines.CurrentDefThrustDir;
 				VSL.Controls.ManualTranslationSwitch.Set(false);
 			}
 			needed_thrust_dir.Normalize();

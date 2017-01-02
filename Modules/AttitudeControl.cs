@@ -110,7 +110,7 @@ namespace ThrottleControlledAvionics
 			if(cur_inv || ned_inv)
 			{
 				Log("compute_steering: Invalid argumetns:\ncurrent {}\nneeded {}\ncurrent thrust {}", 
-				    current, needed, VSL.Engines.CurrentThrustDir);
+				    current, needed, VSL.Engines.CurrentDefThrustDir);
 				steering = Vector3.zero;
 				return;
 			}
@@ -170,7 +170,7 @@ namespace ThrottleControlledAvionics
 		#endif
 		protected void tune_steering()
 		{
-			VSL.Controls.GimbalLimit = 0;
+			VSL.Controls.GimbalLimit = VSL.OnPlanetParams.TWRf*100;
 			//calculate attitude error
 			var Ef = Utils.Clamp(VSL.Controls.AttitudeError/180, ATCB.MinEf, 1);
 //			var ini_steering = steering;//debug
@@ -303,7 +303,7 @@ namespace ThrottleControlledAvionics
 		{ CustomRotation = Rotation.Local(current, needed, VSL); }
 
 		public void SetThrustDirW(Vector3 needed)
-		{ CustomRotation = Rotation.Local(VSL.Engines.CurrentThrustDir, needed, VSL); }
+		{ CustomRotation = Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed, VSL); }
 
 		public void ResetCustomRotation() { CustomRotation = default(Rotation); }
 
@@ -327,7 +327,7 @@ namespace ThrottleControlledAvionics
 		{
 			Vector3 v;
 			omega_min.Update(VSL.vessel.angularVelocity.sqrMagnitude);
-			lthrust = VSL.LocalDir(VSL.Engines.CurrentThrustDir);
+			lthrust = VSL.LocalDir(VSL.Engines.CurrentDefThrustDir);
 			needed_lthrust = Vector3.zero;
 			steering = Vector3.zero;
 			switch(CFG.AT.state)

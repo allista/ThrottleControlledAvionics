@@ -157,6 +157,7 @@ namespace ThrottleControlledAvionics
 				within_threshold |= Executor.RemainingDeltaV < ThresholdDeltaV;
 				if(within_threshold)
 				{
+					VSL.Controls.GimbalLimit = 0;
 					var dV = Executor.RemainingDeltaV;
 					if(dV < min_deltaV) { min_deltaV = dV; return; }
 					if(dV-min_deltaV < GLB.THR.MinDeltaV) return;
