@@ -22,15 +22,19 @@ namespace ThrottleControlledAvionics
 		{
 			[Persistent] public bool  DrawForwardDirection = true;
 			[Persistent] public float YawFactor = 60f;
-			[Persistent] public float MinAAf = 0.001f;
-			[Persistent] public float MaxAAf = 2;
-			[Persistent] public float ADf    = 0.1f;
-			[Persistent] public PIDf_Controller2 DirectionPID = new PIDf_Controller2(0.5f, 0f, 0.5f, -175, 175);
+
+			[Persistent] public float AAf_a = 1f;
+			[Persistent] public float AAf_b = 0.01f;
+			[Persistent] public float AAf_c = 0.5f;
+
+			[Persistent] public PIDf_Controller DirectionPID = new PIDf_Controller(Mathf.PI, 0.001f, 1, -Mathf.PI, Mathf.PI);
+			[Persistent] public PIDf_Controller AV_PID = new PIDf_Controller(1, 0.05f, 0, -1, 1);
 		}
 		static Config BRC { get { return Globals.Instance.BRC; } }
 
 		readonly Timer DirectionLineTimer = new Timer();
-		readonly PIDf_Controller2 bearing_pid = new PIDf_Controller2();
+		readonly PIDf_Controller bearing_pid = new PIDf_Controller();
+		readonly PIDf_Controller av_pid = new PIDf_Controller();
 		public readonly FloatField Bearing = new FloatField("F1", min:0, max:360, circle:true);
 
 		#if DEBUG
@@ -57,12 +61,15 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			bearing_pid.setPID(BRC.DirectionPID);
 			bearing_pid.Reset();
+			av_pid.setPID(BRC.AV_PID);
+			av_pid.Reset();
 			CFG.BR.AddSingleCallback(ControlCallback);
 		}
 
 		public void ControlCallback(Multiplexer.Command cmd)
 		{
 			bearing_pid.Reset();
+			av_pid.Reset();
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
@@ -115,24 +122,28 @@ namespace ThrottleControlledAvionics
 			var laxis = VSL.LocalDir(axis);
 			var cDir  = VSL.OnPlanetParams.Heading;
 			var angle = Vector3.Angle(cDir, nDir)*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
-			var eff   = Utils.ClampL(Mathf.Abs(Vector3.Dot(VSL.Engines.CurrentMaxThrustDir.normalized, VSL.Physics.Up)), 0.1f);
-			var ADf   = (float)VSL.vessel.staticPressurekPa/VSL.Torque.MaxCurrent.AngularDragResistanceAroundAxis(laxis)*BRC.ADf+1;
-			var AAf   = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis)/ADf*(1-angle/180), BRC.MinAAf, BRC.MaxAAf);
-			bearing_pid.P = BRC.DirectionPID.P;
-			bearing_pid.D = BRC.DirectionPID.D*AAf*AAf;
-			bearing_pid.Update(angle*eff, Vector3.Dot(VSL.vessel.angularVelocity, laxis)*Mathf.Rad2Deg);
-			steering = rotation2steering(world2local_rotation(Quaternion.AngleAxis(bearing_pid.Action, axis)))/Mathf.PI;
+			var maxAA = VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis);
+			var AAf = BRC.AAf_a/(BRC.AAf_b+Mathf.Pow(maxAA, BRC.AAf_c));
+			bearing_pid.D = AAf;
+			bearing_pid.Update(angle/180);
+			av_pid.Update(bearing_pid.Action+Vector3.Dot(VSL.vessel.angularVelocity, laxis));
+			steering = laxis*av_pid.Action*Mathf.PI;
 			VSL.Controls.AddSteering(steering);
 //			if(VSL.IsActiveVessel)
 //				TCAGui.DebugMessage = 
-//					Utils.Format("BearingControl: {}\nforward {}\noverride {}\nnDir {}\n" +
-//					             "angle {}deg, action {}deg, action*eff {}deg\n" +
-//					             "AAf {}, ADf {}, result {}\n" +
-//					             "steering {}\nresult steering: {}", CFG.BR.state,
-//					             ForwardDirection, DirectionOverride, nDir,
-//					             angle, bearing_pid.Action, bearing_pid.Action*eff, 
-//					             1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis), ADf, AAf, 
-//					             steering, VSL.Controls.AutopilotSteering);//debug
+//					Utils.Format("BearingControl: {}\n"+
+//					             "angle {}deg\n" +
+//					             "action {}rad/s\n" +
+//					             "maxAA: {}\n"+
+//					             "AAf {}\n" +
+//					             "br PID: {}\n" +
+//					             "av PID: {}", 
+//					             CFG.BR.state,
+//					             angle, 
+//					             bearing_pid.Action, 
+//					             maxAA,
+//					             AAf, 
+//					             bearing_pid, av_pid);//debug
 			end: 
 			DirectionOverride = Vector3d.zero;
 //			if(VSL.IsActiveVessel && string.IsNullOrEmpty(TCAGui.DebugMessage))
