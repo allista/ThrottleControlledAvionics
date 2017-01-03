@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
 			{ TorqueInfo = new TorqueInfo(vsl); }
 
 			public Vector3 MaxThrust;
+			public Vector3 MaxDefThrust;
 			public double  MaxMassFlow;
 
 			public Vector6 TorqueLimits = new Vector6();
@@ -140,20 +141,14 @@ namespace ThrottleControlledAvionics
 		public Vector3 refT_thrust_axis
 		{ get { return VSL.OnPlanetParams.NoseUp? VSL.refT.up : VSL.refT.forward; } }
 
-		public Vector3 FallbackThrustDir
-		{
-			get 
-			{
-				var thrust =  NearestEnginedStageMaxThrust;
-				return thrust.IsZero()? -refT_thrust_axis : thrust.normalized;
-			}
-		}
+		public Vector3 FallbackThrustDir(Vector3 fallback)
+		{ return fallback.IsZero()? -refT_thrust_axis : fallback.normalized; }
 
 		public Vector3 CurrentDefThrustDir 
-		{ get { return MaxDefThrust.IsZero()? FallbackThrustDir : MaxDefThrust.normalized; } }
+		{ get { return MaxDefThrust.IsZero()? FallbackThrustDir(NearestEnginedStageMaxDefThrust) : MaxDefThrust.normalized; } }
 
 		public Vector3 CurrentMaxThrustDir 
-		{ get { return MaxThrust.IsZero()? FallbackThrustDir : MaxThrust.normalized; } }
+		{ get { return MaxThrust.IsZero()? FallbackThrustDir(NearestEnginedStageMaxThrust) : MaxThrust.normalized; } }
 
 		public Vector3 CurrentThrustDir 
 		{ get { return Thrust.IsZero()? CurrentMaxThrustDir : Thrust.normalized; } }
@@ -249,6 +244,9 @@ namespace ThrottleControlledAvionics
 			} 
 		}
 
+		public Vector3 NearestEnginedStageMaxDefThrust
+		{ get { return GetNearestEnginedStageStats().MaxDefThrust; } }
+
 		public Vector3 NearestEnginedStageMaxThrust
 		{ get { return GetNearestEnginedStageStats().MaxThrust; } }
 
@@ -276,7 +274,8 @@ namespace ThrottleControlledAvionics
 					if(e.Role != TCARole.MANEUVER)
 					{
 						stats.MaxThrust += e.wThrustDir * thrust;
-						stats.MaxMassFlow += e.MaxFuelFlow*throttle;
+						stats.MaxDefThrust += e.defThrustDir * thrust;
+						stats.MaxMassFlow += e.MaxFuelFlow * throttle;
 					}
 					if(e.isSteering) stats.TorqueLimits.Add(e.specificTorque*thrust);
 				}
@@ -404,6 +403,7 @@ namespace ThrottleControlledAvionics
 				}
 				if(e.isSteering && have_steering) e.InitLimits();
 			}
+			Log("\nMaxDefThrust: {}\nMaxThrust: {}", MaxDefThrust, MaxThrust);//debug
 			if(DecelerationTime > 0) { DecelerationTime /= total_thrust; Slow = true; }
 			if(AccelerationTime > 0) { AccelerationTime /= total_thrust; Slow = true; }
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
