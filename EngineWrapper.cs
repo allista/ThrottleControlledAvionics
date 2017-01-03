@@ -197,11 +197,12 @@ namespace ThrottleControlledAvionics
 			{
 				transform = gimbalTransform;
 				iniRot = initialRotation;
-				localThrustDir = transform.InverseTransformDirection(thrustTransform.forward);
+				localThrustDir = thrustTransform == gimbalTransform? Vector3.forward :
+					gimbalTransform.InverseTransformDirection(thrustTransform.forward);
 			}
 
 			public Vector3 defaultThrustDir()
-			{ return transform.TransformDirection(iniRot * transform.localRotation.Inverse() * localThrustDir); }
+			{ return transform.TransformDirection(transform.localRotation.Inverse() * iniRot * localThrustDir); }
 		}
 		List<GimbalInfo> gimbals;
 
