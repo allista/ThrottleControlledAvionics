@@ -2,6 +2,13 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
+* **v3.3.3**
+    * Considerably **improved Bearing Control**:
+    	* It now uses 2-PID cascade, which is a more geneal solution. Works much better for medium to heavy crafts (Max.AA ~0.1-3 rad/s2). Very high-torque crafts (Max.AA ~10-15 rad/s2) work fine, but don't react as quickly as they *possibly* could.
+    * Implemented **active gimbal handling**. Now engines with gimbal capability will be using it for maneuvering.
+    * In Editor, added highlighting of the command part where TCA is active.
+    * Fixed target and orbital attitude cues calculation for Kerbol-centric orbits.
+
 * **v.3.3.2**
     * Fixed ToOrbit Autopilot for ~0 inclination target orbits.
     * Fixed Deorbit Autopilot for retrograde orbits.
