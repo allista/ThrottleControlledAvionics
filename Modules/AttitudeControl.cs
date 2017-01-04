@@ -244,11 +244,11 @@ namespace ThrottleControlledAvionics
 	[OptionalModules(typeof(TimeWarpControl))]
 	public class AttitudeControl : AttitudeControlBase
 	{
-//		public new class Config : ModuleConfig
-//		{
-//			[Persistent] public float RollFilter = 1f;
-//		}
-//		static Config ATC { get { return Globals.Instance.ATC; } }
+		public new class Config : ModuleConfig
+		{
+			[Persistent] public float KillRotThreshold = 1e-5f;
+		}
+		static Config ATC { get { return Globals.Instance.ATC; } }
 
 		readonly MinimumF omega_min = new MinimumF();
 		Transform refT;
@@ -381,8 +381,7 @@ namespace ThrottleControlledAvionics
 				}
 				break;
 			case Attitude.KillRotation:
-				if(refT != VSL.refT || 
-				   omega_min.Value > GLB.NoPersistentRotationThreshold && omega_min.True)
+				if(refT != VSL.refT || omega_min.True)
 				{
 					refT = VSL.refT;
 					locked_attitude = refT.rotation;
