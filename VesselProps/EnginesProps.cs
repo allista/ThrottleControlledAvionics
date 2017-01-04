@@ -403,7 +403,6 @@ namespace ThrottleControlledAvionics
 				}
 				if(e.isSteering && have_steering) e.InitLimits();
 			}
-			Log("\nMaxDefThrust: {}\nMaxThrust: {}", MaxDefThrust, MaxThrust);//debug
 			if(DecelerationTime > 0) { DecelerationTime /= total_thrust; Slow = true; }
 			if(AccelerationTime > 0) { AccelerationTime /= total_thrust; Slow = true; }
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
