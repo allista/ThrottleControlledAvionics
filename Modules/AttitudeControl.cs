@@ -244,11 +244,11 @@ namespace ThrottleControlledAvionics
 	[OptionalModules(typeof(TimeWarpControl))]
 	public class AttitudeControl : AttitudeControlBase
 	{
-		public new class Config : ModuleConfig
-		{
-			[Persistent] public float RollFilter = 1f;
-		}
-		static Config ATC { get { return Globals.Instance.ATC; } }
+//		public new class Config : ModuleConfig
+//		{
+//			[Persistent] public float RollFilter = 1f;
+//		}
+//		static Config ATC { get { return Globals.Instance.ATC; } }
 
 		readonly MinimumF omega_min = new MinimumF();
 		Transform refT;
@@ -257,7 +257,6 @@ namespace ThrottleControlledAvionics
 
 		BearingControl BRC;
 		Vector3 lthrust, needed_lthrust;
-		readonly LowPassFilterV roll_filter = new LowPassFilterV();
 
 		public AttitudeControl(ModuleTCA tca) : base(tca) {}
 
@@ -265,7 +264,6 @@ namespace ThrottleControlledAvionics
 		{ 
 			base.Init();
 			CFG.AT.SetSingleCallback(Enable);
-			roll_filter.Tau = ATC.RollFilter;
 		}
 
 		protected override void UpdateState() 
@@ -313,6 +311,8 @@ namespace ThrottleControlledAvionics
 			refT = null;
 			omega_min.Reset();
 			attitude_locked = false;
+			needed_lthrust = Vector3.zero;
+			lthrust = Vector3.zero;
 			#if DEBUG
 			Pf.Value = ATCB.PID.P;
 			If.Value = ATCB.PID.I;
@@ -323,12 +323,41 @@ namespace ThrottleControlledAvionics
 			#endif
 		}
 
+		public void UpdateCues()
+		{
+			switch(CFG.AT.state)
+			{
+			case Attitude.Normal:
+				needed_lthrust = -VSL.LocalDir(VSL.orbit.h.xzy);
+				break;
+			case Attitude.AntiNormal:
+				needed_lthrust = VSL.LocalDir(VSL.orbit.h.xzy);
+				break;
+			case Attitude.Radial:
+				needed_lthrust = VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, VSL.orbit.h.xzy.normalized));
+				break;
+			case Attitude.AntiRadial:
+				needed_lthrust = -VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, VSL.orbit.h.xzy.normalized));
+				break;
+			case Attitude.Target:
+			case Attitude.AntiTarget:
+				if(!VSL.HasTarget) 
+				{ 
+					Message("No target");
+					CFG.AT.On(Attitude.KillRotation);
+					break;
+				}
+				needed_lthrust = VSL.LocalDir((VSL.vessel.transform.position-VSL.Target.GetTransform().position).normalized);
+				if(CFG.AT.state == Attitude.AntiTarget) needed_lthrust *= -1;
+				break;
+			}
+		}
+
 		void compute_steering()
 		{
 			Vector3 v;
 			omega_min.Update(VSL.vessel.angularVelocity.sqrMagnitude);
 			lthrust = VSL.LocalDir(VSL.Engines.CurrentDefThrustDir);
-			needed_lthrust = Vector3.zero;
 			steering = Vector3.zero;
 			switch(CFG.AT.state)
 			{
@@ -352,7 +381,8 @@ namespace ThrottleControlledAvionics
 				}
 				break;
 			case Attitude.KillRotation:
-				if(refT != VSL.refT || omega_min.True)
+				if(refT != VSL.refT || 
+				   omega_min.Value > GLB.NoPersistentRotationThreshold && omega_min.True)
 				{
 					refT = VSL.refT;
 					locked_attitude = refT.rotation;
@@ -370,29 +400,14 @@ namespace ThrottleControlledAvionics
 				if(CFG.AT.state == Attitude.Prograde) v *= -1;
 				needed_lthrust = VSL.LocalDir(v.normalized);
 				break;
-			case Attitude.Normal:
-				needed_lthrust = -VSL.LocalDir(VSL.orbit.h.xzy);
-				break;
-			case Attitude.AntiNormal:
-				needed_lthrust = VSL.LocalDir(VSL.orbit.h.xzy);
-				break;
-			case Attitude.Radial:
-				needed_lthrust = VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, VSL.orbit.h.xzy.normalized));
-				break;
-			case Attitude.AntiRadial:
-				needed_lthrust = -VSL.LocalDir(Vector3d.Cross(VSL.vessel.obt_velocity.normalized, VSL.orbit.h.xzy.normalized));
-				break;
-			case Attitude.Target:
-				if(VSL.HasTarget) { CFG.AT.On(Attitude.KillRotation); break; }
-				needed_lthrust = VSL.LocalDir((VSL.Physics.wCoM-VSL.Target.GetTransform().position).normalized);
-				break;
-			case Attitude.AntiTarget:
-				if(VSL.HasTarget) { CFG.AT.On(Attitude.KillRotation); break; }
-				needed_lthrust = VSL.LocalDir((VSL.Target.GetTransform().position-VSL.Physics.wCoM).normalized);
-				break;
 			case Attitude.RelVel:
 			case Attitude.AntiRelVel:
-				if(!VSL.HasTarget) { CFG.AT.On(Attitude.KillRotation); break; }
+				if(!VSL.HasTarget) 
+				{ 
+					Message("No target");
+					CFG.AT.On(Attitude.KillRotation);
+					break;
+				}
 				v = VSL.InOrbit? 
 					VSL.Target.GetObtVelocity()-VSL.vessel.obt_velocity : 
 					VSL.Target.GetSrfVelocity()-VSL.vessel.srf_velocity;
@@ -403,7 +418,11 @@ namespace ThrottleControlledAvionics
 			case Attitude.ManeuverNode:
 				var solver = VSL.vessel.patchedConicSolver;
 				if(solver == null || solver.maneuverNodes.Count == 0)
-				{ CFG.AT.On(Attitude.KillRotation); break; }
+				{ 
+					Message("No maneuver node");
+					CFG.AT.On(Attitude.KillRotation); 
+					break; 
+				}
 				needed_lthrust = VSL.LocalDir(-solver.maneuverNodes[0].GetBurnVector(VSL.orbit).normalized);
 				break;
 			}
@@ -449,7 +468,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(!CFG.AT || VSL == null || VSL.vessel == null || VSL.refT == null) return;
 //			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
-			Utils.GLVec(VSL.refT.position, VSL.WorldDir(lthrust.normalized)*20, Color.cyan);
+			Utils.GLVec(VSL.refT.position, VSL.WorldDir(lthrust.normalized)*20, Color.yellow);
 			Utils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized)*20, Color.green);
 //			Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.green);
 //			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
@@ -458,6 +477,15 @@ namespace ThrottleControlledAvionics
 //			Utils.GLVec(VSL.refT.position, VSL.refT.right*2, Color.red);
 //			Utils.GLVec(VSL.refT.position, VSL.refT.forward*2, Color.blue);
 //			Utils.GLVec(VSL.refT.position, VSL.refT.up*2, Color.green);
+
+//			if(VSL.Target != null)
+//				Utils.GLDrawPoint(VSL.Target.GetTransform().position, Color.red, 5);
+//
+//			VSL.Engines.All.ForEach(e => 
+//			{
+//				Utils.GLVec(e.wThrustPos, e.wThrustDir*2, Color.red);
+//				Utils.GLVec(e.wThrustPos, e.defThrustDir*2, Color.yellow);
+//			});
 		}
 
 		Vector3Field Pf = new Vector3Field();

@@ -418,6 +418,8 @@ namespace ThrottleControlledAvionics
 				VSL.Physics.UpdateCoM();
 				VSL.Physics.UpdateMoI();
 				VSL.Geometry.Update();
+				var ATC = GetModule<AttitudeControl>();
+				if(ATC != null) ATC.UpdateCues();
 //				Utils.Log("{}: MoI {}, Srf {}, MaxPossibleTorque {}, M {}, MaxThrust {}\n" +
 //				           "atmDensity {}, Torq.Ang.DragRes {}, NoEng.Torq.Ang.DragRes {}, Max.Pos.Ang.DragRes {}\n",
 //				           this.Title(), VSL.Physics.MoI, VSL.Geometry.BoundsSideAreas, VSL.Torque.MaxTorquePossible,
