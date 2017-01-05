@@ -243,6 +243,7 @@ namespace ThrottleControlledAvionics
 
 		#region methods
 		public void SetRole(TCARole role) { info.SetRole(role); }
+		public void SetGroup(int group) { info.group = group; }
 
 		public override void InitLimits()
 		{
