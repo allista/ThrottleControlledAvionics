@@ -207,22 +207,34 @@ namespace ThrottleControlledAvionics
 			e.UpdateCurrentTorque(1);
 		}
 
-		void UpdateShipStats()
+		static List<Part> GetSelectedParts()
 		{
-			var thrust = Vector3.zero;
-			Mass = DryMass = MinTWR = MaxTWR = 0;
-			CoM = WetCoM = DryCoM = Vector3.zero;
-			MinLimit = 0;
 			var selected_parts = new List<Part>();
 			if(HaveSelectedPart && !EditorLogic.fetch.ship.Contains(EditorLogic.SelectedPart))
 			{
 				selected_parts.Add(EditorLogic.SelectedPart);
 				selected_parts.AddRange(EditorLogic.SelectedPart.symmetryCounterparts);
 			}
+			return selected_parts;
+		}
+
+		void CalculateMassAndCoM(List<Part> selected_parts)
+		{
+			Mass = DryMass = MinTWR = MaxTWR = 0;
+			CoM = WetCoM = DryCoM = Vector3.zero;
 			update_mass_and_CoM(EditorLogic.RootPart);
-			selected_parts.ForEach(update_mass_and_CoM);
+			if(selected_parts != null)
+				selected_parts.ForEach(update_mass_and_CoM);
 			WetCoM /= Mass; DryCoM /= DryMass;
 			CoM = use_wet_mass? WetCoM : DryCoM;
+		}
+
+		void UpdateShipStats()
+		{
+			MinLimit = 0;
+			var thrust = Vector3.zero;
+			var selected_parts = GetSelectedParts();
+			CalculateMassAndCoM(selected_parts);
 			if(CFG != null && CFG.Enabled && Engines.Count > 0)
 			{
 				ActiveEngines.Clear();
@@ -278,8 +290,47 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		const float UnBalanced_threshold = 0.0001f; //<1 deg
+		void AutoconfigureProfile()
+		{
+			CalculateMassAndCoM(GetSelectedParts());
+			var EnginesCount = Engines.Count;
+			//reset groups; set CoM-coaxial engines to UnBalanced role
+			for(int i = 0; i < EnginesCount; i++)
+			{
+				var e = Engines[i];
+				e.SetGroup(0);
+				if(e.Role == TCARole.MANUAL || e.Role == TCARole.MANEUVER)
+					continue;
+				if(e.engine.throttleLocked)
+				{
+					e.SetRole(TCARole.MANUAL);
+					e.forceThrustPercentage(100);
+					continue;
+				}
+				e.UpdateThrustInfo();
+				e.InitTorque(EditorLogic.fetch.ship[0].transform, CoM, 1);
+				if(e.torqueRatio < UnBalanced_threshold) e.SetRole(TCARole.UNBALANCE);
+			}
+			//group symmetry-clones
+			var group = 1;
+			for(int i = 0; i < EnginesCount; i++)
+			{
+				var e = Engines[i];
+				if(e.Group > 0) continue;
+				if(e.part.symmetryCounterparts.Count > 0)
+				{
+					e.SetGroup(group);
+					e.part.symmetryCounterparts.ForEach(p => p.Modules.GetModule<TCAEngineInfo>().group = group);
+					group += 1;
+				}
+			}
+			//update active profile
+			CFG.ActiveProfile.Update(Engines);
+		}
 
-		bool reset, init_engines, update_engines, update_stats;
+
+		bool reset, init_engines, update_engines, update_stats, autoconfigure_profile;
 		void Update()
 		{
 			if(EditorLogic.fetch == null || EditorLogic.fetch.ship == null) return;
@@ -307,6 +358,12 @@ namespace ThrottleControlledAvionics
 				}
 				update_stats = true;
 				update_engines = false;
+			}
+			if(autoconfigure_profile)
+			{
+				AutoconfigureProfile();
+				autoconfigure_profile = false;
+				update_stats = true;
 			}
 			if(update_stats) 
 			{
@@ -389,6 +446,10 @@ namespace ThrottleControlledAvionics
 					GUILayout.EndVertical();
 				}
 				GUILayout.EndHorizontal();
+				if(GUILayout.Button(new GUIContent("Autoconfigure Active Profile", 
+				                                   "This will overwrite any existing groups and roles"), 
+				                    Styles.danger_button, GUILayout.ExpandWidth(true)))
+					autoconfigure_profile = true;
 				CFG.EnginesProfiles.Draw(height);
 				if(CFG.ActiveProfile.Changed)
 				{
