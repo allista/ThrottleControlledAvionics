@@ -78,6 +78,227 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		public class EngineCluster : VesselProps
+		{
+			public const float MaxDistance = 0.70710678f; //45 deg
+
+			public bool Enabled { get; private set; }
+			public List<EngineWrapper> Engines { get; private set; }
+
+			public Vector3 Dir { get; private set; } = Vector3.zero;
+			public Vector3 MaxThrust { get; private set; } = Vector3.zero;
+			public double  MaxMassFlow { get; private set; } = 0;
+
+			public float DistanceTo(Vector3 local_dir)
+			{ return 1-Vector3.Dot(local_dir, Dir); }
+
+			public float DistanceTo(EngineWrapper e)
+			{ return DistanceTo(VSL.LocalDir(e.defThrustDir)); }
+
+			public EngineCluster(VesselWrapper vsl) : base(vsl) { Engines = new List<EngineWrapper>(); }
+			public EngineCluster(VesselWrapper vsl, EngineWrapper e) : this(vsl) { Add(e); }
+			public EngineCluster(VesselWrapper vsl, params EngineWrapper[] engines) : this(vsl) { Add(engines); }
+
+			public void Add(EngineWrapper e)
+			{
+				Engines.Add(e);
+				MaxThrust = MaxThrust + VSL.LocalDir(e.defThrustDir) * e.engine.maxThrust;
+				MaxMassFlow = MaxMassFlow + e.engine.maxFuelFlow;
+				Dir = MaxThrust.normalized;
+			}
+
+			public void Add(params EngineWrapper[] engines)
+			{
+				for(int i = 0, len = engines.Length; i < len; i++)
+				{
+					var e = engines[i];
+					Engines.Add(e);
+					MaxThrust = MaxThrust + VSL.LocalDir(e.defThrustDir) * e.engine.maxThrust;
+					MaxMassFlow = MaxMassFlow + e.engine.maxFuelFlow;
+				}
+				Dir = MaxThrust.normalized;
+			}
+
+			static void enable_engine(EngineWrapper e)
+			{ if(!e.engine.EngineIgnited) e.engine.Activate(); }
+
+			static void disable_engine(EngineWrapper e)
+			{ if(e.engine.EngineIgnited) e.engine.Shutdown(); }
+
+			public void Enable(bool enable = true)
+			{
+				if(enable) 
+				{
+					Engines.ForEach(enable_engine);
+					Enabled = true;
+				}
+				else if(Enabled && !enable)
+				{
+					Engines.ForEach(disable_engine);
+					Enabled = false;
+				}
+			}
+
+			public override string ToString()
+			{
+				return string.Format("EngineCluster: Enabled: {0}, Engines: {1}, MaxMassFlow: {2}\nMaxThrust: {3}", 
+				                     Enabled, Engines.Count, MaxMassFlow, MaxThrust);
+			}
+		}
+
+		public class ClustersDB : VesselProps
+		{
+			List<EngineCluster> clusters = new List<EngineCluster>();
+			Transform savedRefT;
+
+			public EngineCluster Active { get; private set; }
+			public int Count { get { return clusters.Count; } }
+			public bool Multi { get { return clusters.Count > 1; } }
+			public bool Dirty { get { return refT != savedRefT; } }
+
+			public ClustersDB(VesselWrapper vsl) : base(vsl) {}
+
+			public override void Update()
+			{
+				var active_dir = Vector3.zero;
+				//deactivate engines if in SmartEngines mode
+				if(CFG.UseSmartEngines) 
+				{
+					//save active direction, if any
+					if(Active != null) 
+						active_dir = VSL.WorldDir(Active.Dir);
+					Deactivate();
+				}
+				clusters.Clear();
+				Active = null;
+				//repartition enines into clusters
+				savedRefT = refT;
+				VSL.Engines.All.Sort((a, b) => b.engine.maxThrust.CompareTo(a.engine.maxThrust));
+				for(int i = 0, enginesCount = VSL.Engines.All.Count; i < enginesCount; i++)
+				{
+					var e = VSL.Engines.All[i];
+					//do not include maneuver or manual engines into clusters
+					if(e.Role == TCARole.MANEUVER || e.Role == TCARole.MANUAL)
+						continue;
+					//do not include engines with stack-attached children; these are probably blocked by decouplers
+					if(e.part.children.Any(ch => ch.srfAttachNode == null || ch.srfAttachNode.attachedPart != e.part))
+						continue;
+					e.UpdateThrustInfo();
+					float min_dist;
+					var closest = find_closest(VSL.LocalDir(e.defThrustDir), out min_dist);
+					if(min_dist < EngineCluster.MaxDistance) closest.Add(e);
+					else clusters.Add(new EngineCluster(VSL, e));
+				}
+				//activate the cluster that is nearest to the previous active direction
+				if(CFG.UseSmartEngines && !active_dir.IsZero())
+					activate(Closest(VSL.LocalDir(active_dir)));
+				Log("Updated clusters: {}", clusters);//debug
+			}
+
+			EngineCluster find_closest(Vector3 local_dir, out float min_dist)
+			{
+				min_dist = float.MaxValue;
+				EngineCluster closest = null;
+				for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
+				{
+					var c = clusters[j];
+					var d = c.DistanceTo(local_dir);
+					if(d < min_dist)
+					{
+						min_dist = d;
+						closest = c;
+					}
+				}
+				return closest;
+			}
+
+			public EngineCluster Closest(Vector3 local_dir)
+			{
+				float min_dist;
+				return find_closest(local_dir, out min_dist);
+			}
+
+			public EngineCluster Fastest(Vector3 dV)
+			{
+//				Log("Requested fasted cluster for: {}", dV);//debug
+				var dVm = dV.magnitude;
+				var loc_dV = VSL.LocalDir(dV);
+				var min_time = float.MaxValue;
+				EngineCluster fastest = null;
+				for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
+				{
+					var c = clusters[j];
+					var time = VSL.Torque.NoEngines.RotationTime(Vector3.Angle(loc_dV, c.Dir), 1);
+//					Log("Dir {}, Angle {}, Rot.time: {}, coutdown {}", c.Dir, Vector3.Angle(loc_dV, c.Dir), time, VSL.Info.Countdown);//debug
+					if(VSL.Info.Countdown > 0 && time > VSL.Info.Countdown) continue;
+					time += VSL.Engines.TTB(dVm, c.MaxThrust.magnitude, (float)c.MaxMassFlow, 1);
+//					Log("MThrust {}, Rot+ttb: {} < min time {}", c.MaxThrust, time, min_time);//debug
+					if(time < min_time)
+					{
+						min_time = time;
+						fastest = c;
+					}
+				}
+//				Log("Fasted cluster: {}", fastest);//debug
+				return fastest ?? Closest(loc_dV);
+			}
+
+			public EngineCluster BestForManeuver(Vector3 dV)
+			{
+//				Log("Requested best cluster for maneuver: {}", dV);//debug
+				var dVm = dV.magnitude;
+				var loc_dV = VSL.LocalDir(dV);
+				var min_score = float.MaxValue;
+				EngineCluster best = null;
+				for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
+				{
+					var c = clusters[j];
+					var score = VSL.Torque.NoEngines.RotationTime(Vector3.Angle(loc_dV, c.Dir), 1);
+//					Log("Dir {}, Angle {}, Rot.time: {}, coutdown {}", c.Dir, Vector3.Angle(loc_dV, c.Dir), score, VSL.Info.Countdown);//debug
+					var thrust = c.MaxThrust.magnitude;
+					var ttb = VSL.Engines.TTB(dVm, thrust, (float)c.MaxMassFlow, 1);
+					if(VSL.Info.Countdown > 0 && score+ttb/2 > VSL.Info.Countdown) continue;
+					if(ttb < GLB.MAN.ClosestCluster) ttb = 0;
+					score += ttb;
+					var fuel = VSL.Engines.FuelNeeded(dVm, (float)(thrust/c.MaxMassFlow));
+					if(fuel/VSL.Physics.M > GLB.MAN.EfficientCluster) score += fuel*GLB.MAN.EfficiencyWeight;
+//					Log("ttb {}, fuel {}, score {} < min score {}", ttb, fuel, score, min_score);//debug
+					if(score < min_score)
+					{
+						min_score = score;
+						best = c;
+					}
+				}
+//				Log("Best cluster: {}", best);//debug
+				return best ?? Closest(loc_dV);
+			}
+
+			void activate(EngineCluster cluster)
+			{
+				if(cluster == null || cluster == Active) return;
+				Deactivate();
+				cluster.Enable();
+				VSL.CFG.ActiveProfile.Update(VSL.Engines.All, true);
+				Active = cluster;
+				Log("Activated: {}", Active);//debug
+			}
+
+			public void ActivateClosest(Vector3 local_dir)
+			{ activate(Closest(local_dir)); }
+
+			public void ActivateFastest(Vector3 dV)
+			{ activate(Fastest(dV)); }
+
+			public void ActivateBestForManeuver(Vector3 dV)
+			{ activate(BestForManeuver(dV)); }
+
+			public void Deactivate()
+			{ 
+				clusters.ForEach(c => c.Enable(false));
+				Active = null;
+			}
+		}
+
 		public EnginesProps(VesselWrapper vsl) : base(vsl) {}
 
 		public List<EngineWrapper> All = new List<EngineWrapper>();
@@ -284,6 +505,61 @@ namespace ThrottleControlledAvionics
 			return stats;
 		}
 
+		#region Clusters
+		public ClustersDB Clusters;
+		Vector3 local_dir_cluster_request;
+		Vector3 dV_cluster_request;
+
+		ActionDamper clusters_cooldown = new ActionDamper();
+
+		public void RequestNearestClusterActivation(Vector3 local_dir)
+		{ local_dir_cluster_request = local_dir; }
+
+		public void RequestFastestClusterActivation(Vector3 dV)
+		{ 
+			CFG.SmartEngines.OnIfNot(SmartEnginesMode.Fastest);
+			dV_cluster_request = dV; 
+		}
+
+		public void RequestBestClusterActivation(Vector3 dV)
+		{ 
+			CFG.SmartEngines.OnIfNot(SmartEnginesMode.Best);
+			dV_cluster_request = dV; 
+		}
+
+		public void RequestClusterActivationForManeuver(Vector3 dV)
+		{ 
+			switch(CFG.SmartEngines.state)
+			{
+			case SmartEnginesMode.Closest:
+				local_dir_cluster_request = VSL.LocalDir(dV);
+				break;
+			case SmartEnginesMode.Fastest:
+			case SmartEnginesMode.Best:
+				dV_cluster_request = dV; 
+				break;
+			}
+		}
+
+		void activate_cluster_by_request()
+		{
+			if(Clusters.Multi)
+			{
+				if(!local_dir_cluster_request.IsZero())
+					clusters_cooldown.Run(() => Clusters.ActivateClosest(local_dir_cluster_request));
+				else if(!dV_cluster_request.IsZero())
+				{
+					if(CFG.SmartEngines.state == SmartEnginesMode.Fastest)
+						clusters_cooldown.Run(() => Clusters.ActivateFastest(dV_cluster_request));
+					else if(CFG.SmartEngines.state == SmartEnginesMode.Best)
+						clusters_cooldown.Run(() => Clusters.ActivateBestForManeuver(dV_cluster_request));
+				}
+			}
+			local_dir_cluster_request = Vector3.zero;
+			dV_cluster_request = Vector3.zero;
+		}
+		#endregion
+
 		public bool Check()
 		{
 			//update engines' list if needed
@@ -304,6 +580,10 @@ namespace ThrottleControlledAvionics
 				num_engines = All.Count;
 				ForceUpdateEngines = false;
 			}
+			else if(Clusters.Dirty)
+				Clusters.Update();
+			if(CFG.UseSmartEngines)
+				activate_cluster_by_request();
 			//unflameout engines
 			if(VSL.vessel.ctrlState.mainThrottle > 0)
 			{

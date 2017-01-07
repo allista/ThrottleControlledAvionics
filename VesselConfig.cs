@@ -17,6 +17,7 @@ using AT_Utils;
 namespace ThrottleControlledAvionics
 {
 	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, Target, AntiTarget, RelVel, AntiRelVel, ManeuverNode, Custom }
+	public enum SmartEnginesMode { None, Closest, Fastest, Best }
 	public enum BearingMode { None, User, Auto }
 	public enum ControlMode { None, VTOL }
 	public enum HFlight { None, Stop, Move, Level, NoseOnCourse, CruiseControl }
@@ -90,6 +91,8 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool ShowManualLimits;
 		[Persistent] public bool AutoStage = true;
 		[Persistent] public bool AutoParachutes = true;
+		[Persistent] public bool UseSmartEngines = false;
+		[Persistent] public Multiplexer<SmartEnginesMode> SmartEngines = new Multiplexer<SmartEnginesMode>();
 		public EnginesProfile ActiveProfile { get { return EnginesProfiles.Active; } }
 		//squad
 		[Persistent] public int Squad;

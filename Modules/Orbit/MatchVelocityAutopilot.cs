@@ -128,6 +128,7 @@ namespace ThrottleControlledAvionics
 			dV = (float)ApprdV.magnitude;
 			CFG.AT.OnIfNot(Attitude.Custom);
 			ATC.SetThrustDirW(ApprdV);
+			VSL.Engines.RequestClusterActivationForManeuver(ApprdV);
 			if(TTA > 0)
 			{
 				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL, out VSL.Info.TTB);

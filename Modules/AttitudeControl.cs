@@ -398,6 +398,7 @@ namespace ThrottleControlledAvionics
 				if(v.magnitude < GLB.THR.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
 				if(CFG.AT.state == Attitude.Prograde) v *= -1;
 				needed_lthrust = VSL.LocalDir(v.normalized);
+				VSL.Engines.RequestNearestClusterActivation(needed_lthrust);
 				break;
 			case Attitude.RelVel:
 			case Attitude.AntiRelVel:
@@ -413,6 +414,7 @@ namespace ThrottleControlledAvionics
 				if(v.magnitude < GLB.THR.MinDeltaV) { CFG.AT.On(Attitude.KillRotation); break; }
 				if(CFG.AT.state == Attitude.AntiRelVel) v *= -1;
 				needed_lthrust = VSL.LocalDir(v.normalized);
+				VSL.Engines.RequestClusterActivationForManeuver(v);
 				break;
 			case Attitude.ManeuverNode:
 				var solver = VSL.vessel.patchedConicSolver;
@@ -422,7 +424,17 @@ namespace ThrottleControlledAvionics
 					CFG.AT.On(Attitude.KillRotation); 
 					break; 
 				}
-				needed_lthrust = VSL.LocalDir(-solver.maneuverNodes[0].GetBurnVector(VSL.orbit).normalized);
+				v = -solver.maneuverNodes[0].GetBurnVector(VSL.orbit);
+				needed_lthrust = VSL.LocalDir(v.normalized);
+				VSL.Engines.RequestClusterActivationForManeuver(v);
+				break;
+			case Attitude.Normal:
+			case Attitude.AntiNormal:
+			case Attitude.Radial:
+			case Attitude.AntiRadial:
+			case Attitude.Target:
+			case Attitude.AntiTarget:
+				VSL.Engines.RequestNearestClusterActivation(needed_lthrust);
 				break;
 			}
 			if(!(lthrust.IsZero() || needed_lthrust.IsZero())) 

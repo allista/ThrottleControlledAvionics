@@ -330,6 +330,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			Physics.AngularDrag /= drag_parts;
+			Engines.Clusters.Update();
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines.All);
 			else if(CFG.Enabled && TCA.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
 		}

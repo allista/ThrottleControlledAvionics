@@ -120,7 +120,6 @@ namespace ThrottleControlledAvionics
 				CFG.EnginesProfiles.AddProfile(Engines);
 			}
 			else CFG.ActiveProfile.Apply(Engines);
-			CFG.ActiveProfile.Update(Engines);
 			UpdateCFG(TCA_Modules);
 			return true;
 		}
@@ -133,6 +132,7 @@ namespace ThrottleControlledAvionics
 			TCA = TCA_Modules[0];
 			TCA.CFG = CFG;
 			TCA.TCA_Active = true;
+			CFG.ActiveProfile.Update(Engines);
 		}
 		void UpdateCFG() { UpdateCFG(ModuleTCA.AllTCA(EditorLogic.fetch.ship)); }
 
@@ -345,8 +345,8 @@ namespace ThrottleControlledAvionics
 			if(init_engines)
 			{
 				if(UpdateEngines()) GetCFG();
-				update_stats = true;
 				init_engines = false;
+				update_stats = true;
 			}
 			if(update_engines)
 			{
@@ -354,10 +354,9 @@ namespace ThrottleControlledAvionics
 				{
 					if(CFG != null) UpdateCFG();
 					else GetCFG();
-					if(CFG != null) CFG.ActiveProfile.Update(Engines);
 				}
-				update_stats = true;
 				update_engines = false;
+				update_stats = true;
 			}
 			if(autoconfigure_profile)
 			{
@@ -432,6 +431,9 @@ namespace ThrottleControlledAvionics
 						{
 							Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
 			                                   "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(true));
+							if(Utils.ButtonSwitch("SmartEngines", ref CFG.UseSmartEngines, 
+							                      "Group engines by thrust direction and automatically use appropriate group for a meneuver", GUILayout.ExpandWidth(true)))
+							{ if(CFG.UseSmartEngines) CFG.SmartEngines.OnIfNot(SmartEnginesMode.Best); }
 							Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear, 
 			                                   "Automatically deploy/retract landing gear when needed", GUILayout.ExpandWidth(true));
 							Utils.ButtonSwitch("AutoBrakes", ref CFG.AutoBrakes, 

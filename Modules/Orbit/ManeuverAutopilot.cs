@@ -23,6 +23,11 @@ namespace ThrottleControlledAvionics
 		public class Config : TCAModule.ModuleConfig
 		{
 			[Persistent] public float WrapThreshold = 600f; //s
+
+			//controls best engine cluster calculation
+			[Persistent] public float ClosestCluster   = 5f;   //s
+			[Persistent] public float EfficientCluster = 0.1f; //fraction of vessel mass
+			[Persistent] public float EfficiencyWeight = 10;   //how much the fuel mass will affect cluster selection
 		}
 		static Config MAN { get { return Globals.Instance.MAN; } }
 

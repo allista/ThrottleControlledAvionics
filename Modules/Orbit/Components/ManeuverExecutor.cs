@@ -45,6 +45,7 @@ namespace ThrottleControlledAvionics
 			{
 				CFG.AT.OnIfNot(Attitude.Custom);
 				ATC.SetThrustDirW(-dV);
+				VSL.Engines.RequestClusterActivationForManeuver(-dV);
 			}
 			//check the condition
 			if(condition != null && !condition((float)dVrem)) return true;
