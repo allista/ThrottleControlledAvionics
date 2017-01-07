@@ -113,6 +113,7 @@ namespace ThrottleControlledAvionics
 		{
 			role = (int)Role;
 			Events["SwitchRole"].guiName = role > NumRoles ? "TCA: Unknown" : ("TCA: "+RoleNames[role]);
+			if(HighLogic.LoadedSceneIsEditor) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
 		}
 	}
 }
