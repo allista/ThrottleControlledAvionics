@@ -398,6 +398,7 @@ namespace ThrottleControlledAvionics
 							{
 								if(!CFG.Enabled) 
 									Engines.ForEach(e => e.forceThrustPercentage(100));
+								CFG.GUIVisible = CFG.Enabled;
 							}
 							if(Modules[typeof(AltitudeControl)])
 							{
