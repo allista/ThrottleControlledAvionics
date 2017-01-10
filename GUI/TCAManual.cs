@@ -98,7 +98,7 @@ namespace ThrottleControlledAvionics
 					GUILayout.Label("<color=red><size=30>TCA module was not found in any of the loaded parts.</size></color>\n\n" +
 					                    "This probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
 					                    "<color=yellow><b>ModuleManager</b> is required</color> for TCA to work.", Styles.rich_label);
-				else if(HighLogic.CurrentGame.Mode == Game.Modes.CAREER)
+				else if(HighLogic.CurrentGame.Mode != Game.Modes.SANDBOX)
 				{
 					
 					if(!TCAScenario.HasTCA)

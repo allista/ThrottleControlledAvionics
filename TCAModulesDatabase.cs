@@ -152,7 +152,7 @@ namespace ThrottleControlledAvionics
 		public static List<TCAPart> GetPurchasedParts()
 		{
 			if(HighLogic.CurrentGame == null ||
-			   HighLogic.CurrentGame.Mode != Game.Modes.CAREER) return null;
+			   HighLogic.CurrentGame.Mode == Game.Modes.SANDBOX) return null;
 			TechTreeParts.ForEach(p => p.Value.UpdateInfo());
 			var list = TechTreeParts.Values.Where(p => p.Purchased).ToList();
 			list.Sort((a, b) => a.Title.CompareTo(b.Title));
