@@ -27,7 +27,7 @@ namespace ThrottleControlledAvionics
 		void Update()
 		{
 			if(Manual == null) return;
-			if(window_enabled)
+			if(WindowEnabled)
 			{
 				if(current_section == null)
 					change_section(Manual.NoText && Manual.Subsections.Count > 0? 
@@ -69,7 +69,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(HighLogic.CurrentGame == null) return;
 			show_status = true;
-			Show(true);
+			ShowInstance(true);
 		}
 
 		void DrawMainWindow(int windowID)
@@ -118,7 +118,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndScrollView();
 			if(GUILayout.Button("Close")) Show(false);
 			GUILayout.EndVertical();
-			TooltipsAndDragWindow(WindowPos);
+			TooltipsAndDragWindow();
 		}
 
 		protected override bool can_draw() { return Manual != null; }

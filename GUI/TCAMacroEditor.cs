@@ -64,7 +64,7 @@ namespace ThrottleControlledAvionics
 			Macro.SetSelector(SelectAction);
 			Macro.SetConditionSelector(SelectCondition);
 			Macro.Edit = true;
-			Show(true);
+			ShowInstance(true);
 		}
 
 		void select_action(MacroNode action)
@@ -183,7 +183,7 @@ namespace ThrottleControlledAvionics
 					load_macro(macro);
 			}
 			GUILayout.EndVertical();
-			TooltipsAndDragWindow(WindowPos);
+			TooltipsAndDragWindow();
 		}
 
 		protected override bool can_draw()

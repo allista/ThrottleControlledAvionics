@@ -122,7 +122,7 @@ namespace ThrottleControlledAvionics
 		bool show_path_library;
 		bool show_stock_waypoints;
 
-		public void AddSingleWaypointInMapView()
+		public void TargetUI()
 		{
 			if(SelectingTarget)
 				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(false));
@@ -403,7 +403,7 @@ namespace ThrottleControlledAvionics
 			}
 			GUILayout.EndHorizontal();
 			GUILayout.EndVertical();
-			GUIWindowBase.TooltipsAndDragWindow(wp_editor_pos);
+			GUIWindowBase.TooltipsAndDragWindow();
 			if(close) edited_waypoint = null;
 		}
 

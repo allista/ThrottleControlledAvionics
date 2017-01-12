@@ -370,15 +370,15 @@ namespace ThrottleControlledAvionics
 				update_stats = false;
 			}
 			Available |= CFG != null && Engines.Count > 0;
-			TCA_highlight.Update(Available && do_show);
-			Engines_highlight.Update(Available && do_show && show_imbalance && ActiveEngines.Count > 0);
+			TCA_highlight.Update(Available && doShow);
+			Engines_highlight.Update(Available && doShow && show_imbalance && ActiveEngines.Count > 0);
 		}
 
 		void DrawMainWindow(int windowID)
 		{
 			//help button
 			if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f), 
-			              new GUIContent("?", "Help"))) TCAManual.Toggle();
+			              new GUIContent("?", "Help"))) TCAManual.ToggleInstance();
 			GUILayout.BeginVertical();
 			{
 				if(Modules[typeof(MacroProcessor)])
@@ -489,7 +489,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 			}
 			GUILayout.EndVertical();
-			TooltipsAndDragWindow(WindowPos);
+			TooltipsAndDragWindow();
 		}
 
 		protected override bool can_draw() { return Available; }

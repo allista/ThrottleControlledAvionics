@@ -108,10 +108,10 @@ namespace ThrottleControlledAvionics
 
 		static void onToolbarToggle(ClickEvent e) 
 		{ 
-			if(TCA != null) TCAGui.Toggle();
+			if(TCA != null) TCAGui.ToggleInstance();
 			else if(HighLogic.LoadedSceneIsEditor && TCAGuiEditor.Available)
-				TCAGuiEditor.Toggle();
-			else TCAManual.Toggle();
+				TCAGuiEditor.ToggleInstance();
+			else TCAManual.ToggleInstance();
 		}
 		static void onAppLaunchToggleOn() { onToolbarToggle(null); }
 		static void onAppLaunchToggleOff() { onToolbarToggle(null); }

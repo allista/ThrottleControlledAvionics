@@ -15,33 +15,35 @@ namespace ThrottleControlledAvionics
 	[KSPAddon(KSPAddon.Startup.Flight, false)]
 	public class TCAGui : AddonWindowBase<TCAGui>
 	{
-		static Vessel vessel;
-		public static ModuleTCA TCA { get; private set; }
-		public static VesselWrapper VSL { get { return TCA.VSL; } }
+		Vessel vessel;
+		public ModuleTCA TCA { get; private set; }
+		public VesselWrapper VSL { get { return TCA.VSL; } }
 		internal static Globals GLB { get { return Globals.Instance; } }
-		public static VesselConfig CFG { get { return TCA.CFG; } }
+		public VesselConfig CFG { get { return TCA.CFG; } }
 
 		#region modules
-		static SquadControl SQD;
-		static AltitudeControl ALT;
-		static VerticalSpeedControl VSC;
-		static ThrottleControl THR;
+		TimeWarpControl WRP;
+		SquadControl SQD;
+		AltitudeControl ALT;
+		VerticalSpeedControl VSC;
+		ThrottleControl THR;
 
-		static List<FieldInfo> ModuleFields = typeof(TCAGui)
-			.GetFields(BindingFlags.Static|BindingFlags.NonPublic)
+		List<FieldInfo> ModuleFields = typeof(TCAGui)
+			.GetFields(BindingFlags.Instance|BindingFlags.NonPublic)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToList();
 		#endregion
 
 		#region GUI Parameters
 		public const int ControlsWidth = 650, ControlsHeight = 100, LineHeight = 35;
 
-		static NamedConfig selected_config;
-		static string config_name = string.Empty;
-		static readonly DropDownList named_configs = new DropDownList();
+		NamedConfig selected_config;
+		string config_name = string.Empty;
+		readonly DropDownList named_configs = new DropDownList();
 
-		public static KeyCode TCA_Key = KeyCode.Y;
-		static bool selecting_key;
-		static bool adv_options;
+		[ConfigOption] 
+		KeyCode TCA_Key = KeyCode.Y;
+		bool selecting_key;
+		bool adv_options;
 
 		public static string StatusMessage;
 		public static DateTime StatusEndTime;
@@ -49,17 +51,23 @@ namespace ThrottleControlledAvionics
 		public static Blinker EnabledBlinker = new Blinker(0.5);
 		#endregion
 
+		#region ControlWindows
+//		AttitudeControlWindow ATC_Window;
+//		OrbitalControlWindow OrbitalWindow;
+		List<ControlWindow> AllWindows = new List<ControlWindow>();
+		#endregion
+
 		#region ControlPanels
-		public static AttitudePanel AttitudeControls;
-		public static InOrbitPanel InOrbitControls;
-		public static OnPlanetPanel OnPlanetControls;
-		public static NavigationPanel NavigationControls;
-		public static MacrosPanel MacroControls;
-		public static SquadPanel SquadControls;
-		public static TogglesPanel Toggles;
-		static List<ControlPanel> AllPanels = new List<ControlPanel>();
-		static List<FieldInfo> AllPanelFields = typeof(TCAGui)
-			.GetFields(BindingFlags.Static|BindingFlags.Public)
+		public AttitudePanel AttitudeControls;
+		public InOrbitPanel InOrbitControls;
+		public OnPlanetPanel OnPlanetControls;
+		public NavigationPanel NavigationControls;
+		public MacrosPanel MacroControls;
+		public SquadPanel SquadControls;
+		public TogglesPanel Toggles;
+		List<ControlPanel> AllPanels = new List<ControlPanel>();
+		List<FieldInfo> AllPanelFields = typeof(TCAGui)
+			.GetFields(BindingFlags.Instance|BindingFlags.Public)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(ControlPanel))).ToList();
 		#endregion
 
@@ -67,14 +75,7 @@ namespace ThrottleControlledAvionics
 		public override void LoadConfig()
 		{
 			base.LoadConfig ();
-			TCA_Key = GUI_CFG.GetValue<KeyCode>(Utils.PropertyName(new {TCA_Key}), TCA_Key);
 			update_configs();
-		}
-
-		public override void SaveConfig()
-		{
-			GUI_CFG.SetValue(Utils.PropertyName(new {TCA_Key}), TCA_Key);
-			base.SaveConfig();
 		}
 
 		void save_config(ConfigNode node) { SaveConfig(); }
@@ -82,13 +83,10 @@ namespace ThrottleControlledAvionics
 		public override void Awake()
 		{
 			base.Awake();
+			AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
 			GameEvents.onGameStateSave.Add(save_config);
 			GameEvents.onVesselChange.Add(onVesselChange);
 			NavigationPanel.OnAwake();
-			#if DEBUG
-//			CheatOptions.InfiniteRCS  = true;
-//			CheatOptions.InfiniteFuel = true;
-			#endif
 		}
 
 		public override void OnDestroy()
@@ -109,20 +107,21 @@ namespace ThrottleControlledAvionics
 			StartCoroutine(init_on_load());
 		}
 
-		protected override void show(bool show)
+
+		public override void Show(bool show)
 		{
 			if(TCA == null || CFG == null) return;
 			CFG.GUIVisible = show;
-			base.show(show);
+			base.Show(show);
 		}
 
 		public static void AttachTCA(ModuleTCA tca) 
 		{ 
-			if(tca.vessel != vessel || instance == null) return;
-			instance.StartCoroutine(init_on_load()); 
+			if(Instance == null || tca.vessel != Instance.vessel) return;
+			Instance.StartCoroutine(Instance.init_on_load()); 
 		}
 
-		static IEnumerator<YieldInstruction> init_on_load()
+		IEnumerator<YieldInstruction> init_on_load()
 		{
 			do {
 				yield return null;
@@ -131,34 +130,36 @@ namespace ThrottleControlledAvionics
 			init();
 		}
 
-		static void create_fields()
+		void create_fields()
 		{
 			AllPanels.Clear();
 			foreach(var fi in AllPanelFields)
 			{
 				var panel = TCA.CreateComponent(fi.FieldType) as ControlPanel;
 				if(panel != null) AllPanels.Add(panel);
-				fi.SetValue(null, panel);
+				fi.SetValue(this, panel);
 			}
-			ModuleFields.ForEach(fi => fi.SetValue(null, TCA.GetModule(fi.FieldType)));
+			ModuleFields.ForEach(fi => fi.SetValue(this, TCA.GetModule(fi.FieldType)));
+			AllWindows.ForEach(w => w.Init(TCA));
 		}
 
-		static void clear_fields()
+		void clear_fields()
 		{
 			TCA = null;
 			AllPanels.ForEach(p => p.Reset());
-			AllPanelFields.ForEach(fi => fi.SetValue(null, null));
-			ModuleFields.ForEach(fi => fi.SetValue(null, null));
+			AllWindows.ForEach(w => w.Reset());
+			AllPanelFields.ForEach(fi => fi.SetValue(this, null));
+			ModuleFields.ForEach(fi => fi.SetValue(this, null));
 			AllPanels.Clear();
 		}
 
-		static bool init()
+		bool init()
 		{
 			clear_fields();
 			TCAToolbarManager.AttachTCA(null);
 			TCA = ModuleTCA.AvailableTCA(vessel);
 			if(TCA == null) return false;
-			if(CFG != null) window_enabled = CFG.GUIVisible;
+			if(CFG != null) ShowInstance(CFG.GUIVisible);
 			TCAToolbarManager.AttachTCA(TCA);
 			create_fields();
 			update_configs();
@@ -167,7 +168,7 @@ namespace ThrottleControlledAvionics
 		#endregion
 
 		#region Configs Selector
-		static void update_configs()
+		void update_configs()
 		{ 
 			var configs = TCAScenario.NamedConfigs.Keys.ToList();
 			var first = named_configs.Items.Count == 0;
@@ -245,7 +246,7 @@ namespace ThrottleControlledAvionics
 		{
 			//help button
 			if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f), 
-			              new GUIContent("?", "Help"))) TCAManual.Toggle();
+			              new GUIContent("?", "Help"))) TCAManual.ToggleInstance();
 			if(TCA.IsControllable)
 			{
 				//options button
@@ -306,7 +307,7 @@ namespace ThrottleControlledAvionics
 				DrawStatusMessage();
 				GUILayout.EndVertical();
 			}
-			TooltipsAndDragWindow(WindowPos);
+			TooltipsAndDragWindow();
 		}
 
 		void StatusString()
@@ -537,6 +538,7 @@ namespace ThrottleControlledAvionics
 		protected override bool can_draw()
 		{ return TCA != null && CFG.GUIVisible && AllPanels.Count > 0; }
 
+
 		protected override void draw_gui()
 		{
 			Utils.LockIfMouseOver(LockName, WindowPos, !MapView.MapIsEnabled);
@@ -551,6 +553,7 @@ namespace ThrottleControlledAvionics
 			NavigationControls.WaypointEditorWindow();
 			if(Event.current.type == EventType.Repaint)
 				NavigationControls.WaypointOverlay();
+			AllWindows.ForEach(w => w.Draw());
 			#if DEBUG
 			var time_rect = new Rect(Screen.width*0.75f, 0, 100, 25).clampToScreen();
 			GUI.Label(time_rect, string.Format("{0:HH:mm:ss.fff}", DateTime.Now), Styles.boxed_label);
@@ -595,6 +598,7 @@ namespace ThrottleControlledAvionics
 						if(CFG.VF[VFlight.AltitudeControl]) 
 						{ if(ALT != null) ALT.ProcessKeys(); }
 						else if(VSC != null) VSC.ProcessKeys();
+						if(WRP != null) WRP.ProcessKeys();
 					}
 				}
 			}

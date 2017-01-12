@@ -6,7 +6,7 @@
 // This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. 
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
-//
+
 using System;
 using UnityEngine;
 using AT_Utils;
@@ -52,7 +52,7 @@ namespace ThrottleControlledAvionics
 				MapView.EnterMapView();
 			#endif
 			if(PN  != null) 
-				TCAGui.NavigationControls.AddSingleWaypointInMapView();
+				TCAGui.Instance.NavigationControls.TargetUI();
 			VSL.Info.Draw();
 			GUILayout.EndHorizontal();
 			if(DEO != null && CFG.AP2[Autopilot2.Deorbit])
@@ -62,7 +62,7 @@ namespace ThrottleControlledAvionics
 		void draw_orbit_editor(int windowID)
 		{
 			ORB.DrawOrbitEditor();
-			GUIWindowBase.TooltipsAndDragWindow(orbit_editor);
+			GUIWindowBase.TooltipsAndDragWindow();
 		}
 
 		public void OrbitEditorWindow()
