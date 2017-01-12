@@ -78,11 +78,11 @@ namespace ThrottleControlledAvionics
 			                               string.Format("{0:F1}s", VSL.Info.Countdown) : "", 
 			                               "Countdown" ),
 			                VSL.Info.Countdown > 10? Styles.white : Styles.red, 
-			                GUILayout.ExpandWidth(true));
+			                GUILayout.Width(90));
 			GUILayout.Label(new GUIContent(VSL.Info.TTB >= 0 && VSL.Info.TTB < float.MaxValue? 
 			                               string.Format("{0:F1}s", VSL.Info.TTB) : "",
 			                               "Thrust Duration"), 
-			                Styles.yellow, GUILayout.ExpandWidth(true));
+			                Styles.yellow, GUILayout.Width(90));
 		}
 	}
 }
