@@ -10,7 +10,6 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Reflection;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -37,20 +36,7 @@ namespace ThrottleControlledAvionics
 
 		protected TCAComponent(ModuleTCA tca) { TCA = tca; }
 
-		public List<FieldInfo> get_all_module_fields(Type t, List<FieldInfo> list = null)
-		{
-			if(list == null) list = new List<FieldInfo>();
-			list.AddRange(t.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Instance|BindingFlags.NonPublic)
-			              .Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))));
-			if(t.BaseType != null) get_all_module_fields(t.BaseType, list);
-			return list;
-		}
-
-		public void InitModuleFields()
-		{
-			var ModuleFields = get_all_module_fields(GetType());
-			ModuleFields.ForEach(fi => fi.SetValue(this, TCA.GetModule(fi.FieldType)));
-		}
+		public void InitModuleFields() { TCA.InitModuleFields(this); }
 
 		protected void apply(Action<ModuleTCA> action)
 		{
