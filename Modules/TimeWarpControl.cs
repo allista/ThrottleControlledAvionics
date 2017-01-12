@@ -25,18 +25,33 @@ namespace ThrottleControlledAvionics
 		public TimeWarpControl(ModuleTCA tca) : base(tca) {}
 
 		public bool NoDewarpOffset;
+		int last_warp_index;
+
+		void AbortWarp(bool instant = false)
+		{
+			TimeWarp.SetRate(0, instant);
+			VSL.Controls.WarpToTime = -1;
+			CFG.WarpToNode = false;
+			reset();
+		}
+
+		void reset()
+		{
+			last_warp_index = TimeWarp.CurrentRateIndex;
+			NoDewarpOffset = false;
+		}
 
 		public override void Init()
 		{
 			base.Init();
+			last_warp_index = TimeWarp.CurrentRateIndex;
 			GameEvents.onVesselSOIChanged.Add(OnSOIChanged);
 		}
 
 		void OnSOIChanged(GameEvents.HostedFromToAction<Vessel, CelestialBody> action)
 		{
 			if(TCA == null || action.host != VSL.vessel) return;
-			CFG.WarpToNode = false;
-			VSL.Controls.StopWarp();
+			AbortWarp();
 		}
 
 		//TimeWarp changes timescale from one rate the next in a second of a real time using Lerp: F+(T-F)*time
@@ -49,16 +64,30 @@ namespace ThrottleControlledAvionics
 			return VSL.Controls.WarpToTime-(offset+TimeWarp.fetch.warpRates[rate_index]-1)-VSL.Physics.UT;
 		}
 
+		public override void ProcessKeys()
+		{
+			if(GameSettings.TIME_WARP_STOP.GetKey())
+			{
+				if(CFG.WarpToNode && VSL.Controls.WarpToTime > 0)
+					AbortWarp();
+			}
+		}
+
 		protected override void Update()
 		{
 			if(VSL.Controls.WarpToTime < 0) return;
+			//try to catch the moment some other mod sets warp to 0
+			if(TimeWarp.CurrentRateIndex == 0 && last_warp_index > 0)
+			{ AbortWarp(true); return; }
+			//dewarp if the warp was disabled, or LOW mode
 			if(VSL.Controls.WarpToTime > 0 && 
-			   (!CFG.WarpToNode || TimeWarp.WarpMode == TimeWarp.Modes.LOW)) 
+			   (!CFG.WarpToNode || 
+			    TimeWarp.WarpMode == TimeWarp.Modes.LOW)) 
 				VSL.Controls.WarpToTime = 0;
 			if(VSL.Controls.WarpToTime <= VSL.Physics.UT && TimeWarp.CurrentRate.Equals(1))
 			{ 
-				VSL.Controls.WarpToTime = -1; 
-				NoDewarpOffset = false;
+				VSL.Controls.WarpToTime = -1;
+				reset();
 				return; 
 			}
 			if(TimeToDewarp(TimeWarp.CurrentRateIndex) < 0)
@@ -73,7 +102,7 @@ namespace ThrottleControlledAvionics
 			        (VSL.LandedOrSplashed || VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.Body)) &&
 			        TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
-			NoDewarpOffset = false;
+			reset();
 		}
 
 		public override void Draw()
