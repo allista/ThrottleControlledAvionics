@@ -42,7 +42,7 @@ namespace ThrottleControlledAvionics
 		public GeometryProps        Geometry;
 		List<VesselProps> AllPros = new List<VesselProps>();
 		static List<FieldInfo> AllPropFields = typeof(VesselWrapper)
-			.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Instance|BindingFlags.Public)
+			.GetFields(BindingFlags.Instance|BindingFlags.Public)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(VesselProps))).ToList();
 		
 		//state

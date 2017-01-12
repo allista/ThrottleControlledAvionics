@@ -34,7 +34,7 @@ namespace ThrottleControlledAvionics
 		protected List<FieldInfo> get_all_props_fields(Type t, List<FieldInfo> list = null)
 		{
 			if(list == null) list = new List<FieldInfo>();
-			list.AddRange(t.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public)
+			list.AddRange(t.GetFields(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public|BindingFlags.FlattenHierarchy)
 			              .Where(fi => fi.FieldType.IsSubclassOf(typeof(VesselProps))));
 			if(t.BaseType != null) get_all_props_fields(t.BaseType, list);
 			return list;
