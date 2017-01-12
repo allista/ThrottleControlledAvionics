@@ -35,7 +35,7 @@ namespace ThrottleControlledAvionics
 		public EngineOptimizer ENG;
 		public RCSOptimizer RCS;
 		public static List<FieldInfo> CoreModuleFields = typeof(ModuleTCA)
-			.GetFields(BindingFlags.DeclaredOnly|BindingFlags.Public|BindingFlags.Instance)
+			.GetFields(BindingFlags.Public|BindingFlags.Instance)
 			.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToList();
 		//optional modules
 		public Dictionary<Type, TCAModule> ModulesDB = new Dictionary<Type, TCAModule>();
@@ -67,8 +67,30 @@ namespace ThrottleControlledAvionics
 			return constructor.Invoke(new [] {this});
 		}
 
+		public static void SetTCAField(object obj, ModuleTCA tca)
+		{
+			var tca_fi = obj.GetType().GetField("TCA");
+			if(tca_fi != null && tca_fi.FieldType == typeof(ModuleTCA))
+				tca_fi.SetValue(obj, tca);
+		}
+
+		public void SetTCAField(object obj)
+		{ SetTCAField(obj, this); }
+
 		public void CreateComponent(object obj, FieldInfo fi)
 		{ fi.SetValue(obj, CreateComponent(fi.FieldType)); }
+
+		public void InitModuleFields(object obj)
+		{
+			var ModuleFields = TCAModulesDatabase.GetAllModuleFields(obj.GetType());
+			ModuleFields.ForEach(fi => fi.SetValue(obj, GetModule(fi.FieldType)));
+		}
+
+		public static void ResetModuleFields(object obj)
+		{
+			var ModuleFields = TCAModulesDatabase.GetAllModuleFields(obj.GetType());
+			ModuleFields.ForEach(fi => fi.SetValue(obj, null));
+		}
 		#endregion
 
 		#region Public Info
