@@ -46,7 +46,11 @@ namespace ThrottleControlledAvionics
 
 		void Awake()
 		{
-			if(Instance != null) return;
+			if(Instance != null) 
+			{
+				Destroy(this);
+				return;
+			}
 			DontDestroyOnLoad(this);
 			Instance = this;
 			init();
@@ -108,17 +112,17 @@ namespace ThrottleControlledAvionics
 
 		static void onToolbarToggle(ClickEvent e) 
 		{ 
-			if(TCA != null) TCAGui.ToggleInstance();
+			if(TCA != null) TCAGui.ToggleWithButton(TCAButton);
 			else if(HighLogic.LoadedSceneIsEditor && TCAGuiEditor.Available)
-				TCAGuiEditor.ToggleInstance();
-			else TCAManual.ToggleInstance();
+				TCAGuiEditor.ToggleWithButton(TCAButton);
+			else TCAManual.ToggleWithButton(TCAButton);
 		}
 		static void onAppLaunchToggleOn() { onToolbarToggle(null); }
 		static void onAppLaunchToggleOff() { onToolbarToggle(null); }
 
 		public static void AttachTCA(ModuleTCA tca) 
 		{ 
-			TCA = tca; 
+			TCA = tca;
 			if(TCA == null) SetDefaultButton();
 		}
 
