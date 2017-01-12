@@ -164,6 +164,9 @@
     <Compile Include="Globals.cs" />
     <Compile Include="VesselConfig.cs" />
     <Compile Include="GUI\TCAGuiEditor.cs" />
+    <Compile Include="GUI\Elements\ControlWindow.cs" />
+    <Compile Include="GUI\HUD\AttitudeWindow.cs" />
+    <Compile Include="GUI\HUD\OrbitalWindow.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -179,6 +182,7 @@
     <Folder Include="Modules\Orbit\Trajectories\" />
     <Folder Include="Modules\Orbit\Components\" />
     <Folder Include="Navigation\" />
+    <Folder Include="GUI\HUD\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AT_Utils\AT_Utils.csproj">
