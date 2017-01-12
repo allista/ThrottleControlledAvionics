@@ -158,6 +158,15 @@ namespace ThrottleControlledAvionics
 			list.Sort((a, b) => a.Title.CompareTo(b.Title));
 			return list;
 		}
+
+		public static List<FieldInfo> GetAllModuleFields(Type t, List<FieldInfo> list = null)
+		{
+			if(list == null) list = new List<FieldInfo>();
+			list.AddRange(t.GetFields(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.FlattenHierarchy)
+			              .Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))));
+			if(t.BaseType != null) GetAllModuleFields(t.BaseType, list);
+			return list;
+		}
 	}
 
 	[AttributeUsage(AttributeTargets.Class, 
