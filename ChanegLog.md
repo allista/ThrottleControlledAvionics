@@ -2,14 +2,34 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.3.3**
+* **v3.3.4**
+    * Added **Engine Profile Autoconfiguration** in Editor.
+    * Added **Smart Engines** mode for orbital flight:
+    	* In this mode engines are automatically grouped by thrust direction (e.g. all aft engines and all forward engines).
+    	* Then, when a big change in thrust direction is needed for a maneuver (say, 90 or 180 deg), an appropriate group is selected and enabled, while other groups are disabled.
+        * There are 3 methods of selecting the appropriate group:
+        	1. Min. rotation: the selected group is the closest to the needed direction.
+        	2. Min. maneuver time: if groups differ in total thrust, the selected group is the group that has the smallest maneuver time, including time needed to change ship's attitude.
+        	3. Fuel efficiency: for small delta-V this falls back to Min. maneuver time; for large delta-V the total Isp of the group is also considered, and the group with the largest Isp has much more chance to be selected.
+    * **Improved TimeWarp** interaction with user/mods:
+        * Now TCA detects if something trying to decrease time warp and surrenders its control. This allows KAC, for instance, to make its gradual dewarping. And it allows a user to press DECREASE_TIMEWARP (default ',') or STOP_TIMEWARP (default '/') buttons and take control over the warp.
+        * An on-screen message will inform you of any such event.
+    * Added **Launch Clamps handling** by Rendezvous and ToOrbit autopilots. If you forgot to configure proper stage order for the clamps, TCA will automatically release them when needed.
+    * If a ship has only one active engine and this engine is coaxial with the CoM, TCA automatically changes its Role to **UnBalanced**. This prevents much of a surprising and undesired ship's behaviour.
+    * Fixed TCA Modules availability in **Science Sandbox** mode.
+    * **Improved Rendezvous** autopilot's performance in case of escape trajectories and ultra-high altitude orbits (near SOI boundary).
+    * **BrakeNear** autopilot now informs you about too large approach distance and waits for confirmation.
+    * Fixed inappropriate active/inactive state of MatchV/BrakeNear buttons.
+    * Miscelaneous bugfixes.
+
+* v3.3.3
     * Considerably **improved Bearing Control**:
     	* It now uses 2-PID cascade, which is a more geneal solution. Works much better for medium to heavy crafts (Max.AA ~0.1-3 rad/s2). Very high-torque crafts (Max.AA ~10-15 rad/s2) work fine, but don't react as quickly as they *possibly* could.
     * Implemented **active gimbal handling**. Now engines with gimbal capability will be using it for maneuvering.
     * In Editor, added highlighting of the command part where TCA is active.
     * Fixed target and orbital attitude cues calculation for Kerbol-centric orbits.
 
-* **v.3.3.2**
+* v.3.3.2
     * Fixed ToOrbit Autopilot for ~0 inclination target orbits.
     * Fixed Deorbit Autopilot for retrograde orbits.
     * Improved ETA and brake time calculation in Point Navigator. Should help with overshooting problem in low gravity and with slow engines.
@@ -17,6 +37,7 @@ _**BUT** do not delete the TCA.user and config.xml files to preserve your settin
     * Maneuver Autopilot now aborts the maneuver if no fuel left.
     * Show Countdown and Thrust Duration for uncontrollable ships too.
     * Various bugfixes.
+
 * v3.3.1
     * Compiled against **KSP-1.2.2**
     * Fixed the "**black kraken**" bug.
