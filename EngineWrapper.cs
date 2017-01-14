@@ -187,6 +187,9 @@ namespace ThrottleControlledAvionics
 		public override Vector3 wThrustDir { get { return act_thrust_dir; } }
 		public override Vector3 wThrustPos { get { return act_thrust_pos; } }
 
+		public float DefTorqueRatio
+		{ get { return Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(wThrustLever, defThrustDir))); } }
+
 		class GimbalInfo
 		{
 			public Transform transform;
@@ -275,9 +278,9 @@ namespace ThrottleControlledAvionics
 			int count = engine.thrustTransforms.Count;
 			for(int i = 0; i < count; i++)
 			{
-				Transform transform = engine.thrustTransforms[i];
+				var eT = engine.thrustTransforms[i];
 				var mult = engine.thrustTransformMultipliers[i];
-				var act_dir = transform.transform.forward * mult;
+				var act_dir = eT.forward * mult;
 				if(gimbal != null)
 				{
 					var gi = gimbals[i];
@@ -285,7 +288,7 @@ namespace ThrottleControlledAvionics
 					else defThrustDir += act_dir;
 				}
 				act_thrust_dir += act_dir;
-				act_thrust_pos += transform.transform.position * mult;
+				act_thrust_pos += eT.position * mult;
 			}
 			if(gimbal == null) defThrustDir = act_thrust_dir;
 		}
@@ -336,7 +339,6 @@ namespace ThrottleControlledAvionics
 				 nominalCurrentThrust(throttle) :
 				 engine.finalThrust);
 		}
-
 
 		float GetIsp(float pressureAtm, float rel_density, float vel_mach) 
 		{
@@ -421,16 +423,18 @@ namespace ThrottleControlledAvionics
 
 		public override string ToString()
 		{
-			return Utils.Format("[{}, ID {}, flightID {}, Stage {}, Role {}, Group {}]\n" + 
+			return Utils.Format("[{}, ID {}, flightID {}, Stage {}, Role {}, isVSC {}, Group {}, flameout {}]\n" + 
 			                    "useEngineResponseTime: {}, engineAccelerationSpeed={}, engineDecelerationSpeed={}\n" + 
 			                    "finalThrust: {}, thrustLimit: {}, isOperational: {}\n" +
 			                    "limit: {}, best_limit: {}, limit_tmp: {}, preset: {}\n" +
-			                    "thrust: {}\nlever: {}\ntorque: {}\ntorqueRatio: {}\n", 
-			                    name, ID, flightID, part.inverseStage, Role, Group, 
+			                    "thrust: {}\ndir {}\ndef dir: {}\npos {}\nlever: {}\ntorque: {}\ntorqueRatio: {}\n", 
+			                    name, ID, flightID, part.inverseStage, Role, isVSC, Group, engine.flameout,
 			                    useEngineResponseTime, engineAccelerationSpeed, engineDecelerationSpeed, 
 			                    finalThrust, thrustLimit, isOperational, 
 			                    limit, best_limit, limit_tmp, preset_limit,
-			                    nominalCurrentThrust(1), wThrustLever, currentTorque, torqueRatio
+			                    nominalCurrentThrust(1), 
+			                    wThrustDir, defThrustDir, wThrustPos, wThrustLever, 
+			                    currentTorque, torqueRatio
 			                   );
 		}
 	}
