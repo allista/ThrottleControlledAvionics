@@ -539,6 +539,7 @@ namespace ThrottleControlledAvionics
 		{ return TCA != null && CFG.GUIVisible && AllPanels.Count > 0; }
 
 
+		static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 250, 25).clampToScreen();
 		protected override void draw_gui()
 		{
 			Utils.LockIfMouseOver(LockName, WindowPos, !MapView.MapIsEnabled);
@@ -555,8 +556,11 @@ namespace ThrottleControlledAvionics
 				NavigationControls.WaypointOverlay();
 			AllWindows.ForEach(w => w.Draw());
 			#if DEBUG
-			var time_rect = new Rect(Screen.width*0.75f, 0, 100, 25).clampToScreen();
-			GUI.Label(time_rect, string.Format("{0:HH:mm:ss.fff}", DateTime.Now), Styles.boxed_label);
+			GUI.Label(debug_rect, 
+			          string.Format("[{0}] {1:HH:mm:ss.fff}", 
+			                        TCA != null && TCA.vessel != null? vessel.situation.ToString() : "", 
+			                        DateTime.Now), 
+			          Styles.boxed_label);
 			#endif
 		}
 
