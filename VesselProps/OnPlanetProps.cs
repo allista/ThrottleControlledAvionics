@@ -25,6 +25,8 @@ namespace ThrottleControlledAvionics
 		public List<Parachute> UnusedParachutes = new List<Parachute>();
 		public List<Parachute> ActiveParachutes = new List<Parachute>();
 		public List<ModuleWheelDeployment> LandingGear = new List<ModuleWheelDeployment>();
+		public List<LaunchClamp> LaunchClamps = new List<LaunchClamp>();
+		public bool HaveLaunchClamps { get; private set; }
 		public bool HaveParachutes { get; private set; }
 		public bool HaveUsableParachutes { get; private set; }
 		public bool ParachutesActive { get; private set; }
@@ -94,10 +96,24 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
+		public bool AddLaunchClamp(PartModule pm)
+		{
+			var clamp = pm as LaunchClamp;
+			if(clamp != null)
+			{
+				LaunchClamps.Add(clamp);
+				HaveLaunchClamps = true;
+				return true;
+			}
+			return false;
+		}
+
 		public override void Clear()
 		{
-			HaveLandingGear = false;
 			GearDeployTime = 0;
+			HaveLandingGear = false;
+			HaveLaunchClamps = false;
+			LaunchClamps.Clear();
 			LandingGear.Clear();
 			Parachutes.Clear();
 		}
@@ -221,29 +237,37 @@ namespace ThrottleControlledAvionics
 
 		public void ActivateParachutesAtDeplyomentAltitude()
 		{
-			if(!CFG.AutoParachutes) return;
-			activate_parachutes(p => p.AtDeploymentAltitude);
+			if(CFG.AutoParachutes)
+				activate_parachutes(p => p.AtDeploymentAltitude);
 		}
 
 		public void ActivateParachutesBeforeUnsafe()
 		{
-			if(!CFG.AutoParachutes) return;
-			activate_parachutes(p => p.SafetyState == Parachute.State.BeforeUnsafe || 
-			                    p.AtDeploymentAltitude);
+			if(CFG.AutoParachutes)
+				activate_parachutes(p => p.SafetyState == Parachute.State.BeforeUnsafe || 
+				                    p.AtDeploymentAltitude);
 		}
 
 		public void ActivateParachutesASAP()
 		{
-			if(!CFG.AutoParachutes) return;
-			activate_parachutes();
+			if(CFG.AutoParachutes) 
+				activate_parachutes();
 		}
 
 		public void CutActiveParachutes()
 		{
-			if(!CFG.AutoParachutes || ActiveParachutes.Count == 0) return;
-			ActiveParachutes.ForEach(p => p.parachute.CutParachute());
-			ActiveParachutes.Clear();
-			ParachutesActive = false;
+			if(CFG.AutoParachutes && ActiveParachutes.Count > 0)
+			{
+				ActiveParachutes.ForEach(p => p.parachute.CutParachute());
+				ActiveParachutes.Clear();
+				ParachutesActive = false;
+			}
+		}
+
+		public void ActivateLaunchClamps()
+		{
+			if(HaveLaunchClamps)
+				LaunchClamps.ForEach(cl => cl.Release());
 		}
 
 		public class Parachute : VesselProps
