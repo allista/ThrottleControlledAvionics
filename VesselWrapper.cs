@@ -80,12 +80,12 @@ namespace ThrottleControlledAvionics
 
 		public void SetTarget(WayPoint wp = null)
 		{
-			CFG.Target = wp;
 			var t = wp == null? null : wp.GetTarget();
-			if(t != null && IsActiveVessel) 
+			if(IsActiveVessel && t != null && wp != CFG.Target)
 				Utils.Message("Target: {0}", t.GetName());
 			if(t != null || vessel.targetObject is WayPoint)
 				Target = t;
+			CFG.Target = wp;
 		}
 
 		public WayPoint TargetAsWP
@@ -166,8 +166,8 @@ namespace ThrottleControlledAvionics
 			CFG = tca.CFG;
 			vessel = TCA.vessel;
 			create_props();
-			OnPlanet = _OnPlanet();
-			InOrbit  = _InOrbit();
+			OnPlanet = vessel.OnPlanet();
+			InOrbit = vessel.InOrbit();
 			UpdateState();
 			UpdatePhysics();
 			UpdateParts();
@@ -190,20 +190,6 @@ namespace ThrottleControlledAvionics
 			vessel.OnAutopilotUpdate -= UpdateAutopilotInfo;
 			vessel.OnAutopilotUpdate -= ApplyAutopilotSteering;
 			RestoreUnpackDistance();
-		}
-
-		bool _OnPlanet() 
-		{ 
-			return (vessel.situation != Vessel.Situations.DOCKED   &&
-			        vessel.situation != Vessel.Situations.ORBITING &&
-			        vessel.situation != Vessel.Situations.ESCAPING); 
-		}
-
-		bool _InOrbit()
-		{
-			return vessel.situation == Vessel.Situations.ORBITING ||
-				vessel.situation == Vessel.Situations.SUB_ORBITAL ||
-				vessel.situation == Vessel.Situations.ESCAPING;
 		}
 
 		public bool AutopilotDisabled;
@@ -231,8 +217,8 @@ namespace ThrottleControlledAvionics
 		public void UpdateState()
 		{
 			//update onPlanet state
-			var on_planet = _OnPlanet();
-			var in_orbit  = _InOrbit();
+			var on_planet = vessel.OnPlanet();
+			var in_orbit = vessel.InOrbit();
 			if(on_planet != OnPlanet) 
 			{
 				CFG.EnginesProfiles.OnPlanetChanged(on_planet);
@@ -314,9 +300,12 @@ namespace ThrottleControlledAvionics
 			OnPlanetParams.Clear();
 			var drag_parts = 0;
 			var parts_count = vessel.Parts.Count;
+			var max_active_stage = -1;
 			for(int i = 0; i < parts_count; i++)
 			{
 				Part p = vessel.Parts[i];
+				if(p.State == PartStates.ACTIVE && p.inverseStage > max_active_stage)
+					max_active_stage = p.inverseStage;
 				Physics.UpdateMaxTemp(p);
 				if(p.angularDragByFI) { Physics.AngularDrag += p.angularDrag; drag_parts += 1; }
 				for(int j = 0, pModulesCount = p.Modules.Count; j < pModulesCount; j++)
@@ -324,6 +313,7 @@ namespace ThrottleControlledAvionics
 					var module = p.Modules[j];
 					if(Engines.AddEngine(module)) continue;
 					if(Engines.AddRCS(module)) continue;
+					if(OnPlanetParams.AddLaunchClamp(module)) continue;
 					if(OnPlanetParams.AddParachute(module)) continue;
 					if(OnPlanetParams.AddGear(module)) continue;
 					if(AddModule(module, Torque.Wheels)) continue;
@@ -331,24 +321,23 @@ namespace ThrottleControlledAvionics
 			}
 			Physics.AngularDrag /= drag_parts;
 			Engines.Clusters.Update();
+			if(max_active_stage >= 0 && vessel.currentStage > max_active_stage)
+				vessel.currentStage = max_active_stage;
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines.All);
 			else if(CFG.Enabled && TCA.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
 		}
 
 		bool stage_is_empty(int stage)
-		{
-			var cur_parts = vessel.parts.Where(p => p.hasStagingIcon && p.inverseStage == stage).ToList();
-//			LogF("{} stagable parts at stage {}", cur_parts.Count, stage);//debug
-			return cur_parts.Count == 0 || cur_parts.All(p => p.State == PartStates.ACTIVE);
-		}
+		{ return !vessel.parts.Any(p => p.hasStagingIcon && p.inverseStage == stage); }
 
 		void activate_next_stage()
 		{
 			var next_stage = vessel.currentStage;
 			while(next_stage >= 0 && stage_is_empty(next_stage)) next_stage--;
+			if(next_stage == vessel.currentStage) next_stage--;
 			if(next_stage < 0) return;
 //			Log(vessel.parts.Aggregate("\n", (s, p) => s+Utils.Format("{}: {}, stage {}\n", p.Title(), p.State, p.inverseStage)));//debug
-//			LogF("current stage {}, next stage {}, next engines {}", vessel.currentStage, next_stage, Engines.NearestEnginedStage);//debug
+//			Log("current stage {}, next stage {}, next engines {}", vessel.currentStage, next_stage, Engines.NearestEnginedStage);//debug
 			if(IsActiveVessel)
 			{
 				StageManager.ActivateStage(next_stage);
