@@ -374,7 +374,8 @@ WRP
 
 MVA
 {
-	TranslationThreshold  = 5   //m/s
+	TranslationThreshold  = 5     //m/s
+	MaxApproachDistance   = 10000 //m
 }
 
 TRJ
@@ -453,7 +454,7 @@ REN
 	DeltaApThreshold    = 1000  //m
 	MaxTTR              = 3     //orbit.periods
 	MaxDeltaV           = 100   //m/s
-	CorrectionStart     = 10000 //m
+	CorrectionStart     = 0.015 //fraction of SMA
 	CorrectionOffset    = 20    //s
 	CorrectionTimer     = 10    //s
 	ApproachThreshold   = 500   //m

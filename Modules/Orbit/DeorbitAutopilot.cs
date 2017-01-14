@@ -84,7 +84,7 @@ namespace ThrottleControlledAvionics
 			{
 				if(Math.Abs(old.DeltaR) > Math.Abs(old.DeltaFi)) 
 					NodeDeltaV += new Vector3d(0, 0, old.DeltaR *
-					                           Utils.ClampH(old.Orbit.period/16/old.TimeToSurface, 1));
+					                           Utils.ClampH(old.Orbit.period/16/old.TimeToTarget, 1));
 				else 
 					NodeDeltaV += PlaneCorrection(old);
 			}

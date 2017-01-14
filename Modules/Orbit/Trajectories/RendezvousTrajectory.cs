@@ -57,6 +57,10 @@ namespace ThrottleControlledAvionics
 				Math.Sign(TargetOrbit.period-OrigOrbit.period);
 			DeltaFi = TrajectoryCalculator.RelativeInclination(Orbit, TargetPos);
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
+			var t_orbit = Target.GetOrbit();
+			var t_vel = t_orbit != null? t_orbit.getOrbitalVelocityAtUT(AtTargetUT) : Vector3d.zero;
+			BrakeDeltaV = t_vel-Orbit.getOrbitalVelocityAtUT(AtTargetUT);
+			BrakeDuration = VSL.Engines.TTB((float)BrakeDeltaV.magnitude);
 			KillerOrbit = Orbit.PeR < MinPeR && Orbit.timeToPe < TransferTime;
 //			DebugUtils.Log("{}", this);//debug
 		}

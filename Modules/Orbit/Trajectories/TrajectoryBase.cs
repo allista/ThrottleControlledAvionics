@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
 
 		public Orbit  Orbit { get; protected set; }
 		public double StartUT { get; protected set; }
-		public double TimeToStart { get; protected set; }
+		public double TimeToStart { get { return StartUT-VSL.Physics.UT; } }
 		public Vector3d ManeuverDeltaV { get; protected set; }
 		public double ManeuverDuration { get; protected set; }
 		public float  ManeuverFuel { get; protected set; }
@@ -47,7 +47,6 @@ namespace ThrottleControlledAvionics
 				ManeuverDuration = 0;
 			}
 			StartUT = startUT;
-			TimeToStart = startUT-VSL.Physics.UT;
 			Body = VSL.vessel.orbitDriver.orbit.referenceBody;
 			OrigOrbit = VSL.vessel.orbitDriver.orbit;
 			Orbit = TrajectoryCalculator.NewOrbit(OrigOrbit, ManeuverDeltaV, StartUT);
@@ -59,7 +58,6 @@ namespace ThrottleControlledAvionics
 		{
 			Orbit = current;
 			StartUT = VSL.Physics.UT;
-			TimeToStart = 0;
 			ManeuverDeltaV = Vector3d.zero;
 			ManeuverDuration = 0;
 			NotEnoughFuel = false;
@@ -91,18 +89,27 @@ namespace ThrottleControlledAvionics
 		public double DistanceToTarget { get; protected set; } = -1;
 		public double DeltaFi { get; protected set; }
 
+		public double TimeToTarget { get { return AtTargetUT-VSL.Physics.UT; } }
+		public double RelDistanceToTarget { get { return DistanceToTarget/Orbit.semiMajorAxis; } }
+
 		protected TargetedTrajectoryBase(VesselWrapper vsl, Vector3d dV, double startUT) 
 			: base(vsl, dV, startUT) {}
 
-		public abstract Vector3d BrakeDeltaV { get; }
+		public Vector3d BrakeDeltaV { get; protected set; }
+		public float BrakeDuration;
 
 		public override string ToString()
 		{ 
 			return base.ToString()+
-				Utils.Format("\nDistanceToTarget: {} m\n" +
-				             "TransferTime: {} s\n" +
+				Utils.Format("\nDistance To Target: {} m\n" +
+				             "Transfer Time:  {} s\n" +
+				             "Time To Target: {} s\n" +
+				             "Brake DeltaV:   {} m/s\n" +
+				             "Brake Duration: {} s\n" +
 				             "DeltaFi: {} deg\n",
-				             DistanceToTarget, TransferTime, DeltaFi);
+				             DistanceToTarget, TransferTime, TimeToTarget, 
+				             BrakeDeltaV, BrakeDuration,
+				             DeltaFi);
 		}
 	}
 
@@ -112,16 +119,6 @@ namespace ThrottleControlledAvionics
 
 		protected TargetedTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target) 
 			: base(vsl, dV, startUT) { Target = target; }
-
-		public override Vector3d BrakeDeltaV
-		{ 
-			get 
-			{ 
-				var t_orbit = Target.GetOrbit();
-				var t_vel = t_orbit != null? t_orbit.getOrbitalVelocityAtUT(AtTargetUT) : Vector3d.zero;
-				return t_vel-Orbit.getOrbitalVelocityAtUT(AtTargetUT); 
-			} 
-		}
 
 		public override string ToString()
 		{ 

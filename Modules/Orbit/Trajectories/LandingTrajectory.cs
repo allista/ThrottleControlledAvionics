@@ -31,16 +31,11 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		public double DeltaR { get; private set; } = 180;
 
-		Vector3d brake_delta_v;
-		public override Vector3d BrakeDeltaV { get { return brake_delta_v; } }
 		public float  BrakeFuel { get; protected set; }
-		public float  BrakeDuration;
 		public float  BrakeOffset;
 		public double BrakeStartUT { get; private set; }
 		public double BrakeEndUT { get; private set; }
 		public double BrakeEndDeltaAlt { get; private set; }
-
-		public double TimeToSurface { get { return AtTargetUT-VSL.Physics.UT; } }
 
 		public LandingTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, 
 		                         WayPoint target, double target_altitude = 0, bool with_brake = true)
@@ -61,25 +56,25 @@ namespace ThrottleControlledAvionics
 			TransferTime = AtTargetUT-StartUT;
 			AtTargetPos = orb.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = orb.getOrbitalVelocityAtUT(AtTargetUT);
-			SurfacePoint = new WayPoint((TrajectoryCalculator.BodyRotationAtdT(Body, -TimeToSurface)*AtTargetPos).xzy+Body.position, Body);
+			SurfacePoint = new WayPoint((TrajectoryCalculator.BodyRotationAtdT(Body, -TimeToTarget)*AtTargetPos).xzy+Body.position, Body);
 			SurfacePoint.Pos.SetAlt2Surface(Body);
 			SurfacePoint.Name = "Landing Site";
 		}
 
 		void ClampBrakeDeltaV()
 		{
-			var dVm = brake_delta_v.magnitude;
+			var dVm = BrakeDeltaV.magnitude;
 			if(dVm > 0) 
 			{
 				var fuel = VSL.Engines.GetAvailableFuelMass()-ManeuverFuel;
-				if(fuel <= 0) brake_delta_v = Vector3d.zero;
+				if(fuel <= 0) BrakeDeltaV = Vector3d.zero;
 				else
 				{
 					BrakeFuel = VSL.Engines
 						.FuelNeededAtAlt((float)dVm, (float)(BrakeEndDeltaAlt+TargetAltitude));
 					if(BrakeFuel > fuel)
 					{
-						brake_delta_v = brake_delta_v*VSL.Engines.DeltaV((float)fuel)/dVm;
+						BrakeDeltaV = BrakeDeltaV*VSL.Engines.DeltaV((float)fuel)/dVm;
 						BrakeFuel = fuel;
 					}
 				}
@@ -95,7 +90,7 @@ namespace ThrottleControlledAvionics
 
 		void SetBrakeDeltaV(Vector3d dV)
 		{
-			brake_delta_v = dV;
+			BrakeDeltaV = dV;
 			ClampBrakeDeltaV();
 		}
 
@@ -114,7 +109,7 @@ namespace ThrottleControlledAvionics
 				SetBrakeDeltaV(Vector3d.Project(AtTargetVel, AtTargetPos));
 				if(BrakeFuel > 0)
 				{
-					var dV = (float)brake_delta_v.magnitude;
+					var dV = (float)BrakeDeltaV.magnitude;
 					BrakeDuration = VSL.Engines.AntigravTTB(dV);
 					//add 90deg turn time to face the ground
 					BrakeDuration += rotation_time;
@@ -135,7 +130,7 @@ namespace ThrottleControlledAvionics
 				SetBrakeDeltaV(-(AtTargetVel + Vector3d.Cross(Body.zUpAngularVelocity, AtTargetPos)));
 				if(BrakeFuel > 0)
 				{
-					var offset = MatchVelocityAutopilot.BrakingOffset((float)brake_delta_v.magnitude, VSL, out BrakeDuration);
+					var offset = MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration);
 					BrakeStartUT = Math.Max(BrakeEndUT-offset, StartUT);
 				}
 				else
@@ -166,7 +161,7 @@ namespace ThrottleControlledAvionics
 				Math.Sign(Utils.AngleDelta(VslStartLon, SurfacePoint.Pos.Lon));
 			//compute distance in radial coordinates
 			DeltaFi = 90-Vector3d.Angle(Orbit.GetOrbitNormal(),
-			                            TrajectoryCalculator.BodyRotationAtdT(Body, TimeToSurface) * 
+			                            TrajectoryCalculator.BodyRotationAtdT(Body, TimeToTarget) * 
 			                            Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude).xzy);
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 		}
@@ -209,16 +204,14 @@ namespace ThrottleControlledAvionics
 		{
 			return base.ToString()+
 				Utils.Format("\nLanding Site: {},\n" +
-				             "TimeToSurface: {} s\n" +
 		                     "Delta R: {} deg\n" +
 				             "Delta Lat: {} deg, Delta Lon: {} deg\n" +
-				             "Brake DeltaV: {}\n" +
-				             "Brake Duration: {} s, Time to Brake: {} s\n" +
+				             "Time to Brake: {} s\n" +
 				             "Brake Fuel: {}\n" +
 				             "BrakeEnd Altitude {} m\n" +
 				             "Atmo Conditions: {}\n" +
 				             "Landing Angle {} deg",
-				             SurfacePoint, TimeToSurface,
+				             SurfacePoint,
 				             DeltaR, DeltaLat, DeltaLon,
 				             BrakeDeltaV, BrakeDuration, BrakeStartUT-VSL.Physics.UT, BrakeFuel, BrakeEndDeltaAlt,
 				             GetAtmosphericCurve(5),
