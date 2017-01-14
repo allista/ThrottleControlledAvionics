@@ -24,14 +24,13 @@ namespace ThrottleControlledAvionics
 		public class Config : ModuleConfig
 		{
 			[Persistent] public float TranslationThreshold = 5f;   //m/s
+			[Persistent] public float MaxApproachDistance  = 10000f;   //m
 		}
 		static Config MVA { get { return Globals.Instance.MVA; } }
 		public MatchVelocityAutopilot(ModuleTCA tca) : base(tca) {}
 
 		ThrottleControl THR;
-		AttitudeControl ATC;
 
-		Vessel Target;
 		ManeuverExecutor Executor;
 		float TTA = -1;
 
@@ -45,10 +44,12 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
-			IsActive &= VSL.InOrbit && VSL.orbit != null && Target != null && Target.GetOrbit() != null 
-				&& VSL.Engines.MaxThrustM > 0 && CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
+			IsActive &= 
+				!VSL.LandedOrSplashed && VSL.orbit != null && 
+				CFG.Target != null && CFG.Target.GetOrbit() != null && 
+				CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
 			var tVSL = VSL.TargetVessel;
-			ControlsActive &= IsActive || tVSL != null && tVSL.situation == Vessel.Situations.ORBITING && tVSL.mainBody == VSL.Body;
+			ControlsActive &= IsActive || VSL.InOrbit && tVSL != null && !tVSL.LandedOrSplashed && tVSL.mainBody == VSL.Body;
 			if(IsActive) return;
 			reset();
 		}
@@ -61,12 +62,15 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.On:
 				Working = false;
 				THR.Throttle = 0;
-				Target = VSL.TargetVessel;
+				stage = Stage.Start;
+				SetTarget(VSL.TargetAsWP);
 				CFG.AT.On(Attitude.KillRotation);
 				break;
 
 			case Multiplexer.Command.Off:
 				CFG.AT.On(Attitude.KillRotation);
+				if(!CFG.AP1 && !CFG.AP2)
+					SetTarget();
 				reset(); 
 				break;
 			}
@@ -82,8 +86,8 @@ namespace ThrottleControlledAvionics
 			}
 			CFG.AP1.OffIfOn(Autopilot1.MatchVel);
 			CFG.AP1.OffIfOn(Autopilot1.MatchVelNear);
+			stage = Stage.Start;
 			Working = false;
-			Target = null;
 		}
 
 		public static float BrakingDistance(float V0, float thrust, float mflow, float throttle, VesselWrapper VSL, out float ttb)
@@ -118,35 +122,65 @@ namespace ThrottleControlledAvionics
 		bool StartCondition(float dV)
 		{
 			if(Working) return true;
-			if(!CFG.AP1[Autopilot1.MatchVelNear]) return true;
-			//calculate time to nearest approach
-			double ApprUT;
-			var tOrb = Target.GetOrbit();
-			TrajectoryCalculator.ClosestApproach(VSL.orbit, tOrb, VSL.Physics.UT, out ApprUT);
-			TTA = (float)(ApprUT-VSL.Physics.UT);
-			var ApprdV = (VSL.orbit.getOrbitalVelocityAtUT(ApprUT) - tOrb.getOrbitalVelocityAtUT(ApprUT)).xzy;
-			dV = (float)ApprdV.magnitude;
-			CFG.AT.OnIfNot(Attitude.Custom);
-			ATC.SetThrustDirW(ApprdV);
-			VSL.Engines.RequestClusterActivationForManeuver(ApprdV);
 			if(TTA > 0)
 			{
 				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL, out VSL.Info.TTB);
-				if(VSL.Controls.CanWarp) 
-					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-VSL.Controls.MinAlignmentTime;
-				if(VSL.Info.Countdown > 0) return false;
+				if(VSL.Info.Countdown > 0)
+				{
+					if(VSL.Controls.CanWarp) 
+						VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown-VSL.Controls.MinAlignmentTime;
+				 	return false;
+				}
 			}
 			VSL.Info.Countdown = 0;
 			Working = true;
 			return true;
 		}
 
+		public enum Stage { Start, Brake, Wait }
+		[Persistent] public Stage stage;
+
 		protected override void Update()
 		{
 			if(!IsActive) return;
-			var dV  = Target.GetObtVelocity()-VSL.vessel.obt_velocity;
-			if(Executor.Execute(dV, GLB.THR.MinDeltaV, StartCondition)) return;
-			if(CFG.AP1[Autopilot1.MatchVelNear]) reset();
+			Vector3 dV;
+			if(CFG.AP1[Autopilot1.MatchVel])
+			{
+				dV = CFG.Target.GetObtVelocity()-VSL.vessel.obt_velocity;
+				VSL.Engines.RequestClusterActivationForManeuver(dV);
+				Executor.Execute(dV, GLB.THR.MinDeltaV);
+			}
+			else
+			{
+				double ApprUT;
+				var tOrb = CFG.Target.GetOrbit();
+				var dist = TrajectoryCalculator.ClosestApproach(VSL.orbit, tOrb, VSL.Physics.UT, out ApprUT);
+				TTA = (float)(ApprUT-VSL.Physics.UT);
+				switch(stage)
+				{
+				case Stage.Start:
+					if(dist > MVA.MaxApproachDistance)
+					{
+						Status(string.Format("<color=yellow>WARNING:</color> Nearest approach distance is <color=magenta><b>{0}</b></color>\n" +
+						                     "<color=red><b>Push to proceed. At your own risk.</b></color>", 
+						                     Utils.formatBigValue((float)dist, "m")));
+						stage = Stage.Wait;
+						goto case Stage.Wait;
+					}
+					stage = Stage.Brake;
+					goto case Stage.Brake;
+				case Stage.Wait:
+					if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
+					stage = Stage.Brake;
+					goto case Stage.Brake;
+				case Stage.Brake:
+					dV = (tOrb.getOrbitalVelocityAtUT(ApprUT)-VSL.orbit.getOrbitalVelocityAtUT(ApprUT)).xzy;
+					VSL.Engines.RequestClusterActivationForManeuver(dV);
+					if(Executor.Execute(dV, GLB.THR.MinDeltaV, StartCondition)) break;
+					reset();
+					break;
+				}
+			}
 		}
 
 		public override void Draw()
