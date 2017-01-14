@@ -192,7 +192,6 @@ namespace ThrottleControlledAvionics
 				//activate the cluster that is nearest to the previous active direction
 				if(CFG.UseSmartEngines && !active_dir.IsZero())
 					activate(Closest(VSL.LocalDir(active_dir)));
-				Log("Updated clusters: {}", clusters);//debug
 			}
 
 			EngineCluster find_closest(Vector3 local_dir, out float min_dist)
@@ -280,7 +279,6 @@ namespace ThrottleControlledAvionics
 				cluster.Enable();
 				VSL.CFG.ActiveProfile.Update(VSL.Engines.All, true);
 				Active = cluster;
-				Log("Activated: {}", Active);//debug
 			}
 
 			public void ActivateClosest(Vector3 local_dir)
@@ -574,14 +572,17 @@ namespace ThrottleControlledAvionics
 					{ ForceUpdateEngines |= !RCS[i].Valid(VSL); if(ForceUpdateEngines) break; }
 				}
 			}
+			//update parts if needed
 			if(ForceUpdateEngines) 
 			{ 
 				VSL.UpdateParts(); 
 				num_engines = All.Count;
 				ForceUpdateEngines = false;
 			}
+			//update engine clusters if needed
 			else if(Clusters.Dirty)
 				Clusters.Update();
+			//activate appropriate cluster if requested
 			if(CFG.UseSmartEngines)
 				activate_cluster_by_request();
 			//unflameout engines
@@ -602,7 +603,7 @@ namespace ThrottleControlledAvionics
 				if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(All);
 				else CFG.ActiveProfile.Update(All, true);
 			}
-			//get active engines and RCS
+			//update active engines
 			NearestEnginedStage = -1;
 			HaveNextStageEngines = false;
 			var groups = KSPActionGroup.None;
@@ -620,18 +621,34 @@ namespace ThrottleControlledAvionics
 				HaveNextStageEngines |= e.part.inverseStage >= 0 && e.part.inverseStage < vessel.currentStage;
 			}
 			ActionGroups = groups;
+			//update active RCS
 			ActiveRCS.Clear();
 			if(vessel.ActionGroups[KSPActionGroup.RCS])
 			{
 				for(int i = 0; i < RCS.Count; i++)
 				{ var t = RCS[i]; if(t.isOperational) ActiveRCS.Add(t); }
 			}
+			//cache counts and flags
 			NumActive = Active.Count;
 			NumActiveRCS = ActiveRCS.Count;
 			NoActiveEngines = NumActive == 0;
 			NoActiveRCS = NumActiveRCS == 0 || 
 				VSL.Controls.Steering.sqrMagnitude < GLB.InputDeadZone && 
 				VSL.Controls.Translation.sqrMagnitude < GLB.InputDeadZone;
+			//switch single coaxial engine to UnBalanced mode
+			if(NumActive == 1)
+			{
+				var e = Active[0];
+			  	if(e.Role != TCARole.UNBALANCE &&
+			   	   e.Role != TCARole.MANUAL &&
+				   e.DefTorqueRatio < GLB.ENG.UnBalancedThreshold)
+				{
+					Utils.Message("{0} was switched to UnBalanced mode.", e.name);
+					e.SetRole(TCARole.UNBALANCE);
+					if(VSL.TCA.ProfileSyncAllowed)
+						CFG.ActiveProfile.Update(All);
+				}
+			}
 			return !(NoActiveEngines && NoActiveRCS);
 		}
 
