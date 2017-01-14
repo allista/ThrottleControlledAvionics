@@ -46,6 +46,9 @@ namespace ThrottleControlledAvionics
 			{ this.current = current; this.needed = needed; }
 			public static Rotation Local(Vector3 current, Vector3 needed, VesselWrapper VSL)
 			{ return new Rotation(VSL.LocalDir(current), VSL.LocalDir(needed)); }
+
+			public override string ToString()
+			{ return Utils.Format("[Rotation]: current {}, needed {}", current, needed); }
 		}
 
 		protected AttitudeControlBase(ModuleTCA tca) : base(tca) {}
@@ -437,8 +440,7 @@ namespace ThrottleControlledAvionics
 				VSL.Engines.RequestNearestClusterActivation(needed_lthrust);
 				break;
 			}
-			if(!(lthrust.IsZero() || needed_lthrust.IsZero())) 
-				compute_steering(lthrust.normalized, needed_lthrust.normalized);
+			compute_steering(lthrust.normalized, needed_lthrust.normalized);
 			ResetCustomRotation();
 		}
 
