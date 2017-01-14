@@ -290,7 +290,6 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		const float UnBalanced_threshold = 0.0001f; //<1 deg
 		void AutoconfigureProfile()
 		{
 			CalculateMassAndCoM(GetSelectedParts());
@@ -310,7 +309,7 @@ namespace ThrottleControlledAvionics
 				}
 				e.UpdateThrustInfo();
 				e.InitTorque(EditorLogic.fetch.ship[0].transform, CoM, 1);
-				if(e.torqueRatio < UnBalanced_threshold) e.SetRole(TCARole.UNBALANCE);
+				if(e.torqueRatio < Globals.Instance.ENG.UnBalancedThreshold) e.SetRole(TCARole.UNBALANCE);
 			}
 			//group symmetry-clones
 			var group = 1;
