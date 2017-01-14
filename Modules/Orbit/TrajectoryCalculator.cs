@@ -34,6 +34,18 @@ namespace ThrottleControlledAvionics
 		protected Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
 		protected double MinPeR { get { return Body.atmosphere? Body.Radius+Body.atmosphereDepth+1000 : Body.Radius+TRJ.MinPeA; } }
 
+		protected static Orbit NextOrbit(Orbit orb, double UT)
+		{
+			while(orb.nextPatch != null && 
+			      orb.nextPatch.referenceBody != null 
+			      && orb.EndUT < UT)
+				orb = orb.nextPatch;
+			return orb;
+		}
+
+		protected Orbit NextOrbit(double UT)
+		{ return NextOrbit(VesselOrbit, UT); }
+
 		protected Vector3d hV(double UT) { return VesselOrbit.hV(UT); }
 
 		protected bool LiftoffPossible
@@ -397,7 +409,7 @@ namespace ThrottleControlledAvionics
 			double minUT = UT;
 			while(Math.Abs(dT) > 0.01)
 			{
-				var d = SqrDistAtUT(a, t, UT);
+				var d = SqrDistAtUT(NextOrbit(a, UT), NextOrbit(t, UT), UT);
 				if(d < minD) { minD = d; minUT = UT; }
 				if(d > lastD || 
 				   (dir? UT+dT < StartUT : UT+dT > StartUT) ||
@@ -591,7 +603,7 @@ namespace ThrottleControlledAvionics
 						Log("Trajectory #{}\n{}", TRJ.MaxIterations-maxI, current);
 						Status("Push to continue");
 					}
-					else Status("Computing trajectory...");
+//					else Status("Computing trajectory...");
 					yield return null;
 					frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
 				}
@@ -716,7 +728,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.Engines.NoActiveEngines)
 			{
 				Status("yellow", "No engines are active, unable to calculate trajectory.\n" +
-					"Please, activate ship's engines and try again.");
+				       "Please, activate ship's engines and try again.");
 				return false;
 			}
 			setup_target();
