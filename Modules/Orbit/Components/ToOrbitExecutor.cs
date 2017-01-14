@@ -60,6 +60,7 @@ namespace ThrottleControlledAvionics
 		{
 			UpdateTargetPosition();
 			VSL.Engines.ActivateEngines();
+			VSL.OnPlanetParams.ActivateLaunchClamps();
 			if(VSL.VerticalSpeed.Absolute/VSL.Physics.G < MinClimbTime)
 			{ 
 				Status("Liftoff...");
