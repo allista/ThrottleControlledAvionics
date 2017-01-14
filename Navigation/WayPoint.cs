@@ -201,7 +201,11 @@ namespace ThrottleControlledAvionics
 		}
 
 		public bool Equals(WayPoint wp)
-		{ return wp != null && Pos.Equals(wp.Pos); }
+		{ 
+			return wp != null && 
+				(wp.IsProxy && IsProxy && wp.target == target) ||
+				Pos.Equals(wp.Pos);
+		}
 	}
 }
 
