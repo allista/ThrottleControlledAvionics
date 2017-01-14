@@ -30,13 +30,14 @@ namespace ThrottleControlledAvionics
 		void AbortWarp(bool instant = false)
 		{
 			TimeWarp.SetRate(0, instant);
+			VSL.Controls.WarpToTime = -1;
 			CFG.WarpToNode = false;
 			reset();
 		}
 
-		public override void Reset()
+		protected override void reset()
 		{
-			base.Reset();
+			base.reset();
 			last_warp_index = TimeWarp.CurrentRateIndex;
 			NoDewarpOffset = false;
 		}
@@ -51,6 +52,7 @@ namespace ThrottleControlledAvionics
 		void OnSOIChanged(GameEvents.HostedFromToAction<Vessel, CelestialBody> action)
 		{
 			if(TCA == null || action.host != VSL.vessel) return;
+			Message("Disengaging Time Warp on SOI change...");
 			AbortWarp();
 		}
 
@@ -79,6 +81,7 @@ namespace ThrottleControlledAvionics
 			//try to catch the moment some other mod sets warp besides us
 			if(TimeWarp.CurrentRateIndex < last_warp_index)
 			{ 
+				Message("TCA Time Warp was overridden.");
 				VSL.Controls.WarpToTime = -1;
 				CFG.WarpToNode = false; 
 				goto end; 
@@ -105,7 +108,7 @@ namespace ThrottleControlledAvionics
 			        (VSL.LandedOrSplashed || VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.Body)) &&
 			        TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
 				TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
-			end: Reset();
+			end: reset();
 		}
 
 		public override void Draw()
