@@ -167,6 +167,17 @@ namespace ThrottleControlledAvionics
 			if(t.BaseType != null) GetAllModuleFields(t.BaseType, list);
 			return list;
 		}
+
+		public static List<TCAModule> GetAllModules(object obj)
+		{
+			var AllModules = new List<TCAModule>();
+			foreach(var fi in TCAModulesDatabase.GetAllModuleFields(obj.GetType()))
+			{
+				var module = fi.GetValue(obj) as TCAModule;
+				if(module != null) AllModules.Add(module);
+			}
+			return AllModules;
+		}
 	}
 
 	[AttributeUsage(AttributeTargets.Class, 
