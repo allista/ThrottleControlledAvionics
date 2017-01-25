@@ -27,7 +27,11 @@ using AT_Utils;
 // The form "{Major}.{Minor}.*" will automatically update the build and revision,
 // and "{Major}.{Minor}.{Build}.*" will update just the revision.
 
+#if DEBUG
+[assembly: AssemblyVersion("3.3.4.*")]
+#else
 [assembly: AssemblyVersion("3.3.4.0")]
+#endif
 [assembly: KSPAssembly("ThrottleControlledAvionics", 3, 3)]
 
 // The following attributes are used to specify the signing key for the assembly, 
