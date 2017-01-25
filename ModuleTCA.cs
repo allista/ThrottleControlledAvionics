@@ -67,6 +67,19 @@ namespace ThrottleControlledAvionics
 			return constructor.Invoke(new [] {this});
 		}
 
+		public List<T> CreateComponents<T>(IList<FieldInfo> fields, object obj = null)
+				where T : TCAComponent
+		{
+			var components = new List<T>();
+			foreach(var fi in fields)
+			{
+				var component = CreateComponent(fi.FieldType) as T;
+				if(component != null) components.Add(component);
+				if(obj != null) fi.SetValue(obj, component);
+			}
+			return components;
+		}
+
 		public static void SetTCAField(object obj, ModuleTCA tca)
 		{
 			var tca_fi = obj.GetType().GetField("TCA");
@@ -76,9 +89,6 @@ namespace ThrottleControlledAvionics
 
 		public void SetTCAField(object obj)
 		{ SetTCAField(obj, this); }
-
-		public void CreateComponent(object obj, FieldInfo fi)
-		{ fi.SetValue(obj, CreateComponent(fi.FieldType)); }
 
 		public void InitModuleFields(object obj)
 		{
@@ -90,6 +100,20 @@ namespace ThrottleControlledAvionics
 		{
 			var ModuleFields = TCAModulesDatabase.GetAllModuleFields(obj.GetType());
 			ModuleFields.ForEach(fi => fi.SetValue(obj, null));
+		}
+
+		public void SquadAction(Action<ModuleTCA> action)
+		{
+			var SQD = GetModule<SquadControl>();
+			if(SQD == null) action(this);
+			else SQD.Apply(action);
+		}
+
+		public void SquadConfigAction(Action<VesselConfig> action)
+		{
+			var SQD = GetModule<SquadControl>();
+			if(SQD == null) action(CFG);
+			else SQD.ApplyCFG(action);
 		}
 		#endregion
 
