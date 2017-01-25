@@ -88,6 +88,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Resume:
 //				LogFST("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
 				if(!check_patched_conics()) return;
+				UseTarget();
 				NeedRadarWhenMooving();
 				if(VSL.HasManeuverNode) 
 					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
@@ -107,6 +108,7 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
+				SetTarget();
 				reset();
 				break;
 			}

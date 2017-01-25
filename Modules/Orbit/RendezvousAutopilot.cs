@@ -87,6 +87,7 @@ namespace ThrottleControlledAvionics
 					CFG.AP2.Off();
 					break;
 				}
+				UseTarget();
 				NeedRadarWhenMooving();
 				switch(stage)
 				{
@@ -172,7 +173,8 @@ namespace ThrottleControlledAvionics
 				{
 					transfer_time = old.TransferTime+dT;
 					if(//test: does it always converge without this limit?
-						//transfer_time > TargetOrbit.period ||
+					   //danger of ultra-long elliptic transfers here!
+					   transfer_time > Math.Max(VesselOrbit.period, TargetOrbit.period) ||
 					   transfer_time < TRJ.ManeuverOffset ||
 					   old.ManeuverDeltaV.sqrMagnitude > best.ManeuverDeltaV.sqrMagnitude &&
 					   !old.KillerOrbit && !best.KillerOrbit)

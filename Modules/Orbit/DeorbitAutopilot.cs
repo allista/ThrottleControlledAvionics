@@ -171,11 +171,12 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 				if(!check_patched_conics()) return;
+				UseTarget();
 				NeedRadarWhenMooving();
 				if(trajectory == null) update_trajectory();
 				if(stage == Stage.None && !landing) 
 					goto case Multiplexer.Command.On;
-				else if(VSL.HasManeuverNode) 
+				if(VSL.HasManeuverNode)
 					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
 				break;
 
@@ -197,6 +198,7 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
+				SetTarget();
 				reset();
 				break;
 			}

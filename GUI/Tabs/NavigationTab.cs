@@ -151,7 +151,7 @@ namespace ThrottleControlledAvionics
 					                    Styles.active_button, GUILayout.Width(120)))
 					{
 						var t = VSL.TargetAsWP;
-						VSL.SetTarget(t);
+						VSL.SetTarget(null, t);
 						CFG.Path.Enqueue(t);
 						CFG.ShowPath = true;
 					}
@@ -196,12 +196,12 @@ namespace ThrottleControlledAvionics
 				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(true));
 			else if(CFG.Target != null)
 			{
-				if(CFG.AP2 || CFG.AP1 || CFG.Nav && VSL.OnPlanet)
+				if(VSL.TargetUsers.Count > 0)
 					GUILayout.Label(new GUIContent("Del Target", "Target point is in use"),
 					                Styles.grey_button, GUILayout.ExpandWidth(true));
 				else if(GUILayout.Button(new GUIContent("Del Target", "Remove target point"), 
 				                         Styles.danger_button, GUILayout.ExpandWidth(true)))
-					VSL.SetTarget();
+					VSL.SetTarget(null);
 			}
 			else if(GUILayout.Button(new GUIContent("Set Surface Target", "Select target point on the surface"), 
 			                         Styles.active_button, GUILayout.ExpandWidth(true)))
@@ -580,7 +580,7 @@ namespace ThrottleControlledAvionics
 								t.Name = "Target";
 								SelectingTarget = false;
 								select_single = false;
-								VSL.SetTarget(t);
+								VSL.SetTarget(null, t);
 								MapView.ExitMapView();
 							}
 							else 

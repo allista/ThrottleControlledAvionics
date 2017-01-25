@@ -201,7 +201,7 @@ namespace ThrottleControlledAvionics
 			if(Target != null) 
 			{
 				Target.Update(TCA.VSL);
-				TCA.VSL.SetTarget(Target);
+				TCA.VSL.SetTarget(null, Target);
 			}
 			if(Anchor != null) Anchor.Update(TCA.VSL);
 			Path.ForEach(wp => wp.Update(TCA.VSL));

@@ -54,6 +54,7 @@ namespace ThrottleControlledAvionics
 		public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
 		public bool PauseWhenStopped = false;
 
+		public HashSet<TCAModule> TargetUsers = new HashSet<TCAModule>();
 		public ITargetable Target { get { return vessel.targetObject ?? NavWayPoint; } set { vessel.targetObject = value; } }
 		public Vessel TargetVessel { get { return vessel.targetObject == null? null : vessel.targetObject.GetVessel(); } }
 		public bool TargetIsNavPoint { get { return vessel.targetObject == null && NavWaypoint.fetch != null && NavWaypoint.fetch.IsActive; } }
@@ -78,14 +79,28 @@ namespace ThrottleControlledAvionics
 		public ManeuverNode FirstManeuverNode { get { return vessel.patchedConicSolver.maneuverNodes[0]; } }
 		public Vessel.Situations Situation { get { return vessel.situation; } }
 
-		public void SetTarget(WayPoint wp = null)
+		public void SetTarget(TCAModule user, WayPoint wp = null)
 		{
-			var t = wp == null? null : wp.GetTarget();
-			if(IsActiveVessel && t != null && wp != CFG.Target)
-				Utils.Message("Target: {0}", t.GetName());
-			if(t != null || vessel.targetObject is WayPoint)
+			if(wp == null)
+			{
+				TargetUsers.Remove(user);
+				if(TargetUsers.Count == 0)
+				{
+					CFG.Target = null;
+					if(vessel.targetObject is WayPoint)
+						Target = null;
+				}
+			}
+			else
+			{
+				if(user != null)
+					TargetUsers.Add(user);
+				var t = wp.GetTarget();
+				if(IsActiveVessel && wp != CFG.Target)
+					Utils.Message("Target: {0}", t.GetName());
 				Target = t;
-			CFG.Target = wp;
+				CFG.Target = wp;
+			}
 		}
 
 		public WayPoint TargetAsWP
@@ -175,7 +190,6 @@ namespace ThrottleControlledAvionics
 
 		public void Init()
 		{
-//			Controls.UpdateRefTransform();
 			UpdateCommons();
 			OnPlanetParams.Update();
 			Geometry.Update();

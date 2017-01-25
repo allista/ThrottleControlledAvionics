@@ -69,8 +69,7 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				CFG.AT.On(Attitude.KillRotation);
-				if(!CFG.AP1 && !CFG.AP2)
-					SetTarget();
+				SetTarget();
 				reset(); 
 				break;
 			}

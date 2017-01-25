@@ -102,6 +102,7 @@ namespace ThrottleControlledAvionics
 				if(VSL.LandedOrSplashed) { CFG.AP1.Off(); break; }
 				CFG.HF.On(HFlight.Stop);
 				set_initial_altitude();
+				UseTarget();
 				TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
 				break;
 

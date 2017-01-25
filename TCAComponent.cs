@@ -104,8 +104,10 @@ namespace ThrottleControlledAvionics
 		protected virtual void Update() {}
 		protected virtual void reset() {}
 
-		protected void SetTarget(WayPoint wp = null) { VSL.SetTarget(wp); }
+		protected void SetTarget(WayPoint wp = null) { VSL.SetTarget(this, wp); }
 		protected void SetTarget(Vessel vsl) { SetTarget(new WayPoint(vsl)); }
+		protected void UseTarget() { VSL.TargetUsers.Add(this); }
+		protected void StopUsingTarget() { VSL.TargetUsers.Remove(this); }
 
 		public bool RegisterTo<S>(Func<VesselWrapper,bool> predicate = null) 
 			where S : TCAService
