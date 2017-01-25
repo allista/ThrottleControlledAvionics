@@ -5,6 +5,7 @@
 //
 //  Copyright (c) 2017 Allis Tauri
 
+using System.Collections.Generic;
 using AT_Utils;
 using UnityEngine;
 
@@ -17,9 +18,12 @@ namespace ThrottleControlledAvionics
 		internal static Globals GLB { get { return Globals.Instance; } }
 		public VesselConfig CFG { get { return TCA.VSL.CFG; } }
 
+		protected List<TCAModule> AllModules = new List<TCAModule>();
+
 		public virtual void Reset() 
 		{
 			TCA = null;
+			AllModules.Clear();
 			ModuleTCA.ResetModuleFields(this);
 			foreach(var sw in subwindows)
 			{
@@ -30,8 +34,9 @@ namespace ThrottleControlledAvionics
 
 		public virtual void Init(ModuleTCA tca) 
 		{ 
-			TCA = tca; 
+			TCA = tca;
 			TCA.InitModuleFields(this);
+			AllModules = TCAModulesDatabase.GetAllModules(this);
 			foreach(var sw in subwindows)
 			{
 				TCA.InitModuleFields(sw);
