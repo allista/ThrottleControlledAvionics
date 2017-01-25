@@ -75,7 +75,7 @@ namespace ThrottleControlledAvionics
 		void DrawMainWindow(int windowID)
 		{
 			GUILayout.BeginVertical();
-			sections_scroll = GUILayout.BeginScrollView(sections_scroll, GUILayout.Height(60));
+			sections_scroll = GUILayout.BeginScrollView(sections_scroll, GUILayout.Height(45));
 			GUILayout.BeginHorizontal();
 			if(HighLogic.CurrentGame != null &&
 			   GUILayout.Button("Status", show_status? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
