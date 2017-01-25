@@ -132,7 +132,7 @@ namespace ThrottleControlledAvionics
 					Engines.ForEach(enable_engine);
 					Enabled = true;
 				}
-				else if(Enabled && !enable)
+				else
 				{
 					Engines.ForEach(disable_engine);
 					Enabled = false;
@@ -153,8 +153,31 @@ namespace ThrottleControlledAvionics
 
 			public EngineCluster Active { get; private set; }
 			public int Count { get { return clusters.Count; } }
+			public bool Inactive { get { return Active == null; } }
 			public bool Multi { get { return clusters.Count > 1; } }
 			public bool Dirty { get { return refT != savedRefT; } }
+			public bool Mixed
+			{
+				get
+				{
+					for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
+					{
+						var c = clusters[j];
+						if(c == Active)
+						{
+							if(c.Engines.Any(e => !e.engine.EngineIgnited))
+								return true;
+						}
+						else
+						{
+							if(c.Engines.Any(e => e.engine.EngineIgnited))
+								return true;
+						}
+					}
+					return false;
+				}
+			}
+
 
 			public ClustersDB(VesselWrapper vsl) : base(vsl) {}
 
@@ -272,28 +295,38 @@ namespace ThrottleControlledAvionics
 				return best ?? Closest(loc_dV);
 			}
 
-			void activate(EngineCluster cluster)
+			bool activate(EngineCluster cluster)
 			{
-				if(cluster == null || cluster == Active) return;
+				if(cluster == null || cluster == Active) return false;
 				Deactivate();
 				cluster.Enable();
-				VSL.CFG.ActiveProfile.Update(VSL.Engines.All, true);
+				CFG.ActiveProfile.Update(VSL.Engines.All, true);
+//				Log("Activated: {}\nAll engines: {}\nProfile: {}", cluster, VSL.Engines.All, CFG.ActiveProfile);//debug
 				Active = cluster;
+				return true;
 			}
 
-			public void ActivateClosest(Vector3 local_dir)
-			{ activate(Closest(local_dir)); }
+			public bool ActivateClosest(Vector3 local_dir)
+			{ return activate(Closest(local_dir)); }
 
-			public void ActivateFastest(Vector3 dV)
-			{ activate(Fastest(dV)); }
+			public bool ActivateFastest(Vector3 dV)
+			{ return activate(Fastest(dV)); }
 
-			public void ActivateBestForManeuver(Vector3 dV)
-			{ activate(BestForManeuver(dV)); }
+			public bool ActivateBestForManeuver(Vector3 dV)
+			{ return activate(BestForManeuver(dV)); }
 
 			public void Deactivate()
 			{ 
 				clusters.ForEach(c => c.Enable(false));
 				Active = null;
+			}
+
+			public void Reactivate()
+			{
+				if(Active == null) return;
+				var c = Active;
+				Active = null;
+				activate(c);
 			}
 		}
 
@@ -508,7 +541,8 @@ namespace ThrottleControlledAvionics
 		Vector3 local_dir_cluster_request;
 		Vector3 dV_cluster_request;
 
-		ActionDamper clusters_cooldown = new ActionDamper();
+		ActionDamper clusters_check_cooldown = new ActionDamper();
+		Timer cluster_switch_cooldown = new Timer();
 
 		public void RequestNearestClusterActivation(Vector3 local_dir)
 		{ local_dir_cluster_request = local_dir; }
@@ -539,19 +573,28 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+		//test this
+		void activate_cluster(Func<bool> activate)
+		{
+			if(cluster_switch_cooldown.Start() ||
+			   cluster_switch_cooldown.TimePassed)
+			{
+				bool activated = false;
+				clusters_check_cooldown.Run(() => activated = activate());
+				if(activated) cluster_switch_cooldown.Restart();
+			}
+		}
+
 		void activate_cluster_by_request()
 		{
-			if(Clusters.Multi)
+			if(!local_dir_cluster_request.IsZero())
+				activate_cluster(() => Clusters.ActivateClosest(local_dir_cluster_request));
+			else if(!dV_cluster_request.IsZero())
 			{
-				if(!local_dir_cluster_request.IsZero())
-					clusters_cooldown.Run(() => Clusters.ActivateClosest(local_dir_cluster_request));
-				else if(!dV_cluster_request.IsZero())
-				{
-					if(CFG.SmartEngines.state == SmartEnginesMode.Fastest)
-						clusters_cooldown.Run(() => Clusters.ActivateFastest(dV_cluster_request));
-					else if(CFG.SmartEngines.state == SmartEnginesMode.Best)
-						clusters_cooldown.Run(() => Clusters.ActivateBestForManeuver(dV_cluster_request));
-				}
+				if(CFG.SmartEngines.state == SmartEnginesMode.Fastest)
+					activate_cluster(() => Clusters.ActivateFastest(dV_cluster_request));
+				else if(CFG.SmartEngines.state == SmartEnginesMode.Best)
+					activate_cluster(() => Clusters.ActivateBestForManeuver(dV_cluster_request));
 			}
 			local_dir_cluster_request = Vector3.zero;
 			dV_cluster_request = Vector3.zero;
@@ -583,8 +626,13 @@ namespace ThrottleControlledAvionics
 			else if(Clusters.Dirty)
 				Clusters.Update();
 			//activate appropriate cluster if requested
-			if(CFG.UseSmartEngines)
-				activate_cluster_by_request();
+			if(CFG.UseSmartEngines && Clusters.Multi)
+			{
+//				Log("Clusters: inactive {}, mixed {}", Clusters.Inactive, Clusters.Mixed);//debug
+				if(Clusters.Inactive) Clusters.ActivateClosest(Vector3.back);
+				else if(Clusters.Mixed) Clusters.Reactivate();
+				else activate_cluster_by_request();
+			}
 			//unflameout engines
 			if(VSL.vessel.ctrlState.mainThrottle > 0)
 			{
@@ -603,6 +651,7 @@ namespace ThrottleControlledAvionics
 				if(CFG.ActiveProfile.Changed) CFG.ActiveProfile.Apply(All);
 				else CFG.ActiveProfile.Update(All, true);
 			}
+//			Log("All engines: {}", VSL.Engines.All);//debug
 			//update active engines
 			NearestEnginedStage = -1;
 			HaveNextStageEngines = false;
