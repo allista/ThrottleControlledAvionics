@@ -203,8 +203,8 @@ namespace ThrottleControlledAvionics
 		public bool Equals(WayPoint wp)
 		{ 
 			return wp != null && 
-				(wp.IsProxy && IsProxy && wp.target == target) ||
-				Pos.Equals(wp.Pos);
+				((wp.IsProxy && IsProxy && wp.target == target) ||
+				 Pos.Equals(wp.Pos));
 		}
 	}
 }
