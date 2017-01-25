@@ -107,14 +107,7 @@
     <Compile Include="GUI\TCAManual.cs" />
     <Compile Include="TCAModulesDatabase.cs" />
     <Compile Include="Modules\SquadControl.cs" />
-    <Compile Include="GUI\Panels\OnPlanetPanel.cs" />
-    <Compile Include="GUI\Panels\NavigationPanel.cs" />
-    <Compile Include="GUI\Panels\InOrbitPanel.cs" />
-    <Compile Include="GUI\Panels\AttitudePanel.cs" />
-    <Compile Include="GUI\Panels\MacrosPanel.cs" />
-    <Compile Include="GUI\Panels\SquadPanel.cs" />
     <Compile Include="VesselProps\VesselProps.cs" />
-    <Compile Include="GUI\Elements\ControlPanel.cs" />
     <Compile Include="VesselProps\PhysicalProps.cs" />
     <Compile Include="VesselProps\GeometryProps.cs" />
     <Compile Include="VesselProps\AltitudeProps.cs" />
@@ -150,7 +143,6 @@
     <Compile Include="Utils\LambertSolver.cs" />
     <Compile Include="Utils\AtmoSim.cs" />
     <Compile Include="TCAComponent.cs" />
-    <Compile Include="GUI\Panels\TogglesPanel.cs" />
     <Compile Include="Modules\Orbit\ToOrbitAutopilot.cs" />
     <Compile Include="Modules\Orbit\Components\ToOrbitExecutor.cs" />
     <Compile Include="Modules\Orbit\Components\ManeuverExecutor.cs" />
@@ -166,7 +158,14 @@
     <Compile Include="GUI\TCAGuiEditor.cs" />
     <Compile Include="GUI\Elements\ControlWindow.cs" />
     <Compile Include="GUI\HUD\AttitudeWindow.cs" />
-    <Compile Include="GUI\HUD\OrbitalWindow.cs" />
+    <Compile Include="GUI\HUD\VFlightWindow.cs" />
+    <Compile Include="GUI\HUD\ManeuverWindow.cs" />
+    <Compile Include="GUI\Elements\ControlTab.cs" />
+    <Compile Include="GUI\Tabs\NavigationTab.cs" />
+    <Compile Include="GUI\Tabs\AdvancedTab.cs" />
+    <Compile Include="GUI\Tabs\MacrosTab.cs" />
+    <Compile Include="GUI\Tabs\OrbitalTab.cs" />
+    <Compile Include="GUI\Tabs\EnginesTab.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -174,7 +173,6 @@
     <Folder Include="GUI\" />
     <Folder Include="Macros\" />
     <Folder Include="Utils\" />
-    <Folder Include="GUI\Panels\" />
     <Folder Include="VesselProps\" />
     <Folder Include="GUI\Elements\" />
     <Folder Include="Modules\Planet\" />
@@ -183,6 +181,7 @@
     <Folder Include="Modules\Orbit\Components\" />
     <Folder Include="Navigation\" />
     <Folder Include="GUI\HUD\" />
+    <Folder Include="GUI\Tabs\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AT_Utils\AT_Utils.csproj">

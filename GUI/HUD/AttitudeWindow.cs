@@ -124,11 +124,13 @@ namespace ThrottleControlledAvionics
 
 		AttitudeControl ATC;
 
+		#pragma warning disable 169
 		[SubwindowSpec(AnchorPosition.BottomRight, -0.1f, -1, xRelative = true, yRelative = true)]
 		Cues cues;
 
 		[SubwindowSpec(AnchorPosition.TopRight, -1, -1, xRelative = true, yRelative = true)]
 		CurrentCue current_cue;
+		#pragma warning restore 169
 
 		public AttitudeControlWindow() { Anchor = AnchorPosition.BottomRight; }
 
@@ -136,7 +138,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void DrawContent()
 		{
-			if(GUILayout.Button(new GUIContent("T-SAS", "Push to open attitude controls"), 
+			if(GUILayout.Button(new GUIContent("T-SAS", "Push to toggle attitude controls"), 
 			                    CFG.AT && !VSL.AutopilotDisabled? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false)))
 				cues.Toggle();
 		}

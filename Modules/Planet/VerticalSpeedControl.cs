@@ -49,7 +49,7 @@ namespace ThrottleControlledAvionics
 
 		void set_vspeed(float vspeed)
 		{
-			apply_cfg(cfg =>
+			TCA.SquadConfigAction(cfg =>
 			{
 				cfg.VerticalCutoff = vspeed;
 				cfg.BlockThrottle |= cfg.VSCIsActive;
@@ -132,12 +132,10 @@ namespace ThrottleControlledAvionics
 
 		public override void Draw()
 		{
-//			GUILayout.Label(string.Format("Vertical Speed: {0:0.00m/s}", VSL.VerticalSpeed.Display), Styles.boxed_label,  GUILayout.Width(190));
-			GUILayout.Label(new GUIContent(string.Format("V.Spd. {0}", (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? CFG.VerticalCutoff.ToString("0.0m/s") : "OFF")), 
-			                               "Desired vertical speed"), GUILayout.ExpandWidth(false));
-			var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, 
-			                                             -GLB.VSC.MaxSpeed, 
-			                                             GLB.VSC.MaxSpeed);
+			var speed = string.Format("V.Spd. {0}", (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
+			                                         Utils.formatBigValue(CFG.VerticalCutoff, "m/s", "+0.0;-0.0;+0.0") : "OFF"));
+			GUILayout.Label(new GUIContent(speed, "Desired vertical speed"), Styles.boxed_label, GUILayout.ExpandWidth(false));
+			var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, -GLB.VSC.MaxSpeed, GLB.VSC.MaxSpeed);
 			if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5) set_vspeed(VSP);
 		}
 	}

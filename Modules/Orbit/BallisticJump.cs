@@ -263,20 +263,20 @@ namespace ThrottleControlledAvionics
 //				                      current.BrakeDeltaV).xzy.normalized*2000, 
 //				              Color.magenta);
 //			}
-			Utils.ButtonSwitch("ME", ref ME_orbit, "Use ME orbit instead of a shallow one.", GUILayout.ExpandWidth(false));
+//			Utils.ButtonSwitch("ME", ref ME_orbit, "Use ME orbit instead of a shallow one.", GUILayout.ExpandWidth(false));
 			#endif
 			if(ControlsActive) 
 			{	
 				if(computing) 
 					GUILayout.Label(new GUIContent("Jump To", "Computing maneuver. Push to cancel."), 
-					                Styles.inactive_button, GUILayout.ExpandWidth(false));
+					                Styles.inactive_button, GUILayout.ExpandWidth(true));
 				else if(Utils.ButtonSwitch("Jump To", CFG.AP2[Autopilot2.BallisticJump],
 				                           "Fly to the target using ballistic trajectory.", 
-				                           GUILayout.ExpandWidth(false)))
+				                           GUILayout.ExpandWidth(true)))
 					CFG.AP2.XToggle(Autopilot2.BallisticJump);
 			}
 			else GUILayout.Label(new GUIContent("Jump To", "Target a landed vessel or create a waypoint"),
-			                     Styles.inactive_button, GUILayout.ExpandWidth(false));
+			                     Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
 	}
 }

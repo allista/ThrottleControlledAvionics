@@ -170,7 +170,7 @@ namespace ThrottleControlledAvionics
 //			#endif
 			if(CFG.BR[BearingMode.Auto] || !DirectionOverride.IsZero())
 			{
-				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(false));
+				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(true));
 			}
 			else if(CFG.BR[BearingMode.User])
 			{
@@ -186,10 +186,10 @@ namespace ThrottleControlledAvionics
 						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
 					
 				}
-				if(GUILayout.Button(X_cnt, Styles.close_button, GUILayout.ExpandWidth(false)))
+				if(GUILayout.Button(X_cnt, Styles.close_button, GUILayout.ExpandWidth(true)))
 					CFG.BR.Off();
 			}
-			else if(!CFG.BR && GUILayout.Button(Enable_cnt, Styles.active_button, GUILayout.ExpandWidth(false)))
+			else if(!CFG.BR && GUILayout.Button(Enable_cnt, Styles.active_button, GUILayout.ExpandWidth(true)))
 				CFG.BR.XOn(BearingMode.User);
 		}
 	}

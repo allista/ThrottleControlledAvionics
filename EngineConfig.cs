@@ -114,11 +114,15 @@ namespace ThrottleControlledAvionics
 		{
 			if(Edit)
 			{
-				Name = GUILayout.TextField(Name, GUILayout.Width(150));
+				Name = GUILayout.TextField(Name, GUILayout.Width(80));
 				Edit &= !GUILayout.Button("Done", Styles.confirm_button, GUILayout.Width(50));
 			}
-			else Edit |= GUILayout.Button(Name+(comment ?? ""), 
-			                              Styles.normal_button, GUILayout.Width(200));
+			else 
+			{
+				var name = Name+(comment ?? "");
+				Edit |= GUILayout.Button(new GUIContent(name, name), 
+			                             Styles.normal_button, GUILayout.Width(130));
+			}
 		}
 
 		public bool Draw(string comment = null, bool with_role = true)
@@ -128,13 +132,15 @@ namespace ThrottleControlledAvionics
 			if(GUILayout.Button(On? "On" : "Off", On? Styles.enabled_button : Styles.close_button, GUILayout.Width(30)))
 			{ On = !On; Changed = true; }
 			if(with_role) RoleControl();
+			GUILayout.EndHorizontal();
 			if(Role == TCARole.MANUAL)
 			{
+				GUILayout.BeginHorizontal();
 				var lim = Utils.FloatSlider("", Limit, 0f, 1f, "P1", 50, "Throttle");
 				if(lim <= lim_eps) lim = 0;
 				if(Mathf.Abs(lim-Limit) > lim_eps) { Limit = lim; Changed = true; }
+				GUILayout.EndHorizontal();
 			}
-			GUILayout.EndHorizontal();
 			return Changed;
 		}
 
@@ -352,22 +358,25 @@ namespace ThrottleControlledAvionics
 		}
 
 		void StageControl()
-		{ Stage = Utils.IntSelector(Stage, 0, tooltip: "Automatically activate at stage"); }
+		{ 
+			GUILayout.Label(new GUIContent("Stage:", "Automatically activate at stage"), GUILayout.ExpandWidth(false));
+			Stage = Utils.IntSelector(Stage, 0); 
+		}
 
 		void OnPlanetControl()
 		{
-			if(GUILayout.Button(new GUIContent(OnPlanetStates[OnPlanet],
-				"Should be active"), 
-				Styles.normal_button, GUILayout.Width(80)))
+			GUILayout.Label("Active:", GUILayout.ExpandWidth(false));
+			if(GUILayout.Button(new GUIContent(OnPlanetStates[OnPlanet], "When this profile should be active"), 
+			                    Styles.normal_button, GUILayout.Width(80)))
 				OnPlanet = (OnPlanet+1)%3;
 		}
 
 		void TitleControl()
 		{
-			if(Active) GUILayout.Toggle(Active, "", GUILayout.Width(20));
+			if(Active) GUILayout.Toggle(Active, "", GUILayout.Width(15));
 			else 
 			{
-				Active = GUILayout.Toggle(Active, new GUIContent("", "Activate"), GUILayout.Width(20));
+				Active = GUILayout.Toggle(Active, new GUIContent("", "Activate"), GUILayout.Width(15));
 				Changed |= Active;
 			}
 			if(Edit) Name = GUILayout.TextField(Name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
@@ -375,11 +384,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		void LevelControl()
-		{
-			if(GUILayout.Button(new GUIContent("Level", "Level the craft when this profile is activated"),
-			                    Level? Styles.enabled_button : Styles.normal_button, GUILayout.Width(50)))
-				Level = !Level;
-		}
+		{ Utils.ButtonSwitch("AutoLevel", ref Level, "Level the craft when this profile is activated", GUILayout.ExpandWidth(false)); }
 
 		public bool Draw()
 		{
@@ -387,15 +392,9 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			//header controls
 			TitleControl();
-			if(!Default)
-			{
-				OnPlanetControl();
-				StageControl();
-			}
-			LevelControl();
 			//default switch
-			if(Default) GUILayout.Label("Default", Styles.green, GUILayout.Width(60));
-			else { Default = GUILayout.Toggle(Default, "Default", GUILayout.Width(60)); }
+			if(Default) GUILayout.Label("Default", Styles.green, GUILayout.ExpandWidth(false));
+			else { Default = GUILayout.Toggle(Default, "Default", GUILayout.ExpandWidth(false)); }
 			//edit button
 			if(GUILayout.Button(Edit? "Done" : "Edit", 
 				Edit? Styles.confirm_button : Styles.normal_button, GUILayout.Width(50)))
@@ -406,10 +405,22 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 			if(Edit)
 			{
+				GUILayout.BeginVertical(Styles.white);
+				GUILayout.BeginHorizontal();
+				GUILayout.FlexibleSpace();
+				if(!Default)
+				{
+					OnPlanetControl();
+					StageControl();
+				}
+				LevelControl();
+				GUILayout.FlexibleSpace();
+				GUILayout.EndHorizontal();
 				foreach(var k in Groups.Keys)
 					Changed |= Groups[k].Draw(string.Format(" (G{0})", k));
 				foreach(var k in Single.Keys)
 					Changed |= Single[k].Draw();
+				GUILayout.EndVertical();
 			}
 			GUILayout.EndVertical();
 			return delete;
@@ -551,7 +562,7 @@ namespace ThrottleControlledAvionics
 		public void Draw(int height)
 		{
 			if(DB.Count == 0) return;
-			GUILayout.BeginVertical(Styles.white);
+			GUILayout.BeginVertical();
 			enginesScroll = GUILayout.BeginScrollView(enginesScroll, GUILayout.Height(height));
 			GUILayout.BeginVertical();
 			var num_profs = DB.Count ;

@@ -109,13 +109,6 @@ namespace ThrottleControlledAvionics
 //			CSV(pid.P, pid.D, distance, real_dist, pid.Action);//debug
 		}
 
-		public override void Draw()
-		{
-			if(Utils.ButtonSwitch("Anchor", CFG.Nav.Any(Navigation.AnchorHere, Navigation.Anchor), 
-			                      "Hold current position", GUILayout.Width(60)))
-				apply_cfg(cfg => cfg.Nav.XToggle(Navigation.AnchorHere));
-		}
-
 		#if DEBUG
 		public void AnchorPointer()
 		{

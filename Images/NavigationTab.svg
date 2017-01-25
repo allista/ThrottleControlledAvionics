@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="32"
+   height="32"
+   viewBox="0 0 32 32"
+   id="svg4219"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="NavigationTab.svg"
+   inkscape:export-filename="/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/ThrottleControlledAvionics/Images/NavigationTab.png"
+   inkscape:export-xdpi="90"
+   inkscape:export-ydpi="90">
+  <defs
+     id="defs4221">
+    <filter
+       color-interpolation-filters="sRGB"
+       x="-.039886"
+       y="-.12104"
+       width="1.0798"
+       height="1.2421"
+       id="filter4037">
+      <feGaussianBlur
+         stdDeviation="11.868751"
+         id="feGaussianBlur4039" />
+    </filter>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#2f2f2f"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="15.999999"
+     inkscape:cx="-1.5140157"
+     inkscape:cy="14.984394"
+     inkscape:document-units="px"
+     inkscape:current-layer="g4828"
+     showgrid="false"
+     units="px"
+     inkscape:showpageshadow="false"
+     showguides="true"
+     inkscape:guide-bbox="true"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata4224">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-1020.3622)">
+    <g
+       id="g4828"
+       transform="translate(0,-10.25)">
+      <circle
+         r="14.682127"
+         cy="1046.6033"
+         cx="16.026787"
+         id="path4233"
+         style="opacity:1;fill:#26deff;fill-opacity:1;fill-rule:nonzero;stroke:#e7e47e;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+      <path
+         d="m 30.708508,1046.6086 a 14.681721,14.666062 0 0 1 -7.340861,12.7012 14.681721,14.666062 0 0 1 -14.681721,0 14.681721,14.666062 0 0 1 -7.3408599,-12.7012"
+         sodipodi:open="true"
+         sodipodi:end="3.1415927"
+         sodipodi:start="0"
+         sodipodi:ry="14.666062"
+         sodipodi:rx="14.681721"
+         sodipodi:cy="1046.6086"
+         sodipodi:cx="16.026787"
+         sodipodi:type="arc"
+         id="path4826"
+         style="opacity:1;fill:#c66000;fill-opacity:1;fill-rule:nonzero;stroke:#e7e47e;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+      <path
+         style="fill:#ff0c0c;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none"
+         inkscape:connector-curvature="0"
+         id="path4043"
+         d="m 16.026496,1037.5028 c -3.600005,0 -6.5067423,3.2264 -6.5067423,7.2059 0,1.2513 0.2883646,2.4286 0.7938663,3.4544 l 5.713167,10.6052 5.713167,-10.6052 c 0.505493,-1.0258 0.793866,-2.2031 0.793866,-3.4544 0,-3.9797 -2.906814,-7.2059 -6.506746,-7.2059 z"
+         sodipodi:nodetypes="sscccsss" />
+      <path
+         sodipodi:nodetypes="ccccc"
+         inkscape:connector-curvature="0"
+         id="path4227"
+         d="m 4.0256289,1046.6256 9.5000001,0 2.522659,3.8035 2.477341,-3.8498 9.5,0.022"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    </g>
+  </g>
+</svg>

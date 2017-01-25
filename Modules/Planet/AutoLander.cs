@@ -355,7 +355,7 @@ namespace ThrottleControlledAvionics
 			CFG.Target = CFG.Anchor;
 			CFG.Nav.OnIfNot(Navigation.Anchor);
 			CFG.DesiredAltitude = VSL.Geometry.H*(LND.StopAtH+1);
-			apply_cfg(cfg => cfg.AP1.XOnIfNot(Autopilot1.Land));
+			TCA.SquadConfigAction(cfg => cfg.AP1.XOnIfNot(Autopilot1.Land));
 			stage = Stage.Land;
 		}
 

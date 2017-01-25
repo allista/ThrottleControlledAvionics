@@ -232,6 +232,8 @@ namespace ThrottleControlledAvionics
 					CFG.DisableVSC();
 					CFG.Nav.Off(); 
 					CFG.HF.Off();
+					if(IsActiveVessel && TCAGui.Instance.ORB != null)
+						TCAGui.Instance.ActiveTab = TCAGui.Instance.ORB;
 				}
 			}
 			OnPlanet = on_planet;
@@ -321,8 +323,11 @@ namespace ThrottleControlledAvionics
 			}
 			Physics.AngularDrag /= drag_parts;
 			Engines.Clusters.Update();
-			if(max_active_stage >= 0 && vessel.currentStage > max_active_stage)
-				vessel.currentStage = max_active_stage;
+			//test: adjusting vessel stage seems to be not that strightforward
+			Log("max active stage {}, vessel stage {}", max_active_stage, vessel.currentStage);//debug
+			if(max_active_stage >= 0 && 
+			   (vessel.currentStage < 0 || vessel.currentStage > max_active_stage))
+				vessel.currentStage = StageManager.RecalculateVesselStaging(vessel);
 			if(CFG.EnginesProfiles.Empty) CFG.EnginesProfiles.AddProfile(Engines.All);
 			else if(CFG.Enabled && TCA.ProfileSyncAllowed) CFG.ActiveProfile.Update(Engines.All);
 		}

@@ -187,19 +187,19 @@ namespace ThrottleControlledAvionics
 		{
 			if(ControlsActive)
 			{
-				if(Utils.ButtonSwitch("Match V", CFG.AP1[Autopilot1.MatchVel], 
-				                      "Continuously match orbital velocity with the target", GUILayout.ExpandWidth(false)))
+				if(Utils.ButtonSwitch("Match Velocity", CFG.AP1[Autopilot1.MatchVel], 
+				                      "Continuously match orbital velocity with the target", GUILayout.ExpandWidth(true)))
 					CFG.AP1.XToggle(Autopilot1.MatchVel);
-				if(Utils.ButtonSwitch("Brake Near", CFG.AP1[Autopilot1.MatchVelNear], 
-				                      "Match orbital velocity with the target at closest approach", GUILayout.ExpandWidth(false)))
+				if(Utils.ButtonSwitch("Brake Near Target", CFG.AP1[Autopilot1.MatchVelNear], 
+				                      "Match orbital velocity with the target at closest approach", GUILayout.ExpandWidth(true)))
 					CFG.AP1.XToggle(Autopilot1.MatchVelNear);
 			}
 			else
 			{
-				GUILayout.Label(new GUIContent("Match V", "Continuously match orbital velocity with the target"), 
-				                Styles.inactive_button, GUILayout.ExpandWidth(false));
-				GUILayout.Label(new GUIContent("Brake Near", "Match orbital velocity with the target at closest approach"), 
-				                Styles.inactive_button, GUILayout.ExpandWidth(false));
+				GUILayout.Label(new GUIContent("Match Velocity", "Continuously match orbital velocity with the target"), 
+				                Styles.inactive_button, GUILayout.ExpandWidth(true));
+				GUILayout.Label(new GUIContent("Brake Near Target", "Match orbital velocity with the target at closest approach"), 
+				                Styles.inactive_button, GUILayout.ExpandWidth(true));
 			}
 		}
 	}

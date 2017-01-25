@@ -242,11 +242,11 @@ namespace ThrottleControlledAvionics
 			{
 				if(Utils.ButtonSwitch("ToOrbit", ShowEditor, 
 				                   	  "Achieve a circular orbit with desired radius and inclination", 
-				                      GUILayout.ExpandWidth(false)))
+				                      GUILayout.ExpandWidth(true)))
 					toggle_orbit_editor();
 			}
 			else if(GUILayout.Button(new GUIContent("ToOrbit", "Change target orbit or abort"), 
-			                         Styles.danger_button, GUILayout.ExpandWidth(false)))
+			                         Styles.danger_button, GUILayout.ExpandWidth(true)))
 				toggle_orbit_editor();
 		}
 

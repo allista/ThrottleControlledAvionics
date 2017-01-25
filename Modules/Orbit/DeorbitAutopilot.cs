@@ -303,16 +303,16 @@ namespace ThrottleControlledAvionics
 				if(computing) 
 				{
 					if(GUILayout.Button(new GUIContent("Land", "Computing trajectory. Push to cancel."), 
-					                                   Styles.inactive_button, GUILayout.ExpandWidth(false)))
+					                    Styles.inactive_button, GUILayout.ExpandWidth(true)))
 						CFG.AP2.XOff();
 				}
 				else if(Utils.ButtonSwitch("Land", CFG.AP2[Autopilot2.Deorbit],
 				                           "Compute and perform a deorbit maneuver, then land near the target.", 
-				                           GUILayout.ExpandWidth(false)))
+				                           GUILayout.ExpandWidth(true)))
 					CFG.AP2.XToggle(Autopilot2.Deorbit);
 			}
 			else GUILayout.Label(new GUIContent("Land", "Compute and perform a deorbit maneuver, then land near the target."), 
-			                     Styles.inactive_button, GUILayout.ExpandWidth(false));
+			                     Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
 	}
 }

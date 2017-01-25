@@ -38,18 +38,6 @@ namespace ThrottleControlledAvionics
 
 		public void InitModuleFields() { TCA.InitModuleFields(this); }
 
-		protected void apply(Action<ModuleTCA> action)
-		{
-			if(SQD == null) action(TCA);
-			else SQD.Apply(action);
-		}
-
-		protected void apply_cfg(Action<VesselConfig> action)
-		{
-			if(SQD == null) action(CFG);
-			else SQD.ApplyCFG(action);
-		}
-
 		protected void Message(float duration, string msg, params object[] args)
 		{ if(VSL.IsActiveVessel) Utils.Message(duration, msg, args); }
 

@@ -1,11 +1,9 @@
-﻿//  Author:
+﻿//   OrbitalTab.cs
+//
+//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
-//  Copyright (c) 2016 Allis Tauri
-//
-// This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. 
-// To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
-// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+//  Copyright (c) 2017 Allis Tauri
 
 using System;
 using UnityEngine;
@@ -13,24 +11,22 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	public class InOrbitPanel : ControlPanel
+	public class OrbitalTab : ControlTab
 	{
 		const int orb_width = 350;
 		const int orb_height = 100;
 		static Rect orbit_editor = new Rect((Screen.width-orb_width)/2, 
-		                               		(Screen.height-orb_height)/2, 
+		                                    (Screen.height-orb_height)/2, 
 		                                    orb_width, orb_height);
 		readonly int orb_editor_ID;
 
-		public InOrbitPanel(ModuleTCA tca) : base(tca) 
+		public OrbitalTab(ModuleTCA tca) : base(tca) 
 		{
 			var rnd = new System.Random();
 			orb_editor_ID = rnd.Next();
 		}
 
-		TimeWarpControl WRP;
 		MatchVelocityAutopilot MVA;
-		ManeuverAutopilot MAP;
 		DeorbitAutopilot DEO;
 		RendezvousAutopilot REN;
 		ToOrbitAutopilot ORB;
@@ -39,24 +35,23 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			GUILayout.BeginHorizontal();
-			if(WRP != null) WRP.Draw();
-			if(MAP != null) MAP.Draw();
 			if(MVA != null) MVA.Draw();
+			GUILayout.EndHorizontal();
+			if(PN  != null && UI.NAV != null) 
+				UI.NAV.TargetUI();
+			GUILayout.BeginHorizontal();
 			if(ORB != null) ORB.Draw();
 			if(REN != null) REN.Draw();
 			if(DEO != null) DEO.Draw();
-			#if DEBUG
-			if(Utils.ButtonSwitch("DBG", ref TrajectoryCalculator.setp_by_step_computation, 
-			                      "Toggles step-by-step trajectory computation", GUILayout.ExpandWidth(false)) &&
-			   TrajectoryCalculator.setp_by_step_computation)
-				MapView.EnterMapView();
-			#endif
-			if(PN  != null) 
-				TCAGui.Instance.NavigationControls.TargetUI();
-			VSL.Info.Draw();
 			GUILayout.EndHorizontal();
 			if(DEO != null && CFG.AP2[Autopilot2.Deorbit])
 				DEO.DrawDeorbitSettings();
+			#if DEBUG
+			if(Utils.ButtonSwitch("DBG", ref TrajectoryCalculator.setp_by_step_computation, 
+			                      "Toggles step-by-step trajectory computation", GUILayout.ExpandWidth(true)) &&
+			   TrajectoryCalculator.setp_by_step_computation)
+				MapView.EnterMapView();
+			#endif
 		}
 
 		void draw_orbit_editor(int windowID)
@@ -83,4 +78,3 @@ namespace ThrottleControlledAvionics
 		}
 	}
 }
-

@@ -99,7 +99,7 @@ namespace ThrottleControlledAvionics
 			macro = null;
 			TCAMacro sel = null;
 			bool ret = false;
-			GUILayout.BeginVertical(Styles.white);
+			GUILayout.BeginVertical();
 			GUILayout.Label("Load Macro form Library", Styles.green, GUILayout.ExpandWidth(true));
 			GUILayout.BeginHorizontal();
 			GUILayout.BeginVertical();

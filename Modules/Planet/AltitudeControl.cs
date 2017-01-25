@@ -276,7 +276,7 @@ namespace ThrottleControlledAvionics
 
 		void set_altitude()
 		{
-			apply_cfg(set_altitude);
+			TCA.SquadConfigAction(set_altitude);
 			s_altitude = altitude.ToString("F1");
 		}
 
@@ -285,22 +285,19 @@ namespace ThrottleControlledAvionics
 			update_altitude();
 			var above_ground = VSL.Altitude.AboveGround;
 			var style = above_ground? Styles.green : Styles.red;
-//			GUILayout.Label(string.Format("Altitude: {0:F2}m {1:+0.0;-0.0;+0.0}m/s", 
-//			                              VSL.Altitude.Current, VSL.VerticalSpeed.Display), 
-//			                Styles.boxed_label, GUILayout.Width(190));
 			GUILayout.Label(new GUIContent("Alt. (m):", above_ground? 
 			                               "Desired altitude is above the ground" : 
 			                               "Warning! Desired altitude is below the ground"), 
-			                GUILayout.ExpandWidth(false));
+			                Styles.white, GUILayout.ExpandWidth(true));
 			s_altitude = GUILayout.TextField(s_altitude, style, GUILayout.ExpandWidth(true), GUILayout.MinWidth(60));
-			if(GUILayout.Button("Set", Styles.normal_button, GUILayout.Width(50))) 
+			if(GUILayout.Button("Set", Styles.normal_button, GUILayout.ExpandWidth(false))) 
 			{
 				if(float.TryParse(s_altitude, out altitude)) set_altitude();
 				else altitude = CFG.DesiredAltitude;
 			}
-			if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.Width(50))) 
+			if(GUILayout.Button("-10m", Styles.normal_button, GUILayout.ExpandWidth(false))) 
 			{ altitude -= 10; set_altitude(); }
-			if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.Width(50))) 
+			if(GUILayout.Button("+10m", Styles.normal_button, GUILayout.ExpandWidth(false))) 
 			{ altitude += 10; set_altitude(); }
 		}
 		#endregion

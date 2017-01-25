@@ -1,27 +1,26 @@
-﻿//  Author:
+﻿//   MacrosTab.cs
+//
+//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
-//  Copyright (c) 2016 Allis Tauri
-//
-// This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. 
-// To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
-// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
-//
+//  Copyright (c) 2017 Allis Tauri
+
 using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	public class MacrosPanel : ControlPanel
+	public class MacrosTab : ControlTab
 	{
-		public MacrosPanel(ModuleTCA tca) : base(tca) {}
+		public MacrosTab(ModuleTCA tca) : base(tca) {}
+
+		public override bool Valid { get { return MPC != null; } }
 
 		MacroProcessor MPC;
 
 		bool selecting_macro;
 		public override void Draw()
 		{
-			if(MPC == null) return;
 			GUILayout.BeginHorizontal();
 			if(CFG.SelectedMacro != null && CFG.MacroIsActive)
 			{
@@ -60,7 +59,7 @@ namespace ThrottleControlledAvionics
 				{
 					if(macro != null) 
 					{
-						CFG.SelectedMacro = (TCAMacro)macro.GetCopy();
+						CFG.SelectedMacro = macro.GetCopy() as TCAMacro;
 						CFG.MacroIsActive = false;
 					}
 					selecting_macro = false;
@@ -69,4 +68,3 @@ namespace ThrottleControlledAvionics
 		}
 	}
 }
-

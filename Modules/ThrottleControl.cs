@@ -99,7 +99,7 @@ namespace ThrottleControlledAvionics
 			                      CFG.VF[VFlight.AltitudeControl]?
 			                      "Change altitude with throttle controls" :
 			                      "Set vertical speed with throttle controls",
-			                      GUILayout.ExpandWidth(false)))
+			                      GUILayout.ExpandWidth(true)))
 				BlockThrottle(!CFG.BlockThrottle);
 		}
 	}

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="32mm"
+   height="32mm"
+   viewBox="0 0 113.38583 113.38582"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="OrbitalTab.svg"
+   inkscape:export-filename="/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/ThrottleControlledAvionics/Images/OrbitalTab.png"
+   inkscape:export-xdpi="25.4"
+   inkscape:export-ydpi="25.4">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#333333"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="4.0481684"
+     inkscape:cx="12.705894"
+     inkscape:cy="47.76947"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:showpageshadow="false"
+     fit-margin-top="1"
+     fit-margin-right="1"
+     fit-margin-bottom="1"
+     fit-margin-left="1"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-306.89463,-558.3112)">
+    <circle
+       style="opacity:1;fill:#007d01;fill-opacity:1;fill-rule:nonzero;stroke:#28c1ff;stroke-width:4.00000024;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path3338"
+       cx="365.58755"
+       cy="615.00409"
+       r="34.332638" />
+    <g
+       id="g4196"
+       transform="matrix(0.38726676,0,0,0.38726676,200.87951,398.60302)">
+      <circle
+         r="131.42857"
+         cy="558.79077"
+         cx="420.71429"
+         id="path3336"
+         style="opacity:1;fill:none;fill-opacity:1;fill-rule:nonzero;stroke:#6f6bff;stroke-width:10.32879826;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+      <path
+         inkscape:transform-center-y="-0.013423472"
+         inkscape:transform-center-x="8.6615182"
+         d="m 332.57677,461.45548 -6.38144,49.09844 -39.32977,-30.07571 z"
+         inkscape:randomized="0"
+         inkscape:rounded="0"
+         inkscape:flatsided="true"
+         sodipodi:arg2="0.12924774"
+         sodipodi:arg1="-0.91794977"
+         sodipodi:r2="73.48951"
+         sodipodi:r1="28.585423"
+         sodipodi:cy="484.16254"
+         sodipodi:cx="315.21255"
+         sodipodi:sides="3"
+         id="path4142"
+         style="opacity:1;fill:#ff5523;fill-opacity:1;fill-rule:nonzero;stroke:#ff5523;stroke-width:3.73998547;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         sodipodi:type="star" />
+    </g>
+  </g>
+</svg>

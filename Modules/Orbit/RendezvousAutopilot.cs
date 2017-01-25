@@ -148,12 +148,15 @@ namespace ThrottleControlledAvionics
 			var endUT = StartUT+transfer_time;
 			var solver = new LambertSolver(NextOrbit(endUT), NextOrbit(TargetOrbit, endUT).getRelativePositionAtUT(endUT), StartUT);
 			var dV = solver.dV4Transfer(transfer_time);
+			Log("transfer time {}, dV {}\norbit {}\ntOrbit {}", transfer_time, dV, NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
 			return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, MinPeR, transfer_time);
 		}
 
 		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, ref double dT)
 		{ return orbit_correction(old, best, VSL.Physics.UT + REN.CorrectionOffset, ref dT); }
 
+		//TODO: support transfer times longer than TargetOrbit.period for transfers from high orbit
+		//test: this needs thorough testing with respect to different combinations of vessel/target orbits
 		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, double StartUT, ref double dT)
 		{
 			double transfer_time;
@@ -168,8 +171,8 @@ namespace ThrottleControlledAvionics
 				else
 				{
 					transfer_time = old.TransferTime+dT;
-					if(old.ManeuverDuration.Equals(0) ||
-					   transfer_time > TargetOrbit.period ||
+					if(//test: does it always converge without this limit?
+						//transfer_time > TargetOrbit.period ||
 					   transfer_time < TRJ.ManeuverOffset ||
 					   old.ManeuverDeltaV.sqrMagnitude > best.ManeuverDeltaV.sqrMagnitude &&
 					   !old.KillerOrbit && !best.KillerOrbit)
@@ -564,7 +567,7 @@ namespace ThrottleControlledAvionics
 				if(computing) 
 				{
 					if(GUILayout.Button(new GUIContent("Rendezvous", "Computing trajectory. Push to cancel."), 
-					                    Styles.inactive_button, GUILayout.ExpandWidth(false)))
+					                    Styles.inactive_button, GUILayout.ExpandWidth(true)))
 						CFG.AP2.Off();
 //					#if DEBUG
 //					if(current != null)
@@ -578,11 +581,11 @@ namespace ThrottleControlledAvionics
 				}
 				else if(Utils.ButtonSwitch("Rendezvous", CFG.AP2[Autopilot2.Rendezvous],
 				                           "Compute and perform a rendezvous maneuver, then brake near the target.", 
-				                           GUILayout.ExpandWidth(false)))
+				                           GUILayout.ExpandWidth(true)))
 					CFG.AP2.XToggle(Autopilot2.Rendezvous);
 			}
 			else GUILayout.Label(new GUIContent("Rendezvous", "Compute and perform a rendezvous maneuver, then brake near the target."), 
-			                     Styles.inactive_button, GUILayout.ExpandWidth(false));
+			                     Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
 	}
 }

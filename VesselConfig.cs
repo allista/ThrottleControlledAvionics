@@ -37,6 +37,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Guid    VesselID;
 		[Persistent] public bool    Enabled;
 		[Persistent] public bool    GUIVisible;
+		[Persistent] public int     ActiveTab;
 		[Persistent] public KSPActionGroup ActionGroup = KSPActionGroup.None;
 		//attitude control
 		[Persistent] public Multiplexer<Attitude> AT = new Multiplexer<Attitude>();
@@ -87,7 +88,6 @@ namespace ThrottleControlledAvionics
 		//engines
 		[Persistent] public PI_Controller Engines = new PI_Controller();
 		[Persistent] public EnginesProfileDB EnginesProfiles = new EnginesProfileDB();
-		[Persistent] public bool ShowEnginesProfiles;
 		[Persistent] public bool ShowManualLimits;
 		[Persistent] public bool AutoStage = true;
 		[Persistent] public bool AutoParachutes = true;
