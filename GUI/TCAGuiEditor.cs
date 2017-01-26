@@ -22,8 +22,10 @@ namespace ThrottleControlledAvionics
 		const string DefaultConstractName = "Untitled Space Craft";
 
 		public static bool Available { get; private set; }
-		static Dictionary<Type,bool> Modules = new Dictionary<Type, bool>();
+		Dictionary<Type,bool> Modules = new Dictionary<Type, bool>();
 		static Texture2D CoM_Icon;
+
+		TCAPartsEditor PartsEditor;
 
 		ModuleTCA TCA;
 		NamedConfig CFG;
@@ -55,10 +57,6 @@ namespace ThrottleControlledAvionics
 			Available = false;
 			show_imbalance = false;
 			use_wet_mass = true;
-			//module availability
-			Modules.Clear();
-			TCAModulesDatabase.ValidModules
-				.ForEach(t => Modules.Add(t, TCAModulesDatabase.ModuleAvailable(t)));
 			//icons
 			CoM_Icon = GameDatabase.Instance.GetTexture(Globals.RADIATION_ICON, false);
 			//highlighters
@@ -102,6 +100,14 @@ namespace ThrottleControlledAvionics
 		void OnShipModified(ShipConstruct ship) 
 		{ update_engines = true; }
 
+		void update_modules()
+		{
+			Modules.Clear();
+			TCAModulesDatabase.ValidModules
+				.ForEach(t => Modules.Add(t, TCAModulesDatabase.ModuleAvailable(t, CFG)));
+		}
+		public static void UpdateModules() { if(Instance) Instance.update_modules(); }
+
 		bool GetCFG()
 		{
 			var ship = EditorLogic.fetch.ship;
@@ -133,6 +139,8 @@ namespace ThrottleControlledAvionics
 			TCA.CFG = CFG;
 			TCA.TCA_Active = true;
 			CFG.ActiveProfile.Update(Engines);
+			PartsEditor.CFG = CFG;
+			update_modules();
 		}
 		void UpdateCFG() { UpdateCFG(ModuleTCA.AllTCA(EditorLogic.fetch.ship)); }
 
@@ -337,7 +345,9 @@ namespace ThrottleControlledAvionics
 			if(reset)
 			{
 				Available = false;
+				Modules.Clear();
 				Engines.Clear();
+				PartsEditor.CFG = null;
 				CFG = null;
 				reset = false;
 			}
@@ -380,13 +390,21 @@ namespace ThrottleControlledAvionics
 			              new GUIContent("?", "Help"))) TCAManual.ToggleInstance();
 			GUILayout.BeginVertical();
 			{
-				if(Modules[typeof(MacroProcessor)])
+				GUILayout.BeginHorizontal();
 				{
-					if(TCAMacroEditor.Editing)
-						GUILayout.Label("Edit Macros", Styles.inactive_button, GUILayout.ExpandWidth(true));
-					else if(GUILayout.Button("Edit Macros", Styles.normal_button, GUILayout.ExpandWidth(true)))
-						TCAMacroEditor.Edit(CFG);
+					if(GUILayout.Button(new GUIContent("Select Modules", "Select which TCA Modules should be installed on this ship"),
+					                        Styles.active_button, GUILayout.ExpandWidth(true)))
+						PartsEditor.Toggle();
+					if(Modules[typeof(MacroProcessor)])
+					{
+						
+						if(TCAMacroEditor.Editing)
+							GUILayout.Label("Edit Macros", Styles.inactive_button, GUILayout.ExpandWidth(true));
+						else if(GUILayout.Button("Edit Macros", Styles.active_button, GUILayout.ExpandWidth(true)))
+							TCAMacroEditor.Edit(CFG);
+					}
 				}
+				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
 				{
 					GUILayout.BeginVertical();
@@ -547,6 +565,7 @@ namespace ThrottleControlledAvionics
 				                 Title,
 				                 GUILayout.Width(width),
 				                 GUILayout.Height(height)).clampToScreen();
+			PartsEditor.Draw();
 			if(show_imbalance && ActiveEngines.Count > 0)
 			{
 				Markers.DrawWorldMarker(WetCoM, Color.yellow, "Center of Mass", CoM_Icon);

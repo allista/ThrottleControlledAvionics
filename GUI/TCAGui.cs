@@ -166,7 +166,8 @@ namespace ThrottleControlledAvionics
 			if(CFG != null) ShowInstance(CFG.GUIVisible);
 			TCAToolbarManager.AttachTCA(TCA);
 			create_fields();
-			ADV.UpdateNamedConfigs();
+			if(ADV != null)
+				ADV.UpdateNamedConfigs();
 			return true;
 		}
 		#endregion
@@ -382,8 +383,8 @@ namespace ThrottleControlledAvionics
 				                 VSL.vessel.vesselName,
 				                 GUILayout.Width(ControlsWidth),
 				                 GUILayout.Height(ControlsHeight)).clampToScreen();
-			ORB.OrbitEditorWindow();
-			NAV.DrawWaypoints();
+			if(ORB != null) ORB.OrbitEditorWindow();
+			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());
 			#if DEBUG
 			GUI.Label(debug_rect, 
@@ -399,7 +400,7 @@ namespace ThrottleControlledAvionics
 			if(TCA == null) return;
 			if(!TCA.Available && !init()) return;
 			if(!TCA.IsControllable) return;
-			if(ADV.SelectingKey) ADV.Update();
+			if(ADV != null && ADV.SelectingKey) ADV.Update();
 			else if(!FlightDriver.Pause)
 			{
 				if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();

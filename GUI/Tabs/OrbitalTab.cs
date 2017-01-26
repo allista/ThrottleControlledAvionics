@@ -30,6 +30,7 @@ namespace ThrottleControlledAvionics
 		DeorbitAutopilot DEO;
 		RendezvousAutopilot REN;
 		ToOrbitAutopilot ORB;
+		[InternalModule]
 		PointNavigator PN;
 
 		public override void Draw()

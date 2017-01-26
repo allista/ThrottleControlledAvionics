@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
 
 		public static SortedList<string, ComponentFactory> AvailableComponents = new SortedList<string, ComponentFactory>();
 
-		public static void UpdateAvailableComponents() 
+		public static void UpdateAvailableComponents(VesselConfig CFG) 
 		{
 			AvailableComponents.Clear();
 			foreach(var c in Components.Keys)
@@ -88,7 +88,7 @@ namespace ThrottleControlledAvionics
 					{
 						foreach(var m in req.Modules)
 						{
-							available &= TCAModulesDatabase.ModuleAvailable(m);
+							available &= TCAModulesDatabase.ModuleAvailable(m, CFG);
 							if(!available) break;
 						}
 						if(!available) break;

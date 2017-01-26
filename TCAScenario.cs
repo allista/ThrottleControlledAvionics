@@ -63,8 +63,6 @@ namespace ThrottleControlledAvionics
 		public static bool HavePersistentRotation { get; private set; }
 		public static string ModuleStatusString()
 		{ return HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
-
-		public static List<TCAPart> Parts = new List<TCAPart>();
 		#endregion
 
 		#region Runtime Interface
@@ -187,8 +185,6 @@ namespace ThrottleControlledAvionics
 			HavePatchedConics = GameVariables.Instance
 				.GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) 
 				== GameVariables.OrbitDisplayMode.PatchedConics;
-			//update available parts
-			Parts = TCAModulesDatabase.GetPurchasedParts();
 			//check if MM is successfully installed ModuleTCA in any of the parts
 			ModuleInstalled = false;
 			foreach(var p in PartLoader.LoadedPartsList)

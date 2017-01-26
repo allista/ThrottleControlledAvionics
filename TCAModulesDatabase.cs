@@ -32,8 +32,8 @@ namespace ThrottleControlledAvionics
 		}
 
 		public static readonly Dictionary<Type, ModuleMeta> RegisteredModules = new Dictionary<Type, ModuleMeta>();
-		public static readonly List<Type> Pipeline = new List<Type>();
-		public static readonly Dictionary<string, TCAPart> TechTreeParts = new Dictionary<string, TCAPart>();
+		static readonly List<Type> Pipeline = new List<Type>();
+		static readonly Dictionary<string, TCAPart> TechTreeParts = new Dictionary<string, TCAPart>();
 
 		static void sort_module(Type m, List<Type> route = null)
 		{
@@ -112,19 +112,20 @@ namespace ThrottleControlledAvionics
 			return RegisteredModules.TryGetValue(t, out meta)? meta : null;
 		}
 
-		public static bool ModuleAvailable(Type m) 
+		public static bool ModuleAvailable(Type mtype, VesselConfig CFG) 
 		{ 
-			if(!ValidModule(m)) return false;
+			if(!ValidModule(mtype)) return false;
+			var meta = GetModuleMeta(mtype);
+			if(meta == null) return true;
+			if(CFG != null && !CFG.EnabledTCAParts.Contains(meta.PartName)) return false;
 			if(!Globals.Instance.IntegrateIntoCareer) return true;
-			var meta = GetModuleMeta(m);
-			return meta == null || 
-				((string.IsNullOrEmpty(meta.PartName) || 
-				  Utils.PartIsPurchased(meta.PartName))
-				 && meta.Requires.All(ModuleAvailable));
+			return (string.IsNullOrEmpty(meta.PartName) || 
+			        Utils.PartIsPurchased(meta.PartName))
+				&& meta.Requires.All(m => ModuleAvailable(m, CFG));
 		}
 
 		static TCAModule create_module(Type mtype, ModuleTCA TCA)
-		{ return ModuleAvailable(mtype)? TCA.CreateComponent(mtype) as TCAModule : null; }
+		{ return ModuleAvailable(mtype, TCA.CFG)? TCA.CreateComponent(mtype) as TCAModule : null; }
 
 		public static void InitModules(ModuleTCA TCA)
 		{
@@ -149,12 +150,21 @@ namespace ThrottleControlledAvionics
 			TCA.AllModules.ForEach(m => m.Init());
 		}
 
+		public static List<TCAPart> GetAllParts()
+		{
+			if(HighLogic.CurrentGame == null) return new List<TCAPart>();
+			var list = TechTreeParts.Values.Select(p => p.Clone()).ToList();
+			list.Sort((a, b) => a.Title.CompareTo(b.Title));
+			list.ForEach(p => p.UpdateInfo());
+			return list;
+		}
+
 		public static List<TCAPart> GetPurchasedParts()
 		{
-			if(HighLogic.CurrentGame == null ||
-			   HighLogic.CurrentGame.Mode == Game.Modes.SANDBOX) return null;
-			TechTreeParts.ForEach(p => p.Value.UpdateInfo());
-			var list = TechTreeParts.Values.Where(p => p.Purchased).ToList();
+			if(HighLogic.CurrentGame == null) return new List<TCAPart>();
+			var list = TechTreeParts.Values.Select(p => p.Clone()).ToList();
+			list.ForEach(p => p.UpdateInfo());
+			list = list.Where(p => p.Purchased).ToList();
 			list.Sort((a, b) => a.Title.CompareTo(b.Title));
 			return list;
 		}
@@ -289,6 +299,7 @@ namespace ThrottleControlledAvionics
 	{
 		public readonly string Name = "";
 		public string Title = "";
+		public string Description = "";
 		public bool Purchased;
 		public bool Active;
 
@@ -296,6 +307,17 @@ namespace ThrottleControlledAvionics
 		readonly HashSet<ModuleMeta> modules = new HashSet<ModuleMeta>();
 
 		public TCAPart(string partname) { Name = partname; }
+
+		protected TCAPart(TCAPart part)
+		{
+			Name = part.Name;
+			modules = part.modules;
+			info = part.info;
+			Title = part.Title;
+			Description = part.Description;
+		}
+
+		public TCAPart Clone() { return new TCAPart(this); }
 
 		public void AddModule(ModuleMeta module)
 		{
@@ -308,13 +330,21 @@ namespace ThrottleControlledAvionics
 			modules.Add(module);
 		}
 
-		public void UpdateInfo()
+		public void UpdateInfo(VesselConfig CFG = null)
 		{ 
-			info = PartLoader.getPartInfoByName(Name); 
-			if(info == null) return;
-			Title = info.title;
+			if(info == null)
+			{
+				info = PartLoader.getPartInfoByName(Name); 
+				if(info != null)
+				{
+					Title = info.title;
+					Description = info.description;
+				}
+				if(string.IsNullOrEmpty(Title)) 
+					Title = Utils.ParseCamelCase(Name);
+			}
 			Purchased = Utils.PartIsPurchased(Name);
-			Active = modules.All(m => TCAModulesDatabase.ModuleAvailable(m.Module));
+			Active = modules.All(m => TCAModulesDatabase.ModuleAvailable(m.Module, CFG));
 		}
 	}
 }

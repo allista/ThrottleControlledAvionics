@@ -14,8 +14,6 @@ namespace ThrottleControlledAvionics
 	{
 		public MacrosTab(ModuleTCA tca) : base(tca) {}
 
-		public override bool Valid { get { return MPC != null; } }
-
 		MacroProcessor MPC;
 
 		bool selecting_macro;

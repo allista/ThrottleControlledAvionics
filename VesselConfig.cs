@@ -32,6 +32,7 @@ namespace ThrottleControlledAvionics
 		public ConfigNode LoadedConfig { get; private set; }
 
 		//modules
+		public HashSet<string> EnabledTCAParts = new HashSet<string>();
 		public SortedList<string,ConfigNode> ModuleConfigs = new SortedList<string, ConfigNode>();
 		//common
 		[Persistent] public Guid    VesselID;
@@ -137,9 +138,10 @@ namespace ThrottleControlledAvionics
 		{
 			LoadedConfig = node;
 			base.Load(node);
+			//restore vessel ID
 			var val = node.GetValue(Utils.PropertyName(new {VesselID}));
 			if(!string.IsNullOrEmpty(val)) VesselID = new Guid(val);
-
+			//restore module configs
 			var mcn = node.GetNode("ModuleConfigs");
 			if(mcn != null)
 			{
@@ -153,12 +155,25 @@ namespace ThrottleControlledAvionics
 			if(path != null) Path.Load(path);
 			///////////////////////////////////
 
+			//initialize saved waypoints
 			if(Anchor != null && string.IsNullOrEmpty(Anchor.Name))
 				Anchor = null;
 			if(Target != null && string.IsNullOrEmpty(Target.Name))
 				Target = null;
+			//initialize saved selected macro
 			if(SelectedMacro != null && !SelectedMacro.Block.HasSubnodes)
 				SelectedMacro = null;
+			//FIXME: have to save/load HashSet manually until Squad fixes http://bugs.kerbalspaceprogram.com/issues/13670
+			EnabledTCAParts.Clear();
+			var parts_node = node.GetNode("EnabledTCAParts");
+			if(parts_node != null)
+				parts_node.GetValues().ForEach(pname => EnabledTCAParts.Add(pname));
+			//if no TCAParts are saved, assume the config was just created
+			if(EnabledTCAParts.Count == 0)
+				EnabledTCAParts = new HashSet<string>(TCAModulesDatabase.GetAllParts()
+				                                      //comment the next line to enables OTA upgrades
+				                                      .Where(p => p.Active)
+				                                      .Select(p => p.Name));
 		}
 
 		public override void Save(ConfigNode node)
@@ -170,6 +185,9 @@ namespace ThrottleControlledAvionics
 				foreach(var mc in ModuleConfigs)
 					mcn.AddNode(mc.Key, mc.Value);
 			}
+			//FIXME: have to save/load HashSet manually until Squad fixes http://bugs.kerbalspaceprogram.com/issues/13670
+			var parts_node = node.AddNode("EnabledTCAParts");
+			EnabledTCAParts.ForEach(pname => parts_node.AddValue("item", pname));
 			base.Save(node);
 		}
 

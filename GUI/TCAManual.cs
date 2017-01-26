@@ -7,12 +7,13 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	[KSPAddon(KSPAddon.Startup.EveryScene, false)]
+	[KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
 	public class TCAManual : AddonWindowBase<TCAManual>
 	{
 		static MDSection Manual { get { return Globals.Instance.Manual; } }
@@ -21,8 +22,20 @@ namespace ThrottleControlledAvionics
 		static string current_text = "";
 		static Vector2 sections_scroll;
 		static Vector2 content_scroll;
+		static List<TCAPart> parts;
 
 		public TCAManual() { width = 800; height = 600; }
+
+		public override void Awake()
+		{
+			base.Awake();
+			GameEvents.onLevelWasLoaded.Add(onSceneChange);
+		}
+
+		void onSceneChange(GameScenes scene)
+		{
+			parts = TCAModulesDatabase.GetPurchasedParts();
+		}
 
 		void Update()
 		{
@@ -44,21 +57,22 @@ namespace ThrottleControlledAvionics
 
 		static void PartsInfo()
 		{
-			if(TCAScenario.Parts.Count == 0) 
+			if(parts == null) return;
+			if(parts.Count == 0) 
 			{
 				GUILayout.Label("No modules installed.");
 				return;
 			}
 			GUILayout.BeginVertical(Styles.white);
-			for(int i = 0, partsCount = TCAScenario.Parts.Count; i < partsCount; i++)
+			for(int i = 0, partsCount = parts.Count; i < partsCount; i++)
 			{
-				var part = TCAScenario.Parts[i];
+				var part = parts[i];
 				GUILayout.BeginHorizontal();
 				GUILayout.Label(part.Title);
 				GUILayout.FlexibleSpace();
 				if(part.Active) GUILayout.Label("Active", Styles.green);
 				else GUILayout.Label(new GUIContent("Dependencies Unsatisfied", 
-				                                    "Consult R&D tree to see what modules are required for this to work."), 
+				                                    "Consult R&D tree to see what modules are required for this one to work."), 
 				                     Styles.red);
 				GUILayout.EndHorizontal();
 			}

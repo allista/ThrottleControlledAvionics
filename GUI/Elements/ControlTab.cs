@@ -57,6 +57,13 @@ namespace ThrottleControlledAvionics
 	}
 
 	/// <summary>
+	/// Internal module is used to flag TCAModules that are required for a particular ControlTab, 
+	/// but do not provide independent functionality. Such modules are not considered when the 
+	/// ControlTab.Valid value is calculated.
+	/// </summary>
+	public class InternalModule : Attribute {}
+
+	/// <summary>
 	/// ControlTab is an assembly of controls of several related TCAModules
 	/// with additional framework for integration the tab into TCAGui.
 	/// </summary>
@@ -89,7 +96,7 @@ namespace ThrottleControlledAvionics
 		{
 			InitModuleFields();
 			ThisModules = GetType().GetFields(BindingFlags.NonPublic|BindingFlags.Public|BindingFlags.Instance|BindingFlags.DeclaredOnly)
-				.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule)))
+				.Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule)) && fi.GetCustomAttributes(typeof(InternalModule), true).Length == 0)
 				.Select(fi => fi.GetValue(this) as TCAModule)
 				.Where(m => m != null)
 				.ToList();

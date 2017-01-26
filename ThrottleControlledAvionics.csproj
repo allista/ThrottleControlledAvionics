@@ -166,6 +166,7 @@
     <Compile Include="GUI\Tabs\MacrosTab.cs" />
     <Compile Include="GUI\Tabs\OrbitalTab.cs" />
     <Compile Include="GUI\Tabs\EnginesTab.cs" />
+    <Compile Include="GUI\TCAPartsEditor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

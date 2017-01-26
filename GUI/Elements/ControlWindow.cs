@@ -66,7 +66,7 @@ namespace ThrottleControlledAvionics
 
 		public void Draw()
 		{
-			if(doShow && can_draw())
+			if(doShow)
 			{
 				LockControls();
 				WindowPos = 
