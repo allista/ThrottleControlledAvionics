@@ -172,7 +172,7 @@ namespace ThrottleControlledAvionics
 				else
 				{
 					transfer_time = old.TransferTime+dT;
-					if(//test: does it always converge without this limit?
+					if(//test: does it always converge?
 					   //danger of ultra-long elliptic transfers here!
 					   transfer_time > Math.Max(VesselOrbit.period, TargetOrbit.period) ||
 					   transfer_time < TRJ.ManeuverOffset ||
