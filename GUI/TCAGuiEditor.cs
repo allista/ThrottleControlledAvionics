@@ -139,7 +139,7 @@ namespace ThrottleControlledAvionics
 			TCA.CFG = CFG;
 			TCA.TCA_Active = true;
 			CFG.ActiveProfile.Update(Engines);
-			PartsEditor.CFG = CFG;
+			PartsEditor.SetCFG(CFG);
 			update_modules();
 		}
 		void UpdateCFG() { UpdateCFG(ModuleTCA.AllTCA(EditorLogic.fetch.ship)); }
@@ -347,7 +347,7 @@ namespace ThrottleControlledAvionics
 				Available = false;
 				Modules.Clear();
 				Engines.Clear();
-				PartsEditor.CFG = null;
+				PartsEditor.SetCFG(null);
 				CFG = null;
 				reset = false;
 			}

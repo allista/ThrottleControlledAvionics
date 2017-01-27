@@ -303,15 +303,15 @@ namespace ThrottleControlledAvionics
 		public bool Purchased;
 		public bool Active;
 
-		AvailablePart info;
-		readonly HashSet<ModuleMeta> modules = new HashSet<ModuleMeta>();
+		public AvailablePart info { get; private set; }
+		public readonly HashSet<ModuleMeta> Modules = new HashSet<ModuleMeta>();
 
 		public TCAPart(string partname) { Name = partname; }
 
 		protected TCAPart(TCAPart part)
 		{
 			Name = part.Name;
-			modules = part.modules;
+			Modules = part.Modules;
 			info = part.info;
 			Title = part.Title;
 			Description = part.Description;
@@ -327,7 +327,7 @@ namespace ThrottleControlledAvionics
 				          Name, module.Module.Name, module.PartName);
 				return;
 			}
-			modules.Add(module);
+			Modules.Add(module);
 		}
 
 		public void UpdateInfo(VesselConfig CFG = null)
@@ -344,7 +344,103 @@ namespace ThrottleControlledAvionics
 					Title = Utils.ParseCamelCase(Name);
 			}
 			Purchased = Utils.PartIsPurchased(Name);
-			Active = modules.All(m => TCAModulesDatabase.ModuleAvailable(m.Module, CFG));
+			Active = Modules.All(m => TCAModulesDatabase.ModuleAvailable(m.Module, CFG));
+		}
+	}
+
+
+	public class TCAPartGraphNode
+	{
+		public TCAPart part { get; private set; }
+		public HashSet<TCAPartGraphNode> inputs = new HashSet<TCAPartGraphNode>();
+		public HashSet<TCAPartGraphNode> outputs = new HashSet<TCAPartGraphNode>();
+		public int tier = 1;
+
+		public virtual void SetPart(TCAPart part)
+		{ this.part = part; }
+
+		public void AddInput(TCAPartGraphNode input)
+		{
+			inputs.Add(input);
+			input.outputs.Add(this);
+		}
+
+		public void RemoveInput(TCAPartGraphNode input)
+		{
+			inputs.Remove(input);
+			input.outputs.Remove(this);
+		}
+
+		public override string ToString() { return part.Name; }
+	}
+
+	public class TCAPartGraph<T> where T : TCAPartGraphNode, new()
+	{
+		public List<T> roots = new List<T>();
+		public List<T> leafs = new List<T>();
+		public SortedList<int,List<T>> tiers;
+
+		static void sort_into_tiers(T node, HashSet<T> nodes, int tier = 1)
+		{
+			if(node.outputs.Count == 0)
+				node.tier = Math.Max(node.tier, tier);
+			tier += 1;
+			node.outputs.ForEach(o => sort_into_tiers(o as T, nodes, tier));
+			nodes.Add(node);
+		}
+
+		public void UpdateTiers()
+		{
+			var nodes = new HashSet<T>();
+			tiers = new SortedList<int, List<T>>();
+			roots.ForEach(r => sort_into_tiers(r, nodes));
+			foreach(var node in nodes)
+			{
+				if(node.outputs.Count > 0)
+				{
+					node.tier = -1;
+					node.outputs.ForEach(o => { if(node.tier < 0 || o.tier < node.tier) node.tier = o.tier; });
+					node.tier -= 1;
+				}
+				List<T> tier;
+				if(tiers.TryGetValue(node.tier, out tier))
+					tier.Add(node);
+				else tiers.Add(node.tier, new List<T>{node});
+			}
+			tiers.ForEach(t => t.Value.Sort((a, b) => b.outputs.Count.CompareTo(a.outputs.Count)));
+		}
+
+		public static G BuildGraph<G>(IEnumerable<TCAPart> parts)
+			where G : TCAPartGraph<T>, new()
+		{
+			var nodes  = new List<T>();
+			var lookup = new Dictionary<Type, T>();
+			foreach(var part in parts)
+			{
+				var node = new T();
+				node.SetPart(part);
+				part.Modules.ForEach(m => lookup.Add(m.Module, node));
+				nodes.Add(node);
+			}
+			foreach(var node in nodes) 
+			{
+				foreach(var module in node.part.Modules)
+				{
+					foreach(var req in module.Requires)
+					{
+						T input;
+						if(lookup.TryGetValue(req, out input))
+						{ if(input != node) node.AddInput(input); }
+//						Utils.Log("Node: {}, {} requires {}, input part {}\ninputs {}\noutputs {}", 
+//						          node, module.Module, req, input, node.inputs, node.outputs);//debug
+					}
+				}
+			}
+			var graph = new G();
+			graph.roots = nodes.Where(n => n.inputs.Count == 0).ToList();
+			graph.leafs = nodes.Where(n => n.outputs.Count == 0).ToList();
+			graph.UpdateTiers();
+			return graph;
 		}
 	}
 }

@@ -5,6 +5,7 @@
 //
 //  Copyright (c) 2017 Allis Tauri
 
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
@@ -13,20 +14,81 @@ namespace ThrottleControlledAvionics
 {
 	public class TCAPartsEditor : GUIWindowBase
 	{
-		public VesselConfig CFG;
+		class PrettyNode : TCAPartGraphNode
+		{
+			GUIContent button;
+			public Rect button_rect;
+
+			public override void SetPart(TCAPart part)
+			{
+				base.SetPart(part);
+				//remove Module from module title. Maybe drop it altogether from the TechTree?
+				button = new GUIContent(part.Title.Replace("Module", "").Trim(), 
+				                        //remove the "Updates TCA (tm)..." sentence.
+				                        part.Description.Substring(part.Description.IndexOf('.')+1));
+			}
+
+			public bool Draw(VesselConfig CFG)
+			{
+				var button_pressed = false;
+				if(CFG.EnabledTCAParts.Contains(part.Name))
+				{
+					if(!part.Active)
+						GUILayout.Label(button, Styles.inactive_button);
+					else if(GUILayout.Button(button, Styles.enabled_button, GUILayout.ExpandWidth(true)))
+					{
+						CFG.EnabledTCAParts.Remove(part.Name);
+						button_pressed = true;
+					}
+				}
+				else
+				{
+					if(GUILayout.Button(button, Styles.active_button, GUILayout.ExpandWidth(true)))
+					{
+						CFG.EnabledTCAParts.Add(part.Name);
+						button_pressed = true;
+					}
+				}
+				if(Event.current.type == EventType.Repaint)
+					button_rect = GUILayoutUtility.GetLastRect();
+				return button_pressed;
+			}
+		}
+
+		class PrettyPartGraph : TCAPartGraph<PrettyNode>
+		{
+			public bool Draw(VesselConfig CFG)
+			{
+				var button_pressed = false;
+				GUILayout.BeginHorizontal();
+				foreach(var tier in tiers.Keys)
+				{
+					GUILayout.BeginVertical(Styles.white, GUILayout.ExpandHeight(true));
+					GUILayout.Label("Tier "+tier, GUILayout.ExpandWidth(true));
+					tiers[tier].ForEach(node => button_pressed = node.Draw(CFG) || button_pressed);
+					GUILayout.EndVertical();
+					if(tier < tiers.Count) GUILayout.Space(10);
+				}
+				GUILayout.EndHorizontal();
+				return button_pressed;
+			}
+		}
+
+		VesselConfig CFG;
 		List<TCAPart> parts;
-		List<GUIContent> titles;
+		PrettyPartGraph graph;
 
 		public TCAPartsEditor()
 		{
-			width = 500;
-			height = 315;
+			width = 450;
+			height = 300;
 		}
 
 		public override void Awake()
 		{
 			base.Awake();
 			update_part_status();
+			graph = TCAPartGraph<PrettyNode>.BuildGraph<PrettyPartGraph>(parts);
 		}
 
 		void update_part_status()
@@ -35,15 +97,6 @@ namespace ThrottleControlledAvionics
 				parts = TCAModulesDatabase.GetPurchasedParts();
 			parts.ForEach(p => p.UpdateInfo(CFG));
 			TCAGuiEditor.UpdateModules();
-			titles = new List<GUIContent>();
-			for(int i = 0, count = parts.Count; i < count; i++)
-			{
-				var part = parts[i];
-				//remove Module from module title. Maybe drop it altogether from the TechTree?
-				titles.Add(new GUIContent(part.Title.Replace("Module", "").Trim(), 
-				                          //remove the "Updates TCA (tm)..." sentence.
-				                          part.Description.Substring(part.Description.IndexOf('.')+1)));
-			}
 		}
 
 		public override void Show(bool show)
@@ -52,44 +105,20 @@ namespace ThrottleControlledAvionics
 			if(show) update_part_status();
 		}
 
+		public void SetCFG(VesselConfig cfg)
+		{
+			CFG = cfg;
+			update_part_status();
+		}
+
 		protected override bool can_draw() { return CFG != null; }
 
-		Vector2 scroll = Vector2.zero;
 		void MainWindow(int windowID)
 		{
 			GUILayout.BeginVertical();
-			scroll = GUILayout.BeginScrollView(scroll);
 			GUILayout.BeginVertical();
-			for(int i = 0, count = parts.Count; i < count; i++)
-			{
-				if(i%3 == 0)
-				{
-					if(i > 0) GUILayout.EndHorizontal();
-					GUILayout.BeginHorizontal();
-				}
-				var part = parts[i];
-				if(CFG.EnabledTCAParts.Contains(part.Name))
-				{
-					if(!part.Active)
-						GUILayout.Label(titles[i], Styles.inactive_button);
-					else if(GUILayout.Button(titles[i], Styles.enabled_button, GUILayout.ExpandWidth(true)))
-					{
-						CFG.EnabledTCAParts.Remove(part.Name);
-						update_part_status();
-					}
-				}
-				else
-				{
-					if(GUILayout.Button(titles[i], Styles.active_button, GUILayout.ExpandWidth(true)))
-					{
-						CFG.EnabledTCAParts.Add(part.Name);
-						update_part_status();
-					}
-				}
-			}
-			GUILayout.EndHorizontal();
+			if(graph.Draw(CFG)) update_part_status();
 			GUILayout.EndVertical();
-			GUILayout.EndScrollView();
 			if(GUILayout.Button(new GUIContent("Enable All", "Enable all disabled modules"), 
 			                    Styles.active_button, GUILayout.ExpandWidth(true)))
 			{
@@ -113,6 +142,35 @@ namespace ThrottleControlledAvionics
 				                             GUILayout.Height(height)).clampToScreen();
 			}
 			else UnlockControls();
+		}
+
+		static Color inactive = new Color(0.8f, 0.8f, 0.8f);
+		void OnGUI()
+		{
+			GUI.depth = -1;
+			if(doShow)
+			{
+				//draw dependecies
+				if(Event.current.type == EventType.Repaint)
+				{
+					foreach(var tier in graph.tiers)
+					{
+						var next_tier = tier.Key+1;
+						foreach(var node in tier.Value)
+						{
+							var sr = node.button_rect;
+							var start = new Vector2(WindowPos.x+sr.x+sr.width, WindowPos.y+sr.y+sr.height/2);
+							foreach(var next in node.outputs)
+							{
+								if(next.tier != next_tier) continue;
+								var er = (next as PrettyNode).button_rect;
+								var end = new Vector2(WindowPos.x+er.x, WindowPos.y+er.y+sr.height/2);
+								Drawing.DrawLine(start, end, next.part.Active? Color.green : inactive, 1, true);
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }
