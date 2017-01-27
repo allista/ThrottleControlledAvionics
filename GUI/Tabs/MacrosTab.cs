@@ -14,7 +14,9 @@ namespace ThrottleControlledAvionics
 	{
 		public MacrosTab(ModuleTCA tca) : base(tca) {}
 
+		#pragma warning disable 169
 		MacroProcessor MPC;
+		#pragma warning restore 169
 
 		bool selecting_macro;
 		public override void Draw()
