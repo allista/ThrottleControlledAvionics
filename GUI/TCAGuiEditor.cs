@@ -511,27 +511,25 @@ namespace ThrottleControlledAvionics
 
 		protected override bool can_draw() { return Available; }
 
-		static void highlight_part(Part p, Color c)
-		{
-			p.highlightColor = c;
-			p.RecurseHighlight = false;
-			p.SetHighlightType(Part.HighlightType.AlwaysOn);
-		}
-
 		static void highlight_engine(ThrusterWrapper e)
 		{
 			if(e.limit < 1) 
 			{
 				var lim = e.limit * e.limit;
-				highlight_part(e.part, lim < 0.5f? 
-				               Color.Lerp(Color.magenta, Color.yellow, lim/0.5f) :
-				               Color.Lerp(Color.yellow, Color.cyan, (lim-0.5f)/0.5f));
+				e.part.HighlightAlways(lim < 0.5f? 
+				                       Color.Lerp(Color.magenta, Color.yellow, lim/0.5f) :
+				                       Color.Lerp(Color.yellow, Color.cyan, (lim-0.5f)/0.5f));
 			}
 		}
 
 		void highlight_engines()
 		{
-			Engines.ForEach(e => e.part.SetHighlightDefault());
+			for(int i = 0, EnginesCount = Engines.Count; i < EnginesCount; i++)
+			{
+				var e = Engines[i];
+				if(e.Role != TCARole.BALANCE && e.Role != TCARole.MAIN)
+					e.part.SetHighlightDefault();
+			}
 			ActiveEngines.Balanced.ForEach(highlight_engine);
 			ActiveEngines.Main.ForEach(highlight_engine);
 		}
@@ -546,7 +544,7 @@ namespace ThrottleControlledAvionics
 		void highlight_TCA()
 		{
 			if(TCA != null && TCA.part != null ) 
-				highlight_part(TCA.part, Color.green);
+				TCA.part.HighlightAlways(Color.green);
 		}
 
 		void reset_TCA_highlighting()
