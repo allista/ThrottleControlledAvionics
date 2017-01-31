@@ -227,6 +227,7 @@ namespace ThrottleControlledAvionics
 			AllModules.ForEach(m => m.SaveToConfig());
 			check_priority();
 			enable_module(TCA_Active);
+//			this.Log("vsl {}, old vsl {}", vsl, VSL.vessel);//debug
 			if(!enabled) reset();
 			else if(VSL == null || VSL.vessel == null || vsl.id != VSL.vessel.id)
 			{ reset(); init(); }
