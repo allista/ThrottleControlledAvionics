@@ -213,6 +213,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public int  OnPlanet = 2;
 		[Persistent] public int  Stage = -1;
 		[Persistent] public bool Level;
+		[Persistent] public int  SmartEngines;
 
 		[Persistent] public EngineConfigIntDB  Groups = new EngineConfigIntDB();
 		[Persistent] public EngineConfigUintDB Single = new EngineConfigUintDB();
@@ -231,6 +232,7 @@ namespace ThrottleControlledAvionics
 			foreach(var c in p.Single.DB) 
 				Single[c.Key] = new EngineConfig(c.Value);
 			NumManual = p.NumManual;
+			SmartEngines = p.SmartEngines;
 			Level = p.Level;
 		}
 		public EnginesProfile(string name, IList<EngineWrapper> engines)
@@ -319,6 +321,8 @@ namespace ThrottleControlledAvionics
 		{
 			if(Level && VSL.OnPlanet) 
 				VSL.CFG.HF.OnIfNot(HFlight.Level);
+			if(SmartEngines != 0)
+				VSL.CFG.UseSmartEngines = SmartEngines > 0;
 			Activated = false;
 		}
 
@@ -383,8 +387,29 @@ namespace ThrottleControlledAvionics
 			else GUILayout.Label(Name, Active? Styles.green : Styles.white, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
 		}
 
-		void LevelControl()
-		{ Utils.ButtonSwitch("AutoLevel", ref Level, "Level the craft when this profile is activated", GUILayout.ExpandWidth(false)); }
+		void Switches()
+		{ 
+			GUILayout.Label("Smart Engines:", GUILayout.ExpandWidth(false));
+			switch(SmartEngines)
+			{
+			case 0:
+				if(GUILayout.Button("No Change", Styles.normal_button, GUILayout.Width(80)))
+					SmartEngines = 1;
+				break;
+			case 1:
+				if(GUILayout.Button("Enable", Styles.enabled_button, GUILayout.Width(80)))
+					SmartEngines = -1;
+				break;
+			case -1:
+				if(GUILayout.Button("Disable", Styles.active_button, GUILayout.Width(80)))
+					SmartEngines = 0;
+				break;
+			default: 
+				SmartEngines = 0;
+				break;
+			}
+			Utils.ButtonSwitch("AutoLevel", ref Level, "Level the craft when this profile is activated", GUILayout.ExpandWidth(false)); 
+		}
 
 		public bool Draw()
 		{
@@ -408,14 +433,18 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical(Styles.white);
 				GUILayout.BeginHorizontal();
 				GUILayout.FlexibleSpace();
-				if(!Default)
-				{
-					OnPlanetControl();
-					StageControl();
-				}
-				LevelControl();
+				Switches();
 				GUILayout.FlexibleSpace();
 				GUILayout.EndHorizontal();
+				if(!Default)
+				{
+					GUILayout.BeginHorizontal();
+					GUILayout.FlexibleSpace();
+					OnPlanetControl();
+					StageControl();
+					GUILayout.FlexibleSpace();
+					GUILayout.EndHorizontal();
+				}
 				foreach(var k in Groups.Keys)
 					Changed |= Groups[k].Draw(string.Format(" (G{0})", k));
 				foreach(var k in Single.Keys)
