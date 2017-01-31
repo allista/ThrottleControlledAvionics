@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
 
 		public VFlightWindow() { Anchor = AnchorPosition.TopLeft; }
 
-		protected override bool can_draw() { return VSL.OnPlanet && AllModules.Count > 0; }
+		protected override bool can_draw() { return base.can_draw() && VSL.OnPlanet && AllModules.Count > 0; }
 
 		protected override void DrawContent()
 		{

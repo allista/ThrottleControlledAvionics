@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
 
 		public ManeuverWindow() { Anchor = AnchorPosition.BottomLeft; }
 
-		protected override bool can_draw () { return AllModules.Count > 0; }
+		protected override bool can_draw () { return base.can_draw() && AllModules.Count > 0; }
 
 		protected override void DrawContent()
 		{

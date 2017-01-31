@@ -20,6 +20,8 @@ namespace ThrottleControlledAvionics
 
 		protected List<TCAModule> AllModules = new List<TCAModule>();
 
+		protected override bool can_draw() { return TCA.IsControllable; }
+
 		public virtual void Reset() 
 		{
 			TCA = null;
