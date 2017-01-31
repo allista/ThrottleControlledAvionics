@@ -176,11 +176,14 @@ namespace ThrottleControlledAvionics
 			}
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
-			var max_nav_speed = Utils.FloatSlider("", CFG.MaxNavSpeed, 
-			                                      CFG.HF[HFlight.CruiseControl]? GLB.CC.MaxRevSpeed : GLB.PN.MinSpeed, GLB.PN.MaxSpeed, 
-			                                      "0.0 m/s", 60, "Maximum horizontal speed on autopilot");
-			if(Mathf.Abs(max_nav_speed-CFG.MaxNavSpeed) > 1e-5)
-				TCA.SquadConfigAction(cfg => cfg.MaxNavSpeed = max_nav_speed);
+			if(PN != null || CC != null)
+			{
+				var max_nav_speed = Utils.FloatSlider("", CFG.MaxNavSpeed, 
+				                                      CFG.HF[HFlight.CruiseControl]? GLB.CC.MaxRevSpeed : GLB.PN.MinSpeed, GLB.PN.MaxSpeed, 
+				                                      "0.0 m/s", 60, "Maximum horizontal speed on autopilot");
+				if(Mathf.Abs(max_nav_speed-CFG.MaxNavSpeed) > 1e-5)
+					TCA.SquadConfigAction(cfg => cfg.MaxNavSpeed = max_nav_speed);
+			}
 			GUILayout.EndHorizontal();
 		}
 
@@ -288,6 +291,7 @@ namespace ThrottleControlledAvionics
 
 		public void WaypointList()
 		{
+			if(PN == null) return;
 			var WPM = WaypointManager.Instance();
 			if(CFG.Path.Count == 0) 
 			{
@@ -552,7 +556,7 @@ namespace ThrottleControlledAvionics
 		DateTime clicked_time;
 		public void WaypointOverlay()
 		{
-			if(TCA == null || !TCA.Available || !GUIWindowBase.HUD_enabled) return;
+			if(PN == null || TCA == null || !TCA.Available || !GUIWindowBase.HUD_enabled) return;
 			if(SelectingTarget)
 			{
 				var coords = MapView.MapIsEnabled? 
