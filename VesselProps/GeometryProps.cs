@@ -140,6 +140,17 @@ namespace ThrottleControlledAvionics
 				return -VSL.refT.forward;
 			}
 		}
+
+		public double MinDistance
+		{
+			get
+			{
+				if(CFG.Target == null) return R;
+				var tgtVessel = CFG.Target.GetVessel();
+				if(tgtVessel == null) return R;
+				return R+tgtVessel.Radius();
+			}
+		}
 	}
 }
 
