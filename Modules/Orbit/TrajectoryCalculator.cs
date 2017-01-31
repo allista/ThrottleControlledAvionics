@@ -386,20 +386,20 @@ namespace ThrottleControlledAvionics
 		public static double SqrDistAtUT(Orbit a, Orbit b, double UT)
 		{ return (a.getRelativePositionAtUT(UT)-b.getRelativePositionAtUT(UT)).sqrMagnitude; }
 
-		public static double ClosestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT)
+		public static double ClosestApproach(Orbit a, Orbit t, double StartUT, double minDist, out double ApproachUT)
 		{
 			double UT1;
-			double D1 = NearestApproach(a, t, StartUT, StartUT+a.period, out UT1);
+			double D1 = NearestApproach(a, t, StartUT, StartUT+a.period, minDist, out UT1);
 			double UT2;
-			double D2 = NearestApproach(a, t, StartUT+a.period, StartUT, out UT2);
+			double D2 = NearestApproach(a, t, StartUT+a.period, StartUT, minDist, out UT2);
 			if(D1 <= D2 || Math.Abs(D1-D2) < GLB.REN.Dtol) { ApproachUT = UT1; return D1; }
 			ApproachUT = UT2; return D2;
 		}
 
-		public static double NearestApproach(Orbit a, Orbit t, double StartUT, out double ApproachUT)
-		{ return NearestApproach(a, t, StartUT, StartUT+a.period, out ApproachUT); }
+		public static double NearestApproach(Orbit a, Orbit t, double StartUT, double minDist, out double ApproachUT)
+		{ return NearestApproach(a, t, StartUT, StartUT+a.period, minDist, out ApproachUT); }
 
-		public static double NearestApproach(Orbit a, Orbit t, double StartUT, double StopUT, out double ApproachUT)
+		public static double NearestApproach(Orbit a, Orbit t, double StartUT, double StopUT, double minDist, out double ApproachUT)
 		{
 			double UT = StartUT;
 			double dT = (StopUT-StartUT)/10;
@@ -407,10 +407,12 @@ namespace ThrottleControlledAvionics
 			double lastD = double.MaxValue;
 			double minD  = double.MaxValue;
 			double minUT = UT;
+			minDist *= minDist;
 			while(Math.Abs(dT) > 0.01)
 			{
 				var d = SqrDistAtUT(NextOrbit(a, UT), NextOrbit(t, UT), UT);
-				if(d < minD) { minD = d; minUT = UT; }
+				if(d < minDist) { dT *= -1; StopUT = UT; }
+				else if(d < minD) { minD = d; minUT = UT; }
 				if(d > lastD || 
 				   (dir? UT+dT < StartUT : UT+dT > StartUT) ||
 				   (dir? UT+dT > StopUT  : UT+dT < StopUT))
@@ -729,6 +731,12 @@ namespace ThrottleControlledAvionics
 			{
 				Status("yellow", "No engines are active, unable to calculate trajectory.\n" +
 				       "Please, activate ship's engines and try again.");
+				return false;
+			}
+			if(!VSL.Engines.HaveThrusters)
+			{
+				Status("yellow", "Only Maneuver/Manual engines in current profile.\n" +
+				       "Please, change engines profile.");
 				return false;
 			}
 			setup_target();

@@ -149,7 +149,7 @@ namespace ThrottleControlledAvionics
 			var endUT = StartUT+transfer_time;
 			var solver = new LambertSolver(NextOrbit(endUT), NextOrbit(TargetOrbit, endUT).getRelativePositionAtUT(endUT), StartUT);
 			var dV = solver.dV4Transfer(transfer_time);
-			Log("transfer time {}, dV {}\norbit {}\ntOrbit {}", transfer_time, dV, NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
+//			Log("transfer time {}, dV {}\norbit {}\ntOrbit {}", transfer_time, dV, NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
 			return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, MinPeR, transfer_time);
 		}
 
@@ -326,7 +326,7 @@ namespace ThrottleControlledAvionics
 
 		void approach()
 		{
-			CFG.AT.On(Attitude.Target);
+			CFG.AT.On(Attitude.TargetCorrected);
 			stage = Stage.Approach;
 		}
 
@@ -337,7 +337,7 @@ namespace ThrottleControlledAvionics
 			var dV = VesselOrbit.vel-TargetOrbit.vel;
 			var dVm = dV.magnitude;
 			var dist = TargetVessel.CurrentCoM-VSL.Physics.wCoM;
-			var distm = dist.magnitude;
+			var distm = dist.magnitude-VSL.Geometry.MinDistance;
 			if(distm < REN.Dtol && dVm < GLB.THR.MinDeltaV*2) return;
 			if(distm > REN.Dtol && Vector3.Dot(dist, dV.xzy) > 0)
 				CFG.AP1.On(Autopilot1.MatchVelNear);
@@ -508,9 +508,10 @@ namespace ThrottleControlledAvionics
 				Status("Matching orbits at nearest approach...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
 				update_trajectory();
-				var dist = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.R-TargetVessel.Radius(), 0);
-				if(dist/VesselOrbit.semiMajorAxis > REN.CorrectionStart) start_orbit();
-				else if(dist/VesselOrbit.semiMajorAxis > REN.CorrectionStart/4) fine_tune_approach();
+				var dist = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.MinDistance, 0);
+				var relD = dist/VesselOrbit.semiMajorAxis;
+				if(relD > REN.CorrectionStart) start_orbit();
+				else if(relD > REN.CorrectionStart/4) fine_tune_approach();
 				else if(dist > REN.Dtol) approach();
 				else brake();
 				break;

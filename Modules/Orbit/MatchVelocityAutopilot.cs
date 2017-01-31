@@ -45,11 +45,12 @@ namespace ThrottleControlledAvionics
 		{ 
 			base.UpdateState();
 			IsActive &= 
+				VSL.Engines.HaveThrusters &&
 				!VSL.LandedOrSplashed && VSL.orbit != null && 
 				CFG.Target != null && CFG.Target.GetOrbit() != null && 
 				CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
 			var tVSL = VSL.TargetVessel;
-			ControlsActive &= IsActive || VSL.InOrbit && tVSL != null && !tVSL.LandedOrSplashed && tVSL.mainBody == VSL.Body;
+			ControlsActive &= IsActive || VSL.InOrbit && VSL.Engines.HaveThrusters && tVSL != null && !tVSL.LandedOrSplashed && tVSL.mainBody == VSL.Body;
 			if(IsActive) return;
 			reset();
 		}
@@ -153,7 +154,7 @@ namespace ThrottleControlledAvionics
 			{
 				double ApprUT;
 				var tOrb = CFG.Target.GetOrbit();
-				var dist = TrajectoryCalculator.ClosestApproach(VSL.orbit, tOrb, VSL.Physics.UT, out ApprUT);
+				var dist = TrajectoryCalculator.NearestApproach(VSL.orbit, tOrb, VSL.Physics.UT, VSL.Geometry.MinDistance+10, out ApprUT);
 				TTA = (float)(ApprUT-VSL.Physics.UT);
 				switch(stage)
 				{

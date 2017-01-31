@@ -59,8 +59,8 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
-			IsActive &= Node != null;
-			ControlsActive &= IsActive || TCAScenario.HavePatchedConics && VSL.HasManeuverNode;
+			IsActive &= Node != null && VSL.Engines.HaveThrusters;
+			ControlsActive &= IsActive || TCAScenario.HavePatchedConics && VSL.Engines.HaveThrusters && VSL.HasManeuverNode;
 		}
 
 		public void ManeuverCallback(Multiplexer.Command cmd)

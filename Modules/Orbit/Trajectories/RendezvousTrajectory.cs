@@ -44,7 +44,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(TransferTime < 0)
 			{
-				TrajectoryCalculator.ClosestApproach(Orbit, TargetOrbit, StartUT, out AtTargetUT);
+				TrajectoryCalculator.ClosestApproach(Orbit, TargetOrbit, StartUT, 0, out AtTargetUT);
 				TransferTime = AtTargetUT-StartUT;
 			}
 			else AtTargetUT = StartUT+TransferTime;
