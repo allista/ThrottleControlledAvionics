@@ -126,7 +126,7 @@ namespace ThrottleControlledAvionics
 		public void Update(VesselWrapper VSL) 
 		{ 
 			if(target != null) UpdateCoordinates(VSL.Body);
-			if(TargetInfo.targetType != ProtoTargetInfo.Type.Null && 
+			else if(TargetInfo.targetType != ProtoTargetInfo.Type.Null && 
 			   HighLogic.LoadedSceneIsFlight)
 			{
 				target = TargetInfo.FindTarget();
