@@ -41,8 +41,8 @@ namespace ThrottleControlledAvionics
 		}
 
 		public Vector3 Destination;
-		public double Countdown;
-		public float  TTB;
+		public double Countdown = -1;
+		public float  TTB = -1;
 
 		public List<Vector3d> CustomMarkersVec = new List<Vector3d>();
 		public List<WayPoint> CustomMarkersWP  = new List<WayPoint>();
