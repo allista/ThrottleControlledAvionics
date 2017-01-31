@@ -344,6 +344,7 @@ namespace ThrottleControlledAvionics
 		public bool NoActiveEngines { get; private set; }
 		public bool NoActiveRCS { get; private set; }
 		public bool HaveMainEngines { get; private set; }
+		public bool HaveThrusters { get; private set; }
 		public bool ForceUpdateEngines = false;
 
 		public bool HaveNextStageEngines { get; private set; }
@@ -705,6 +706,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			Active.SortByRole(); 
 			HaveMainEngines = Active.Main.Count > 0;
+			HaveThrusters = HaveMainEngines || Active.Balanced.Count > 0 || Active.UnBalanced.Count > 0;
 			VSL.Controls.TranslationAvailable = VSL.Engines.Active.Maneuver.Count > 0 || VSL.Engines.NumActiveRCS > 0;
 		}
 
