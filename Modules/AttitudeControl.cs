@@ -253,7 +253,7 @@ namespace ThrottleControlledAvionics
 		}
 		static Config ATC { get { return Globals.Instance.ATC; } }
 
-		readonly MinimumF omega_min = new MinimumF();
+		readonly MinimumF momentum_min = new MinimumF();
 		Transform refT;
 		Quaternion locked_attitude;
 		bool attitude_locked;
@@ -312,7 +312,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.reset();
 			refT = null;
-			omega_min.Reset();
+			momentum_min.Reset();
 			attitude_locked = false;
 			needed_lthrust = Vector3.zero;
 			lthrust = Vector3.zero;
@@ -344,14 +344,24 @@ namespace ThrottleControlledAvionics
 				break;
 			case Attitude.Target:
 			case Attitude.AntiTarget:
+			case Attitude.TargetCorrected:
 				if(!VSL.HasTarget) 
 				{ 
 					Message("No target");
 					CFG.AT.On(Attitude.KillRotation);
 					break;
 				}
-				needed_lthrust = VSL.LocalDir((VSL.vessel.transform.position-VSL.Target.GetTransform().position).normalized);
-				if(CFG.AT.state == Attitude.AntiTarget) needed_lthrust *= -1;
+				var dpos = VSL.vessel.transform.position-VSL.Target.GetTransform().position;
+				if(CFG.AT.state == Attitude.TargetCorrected)
+				{
+					var dvel = VSL.vessel.GetObtVelocity()-VSL.Target.GetObtVelocity();
+					needed_lthrust = VSL.LocalDir((dpos.normalized+Vector3.ProjectOnPlane(dvel, dpos).ClampMagnitudeH(1)).normalized);
+				}
+				else
+				{
+					needed_lthrust = VSL.LocalDir(dpos.normalized);
+					if(CFG.AT.state == Attitude.AntiTarget) needed_lthrust *= -1;
+				}
 				break;
 			}
 		}
@@ -359,7 +369,7 @@ namespace ThrottleControlledAvionics
 		void compute_steering()
 		{
 			Vector3 v;
-			omega_min.Update(VSL.vessel.angularVelocity.sqrMagnitude);
+			momentum_min.Update(VSL.vessel.angularMomentum.sqrMagnitude);
 			lthrust = VSL.LocalDir(VSL.Engines.CurrentDefThrustDir);
 			steering = Vector3.zero;
 			switch(CFG.AT.state)
@@ -384,7 +394,7 @@ namespace ThrottleControlledAvionics
 				}
 				break;
 			case Attitude.KillRotation:
-				if(refT != VSL.refT || omega_min.True)
+				if(refT != VSL.refT || momentum_min.True)
 				{
 					refT = VSL.refT;
 					locked_attitude = refT.rotation;

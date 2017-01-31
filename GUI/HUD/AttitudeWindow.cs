@@ -33,6 +33,7 @@ namespace ThrottleControlledAvionics
 			{Attitude.AntiTarget,   "From Target"},
 			{Attitude.RelVel,       "Relative Velocity"},
 			{Attitude.AntiRelVel,   "Against Relative Velocity"},
+			{Attitude.TargetCorrected, "To Target, correcting lateral velocity"},
 			{Attitude.Custom,       "Auto"},
 		};
 		static readonly Dictionary<Attitude,string> cues_short = new Dictionary<Attitude,string>
@@ -51,6 +52,7 @@ namespace ThrottleControlledAvionics
 			{Attitude.AntiTarget,   "T-"},
 			{Attitude.RelVel,       "rV+"},
 			{Attitude.AntiRelVel,   "rV-"},
+			{Attitude.TargetCorrected, "T+ rV-"},
 			{Attitude.Custom,       "Auto"},
 		};
 
@@ -97,6 +99,8 @@ namespace ThrottleControlledAvionics
 				if(Utils.ButtonSwitch("rV-", CFG.AT[Attitude.AntiRelVel], "Against Relative Velocity", GUILayout.ExpandWidth(false)))
 					CFG.AT.XToggle(Attitude.AntiRelVel);
 				GUILayout.EndHorizontal();
+				if(Utils.ButtonSwitch("T+ rV-", CFG.AT[Attitude.TargetCorrected], "To Target, correcting lateral velocity", GUILayout.ExpandWidth(true)))
+					CFG.AT.XToggle(Attitude.TargetCorrected);
 				GUILayout.EndVertical();
 				TooltipManager.GetTooltip();
 			}
@@ -134,7 +138,7 @@ namespace ThrottleControlledAvionics
 
 		public AttitudeControlWindow() { Anchor = AnchorPosition.BottomRight; }
 
-		protected override bool can_draw() { return ATC != null; }
+		protected override bool can_draw() { return base.can_draw() && ATC != null; }
 
 		protected override void DrawContent()
 		{

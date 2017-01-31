@@ -16,7 +16,19 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	public enum Attitude { None, KillRotation, HoldAttitude, Prograde, Retrograde, Radial, AntiRadial, Normal, AntiNormal, Target, AntiTarget, RelVel, AntiRelVel, ManeuverNode, Custom }
+	public enum Attitude 
+	{ 
+		None, 
+		KillRotation, HoldAttitude, 
+		Prograde, Retrograde, 
+		Radial, AntiRadial, 
+		Normal, AntiNormal, 
+		Target, AntiTarget, 
+		RelVel, AntiRelVel, 
+		TargetCorrected, 
+		ManeuverNode, 
+		Custom 
+	}
 	public enum SmartEnginesMode { None, Closest, Fastest, Best }
 	public enum BearingMode { None, User, Auto }
 	public enum ControlMode { None, VTOL }
@@ -130,6 +142,11 @@ namespace ThrottleControlledAvionics
 			AP2.AddConflicts(AT, Nav, HF, AP1);
 			//get all multiplexers
 			multiplexer_fields.ForEach(fi => multiplexers.Add((Multiplexer)fi.GetValue(this)));
+			//init TCAParts list
+			EnabledTCAParts = new HashSet<string>(TCAModulesDatabase.GetAllParts()
+			                                      //comment the next line to enables OTA upgrades
+			                                      .Where(p => p.Active)
+			                                      .Select(p => p.Name));
 		}
 		public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
 		public VesselConfig(Guid vid) : this() { VesselID = vid; }
@@ -164,16 +181,12 @@ namespace ThrottleControlledAvionics
 			if(SelectedMacro != null && !SelectedMacro.Block.HasSubnodes)
 				SelectedMacro = null;
 			//FIXME: have to save/load HashSet manually until Squad fixes http://bugs.kerbalspaceprogram.com/issues/13670
-			EnabledTCAParts.Clear();
 			var parts_node = node.GetNode("EnabledTCAParts");
 			if(parts_node != null)
+			{
+				EnabledTCAParts.Clear();
 				parts_node.GetValues().ForEach(pname => EnabledTCAParts.Add(pname));
-			//if no TCAParts are saved, assume the config was just created
-			if(EnabledTCAParts.Count == 0)
-				EnabledTCAParts = new HashSet<string>(TCAModulesDatabase.GetAllParts()
-				                                      //comment the next line to enables OTA upgrades
-				                                      .Where(p => p.Active)
-				                                      .Select(p => p.Name));
+			}
 		}
 
 		public override void Save(ConfigNode node)
