@@ -368,7 +368,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected override bool can_draw()
-		{ return TCA != null && CFG.GUIVisible && AllTabs.Count > 0; }
+		{ return TCA != null && VSL != null && vessel != null && CFG.GUIVisible && AllTabs.Count > 0; }
 
 		#if DEBUG
 		static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 250, 25).clampToScreen();
@@ -380,7 +380,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.Window(TCA.GetInstanceID(), 
 				                 WindowPos, 
 				                 DrawMainWindow, 
-				                 VSL.vessel.vesselName,
+				                 vessel.vesselName,
 				                 GUILayout.Width(ControlsWidth),
 				                 GUILayout.Height(ControlsHeight)).clampToScreen();
 			if(ORB != null) ORB.OrbitEditorWindow();
@@ -389,7 +389,7 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 			GUI.Label(debug_rect, 
 			          string.Format("[{0}] {1:HH:mm:ss.fff}", 
-			                        TCA != null && TCA.vessel != null? vessel.situation.ToString() : "", 
+			                        TCA != null && vessel != null? vessel.situation.ToString() : "", 
 			                        DateTime.Now), 
 			          Styles.boxed_label);
 			#endif
