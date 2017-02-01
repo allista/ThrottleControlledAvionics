@@ -27,8 +27,8 @@ using AT_Utils;
 // The form "{Major}.{Minor}.*" will automatically update the build and revision,
 // and "{Major}.{Minor}.{Build}.*" will update just the revision.
 
-#if DEBUG
-[assembly: AssemblyVersion("3.3.4.*")]
+#if NIGHTBUILD
+[assembly: AssemblyVersion("3.3.*")]
 #else
 [assembly: AssemblyVersion("3.3.4.0")]
 #endif
