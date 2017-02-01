@@ -1,7 +1,11 @@
-﻿/* The GUI for ThrottleControlledAvionics.
- * Authors: Quinten Feys, Willem van Vliet, Allis Tauri
- * License: BY: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0): http://creativecommons.org/licenses/by-sa/3.0/
- */
+﻿//  Author:
+//       Allis Tauri <allista@gmail.com>
+//
+//  Copyright (c) 2017 Allis Tauri
+//
+// This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. 
+// To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
+// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
 using System.Linq;
@@ -22,7 +26,8 @@ namespace ThrottleControlledAvionics
 		public VesselConfig CFG { get { return TCA.CFG; } }
 
 		#region GUI Parameters
-		public const int ControlsWidth = 450, ControlsHeight = 110, LineHeight = 35;
+		public const int ControlsWidth = 450, ControlsHeight = 180, LineHeight = 35;
+		public const int ControlsHeightHalf = ControlsHeight/2;
 
 		[ConfigOption] 
 		public KeyCode TCA_Key = KeyCode.Y;
@@ -255,7 +260,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("Angular Accel Error: {0:F3}rad/s2", TCA.ENG.TorqueError), GUILayout.ExpandWidth(false));
 			GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", VSL.OnPlanetParams.VSF), GUILayout.ExpandWidth(false));
 			GUILayout.EndHorizontal();
-			eInfoScroll = GUILayout.BeginScrollView(eInfoScroll, GUILayout.Height(ControlsHeight*4));
+			eInfoScroll = GUILayout.BeginScrollView(eInfoScroll, GUILayout.Height(ControlsHeight*2));
 			GUILayout.BeginVertical();
 			foreach(var e in VSL.Engines.Active)
 			{
@@ -304,8 +309,9 @@ namespace ThrottleControlledAvionics
 		void DrawMainWindow(int windowID)
 		{
 			//help button
-			if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f), 
-			              new GUIContent("?", "Help"))) TCAManual.ToggleInstance();
+			if(GUI.Button(new Rect(WindowPos.width - 23f, 0f, 20f, 18f), 
+			              new GUIContent("?", "Help"), Styles.label)) 
+				TCAManual.ToggleInstance();
 			if(TCA.IsControllable)
 			{
 				GUILayout.BeginVertical();
@@ -382,7 +388,7 @@ namespace ThrottleControlledAvionics
 				                 DrawMainWindow, 
 				                 vessel.vesselName,
 				                 GUILayout.Width(ControlsWidth),
-				                 GUILayout.Height(ControlsHeight)).clampToScreen();
+				                 GUILayout.Height(ControlsHeight+LineHeight)).clampToScreen();
 			if(ORB != null) ORB.OrbitEditorWindow();
 			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());

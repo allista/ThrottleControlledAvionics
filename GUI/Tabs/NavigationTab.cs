@@ -225,7 +225,7 @@ namespace ThrottleControlledAvionics
 				pathsScroll = GUILayout
 					.BeginScrollView(pathsScroll, 
 					                 GUILayout.Height(Utils.ClampH(TCAGui.LineHeight*(TCAScenario.Paths.Count+1), 
-					                                               TCAGui.ControlsHeight)));
+					                                               TCAGui.ControlsHeightHalf)));
 				var selected_path = "";
 				var delete_path = "";
 				foreach(var path in TCAScenario.Paths.Names)
@@ -263,7 +263,7 @@ namespace ThrottleControlledAvionics
 				stockScroll = GUILayout
 					.BeginScrollView(stockScroll, 
 					                 GUILayout.Height(Utils.ClampH(TCAGui.LineHeight*(TCAScenario.Paths.Count+1), 
-					                                               TCAGui.ControlsHeight)));
+					                                               TCAGui.ControlsHeightHalf)));
 				var displayed = 0;
 				Waypoint selected = null;
 				foreach(var wp in WPM.Waypoints)
@@ -326,7 +326,7 @@ namespace ThrottleControlledAvionics
 				waypointsScroll = GUILayout
 					.BeginScrollView(waypointsScroll, 
 					                 GUILayout.Height(Utils.ClampH(TCAGui.LineHeight*(CFG.Path.Count+1), 
-					                                               TCAGui.ControlsHeight)));
+					                                               TCAGui.ControlsHeightHalf)));
 				GUILayout.BeginVertical();
 				int i = 0;
 				var num = (float)(CFG.Path.Count-1);

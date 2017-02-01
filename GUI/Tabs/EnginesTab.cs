@@ -16,6 +16,8 @@ namespace ThrottleControlledAvionics
 
 		public override bool Valid { get { return true; } }
 
+		const int profiles_height = TCAGui.ControlsHeight-TCAGui.LineHeight*2;
+
 		public override void Draw()
 		{
 			if(CFG.ActiveProfile.NumManual > 0)
@@ -25,7 +27,7 @@ namespace ThrottleControlledAvionics
 				                    GUILayout.ExpandWidth(true)))
 					CFG.ShowManualLimits = !CFG.ShowManualLimits;
 				if(CFG.ShowManualLimits) 
-					CFG.EnginesProfiles.DrawManual(Utils.ClampH(TCAGui.LineHeight*CFG.ActiveProfile.NumManual, TCAGui.ControlsHeight));
+					CFG.EnginesProfiles.DrawManual(Utils.ClampH(TCAGui.LineHeight*CFG.ActiveProfile.NumManual, TCAGui.ControlsHeightHalf));
 			}
 			GUILayout.BeginHorizontal();
 			if(Utils.ButtonSwitch("Smart Engines", ref CFG.UseSmartEngines, 
@@ -41,7 +43,7 @@ namespace ThrottleControlledAvionics
 			                      "Minimize rotation, thrusting time and needed fuel", GUILayout.ExpandWidth(true)))
 			{ if(CFG.UseSmartEngines) CFG.SmartEngines.XOnIfNot(SmartEnginesMode.Best); }
 			GUILayout.EndHorizontal();
-			CFG.EnginesProfiles.Draw(TCAGui.ControlsHeight);
+			CFG.EnginesProfiles.Draw(profiles_height);
 		}
 	}
 }
