@@ -517,17 +517,19 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Approach:
 				Status("Approaching...");
+                THR.DeltaV = 0;
 				var dP = TargetOrbit.pos-VesselOrbit.pos;
 				var dPm = dP.magnitude;
 				if(dPm - VSL.Geometry.R - TargetVessel.Radius() < REN.Dtol) 
 				{ brake(); break; }
-				if(VSL.Controls.AttitudeError > 1) break;
+                var throttle = VSL.Controls.OffsetAlignmentFactor();
+                if(throttle.Equals(0)) break;
 				var dV = Vector3d.Dot(VesselOrbit.vel-TargetOrbit.vel, dP/dPm);
 				var nV = Utils.Clamp(dPm*REN.ApproachVelF, 1, REN.MaxApproachV);
 				if(dV+GLB.THR.MinDeltaV < nV) 
 				{
 					VSL.Engines.ActivateEngines();
-					THR.DeltaV = (float)(nV-dV);
+                    THR.DeltaV = (float)(nV-dV)*throttle*throttle;
 				}
 				else brake();
 				break;
