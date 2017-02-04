@@ -408,19 +408,31 @@ namespace ThrottleControlledAvionics
 			double minD  = double.MaxValue;
 			double minUT = UT;
 			minDist *= minDist;
+            //search nearest point
 			while(Math.Abs(dT) > 0.01)
 			{
 				var d = SqrDistAtUT(NextOrbit(a, UT), NextOrbit(t, UT), UT);
-				if(d < minDist) { dT *= -1; StopUT = UT; }
-				else if(d < minD) { minD = d; minUT = UT; }
+                if(d < minD) { minD = d; minUT = UT; }
 				if(d > lastD || 
 				   (dir? UT+dT < StartUT : UT+dT > StartUT) ||
 				   (dir? UT+dT > StopUT  : UT+dT < StopUT))
 					dT /= -2.1;
 				lastD = d;
-				UT += dT;
+                UT += dT;
 			}
-			ApproachUT = minUT; return Math.Sqrt(minD);
+            //if it's too near, find the border of the minDist using binary search
+            if(minD < minDist)
+            {
+                StopUT = minUT;
+                while(StopUT-StartUT > 0.01)
+                {
+                    minUT = StartUT+(StopUT-StartUT)/2;
+                    minD = SqrDistAtUT(NextOrbit(a, minUT), NextOrbit(t, minUT), minUT)-minDist;
+                    if(minD > 0) StartUT = minUT;
+                    else StopUT = minUT;
+                }
+            }
+            ApproachUT = minUT; return Math.Sqrt(minD+minDist);
 		}
 
 		public static double NearestRadiusUT(Orbit orb, double radius, double StartUT, bool descending = true)
