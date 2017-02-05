@@ -28,9 +28,9 @@ using AT_Utils;
 // and "{Major}.{Minor}.{Build}.*" will update just the revision.
 
 #if NIGHTBUILD
-[assembly: AssemblyVersion("3.3.*")]
+[assembly: AssemblyVersion("3.4.*")]
 #else
-[assembly: AssemblyVersion("3.3.4.0")]
+[assembly: AssemblyVersion("3.4.0.0")]
 #endif
 [assembly: KSPAssembly("ThrottleControlledAvionics", 3, 3)]
 
