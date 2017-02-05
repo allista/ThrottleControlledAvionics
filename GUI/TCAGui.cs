@@ -362,8 +362,8 @@ namespace ThrottleControlledAvionics
 			{
 				GUILayout.BeginVertical();
 				GUILayout.BeginHorizontal();
-				GUILayout.FlexibleSpace();
 				VSL.Info.Draw();
+                GUILayout.FlexibleSpace();
 				StatusString();
 				GUILayout.EndHorizontal();
 				GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
@@ -388,7 +388,7 @@ namespace ThrottleControlledAvionics
 				                 DrawMainWindow, 
 				                 vessel.vesselName,
 				                 GUILayout.Width(ControlsWidth),
-				                 GUILayout.Height(ControlsHeight+LineHeight)).clampToScreen();
+				                 GUILayout.Height(50)).clampToScreen();
 			if(ORB != null) ORB.OrbitEditorWindow();
 			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());
