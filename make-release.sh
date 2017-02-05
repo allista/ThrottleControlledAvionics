@@ -8,6 +8,7 @@ cd $(dirname "$0")
 '*/002_MultiAnimators.dll' \
 '*/AnimatedConverters.dll' \
 '*/ConfigurableContainers.dll' \
+'*/SubmodelResizer.dll' \
 'GameData/000_AT_Utils/ResourceHack.cfg' \
 -i '../AT_Utils/GameData'
 
