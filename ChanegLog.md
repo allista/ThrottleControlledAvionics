@@ -2,15 +2,29 @@
 
 _**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
 
-* **v3.3.4**
+* **v3.4.0**
+    * **User Interface Overhaul**
+    	* Controls were split up into Tabs and Floating Windows
+    	* As a result, the main TCA window became much smaller
+    * **TCA Modules Selection**
+    	* Now you can select which TCA modules will be installed on you ship during construction (in VAB/SPH)
+    	* This may considerably decrease the amounts of controls you see in TCA window
+    	* But **OTA updates were disabled** for safty reasons. In-flight upgrades of ship's mainframe are now considered too risky!
+    * Added the new **[T+ rV-]** attitude cue that targets ship's engines so that continious thrust will propell the ship towards the target while correcting any lateral drift. Very usefull for approaches from a distance.
+    * Added Smart Engines switch to Engine Profile to set S.E. mode when profile is activated.
+    * Corrected logic of the Approach stage of Rendezvous autopilot to make it safe to approach huge targes (like asteroids).
+    * Orbital autopilots are now not available when there's only Maneuver engines onboard.
+    * Many bugfixes.
+
+* v3.3.4
     * Added **Engine Profile Autoconfiguration** in Editor.
     * Added **Smart Engines** mode for orbital flight:
-    	* In this mode engines are automatically grouped by thrust direction (e.g. all aft engines and all forward engines).
-    	* Then, when a big change in thrust direction is needed for a maneuver (say, 90 or 180 deg), an appropriate group is selected and enabled, while other groups are disabled.
+        * In this mode engines are automatically grouped by thrust direction (e.g. all aft engines and all forward engines).
+        * Then, when a big change in thrust direction is needed for a maneuver (say, 90 or 180 deg), an appropriate group is selected and enabled, while other groups are disabled.
         * There are 3 methods of selecting the appropriate group:
-        	1. Min. rotation: the selected group is the closest to the needed direction.
-        	2. Min. maneuver time: if groups differ in total thrust, the selected group is the group that has the smallest maneuver time, including time needed to change ship's attitude.
-        	3. Fuel efficiency: for small delta-V this falls back to Min. maneuver time; for large delta-V the total Isp of the group is also considered, and the group with the largest Isp has much more chance to be selected.
+            1. Min. rotation: the selected group is the closest to the needed direction.
+            2. Min. maneuver time: if groups differ in total thrust, the selected group is the group that has the smallest maneuver time, including time needed to change ship's attitude.
+            3. Fuel efficiency: for small delta-V this falls back to Min. maneuver time; for large delta-V the total Isp of the group is also considered, and the group with the largest Isp has much more chance to be selected.
     * **Improved TimeWarp** interaction with user/mods:
         * Now TCA detects if something trying to decrease time warp and surrenders its control. This allows KAC, for instance, to make its gradual dewarping. And it allows a user to press DECREASE_TIMEWARP (default ',') or STOP_TIMEWARP (default '/') buttons and take control over the warp.
         * An on-screen message will inform you of any such event.
