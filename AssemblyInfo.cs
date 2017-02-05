@@ -32,7 +32,7 @@ using AT_Utils;
 #else
 [assembly: AssemblyVersion("3.4.0.0")]
 #endif
-[assembly: KSPAssembly("ThrottleControlledAvionics", 3, 3)]
+[assembly: KSPAssembly("ThrottleControlledAvionics", 3, 4)]
 
 // The following attributes are used to specify the signing key for the assembly, 
 // if desired. See the Mono documentation for more information about signing.
