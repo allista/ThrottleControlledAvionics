@@ -156,7 +156,6 @@ namespace ThrottleControlledAvionics
 		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, ref double dT)
 		{ return orbit_correction(old, best, VSL.Physics.UT + REN.CorrectionOffset, ref dT); }
 
-		//TODO: support transfer times longer than TargetOrbit.period for transfers from high orbit
 		//test: this needs thorough testing with respect to different combinations of vessel/target orbits
 		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, double StartUT, ref double dT)
 		{
@@ -172,9 +171,7 @@ namespace ThrottleControlledAvionics
 				else
 				{
 					transfer_time = old.TransferTime+dT;
-					if(//test: does it always converge?
-					   //danger of ultra-long elliptic transfers here!
-					   transfer_time > Math.Max(VesselOrbit.period, TargetOrbit.period) ||
+					if(transfer_time > Math.Max(VesselOrbit.period, TargetOrbit.period) ||
 					   transfer_time < TRJ.ManeuverOffset ||
 					   old.ManeuverDeltaV.sqrMagnitude > best.ManeuverDeltaV.sqrMagnitude &&
 					   !old.KillerOrbit && !best.KillerOrbit)
