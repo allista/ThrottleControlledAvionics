@@ -198,6 +198,9 @@ namespace ThrottleControlledAvionics
 				Styles.ConfigureButtons();
 				TCA.OnReloadGlobals();
 			}
+            if(GUILayout.Button(new GUIContent("Modules", "Show TCA modules installed on this ship"), 
+                                Styles.active_button, GUILayout.ExpandWidth(true)))
+                UI.ModulesGraph.Toggle();
 			GUILayout.EndHorizontal();
 			Toggles();
 			if(THR != null)

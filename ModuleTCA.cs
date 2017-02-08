@@ -379,7 +379,7 @@ namespace ThrottleControlledAvionics
 			VSL.Init();
 			TCAModulesDatabase.InitModules(this);
 			VSL.ConnectAutopilotOutput();//should follow module initialization
-			TCAGui.AttachTCA(this);
+			TCAGui.Reinitialize(this);
 			StartCoroutine(updateUnpackDistance());
 			Actions["onActionUpdate"].active = true;
 			Actions["ToggleTCA"].actionGroup = CFG.ActionGroup;

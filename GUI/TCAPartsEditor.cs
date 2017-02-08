@@ -18,6 +18,7 @@ namespace ThrottleControlledAvionics
 		{
 			GUIContent button;
 			public Rect button_rect;
+            public bool Editable = true;
 
 			public override void SetPart(TCAPart part)
 			{
@@ -35,7 +36,7 @@ namespace ThrottleControlledAvionics
 				{
 					if(!part.Active)
 						GUILayout.Label(button, Styles.inactive_button);
-					else if(GUILayout.Button(button, Styles.enabled_button, GUILayout.ExpandWidth(true)))
+                    else if(GUILayout.Button(button, Styles.enabled_button, GUILayout.ExpandWidth(true)) && Editable)
 					{
 						CFG.EnabledTCAParts.Remove(part.Name);
 						button_pressed = true;
@@ -43,7 +44,7 @@ namespace ThrottleControlledAvionics
 				}
 				else
 				{
-					if(GUILayout.Button(button, Styles.active_button, GUILayout.ExpandWidth(true)))
+                    if(GUILayout.Button(button, Styles.active_button, GUILayout.ExpandWidth(true)) && Editable)
 					{
 						CFG.EnabledTCAParts.Add(part.Name);
 						button_pressed = true;
@@ -72,6 +73,9 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndHorizontal();
 				return button_pressed;
 			}
+
+            public void SetEditable(bool editable)
+            { tiers.ForEach(tier => tier.Value.ForEach(node => node.Editable = editable)); }
 		}
 
 		VesselConfig CFG;
@@ -89,6 +93,7 @@ namespace ThrottleControlledAvionics
 			base.Awake();
 			update_part_status();
 			graph = TCAPartGraph<PrettyNode>.BuildGraph<PrettyPartGraph>(parts);
+            if(HighLogic.LoadedSceneIsFlight) graph.SetEditable(false);
 		}
 
 		void update_part_status()
@@ -96,7 +101,8 @@ namespace ThrottleControlledAvionics
 			if(parts == null)
 				parts = TCAModulesDatabase.GetPurchasedParts();
 			parts.ForEach(p => p.UpdateInfo(CFG));
-			TCAGuiEditor.UpdateModules();
+            if(HighLogic.LoadedSceneIsEditor)
+                TCAGuiEditor.UpdateModules();
 		}
 
 		public override void Show(bool show)
@@ -119,12 +125,15 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginVertical();
 			if(graph.Draw(CFG)) update_part_status();
 			GUILayout.EndVertical();
-			if(GUILayout.Button(new GUIContent("Enable All", "Enable all disabled modules"), 
-			                    Styles.active_button, GUILayout.ExpandWidth(true)))
-			{
-				parts.ForEach(p => CFG.EnabledTCAParts.Add(p.Name));
-				update_part_status();
-			}
+            if(!HighLogic.LoadedSceneIsFlight) 
+            {
+    			if(GUILayout.Button(new GUIContent("Enable All", "Enable all disabled modules"), 
+    			                    Styles.active_button, GUILayout.ExpandWidth(true)))
+    			{
+    				parts.ForEach(p => CFG.EnabledTCAParts.Add(p.Name));
+    				update_part_status();
+    			}
+            }
 			if(GUILayout.Button("Close", Styles.close_button, GUILayout.ExpandWidth(true))) Show(false);
 			GUILayout.EndVertical();
 			TooltipsAndDragWindow();
@@ -137,6 +146,8 @@ namespace ThrottleControlledAvionics
 				LockControls();
 				WindowPos = GUILayout.Window(GetInstanceID(), 
 				                             WindowPos, MainWindow,
+                                             HighLogic.LoadedSceneIsFlight?
+                                             "Installed TCA Modules" :
 				                             "Select TCA Modules", 
 				                             GUILayout.Width(width),
 				                             GUILayout.Height(height)).clampToScreen();

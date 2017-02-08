@@ -75,6 +75,9 @@ namespace ThrottleControlledAvionics
 		List<FieldInfo> AllTabFields = new List<FieldInfo>();
 		Vector2 tabs_scroll = Vector2.zero;
 		#endregion
+
+        //other subwindows
+        public TCAPartsEditor ModulesGraph;
 		#pragma warning restore 169
 
 		#region Initialization
@@ -101,11 +104,12 @@ namespace ThrottleControlledAvionics
 
 		void onVesselChange(Vessel vsl)
 		{
-			if(vsl == null || vsl.parts == null) return;
-			vessel = vsl;
-			StatusMessage = "";
-			StatusEndTime = DateTime.MinValue;
-			StartCoroutine(init_on_load());
+            vessel = vsl;
+            StatusMessage = "";
+            StatusEndTime = DateTime.MinValue;
+            if(vsl != null && vsl.parts != null) 
+                StartCoroutine(init_on_load());
+            else clear_fields();
 		}
 
 
@@ -116,7 +120,7 @@ namespace ThrottleControlledAvionics
 			base.Show(show);
 		}
 
-		public static void AttachTCA(ModuleTCA tca) 
+		public static void Reinitialize(ModuleTCA tca) 
 		{ 
 			if(Instance == null || tca.vessel != Instance.vessel) return;
 			Instance.StartCoroutine(Instance.init_on_load()); 
@@ -154,6 +158,7 @@ namespace ThrottleControlledAvionics
 
 		void clear_fields()
 		{
+            ModulesGraph.Show(false);
 			AllTabs.ForEach(t => t.Reset());
 			AllWindows.ForEach(w => w.Reset());
 			AllTabFields.ForEach(fi => fi.SetValue(this, null));
@@ -164,11 +169,12 @@ namespace ThrottleControlledAvionics
 
 		bool init()
 		{
-			clear_fields();
+            clear_fields();
 			TCAToolbarManager.AttachTCA(null);
 			TCA = ModuleTCA.AvailableTCA(vessel);
-			if(TCA == null) return false;
-			if(CFG != null) ShowInstance(CFG.GUIVisible);
+			if(TCA == null || CFG == null) return false;
+            ShowInstance(CFG.GUIVisible);
+            ModulesGraph.SetCFG(CFG);
 			TCAToolbarManager.AttachTCA(TCA);
 			create_fields();
 			if(ADV != null)
@@ -392,6 +398,7 @@ namespace ThrottleControlledAvionics
 			if(ORB != null) ORB.OrbitEditorWindow();
 			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());
+            ModulesGraph.Draw();
 			#if DEBUG
 			GUI.Label(debug_rect, 
 			          string.Format("[{0}] {1:HH:mm:ss.fff}", 

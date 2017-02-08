@@ -70,7 +70,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginHorizontal();
 				GUILayout.Label(part.Title);
 				GUILayout.FlexibleSpace();
-				if(part.Active) GUILayout.Label("Active", Styles.green);
+				if(part.Active) GUILayout.Label("Available", Styles.green);
 				else GUILayout.Label(new GUIContent("Dependencies Unsatisfied", 
 				                                    "Consult R&D tree to see what modules are required for this one to work."), 
 				                     Styles.red);
@@ -110,16 +110,24 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label(Title);
 				if(!TCAScenario.ModuleInstalled)
 					GUILayout.Label("<color=red><size=30>TCA module was not found in any of the loaded parts.</size></color>\n\n" +
-					                    "This probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
-					                    "<color=yellow><b>ModuleManager</b> is required</color> for TCA to work.", Styles.rich_label);
+                                    "This probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
+                                    "<color=yellow><b>ModuleManager</b> is required</color> for TCA to work.", Styles.rich_label);
 				else if(HighLogic.CurrentGame.Mode != Game.Modes.SANDBOX)
 				{
 					
 					if(!TCAScenario.HasTCA)
 						GUILayout.Label("<color=yellow><size=30>TCA Subsystem is <b>NOT</b> purchased. Get it in R&D first.</size></color>", Styles.rich_label);
-					else
+                    else if(HighLogic.LoadedSceneIsFlight)
+                    {
+                        GUILayout.Label("<color=lime>TCA Subsystem is purchased.</color>\n" +
+                                        "To see TCA modules installed on the current vessel go to <b>Advanced</b> tab.", 
+                                        Styles.rich_label);
+                    }
+                    else
 					{
-						GUILayout.Label("<color=lime>TCA Subsystem is purchased.</color>\nInstalled TCA modules:", Styles.rich_label);
+						GUILayout.Label("<color=lime>TCA Subsystem is purchased.</color>\n" +
+                                        "Available TCA modules:", 
+                                        Styles.rich_label);
 						PartsInfo();
 					}
 				}
