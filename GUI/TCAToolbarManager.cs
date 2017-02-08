@@ -26,10 +26,15 @@ namespace ThrottleControlledAvionics
 	{
 		static TCAToolbarManager Instance;
 		//icons
-		const string ICON_ON  = "ThrottleControlledAvionics/Icons/icon_button_on";
-		const string ICON_OFF = "ThrottleControlledAvionics/Icons/icon_button_off";
-		const string ICON_NC  = "ThrottleControlledAvionics/Icons/icon_button_noCharge";
-		const string ICON_MAN = "ThrottleControlledAvionics/Icons/icon_button_man";
+        const string AL_ICON_ON  = "ThrottleControlledAvionics/Icons/applauncher-icon_on";
+        const string AL_ICON_OFF = "ThrottleControlledAvionics/Icons/applauncher-icon_off";
+        const string AL_ICON_NC  = "ThrottleControlledAvionics/Icons/applauncher-icon_noCharge";
+        const string AL_ICON_MAN = "ThrottleControlledAvionics/Icons/applauncher-icon_MAN";
+
+        const string TB_ICON_ON  = "ThrottleControlledAvionics/Icons/toolbar-icon_on";
+        const string TB_ICON_OFF = "ThrottleControlledAvionics/Icons/toolbar-icon_off";
+        const string TB_ICON_NC  = "ThrottleControlledAvionics/Icons/toolbar-icon_noCharge";
+        const string TB_ICON_MAN = "ThrottleControlledAvionics/Icons/toolbar-icon_MAN";
 
 		static Texture textureOn;
 		static Texture textureOff;
@@ -88,10 +93,10 @@ namespace ThrottleControlledAvionics
 		{
 			if(!ApplicationLauncher.Ready || TCAButton != null) return;
 			Utils.Log("Adding AppLauncher button");
-			textureOn       = GameDatabase.Instance.GetTexture(ICON_ON,  false);
-			textureOff      = GameDatabase.Instance.GetTexture(ICON_OFF, false);
-			textureNoCharge = GameDatabase.Instance.GetTexture(ICON_NC,  false);
-			textureMan      = GameDatabase.Instance.GetTexture(ICON_MAN, false);
+			textureOn       = GameDatabase.Instance.GetTexture(AL_ICON_ON,  false);
+            textureOff      = GameDatabase.Instance.GetTexture(AL_ICON_OFF, false);
+            textureNoCharge = GameDatabase.Instance.GetTexture(AL_ICON_NC,  false);
+            textureMan      = GameDatabase.Instance.GetTexture(AL_ICON_MAN, false);
 			TCAButton = ApplicationLauncher.Instance.AddModApplication(
 				onAppLaunchToggleOn,
 				onAppLaunchToggleOff,
@@ -103,7 +108,7 @@ namespace ThrottleControlledAvionics
 		static void AddToolbarButton()
 		{
 			TCAToolbarButton = ToolbarManager.Instance.add("ThrottleControlledAvionics", "ThrottleControlledAvionicsButton");
-			TCAToolbarButton.TexturePath = ICON_MAN;
+			TCAToolbarButton.TexturePath = TB_ICON_MAN;
 			TCAToolbarButton.ToolTip     = "Throttle Controlled Avionics";
 			TCAToolbarButton.Visibility  = new GameScenesVisibility(GameScenes.FLIGHT, GameScenes.EDITOR, GameScenes.SPACECENTER);
 			TCAToolbarButton.Visible     = true;
@@ -128,7 +133,7 @@ namespace ThrottleControlledAvionics
 
 		public static void SetDefaultButton()
 		{
-			if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = ICON_MAN;
+			if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = TB_ICON_MAN;
 			if(TCAButton != null) TCAButton.SetTexture(textureMan);
 		}
 
@@ -139,8 +144,8 @@ namespace ThrottleControlledAvionics
 				if(TCAToolbarButton != null)
 				{
 					if(TCA.IsStateSet(TCAState.Enabled))
-						TCAToolbarButton.TexturePath = TCA.State != TCAState.NoEC? ICON_ON : ICON_NC;
-					else TCAToolbarButton.TexturePath = ICON_OFF;
+                        TCAToolbarButton.TexturePath = TCA.State != TCAState.NoEC? TB_ICON_ON : TB_ICON_NC;
+                    else TCAToolbarButton.TexturePath = TB_ICON_OFF;
 				}
 				if(TCAButton != null) 
 				{
@@ -151,8 +156,8 @@ namespace ThrottleControlledAvionics
 			}
 			else if(HighLogic.LoadedSceneIsEditor && TCAGuiEditor.Available)
 			{
-				if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = ICON_OFF;
-				if(TCAButton != null) TCAButton.SetTexture(textureOff);
+				if(TCAToolbarButton != null) TCAToolbarButton.TexturePath = TB_ICON_ON;
+				if(TCAButton != null) TCAButton.SetTexture(textureOn);
 			}
 			else SetDefaultButton();
 		}

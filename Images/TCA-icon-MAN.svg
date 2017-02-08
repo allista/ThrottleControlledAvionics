@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="32"
+   height="32"
+   viewBox="0 0 32 32"
+   id="svg4139"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="TCA-icon-MAN.svg"
+   inkscape:export-filename="/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/ThrottleControlledAvionics/Images/applauncher-icon_MAN.png"
+   inkscape:export-xdpi="106.875"
+   inkscape:export-ydpi="106.875"
+   shape-rendering="crispEdges">
+  <defs
+     id="defs4141">
+    <linearGradient
+       x1="407.87"
+       x2="456.39999"
+       gradientTransform="matrix(0.3703081,0,0,1.1662877,527.58409,-7.1337488)"
+       y1="149.38"
+       gradientUnits="userSpaceOnUse"
+       xlink:href="#linearGradient795"
+       y2="147.35001"
+       id="linearGradient801" />
+    <linearGradient
+       id="linearGradient795">
+      <stop
+         id="stop7"
+         offset="0"
+         stop-color="#d5dfff" />
+      <stop
+         id="stop9"
+         offset="1"
+         stop-color="#FFF" />
+    </linearGradient>
+    <linearGradient
+       gradientTransform="matrix(0.99614143,0,0,2.2525522,703.84172,-75.047171)"
+       y2="107.764"
+       x2="92.551102"
+       y1="111.276"
+       x1="103.083"
+       gradientUnits="userSpaceOnUse"
+       id="grad">
+      <stop
+         id="stop7-8"
+         offset="0"
+         stop-color="#f00" />
+      <stop
+         id="stop9-0"
+         offset="1"
+         stop-color="#ff0" />
+    </linearGradient>
+    <linearGradient
+       gradientUnits="userSpaceOnUse"
+       id="gradbase">
+      <stop
+         id="stop7-0"
+         offset="0"
+         stop-opacity="0.9961"
+         stop-color="#a43907" />
+      <stop
+         id="stop9-3"
+         offset="1"
+         stop-color="#fff" />
+    </linearGradient>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="11.2"
+     inkscape:cx="-4.2587584"
+     inkscape:cy="31.487877"
+     inkscape:document-units="px"
+     inkscape:current-layer="g4845"
+     showgrid="false"
+     units="px"
+     inkscape:showpageshadow="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata4144">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-1020.3622)">
+    <g
+       id="g4845"
+       transform="translate(7.3445528,-47.192417)">
+      <g
+         inkscape:label="Layer 1"
+         id="layer1-7"
+         transform="matrix(0.12204569,0,0,0.12204569,1.3448685,1023.4068)">
+        <g
+           transform="matrix(0.4493867,0,0,0.37456988,-71.196873,361.73068)"
+           id="g9562">
+          <path
+             style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:11.06421947"
+             inkscape:connector-curvature="0"
+             d="m 5.5320915,108.06472 c 0,-30.238509 24.3412835,-42.785334 53.1082555,-64.172471 C 93.304549,18.079423 107.32292,5.5325978 138.30273,5.5325978 l 402.73761,0 c 29.50827,0 36.87704,7.4130272 36.87704,35.4055042 l 0,546.572468 c 0,27.29543 -6.63853,35.4055 -36.87704,35.4055 l -535.5082485,0 0,-520.75632"
+             id="path89" />
+          <path
+             style="fill:#e5e5e5;stroke:#000000;stroke-width:11.06421947"
+             inkscape:connector-curvature="0"
+             d="m 441.46236,670.86508 c 53.10826,0 43.51558,-1.43834 80.40369,-38.35965 39.08989,-38.35965 35.4055,-35.4055 35.4055,-70.811 l 0,-500.839626 c 0,-25.812825 -6.63853,-33.19266 -33.93396,-33.19266 l -372.49578,0 c -29.50827,0 -42.04403,11.805523 -73.765153,36.146807 C 50.522529,83.724547 28.394089,96.260308 28.394089,124.29704 l 0,546.57247 413.064951,0 z"
+             id="path91" />
+          <path
+             style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:11.06421947"
+             inkscape:connector-curvature="0"
+             d="m 481.29355,659.06288 c 0,27.29543 -6.63853,35.4055 -36.87704,35.4055 l -402.737612,0 c -30.238513,0 -36.1468065,-7.41302 -36.1468065,-35.4055 l 0,-547.30934 c 0,-27.295435 6.6385315,-35.405509 36.1468065,-35.405509 l 402.737612,0 c 30.23851,0 36.87704,7.413028 36.87704,35.405509 l 0,547.30934 z"
+             id="path93" />
+        </g>
+      </g>
+      <text
+         transform="scale(0.85803604,1.1654522)"
+         sodipodi:linespacing="125%"
+         id="text4687"
+         y="934.69934"
+         x="-6.8637538"
+         style="font-style:normal;font-weight:normal;font-size:34.72826767px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#ffe680;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         xml:space="preserve"
+         inkscape:export-xdpi="90"
+         inkscape:export-ydpi="90"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:13.02310276px;font-family:'DejaVu Sans';-inkscape-font-specification:'DejaVu Sans Bold';fill:#ffe680"
+           y="934.69934"
+           x="-6.8637538"
+           id="tspan4689"
+           sodipodi:role="line">TCA</tspan></text>
+    </g>
+  </g>
+</svg>
