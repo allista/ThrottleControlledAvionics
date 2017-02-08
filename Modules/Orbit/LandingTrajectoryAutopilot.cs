@@ -770,7 +770,6 @@ namespace ThrottleControlledAvionics
 		public void DrawDeorbitSettings()
 		{
 			GUILayout.BeginHorizontal();
-			GUILayout.Label("<color=lime>Landing Settings:</color>", Styles.boxed_label);
 			Utils.ButtonSwitch("Use Brakes", ref UseBrakes, "Use brakes during deceleration.");
 			if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
 				Utils.ButtonSwitch("Use Parachutes", ref UseChutes, "Use parachutes during deceleration.");
