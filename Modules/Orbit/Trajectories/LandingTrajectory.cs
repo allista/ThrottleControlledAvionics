@@ -25,9 +25,12 @@ namespace ThrottleControlledAvionics
 
 		public double DeltaLat { get; private set; }
 		public double DeltaLon { get; private set; }
+        Coordinates approach;
 
 		/// <summary>
 		/// Radial difference between the target and the landing site in degrees.
+        /// Is positive if the target is located after the landing site along the surface velocity,
+        /// negative otherwise.
 		/// </summary>
 		public double DeltaR { get; private set; } = 180;
 
@@ -56,7 +59,9 @@ namespace ThrottleControlledAvionics
 			TransferTime = AtTargetUT-StartUT;
 			AtTargetPos = orb.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = orb.getOrbitalVelocityAtUT(AtTargetUT);
-			SurfacePoint = new WayPoint((TrajectoryCalculator.BodyRotationAtdT(Body, -TimeToTarget)*AtTargetPos).xzy+Body.position, Body);
+            var at_target_rot = TrajectoryCalculator.BodyRotationAtdT(Body, -TimeToTarget);
+            approach = new Coordinates((at_target_rot*(AtTargetPos-AtTargetVel*10)).xzy+Body.position, Body);
+            SurfacePoint = new WayPoint((at_target_rot*AtTargetPos).xzy+Body.position, Body);
 			SurfacePoint.Pos.SetAlt2Surface(Body);
 			SurfacePoint.Name = "Landing Site";
 		}
@@ -101,20 +106,31 @@ namespace ThrottleControlledAvionics
 			//correct for brake maneuver
 			if(with_brake)
 			{
-				//calculate vertical brake time
+				//estimate time needed to rotate the ship downwards
 				var rotation_time = VSL.Torque.NoEngines? 
 					VSL.Torque.NoEngines.MinRotationTime(90) :
 					VSL.Torque.MaxPossible.RotationTime(90, 0.1f);
-				SetBrakeEndUT(Math.Max(AtTargetUT-GLB.LTRJ.CorrectionOffset+rotation_time, StartUT));
-				SetBrakeDeltaV(Vector3d.Project(AtTargetVel, AtTargetPos));
+                //estimate amount fuel needed for the maneuver
+                var vertical_vel = Vector3d.Project(AtTargetVel, AtTargetPos);
+                SetBrakeEndUT(Math.Max(AtTargetUT-GLB.LTRJ.CorrectionOffset+rotation_time, StartUT));
+                SetBrakeDeltaV(vertical_vel);
 				if(BrakeFuel > 0)
 				{
+                    //calculate braking maneuver
 					var dV = (float)BrakeDeltaV.magnitude;
 					BrakeDuration = VSL.Engines.AntigravTTB(dV);
-					//add 90deg turn time to face the ground
 					BrakeDuration += rotation_time;
-					SetBrakeEndUT(Math.Max(AtTargetUT-Mathf.Max(GLB.LTRJ.CorrectionOffset, BrakeDuration*1.1f), StartUT));
+                    //find the appropriate point to perform the maneuver
+                    var brake_end_UT = Math.Max(AtTargetUT-Mathf.Max(GLB.LTRJ.CorrectionOffset, BrakeDuration*1.1f), StartUT);
+                    var vertical_speed = vertical_vel.magnitude;
+                    double fly_over_error;
+                    do {
+                        SetBrakeEndUT(brake_end_UT);
+                        fly_over_error = BrakeEndDeltaAlt - GLB.LTRJ.FlyOverAlt;
+                        brake_end_UT -= Math.Abs(fly_over_error/vertical_speed);
+                    } while(brake_end_UT > StartUT && fly_over_error < -1);
 					SetBrakeDeltaV(-0.9*Orbit.getOrbitalVelocityAtUT(BrakeEndUT));
+                    //calculate maneuver start time and update landing site
 					BrakeStartUT = Math.Max(BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration), StartUT);
 					update_from_orbit(TrajectoryCalculator.NewOrbit(Orbit, BrakeDeltaV, BrakeEndUT), BrakeEndUT);
 				}
@@ -154,16 +170,18 @@ namespace ThrottleControlledAvionics
 			}
 			//compute distance to target
 			DistanceToTarget = Target.AngleTo(SurfacePoint)*Body.Radius;
+            SurfacePoint.Name += string.Format("\n{0} from target", Utils.formatBigValue((float)DistanceToTarget, "m"));
 			//compute distance in lat-lon coordinates
 			DeltaLat = Utils.AngleDelta(SurfacePoint.Pos.Lat, Target.Pos.Lat)*
-				Math.Sign(Utils.AngleDelta(VslStartLat, SurfacePoint.Pos.Lat));
+                Math.Sign(Utils.AngleDelta(approach.Lat, SurfacePoint.Pos.Lat));
 			DeltaLon = Utils.AngleDelta(SurfacePoint.Pos.Lon, Target.Pos.Lon)*
-				Math.Sign(Utils.AngleDelta(VslStartLon, SurfacePoint.Pos.Lon));
+                Math.Sign(Utils.AngleDelta(approach.Lon, SurfacePoint.Pos.Lon));
 			//compute distance in radial coordinates
 			DeltaFi = 90-Vector3d.Angle(Orbit.GetOrbitNormal(),
 			                            TrajectoryCalculator.BodyRotationAtdT(Body, TimeToTarget) * 
 			                            Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude).xzy);
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
+//            Utils.Log("{}", this);//debug
 		}
 
 		public List<AtmosphericConditions> GetAtmosphericCurve(double dT, double endUT = -1)
@@ -213,7 +231,7 @@ namespace ThrottleControlledAvionics
 				             "Landing Angle {} deg",
 				             SurfacePoint,
 				             DeltaR, DeltaLat, DeltaLon,
-				             BrakeDeltaV, BrakeDuration, BrakeStartUT-VSL.Physics.UT, BrakeFuel, BrakeEndDeltaAlt,
+				             BrakeStartUT-VSL.Physics.UT, BrakeFuel, BrakeEndDeltaAlt,
 				             GetAtmosphericCurve(5),
 				             LandingAngle);
 		}
