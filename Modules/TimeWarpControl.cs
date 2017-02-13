@@ -17,8 +17,9 @@ namespace ThrottleControlledAvionics
 	{
 		public class Config : ModuleConfig
 		{
-			[Persistent] public float DewarpTime = 20f;  //sec
-			[Persistent] public float MaxWarp    = 10000f;
+			[Persistent] public float DewarpTime   = 20f;  //sec
+			[Persistent] public float MaxWarp      = 10000f;
+            [Persistent] public int   FramesToSkip = 3;
 		}
 		static Config WRP { get { return Globals.Instance.WRP; } }
 
@@ -26,12 +27,11 @@ namespace ThrottleControlledAvionics
 
 		public bool NoDewarpOffset;
 		int last_warp_index;
+        int frames_to_skip;
 
 		void AbortWarp(bool instant = false)
 		{
-			TimeWarp.SetRate(0, instant);
-			VSL.Controls.WarpToTime = -1;
-			CFG.WarpToNode = false;
+            VSL.Controls.AbortWarp(instant);
 			reset();
 		}
 
@@ -40,11 +40,13 @@ namespace ThrottleControlledAvionics
 			base.reset();
 			last_warp_index = TimeWarp.CurrentRateIndex;
 			NoDewarpOffset = false;
+            frames_to_skip = -1;
 		}
 
 		public override void Init()
 		{
 			base.Init();
+            frames_to_skip = -1;
 			last_warp_index = TimeWarp.CurrentRateIndex;
 			GameEvents.onVesselSOIChanged.Add(OnSOIChanged);
 		}
@@ -75,12 +77,28 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+        bool can_increase_rate
+        { 
+            get 
+            { 
+                return TimeWarp.CurrentRateIndex < 
+                    TimeWarp.fetch.GetMaxRateForAltitude(VSL.orbit.radius-VSL.Body.Radius, VSL.Body); 
+            } 
+        }
+
 		protected override void Update()
 		{
 			if(VSL.Controls.WarpToTime < 0) goto end;
-			//try to catch the moment some other mod sets warp besides us
-			if(TimeWarp.CurrentRateIndex < last_warp_index)
+			//try to catch the moment KSP or some other mod sets warp besides us
+            if(TimeWarp.CurrentRateIndex < last_warp_index && can_increase_rate)
 			{ 
+                if(frames_to_skip < 0)
+                    frames_to_skip = TimeWarp.CurrentRateIndex * WRP.FramesToSkip;
+//                Log("current index {}, max index at alt {}, frames_to_skip {}",
+//                    TimeWarp.CurrentRateIndex, 
+//                    TimeWarp.fetch.GetMaxRateForAltitude(VSL.vessel.altitude, VSL.Body),
+//                    frames_to_skip);
+                if(frames_to_skip-- > 0) return;
 				Message("TCA Time Warp was overridden.");
 				VSL.Controls.WarpToTime = -1;
 				CFG.WarpToNode = false; 
@@ -105,9 +123,9 @@ namespace ThrottleControlledAvionics
 			}
 			else if(TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
 			        TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= WRP.MaxWarp &&
-			        (VSL.LandedOrSplashed || VSL.Altitude.Absolute > TimeWarp.fetch.GetAltitudeLimit(TimeWarp.CurrentRateIndex+1, VSL.Body)) &&
+                    (VSL.LandedOrSplashed || can_increase_rate) &&
 			        TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
-				TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false);
+                TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false, false);
 			end: reset();
 		}
 
@@ -116,7 +134,7 @@ namespace ThrottleControlledAvionics
 			if(Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
 			{
 				CFG.WarpToNode = !CFG.WarpToNode;
-				if(!CFG.WarpToNode) TimeWarp.SetRate(0, false);
+                if(!CFG.WarpToNode) AbortWarp();
 			}
 		}
 	}
