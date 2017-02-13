@@ -21,7 +21,6 @@ namespace ThrottleControlledAvionics
 		public double MinPeR { get; private set; }
 		public bool KillerOrbit { get; private set; }
 		public Orbit TargetOrbit { get; private set; }
-		Vessel TargetVessel;
 
 		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target, double min_PeR, double transfer_time = -1) 
 			: base(vsl, dV, startUT, target) 
@@ -29,7 +28,6 @@ namespace ThrottleControlledAvionics
 			MinPeR = min_PeR;
 			TransferTime = transfer_time;
 			TargetOrbit = Target.GetOrbit();
-			TargetVessel = Target.GetVessel();
 			update(); 
 		}
 
@@ -44,14 +42,14 @@ namespace ThrottleControlledAvionics
 		{
 			if(TransferTime < 0)
 			{
-				TrajectoryCalculator.ClosestApproach(Orbit, TargetOrbit, StartUT, 0, out AtTargetUT);
+                TrajectoryCalculator.ClosestApproach(Orbit, TargetOrbit, StartUT, VSL.Geometry.MinDistance, out AtTargetUT);
 				TransferTime = AtTargetUT-StartUT;
 			}
 			else AtTargetUT = StartUT+TransferTime;
 			AtTargetPos = Orbit.getRelativePositionAtUT(AtTargetUT);
 			AtTargetVel = Orbit.getOrbitalVelocityAtUT(AtTargetUT);
 			TargetPos = TargetOrbit.getRelativePositionAtUT(AtTargetUT);
-			DistanceToTarget = Utils.ClampL((AtTargetPos-TargetPos).magnitude-VSL.Geometry.R-TargetVessel.Radius(), 0);
+            DistanceToTarget = Utils.ClampL((AtTargetPos-TargetPos).magnitude-VSL.Geometry.MinDistance, 0);
 			DeltaTA = Utils.ProjectionAngle(AtTargetPos, TargetPos, 
 			                                Vector3d.Cross(Orbit.GetOrbitNormal(), AtTargetPos))*
 				Math.Sign(TargetOrbit.period-OrigOrbit.period);
@@ -61,8 +59,8 @@ namespace ThrottleControlledAvionics
 			var t_vel = t_orbit != null? t_orbit.getOrbitalVelocityAtUT(AtTargetUT) : Vector3d.zero;
 			BrakeDeltaV = t_vel-Orbit.getOrbitalVelocityAtUT(AtTargetUT);
 			BrakeDuration = VSL.Engines.TTB((float)BrakeDeltaV.magnitude);
-			KillerOrbit = Orbit.PeR < MinPeR && Orbit.timeToPe < TransferTime;
-//			DebugUtils.Log("{}", this);//debug
+            KillerOrbit = Orbit.PeR < MinPeR && Orbit.timeToPe < TransferTime;
+            Utils.Log("{}", this);//debug
 		}
 
 		public override string ToString()
