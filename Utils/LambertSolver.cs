@@ -57,8 +57,9 @@ namespace ThrottleControlledAvionics
 			mu = body.gravParameter;
 
 			r1 = orb.getRelativePositionAtUT(UT);
+            var norm = orb.GetOrbitNormal();
 			var h  = Vector3d.Cross(r1, destination);
-			if(h.sqrMagnitude < 0.01) h = orb.GetOrbitNormal();
+			if(h.sqrMagnitude < 0.01) h = norm;
 			c  = destination-r1;
 
 			cm  = c.magnitude;
@@ -69,10 +70,9 @@ namespace ThrottleControlledAvionics
 			n  = rrm-cm;
 			m3 = m*m*m;
 
-			var transfer_angle = Vector3d.Angle(r1, destination)*Mathf.Deg2Rad;
-			if(h.z < 0) transfer_angle = Utils.TwoPI-transfer_angle;
 			sigma = Math.Sqrt(n/m);
-			if(transfer_angle > Math.PI) sigma = -sigma;
+            if(h.z*norm.z < 0) 
+                sigma = -sigma;
 			sigma2 = sigma*sigma;
 			sigma3 = sigma2*sigma;
 			sigma5 = sigma2*sigma3;
@@ -81,12 +81,31 @@ namespace ThrottleControlledAvionics
 			tauME = Math.Acos(sigma)+sigma*Math.Sqrt(1-sigma2);
 		}
 
+        /// <summary>
+        /// The parabolic transfer time.
+        /// </summary>
+        /// <value>The parabolic time.</value>
+        public double ParabolicTime { get { return invtau(tauP); } }
+
+        /// <summary>
+        /// The minimum energy transfer time.
+        /// </summary>
+        /// <value>The minimum energy time.</value>
+        public double MinEnergyTime { get { return invtau(tauME); } }
+
 		/// <summary>
 		/// Determines whether the transfer orbit with the specified transfer_time is hyperbolic.
 		/// </summary>
 		/// <param name="transfer_time">Transfer time.</param>
 		public bool IsHyperbolic(double transfer_time)
 		{ return _tau(transfer_time) < tauP; }
+
+        /// <summary>
+        /// Determines whether the transfer orbit with the specified transfer_time is not elliptic.
+        /// </summary>
+        /// <param name="transfer_time">Transfer time.</param>
+        public bool NotElliptic(double transfer_time)
+        { return _tau(transfer_time) <= tauP; }
 
 		/// <summary>
 		/// Determines whether the transfer orbit to the specified destination with the specified transfer_time is hyperbolic.
@@ -105,9 +124,8 @@ namespace ThrottleControlledAvionics
 		/// <param name="transfer_time">Returned value of the transfer time in seconds.</param>
 		public Vector3d dV4TransferME(out double transfer_time)
 		{
-			var v = Math.Sqrt(mu)*Math.Sign(sigma)*Math.Sqrt(1-sigma2)/Math.Sqrt(n);
-			transfer_time = invtau(tauME);
-			return (r1.normalized + c/cm)*v - orbit.getOrbitalVelocityAtUT(StartUT);
+            transfer_time = invtau(tauME);
+            return dV4TransferME();
 		}
 
 		/// <summary>
@@ -115,7 +133,10 @@ namespace ThrottleControlledAvionics
 		/// </summary>
 		/// <returns>The DeltaVee for the maneuver.</returns>
 		public Vector3d dV4TransferME()
-		{ double transfer_time; return dV4TransferME(out transfer_time); }
+		{ 
+            var v = Math.Sqrt(mu)*Math.Sign(sigma)*Math.Sqrt(1-sigma2)/Math.Sqrt(n);
+            return (r1.normalized + c/cm)*v - orbit.getOrbitalVelocityAtUT(StartUT);
+        }
 
 		/// <summary>
 		/// Calculates the parabolic transfer orbit from a given orbit and UT to the destination radius-vector.
@@ -146,7 +167,7 @@ namespace ThrottleControlledAvionics
 					return Vector3d.zero;
 				}
 			}
-			if(Math.Abs(tau-tauME) < tol) return dV4TransferME(out transfer_time);
+			if(Math.Abs(tau-tauME) < tol) return dV4TransferME();
 			var N = 1;
 			var x1 = double.NaN;
 			while((double.IsNaN(x1) || lambert_F(x1) > 1e-6) && N <= 1024)
@@ -172,7 +193,7 @@ namespace ThrottleControlledAvionics
 
 		double _y(double x) { return Math.Sign(sigma)*Math.Sqrt(1-sigma2*(1-x*x)); }
 
-		double _tau(double t) { return 4 * t * Math.Sqrt(mu/(m*m*m)); }
+		double _tau(double t) { return 4 * t * Math.Sqrt(mu/(m3)); }
 
 		double invtau(double t) { return t/4/Math.Sqrt(mu/m3); }
 
@@ -183,7 +204,7 @@ namespace ThrottleControlledAvionics
 			var sqrt_n  = Math.Sqrt(n);
 			var vr = sqrt_mu * (y/sqrt_n - x/sqrt_m);
 			var vc = sqrt_mu * (y/sqrt_n + x/sqrt_m);
-			return r1.normalized*vr + c/cm*vc - orbit.getOrbitalVelocityAtUT(StartUT);
+            return r1.normalized*vr + c/cm*vc - orbit.getOrbitalVelocityAtUT(StartUT);
 		}
 
 		double lambert_F(double x)
