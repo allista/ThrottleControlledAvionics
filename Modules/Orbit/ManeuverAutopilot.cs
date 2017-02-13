@@ -48,7 +48,23 @@ namespace ThrottleControlledAvionics
 		bool within_threshold;
 		double min_deltaV = double.MaxValue;
 
-		public override void Init()
+        public void UpdateNode()
+        {
+            if(VSL.HasManeuverNode)
+                update_maneuver_node();
+        }
+
+        void update_maneuver_node()
+        {
+            Node = Solver.maneuverNodes[0];
+            InitialDeltaV = Node.DeltaV.magnitude;
+            ThresholdDeltaV = Math.Min(InitialDeltaV, 10);
+            NodeDeltaV = Node.GetBurnVector(VSL.orbit);
+            if(VSL.Engines.MaxDeltaV < InitialDeltaV)
+                Status("yellow", "WARNING: there may be not enough propellant for the maneuver");
+        }
+
+        public override void Init()
 		{
 			base.Init();
 			MinDeltaV = GLB.THR.MinDeltaV;
@@ -79,20 +95,17 @@ namespace ThrottleControlledAvionics
 				{ CFG.AP1.Off(); return; }
 				VSL.Controls.StopWarp();
 				CFG.AT.On(Attitude.ManeuverNode);
-				Node = Solver.maneuverNodes[0];
-				InitialDeltaV = Node.DeltaV.magnitude;
-				ThresholdDeltaV = Math.Min(InitialDeltaV, 10);
-				NodeDeltaV = Node.GetBurnVector(VSL.orbit);
+                update_maneuver_node();
 				min_deltaV = double.MaxValue;
 				within_threshold = false;
-				if(VSL.Engines.MaxDeltaV < InitialDeltaV)
-					Status("yellow", "WARNING: there may be not enough propellant for the maneuver");
 				THR.Throttle = 0;
 				CFG.DisableVSC();
 				break;
 
 			case Multiplexer.Command.Off:
-				TimeWarp.SetRate(0, false);
+                VSL.Controls.StopWarp();
+                if(!CFG.WarpToNode && TimeWarp.CurrentRateIndex > 0)
+                    TimeWarp.SetRate(0, false);
 				CFG.AT.On(Attitude.KillRotation);
 				reset();
 				break;
@@ -133,6 +146,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(Working) return true;
 			var ttb = VSL.Engines.TTB(dV);
+//            Log("dV {}, TTB {}", dV, ttb);//debug
 			if(float.IsNaN(ttb)) return false;
 			VSL.Info.TTB = ttb;
 			var burn = Node.UT-VSL.Info.TTB/2f;
@@ -145,8 +159,11 @@ namespace ThrottleControlledAvionics
 					VSL.Controls.WarpToTime = burn-VSL.Controls.MinAlignmentTime;
 			}
 			VSL.Info.Countdown = burn-VSL.Physics.UT;
-			if(TimeWarp.CurrentRate > 1 || VSL.Info.Countdown > 0) return false;
-//			Log("TTB {0}, burn {1}, countdown {2}", VSL.Info.TTB, burn, VSL.Info.Countdown);//debug
+            //emergency dewarping
+            if(!CFG.WarpToNode && TimeWarp.CurrentRate > 1 && VSL.Info.Countdown < GLB.WRP.DewarpTime)
+                TimeWarp.SetRate(0, true);
+			if(VSL.Info.Countdown > 0) return false;
+//            Log("burn {}, countdown {}", burn, VSL.Info.Countdown);//debug
 			VSL.Info.Countdown = 0;
 			Working = true;
 			return true;
@@ -157,6 +174,7 @@ namespace ThrottleControlledAvionics
 			if(!IsActive) return;
 			if(!VSL.HasManeuverNode || Node != Solver.maneuverNodes[0]) { reset(); return; }
 			NodeDeltaV = Node.GetBurnVector(VSL.orbit);
+//            Log("Node.dV {}", NodeDeltaV);//debug
 			if(Executor.Execute(NodeDeltaV, MinDeltaV, StartCondition)) 
 			{
 				within_threshold |= Executor.RemainingDeltaV < ThresholdDeltaV;
