@@ -93,6 +93,8 @@ namespace ThrottleControlledAvionics
 		public static float BrakingDistance(float V0, float thrust, float mflow, float throttle, VesselWrapper VSL, out float ttb)
 		{
 			ttb = VSL.Engines.TTB(V0, thrust, mflow, throttle);
+            if(CheatOptions.InfinitePropellant)
+                return (V0 - thrust*throttle*ttb/2/VSL.Physics.M)*ttb;
 			return V0*ttb + 
 				thrust/mflow * 
 				((ttb-VSL.Physics.M/mflow/throttle) * 
