@@ -627,7 +627,9 @@ namespace ThrottleControlledAvionics
 			else if(Clusters.Dirty)
 				Clusters.Update();
 			//activate appropriate cluster if requested
-			if(CFG.UseSmartEngines && Clusters.Multi)
+            if(CFG.UseSmartEngines && Clusters.Multi && 
+               (TimeWarp.WarpMode == TimeWarp.Modes.LOW ||
+                TimeWarp.CurrentRateIndex == 0))
 			{
 //				Log("Clusters: inactive {}, mixed {}", Clusters.Inactive, Clusters.Mixed);//debug
 				if(Clusters.Inactive) Clusters.ActivateClosest(Vector3.back);
