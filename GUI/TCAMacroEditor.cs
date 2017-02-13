@@ -204,10 +204,10 @@ namespace ThrottleControlledAvionics
 
 	public static class Components
 	{
-		public static SortedList<string, ComponentDB<Condition>.ComponentFactory> Conditions
+        public static SortedList<Type, ComponentDB<Condition>.ComponentFactory> Conditions
 		{ get { return ComponentDB<Condition>.Components; } }
 
-		public static SortedList<string, ComponentDB<MacroNode>.ComponentFactory> Actions
+        public static SortedList<Type, ComponentDB<MacroNode>.ComponentFactory> Actions
 		{ get { return ComponentDB<MacroNode>.Components; } }
 
 		public static bool ConditionSelector(out Condition condition)

@@ -14,7 +14,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	[HiddenComponent]
+    [ComponentInfo(Hidden = true)]
 	public class ConditionMacroNode : MacroNode
 	{
 		[Persistent] public PersistentBaseList<Condition> Conditions = new PersistentBaseList<Condition>();
@@ -54,22 +54,23 @@ namespace ThrottleControlledAvionics
 					var c = Conditions[i];
 					GUILayout.BeginHorizontal();
 					if(i > 0) { if(GUILayout.Button(c.or? "OR" : "AND", Styles.white, GUILayout.Width(50))) c.or = !c.or; }
-					else if(GUILayout.Button(Keyword, Edit? Styles.active_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
+                    else if(GUILayout.Button(new GUIContent(Keyword, Label.tooltip), Edit? Styles.active_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
 						Edit = !Edit;
 					c.Draw();
-					if(Edit && GUILayout.Button("X", Styles.close_button, GUILayout.Width(20))) deleted_conditions.Add(c);
+                    if(Edit && GUILayout.Button(new GUIContent("X", "Delete"), Styles.close_button, GUILayout.Width(20))) deleted_conditions.Add(c);
 					GUILayout.EndHorizontal();
 				}
 			}
 			else 
 			{
 				GUILayout.BeginHorizontal();
-				if(GUILayout.Button(Keyword, Edit? Styles.active_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
+                if(GUILayout.Button(new GUIContent(Keyword, Label.tooltip), Edit? Styles.active_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
 					Edit = !Edit;
 				GUILayout.Label("TRUE", Styles.white, GUILayout.ExpandWidth(true));
 				GUILayout.EndHorizontal();
 			}
-			if(Edit && Parent != null && GUILayout.Button("Add Condition", Styles.active_button, GUILayout.ExpandWidth(true)))
+			if(Edit && Parent != null && 
+               GUILayout.Button("Add Condition", Styles.active_button, GUILayout.ExpandWidth(true)))
 			{ 
 				if(SelectCondition != null) 
 					SelectCondition(cnd => 

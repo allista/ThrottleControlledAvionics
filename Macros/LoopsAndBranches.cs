@@ -13,6 +13,8 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
+    [ComponentInfo(Name = "When",
+                   Description = "A block of Actions that gets executed when a condition is met")]
 	public class TriggeredBlockMacroNode : SingleBlockConditionMacroNode
 	{
 		public TriggeredBlockMacroNode() { Keyword = "WHEN"; }
@@ -25,6 +27,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+    [ComponentInfo(Description = "Two alternate blocks of Actions; which gets executed is defined by a condition")]
 	public class IfElseMacroNode : ConditionMacroNode
 	{
 		[Persistent] public BlockMacroNode IfBlock = new BlockMacroNode();
@@ -100,6 +103,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+    [ComponentInfo(Description = "A loop that executes a block of Actions time after time while a condition is met")]
 	public class WhileMacroNode : SingleBlockConditionMacroNode
 	{
 		public WhileMacroNode() { Keyword = "WHILE"; }
@@ -117,6 +121,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+    [ComponentInfo(Description = "A loop that executes a block of Actions specified number of times")]
 	public class RepeatMacroNode : SingleBlockMacroNode
 	{
 		[Persistent] public int Count = 10;

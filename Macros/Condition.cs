@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 		internal static Globals GLB { get { return Globals.Instance; } }
 
 		protected string Name;
+        protected GUIContent Label;
 		public Condition Prev;
 		[Persistent] public bool negatable = true;
 		[Persistent] public bool or;
@@ -35,9 +36,18 @@ namespace ThrottleControlledAvionics
 		public Condition() 
 		{ Name = Utils.ParseCamelCase(GetType().Name.Replace(typeof(Condition).Name, "")); }
 
+        public Condition(ComponentInfo info) : this()
+        {
+            if(!string.IsNullOrEmpty(info.Name)) Name = info.Name;
+            Label = new GUIContent(Name, info.Description);
+        }
+
 		public override void Load(ConfigNode node)
 		{
 			base.Load(node);
+            var t = GetType();
+            Label = Components.Conditions.ContainsKey(t)? 
+                Components.Conditions[t].Label : new GUIContent(Name);
 			not &= negatable;
 			if(Next != null)
 			{
@@ -64,7 +74,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected virtual bool Evaluate(VesselWrapper VSL) { return false; }
-		protected virtual void DrawThis() { GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false)); }
+        protected virtual void DrawThis() { GUILayout.Label(Label, Styles.label, GUILayout.ExpandWidth(false)); }
 
 		public void Draw()
 		{
@@ -75,11 +85,11 @@ namespace ThrottleControlledAvionics
 			if(Prev != null && GUILayout.Button(or? "OR" : "AND", Styles.white, GUILayout.Width(40))) or = !or;
 			if(negatable && GUILayout.Button(not? "NOT" : "", Styles.red, GUILayout.Width(40))) not = !not;
 			DrawThis();
-			if(Prev != null && GUILayout.Button("X", Styles.close_button, GUILayout.Width(20))) Delete();
+            if(Prev != null && GUILayout.Button(new GUIContent("X", "Delete"), Styles.close_button, GUILayout.Width(20))) Delete();
 			if(Next != null) Next.Draw();
 			else
 			{
-				if(GUILayout.Button("+", Styles.active_button, GUILayout.Width(20))) 
+                if(GUILayout.Button(new GUIContent("+", "Add new condition"), Styles.active_button, GUILayout.Width(20))) 
 				{ if(SelectCondition != null) SelectCondition(Add); }
 			}
 			GUILayout.EndHorizontal();
@@ -103,7 +113,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	[HiddenComponent]
+    [ComponentInfo(Hidden = true)]
 	public class FloatCondition : Condition
 	{ 
 		public enum CompareOperator { GT, LS, EQ }
@@ -134,16 +144,18 @@ namespace ThrottleControlledAvionics
 		{
 			if(Edit) 
 			{ 
-				GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
+                GUILayout.Label(Label, Styles.white, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(OperatorNames[Operator], Styles.yellow, GUILayout.ExpandWidth(false)))
 					Operator = (CompareOperator)(((int)Operator+1)%3);
 				Value.Draw(Suffix, false);
 				if(Operator == CompareOperator.EQ)
 				{
-					GUILayout.Label("Error", Styles.white, GUILayout.ExpandWidth(false));
+                    GUILayout.Label(new GUIContent("Error", "Interval of tolerance"), 
+                                    Styles.white, GUILayout.ExpandWidth(false));
 					Error.Draw(Suffix, false);
 				}
-				GUILayout.Label("Wait for:", Styles.white, GUILayout.ExpandWidth(false));
+                GUILayout.Label(new GUIContent("Wait for:", "The condition should be met at least this number of seconds"), 
+                                Styles.white, GUILayout.ExpandWidth(false));
 				Period.Draw("s", false);
 				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
 				{
@@ -164,7 +176,8 @@ namespace ThrottleControlledAvionics
 				condition_string += Operator == CompareOperator.EQ? 
 					string.Format("+/-{0:F2}{1}", Error, Suffix) : Suffix;
 				if(Period > 0) condition_string += string.Format(" for {0:F1}s", Period);
-				Edit |= GUILayout.Button(condition_string, Styles.normal_button, GUILayout.ExpandWidth(true));
+                Edit |= GUILayout.Button(new GUIContent(condition_string, Label.tooltip), 
+                                         Styles.normal_button, GUILayout.ExpandWidth(true));
 			}
 		}
 

@@ -14,7 +14,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	[HiddenComponent]
+    [ComponentInfo(Hidden = true)]
 	public class TCAMacro : SingleBlockMacroNode
 	{
 		protected MacroNode ActiveChild;

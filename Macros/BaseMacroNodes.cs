@@ -7,13 +7,12 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System;
 using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	[HiddenComponent]
+    [ComponentInfo(Hidden = true)]
 	public class SingleBlockMacroNode : MacroNode
 	{
 		[Persistent] public BlockMacroNode Block = new BlockMacroNode();
@@ -66,7 +65,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	[HiddenComponent]
+    [ComponentInfo(Hidden = true)]
 	public class SingleBlockConditionMacroNode : ConditionMacroNode
 	{
 		[Persistent] public BlockMacroNode Block = new BlockMacroNode();
@@ -125,14 +124,14 @@ namespace ThrottleControlledAvionics
 		{ return Parent != null && Parent.AddSibling(sibling); }
 	}
 
-	[HiddenComponent]
+    [ComponentInfo(Hidden = true)]
 	public class OnOffMacroNode : MacroNode
 	{
 		[Persistent] public bool On;
 
 		protected override void DrawThis()
 		{
-			GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
+            GUILayout.Label(Label, Styles.white, GUILayout.ExpandWidth(false));
 			if(GUILayout.Button(On? "On" : "Off", 
 			                    On? Styles.enabled_button : Styles.active_button, 
 			                    GUILayout.ExpandWidth(false)))
@@ -140,7 +139,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
-	[HiddenComponent]
+    [ComponentInfo(Hidden = true)]
 	public class SetFloatMacroNode : MacroNode
 	{
 		[Persistent] public FloatField Value = new FloatField();
@@ -153,14 +152,14 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				GUILayout.Label(Name, Styles.white, GUILayout.ExpandWidth(false));
+                GUILayout.Label(Label, Styles.white, GUILayout.ExpandWidth(false));
 				if(Value.Draw(Suffix))
 				{ 
 					OnValueChanged();
 					Edit = false; 
 				}
 			}
-			else Edit |= GUILayout.Button(string.Format("{0} {1}{2}", Name, Value, Suffix), Styles.normal_button);
+            else Edit |= GUILayout.Button(new GUIContent(string.Format("{0} {1}{2}", Name, Value, Suffix), Label.tooltip), Styles.normal_button);
 			GUILayout.EndHorizontal();
 		}
 	}

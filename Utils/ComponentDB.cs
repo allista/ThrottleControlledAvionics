@@ -12,28 +12,51 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using AT_Utils;
+using System.Linq;
 
 namespace ThrottleControlledAvionics
 {
-	[AttributeUsage(AttributeTargets.Class, Inherited = false)]
-	public class HiddenComponent : Attribute {}
+    [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+	public class ComponentInfo : Attribute 
+    {
+        public string Name = "";
+        public string Description = "";
+        public bool Hidden;
+    }
 
 	public static class ComponentDB<T> where T : class, new()
 	{
 		public class ComponentFactory
 		{
-			static ST CreateComponent<ST>() where ST : T, new() { return new ST(); }
+			ST CreateComponent<ST>() where ST : class, T, new() 
+            { 
+                if(Info == null) return new ST();
+                var constructor = typeof(ST).GetConstructor(new []{typeof(ComponentInfo)});
+                return constructor == null ? new ST() : constructor.Invoke(new[] {Info}) as ST;
+            }
 
 			public delegate T Factory();
+            public readonly ComponentInfo Info;
+            public readonly string Name;
 			public readonly Type Component;
 			public readonly Factory Create;
-			public ComponentFactory(Type component)
+            public readonly GUIContent Label;
+
+            public ComponentFactory(Type component, ComponentInfo info)
 			{
+                Info = info;
 				Component = component;
+                //parse name and create GUIContent
+                Name = Info == null || string.IsNullOrEmpty(Info.Name)? 
+                    Utils.ParseCamelCase(Component.Name.Replace(typeof(T).Name, "")) : Info.Name;
+                if(Info != null && !string.IsNullOrEmpty(Info.Description))
+                   Label = new GUIContent(Name, Info.Description);
+                else Label = new GUIContent(Name);
+                //make generic factory method
 				Create = (Factory)Delegate
-					.CreateDelegate(typeof(Factory), 
+					.CreateDelegate(typeof(Factory), this,
 					                GetType()
-					                .GetMethod("CreateComponent", BindingFlags.Static|BindingFlags.NonPublic)
+                                    .GetMethod("CreateComponent", BindingFlags.Instance|BindingFlags.NonPublic)
 					                .MakeGenericMethod(Component));
 			}
 		}
@@ -52,27 +75,33 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		static SortedList<string, ComponentFactory> components;
-		public static SortedList<string, ComponentFactory> Components
+        class TypeComparer : IComparer<Type>
+        {
+            public int Compare(Type x, Type y)
+            { return x.Name.CompareTo(y.Name); }
+        }
+        static SortedList<Type, ComponentFactory> components;
+		public static SortedList<Type, ComponentFactory> Components
 		{
 			get
 			{
 				if(components == null)
 				{
-					components = new SortedList<string, ComponentFactory>();
+                    components = new SortedList<Type, ComponentFactory>(new TypeComparer());
 					foreach(var t in get_all_types())
 					{
-						if(!t.IsAbstract && t.IsSubclassOf(typeof(T)) &&
-						   t.GetCustomAttributes(typeof(HiddenComponent), true).Length == 0)
-							components.Add(Utils.ParseCamelCase(t.Name.Replace(typeof(T).Name, "")), 
-							               new ComponentFactory(t));
+                        if(t.IsAbstract || !t.IsSubclassOf(typeof(T))) continue;
+                        var info = t.GetCustomAttributes(typeof(ComponentInfo), true).FirstOrDefault() as ComponentInfo;
+                        if(info != null && info.Hidden) continue;
+                        var c = new ComponentFactory(t, info);
+                        components.Add(t, c);
 					}
 				}
 				return components;
 			}
 		}
 
-		public static SortedList<string, ComponentFactory> AvailableComponents = new SortedList<string, ComponentFactory>();
+        public static SortedList<Type, ComponentFactory> AvailableComponents = new SortedList<Type, ComponentFactory>(new TypeComparer());
 
 		public static void UpdateAvailableComponents(VesselConfig CFG) 
 		{
@@ -105,12 +134,11 @@ namespace ThrottleControlledAvionics
 			component = null;
 			scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(Globals.Instance.ActionListHeight));
 			GUILayout.BeginVertical();
-			for(int i = 0, count = AvailableComponents.Keys.Count; i < count; i++)
+            foreach(var c in AvailableComponents.Values)
 			{
-				var c = AvailableComponents.Keys[i];
-				if(GUILayout.Button(c, Styles.normal_button, GUILayout.ExpandWidth(true)))
+                if(GUILayout.Button(c.Label, Styles.normal_button, GUILayout.ExpandWidth(true)))
 				{
-					component = AvailableComponents[c].Create();
+					component = c.Create();
 					ret = true;
 				}
 			}

@@ -9,13 +9,13 @@
 
 using System;
 using System.Linq;
-using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
 	[RequireModules(typeof(VerticalSpeedControl))]
+    [ComponentInfo(Description = "Set desired vertical speed. If Follow Terrain mode is active, the speed relative to the ground is used.")]
 	public class SetVerticalSpeedMacroNode : SetFloatMacroNode
 	{
 		public SetVerticalSpeedMacroNode()
@@ -34,6 +34,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(AltitudeControl))]
+    [ComponentInfo(Description = "Set desired altitude to specified value. If Follow Terrain mode is active, height above the ground is used.")]
 	public class SetAltitudeMacroNode : SetFloatMacroNode
 	{
 		public SetAltitudeMacroNode()
@@ -48,6 +49,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(ThrottleControl))]
+    [ComponentInfo(Description = "Set main throttle to specified value")]
 	public class SetThrottleMacroNode : SetFloatMacroNode
 	{
 		public SetThrottleMacroNode() 
@@ -65,6 +67,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(HorizontalSpeedControl))]
+    [ComponentInfo(Description = "Kill horizontal speed")]
 	public class StopMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -72,6 +75,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(HorizontalSpeedControl))]
+    [ComponentInfo(Description = "Point total thrust directly downward")]
 	public class LevelMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -79,13 +83,27 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(Anchor))]
+    [ComponentInfo(Description = "Stop and maintain current position above the ground, correcting lateral drift")]
 	public class AnchorMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.CFG.Nav.XOn(Navigation.AnchorHere); return false; }
 	}
 
+    [RequireModules(typeof(ManeuverAutopilot))]
+    [ComponentInfo(Description = "Execute maneuver node")]
+    public class ExecuteManeuverMacroNode : MacroNode
+    {
+        protected override bool Action(VesselWrapper VSL)
+        {
+            if(!VSL.HasManeuverNode) { Message("No Maneuver Node"); return false; }
+            VSL.CFG.AP1.XOnIfNot(Autopilot1.Maneuver);
+            return VSL.CFG.AP1[Autopilot1.Maneuver];
+        }
+    }
+
 	[RequireModules(typeof(MatchVelocityAutopilot))]
+    [ComponentInfo(Description = "Continiously match orbital velocity with the target")]
 	public class MatchVelocityMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -96,6 +114,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(MatchVelocityAutopilot))]
+    [ComponentInfo(Description = "Match orbital speed with the target on next approach")]
 	public class BrakeNearTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -107,6 +126,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(AutoLander))]
+    [ComponentInfo(Description = "Search for the nearest flat surface and land on it VTOL-style")]
 	public class LandMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -117,6 +137,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(BallisticJump))]
+    [ComponentInfo(Description = "Get to the target using minimum-energy suborbital trajectory and precise landing")]
 	public class JumpToTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -128,6 +149,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(ToOrbitAutopilot))]
+    [ComponentInfo(Description = "Take off and achive circular orbit of specified radius, direction and inclination")]
 	public class ToOrbitNode : MacroNode
 	{
 		[Persistent] public TargetOrbitInfo OrbitInfo = new TargetOrbitInfo();
@@ -163,6 +185,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(DeorbitAutopilot))]
+    [ComponentInfo(Description = "Deorbit and land at specified target location")]
 	public class DeorbitMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -174,6 +197,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(RendezvousAutopilot))]
+    [ComponentInfo(Description = "Rendezvous with current target. Works both for orbit-to-orbit and for planet-to-orbit rendezvous.")]
 	public class RendezvousMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -185,6 +209,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(PointNavigator))]
+    [ComponentInfo(Description = "Fly to current target and Stop")]
 	public class GoToTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -196,6 +221,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(PointNavigator))]
+    [ComponentInfo(Description = "Follow current target")]
 	public class FollowTargetMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -207,6 +233,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(PointNavigator))]
+    [ComponentInfo(Description = "Activate waypoint navigation")]
 	public class FollowPathMacroNode : MacroNode
 	{
 		protected NavPath Path = new NavPath();
@@ -259,6 +286,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(HorizontalSpeedControl))]
+    [ComponentInfo(Description = "Activate Cruis Control, set desired bearing and speed")]
 	public class FlyMacroNode : SetFloatMacroNode
 	{
 		public enum Mode { Forward, Backward, Right, Left, Bearing, Off }
@@ -326,6 +354,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+    [ComponentInfo(Description = "Wait specified number of seconds")]
 	public class WaitMacroNode : SetFloatMacroNode
 	{
 		protected readonly Timer T = new Timer();
@@ -350,6 +379,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(TimeWarpControl))]
+    [ComponentInfo(Description = "Toggle the Follow Terrain mode")]
 	public class TimeWarpMacroNode : SetFloatMacroNode
 	{
 		[Persistent] public double StopUT = -1;
@@ -370,6 +400,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+    [ComponentInfo(Description = "Activate selected engine profile")]
 	public class ActivateProfileMacroNode : MacroNode
 	{
 		[Persistent] public string Profile = "";
@@ -404,6 +435,7 @@ namespace ThrottleControlledAvionics
 		{ VSL.CFG.EnginesProfiles.Activate(Profile); return false; }
 	}
 
+    [ComponentInfo(Description = "Apply custom engine settings to the currently active profile")]
 	public class SetEngineParamsMacroNode : MacroNode
 	{
 		[Persistent] public EngineConfig Config = new EngineConfig();
@@ -466,30 +498,35 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(AltitudeControl))]
+    [ComponentInfo(Description = "Toggle the Follow Terrain mode")]
 	public class FollowTerrainMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.CFG.AltitudeAboveTerrain = On; return false; }
 	}
 
+    [ComponentInfo(Description = "Toggle lights")]
 	public class LightsMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Light, On); return false; }
 	}
 
+    [ComponentInfo(Description = "Toggle brakes")]
 	public class BrakesMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Brakes, On); return false; }
 	}
 
+    [ComponentInfo(Description = "Toggle landing gear")]
 	public class GearMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, On); return false; }
 	}
 
+    [ComponentInfo(Description = "Toggle RCS")]
 	public class RCSMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -498,6 +535,7 @@ namespace ThrottleControlledAvionics
 
 	[RequireModules(typeof(VerticalSpeedControl), 
 	                typeof(ThrottleControl))]
+    [ComponentInfo(Description = "Enable automatic throttle control")]
 	public class AutoThrottleMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -505,6 +543,7 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(AttitudeControl))]
+    [ComponentInfo(Description = "Activate specified mode of T-SAS")]
 	public class TSASMacroNode : MacroNode
 	{
 		[Persistent] public Attitude attitude;
@@ -531,12 +570,14 @@ namespace ThrottleControlledAvionics
 	}
 
 	[RequireModules(typeof(VerticalSpeedControl))]
+    [ComponentInfo(Description = "Disable both Altitude Control and Vertical Speed Control")]
 	public class DisableVerticalControlMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.CFG.DisableVSC(); return false; }
 	}
 
+    [ComponentInfo(Description = "Activate SAS. Deactivate T-SAS and all depending autopilots.")]
 	public class StockSASMacroNode : OnOffMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
@@ -553,12 +594,14 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+    [ComponentInfo(Description = "Activate next stage")]
 	public class StageMacroNode : MacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)
 		{ VSL.ActivateNextStage(); return false; }
 	}
 
+    [ComponentInfo(Description = "Toggle selected action groups, do not change the reset")]
 	public class ToggleActionGroupsMacroNode : MacroNode
 	{
 		[Persistent] public KSPActionGroup Group = KSPActionGroup.None;
@@ -575,7 +618,7 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(Edit)
 			{ 
-				Edit &= !GUILayout.Button(Name, Styles.active_button, GUILayout.ExpandWidth(false));
+                Edit &= !GUILayout.Button(Label, Styles.active_button, GUILayout.ExpandWidth(false));
 				var new_group = KSPActionGroup.None;
 				scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.ExpandWidth(true), GUILayout.Height(100));
 				foreach(KSPActionGroup g in Enum.GetValues(typeof(KSPActionGroup)))
@@ -588,7 +631,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.EndScrollView();
 				Group = new_group;
 			}
-			else Edit |= GUILayout.Button(Name+": "+Group, Styles.normal_button);
+            else Edit |= GUILayout.Button(new GUIContent(Name+": "+Group, Label.tooltip), Styles.normal_button);
 			GUILayout.EndHorizontal();
 		}
 
@@ -603,6 +646,7 @@ namespace ThrottleControlledAvionics
 		}
 	}
 
+    [ComponentInfo(Description = "Activate selected action groups, deactivate the rest")]
 	public class SetActionGroupsMacroNode : ToggleActionGroupsMacroNode
 	{
 		protected override bool Action(VesselWrapper VSL)

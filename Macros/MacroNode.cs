@@ -20,9 +20,10 @@ namespace ThrottleControlledAvionics
 		protected VesselConfig EditedCFG;
 
 		public MacroNode Parent;
-		[Persistent] public string Name;
+		[Persistent] public string Name = "";
 		[Persistent] public bool Active;
 		[Persistent] public bool Done;
+        protected GUIContent Label;
 
 		public virtual bool Edit { get; set; }
 
@@ -30,7 +31,24 @@ namespace ThrottleControlledAvionics
 		public Condition.Selector SelectCondition;
 
 		public MacroNode()
-		{ Name = Utils.ParseCamelCase(GetType().Name.Replace(typeof(MacroNode).Name, "")); }
+		{ 
+            Name = Utils.ParseCamelCase(GetType().Name.Replace(typeof(MacroNode).Name, "")); 
+            Label = new GUIContent(Name);
+        }
+
+        public MacroNode(ComponentInfo info) : this()
+        {
+            if(!string.IsNullOrEmpty(info.Name)) Name = info.Name;
+            Label = new GUIContent(Name, info.Description);
+        }
+
+        public override void Load(ConfigNode node)
+        {
+            base.Load(node);
+            var t = GetType();
+            Label = Components.Actions.ContainsKey(t)? 
+                Components.Actions[GetType()].Label : new GUIContent(Name);
+        }
 
 		public virtual void OnChildRemove(MacroNode child) 
 		{ child.Parent = null; }
@@ -47,14 +65,14 @@ namespace ThrottleControlledAvionics
 		protected virtual void DrawDeleteButton()
 		{
 			if(Parent != null && Parent.Edit &&
-			   GUILayout.Button("X", 
+               GUILayout.Button(new GUIContent("X", "Delete"), 
 			                    Styles.close_button, 
 			                    GUILayout.Width(20)))
 				Parent.OnChildRemove(this);
 		}
 
 		protected virtual void DrawThis() 
-		{ GUILayout.Label(Name, Active? Styles.enabled_button : Styles.normal_button, GUILayout.ExpandWidth(true)); }
+        { GUILayout.Label(Label, Active? Styles.enabled_button : Styles.normal_button, GUILayout.ExpandWidth(true)); }
 
 		protected virtual void CleanUp() {}
 

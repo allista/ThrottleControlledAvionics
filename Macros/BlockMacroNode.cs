@@ -14,7 +14,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	[HiddenComponent]
+    [ComponentInfo(Hidden = true)]
 	public class BlockMacroNode : MacroNode
 	{
 		[Persistent] public PersistentBaseList<MacroNode> Subnodes = new PersistentBaseList<MacroNode>();
@@ -153,18 +153,18 @@ namespace ThrottleControlledAvionics
 				child.Draw();
 				if(Edit)
 				{
-					if(GUILayout.Button("^", Styles.normal_button, GUILayout.Width(20)))
+                    if(GUILayout.Button(new GUIContent("^", "Move upward"), Styles.normal_button, GUILayout.Width(20)))
 						MoveUp(i);
-					if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(20)))
+                    if(GUILayout.Button(new GUIContent("<", "Move to the parent block"), Styles.normal_button, GUILayout.Width(20)))
 						MoveLeft(i);
-					if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(20)))
+                    if(GUILayout.Button(new GUIContent(">", "Move into the block ABOVE"),  Styles.normal_button, GUILayout.Width(20)))
 						MoveRight(i);
 				}
 				GUILayout.EndHorizontal();
 			}
 			if(Edit)
 			{
-				if(GUILayout.Button("Add Action", Styles.normal_button, GUILayout.ExpandWidth(true)))
+                if(GUILayout.Button("Add Action", Styles.active_button, GUILayout.ExpandWidth(true)))
 				{ if(SelectNode != null) SelectNode(n => AddChild(n)); }
 			}
 			GUILayout.EndVertical();
