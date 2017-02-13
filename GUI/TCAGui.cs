@@ -383,7 +383,7 @@ namespace ThrottleControlledAvionics
 		{ return TCA != null && VSL != null && vessel != null && CFG.GUIVisible && AllTabs.Count > 0; }
 
 		#if DEBUG
-		static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 250, 25).clampToScreen();
+		static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 200, 25).clampToScreen();
 		#endif
 		protected override void draw_gui()
 		{
