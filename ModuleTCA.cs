@@ -19,16 +19,16 @@ namespace ThrottleControlledAvionics
 {
 	public class ModuleTCA : PartModule, ITCAComponent, IModuleInfo, ICommNetControlSource
 	{
-		#if DEBUG
-		internal static Profiler prof = new Profiler();
-		#endif
-
 		internal static Globals GLB { get { return Globals.Instance; } }
 		public VesselWrapper VSL { get; private set; }
 		public VesselConfig CFG { get; set; }
 		public TCAState State { get { return VSL.State; } set { VSL.State = value; } }
 		public void SetState(TCAState state) { VSL.State |= state; }
 		public bool IsStateSet(TCAState state) { return Available && VSL.IsStateSet(state); }
+
+        #if DEBUG
+        public ModuleTester TEST;
+        #endif
 
 		#region Modules
 		//core modules
@@ -488,10 +488,7 @@ namespace ThrottleControlledAvionics
 			if(!VSL.Info.ElectricChargeAvailible) 
 			{
 				if(VSL.Controls.WarpToTime > 0)
-				{
-					TimeWarp.SetRate(0, false);
-					VSL.Controls.StopWarp();
-				}
+                    VSL.Controls.AbortWarp();
 				return;
 			}
 			localControlState = VesselControlState.ProbePartial;
@@ -523,6 +520,9 @@ namespace ThrottleControlledAvionics
 			RCS.Steer();
 			VSL.Engines.SetControls();
 			VSL.FinalUpdate();
+            #if DEBUG
+            TEST.OnFixedUpdate();
+            #endif
 		}
 	}
 }

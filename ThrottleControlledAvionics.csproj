@@ -19,7 +19,6 @@
     <WarningLevel>4</WarningLevel>
     <ConsolePause>False</ConsolePause>
     <NoWarn>0649</NoWarn>
-    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -29,7 +28,6 @@
     <WarningLevel>4</WarningLevel>
     <ConsolePause>False</ConsolePause>
     <NoWarn>0649</NoWarn>
-    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Nightbuild|AnyCPU' ">
     <Optimize>true</Optimize>
@@ -103,7 +101,6 @@
     <Compile Include="Macros\Condition.cs" />
     <Compile Include="Macros\MacroNode.cs" />
     <Compile Include="Macros\BlockMacroNode.cs" />
-    <Compile Include="Utils\ComponentDB.cs" />
     <Compile Include="Macros\ConditionMacroNode.cs" />
     <Compile Include="Macros\BaseMacroNodes.cs" />
     <Compile Include="Macros\LoopsAndBranches.cs" />
@@ -176,6 +173,8 @@
     <Compile Include="GUI\Tabs\OrbitalTab.cs" />
     <Compile Include="GUI\Tabs\EnginesTab.cs" />
     <Compile Include="GUI\TCAPartsEditor.cs" />
+    <Compile Include="Utils\ComponentDB.cs" />
+    <Compile Include="Modules\ModuleTester.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
