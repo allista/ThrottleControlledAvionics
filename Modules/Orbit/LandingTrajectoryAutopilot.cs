@@ -89,6 +89,14 @@ namespace ThrottleControlledAvionics
 		protected override LandingTrajectory CurrentTrajectory
 		{ get { return new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, false); } }
 
+        protected override bool continue_calculation(LandingTrajectory old, LandingTrajectory cur, LandingTrajectory best)
+        {
+            return best.DistanceToTarget > Dtol && 
+                (cur == old || 
+                 Math.Abs(cur.DeltaR-old.DeltaR) > 1e-5 || 
+                 Math.Abs(cur.DeltaFi-old.DeltaFi) > 1e-5);
+        }
+
 		public override void Init()
 		{
 			base.Init();
@@ -516,7 +524,7 @@ namespace ThrottleControlledAvionics
 				if(VSL.Controls.CanWarp) 
 					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else VSL.Controls.StopWarp();
-				if(CorrectTarget && VSL.Info.Countdown < LTRJ.CorrectionOffset) 
+				if(CorrectTarget && VSL.Info.Countdown < CorrectionOffset) 
 					scan_for_landing_site();
 				break;
 			case LandingStage.Decelerate:
@@ -584,7 +592,7 @@ namespace ThrottleControlledAvionics
 				   target_within_range && !vessel_within_range)
 					stop_aerobraking();
 				VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
-				VSL.Info.Countdown -= Math.Max(VSL.Info.TTB+VSL.Torque.NoEngines.TurnTime+VSL.vessel.dynamicPressurekPa, TRJ.ManeuverOffset);
+				VSL.Info.Countdown -= Math.Max(VSL.Info.TTB+VSL.Torque.NoEngines.TurnTime+VSL.vessel.dynamicPressurekPa, ManeuverOffset);
 				if(VSL.Info.Countdown > 0)
 				{ if(THR.Throttle.Equals(0)) warp_to_coundown(); }
 				else

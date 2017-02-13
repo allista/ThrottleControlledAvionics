@@ -53,6 +53,12 @@ namespace ThrottleControlledAvionics
 			return Orbit2NodeDeltaV((rot*old.StartVel)-old.StartVel, old.StartUT);
 		}
 
+        double ProgradeCorrection(LandingTrajectory old)
+        {
+            return old.DeltaR *
+                Utils.ClampH(old.Orbit.period/old.TimeToTarget*Body.GeeASL, 1);
+        }
+
 		protected LandingTrajectory fixed_Ecc_orbit(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double ecc)
 		{
 			double StartUT;
@@ -60,21 +66,45 @@ namespace ThrottleControlledAvionics
 			if(old != null) 
 			{
 				targetAlt = old.TargetAltitude;
-				StartUT = AngleDelta2StartUT(old, Math.Abs(90-VesselOrbit.inclination) > 45 ? old.DeltaLon : old.DeltaLat, 
-				                             TRJ.ManeuverOffset, VesselOrbit.period, VesselOrbit.period);
-				NodeDeltaV += PlaneCorrection(old);
-				if(old.BrakeEndDeltaAlt < LTRJ.FlyOverAlt) //correct fly-over altitude
-					NodeDeltaV += new Vector3d((LTRJ.FlyOverAlt-old.BrakeEndDeltaAlt)/100, 0, 0);
+                var deltaAngle = Math.Abs(90-VesselOrbit.inclination) > 45 ? old.DeltaLon : old.DeltaLat;
+                var inv_target_lat = 90-Math.Abs(Coordinates.NormalizeLatitude(old.Target.Pos.Lat));
+                var target_at_pole = inv_target_lat < 5;
+                deltaAngle *= inv_target_lat/90;
+                //if target is at a pole, just use its longitude as start UT
+                if(target_at_pole)
+                    StartUT = VSL.Physics.UT+
+                        Math.Max(Utils.ClampAngle(Utils.AngleDelta(old.Target.Pos.Lon, VSL.vessel.longitude))/360*VesselOrbit.period,
+                                 ManeuverOffset);
+                //otherwise correct start UT according to lat-lon delta between target and landing site
+                else 
+                    StartUT = AngleDelta2StartUT(old, deltaAngle, 
+                                                 ManeuverOffset, VesselOrbit.period, VesselOrbit.period);
+                //if start UT is good enough, correct orbital plane and landing site
+                if(target_at_pole || Math.Abs(deltaAngle) < 1)
+                {
+                    NodeDeltaV += PlaneCorrection(old);
+                    //correct fly-over altitude if needed
+    				if(old.BrakeEndDeltaAlt < LTRJ.FlyOverAlt)
+                        NodeDeltaV += new Vector3d((LTRJ.FlyOverAlt-old.BrakeEndDeltaAlt)*Body.GeeASL/100, 0, 0);
+                    //if close enough, start tuning deltaR
+                    if(Math.Abs(old.DeltaFi) < 1)
+                        NodeDeltaV += Orbit2NodeDeltaV(old.StartVel.normalized * ProgradeCorrection(old), old.StartUT);
+                }
+//                Log("target_at_pole {}, inv_target_lat {}/{}/{}, deltaAngle {}, deltaFi {}, vsl-target-deltaLon {}, StartT {}", 
+//                    target_at_pole, inv_target_lat, Coordinates.NormalizeLatitude(old.Target.Pos.Lat), old.Target.Pos.Lat,
+//                    deltaAngle, old.DeltaFi, 
+//                    Utils.ClampAngle(Utils.AngleDelta(old.Target.Pos.Lon, VSL.vessel.longitude)),
+//                    StartUT-VSL.Physics.UT);//debug
 			}
 			else 
 			{
-				StartUT = VSL.Physics.UT+TRJ.ManeuverOffset;
+				StartUT = VSL.Physics.UT+ManeuverOffset;
 				targetAlt = TargetAltitude;
 			}
 			return new LandingTrajectory(VSL, 
 			                             dV4Ecc(VesselOrbit, ecc, StartUT, Body.Radius+targetAlt-10)+
 			                             Node2OrbitDeltaV(NodeDeltaV, StartUT), 
-			                             StartUT, CFG.Target, targetAlt);
+                                         StartUT, CFG.Target, targetAlt);
 		}
 
 		protected LandingTrajectory horizontal_correction(LandingTrajectory old, LandingTrajectory best, ref Vector3d NodeDeltaV, double start_offset)
@@ -83,8 +113,7 @@ namespace ThrottleControlledAvionics
 			if(old != null) 
 			{
 				if(Math.Abs(old.DeltaR) > Math.Abs(old.DeltaFi)) 
-					NodeDeltaV += new Vector3d(0, 0, old.DeltaR *
-					                           Utils.ClampH(old.Orbit.period/16/old.TimeToTarget, 1));
+                    NodeDeltaV += new Vector3d(0, 0, ProgradeCorrection(old));
 				else 
 					NodeDeltaV += PlaneCorrection(old);
 			}
@@ -94,12 +123,11 @@ namespace ThrottleControlledAvionics
 
 		void compute_landing_trajectory()
 		{
-			//FIXME: sometimes the resulting trajectory still fails to account for CB rotation; may be connected to HyperEdit
 			trajectory = null;
 			MAN.MinDeltaV = 1;
 			Dtol = LTRJ.Dtol;
 			var NodeDeltaV = Vector3d.zero;
-			setup_calculation((o, b) => fixed_Ecc_orbit(o, b, ref NodeDeltaV, currentEcc));
+            setup_calculation((o, b) => fixed_Ecc_orbit(o, b, ref NodeDeltaV, currentEcc));
 			stage = Stage.Compute;
 		}
 
@@ -109,7 +137,7 @@ namespace ThrottleControlledAvionics
 			Dtol = LTRJ.Dtol/2;
 			CorrectionTimer.Reset();
 			var NodeDeltaV = Vector3d.zero;
-			setup_calculation((o, b) => horizontal_correction(o, b, ref NodeDeltaV, Mathf.Max(LTRJ.CorrectionOffset, VSL.Torque.NoEngines.TurnTime)));
+			setup_calculation((o, b) => horizontal_correction(o, b, ref NodeDeltaV, Math.Max(CorrectionOffset, VSL.Torque.NoEngines.TurnTime)));
 			stage = Stage.Correct;
 		}
 
@@ -130,11 +158,7 @@ namespace ThrottleControlledAvionics
 			var vPos = VesselOrbit.getRelativePositionAtUT(UT);
 			var vVel = VesselOrbit.getOrbitalVelocityAtUT(UT);
 			var dir = Vector3d.Exclude(vPos, vVel);
-			var ini_orb = VesselOrbit.eccentricity > 1e-3? CircularOrbit(dir, UT) : VesselOrbit;
-			var dV4P = dV4Pe(ini_orb, (Body.Radius+TargetAltitude)*0.999, UT);
-			var ini_dV = ini_orb.getOrbitalVelocityAtUT(UT)-vVel + dV4P;
-//			Log("ini orbit:\n{}\nvsl orbit:\n{}\nini vel {}\nvsl vel {}\n dV4Pe {}",
-//			    ini_orb, VesselOrbit, ini_orb.getOrbitalVelocityAtUT(UT), vVel, dV4P);//debug
+            var ini_dV = dV4Pe(VesselOrbit, (Body.Radius+TargetAltitude)*0.999, UT);
 			var trj = new LandingTrajectory(VSL, ini_dV, UT, CFG.Target, TargetAltitude);
 			var atmo_curve = trj.GetAtmosphericCurve(5);
 			var maxV = vVel.magnitude;
@@ -161,7 +185,6 @@ namespace ThrottleControlledAvionics
 			}
 			currentEcc = trj.Orbit.eccentricity;
 			dEcc = currentEcc/DEO.EccSteps;
-			if(trj.DeltaR > 0) currentEcc = Utils.ClampL(currentEcc - dEcc, dEcc);
 //			Log("currentEcc: {}, dEcc {}", currentEcc, dEcc);//debug
 		}
 
@@ -198,7 +221,7 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
-				SetTarget();
+                StopUsingTarget();
 				reset();
 				break;
 			}
@@ -242,13 +265,22 @@ namespace ThrottleControlledAvionics
 						SaveGame("before_landing");
 						deorbit();
 					}
-					else stage = Stage.Wait;
+					else 
+                    {
+                        stage = Stage.Wait;
+                        #if DEBUG
+                        PauseMenu.Display();
+                        #endif
+                    }
 				}
 				else 
 				{
-					currentEcc -= dEcc;
-					if(currentEcc > 1e-10) 
+                    currentEcc -= dEcc;
+                    if(currentEcc > 1e-10 && trajectory.Orbit.PeR < Body.Radius) 
 						compute_landing_trajectory();
+                    #if DEBUG
+                    setp_by_step_computation = true;
+                    #endif
 				}
 				break;
 			case Stage.Wait:
@@ -274,12 +306,12 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.Coast:
 				update_trajectory();
-				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-TRJ.ManeuverOffset;
+				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-ManeuverOffset;
 				if(CFG.AP1[Autopilot1.Maneuver]) 
 				{ 
 					if(VSL.Info.Countdown > 0 ||
 					   trajectory.BrakeStartUT-Math.Max(MAN.NodeUT, VSL.Physics.UT)-VSL.Info.TTB -
-					   VSL.Torque.NoEngines.MinRotationTime(Vector3.Angle(VesselOrbit.vel, MAN.NodeDeltaV)) > LTRJ.CorrectionOffset)
+					   VSL.Torque.NoEngines.MinRotationTime(Vector3.Angle(VesselOrbit.vel, MAN.NodeDeltaV)) > CorrectionOffset)
 					{
 						Status("Correcting trajectory..."); 
 						break; 
@@ -316,6 +348,36 @@ namespace ThrottleControlledAvionics
 			else GUILayout.Label(new GUIContent("Land", "Compute and perform a deorbit maneuver, then land near the target."), 
 			                     Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
+
+        #if DEBUG
+        RealTimer delay = new RealTimer(5);
+        public void Test(System.Random rnd = null)
+        {
+            VSL.Info.AddCustopWaypoint(new Coordinates(0,0,0),   "Zero");
+            VSL.Info.AddCustopWaypoint(new Coordinates(90,0,0),  "North");
+            VSL.Info.AddCustopWaypoint(new Coordinates(-90,0,0), "South");
+            VSL.Info.AddCustopWaypoint(new Coordinates(0,90,0),  "90 deg");
+            VSL.Info.AddCustopWaypoint(new Coordinates(0,180,0), "180 deg");
+            VSL.Info.AddCustopWaypoint(new Coordinates(0,270,0), "270 deg");
+            if(CFG.Target == null)
+            {
+                var c = Coordinates.SurfacePoint(rnd.NextDouble()*180-90, //30+60, //5+85, 
+                                                 rnd.NextDouble()*360, 
+                                                 Body);
+                SetTarget(new WayPoint(c));
+                CFG.AP2.XOnIfNot(Autopilot2.Deorbit);
+            }
+            if(CFG.AP2[Autopilot2.Deorbit] &&
+               !CFG.AP1[Autopilot1.Maneuver]) 
+            {
+                delay.Reset();
+                return;
+            }
+            CFG.AP2.XOff();
+            if(!delay.TimePassed) return;
+            CFG.Target = null;
+        }
+        #endif
 	}
 }
 

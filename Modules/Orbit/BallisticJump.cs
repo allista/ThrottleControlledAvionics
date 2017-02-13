@@ -72,7 +72,7 @@ namespace ThrottleControlledAvionics
 			if(Vector3d.Dot(VesselOrbit.vel+dV, VesselOrbit.pos) < 0)
 				dV = -2*VesselOrbit.vel-dV;
 			var trj = new LandingTrajectory(VSL, dV, VSL.Physics.UT, CFG.Target, TargetAltitude, false);
-			if(trj.TransferTime < TRJ.ManeuverOffset)
+			if(trj.TransferTime < ManeuverOffset)
 			{
 				Status("yellow", "The target is too close for the jump.\n" +
 				       "Use <b>Go To</b> instead.");
@@ -115,7 +115,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		protected LandingTrajectory fixed_inclination_orbit(LandingTrajectory old, LandingTrajectory best, 
-			ref Vector3d dir, ref double V, float start_offset)
+                                                            ref Vector3d dir, ref double V, float start_offset)
 		{
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
@@ -127,7 +127,8 @@ namespace ThrottleControlledAvionics
 			                             CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
 		}
 
-		protected LandingTrajectory orbit_correction(LandingTrajectory old, LandingTrajectory best, ref double angle, ref double V, float start_offset)
+		protected LandingTrajectory orbit_correction(LandingTrajectory old, LandingTrajectory best, 
+                                                     ref double angle, ref double V, double start_offset)
 		{
 			var StartUT = VSL.Physics.UT+start_offset;
 			if(old != null) 
@@ -176,8 +177,8 @@ namespace ThrottleControlledAvionics
 			trajectory = null;
 			stage = Stage.CorrectTrajectory;
 			double angle = 0;
-			double V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+LTRJ.CorrectionOffset).magnitude;
-			setup_calculation((o, b) => orbit_correction(o, b, ref angle, ref V, LTRJ.CorrectionOffset));
+			double V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
+			setup_calculation((o, b) => orbit_correction(o, b, ref angle, ref V, CorrectionOffset));
 		}
 
 		protected override void UpdateState()

@@ -26,10 +26,9 @@ namespace ThrottleControlledAvionics
 		public new class Config : TCAModule.ModuleConfig
 		{
 			[Persistent] public float Dtol                = 100f;   //m
-			[Persistent] public float MaxTTR              = 3f;     //1/VesselOrbit.period
+			[Persistent] public float MaxTTR              = 3f;     //VesselOrbit.periods
 			[Persistent] public float MaxDeltaV           = 100f;   //m/s
 			[Persistent] public float CorrectionStart     = 10000f; //m
-			[Persistent] public float CorrectionOffset    = 20f;    //s
 			[Persistent] public float CorrectionTimer     = 10f;    //s
 			[Persistent] public float ApproachThreshold   = 500f;   //m
 			[Persistent] public float MaxApproachV        = 20f;    //parts
@@ -116,7 +115,7 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<Radar>();
-				SetTarget();
+                StopUsingTarget();
 				reset();
 				break;
 			}
@@ -148,20 +147,22 @@ namespace ThrottleControlledAvionics
 		{
 			var endUT = StartUT+transfer_time;
 			var solver = new LambertSolver(NextOrbit(endUT), NextOrbit(TargetOrbit, endUT).getRelativePositionAtUT(endUT), StartUT);
+            if(solver.NotElliptic(transfer_time)) transfer_time = solver.ParabolicTime+1;
 			var dV = solver.dV4Transfer(transfer_time);
-//			Log("transfer time {}, dV {}\norbit {}\ntOrbit {}", transfer_time, dV, NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
+//            Log("transfer time {}\ncV {}\ndV {}\norbit {}\ntOrbit {}", 
+//                transfer_time, VesselOrbit.getOrbitalVelocityAtUT(StartUT), dV, 
+//                NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
 			return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, MinPeR, transfer_time);
 		}
 
 		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, ref double dT)
-		{ return orbit_correction(old, best, VSL.Physics.UT + REN.CorrectionOffset, ref dT); }
+		{ return orbit_correction(old, best, VSL.Physics.UT + CorrectionOffset, ref dT); }
 
-		//test: this needs thorough testing with respect to different combinations of vessel/target orbits
 		protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, double StartUT, ref double dT)
 		{
 			double transfer_time;
-			if(VSL.Physics.UT+REN.CorrectionOffset > StartUT)
-				StartUT = VSL.Physics.UT+REN.CorrectionOffset+TimeWarp.fixedDeltaTime;
+			if(VSL.Physics.UT+CorrectionOffset > StartUT)
+				StartUT = VSL.Physics.UT+CorrectionOffset+TimeWarp.fixedDeltaTime;
 			if(old != null) 
 			{
 				if(StartUT-VSL.Physics.UT < old.ManeuverDuration/2)
@@ -170,9 +171,9 @@ namespace ThrottleControlledAvionics
 					transfer_time = Math.Max(old.TransferTime+dT, old.TransferTime*2);
 				else
 				{
-					transfer_time = old.TransferTime+dT;
+                    transfer_time = old.TransferTime+dT;
 					if(transfer_time > Math.Max(VesselOrbit.period, TargetOrbit.period) ||
-					   transfer_time < TRJ.ManeuverOffset ||
+					   transfer_time < ManeuverOffset ||
 					   old.ManeuverDeltaV.sqrMagnitude > best.ManeuverDeltaV.sqrMagnitude &&
 					   !old.KillerOrbit && !best.KillerOrbit)
 					{
@@ -181,49 +182,50 @@ namespace ThrottleControlledAvionics
 					}
 				}
 			}
-			else transfer_time = TRJ.ManeuverOffset;
-			return new_trajectory(StartUT, transfer_time);
+			else transfer_time = ManeuverOffset;
+            return new_trajectory(StartUT, Math.Max(transfer_time, ManeuverOffset));
 		}
 
-		bool trajectories_converging(RendezvousTrajectory cur, RendezvousTrajectory best)
-		{
-			return cur == best ||
-				target_is_far(cur, best) || 
-				Math.Abs(cur.TransferTime-best.TransferTime) > 1e-5 &&
-				Math.Abs(cur.ManeuverDeltaV.sqrMagnitude-best.ManeuverDeltaV.sqrMagnitude) > 1;
-		}
+        protected override bool continue_calculation(RendezvousTrajectory old, RendezvousTrajectory cur, RendezvousTrajectory best)
+        {
+            return 
+                cur == best ||
+                best.DistanceToTarget > Dtol ||
+                cur.ManeuverDuration.Equals(0) ||
+                Math.Abs(cur.TransferTime-best.TransferTime) > 1e-5 &&
+                Math.Abs(cur.ManeuverDeltaV.sqrMagnitude-best.ManeuverDeltaV.sqrMagnitude) > 1;
+        }
 
-		protected override bool trajectory_is_better(RendezvousTrajectory first, RendezvousTrajectory second)
-		{ return !first.KillerOrbit && base.trajectory_is_better(first, second); }
-
-		protected override void setup_calculation(NextTrajectory next)
-		{
-			next_trajectory = next;
-			end_predicate = trajectories_converging;
-			better_predicate = trajectory_is_better;
-		}
+        protected override bool trajectory_is_better(RendezvousTrajectory old, RendezvousTrajectory cur, RendezvousTrajectory best)
+		{ return !cur.KillerOrbit && base.trajectory_is_better(old, cur, best); }
 
 		void compute_rendezvou_trajectory()
 		{
 			trajectory = null;
 			stage = Stage.ComputeRendezvou;
+            var StartUT = VSL.Physics.UT+ManeuverOffset;
 			var transfer_time = VesselOrbit.period/4;
-			var StartUT = VSL.Physics.UT+
-				Utils.ClampL(TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT+TRJ.ManeuverOffset)
-				             *VesselOrbit.period-transfer_time, TRJ.ManeuverOffset);
+            var ttr = TimeToResonance(VesselOrbit, TargetOrbit, StartUT);
+            if(ttr < REN.MaxTTR) ttr *= VesselOrbit.period;
+            else 
+            {
+                double approachUT;
+                ClosestApproach(VesselOrbit, TargetOrbit, StartUT, VSL.Geometry.MinDistance, out approachUT);
+                ttr = approachUT-VSL.Physics.UT;
+            }
+			StartUT = VSL.Physics.UT+Utils.ClampL(ttr-transfer_time, ManeuverOffset);
 			double dT = TargetOrbit.period/4;
-//			LogF("transfer time: {}, StartT {}, TTR {}", 
-//			     transfer_time, StartUT-VSL.Physics.UT, 
-//			     TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT+TRJ.ManeuverOffset)*VesselOrbit.period);//debug
+            Log("transfer time: {}, StartT {}, TTR {}", 
+			     transfer_time, StartUT-VSL.Physics.UT, ttr);//debug
 			setup_calculation((o, b) => orbit_correction(o, b, StartUT, ref dT));
 		}
 
 		protected override void fine_tune_approach()
 		{
-			trajectory = null;
 			stage = Stage.ComputeRendezvou;
-			double dT = TargetOrbit.period/4;
+            double dT = trajectory.TimeToTarget;
 			setup_calculation((o, b) => orbit_correction(o, b, ref dT));
+            trajectory = null;
 		}
 
 		protected void compute_start_orbit(double StartUT)
@@ -239,12 +241,12 @@ namespace ThrottleControlledAvionics
 			ToOrbit = null;
 			var dV = Vector3d.zero;
 			var old = VesselOrbit;
-			var StartUT = VSL.Physics.UT+REN.CorrectionOffset;
+			var StartUT = VSL.Physics.UT+CorrectionOffset;
 			CFG.BR.OffIfOn(BearingMode.Auto);
+            update_trajectory();
 			if(VesselOrbit.PeR < MinPeR) 
 			{
-				update_trajectory();
-				StartUT = Math.Min(trajectory.AtTargetUT, VSL.Physics.UT+(VesselOrbit.ApAhead()? VesselOrbit.timeToAp : REN.CorrectionOffset));
+                StartUT = Math.Min(trajectory.AtTargetUT, VSL.Physics.UT+(VesselOrbit.ApAhead()? VesselOrbit.timeToAp : CorrectionOffset));
 				if(trajectory.DistanceToTarget < REN.ApproachThreshold*2 && StartUT.Equals(trajectory.AtTargetUT)) 
 				{ //approach is close enough to directly match orbits
 					match_orbits(); 
@@ -260,10 +262,18 @@ namespace ThrottleControlledAvionics
 					return;
 				}
 				//starting from circular orbit and proceeding to TTR fitting...
-				StartUT = VesselOrbit.ApAhead()? VSL.Physics.UT+VesselOrbit.timeToAp : VSL.Physics.UT+REN.CorrectionOffset;
+				StartUT = VesselOrbit.ApAhead()? VSL.Physics.UT+VesselOrbit.timeToAp : VSL.Physics.UT+CorrectionOffset;
 				dV = dV4C(old, hV(StartUT), StartUT);
 				old = NewOrbit(old, dV, StartUT);
 			}
+            else if(trajectory.RelDistanceToTarget < REN.CorrectionStart)
+            {
+                if(trajectory.RelDistanceToTarget > REN.CorrectionStart/4) 
+                    fine_tune_approach();
+                else match_orbits();
+                return;
+            }
+            //compute orbit with desired TTR and activate maneuver autopilot
 			dV += dV4TTR(old, TargetOrbit, REN.MaxTTR, REN.MaxDeltaV, MinPeR, StartUT);
 			if(!dV.IsZero())
 			{
@@ -384,11 +394,7 @@ namespace ThrottleControlledAvionics
 				if(VSL.InOrbit && 
 				   VesselOrbit.ApR > MinPeR &&
 				   VesselOrbit.radius > MinPeR)
-				{
-					update_trajectory();
-					if(trajectory.RelDistanceToTarget > REN.CorrectionStart) start_orbit();
-					else fine_tune_approach();
-				}
+					start_orbit();
 				else to_orbit();
 				break;
 			case Stage.Launch:
@@ -412,7 +418,7 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.ToOrbit:
 //				log_flight();//debug
-				if(ToOrbit.GravityTurn(TRJ.ManeuverOffset, GLB.ORB.GTurnCurve, GLB.ORB.Dist2VelF, REN.Dtol))
+				if(ToOrbit.GravityTurn(ManeuverOffset, GLB.ORB.GTurnCurve, GLB.ORB.Dist2VelF, REN.Dtol))
 				{
 					if(ToOrbit.dApA < REN.Dtol)
 					{
@@ -441,8 +447,12 @@ namespace ThrottleControlledAvionics
 					break;
 				}
 				if(!trajectory_computed()) break;
+                #if DEBUG
+                if(trajectory.Orbit.eccentricity > 0.6)
+                    PauseMenu.Display();
+                #endif
 				if(trajectory.RelDistanceToTarget < REN.CorrectionStart &&
-				   (CurrentDistance < 0 || trajectory.DistanceToTarget < CurrentDistance))
+                   (CurrentDistance < 0 || trajectory.DistanceToTarget < CurrentDistance))
 				{
 					CorrectionTimer.Reset();
 					if(trajectory.ManeuverDeltaV.magnitude > 1)
@@ -464,7 +474,8 @@ namespace ThrottleControlledAvionics
 						break;
 					}
 					update_trajectory();
-					if(trajectory.TimeToTarget > trajectory.BrakeDuration+TRJ.ManeuverOffset+TimeWarp.CurrentRate)
+                    if(CurrentDistance > REN.Dtol && 
+                       trajectory.TimeToTarget > trajectory.BrakeDuration+ManeuverOffset+TimeWarp.CurrentRate)
 					{
 						stage = Stage.Coast;
 						break;
@@ -479,6 +490,9 @@ namespace ThrottleControlledAvionics
 				}
 				Status("red", "Failed to compute rendezvou trajectory.\nPlease, try again.");
 				CFG.AP2.Off();
+                #if DEBUG
+                PauseMenu.Display();
+                #endif
 				break;
 			case Stage.Rendezvou:
 //				log_flight();//debug
@@ -493,7 +507,7 @@ namespace ThrottleControlledAvionics
 				if(!CorrectionTimer.TimePassed)
 				{
 					if(VSL.Controls.CanWarp)
-						VSL.Controls.WarpToTime = trajectory.AtTargetUT-trajectory.BrakeDuration+TRJ.ManeuverOffset;
+						VSL.Controls.WarpToTime = trajectory.AtTargetUT-trajectory.BrakeDuration+ManeuverOffset;
 					break;
 				}
 				CorrectionTimer.Reset();
@@ -503,14 +517,29 @@ namespace ThrottleControlledAvionics
 			case Stage.MatchOrbits:
 //				log_flight();//debug
 				Status("Matching orbits at nearest approach...");
+                if(!MAN.Working)
+                {
+                    update_trajectory();
+                    if(trajectory.AtTargetUT-MAN.NodeUT < -0.1)
+                    { //update brake node if something has changed
+                        Log("dUT {}", MAN.NodeUT-trajectory.AtTargetUT);//debug
+                        clear_nodes();
+                        add_target_node();
+                        MAN.UpdateNode();
+                    }
+                }
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				update_trajectory();
 				var dist = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.MinDistance, 0);
 				var relD = dist/VesselOrbit.semiMajorAxis;
-				if(relD > REN.CorrectionStart) start_orbit();
-				else if(relD > REN.CorrectionStart/4) fine_tune_approach();
-				else if(dist > REN.Dtol) approach();
-				else brake();
+				if(relD > REN.CorrectionStart) 
+                    start_orbit();
+				else if(relD > REN.CorrectionStart/4 && 
+                        dist > 1000) 
+                    fine_tune_approach();
+				else if(dist > REN.Dtol) 
+                    approach();
+				else 
+                    brake();
 				break;
 			case Stage.Approach:
 				Status("Approaching...");
@@ -589,5 +618,55 @@ namespace ThrottleControlledAvionics
 			else GUILayout.Label(new GUIContent("Rendezvous", "Compute and perform a rendezvous maneuver, then brake near the target."), 
 			                     Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
+
+        #if DEBUG
+        public static Orbit CreateRandomOrbitNearby(Orbit baseOrbit)
+        {
+            var orbit = new Orbit();
+            orbit.eccentricity = baseOrbit.eccentricity + (double)UnityEngine.Random.Range(0.001f, 0.1f);
+            orbit.semiMajorAxis = baseOrbit.semiMajorAxis * (double)UnityEngine.Random.Range(0.9f, 1.1f);
+            orbit.inclination = baseOrbit.inclination + (double)UnityEngine.Random.Range(-20f, 20f);
+            orbit.LAN = baseOrbit.LAN * (double)UnityEngine.Random.Range(0.5f, 1.5f);
+            orbit.argumentOfPeriapsis = baseOrbit.argumentOfPeriapsis * (double)UnityEngine.Random.Range(0.5f, 1.5f);
+            orbit.meanAnomalyAtEpoch = baseOrbit.meanAnomalyAtEpoch * (double)UnityEngine.Random.Range(0.5f, 1.5f);
+            orbit.epoch = baseOrbit.epoch;
+            orbit.referenceBody = baseOrbit.referenceBody;
+            orbit.Init();
+            return orbit;
+        }
+
+        ProtoVessel tgt_ast;
+        RealTimer delay = new RealTimer(5);
+        public void Test(System.Random rnd)
+        {
+            if(tgt_ast == null)
+            {
+                var obt = CreateRandomOrbitNearby(VesselOrbit);
+                var seed = (uint)rnd.Next();
+                tgt_ast = DiscoverableObjectsUtil.SpawnAsteroid("REN Test "+seed, obt, seed, UntrackedObjectClass.C, 5e5, 1e6);
+                if(tgt_ast.vesselRef != null) 
+                {
+                    tgt_ast.vesselRef.DiscoveryInfo.SetLevel(DiscoveryLevels.Owned);
+                    CheatOptions.InfinitePropellant = true;
+                    SetTarget(tgt_ast.vesselRef);
+                    CFG.AP2.XOn(Autopilot2.Rendezvous);
+                }
+                return;
+            }
+            if(CFG.AP2[Autopilot2.Rendezvous]) 
+            {
+                delay.Reset();
+                return;
+            }
+            CFG.AP2.XOff();
+            if(!delay.TimePassed) return;
+            if(tgt_ast != null)
+            {
+                if(tgt_ast.vesselRef != null)
+                    tgt_ast.vesselRef.Die();
+                tgt_ast = null;
+            }
+        }
+        #endif
 	}
 }

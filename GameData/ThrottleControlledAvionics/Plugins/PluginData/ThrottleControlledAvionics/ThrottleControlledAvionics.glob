@@ -370,6 +370,7 @@ WRP
 {
 	DewarpTime = 20 //sec
 	MaxWarp    = 10000
+	FramesToSkip = 3
 }
 
 MVA
@@ -385,6 +386,8 @@ TRJ
 	MinPeA             = 10000 //m
 	MaxIterations      = 1000
 	PerFrameIterations = 5
+	ManeuverOffset     = 60   //s
+	CorrectionOffset   = 20   //s
 }
 
 LTRJ
@@ -399,7 +402,6 @@ LTRJ
 	FinalBrakeOffset   = 3    //s
 	ParachutesDeployOffset = 10 //s
 	
-	CorrectionOffset   = 20   //s
 	CorrectionTimer    = 30   //s
 	CorrectionMinDv    = 1    //m/s
 	CorrectionThrustF  = 4
@@ -455,7 +457,6 @@ REN
 	MaxTTR              = 3     //orbit.periods
 	MaxDeltaV           = 100   //m/s
 	CorrectionStart     = 0.015 //fraction of SMA
-	CorrectionOffset    = 20    //s
 	CorrectionTimer     = 10    //s
 	ApproachThreshold   = 500   //m
 	MaxApproachV        = 20    //parts

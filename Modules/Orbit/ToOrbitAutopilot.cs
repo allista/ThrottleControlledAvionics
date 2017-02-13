@@ -200,7 +200,7 @@ namespace ThrottleControlledAvionics
 					ToOrbit.Target = QuaternionD.AngleAxis(alpha, Vector3d.Cross(norm, VesselOrbit.pos))
 						*ToOrbit.Target;
 				}
-				if(ToOrbit.GravityTurn(TRJ.ManeuverOffset, ORB.GTurnCurve, ORB.Dist2VelF, ORB.Dtol)) break;
+				if(ToOrbit.GravityTurn(ManeuverOffset, ORB.GTurnCurve, ORB.Dist2VelF, ORB.Dtol)) break;
 				CFG.BR.OffIfOn(BearingMode.Auto);
 				var ApAUT = VSL.Physics.UT+VesselOrbit.timeToAp;
 				if(ApR > MinPeR + ORB.RadiusOffset) change_ApR(ApAUT);
