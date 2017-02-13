@@ -60,6 +60,14 @@ namespace ThrottleControlledAvionics
 
 		public void StopWarp() { if(WarpToTime > 0) WarpToTime = 0; }
 
+        public void AbortWarp(bool instant = false)
+        {
+            if(TimeWarp.CurrentRateIndex > 0)
+                TimeWarp.SetRate(0, instant);
+            VSL.Controls.WarpToTime = -1;
+            CFG.WarpToNode = false;
+        }
+
 		public override void Update()
 		{
 			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
