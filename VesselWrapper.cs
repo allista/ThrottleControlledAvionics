@@ -97,8 +97,11 @@ namespace ThrottleControlledAvionics
 					TargetUsers.Add(user);
 				var t = wp.GetTarget();
 				if(IsActiveVessel && wp != CFG.Target)
-					Utils.Message("Target: {0}", t.GetName());
-				Target = t;
+//                {
+                    FlightGlobals.fetch.SetVesselTarget(t, true);
+//					Utils.Message("Target: {0}", t.GetName());
+//                }
+				else Target = t;
 				CFG.Target = wp;
 			}
 		}
