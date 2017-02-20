@@ -356,6 +356,7 @@ namespace ThrottleControlledAvionics
 			CFG.Target = CFG.Anchor;
 			CFG.Nav.OnIfNot(Navigation.Anchor);
 			CFG.DesiredAltitude = VSL.Geometry.H*(LND.StopAtH+1);
+            //Log("land: H {}, Alt {}", VSL.Geometry.H, CFG.DesiredAltitude);//debug
 			TCA.SquadConfigAction(cfg => cfg.AP1.XOnIfNot(Autopilot1.Land));
 			stage = Stage.Land;
 		}
@@ -435,6 +436,7 @@ namespace ThrottleControlledAvionics
 				{
 					CFG.Nav.OnIfNot(Navigation.Anchor);
 					CFG.VF.OnIfNot(VFlight.AltitudeControl);
+                    //Log("land: dAlt {}", VSL.Altitude.Relative-CFG.DesiredAltitude);//debug
 					if(VSL.Altitude.Relative-CFG.DesiredAltitude > 5 || VSL.VerticalSpeed.Absolute < -1) break;
 					CFG.VerticalCutoff = VSL.Engines.Slow? -0.5f : -1f;
 					CFG.DesiredAltitude = -10;

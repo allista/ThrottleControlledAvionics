@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
 			BrakeDeltaV = t_vel-Orbit.getOrbitalVelocityAtUT(AtTargetUT);
 			BrakeDuration = VSL.Engines.TTB((float)BrakeDeltaV.magnitude);
             KillerOrbit = Orbit.PeR < MinPeR && Orbit.timeToPe < TransferTime;
-            Utils.Log("{}", this);//debug
+//            Utils.Log("{}", this);//debug
 		}
 
 		public override string ToString()
