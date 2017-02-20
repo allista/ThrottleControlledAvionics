@@ -377,7 +377,7 @@ namespace ThrottleControlledAvionics
 			min_dV = dV.magnitude;
 			dVdir  = dV/min_dV;
 			if(min_dV > max_dV) min_dV = max_dV;
-			if(NewOrbit(old, dV, UT).PeR > min_PeR) return dVdir*min_dV;
+            if(NewOrbit(old, dVdir*min_dV, UT).PeR > min_PeR) return dVdir*min_dV;
 			max_dV = min_dV;
 			min_dV = 0;
 			//tune orbit for maximum dV but PeR above the min_PeR
@@ -709,8 +709,8 @@ namespace ThrottleControlledAvionics
         protected virtual bool trajectory_is_better(T old, T cur, T best)
 		{
 			return best.DistanceToTarget < 0 || cur.DistanceToTarget >= 0 && 
-				(cur.DistanceToTarget+cur.ManeuverDeltaV.magnitude+cur.BrakeDeltaV.magnitude < 
-				 best.DistanceToTarget+best.ManeuverDeltaV.magnitude+best.BrakeDeltaV.magnitude);
+                (cur.DistanceToTarget*cur.DistanceToTarget+cur.ManeuverDeltaV.sqrMagnitude+cur.BrakeDeltaV.sqrMagnitude < 
+                 best.DistanceToTarget*best.DistanceToTarget+best.ManeuverDeltaV.sqrMagnitude+best.BrakeDeltaV.sqrMagnitude);
 		}
 
 		protected virtual void setup_calculation(NextTrajectory next)
@@ -722,10 +722,10 @@ namespace ThrottleControlledAvionics
 
         protected void add_target_node()
         {
-            var dV = trajectory.BrakeDeltaV;
-            ManeuverAutopilot.AddNode(VSL, dV, 
+            var dV = trajectory.BrakeDeltaV.magnitude;
+            ManeuverAutopilot.AddNode(VSL, trajectory.BrakeDeltaV, 
                                       trajectory.AtTargetUT
-                                      -MatchVelocityAutopilot.BrakingNodeCorrection((float)dV.magnitude, VSL));
+                                      -MatchVelocityAutopilot.BrakingNodeCorrection((float)dV, VSL));
         }
 
 		protected virtual bool check_target()
