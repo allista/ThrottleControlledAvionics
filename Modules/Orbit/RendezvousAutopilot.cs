@@ -7,6 +7,7 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
+
 using System;
 using UnityEngine;
 using AT_Utils;
@@ -144,15 +145,14 @@ namespace ThrottleControlledAvionics
 			return true;
 		}
 
+		
+
 		RendezvousTrajectory new_trajectory(double StartUT, double transfer_time)
 		{
 			var endUT = StartUT+transfer_time;
 			var solver = new LambertSolver(NextOrbit(endUT), NextOrbit(TargetOrbit, endUT).getRelativePositionAtUT(endUT), StartUT);
             if(solver.NotElliptic(transfer_time)) transfer_time = solver.ParabolicTime+1;
 			var dV = solver.dV4Transfer(transfer_time);
-            Log("transfer time {}\ncV {}\ndV {}\norbit {}\ntOrbit {}", 
-                transfer_time, VesselOrbit.getOrbitalVelocityAtUT(StartUT), dV, 
-                NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
 			return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, MinPeR, transfer_time);
 		}
 
@@ -181,47 +181,57 @@ namespace ThrottleControlledAvionics
 					transfer_time = Math.Max(old.TransferTime+dT, old.TransferTime*2);
 				else
 				{
-                    transfer_time = old.TransferTime+dT;
+					transfer_time = old.TransferTime+dT;
 					if(transfer_time > Math.Max(VesselOrbit.period, TargetOrbit.period) ||
-					   transfer_time < ManeuverOffset ||
-					   old.ManeuverDeltaV.sqrMagnitude > best.ManeuverDeltaV.sqrMagnitude &&
-					   !old.KillerOrbit && !best.KillerOrbit)
+						transfer_time < ManeuverOffset ||
+						!old.KillerOrbit && !best.KillerOrbit &&
+						!trajectory_is_better(old, old, best))
 					{
 						dT /= -2.1;
 						transfer_time = best.TransferTime+dT;
 					}
 				}
 			}
-            else transfer_time = ini_transfer_time;
-            return new_trajectory(StartUT, Math.Max(transfer_time, ManeuverOffset));
+			else transfer_time = ini_transfer_time;
+			return new_trajectory(StartUT, Math.Max(transfer_time, ManeuverOffset));
 		}
+
+        protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, 
+                                                        double StartUT, double EndUT, 
+                                                        ref double transfer_time, ref double UT, ref double dT)
+        {
+            if(old == null)
+                return new_trajectory(StartUT, transfer_time);
+            if(UT > 0)
+            {
+                if(best.KillerOrbit) 
+                    transfer_time += dT/10;
+                else UT += dT;
+                if(UT < EndUT) 
+                {
+                    var trj = new_trajectory(UT, transfer_time);
+                    return trj;
+                }
+                dT = best.TransferTime/10;
+                UT = -1;
+                return orbit_correction(null, best, best.StartUT, ManeuverOffset, ref dT);
+            }
+            return orbit_correction(old, best, best.StartUT, ManeuverOffset, ref dT);
+        }
 
         protected override bool continue_calculation(RendezvousTrajectory old, RendezvousTrajectory cur, RendezvousTrajectory best)
         {
-            Log("cur == best {}, best.Dist {}, cur.ManT {}, dTransT {}, dDeltaV {}",
-                cur == best,
-                best.DistanceToTarget,
-                cur.ManeuverDuration,
-                Math.Abs(cur.TransferTime-best.TransferTime),
-                Math.Abs(cur.ManeuverDeltaV.sqrMagnitude-best.ManeuverDeltaV.sqrMagnitude));//debug
             return 
                 cur == best ||
                 best.DistanceToTarget > Dtol ||
                 cur.ManeuverDuration.Equals(0) ||
+                !cur.StartUT.Equals(best.StartUT) ||
                 Math.Abs(cur.TransferTime-best.TransferTime) > 1e-5 &&
                 Math.Abs(cur.ManeuverDeltaV.sqrMagnitude-best.ManeuverDeltaV.sqrMagnitude) > 1;
         }
 
         protected override bool trajectory_is_better(RendezvousTrajectory old, RendezvousTrajectory cur, RendezvousTrajectory best)
         { 
-            Log("cur.Trans {}, cur.Killer {}, best.Killer {}\ncur.Dist {}, best.Dist {}\ncur.Time {}+{}, best.Time {}+{}",
-                cur.TransferTime,
-                cur.KillerOrbit,
-                best.KillerOrbit,
-                cur.DistanceToTarget,
-                best.DistanceToTarget,
-                cur.ManeuverDuration, cur.BrakeDuration,
-                best.ManeuverDuration, best.BrakeDuration);//debug
             if(cur.KillerOrbit && best.KillerOrbit) 
                 return cur.Orbit.PeR > best.Orbit.PeR;
             return 
@@ -234,20 +244,23 @@ namespace ThrottleControlledAvionics
 			trajectory = null;
 			stage = Stage.ComputeRendezvou;
             var StartUT = VSL.Physics.UT+ManeuverOffset;
-            var transfer_time = (VesselOrbit.period+TargetOrbit.period)/8;
+            //compute approach UT estimate
+            double approachUT;
+            var transfer_time = VesselOrbit.period/2;
             var ttr = TimeToResonance(VesselOrbit, TargetOrbit, StartUT);
-            if(ttr < REN.MaxTTR) ttr *= VesselOrbit.period;
-            else 
+            if(ttr < REN.MaxTTR) 
             {
-                double approachUT;
-                ClosestApproach(VesselOrbit, TargetOrbit, StartUT, VSL.Geometry.MinDistance, out approachUT);
-                ttr = approachUT-VSL.Physics.UT;
+                approachUT = VSL.Physics.UT+ttr*VesselOrbit.period;
+                StartUT = Math.Max(approachUT-transfer_time, StartUT);
             }
-			StartUT = VSL.Physics.UT+Utils.ClampL(ttr-transfer_time, ManeuverOffset);
-            double dT = transfer_time/2;
-            Log("transfer time: {}, StartT {}, TTR {}", 
-			     transfer_time, StartUT-VSL.Physics.UT, ttr);//debug
-            setup_calculation((o, b) => orbit_correction(o, b, StartUT, ManeuverOffset, ref dT));
+            else 
+                approachUT = VSL.Physics.UT+VesselOrbit.period*REN.MaxTTR;
+            if(approachUT <= StartUT) 
+                approachUT += VesselOrbit.period;
+            var EndUT = approachUT+transfer_time;
+            var dT = (approachUT-StartUT)/10;
+            var UT = StartUT;
+            setup_calculation((o, b) => orbit_correction(o, b, StartUT, EndUT, ref transfer_time, ref UT, ref dT));
 		}
 
 		protected override void fine_tune_approach()
@@ -255,7 +268,8 @@ namespace ThrottleControlledAvionics
             update_trajectory();
 			stage = Stage.ComputeRendezvou;
             var dT = trajectory.TimeToTarget/4;
-            setup_calculation((o, b) => orbit_correction(o, b, trajectory.TimeToTarget, ref dT));
+            var transfer_time = trajectory.TimeToTarget;
+            setup_calculation((o, b) => orbit_correction(o, b, transfer_time, ref dT));
             trajectory = null;
 		}
 
@@ -400,7 +414,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{
 			base.UpdateState();
-			IsActive &= CFG.AP2[Autopilot2.Rendezvous];
+            IsActive &= CFG.AP2[Autopilot2.Rendezvous] && TargetOrbit != null;
 			ControlsActive &= IsActive || VSL.TargetVessel != null;
 		}
 
@@ -462,9 +476,9 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.StartOrbit:
 //				log_flight();//debug
-				Status("Achiving starting orbit...");
-				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				update_trajectory();
+                Status("Achiving starting orbit...");
+                if(CFG.AP1[Autopilot1.Maneuver]) break;
+                update_trajectory();
 				CurrentDistance = -1;
 				if(trajectory.RelDistanceToTarget < REN.CorrectionStart ||
 				   trajectory.TimeToTarget/VesselOrbit.period > REN.MaxTTR) 
@@ -473,13 +487,12 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.ComputeRendezvou:
 //				log_flight();//debug
-				if(TimeWarp.CurrentRateIndex == 0 && TimeWarp.CurrentRate > 1) 
-				{
-					Status("Waiting for Time Warp to end...");
-					break;
-				}
-				if(!trajectory_computed()) break;
-
+                if(TimeWarp.CurrentRateIndex == 0 && TimeWarp.CurrentRate > 1) 
+                {
+                    Status("Waiting for Time Warp to end...");
+                    break;
+                }
+                if(!trajectory_computed()) break;
                 #if DEBUG
                 if(trajectory.KillerOrbit ||
                    trajectory.Orbit.eccentricity > 0.6)
