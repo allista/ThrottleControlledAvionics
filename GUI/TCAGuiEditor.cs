@@ -493,7 +493,9 @@ namespace ThrottleControlledAvionics
 					{
 						if(ActiveEngines.Count > 0)
 						{
-							GUILayout.Label(string.Format("TWR: {0:F2} ► {1:F2}", MinTWR, MaxTWR), Styles.fracStyle(Utils.Clamp(MinTWR-1, 0, 1)));
+                            GUILayout.Label(new GUIContent(string.Format("TMR: {0:F2} ► {1:F2}", MinTWR, MaxTWR),
+                                                           "Thrust ot Mass Ratio"), 
+                                            Styles.fracStyle(Utils.Clamp(MinTWR-1, 0, 1)));
 							GUILayout.Label(new GUIContent(string.Format("Balanced: {0:P1}", MinLimit),
 							                               "The efficacy of the least efficient of balanced engines"),
 							                Styles.fracStyle(MinLimit));
