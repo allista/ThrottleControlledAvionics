@@ -4,7 +4,9 @@
 
 TCA is a _software_ that can be installed onto any command module, cockpit or probe core. It is, however, modularized, with modules being distributed along the TechTree. So to have TCA in _career_ mode you should first purchase it in **R&D** building, while in sandbox it is installed by default. Whether TCA is installed on a particular part is indicated in part's info pane in Editor.
 
-When the core TCA subsystem or any of the modules is bought, all qualified parts in flight are upgraded using the OTA update. However, TCA interface and functionality only become available if a vessel has engines and/or RCS thrusters.
+TCA, however, is a very complicated software that requires proper installation, configuration and pre-launch tuning that **cannot be done midflight**. So if you have purchased it or one of its modules after you have launched a ship, this ship will not have the new capabilities.
+
+To see what modules are available at the time, consult the *Satus* tab of this manual (in game). To see what modules are installed on the ship, open the module tree window from *Advanced* tab by pressing the *Modules* button.
 
 ###What TCA can and cannot do
 
@@ -46,7 +48,7 @@ All of the above combined provides basis for a set of a much more complex autopi
 
 ##Engine Modes and Groups
 
-In editor or in flight, through the part menu or engines' *Profiles* (discussed later) you may set any engine to work in one of the following modes: 
+In editor or in flight, through the part menu or engines' *Profiles* (discussed later) you may set any engine to work in one of the following modes:
 
 * **Thrust & Maneuver** (_default_): when balancing, TCA tries to maximize the thrust of these engines. In a perfectly balanced ship all such engines should have 100% thrust in the absence of control input. *These engines are used to control vertical speed AND attitude.*
 * **Thrust**: a group of engines in this mode is always balanced so that it does not generate any torque. It is mostly useful for jets-based VTOLs. *These engines are used to control vertical speed.*
@@ -58,12 +60,26 @@ Each engine has also a *group ID*. By default it is set to zero, meaning the eng
 
 **Note** on changing properties of a single engine in a *group* from the part menu. A group acts as a whole, so when you change some property of a grouped engine these changes are propagated to other engines in that group. This includes enabling/disabling engines: *shutting down one engine will shut down the whole group*.
 
+##Smart Engines
+
+This mode of operation is **dedicated to orbital flight**, so it is not recommended to enable it while flying on a planet, especially in VTOL-type ship.
+
+When *Smart Engines* are enabled, all the non-Maneuver, non-Manual engines are grouped (internally) by their thrust direction, so that all engines in a group are pointed more-or-less the same way. To be precise, thrust derections of engines in a group always lie within a 90-degree cone.
+
+The groups are mutually exclusive, so only one group is active at a time. There are three algorithms available that deside, which group should be active:
+
+* **Rotation**: minimizes amount of rotation needed to achive desired total thrust direction.
+* **Time**: minimizes both rotation and thrusting time, so a group with the more powerfull engines may be chosen if there's enough time to turn the ship.
+* **Efficiency**: minimizes rotation, then the fuel needed for the maneuver, then thrusting time, so that if there's enough time to turn the ship and perform the maneuver, a most fuel-efficient group will be chosen.
+
+Note, that if you set up an *Engines Profile* with explicit engine groups, these may conflict with the Smart Engines internal grouping, so be carefull when grouping engines manually.
+
 ##Engines Profiles
 
 An *Engines Profile* is a sets of configurations of all the engines a ship has.
 Engine configuration includes: 
 
-* *On/Off* state: should the engine be active when its profile is?
+* *On/Off* state: should the engine be active when the profile is?
 * Engine's *mode*
 * For a *Manual* engine: its *thrust limiter*
 
@@ -75,7 +91,10 @@ Only one profile can be active at any moment, and *there is always an active pro
 
 In-flight a profile may be activated manually or automatically on one of the following conditions: *on activation of a given stage* or *on going into/out-of orbit*. The latter is defined by the current trajectory: if the ship is in orbit or on an escape trajectory, or not.
 
-Another option available for a profile is leveling of a ship on activation (the *Level *switch). If enabled, this option automatically enables the *Level* program of the *HSC*, causing the ship to point its thrust vector downwards. This is useful when you switch between, say, linear-rocket profile and a VTOL profile while deorbiting.
+Other options available for a profile are:
+
+* Leveling of a ship on activation (the *Level *switch). If enabled, this option automatically enables the *Level* program of the *HSC*, causing the ship to point its thrust vector downwards. This is useful when you switch between, say, linear-rocket profile and a VTOL profile while deorbiting.
+* Enabling/Disabling the *Smart Engines* mode when profile is activating.
 
 ###Staging and Action Groups
 
@@ -85,14 +104,30 @@ TCA itself may also be toggled via action group. To set it up, you need to find 
 
 ##Interface Basics
 
-TCA graphical interface consists of the four separate windows:
+TCA user interface interface consists of several parts:
 
-* In-Flight main window that controls all the aspects of TCA functionality
-* In-Editor configuration window that allows editing of engines profiles and pre-launch TCA state
-* Macro Editor window that is available both in flight and in editor
-* Manual wondow (in which you're probably reading this), that is *always* available.
+* In-Flight:
+	* **Main Window** that controls most of the TCA functionality. It has 5 tabs that appear depending on available TCA Modules:
+		* Navigation Tab
+		* Orbital Autopilots Tab
+		* Engines Control Tab
+		* Advanced Settings Tab
+		* Macros Tab
+	* **Vertical Flight Control** floating window with controls and info dedicated to vertical speed and altitude.
+	* **Attitude Control** floating window that includes all T-SAS controls and info displayes.
+	* **Maneuver Execution** floating window that controls time warp, maneuver node execution and displays countdown and estimated burn time.
+* In-Editor **Configuration Window** that allows editing of engines profiles  and configuration of pre-launch TCA state, including selection of TCA Modules that are installed on the ship via Module Selector.
+* **Module Selector** window that in editor allows to select which TCA Modules are installed on a ship, while in flight simply shows which moduels are installed and active.
+* **Macro Editor** window that is available both in flight and in editor and provides means for creating, editing, saving and deleting of macros.
+* **TCA Manual** wondow (in which you're probably reading this), that is *always* available, either through toolbar button or the "?" button ontop of other windows.
 
-The Main, In-Editor and Manual windows are summoned by TCA toolbar button. Both Blizzy's Toolbar and the stock AppLauncher are supported; by default the Toolbar is used when it is available, but this may be changed in TCA.glob file (see *Appendix*).
+The Main, Configuration and Manual windows are summoned by TCA toolbar button. Both Blizzy's Toolbar and the stock AppLauncher are supported; by default the Toolbar is used when it is available, but this may be changed in ThrottleControlledAvionics.user file (see *Appendix*).
+
+###Floating windows
+
+Floating windows are transparant borderless windows that consist of a set of controls and a **drag handle** denoted by the <color=lime>●</color> symbol. To move such window around, press this symbol with the mouse, then drag the window.
+
+Like tabs of the Main Window, floating windows are context-sensitive and are shown depending on the situation and availability of TCA Modules.
 
 ###Tooltips
 
@@ -110,7 +145,7 @@ Autopilot programs, on the other hand, use underlying basic functionality throug
 
 ###TCA activation and status
 
-To enable/disable TCA, use the **Enabled** switch at the top-left corner of the main window, **or** the hot-key (Y by default). The hot-key may be changed in the *Advanced* section (see *Appendix*).
+To enable/disable TCA, use the **Enabled** switch at the top-left corner of the main window, **or** the hot-key (Y by default). The hot-key may be changed or disabled in the *Advanced* tab (see *Appendix*).
 
 In flight the icon of the TCA toolbar button changes according to TCA state: "Disabled", "Enabled", "No Electric Charge". A more descriptive status is displayed in the top-right corner of the main window:
 
@@ -132,49 +167,54 @@ In flight the icon of the TCA toolbar button changes according to TCA state: "Di
 
 In Editor, TCA Configuration window may be summoned by the toolbar button **if** a ship has at least one TCA-capable command module **and** at least one engine. Otherwise the Manual is summoned by that button. On the right corner of the titlebar of the Configuration window there is a [**?**] button that also summons the Manual.
 
-On top of the Configuration window there's a big *Edit Macros* button that summons the Macro Editor (see **Macros** section).
+On top of the Configuration window there are two buttons: *Select Modules* button that summons the Module Selector window; and *Edit Macros* button that summons the Macro Editor (see **Macros** section).
 
-Below it there's a set of switches that correspond to several TCA functions in-flight, which allows to define the initial TCA state for current ship construct.
+Below it there's a set of switches that correspond to several TCA functions in-flight, which allows to define the initial TCA state for current ship.
+
+Next there's the <color=red>Autoconfigure Profiles</color> button. Pressing it will asigning the engines to appropriate roles and groups according to a preprogrammed scheme; note, that it will overwrite any existing groups and roles in the active profile. It's a simple helper which should be used **after** you finished the ship but **before** you start tuning profiles manually.
 
 Next there's a big field of the *Engines Profile Editor*, that allows you to create, delete and edit ship's Engines Profiles.
 
+And below the profile editor engine balancing info and controls are located. These include ship's dry and whet mass, corresponding TMR (thrust to *mass* ratios), engines' efficiency due to imperfect balancing (which is calculated if TCA is Enabled and some engines are On in the active profile) and the **HL** button that enables engines' highligting according to their maximum balanced thrust.
+
 ###In-Flight Main Window
 
-The Main window consists of several rows of controls. Generally, each row represents one of the TCA subsystems, which are discussed in the corresponding sections. The first row, however, has just three elements:
+The Main Window has the following layout:
 
-1. *Enabled* switch that enables/disables the TCA itself.
-2. *Squadron Mode* switch that toggles the squadron mode (see below).
-    * If it is enabled, the *squad ID chooser* is shown next to this switch.
-3. *TCA Status Indicator* that shows current TCA status.
+* Titlebar where the name of the ship is indicated, and the [**?**] button for summoning this help is located at its right coner.
+* The header with the main TCA switch (called *Enabled*), the *Squadron Mode* contros and the *Status Indicator*.
+	* If it is enabled, the *squad ID chooser* is shown next to this switch.
+* The active tab area, and the tabs' icons (to the right) that allow to switch between tabs.
+* The status message, if any.
 
-And above the rows there's a titlebar which also has tow buttons: the **advanced** switch that toggles *Advanced* section (see *Appendix*) and the [**?**] button that summons the **Manual**.
+Controls of various TCA Modules are displayed inside the active tab area, when the appropriate tab is selected.
 
 ##Attitude Control (T-SAS)
 
-The controls of the T-SAS subsystem are located in the second row of the Main window:
+The controls of the T-SAS subsystem are gathered in corresponding floating window that, by default, has only one flat button named *T-SAS*, which is white when subsystem is inactive and <color=cyan>cyan</color> when it's active. Click this button to toggle the Attitude Cues panel (analogous to stock SAS):
 
-* *State Indicator* that is white when T-SAS is inactive and <color=cyan>cyan</color> when it's active. It is followed by the *mode switches*:
-    * **Kill** causes T-SAS to automatically kill any angular velocity the ship has. It is different from the stock SAS in that it does not try to hold any particular attitude; it just kills any rotation. But it does this much more quickly and efficiently, without oscillations.
-    * **Hold** is analogous to the stock SAS.
-    * **Maneuver** points the thrust vector along the maneuver vector, thus allowing to perform maneuvers with engines that are not aligned with the command module.
-    * **PG** and **RG**: prograde and retrograde respectively.
-    * **R+** and **R-**: along/against the radius-vector of the current curvature of the ship's trajectory.
-    * **N+** and **N-**: along/against the orbit normal vector.
-    * **T+** and **T-**: to/from the current target.
-    * **rV+** and **rV-**: along/against the velocity relative to the target.
-* *Auto* indicator/switch that is green when some other subsystem uses T-SAS to point the thrust in some custom direction, and is grayed out otherwise.
-* *Error* indicator that displays the angular error (in degrees) between the desired and actual attitudes. When T-SAS is inactive, this indicator shows "N/A".
+* **Kill** causes T-SAS to automatically kill any angular velocity the ship has. It is different from the stock SAS in that it does not try to hold any particular attitude; it just kills any rotation. But it does this much more quickly and efficiently, without oscillations.
+* **Hold** is analogous to the stock SAS.
+* **Maneuver** points the thrust vector along the maneuver vector, thus allowing to perform maneuvers with engines that are not aligned with the command module.
+* **PG** and **RG**: prograde and retrograde respectively.
+* **R+** and **R-**: along/against the radius-vector of the current curvature of the ship's trajectory.
+* **N+** and **N-**: along/against the orbit normal vector.
+* **T+** and **T-**: to/from the current target.
+* **rV+** and **rV-**: along/against the velocity relative to the target.
+* **T+ rV-**: to current target, correcting lateral velocity.
+
+To the left of the *T-SAS* button there's an attitude error indicator that displays the angular error (in degrees) between the desired and actual attitudes. And a button that shows currently active cue, allowing to disable it without the need to open the Attitude Cues panel.
 
 ##Vertical Speed and Altitude Control
 
-If you're using TCA to control VTOL or during vertical landing of a rocket, it is more convenient to control the vertical speed or altitude of a ship 'directly', rather than manually change the Main Throttle. The VSC and Hover modules allow you (or autopilot programs) to do just that. Their controls are located in the third row of the Main window:
+If you're using TCA to control VTOL or during vertical landing of a rocket, it is more convenient to control the vertical speed or altitude of a ship 'directly', rather than manually change the Main Throttle. The VSC and Hover modules allow you (or autopilot programs) to do just that. Their controls are gathered in the Vertical Flight floating window.
 
 ###Vertical Speed Control (VSC)
 
 When Altitude Control is disabled or not installed:
 
 * *Vertical Speed* indicator that shows current vertical speed.
-* **Set Point** slider that shows and allows to set the desired vertical speed. The limits of the set-point are defined in *TCA.glob::VSC* (see *Appendix*). *If the slider is set to its **maximum***, the VSC is <color=red>switched off</color> and the engines are controlled by Main Throttle only.
+* **Set Point** slider that shows and allows to set the desired vertical speed. The limits of the set-point are defined in *glob::VSC* (see *Appendix*). *If the slider is set to its **maximum***, the VSC is <color=red>switched off</color> and the engines are controlled by Main Throttle only.
 
 ###Altitude Control (Hover)
 
@@ -188,15 +228,11 @@ When Altitude Control is installed and enabled by the "Hover" switch:
 
 ###Follow Terrain mode
 
-This option is controlled by a switch to the right of the *Hover* switch.
-
 When it is enabled, it changes the meaning of altitude and vertical speed within TCA: all systems start using *height from the ground* and *vertical speed of the **ground** relative to the ship* rather than altitude relative to the 'sea level' and vertical speed relative to the planet's center.
 
 It also enables the *Radar* that scans the relief on course. Then, to avoid collisions with hillside, mountains or buildings, TCA temporarily either changes the course or slows the ship down and increases the altitude to fly above the obstacle. This behavior is also indicated by corresponding status messages: "Ascending" and "Obstacle On Course".
 
 ###AutoThrottle
-
-This option is controlled by a switch at the end of the VSC controls row of the Main window.
 
 When it is enabled, the Main Throttle is locked at 100% and the keyboard throttle controls (default: *Shift*/*Ctrl*, *Z* and *X*) are used to set desired vertical speed or altitude instead. If VSC itself is off (i.e. the *Hover* is off and the desired vertical speed is set to maximum) and *AutoThrottle* is enabled, it automatically enables VSC and sets the desired vertical speed to 0.
 
@@ -278,7 +314,7 @@ To achieve its goal the Rendezvous autopilot performs a series of maneuvers divi
 * **To Orbit** stage works almost like ToOrbit autopilot, except if you start from the ground it will try to predict the duration of ascension and will wait for the appropriate launch window. It also calculates the inclination needed to minimize dV of the consequent maneuvers.
 * **Start Orbit** stage corrects current orbit to achieve a faster resonance with the target, so you don't have to wait a week for the rendezvous maneuver window.
 * **Rendezvous Maneuver** stage computes and performs the main maneuver that will eventually bring your ship close to the target.
-* **Fine-tune Approach** stage is performed repeatedly after the main rendezvous maneuver until the closest approach distance is below the threshold (default *100m + ship's radius + target's radius*; configurable in *TCA.glob::REN*).
+* **Fine-tune Approach** stage is performed repeatedly after the main rendezvous maneuver until the closest approach distance is below the threshold (default *100m + ship's radius + target's radius*; configurable in *glob::REN*).
 * **Match Orbits** stage schedules and performs a brake maneuver that synchronizes ship's orbit with the target's orbit at nearest approach.
 * **Approach** stage brings the ship in close proximity to the target after orbits were synchronized.
 
@@ -329,7 +365,7 @@ This is a safeguard module that acts when nothing else does: it catches the ship
 
 ##Squadron Mode
 
-This mode is enabled by a switch in the first row of the main window. When enabled, a squadron ID selector appears, allowing you to change the designation of the current ship.
+This mode is enabled by a switch in the header of the Main Window. When enabled, a squadron ID selector appears, allowing you to change the designation of the current ship.
 
 All ships assigned to the same squadron (with TCA enabled) will respond simultaneously on most of the commands you execute through the TCA window or keyboard. The exception being the Macros. When a command is executed in a squadron the on-screen message is displayed.
 
@@ -375,10 +411,10 @@ Below is the "Add Action" button which opens the pane with the choice of actions
 
 And if an action is conditional, in edit mode you can push the "<color=green>**+**</color>" button to open the "Condition List" pane.
 
-###In-Flight Macro Controls
+###Macros Tab
 
-In flight the main TCA window has the following buttons to manage and execute macros:
-    
+In flight the main TCA window has Macros Tab with the following buttons to manage and execute macros:
+
 * **Select Macro/Current Macro**: load a macro from local or global database.
 * **Execute/Pause**: start the selected macro or pause the execution of an already running macro.
 * **Stop**: stop execution and rewind the macro to the start.
@@ -392,23 +428,29 @@ In flight the main TCA window has the following buttons to manage and execute ma
 
 ##Appendix
 
-###Advanced section
+###Advanced Tab
 
 Advanced, or rather rarely needed settings are hidden in a separate section of the main window that can be accessed through *advanced* switch located at the left corner of the titlebar.
 
-####Reload TCA Settings
-
-This button reloads **TCA.glob** file from disk.
-
 ####TCA hotkey
 
-This button allows to change the key that toggles TCA from keyboard.
+This button allows you to change or disable the key that toggles TCA from keyboard. Press it to activate key selection. Press ESCAPE to cancel the process. Press BACKSPACE to disable the hotkey.
+
+####Reload
+
+This button reloads **ThrottleControlledAvionics.glob** and **ThrottleControlledAvionics.user** files from disk.
+
+####Modules
+
+This button opens the Module Selector window that shows which TCA Modules are installed on the ship.
 
 ####TCA control switches
 
-* **VTOL Mode** enables/disables VTOL Mode of manual controls
-* **VTOL Assist** enables/disables VTOL Assist module
-* **Flight Stabilizer** enables/disables Flight Stabilizer module
+* **VTOL Mode** toggle VTOL Mode of manual controls
+* **VTOL Assist** toggle VTOL Assist module
+* **Stabilizer** toggle Flight Stabilizer module
+* **H-Translation** use translation to correct horizontal velocity
+* **CPS** toggle Collistion Prevention System
 * **AutoGear** allows/forbids the automatic use of landing gear action group by TCA
 * **AutoBrakes** allows/forbids the automatic use of brakes action group by TCA
 * **AutoStage** allows/forbids the automatic staging by TCA
@@ -439,15 +481,15 @@ If you have already tuned these parameters for the ship, _save its configuration
 
 This section allows to save the whole TCA configuration of the current ship under an arbitrary name; such configuration then becomes available to any other vessel within this savegame and may loaded, *replacing that ship's configuration*.
 
-###TCA.glob :: the global TCA settings
+###ThrottleControlledAvionics.glob/.user :: the global TCA settings
 
-Most of the user-related settings are available through the TCA GUI. But under the hood there are tons of internal parameters that are located in the _GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/**TCA.glob**_ file.
+Most of the user-related settings are available through the TCA GUI. But under the hood there are tons of internal parameters that are located in the _GameData/ThrottleControlledAvionics/Plugins/PluginData/ThrottleControlledAvionics/**ThrottleControlledAvionics.glob**_ file.
 
-It is a plane text file which may be *viewed* in any text editor. Its content is divided into sections dedicated to various TCA modules. To reference those in this Manual I use the special notation: **TCA.glob::SectionName**.
+It is a plane text file which may be *viewed* in any text editor. Its content is divided into sections dedicated to various TCA modules. To reference those in this Manual I use the special notation: **glob::SectionName**.
 
-It is *not recommended* to tamper with this file as it **should** be overwritten on each update. You can, however, override any of its settings in _GameData/ThrottleControlledAvionics/**TCA.user**_, which you should create yourself when you need it.
+It is *not recommended* to tamper with this file as it **will** be overwritten on each update. You can, however, override any of its settings in _GameData/ThrottleControlledAvionics/**ThrottleControlledAvionics.user**_, which you should create yourself when you need it.
 
-To override a global setting from TCA.glob just copy it to the TCA.user and change its value there. To override a setting of some module, copy its NODE name along with curly brackets, then copy the setting of interest on a new line _inside_ the brackets and change its value.
+To override a global setting from ThrottleControlledAvionics.glob just copy it to the TCA.user and change its value there. To override a setting of some module, copy its NODE name along with curly brackets, then copy the setting of interest on a new line _inside_ the brackets and change its value.
 
 After saving, if the game is already running and a TCA-enabled vessel is in flight, you may apply the changes by going to the "Advanced" pane in the main window and pressing the "Reload TCA Settings" button.
 
