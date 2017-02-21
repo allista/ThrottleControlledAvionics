@@ -182,7 +182,12 @@ namespace ThrottleControlledAvionics
 			                    new GUIContent(string.Format("HotKey: {0}", UI.TCA_Key), "Select TCA Hotkey"), 
 			                    SelectingKey? Styles.enabled_button : Styles.active_button, 
 			                    GUILayout.ExpandWidth(true)))
-			{ SelectingKey = true; Utils.Message("Press a key that will toggle TCA"); }
+			{ 
+                SelectingKey = true; 
+                Utils.Message("Press a key that will toggle TCA.\n" +
+                              "Press BACKSPACE to remove TCA hotkey.\n" +
+                              "Press ESCAPE to cancel."); 
+            }
 			Utils.ButtonSwitch("Autosave", ref Globals.Instance.AutosaveBeforeLanding, 
 			                   "Automatically save the game before executing complex autopilot programs", 
 			                   GUILayout.ExpandWidth(true));
@@ -222,12 +227,22 @@ namespace ThrottleControlledAvionics
 			var e = Event.current;
 			if(e.isKey)
 			{
-				if(e.keyCode != KeyCode.Escape)
+				if(e.keyCode == KeyCode.Escape)
+                {
+                    Message("TCA: hotkey selection canceled.");
+                }
+                else if(e.keyCode == KeyCode.Backspace || e.character == '\b')
+                {
+                    UI.TCA_Key = KeyCode.None;
+                    Message("TCA: hotkey removed!");
+                }
+                else
 				{
 					//try to get the keycode if the Unity provided us only with the character
-					if(e.keyCode == KeyCode.None && e.character >= 'a' && e.character <= 'z')
+                    if(e.keyCode == KeyCode.None && char.IsLetterOrDigit(e.character))
 					{
 						var ec = new string(e.character, 1).ToUpper();
+                        if(char.IsDigit(e.character)) ec = "Alpha"+ec;
 						try { e.keyCode = (KeyCode)Enum.Parse(typeof(KeyCode), ec); }
 						catch(Exception ex) { Utils.Log("TCA GUI: exception caught while trying to set hotkey:\n{}", ex); }
 					}
