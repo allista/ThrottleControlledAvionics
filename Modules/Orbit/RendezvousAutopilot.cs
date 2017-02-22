@@ -54,8 +54,10 @@ namespace ThrottleControlledAvionics
 		Vector3d ToOrbitIniApV;
 
 		double CurrentDistance = -1;
+        double DirectDistance = -1;
 		Orbit TargetOrbit { get { return CFG.Target.GetOrbit(); } }
 		Vessel TargetVessel { get { return CFG.Target.GetVessel(); } }
+        bool TargetLoaded { get { return TargetVessel != null && TargetVessel.loaded; } }
 
 		public override void Init()
 		{
@@ -312,9 +314,9 @@ namespace ThrottleControlledAvionics
 				dV = dV4C(old, hV(StartUT), StartUT);
 				old = NewOrbit(old, dV, StartUT);
 			}
-            else if(trajectory.RelDistanceToTarget < REN.CorrectionStart)
+            else if(trajectory.RelDistanceToTarget < REN.CorrectionStart || TargetLoaded)
             {
-                if(trajectory.RelDistanceToTarget > REN.CorrectionStart/4) 
+                if(trajectory.RelDistanceToTarget > REN.CorrectionStart/4 && !TargetLoaded) 
                     fine_tune_approach();
                 else match_orbits();
                 return;
@@ -383,6 +385,14 @@ namespace ThrottleControlledAvionics
 			stage = Stage.Approach;
 		}
 
+        void approach_or_brake()
+        {
+            if(DirectDistance > REN.Dtol) 
+                approach();
+            else 
+                brake();
+        }
+
 		void brake()
 		{
 			SetTarget(CFG.Target);
@@ -397,6 +407,11 @@ namespace ThrottleControlledAvionics
 			else CFG.AP1.On(Autopilot1.MatchVel);
 		}
 
+        void update_direct_distance()
+        {
+            DirectDistance = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.MinDistance, 0);
+        }
+
 		protected override void update_trajectory()
 		{
 			base.update_trajectory();
@@ -408,6 +423,7 @@ namespace ThrottleControlledAvionics
 			base.reset();
 			stage = Stage.None;
 			CurrentDistance = -1;
+            DirectDistance = -1;
 			CFG.AP1.Off();
 		}
 
@@ -567,24 +583,26 @@ namespace ThrottleControlledAvionics
 				Status("Matching orbits at nearest approach...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
                 update_trajectory();
-				var dist = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.MinDistance, 0);
-				var relD = dist/VesselOrbit.semiMajorAxis;
-				if(relD > REN.CorrectionStart) 
-                    start_orbit();
-				else if(relD > REN.CorrectionStart/4 && 
-                        dist > 1000) 
-                    fine_tune_approach();
-				else if(dist > REN.Dtol) 
-                    approach();
-				else 
-                    brake();
+                update_direct_distance();
+                if(TargetLoaded) 
+                    approach_or_brake();
+                else
+                {
+                    var relD = DirectDistance/VesselOrbit.semiMajorAxis;
+    				if(relD > REN.CorrectionStart) 
+                        start_orbit();
+    				else if(relD > REN.CorrectionStart/4) 
+                        fine_tune_approach();
+                    else 
+                        approach_or_brake();
+                }
 				break;
 			case Stage.Approach:
 				Status("Approaching...");
                 THR.DeltaV = 0;
 				var dP = TargetOrbit.pos-VesselOrbit.pos;
 				var dPm = dP.magnitude;
-				if(dPm - VSL.Geometry.R - TargetVessel.Radius() < REN.Dtol) 
+                if(dPm - VSL.Geometry.MinDistance < REN.Dtol) 
 				{ brake(); break; }
                 var throttle = VSL.Controls.OffsetAlignmentFactor();
                 if(throttle.Equals(0)) break;
