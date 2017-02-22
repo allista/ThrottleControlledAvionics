@@ -1,8 +1,35 @@
 **DELETE the old version before installing a new one**
 
-_**BUT** do not delete the TCA.user and config.xml files to preserve your settings_
+_**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.4.0**
+* **v3.4.1**
+    * **Rendezvous Autopilot**:
+    	* Lambert Solver now works properly for retrograde transfers.
+    	* In rare cases when a rendezvous maneuver went perfect and the ships are on a collision course at rendezvous point, the brake burn now accounts for ships' sizes to stop before the collision.
+    	* Improved trajectory optimization by using the closest elliptic transfer when a para/hyperbolic transfer time is given and by adding additional maneuver start time prescan.
+        * Improved fine-tuning by selecting initial transfer time to be equal to the current nearest approach time.
+        * Additional fine-tuning of the approach after Match Orbits is used only when the target is out of loading range (i.e. not yet visible).
+        * Coast stage is only used when distance to target is grater then the tolerance threshold to avoid unnesessary fine-tuning.
+    * **Deorbit Autopilot**:
+    	* Landing Trajectory corrects brake time to get the proper fly-over altitude. This fixes the inability to land on a very-low-gravity worlds like Minmus.
+        * Improved trajectory calculation for extremly high-lat targes (i.e. poles) + improved trajectory optimization times.
+        * Initial eccentricity estimation uses current vessel orbit instead of a curcular derivative. Works better, less calculations.
+        * Removed redundant label from Deorbit Settings.
+    * **Macros**:
+    	* Added tooltips to Macro Actions and Conditions.
+    	* Added Dynamic Pressure condition and Execute Maneuver action.
+    * **Interface**:
+    	* Updated the Manual
+    	* Added separate icons for Toolbar and AppLauncher. Made the new MAN icon.
+    	* Made Module Selector available in flight to show the modules installed on a ship.
+    	* Added hotkey removal by pressing BACKSPACE when selecting the ky.
+    	* In Editor Window renamed TWR to TMR (thrust to Mass ratio).
+    * Engine clusters are not switched while in time warp anymore.
+    * TCA's time warp control stays enabled when KSP limits warp rate by altitude.
+    * Added emergency dewarping if TCA's time warp is disabled and the ship is in time warp near the upcoming maneuver.
+    * Maneuver offsets now take into account minimum turn time of a ship.
+
+* v3.4.0
     * **User Interface Overhaul**
     	* Controls were split up into Tabs and Floating Windows
     	* As a result, the main TCA window became much smaller
