@@ -69,14 +69,19 @@ namespace ThrottleControlledAvionics
 				THR.Throttle = 1;
 				return true;
 			}
-			GravityTurnStart = VSL.Altitude.Absolute;
-			ApoapsisReached = false;
-			GearAction.Run();
-			CFG.VTOLAssistON = false;
-			CFG.StabilizeFlight = false;
-			CFG.HF.Off();
+            StartGravityTurn();
 			return false;
 		}
+
+        public void StartGravityTurn()
+        {
+            GravityTurnStart = VSL.Altitude.Absolute;
+            ApoapsisReached = false;
+            GearAction.Run();
+            CFG.VTOLAssistON = false;
+            CFG.StabilizeFlight = false;
+            CFG.HF.Off();
+        }
 
 		/// <summary>
 		/// The arc distance in radians between current vessel position and the Target.
