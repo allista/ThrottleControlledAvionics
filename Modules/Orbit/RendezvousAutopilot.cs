@@ -9,6 +9,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
@@ -65,6 +66,7 @@ namespace ThrottleControlledAvionics
 			Dtol = REN.Dtol;
 			CorrectionTimer.Period = REN.CorrectionTimer;
 			CFG.AP2.AddHandler(this, Autopilot2.Rendezvous);
+            UnityEngine.Random.InitState(42);
 		}
 
 		public override void Save(ConfigNode node)
@@ -96,6 +98,8 @@ namespace ThrottleControlledAvionics
 				case Stage.None:
 				case Stage.ComputeRendezvou:
 					stage = Stage.Start;
+                    init_optimizer();//debug
+                    gdos = ttr_gdos = -1;
 					break;
 				case Stage.Launch:
 					if(VSL.LandedOrSplashed) stage = Stage.Start;
@@ -162,6 +166,9 @@ namespace ThrottleControlledAvionics
 			var solver = new LambertSolver(NextOrbit(endUT), NextOrbit(TargetOrbit, endUT).getRelativePositionAtUT(endUT), StartUT);
             if(solver.NotElliptic(transfer_time)) transfer_time = solver.ParabolicTime+1;
 			var dV = solver.dV4Transfer(transfer_time);
+//            Log("transfer time {}\ncV {}\ndV {}\norbit {}\ntOrbit {}", 
+//                transfer_time, VesselOrbit.getOrbitalVelocityAtUT(StartUT), dV, 
+//                NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
 			return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, MinPeR, transfer_time);
 		}
 
@@ -202,6 +209,7 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			else transfer_time = ini_transfer_time;
+            Log("StartUT {}, transfer_time {}, dT {}", StartUT, transfer_time, dT);//debug
 			return new_trajectory(StartUT, Math.Max(transfer_time, ManeuverOffset));
 		}
 
@@ -218,6 +226,7 @@ namespace ThrottleControlledAvionics
                 else UT += dT;
                 if(UT < EndUT) 
                 {
+                    Log("T {}", UT-StartUT);//debug
                     var trj = new_trajectory(UT, transfer_time);
                     return trj;
                 }
@@ -230,6 +239,12 @@ namespace ThrottleControlledAvionics
 
         protected override bool continue_calculation(RendezvousTrajectory old, RendezvousTrajectory cur, RendezvousTrajectory best)
         {
+//            Log("cur == best {}, best.Dist {}, cur.ManT {}, dTransT {}, dDeltaV {}",
+//                cur == best,
+//                best.DistanceToTarget,
+//                cur.ManeuverDuration,
+//                Math.Abs(cur.TransferTime-best.TransferTime),
+//                Math.Abs(cur.ManeuverDeltaV.sqrMagnitude-best.ManeuverDeltaV.sqrMagnitude));//debug
             return 
                 cur == best ||
                 best.DistanceToTarget > Dtol ||
@@ -241,6 +256,14 @@ namespace ThrottleControlledAvionics
 
         protected override bool trajectory_is_better(RendezvousTrajectory old, RendezvousTrajectory cur, RendezvousTrajectory best)
         { 
+//            Log("cur.Trans {}, cur.Killer {}, best.Killer {}\ncur.Dist {}, best.Dist {}\ncur.Time {}+{}, best.Time {}+{}",
+//                cur.TransferTime,
+//                cur.KillerOrbit,
+//                best.KillerOrbit,
+//                cur.DistanceToTarget,
+//                best.DistanceToTarget,
+//                cur.ManeuverDuration, cur.BrakeDuration,
+//                best.ManeuverDuration, best.BrakeDuration);//debug
             if(cur.KillerOrbit && best.KillerOrbit) 
                 return cur.Orbit.PeR > best.Orbit.PeR;
             return 
@@ -264,11 +287,14 @@ namespace ThrottleControlledAvionics
             }
             else 
                 approachUT = VSL.Physics.UT+VesselOrbit.period*REN.MaxTTR;
+//                ClosestApproach(VesselOrbit, TargetOrbit, StartUT, VSL.Geometry.MinDistance, out approachUT);
             if(approachUT <= StartUT) 
                 approachUT += VesselOrbit.period;
             var EndUT = approachUT+transfer_time;
             var dT = (approachUT-StartUT)/10;
             var UT = StartUT;
+            Log("StartT {}, approachT {}, EndT {}, transfer_time {}, dT {}", 
+                StartUT-VSL.Physics.UT, approachUT-VSL.Physics.UT, EndUT-VSL.Physics.UT, transfer_time, dT);//debug
             setup_calculation((o, b) => orbit_correction(o, b, StartUT, EndUT, ref transfer_time, ref UT, ref dT));
 		}
 
@@ -299,6 +325,7 @@ namespace ThrottleControlledAvionics
 			var StartUT = VSL.Physics.UT+CorrectionOffset;
 			CFG.BR.OffIfOn(BearingMode.Auto);
             update_trajectory();
+            ttr_gdos = 0;
 			if(VesselOrbit.PeR < MinPeR) 
 			{
                 StartUT = Math.Min(trajectory.AtTargetUT, VSL.Physics.UT+(VesselOrbit.ApAhead()? VesselOrbit.timeToAp : CorrectionOffset));
@@ -328,10 +355,51 @@ namespace ThrottleControlledAvionics
                 else match_orbits();
                 return;
             }
+            else
+            {
+                double alpha, resonance;
+                var TTR = TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT, out resonance, out alpha);
+                if(TTR > REN.MaxTTR) 
+                {
+                    var up = Vector3d.Dot(dV4Resonance(VesselOrbit, TargetOrbit, Math.Max(REN.MaxTTR/2, 0.75), alpha, VSL.Physics.UT), VesselOrbit.vel) > 0;
+                    var tPe = TargetOrbit.getRelativePositionFromMeanAnomaly(0);
+                    var tAp = TargetOrbit.getRelativePositionFromMeanAnomaly(Math.PI);
+                    var v2tPe = AngleDelta(VesselOrbit, tPe)*Mathf.Deg2Rad;
+                    var v2tAp = AngleDelta(VesselOrbit, tAp)*Mathf.Deg2Rad;
+                    var vtPe = VesselOrbit.getRelativePositionFromTrueAnomaly(VesselOrbit.trueAnomaly+v2tPe);
+                    var vtAp = VesselOrbit.getRelativePositionFromTrueAnomaly(VesselOrbit.trueAnomaly+v2tAp);
+                    var dPe = tPe.sqrMagnitude-vtPe.sqrMagnitude;
+                    var dAp = tAp.sqrMagnitude-vtAp.sqrMagnitude;
+                    double dTA;
+                    if(dPe*dAp < 0)
+                    {
+                        if(dPe < 0) dTA = up? v2tPe : v2tAp;
+                        else dTA = up? v2tAp : v2tPe;
+                    }
+                    else
+                    {
+                        if(dPe < 0) 
+                        {
+                            if(dPe < dAp) dTA = up? v2tPe : v2tAp;
+                            else dTA = up? v2tAp : v2tPe;
+                        }
+                        else dTA = dPe < dAp ? v2tPe : v2tAp;
+                    }
+                    StartUT = VesselOrbit.GetDTforTrueAnomaly(VesselOrbit.trueAnomaly+dTA, 0);
+                    Log("up {}, dPe {}, dAp {}, v2tPe {}, v2tAp {}, dTA {}, StartT {}\n" +
+                        "tPe  {}\n" +
+                        "vtPe {}\n" +
+                        "tAp  {}\n" +
+                        "vtAp {}", 
+                        up, dPe, dAp, v2tPe, v2tAp, dTA, StartUT, tPe, vtPe, tAp, vtAp);//debug
+                    StartUT = VSL.Physics.UT+Math.Max(StartUT, CorrectionOffset);
+                }
+            }
             //compute orbit with desired TTR and activate maneuver autopilot
 			dV += dV4TTR(old, TargetOrbit, REN.MaxTTR, REN.MaxDeltaV, MinPeR, StartUT);
 			if(!dV.IsZero())
 			{
+                ttr_gdos += dV.magnitude;//debug
 				add_node(dV, StartUT);
 				CFG.AP1.On(Autopilot1.Maneuver);
 			}
@@ -462,12 +530,69 @@ namespace ThrottleControlledAvionics
 //			    VSL.Physics.M, 90-Vector3d.Angle(VesselOrbit.vel.xzy, VSL.Physics.Up));//debug
 //		}
 
+        double gdos, ttr_tuning, ttr_gdos, old_search;
+        GDOS_Optimizer2D optimizer = new GDOS_Optimizer2D();//debug
+        void init_optimizer()
+        {
+            //compute approach UT estimate
+            double approachUT;
+            var ttr = TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT+ManeuverOffset);
+            if(ttr < REN.MaxTTR) 
+                approachUT = VSL.Physics.UT+ttr*VesselOrbit.period;
+            else 
+                approachUT = VSL.Physics.UT+VesselOrbit.period*REN.MaxTTR;
+            var minUT = VSL.Physics.UT+ManeuverOffset;
+            var transfer = VesselOrbit.period/2;
+            var StartUT = Math.Max(approachUT-transfer, minUT);
+            optimizer.Init(new_trajectory, 
+                           minUT, 
+                           StartUT, 
+                           transfer, 
+                           VesselOrbit.period/10);
+        }
+
 		protected override void Update()
 		{
 			if(!IsActive) { CFG.AP2.OffIfOn(Autopilot2.Rendezvous); return; }
 			switch(stage)
 			{
 			case Stage.Start:
+                if(!setp_by_step_computation ||
+                   string.IsNullOrEmpty(TCAGui.StatusMessage))
+                {
+                    optimizer.minUT = VSL.Physics.UT+ManeuverOffset;
+                    var t = optimizer.NextTrajectory();
+                    if(t != null)
+                    {
+                        trajectory = t;
+                        clear_nodes();
+                        add_trajectory_node();
+                        if(setp_by_step_computation)
+                            Status("Push to continue...");
+                        break;
+                    }
+                    ttr_tuning = ttr_gdos;
+                    var total_dV = trajectory.ManeuverDeltaV.magnitude+trajectory.BrakeDeltaV.magnitude;
+                    if(gdos > 0) ttr_gdos = total_dV;
+                    else gdos = total_dV;
+                    if(ttr_gdos > 0) 
+                    {
+                        CurrentDistance = -1;
+                        compute_rendezvou_trajectory();
+                    }
+                    else
+                    {
+                        clear_nodes();
+                        if(VSL.InOrbit && 
+                           VesselOrbit.ApR > MinPeR &&
+                           VesselOrbit.radius > MinPeR)
+                            start_orbit();
+                        else to_orbit();
+                    }
+                    Log("stage {}, first dV {}, second dV {}, third dV {}", stage, gdos, ttr_gdos, old_search);
+                }
+                break;
+
 				if(VSL.InOrbit && 
 				   VesselOrbit.ApR > MinPeR &&
 				   VesselOrbit.radius > MinPeR)
@@ -507,9 +632,14 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.StartOrbit:
 //				log_flight();//debug
-                Status("Achiving starting orbit...");
-                if(CFG.AP1[Autopilot1.Maneuver]) break;
-                update_trajectory();
+				Status("Achiving starting orbit...");
+				if(CFG.AP1[Autopilot1.Maneuver]) break;
+				update_trajectory();
+
+                init_optimizer();
+                stage = Stage.Start;
+                break;
+
 				CurrentDistance = -1;
 				if(trajectory.RelDistanceToTarget < REN.CorrectionStart ||
 				   trajectory.TimeToTarget/VesselOrbit.period > REN.MaxTTR) 
@@ -518,12 +648,21 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.ComputeRendezvou:
 //				log_flight();//debug
-                if(TimeWarp.CurrentRateIndex == 0 && TimeWarp.CurrentRate > 1) 
-                {
-                    Status("Waiting for Time Warp to end...");
-                    break;
-                }
-                if(!trajectory_computed()) break;
+				if(TimeWarp.CurrentRateIndex == 0 && TimeWarp.CurrentRate > 1) 
+				{
+					Status("Waiting for Time Warp to end...");
+					break;
+				}
+				if(!trajectory_computed()) break;
+
+                clear_nodes();
+                add_trajectory_node();
+                old_search = trajectory.ManeuverDeltaV.magnitude+trajectory.BrakeDeltaV.magnitude;
+                DebugUtils.CSV("CDOS_dV.csv", gdos, ttr_tuning, ttr_gdos, ttr_gdos+ttr_tuning, old_search, old_search+ttr_tuning);
+                gdos = ttr_gdos = old_search = -1;
+                CFG.AP2.Off();
+                break;
+
                 #if DEBUG
                 if(trajectory.KillerOrbit ||
                    trajectory.Orbit.eccentricity > 0.6)
@@ -739,5 +878,201 @@ namespace ThrottleControlledAvionics
             }
         }
         #endif
+
+
+        class GDOS_Optimizer2D
+        {
+            public double minUT;
+            Func<double,double,RendezvousTrajectory> T;
+
+            double dT;
+            Vector2d dir;
+            Vector3d P0,P;
+            double dDist;
+            RendezvousTrajectory trajectory;
+            IEnumerator<RendezvousTrajectory> optimization;
+
+            #if DEBUG
+            void LogP(Vector3d p)
+            {
+//                Utils.Log("startT {}, transfer {}, dist {}, dir.x {}, dir.y {}, dT {}, dDist {}",
+//                      p.x-minUT, p.y, p.z, dir.x, dir.y, dT, dDist);
+                DebugUtils.CSV("GDOS_test.csv", p.x-minUT, p.y, p.z, dir.x, dir.y, dT, dDist);
+            }
+
+            void LogP() { LogP(P); }
+            void LogP0() { LogP(P0); }
+            #endif
+
+            static double dist(TargetedTrajectoryBase t)
+            {
+                return t.DistanceToTarget*t.DistanceToTarget +
+                    t.ManeuverDeltaV.sqrMagnitude+t.BrakeDeltaV.sqrMagnitude;
+            }
+
+            public void Init(Func<double,double,RendezvousTrajectory> new_trajectory, 
+                         double minUT, double startUT, double startTransfer, double dT)
+            {
+                optimization = null;
+                P0 = P = new Vector3d(startUT, startTransfer, double.MaxValue);
+                T = new_trajectory;
+                this.minUT = minUT;
+                this.dT = dT;
+                dDist = 0;
+            }
+
+            Vector2d anti_grad()
+            {
+                var d0 = P.z;
+                var dx = dist(T(P.x+dT, P.y));
+                var dy = dist(T(P.x, P.y+dT));
+                return new Vector2d(d0-dx, d0-dy).normalized;
+            }
+
+            bool feasable_point(Vector3d p)
+            {
+                return !trajectory.KillerOrbit &&
+                    p.x > minUT && p.y > 1;
+            }
+
+            IEnumerable<RendezvousTrajectory> find_first_point()
+            {
+                while(true)
+                {
+                    trajectory = T(P.x, P.y);
+                    yield return trajectory;
+                    if(!trajectory.KillerOrbit &&
+                       trajectory.DistanceToTarget < REN.Dtol) break;
+                    P.y += dT/5;
+//                    Utils.Log("find first P: {}", P);//debug
+                }
+                P.z = dist(trajectory);
+                LogP();
+            }
+
+            IEnumerable<RendezvousTrajectory> scan_start_time()
+            {
+                var p = P;
+                var bestT = trajectory;
+                var bestP = p;
+                var endUT = P.x+(P.x-minUT);
+                while(p.x < endUT)
+                {
+                    trajectory = T(p.x, p.y);
+                    p.z = dist(trajectory);
+                    if(feasable_point(p) &&
+                       p.z < bestP.z)
+                    {
+                        bestP = p;
+                        bestT = trajectory;
+                    }
+                    if(trajectory.KillerOrbit)
+                        p.y += dT/5;
+                    else p.x += dT;
+//                    Utils.Log("scan start: {}", p);//debug
+                    yield return trajectory;
+                }
+                trajectory = bestT;
+                P = bestP;
+            }
+
+            IEnumerable<RendezvousTrajectory> find_minimum(double dt)
+            {
+                var bestT = trajectory;
+                var bestP = P;
+                while(Math.Abs(dt) > 0.1)
+                {
+                    var P1 = bestP+dir*dt;
+                    trajectory = T(P1.x, P1.y);
+                    P1.z = dist(trajectory);
+                    if(feasable_point(P1) &&
+                    P1.z < bestP.z)
+                    {
+                        dt *= 2;
+                        bestP = P1;
+                        bestT = trajectory;
+                    }
+                    else dt /= -2.1;
+                    yield return trajectory;
+                }
+                trajectory = bestT;
+                P = bestP;
+            }
+
+
+            IEnumerable<RendezvousTrajectory> orto_shift(double shift_delta)
+            {
+                var shift_dir = new Vector2d(-dir.y, dir.x);
+                Vector3d P1;
+                while(true)
+                {
+                    P1 = P+shift_dir*shift_delta;
+                    trajectory = T(P1.x, P1.y);
+                    yield return trajectory;
+                    if(feasable_point(P1))
+                    {
+                        P1.z = dist(trajectory);
+                        break;
+                    }
+                    shift_delta /= -2;
+                }
+                P = P1;
+            }
+
+            IEnumerable<RendezvousTrajectory> shift_and_find(double stride = 1)
+            {
+                P0 = P;
+                var T0 = trajectory;
+                foreach(var t in orto_shift(0.62*dT)) yield return t;
+                foreach(var t in find_minimum(dT)) yield return t;
+                if(P0.z < P.z) 
+                {
+                    dir = new Vector2d(P0.x-P.x, P0.y-P.y).normalized;
+                    P = P0;
+                }
+                else dir = new Vector2d(P.x-P0.x, P.y-P0.y).normalized;
+                foreach(var t in find_minimum(stride*dT)) yield return t;
+                dDist = Math.Abs(P.z-P0.z);
+                if(P0.z < P.z) 
+                {
+                    P = P0;
+                    trajectory = T0;
+                    yield return trajectory;
+                }
+            }
+
+            IEnumerable<RendezvousTrajectory> build_conjugate_set()
+            {
+                foreach(var t in find_first_point()) yield return t;
+                foreach(var t in scan_start_time()) yield return t;
+                dir = anti_grad(); 
+                yield return trajectory;
+                foreach(var t in find_minimum(dT)) yield return t;
+                foreach(var t in shift_and_find()) yield return t;
+                LogP();
+            }
+
+            IEnumerable<RendezvousTrajectory> full_search()
+            {
+                foreach(var t in build_conjugate_set()) yield return t;
+                while(dDist > 1)
+                {
+                    foreach(var t in shift_and_find(3)) yield return t;
+                    var dP = (P-P0); dP.z = 0;
+                    dT = 0.3*dP.magnitude+0.1*dT;
+                    if(dT.Equals(0)) dT = 1;
+                    LogP();
+                }
+            }
+
+            public RendezvousTrajectory NextTrajectory()
+            {
+                if(optimization == null)
+                    optimization = full_search().GetEnumerator();
+                if(optimization.MoveNext()) return optimization.Current;
+                optimization = null;
+                return null;
+            }
+        }
 	}
 }
