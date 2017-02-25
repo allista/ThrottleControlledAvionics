@@ -172,7 +172,13 @@ namespace ThrottleControlledAvionics
 			switch(stage)
 			{
 			case Stage.Start:
-				stage = VSL.LandedOrSplashed ? Stage.Liftoff : Stage.GravityTurn;
+                if(VSL.LandedOrSplashed)
+                    stage = Stage.Liftoff;
+                else
+                {
+                    ToOrbit.StartGravityTurn();
+                    stage = Stage.GravityTurn;
+                }
 				break;
 			case Stage.Liftoff:
 				if(ToOrbit.Liftoff()) break;
