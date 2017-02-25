@@ -138,7 +138,14 @@ namespace ThrottleControlledAvionics
 				Status("yellow", "Target vessel is landed");
 				return false;
 			}
-			if(Math.Abs(TargetOrbit.inclination-VesselOrbit.inclination) > REN.MaxInclinationDelta)
+            var dInc = Math.Abs(TargetOrbit.inclination-VesselOrbit.inclination);
+            if(dInc > 90)
+            {
+                Status("yellow", "Target orbits in the oposite direction.\n" +
+                       "You need to change orbit direction before the rendezvou maneuver.");
+                return false;
+            }
+			else if(dInc > REN.MaxInclinationDelta)
 			{
 				Status("yellow", "Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
 				       "You need to change orbit plane before the rendezvou maneuver.", REN.MaxInclinationDelta);
@@ -331,6 +338,7 @@ namespace ThrottleControlledAvionics
 			stage = Stage.StartOrbit;
 		}
 
+        //TODO: need to handle high target orbits differenly 
 		void to_orbit()
 		{
 			if(!LiftoffPossible) return;
@@ -338,11 +346,11 @@ namespace ThrottleControlledAvionics
 			var ApR = Math.Max(MinPeR, (TargetOrbit.PeR+TargetOrbit.ApR)/2);
 			var hVdir = Vector3d.Cross(TargetOrbit.GetOrbitNormal(), VesselOrbit.pos).normalized;
 			var ascO = AscendingOrbit(ApR, hVdir, GLB.ORB.LaunchSlope);
-			//tune target vector
 			ToOrbit = new ToOrbitExecutor(TCA);
 			ToOrbit.LaunchUT = VSL.Physics.UT;
 			ToOrbit.ApAUT    = VSL.Physics.UT+ascO.timeToAp;
 			ToOrbit.Target = ToOrbitIniApV = ascO.getRelativePositionAtUT(ToOrbit.ApAUT);
+            //tune target vector
 			if(VSL.LandedOrSplashed)
 			{
 				double TTR;
@@ -351,7 +359,14 @@ namespace ThrottleControlledAvionics
 			}
 			//setup launch
 			CFG.DisableVSC();
-			stage = VSL.LandedOrSplashed? Stage.Launch : Stage.ToOrbit;
+            if(VSL.LandedOrSplashed)
+                stage = Stage.Launch;
+            else
+            {
+                MinDist.Reset();
+                ToOrbit.StartGravityTurn();
+                stage = Stage.ToOrbit;
+            }
 		}
 
 		double correct_launch(bool allow_wait = true)
