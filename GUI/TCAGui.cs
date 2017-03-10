@@ -32,6 +32,9 @@ namespace ThrottleControlledAvionics
 		[ConfigOption] 
 		public KeyCode TCA_Key = KeyCode.Y;
 
+        public bool Collapsed { get; private set; }
+        Rect collapsed_rect = new Rect();
+
 		public static string StatusMessage;
 		public static DateTime StatusEndTime;
 
@@ -315,9 +318,15 @@ namespace ThrottleControlledAvionics
 		void DrawMainWindow(int windowID)
 		{
 			//help button
+            if(GUI.Button(new Rect(0, 0f, 20f, 18f), 
+                          new GUIContent("^", "Collapse Main Window"), Styles.label)) 
+            {
+                Collapsed = true;
+                collapsed_rect = new Rect(WindowPos.x, WindowPos.y, 40, 23);
+            }
 			if(GUI.Button(new Rect(WindowPos.width - 23f, 0f, 20f, 18f), 
 			              new GUIContent("?", "Help"), Styles.label)) 
-				TCAManual.ToggleInstance();
+                TCAManual.ToggleInstance();            
 			if(TCA.IsControllable)
 			{
 				GUILayout.BeginVertical();
@@ -387,14 +396,27 @@ namespace ThrottleControlledAvionics
 		#endif
 		protected override void draw_gui()
 		{
-			Utils.LockIfMouseOver(LockName, WindowPos, !MapView.MapIsEnabled);
-			WindowPos = 
-				GUILayout.Window(TCA.GetInstanceID(), 
-				                 WindowPos, 
-				                 DrawMainWindow, 
-				                 vessel.vesselName,
-				                 GUILayout.Width(ControlsWidth),
-				                 GUILayout.Height(50)).clampToScreen();
+            if(Collapsed)
+            {
+                UnlockControls();
+                GUI.Label(collapsed_rect, new GUIContent("TCA", "Push to show Main Window"), 
+                          CFG.Enabled? Styles.green : Styles.grey);
+                if(Input.GetMouseButton(0) && collapsed_rect.Contains(Event.current.mousePosition))
+                    Collapsed = false;
+                TooltipManager.GetTooltip();
+            }
+            else
+            {
+//    			Utils.LockIfMouseOver(LockName, WindowPos, !MapView.MapIsEnabled);
+                LockControls();
+    			WindowPos = 
+    				GUILayout.Window(TCA.GetInstanceID(), 
+    				                 WindowPos, 
+    				                 DrawMainWindow, 
+    				                 vessel.vesselName,
+    				                 GUILayout.Width(ControlsWidth),
+    				                 GUILayout.Height(50)).clampToScreen();
+            }
 			if(ORB != null) ORB.OrbitEditorWindow();
 			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());
