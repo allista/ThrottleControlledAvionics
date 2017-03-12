@@ -48,7 +48,7 @@ namespace ThrottleControlledAvionics
 			}
 			StartUT = startUT;
 			Body = VSL.vessel.orbitDriver.orbit.referenceBody;
-			OrigOrbit = VSL.vessel.orbitDriver.orbit;
+            OrigOrbit = TrajectoryCalculator.NextOrbit(VSL.vessel.orbitDriver.orbit, startUT);
 			Orbit = TrajectoryCalculator.NewOrbit(OrigOrbit, ManeuverDeltaV, StartUT);
 			StartPos = Orbit.getRelativePositionAtUT(StartUT);
 			StartVel = Orbit.getOrbitalVelocityAtUT(StartUT);
@@ -56,8 +56,8 @@ namespace ThrottleControlledAvionics
 
 		public virtual void UpdateOrbit(Orbit current)
 		{
-			Orbit = current;
-			StartUT = VSL.Physics.UT;
+            StartUT = VSL.Physics.UT;
+            Orbit = TrajectoryCalculator.NextOrbit(current, StartUT);
 			ManeuverDeltaV = Vector3d.zero;
 			ManeuverDuration = 0;
 			NotEnoughFuel = false;

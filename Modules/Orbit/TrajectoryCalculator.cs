@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
             } 
         }
 
-		protected static Orbit NextOrbit(Orbit orb, double UT)
+		public static Orbit NextOrbit(Orbit orb, double UT)
 		{
 			while(orb != null && 
                   orb.nextPatch != null && 
@@ -59,6 +59,22 @@ namespace ThrottleControlledAvionics
 
 		protected Orbit NextOrbit(double UT)
 		{ return NextOrbit(VesselOrbit, UT); }
+
+        public static Orbit LastOrbit(Orbit orb)
+        {
+            while(orb != null && 
+                  orb.nextPatch != null && 
+                  orb.nextPatch.referenceBody != null)
+                orb = orb.nextPatch;
+            return orb;
+        }
+
+        public static bool DiscontiniousOrbit(Orbit o)
+        {
+            return o.EndUT > 0 && 
+                (o.patchEndTransition == Orbit.PatchTransitionType.ESCAPE ||
+                 o.patchEndTransition == Orbit.PatchTransitionType.IMPACT);
+        }
 
 		protected Vector3d hV(double UT) { return VesselOrbit.hV(UT); }
 
@@ -357,6 +373,34 @@ namespace ThrottleControlledAvionics
 				Math.Sqrt((2/R - 1/sma)*body.gravParameter) - vel;
 		}
 
+        public static Vector3d dV4T2(Orbit old, double T, double UT)
+        {
+            var up = old.period < T;
+            var vel = old.getOrbitalVelocityAtUT(UT);
+            var velM = vel.magnitude;
+            var dir = vel/velM;
+            var maxV = up? 1.0 :  0.0;
+            var minV = up? 0.0 : -velM;
+            if(up)
+            {
+                var t = old.period;
+                while(t < T)
+                {
+                    maxV *= 2;
+                    t = NewOrbit(old, dir*maxV, UT).period;
+                }
+            }
+            while(maxV-minV > TRJ.dVtol)
+            {
+                var v = (maxV+minV)/2;
+                var t = NewOrbit(old, dir*v, UT).period;
+//                Utils.Log("{} : {} : {} = {}/{}", minV, v, maxV, t, T);//debug
+                if(t > T) maxV = v;
+                else minV = v;
+            }
+            return dir*(maxV+minV)/2;
+        }
+
 		public static Vector3d dV4Resonance(Orbit old, Orbit target, double TTR, double alpha, double UT)
 		{ 
 			if(alpha < 0) 
@@ -364,7 +408,7 @@ namespace ThrottleControlledAvionics
 				var minTTR = -alpha*target.period/old.period*1.1;
 				if(TTR < minTTR) TTR = minTTR;
 			}
-			return dV4T(old, target.period/(1+alpha*target.period/old.period/TTR), UT);
+			return dV4T2(old, target.period/(1+alpha*target.period/old.period/TTR), UT);
 		}
 
 		/// <summary>

@@ -27,7 +27,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			MinPeR = min_PeR;
 			TransferTime = transfer_time;
-			TargetOrbit = Target.GetOrbit();
+            TargetOrbit = TrajectoryCalculator.NextOrbit(Target.GetOrbit(), StartUT);
 			update(); 
 		}
 
@@ -46,9 +46,10 @@ namespace ThrottleControlledAvionics
 				TransferTime = AtTargetUT-StartUT;
 			}
 			else AtTargetUT = StartUT+TransferTime;
-			AtTargetPos = Orbit.getRelativePositionAtUT(AtTargetUT);
-			AtTargetVel = Orbit.getOrbitalVelocityAtUT(AtTargetUT);
-			TargetPos = TargetOrbit.getRelativePositionAtUT(AtTargetUT);
+            var obt = TrajectoryCalculator.NextOrbit(Orbit, AtTargetUT);
+            AtTargetPos = obt.getRelativePositionAtUT(AtTargetUT);
+			AtTargetVel = obt.getOrbitalVelocityAtUT(AtTargetUT);
+            TargetPos = TrajectoryCalculator.NextOrbit(TargetOrbit, AtTargetUT).getRelativePositionAtUT(AtTargetUT);
             DistanceToTarget = Utils.ClampL((AtTargetPos-TargetPos).magnitude-VSL.Geometry.MinDistance, 0);
 			DeltaTA = Utils.ProjectionAngle(AtTargetPos, TargetPos, 
 			                                Vector3d.Cross(Orbit.GetOrbitNormal(), AtTargetPos))*
@@ -57,7 +58,7 @@ namespace ThrottleControlledAvionics
 			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
 			var t_orbit = Target.GetOrbit();
 			var t_vel = t_orbit != null? t_orbit.getOrbitalVelocityAtUT(AtTargetUT) : Vector3d.zero;
-			BrakeDeltaV = t_vel-Orbit.getOrbitalVelocityAtUT(AtTargetUT);
+			BrakeDeltaV = t_vel-obt.getOrbitalVelocityAtUT(AtTargetUT);
 			BrakeDuration = VSL.Engines.TTB((float)BrakeDeltaV.magnitude);
             KillerOrbit = Orbit.PeR < MinPeR && Orbit.timeToPe < TransferTime;
 //            Utils.Log("{}", this);//debug
