@@ -20,11 +20,15 @@ namespace ThrottleControlledAvionics
 			{
 				//save SAS state
 				if(!CFG.SASIsControlled)
-					CFG.SASWasEnabled = VSL.vessel.ActionGroups[KSPActionGroup.SAS]; 
-				// Disable the new SAS so it won't interfere. But enable it while in timewarp for compatibility with PersistentRotation
-				if(TimeWarp.WarpMode != TimeWarp.Modes.HIGH || TimeWarp.CurrentRateIndex == 0)
-					VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, false);
-				CFG.SASIsControlled = true;
+                {
+					CFG.SASWasEnabled = VSL.vessel.ActionGroups[KSPActionGroup.SAS];
+                    CFG.SASIsControlled = true;
+                }
+				// Disable SAS so it won't interfere.
+                // But enable it while in timewarp for compatibility with PersistentRotation
+				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, 
+                                                 TCAScenario.HavePersistentRotation &&
+                                                 TimeWarp.WarpMode == TimeWarp.Modes.HIGH && TimeWarp.CurrentRateIndex > 0);
 			}
 			else RestoreSAS();
 		}
@@ -34,8 +38,10 @@ namespace ThrottleControlledAvionics
 		public void RestoreSAS()
 		{
 			if(CFG.SASIsControlled) 
+            {
 				VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.SAS, CFG.SASWasEnabled);
-			CFG.SASIsControlled = false;
+                CFG.SASIsControlled = false;
+            }
 		}
 
 		public void EnableSAS()
