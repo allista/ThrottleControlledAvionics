@@ -429,6 +429,7 @@ namespace ThrottleControlledAvionics
                 enV_after = new_orb.orbitalEnergy;
                 double alpha;
                 var TTR = TimeToResonance(new_orb, TargetOrbit, StartUT, out res_after, out alpha);
+                signed_ttr_after = alpha*res_after;
                 Log("new ttr: {}", TTR);//debug
                 //PCA divider
 //                # incl, PeA_angle_after, eccV_after
@@ -456,9 +457,10 @@ namespace ThrottleControlledAvionics
 //                    (eccV+0.077)/0.075*0.52;
 //                Log("incl {}, PeA angle {}, eccV {}: PC1 {}", incl, PeA_angle, eccV, PC1);//debug
 //                if(TTR < REN.MaxTTR*2)
+//                if(false)
 //                {
                     ttr_tuning += dV.magnitude;//debug
-                ttrUT = StartUT;
+                    ttrUT = StartUT;
     				add_node(dV, StartUT);
     				CFG.AP1.On(Autopilot1.Maneuver);
 //                }
@@ -611,7 +613,7 @@ namespace ThrottleControlledAvionics
         double ttr_tuning, 
         PeA_angle_before, PeA_angle_after, 
         ttr_before, ttr_after, 
-        res_before, res_after, 
+        res_before, res_after, signed_ttr_after,
         periodV_before, periodV_after, periodT, 
         eccV_before, eccV_after, eccT,
         enV_before, enV_after, enT,
@@ -809,6 +811,7 @@ namespace ThrottleControlledAvionics
                                PeA_angle_before, PeA_angle_after, 
                                ttr_before, ttr_after, 
                                res_before, res_after,
+                               signed_ttr_after,
                                periodT, periodV_before, periodV_after,
                                eccV_before, eccV_after, eccT,
                                enV_before, enV_after, enT,
@@ -1049,7 +1052,7 @@ namespace ThrottleControlledAvionics
         /// </summary>
         class CDOS_Optimizer2D
         {
-            struct Point
+            struct Point : IEquatable<Point>
             {
                 Func<double,double,RendezvousTrajectory> newT;
                 public double start, transfer, distance;
@@ -1120,6 +1123,11 @@ namespace ThrottleControlledAvionics
 
                 public override string ToString()
                 { return Utils.Format("startUT {}, transfer {}, distance {}", start, transfer, distance); }
+
+                #region IEquatable implementation
+                public bool Equals(Point other)
+                { return start.Equals(other.start) && transfer.Equals(other.transfer); }
+                #endregion
             }
 
             double minUT;
@@ -1130,6 +1138,7 @@ namespace ThrottleControlledAvionics
             Vector2d dir;
             Point P0, P;
             double dDist = -1;
+            List<Point> start_points = new List<Point>();
             IEnumerator<RendezvousTrajectory> optimization;
             public RendezvousTrajectory Best { get; private set; }
 
@@ -1138,7 +1147,7 @@ namespace ThrottleControlledAvionics
             {
 //                Utils.Log("{}, startT {}, transfer {}, dist {}, dir.x {}, dir.y {}, dT {}, dDist {}",
 //                          tag, p.x-minUT, p.y, p.z, dir.x, dir.y, dT, dDist);
-                DebugUtils.CSV("CDOS_test.csv", tag, p.start, p.transfer, p.distance, dir.x, dir.y, dT, dDist, feasible_point(p), DateTime.Now.ToShortTimeString());
+                DebugUtils.CSV("CDOS_test.csv", tag, p.start, p.transfer, p.distance, dir.x, dir.y, dDist, feasible_point(p), DateTime.Now.ToShortTimeString());
             }
 
             void LogP(string tag = "") { LogP(P, tag); }
@@ -1148,6 +1157,7 @@ namespace ThrottleControlledAvionics
                          double minUT, double maxUT, double startUT, double startTransfer, double dT)
             {
                 optimization = null;
+                start_points.Clear();
                 P0 = P = new Point(Math.Max(startUT, minUT+1), startTransfer, new_trajectory);
                 set_dir(new Vector2d(0,1));
                 Best = null;
@@ -1183,11 +1193,9 @@ namespace ThrottleControlledAvionics
             {
                 while(true)
                 {
-//                    var requestedTT = P.y;//debug
                     P.UpdateTrajectory();
                     yield return P.trajectory;
                     if(feasible_point(P)) break;
-//                    Utils.Log("find first P: StartT {}, TT {}/{}", P.x-minUT, P.y, requestedTT);//debug
                     P.transfer += dT;
                 }
                 P.UpdateDist();
@@ -1202,9 +1210,6 @@ namespace ThrottleControlledAvionics
                 var bestOK = feasible_point(bestP);
                 var endUT = Math.Max(P.start+P.transfer*2, maxUT);
                 var maxTT = maxUT-minUT;
-//                var dt = dT;
-//                Utils.Log("scan start: start {}, end {}, dT {}", P.start-minUT, endUT-minUT, dT);//debug
-                var minima = new List<Point>();
                 var minZ = new MinimumD();
                 while(cur.start < endUT)
                 {
@@ -1220,7 +1225,7 @@ namespace ThrottleControlledAvionics
                        !bestOK && (tOK || cur.trajectory.Orbit.PeR > bestP.trajectory.Orbit.PeR))
                     {
                         //always add the first feasable point
-                        if(tOK && !bestOK) minima.Add(cur);
+                        if(tOK && !bestOK) start_points.Add(cur);
                         bestP = cur;
                         bestOK = tOK;
                     }
@@ -1228,8 +1233,7 @@ namespace ThrottleControlledAvionics
                     {
                         minZ.Update(cur.distance);
                         if(minZ.True && feasible_point(prev)) 
-                            minima.Add(prev);
-//                        Utils.Log("{}\n{} : {}\n{}", minZ, prev, feasible_point(prev), cur);//debug
+                            start_points.Add(prev);
                         var step_k = Point.DistK(prev, cur);
                         if(step_k.Equals(0)) step_k = 1;
                         prev = cur;
@@ -1246,33 +1250,24 @@ namespace ThrottleControlledAvionics
                     }
                     yield return cur.trajectory;
                 }
-                if(minima.Count > 0)
-                {
-//                    Utils.Log("Minimums: {}", minima);//debug
-                    set_dir(new Vector2d(1,0));
-                    foreach(var min in minima)
-                    {
-                        P = min;
-                        LogP("scan minimum 1");
-//                        Utils.Log("scanned min1: {}, bestP {}", P, bestP);//debug
-                        foreach(var t in find_minimum(dT, true)) yield return t;
-//                        Utils.Log("scanned min2: {}, bestP {}", P, bestP);//debug
-                        LogP("scan minimum 2");
-                        if(P < bestP) bestP = P;
-                    }
-                }
-                else
+                if(!bestOK)
                 {
                     P = bestP;
                     foreach(var t in find_first_point()) yield return t;
                     LogP("first feasable point");
-                    set_dir(new Vector2d(1,0));
-                    foreach(var t in find_minimum(dT, true)) yield return t;
                     bestP = P;
                 }
-                Best = bestP.trajectory;
-                P = bestP;
-                LogP("minimium start");
+                if(!start_points.Contains(bestP))
+                    start_points.Add(bestP);
+                set_dir(new Vector2d(1,0));
+                for(int i = 0, minimaCount = start_points.Count; i < minimaCount; i++)
+                {
+                    P = start_points[i];
+                    LogP("scan minimum 1");
+                    foreach(var t in find_minimum(dT, true)) yield return t;
+                    LogP("scan minimum 2");
+                    start_points[i] = P;
+                }
             }
 
             IEnumerable<RendezvousTrajectory> find_minimum(double dt, bool no_scan = false)
@@ -1349,11 +1344,11 @@ namespace ThrottleControlledAvionics
                 }
             }
 
-            IEnumerable<RendezvousTrajectory> shift_and_find(double stride = 1)
+            IEnumerable<RendezvousTrajectory> shift_and_find(double dt, double stride = 1)
             {
                 P0 = P;
-                foreach(var t in orto_shift(0.62*dT)) yield return t;
-                foreach(var t in find_minimum(dT, true)) yield return t;
+                foreach(var t in orto_shift(0.62*dt)) yield return t;
+                foreach(var t in find_minimum(dt, true)) yield return t;
 //                LogP("parallel minimum");
                 if(P0 < P) 
                 {
@@ -1366,7 +1361,7 @@ namespace ThrottleControlledAvionics
                     dir.x = 0.1;
                     dir.y = Math.Sign(dir.y);
                 }
-                foreach(var t in find_minimum(stride*dT)) yield return t;
+                foreach(var t in find_minimum(stride*dt)) yield return t;
                 dDist = P.distance.Equals(double.MaxValue) || P0.distance.Equals(double.MaxValue)? 
                     -1 : Math.Abs(P.distance-P0.distance);
                 if(P0 < P) 
@@ -1374,40 +1369,41 @@ namespace ThrottleControlledAvionics
                     P = P0;
                     yield return P.trajectory;
                 }
-                Best = P.trajectory;
 //                Utils.Log("best so far: StartT {}, TT {}, dist {}/{}, OK {}", 
 //                          P.x-minUT, P.y, trajectory.DistanceToTarget, P.z, feasable_point(trajectory));//debug
                 LogP("partial minimum");
             }
 
-            IEnumerable<RendezvousTrajectory> build_conjugate_set()
+            IEnumerable<RendezvousTrajectory> build_conjugate_set(double dt)
             {
-//                foreach(var t in find_first_point()) yield return t;
-//                P.y = TRJ.ManeuverOffset;
-//                P.x = minUT+1;
-                P.UpdateTrajectory(true);
-                LogP("initial point");
-                foreach(var t in scan_start_time()) yield return t;
-//                P.y = TRJ.ManeuverOffset;// Math.Max(P.y-dT, 10);
-//                P.y = TRJ.ManeuverOffset;
                 set_dir(new Vector2d(0,1));
-                foreach(var t in find_minimum(dT)) yield return t;
+                foreach(var t in find_minimum(dt)) yield return t;
                 LogP("minimum transfer");
-//                set_dir(anti_grad());
-//                foreach(var t in find_minimum(dT)) yield return t;
-//                LogP("scan gradient");
-                foreach(var t in shift_and_find()) yield return t;
+                foreach(var t in shift_and_find(dt)) yield return t;
             }
 
             IEnumerable<RendezvousTrajectory> full_search()
             {
-                foreach(var t in build_conjugate_set()) yield return t;
-                while(dT > 0.1 || dDist > 0.1 || dDist < 0)
+                P.UpdateTrajectory(true);
+                LogP("initial point");
+                foreach(var t in scan_start_time()) yield return t;
+                var bestP = P;
+                foreach(var p in start_points)
                 {
-                    foreach(var t in shift_and_find(3)) yield return t;
-                    dT = 0.3*Point.Delta(P0, P).magnitude+0.1*dT;
-                    if(dT.Equals(0)) dT = 1;
+                    P = p;
+                    var dt = dT;
+                    foreach(var t in build_conjugate_set(dt)) yield return t;
+                    while(dt > 0.1 || dDist > 0.1 || dDist < 0)
+                    {
+                        foreach(var t in shift_and_find(dt, 3)) yield return t;
+                        dt = 0.3*Point.Delta(P0, P).magnitude+0.1*dt;
+                        if(dt.Equals(0)) dt = 1;
+                    }
+                    if(P < bestP) bestP = P;
                 }
+                P = bestP;
+                Best = P.trajectory;
+                yield return Best;
             }
 
             public RendezvousTrajectory NextTrajectory()
