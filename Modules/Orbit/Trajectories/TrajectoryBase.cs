@@ -6,7 +6,8 @@
 // This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. 
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
-//
+
+using System;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -49,7 +50,15 @@ namespace ThrottleControlledAvionics
 			StartUT = startUT;
 			Body = VSL.vessel.orbitDriver.orbit.referenceBody;
             OrigOrbit = TrajectoryCalculator.NextOrbit(VSL.vessel.orbitDriver.orbit, startUT);
-			Orbit = TrajectoryCalculator.NewOrbit(OrigOrbit, ManeuverDeltaV, StartUT);
+            try { Orbit = TrajectoryCalculator.NewOrbit(OrigOrbit, ManeuverDeltaV, StartUT); }
+            catch(ArithmeticException) 
+            { 
+                Orbit = OrigOrbit;
+                ManeuverFuel = 0;
+                ManeuverDuration = 0;
+                ManeuverDeltaV = Vector3d.zero;
+                NotEnoughFuel = false;
+            }
 			StartPos = Orbit.getRelativePositionAtUT(StartUT);
 			StartVel = Orbit.getOrbitalVelocityAtUT(StartUT);
 		}
