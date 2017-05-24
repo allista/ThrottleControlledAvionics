@@ -143,7 +143,7 @@ namespace ThrottleControlledAvionics
 			if(CircularizationOffset < 0)
 			{
 				ApAUT = VSL.Physics.UT+VesselOrbit.timeToAp;
-				CircularizationOffset = VSL.Engines.TTB((float)TrajectoryCalculator.dV4C(VesselOrbit, hV(ApAUT), ApAUT).magnitude)/2;
+				CircularizationOffset = VSL.Engines.TTB_Precise((float)TrajectoryCalculator.dV4C(VesselOrbit, hV(ApAUT), ApAUT).magnitude)/2;
 			}
 			return VesselOrbit.timeToAp > ApA_offset+CircularizationOffset &&
 				Body.atmosphere && VesselOrbit.radius < Body.Radius+Body.atmosphereDepth;
