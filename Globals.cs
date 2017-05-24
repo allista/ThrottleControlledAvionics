@@ -8,7 +8,6 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
-using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -74,6 +73,10 @@ namespace ThrottleControlledAvionics
 
 		public MDSection Manual;
 
+        #if DEBUG
+        public ConfigNodeObjectGUI UI;
+        #endif
+
 		public override void Init()
 		{ 
 			try
@@ -95,8 +98,10 @@ namespace ThrottleControlledAvionics
 				if(method == null) continue;
 				method.Invoke(fi.GetValue(this), null);
 			}
+            #if DEBUG
+            UI = ConfigNodeObjectGUI.FromObject(this);
+            #endif
 		}
 	}
-
 }
 
