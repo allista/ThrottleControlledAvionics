@@ -83,6 +83,12 @@ namespace ThrottleControlledAvionics
 	{
 		public class ModuleConfig : ConfigNodeObject
 		{
+            public class MinMax : ConfigNodeObject
+            {
+                [Persistent] public float Min;
+                [Persistent] public float Max;
+                public MinMax(float min, float max) { Min = min; Max = max; }
+            }
 			public virtual void Init() {}
 		}
 
@@ -116,8 +122,23 @@ namespace ThrottleControlledAvionics
 			return srv != null && srv.Register(this, predicate);
 		}
 
-		public bool NeedRadarWhenMooving()
-		{ return RegisterTo<Radar>(vsl => vsl.HorizontalSpeed.MoovingFast); }
+		public bool NeedCPSWhenMooving()
+		{ 
+            var ret = RegisterTo<Radar>(vsl => vsl.HorizontalSpeed.MoovingFast); 
+            return RegisterTo<CollisionPreventionSystem>() && ret;
+        }
+
+        public bool NeedCPS()
+        {
+            var ret = RegisterTo<Radar>(); 
+            return RegisterTo<CollisionPreventionSystem>() && ret;
+        }
+
+        public void ReleaseCPS()
+        {
+            UnregisterFrom<Radar>();
+            UnregisterFrom<CollisionPreventionSystem>();
+        }
 
 		public bool UnregisterFrom<S>() 
 			where S : TCAService
