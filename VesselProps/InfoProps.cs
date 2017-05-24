@@ -34,6 +34,7 @@ namespace ThrottleControlledAvionics
 		{
 			get
 			{
+                if(CheatOptions.InfiniteElectricity) return true;
 				double amount, max_amount;
 				vessel.GetConnectedResourceTotals(ElectricCharge.id, out amount, out max_amount);
 				return amount > 0;
