@@ -15,10 +15,10 @@ using AT_Utils;
 namespace ThrottleControlledAvionics
 {
 	[CareerPart]
-	[OptionalModules(typeof(AltitudeControl),
-	                 typeof(HorizontalSpeedControl))]
-	[ModuleInputs(typeof(Anchor),
-	              typeof(PointNavigator))]
+    [OptionalModules(typeof(AltitudeControl),
+                     typeof(HorizontalSpeedControl))]
+    [ModuleInputs(typeof(Anchor),
+                  typeof(PointNavigator))]
 	public class Radar : TCAService
 	{
 		public class Config : ModuleConfig
@@ -337,8 +337,9 @@ namespace ThrottleControlledAvionics
 //					VSL.Info.AddCustopWaypoint(DirectHit.Position, "DirectHit");//debug
 					VSL.Altitude.LowerThreshold = (float)VelocityHit.Altitude;
 					var rel_pos = VelocityHit.HorPosition(VSL);
-					if(!VSL.HorizontalSpeed.MoovingFast && !VSL.Info.Destination.IsZero() && 
-					   VelocityHit.Altitude-VSL.Altitude.TerrainAltitude > 1 &&
+					if(HSC != null &&
+                       !VSL.HorizontalSpeed.MoovingFast && !VSL.Info.Destination.IsZero() && 
+                       VelocityHit.Altitude-VSL.Altitude.TerrainAltitude > 1 &&
 					   Vector3.Dot(VSL.Info.Destination, rel_pos-VSL.Info.Destination) < 0)
 					{
 						var dV = rel_pos.normalized*GLB.HSC.TranslationUpperThreshold;
