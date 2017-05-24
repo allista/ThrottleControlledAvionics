@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
 
 		public delegate bool ManeuverCondition(float dV);
 		readonly FuzzyThreshold<double> dVrem = new FuzzyThreshold<double>(1, 0.5f);
+        Vector3d course_correction = Vector3d.zero;
 
 		public bool WithinThreshold { get { return dVrem; } }
 		public double RemainingDeltaV { get { return dVrem; } }
@@ -29,9 +30,17 @@ namespace ThrottleControlledAvionics
 
 		public void Reset() { dVrem.Value = dVrem.Upper+1; }
 
+        public void AddCourseCorrection(Vector3d dV) { course_correction += dV; }
+
 		public bool Execute(Vector3d dV, float MinDeltaV = 0.1f, ManeuverCondition condition = null)
 		{
 			THR.Throttle = 0;
+            var has_correction = !course_correction.IsZero();
+            if(has_correction)
+            {
+                dV += course_correction;
+                course_correction = Vector3d.zero;
+            }
 			dVrem.Value = dV.magnitude;
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) return false;
@@ -51,7 +60,7 @@ namespace ThrottleControlledAvionics
 				VSL.Engines.RequestClusterActivationForManeuver(-dV);
 			}
 			//check the condition
-			if(condition != null && !condition((float)dVrem)) return true;
+            if(!has_correction && condition != null && !condition((float)dVrem)) return true;
 			if(VSL.Controls.TranslationAvailable)
 			{
 				if(dVrem || VSL.Controls.AttitudeError > GLB.ATCB.AttitudeErrorThreshold)
