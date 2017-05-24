@@ -54,7 +54,8 @@ namespace ThrottleControlledAvionics
 		void OnSOIChanged(GameEvents.HostedFromToAction<Vessel, CelestialBody> action)
 		{
 			if(TCA == null || action.host != VSL.vessel) return;
-			Message("Disengaging Time Warp on SOI change...");
+            if(TimeWarp.CurrentRate > 1)
+                Message("Disengaging Time Warp on SOI change...");
 			AbortWarp();
 		}
 
