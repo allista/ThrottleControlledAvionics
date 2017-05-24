@@ -21,7 +21,9 @@ namespace ThrottleControlledAvionics
 		public Vector3 C { get; private set; } //center
 		public float   H { get; private set; } //height
 		public float   R { get; private set; } //radius
+        public float   E { get; private set; } //radius including engines' exhaust
 		public float   D { get; private set; } //diamiter
+        public Vector3 RelC { get; private set; } //center relative to CoM
 		public float Area { get; private set; }
 		public Vector3 BoundsSideAreas { get; private set; }
 
@@ -33,8 +35,9 @@ namespace ThrottleControlledAvionics
 			//update physical bounds
 			var b = vessel.Bounds(refT);
 			C = refT.TransformPoint(b.center);
-			H = Mathf.Abs(Vector3.Dot(refT.TransformDirection(b.extents), VSL.Physics.Up))+
-				Vector3.Dot(VSL.Physics.wCoM-C, VSL.Physics.Up);
+            RelC = C-VSL.Physics.wCoM;
+			H = Mathf.Abs(Vector3.Dot(refT.TransformDirection(b.extents), VSL.Physics.Up)) -
+                Vector3.Dot(RelC, VSL.Physics.Up);
 			R = b.extents.magnitude;
 			D = R*2;
 			BoundsSideAreas = new Vector3(B.extents.y*B.extents.z, //right
@@ -53,6 +56,7 @@ namespace ThrottleControlledAvionics
 					b.Encapsulate(term);
 				}
 			}
+            E = b.extents.magnitude;
 			B = b;
 		}
 
@@ -145,10 +149,11 @@ namespace ThrottleControlledAvionics
 		{
 			get
 			{
-				if(CFG.Target == null) return R;
+                var shift = RelC.magnitude;
+				if(CFG.Target == null) return E+shift;
 				var tgtVessel = CFG.Target.GetVessel();
-				if(tgtVessel == null) return R;
-				return R+tgtVessel.Radius();
+                if(tgtVessel == null) return E+shift;
+                return E+shift+tgtVessel.Radius(true);
 			}
 		}
 	}
