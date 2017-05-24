@@ -208,6 +208,8 @@ namespace ThrottleControlledAvionics
 			#if DEBUG
 //			DebugInfo();
 //			EnginesInfo();
+            if(!string.IsNullOrEmpty(DebugMessage))
+                GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));
 			#endif
 			if(!string.IsNullOrEmpty(StatusMessage))
 			{ 
@@ -310,8 +312,6 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(string.Format("Thr: {0:P1}", VSL.vessel.ctrlState.mainThrottle), GUILayout.Width(100));
 			GUILayout.Label(string.Format("ecc: {0:0.000}", VSL.orbit.eccentricity), GUILayout.Width(100));
 			GUILayout.EndHorizontal();
-			if(!string.IsNullOrEmpty(DebugMessage))
-				GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));
 		}
 		#endif
 
@@ -417,7 +417,6 @@ namespace ThrottleControlledAvionics
     				                 GUILayout.Width(ControlsWidth),
     				                 GUILayout.Height(50)).clampToScreen();
             }
-			if(ORB != null) ORB.OrbitEditorWindow();
 			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());
             ModulesGraph.Draw();
