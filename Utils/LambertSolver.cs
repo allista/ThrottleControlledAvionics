@@ -58,11 +58,11 @@ namespace ThrottleControlledAvionics
 
 			r1 = orb.getRelativePositionAtUT(UT);
             var norm = orb.GetOrbitNormal();
-			var h  = Vector3d.Cross(r1, destination);
+			var h = Vector3d.Cross(r1, destination);
 			if(h.sqrMagnitude < 0.01) h = norm;
-			c  = destination-r1;
+			c = destination-r1;
 
-			cm  = c.magnitude;
+			cm = c.magnitude;
 			var r1m = r1.magnitude;
 			var r2m = destination.magnitude;
 			var rrm = r1m+r2m;
