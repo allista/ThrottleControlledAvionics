@@ -57,6 +57,14 @@ namespace ThrottleControlledAvionics
 		public WayPoint(Vector3d worldPos, CelestialBody body) : this(new Coordinates(worldPos, body)) {}
 		public WayPoint(FinePrint.Waypoint wp) : this(new Coordinates(wp.latitude, wp.longitude, wp.altitude+wp.height)) { Name = wp.FullName; }
 
+        public WayPoint CopyMovable()
+        {
+            var wp = new WayPoint(Pos);
+            wp.Name = Name;
+            wp.Movable = true;
+            return wp;
+        }
+
 		//using Haversine formula (see http://www.movable-type.co.uk/scripts/latlong.html)
 		public double AngleTo(double lat, double lon)
 		{
