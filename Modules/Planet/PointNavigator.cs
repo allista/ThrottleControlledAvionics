@@ -166,14 +166,14 @@ namespace ThrottleControlledAvionics
 			DistancePID.Reset();
 			LateralPID.Reset();
 			CFG.HF.OnIfNot(HFlight.NoseOnCourse);
-			RegisterTo<Radar>();
+            NeedCPS();
 		}
 
 		void finish()
 		{
 			CFG.Nav.Off();
 			CFG.HF.OnIfNot(HFlight.Stop);
-			UnregisterFrom<Radar>();
+            ReleaseCPS();
 			reset_formation();
 			SetTarget();
 		}
