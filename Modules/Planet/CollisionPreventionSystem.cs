@@ -232,8 +232,7 @@ namespace ThrottleControlledAvionics
 				               out raycastHit, dist, RadarMask))
 					vR = (raycastHit.point-v.CurrentCoM).magnitude;
 				vT = v.ReferenceTransform;
-				vB = v.Bounds(vT);
-				vB.Encapsulate(v.EnginesExhaust());
+                vB = v.BoundsWithExhaust(vT);
 			}
 			//compute course correction
 			var dV = VSL.vessel.srf_velocity-v.srf_velocity+(VSL.vessel.acceleration-v.acceleration)*CPS.LookAheadTime;

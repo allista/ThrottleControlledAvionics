@@ -17,7 +17,7 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : ModuleConfig
 		{
-			[Persistent] public PIDv_Controller3 PID = new PIDv_Controller3(
+			[Persistent] public PIDv_Controller2 PID = new PIDv_Controller2(
 				Vector3.one*10f, Vector3.one*0.02f, Vector3.one*0.5f, -Vector3.one, Vector3.one
 			);
 
@@ -55,7 +55,7 @@ namespace ThrottleControlledAvionics
 
 		protected Vector3 steering;
 		protected Vector3 angle_error;
-		protected readonly PIDv_Controller3 steering_pid = new PIDv_Controller3();
+		protected readonly PIDv_Controller2 steering_pid = new PIDv_Controller2();
 		protected readonly LowPassFilterV AAf_filter = new LowPassFilterV();
 		protected readonly Timer AuthorityTimer = new Timer();
 		protected readonly DifferentialF ErrorDif = new DifferentialF();
