@@ -44,11 +44,31 @@ namespace ThrottleControlledAvionics
 		ThrottleControl THR;
 
 		protected override RendezvousTrajectory CurrentTrajectory
-		{ get { return new RendezvousTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, MinPeR); } }
+		{ get { return new RendezvousTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target); } }
 
-		public enum Stage { None, Start, Launch, ToOrbit, StartOrbit, ComputeRendezvou, Rendezvou, Coast, MatchOrbits, Approach, Brake }
+		public enum Stage 
+        { 
+            None, Start, PreLaunch, Launch, ToOrbit, StartOrbit, 
+            ComputeSuborbitRendezvous, ComputeRendezvou, ComputeCorrection, 
+            Rendezvou, Coast, MatchOrbits, 
+            Approach, Brake 
+        }
 		[Persistent] public Stage stage;
 		[Persistent] public Vector3 ToOrbitTarget;
+        [Persistent] public FloatField GTurnCurve = new FloatField(format: "F1", min: 0.1f, max: 10);
+        [Persistent] public Mode mode;
+        [Persistent] public bool ShowOptions;
+
+        public enum Mode { DeltaV, TimeToTarget, Manual }
+        static int NumModes = Enum.GetValues(typeof(Mode)).Length;
+        static string[] ModeNames = { "Min. dV", "Fast Transfer", "Manual" };
+        static string[] ModeDesc = 
+        { 
+            "Use the most fuel-efficient transfer", 
+            "Prefer transfers that take less overall time", 
+            "Manually choose transfer if several are available" 
+        };
+        CDOS_Optimizer2D optimizer;
 
 		MinimumD MinDist = new MinimumD();
 		ToOrbitExecutor ToOrbit;
@@ -56,6 +76,7 @@ namespace ThrottleControlledAvionics
 
 		double CurrentDistance = -1;
         double DirectDistance = -1;
+        bool CorrectingManeuver;
 		Orbit TargetOrbit { get { return CFG.Target.GetOrbit(); } }
 		Vessel TargetVessel { get { return CFG.Target.GetVessel(); } }
         bool TargetLoaded { get { return TargetVessel != null && TargetVessel.loaded; } }
@@ -63,10 +84,10 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			Dtol = REN.Dtol;
 			CorrectionTimer.Period = REN.CorrectionTimer;
 			CFG.AP2.AddHandler(this, Autopilot2.Rendezvous);
             UnityEngine.Random.InitState(42);
+            GTurnCurve.Value = GLB.ORB.GTurnCurve;
 		}
 
 		public override void Save(ConfigNode node)
@@ -91,15 +112,14 @@ namespace ThrottleControlledAvionics
 					CFG.AP2.Off();
 					break;
 				}
+                ShowOptions = true;
 				UseTarget();
-				NeedRadarWhenMooving();
+				NeedCPSWhenMooving();
 				switch(stage)
 				{
 				case Stage.None:
 				case Stage.ComputeRendezvou:
 					stage = Stage.Start;
-                    startUT = VSL.Physics.UT;
-                    init_optimizer();//debug
 					break;
 				case Stage.Launch:
 					if(VSL.LandedOrSplashed) stage = Stage.Start;
@@ -122,8 +142,9 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
                 CFG.AT.On(Attitude.KillRotation);
-                UnregisterFrom<Radar>();
+                ReleaseCPS();
                 StopUsingTarget();
+                ShowOptions = false;
 				reset();
 				break;
 			}
@@ -134,367 +155,370 @@ namespace ThrottleControlledAvionics
 			if(!base.check_target()) return false;
 			if(TargetVessel == null) 
 			{
-				Status("yellow", "Target should be a vessel");
+				Status("yellow", "Target should be a vessel or an asteroid");
 				return false;
 			}
 			if(TargetVessel.LandedOrSplashed)
 			{
-				Status("yellow", "Target vessel is landed");
+				Status("yellow", "Target is landed");
 				return false;
 			}
-            var dInc = Math.Abs(TargetOrbit.inclination-VesselOrbit.inclination);
-            if(dInc > 90)
+            if(!VSL.OnPlanet &&
+               VesselOrbit.patchEndTransition == Orbit.PatchTransitionType.FINAL &&
+               TargetOrbit.patchEndTransition == Orbit.PatchTransitionType.FINAL &&
+               VesselOrbit.referenceBody == TargetOrbit.referenceBody)
             {
-                Status("yellow", "Target orbits in the oposite direction.\n" +
-                       "You need to change orbit direction before the rendezvou maneuver.");
-                return false;
+                var dInc = Math.Abs(TargetOrbit.inclination-VesselOrbit.inclination);
+                if(dInc > 90)
+                {
+                    Status("yellow", "Target orbits in the oposite direction.\n" +
+                           "You need to change orbit direction before the rendezvou maneuver.");
+                    return false;
+                }
+    			else if(dInc > REN.MaxInclinationDelta)
+    			{
+    				Status("yellow", "Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
+    				       "You need to change orbit plane before the rendezvou maneuver.", REN.MaxInclinationDelta);
+    				return false;
+    			}
             }
-			else if(dInc > REN.MaxInclinationDelta)
-			{
-				Status("yellow", "Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
-				       "You need to change orbit plane before the rendezvou maneuver.", REN.MaxInclinationDelta);
-				return false;
-			}
 			return true;
 		}
-
-		
 
 		RendezvousTrajectory new_trajectory(double StartUT, double transfer_time)
 		{
 			var endUT = StartUT+transfer_time;
-			var solver = new LambertSolver(NextOrbit(endUT), NextOrbit(TargetOrbit, endUT).getRelativePositionAtUT(endUT), StartUT);
-            if(solver.NotElliptic(transfer_time)) transfer_time = solver.ParabolicTime+1;
+            var obt = NextOrbit(StartUT);
+            var solver = new LambertSolver(obt, RelativePosAtUT(obt.referenceBody, TargetOrbit, endUT), StartUT);
+            if(solver.NotElliptic(transfer_time)) 
+                transfer_time = solver.ParabolicTime+1;
 			var dV = solver.dV4Transfer(transfer_time);
 //            Log("transfer time {}\ncV {}\ndV {}\norbit {}\ntOrbit {}", 
 //                transfer_time, VesselOrbit.getOrbitalVelocityAtUT(StartUT), dV, 
 //                NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
-			return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, MinPeR, transfer_time);
+			return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, transfer_time);
 		}
-
-        protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, 
-                                                        double ini_transfer_time, ref double dT)
-        { return orbit_correction(old, best, VSL.Physics.UT + CorrectionOffset, ini_transfer_time, ref dT); }
-
-        protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, 
-                                                        double StartUT, double ini_transfer_time, ref double dT)
-		{
-			double transfer_time;
-			if(VSL.Physics.UT+CorrectionOffset > StartUT)
-				StartUT = VSL.Physics.UT+CorrectionOffset+TimeWarp.fixedDeltaTime;
-			if(old != null) 
-			{
-                #if DEBUG
-                if(best.KillerOrbit && !setp_by_step_computation)
-                {
-                    setp_by_step_computation = true;
-                    PauseMenu.Display();
-                }
-                #endif
-				if(StartUT-VSL.Physics.UT < old.ManeuverDuration/2)
-					StartUT = VSL.Physics.UT+old.ManeuverDuration/2+TimeWarp.fixedDeltaTime;
-				if(old.ManeuverDuration.Equals(0) && best.ManeuverDuration.Equals(0))
-					transfer_time = Math.Max(old.TransferTime+dT, old.TransferTime*2);
-				else
-				{
-					transfer_time = old.TransferTime+dT;
-					if(transfer_time > Math.Max(VesselOrbit.period, TargetOrbit.period) ||
-						transfer_time < ManeuverOffset ||
-						!old.KillerOrbit && !best.KillerOrbit &&
-						!trajectory_is_better(old, old, best))
-					{
-						dT /= -2.1;
-						transfer_time = best.TransferTime+dT;
-					}
-				}
-			}
-			else transfer_time = ini_transfer_time;
-//            Log("StartT {}, transfer_time {}, dT {}", StartUT-VSL.Physics.UT, transfer_time, dT);//debug
-            DebugUtils.CSV("CDOS_test.csv", "old scan transfer", StartUT, transfer_time, -1, 0, 0, dT, -1, DateTime.Now.ToShortTimeString());
-			return new_trajectory(StartUT, Math.Max(transfer_time, ManeuverOffset));
-		}
-
-        protected RendezvousTrajectory orbit_correction(RendezvousTrajectory old, RendezvousTrajectory best, 
-                                                        double StartUT, double EndUT, 
-                                                        ref double transfer_time, ref double UT, ref double dT)
-        {
-            if(old == null)
-                return new_trajectory(StartUT, transfer_time);
-            if(UT > 0)
-            {
-                if(best.KillerOrbit) 
-                    transfer_time += dT/10;
-                else UT += dT;
-                if(UT < EndUT) 
-                {
-//                    Log("T {}, TT {}, dT", UT-StartUT, transfer_time, dT);//debug
-                    var trj = new_trajectory(UT, transfer_time);
-                    transfer_time = trj.TransferTime;
-                    DebugUtils.CSV("CDOS_test.csv", "old scan start", UT, transfer_time, -1, 0, 0, dT, -1, DateTime.Now.ToShortTimeString());
-                    return trj;
-                }
-                dT = best.TransferTime/10;
-                UT = -1;
-                return orbit_correction(null, best, best.StartUT, ManeuverOffset, ref dT);
-            }
-            return orbit_correction(old, best, best.StartUT, ManeuverOffset, ref dT);
-        }
-
-        protected override bool continue_calculation(RendezvousTrajectory old, RendezvousTrajectory cur, RendezvousTrajectory best)
-        {
-//            Log("cur == best {}, best.Dist {}, cur.ManT {}, dTransT {}, dDeltaV {}",
-//                cur == best,
-//                best.DistanceToTarget,
-//                cur.ManeuverDuration,
-//                Math.Abs(cur.TransferTime-best.TransferTime),
-//                Math.Abs(cur.ManeuverDeltaV.sqrMagnitude-best.ManeuverDeltaV.sqrMagnitude));//debug
-            return 
-                cur == best ||
-                best.DistanceToTarget > Dtol ||
-                cur.ManeuverDuration.Equals(0) ||
-                !cur.StartUT.Equals(best.StartUT) ||
-                Math.Abs(cur.TransferTime-best.TransferTime) > 1e-5 &&
-                Math.Abs(cur.ManeuverDeltaV.sqrMagnitude-best.ManeuverDeltaV.sqrMagnitude) > 1;
-        }
-
-        protected override bool trajectory_is_better(RendezvousTrajectory old, RendezvousTrajectory cur, RendezvousTrajectory best)
-        { 
-//            Log("cur.Trans {}, cur.Killer {}, best.Killer {}\ncur.Dist {}, best.Dist {}\ncur.Time {}+{}, best.Time {}+{}",
-//                cur.TransferTime,
-//                cur.KillerOrbit,
-//                best.KillerOrbit,
-//                cur.DistanceToTarget,
-//                best.DistanceToTarget,
-//                cur.ManeuverDuration, cur.BrakeDuration,
-//                best.ManeuverDuration, best.BrakeDuration);//debug
-            if(cur.KillerOrbit && best.KillerOrbit) 
-                return cur.Orbit.PeR > best.Orbit.PeR;
-            return 
-                !cur.KillerOrbit && 
-                (best.KillerOrbit || base.trajectory_is_better(old, cur, best)); 
-        }
 
 		void compute_rendezvou_trajectory()
 		{
-			trajectory = null;
-			stage = Stage.ComputeRendezvou;
-            var StartUT = VSL.Physics.UT+ManeuverOffset;
-            //compute approach UT estimate
-            double approachUT;
-            var transfer_time = VesselOrbit.period/2;
-            var ttr = TimeToResonance(VesselOrbit, TargetOrbit, StartUT);
-            if(ttr < REN.MaxTTR) 
+            VSL.Controls.StopWarp();
+            var minStartUT = VSL.Physics.UT+ManeuverOffset+TRJ.CorrectionOffset;
+            var transfer = (TargetOrbit.period+VesselOrbit.period)/4;
+            var softMaxStart = true;
+            double maxStartUT, maxEndUT = -1;
+            var lastOrbitV = LastOrbit(VesselOrbit);
+            var lastOrbitT = LastOrbit(TargetOrbit);
+            if(DiscontiniousOrbit(lastOrbitV))
             {
-                approachUT = VSL.Physics.UT+ttr*VesselOrbit.period;
-                StartUT = Math.Max(approachUT-transfer_time, StartUT);
+                maxStartUT = lastOrbitV.EndUT;
+                softMaxStart = false;
             }
-            else 
-                approachUT = VSL.Physics.UT+VesselOrbit.period*REN.MaxTTR;
-//                ClosestApproach(VesselOrbit, TargetOrbit, StartUT, VSL.Geometry.MinDistance, out approachUT);
-            if(approachUT <= StartUT) 
-                approachUT += VesselOrbit.period;
-            var EndUT = approachUT+transfer_time;
-            var dT = (approachUT-StartUT)/10;
-            var UT = StartUT;
-            DebugUtils.CSV("CDOS_test.csv", "initial point", UT, transfer_time, -1, 0, 0, dT, -1, DateTime.Now.ToShortTimeString());
-            Log("StartT {}, approachT {}, EndT {}, transfer_time {}, dT {}", 
-                StartUT-VSL.Physics.UT, approachUT-VSL.Physics.UT, EndUT-VSL.Physics.UT, transfer_time, dT);//debug
-            setup_calculation((o, b) => orbit_correction(o, b, StartUT, EndUT, ref transfer_time, ref UT, ref dT));
+            else
+            {
+                var period = Math.Max(double.IsInfinity(lastOrbitV.period)? 0 : lastOrbitV.period, 
+                                      double.IsInfinity(lastOrbitT.period)? 0 : lastOrbitT.period);
+                maxStartUT = VSL.Physics.UT+period*(REN.MaxTTR+1);
+            }
+            if(DiscontiniousOrbit(lastOrbitT))
+            {
+                maxEndUT = lastOrbitT.EndUT;
+                maxStartUT = Math.Min(maxStartUT, maxEndUT);
+                softMaxStart = false;
+            }
+            Log("maxStartUT {}, maxEndUT {}, softMaxStart {}\n{}\n{}", 
+                maxStartUT, maxEndUT, softMaxStart, 
+                Utils.formatPatches(VesselOrbit, "VesselOrbit"), 
+                Utils.formatPatches(TargetOrbit, "TargetOrbit"));//debug
+            optimizer = new CDOS_Optimizer2D(this, 
+                                             minStartUT, 
+                                             maxStartUT,
+                                             maxEndUT,
+                                             softMaxStart,
+                                             minStartUT+1, 
+                                             transfer, 
+                                             Utils.Clamp(transfer/10, 10, 1000));
+            ComputeTrajectory(optimizer);
+            stage = Stage.ComputeRendezvou;
+            trajectory = null;
 		}
 
 		protected override void fine_tune_approach()
 		{
             update_trajectory();
-			stage = Stage.ComputeRendezvou;
-            var dT = trajectory.TimeToTarget/4;
-            var transfer_time = trajectory.TimeToTarget;
-            DebugUtils.CSV("CDOS_test.csv", "initial point", VSL.Physics.UT, transfer_time, -1, 0, 0, dT, -1, DateTime.Now.ToShortTimeString());
-            setup_calculation((o, b) => orbit_correction(o, b, transfer_time, ref dT));
+            var startUT = VSL.Physics.UT+CorrectionOffset+TimeWarp.fixedDeltaTime*TRJ.PerFrameIterations*10;
+            ComputeTrajectory(new StartTimeOptimizer(this,
+                                                     startUT,
+                                                     trajectory.AtTargetUT-startUT,
+                                                     trajectory.TransferTime/10));
+            stage = Stage.ComputeCorrection;
             trajectory = null;
 		}
 
-		protected void compute_start_orbit(double StartUT)
+		protected void compute_approach_orbit(double StartUT)
 		{
-			trajectory = null;
-			stage = Stage.ComputeRendezvou;
-            var transfer_time = (VesselOrbit.period+TargetOrbit.period)/8;
-            var dT = transfer_time/2;
-            DebugUtils.CSV("CDOS_test.csv", "initial point", StartUT, ManeuverOffset, -1, 0, 0, dT, -1, DateTime.Now.ToShortTimeString());
-            setup_calculation((o, b) => orbit_correction(o, b, StartUT, ManeuverOffset, ref dT));
+            VSL.Controls.StopWarp();
+            var transfer_time = (VesselOrbit.period+TargetOrbit.period)/4;
+            double maxEndUT;
+            var lastOrbitT = LastOrbit(TargetOrbit);
+            if(DiscontiniousOrbit(lastOrbitT))
+                maxEndUT = lastOrbitT.EndUT;
+            else if(!double.IsInfinity(lastOrbitT.period))
+                maxEndUT = VSL.Physics.UT+lastOrbitT.period*(REN.MaxTTR+2);
+            else 
+                maxEndUT = NearestRadiusUT(lastOrbitT, lastOrbitT.referenceBody.sphereOfInfluence, VSL.Physics.UT, false);
+            ComputeTrajectory(new TransferOptimizer(this,
+                                                    maxEndUT,
+                                                    StartUT,
+                                                    transfer_time,
+                                                    transfer_time/2));
+            stage = Stage.ComputeSuborbitRendezvous;
+            trajectory = null;
 		}
 
 		void start_orbit()
 		{
 			ToOrbit = null;
-			var dV = Vector3d.zero;
-			var old = VesselOrbit;
-			var StartUT = VSL.Physics.UT+CorrectionOffset;
+            THR.Throttle = 0;
 			CFG.BR.OffIfOn(BearingMode.Auto);
             update_trajectory();
-            ttr_tuning = 0;
 			if(VesselOrbit.PeR < MinPeR) 
 			{
-                StartUT = Math.Min(trajectory.AtTargetUT, VSL.Physics.UT+(VesselOrbit.ApAhead()? VesselOrbit.timeToAp : CorrectionOffset));
-				if(trajectory.DistanceToTarget < REN.ApproachThreshold*2 && StartUT.Equals(trajectory.AtTargetUT)) 
-				{ //approach is close enough to directly match orbits
+                var StartUT = Math.Min(trajectory.AtTargetUT, VSL.Physics.UT+(VesselOrbit.ApAhead()? VesselOrbit.timeToAp : CorrectionOffset));
+                //approach is close enough to directly match orbits
+				if(trajectory.DistanceToTarget < REN.ApproachThreshold*2 && 
+                   StartUT.Equals(trajectory.AtTargetUT)) 
 					match_orbits(); 
-					return; 
-				}
-				var transfer_time = Utils.ClampL(TargetOrbit.period*(0.25-AngleDelta(VesselOrbit, TargetOrbit, StartUT)/360), 1);
-				var solver = new LambertSolver(VesselOrbit, TargetOrbit.getRelativePositionAtUT(StartUT+transfer_time), StartUT);
-				dV = solver.dV4Transfer(transfer_time);
-				var trj = new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, MinPeR, transfer_time);
-				if(!dV.IsZero() && !trj.KillerOrbit)
-				{ //approach orbit is possible
-					compute_start_orbit(StartUT);
-					return;
-				}
-				//starting from circular orbit and proceeding to TTR fitting...
-				StartUT = VesselOrbit.ApAhead()? VSL.Physics.UT+VesselOrbit.timeToAp : VSL.Physics.UT+CorrectionOffset;
-				dV = dV4C(old, hV(StartUT), StartUT);
-				old = NewOrbit(old, dV, StartUT);
-			}
-            else if(trajectory.RelDistanceToTarget < REN.CorrectionStart || TargetLoaded)
+                else compute_approach_orbit(StartUT);
+//				var transfer_time = Utils.ClampL(TargetOrbit.period*(0.25-AngleDelta(VesselOrbit, TargetOrbit, StartUT)/360), 1);
+//				var solver = new LambertSolver(VesselOrbit, TargetOrbit.getRelativePositionAtUT(StartUT+transfer_time), StartUT);
+//				var dV = solver.dV4Transfer(transfer_time);
+//				var trj = new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, transfer_time);
+//                //if direct rendezvous orbit is possible
+//				if(!dV.IsZero() && !trj.KillerOrbit)
+//					compute_approach_orbit(StartUT);
+//                else circularize();
+			} 
+            else next_stage();
+		}
+
+        void circularize()
+        {
+            update_trajectory();
+            //start from circular orbit and proceed to TTR fitting
+            var StartUT = VesselOrbit.ApAhead()? VSL.Physics.UT+VesselOrbit.timeToAp : VSL.Physics.UT+CorrectionOffset;
+            var dV = dV4C(VesselOrbit, hV(StartUT), StartUT);
+            //compute orbit with desired TTR and activate maneuver autopilot
+            dV += dV4TTR(NewOrbit(VesselOrbit, dV, StartUT), TargetOrbit, REN.MaxTTR, REN.MaxDeltaV, MinPeR, StartUT);
+            if(!dV.IsZero())
             {
-                if(trajectory.RelDistanceToTarget > REN.CorrectionStart/4 && !TargetLoaded) 
-                    fine_tune_approach();
-                else match_orbits();
-                return;
+                add_node(dV, StartUT);
+                CFG.AP1.On(Autopilot1.Maneuver);
             }
-            else
+            stage = Stage.StartOrbit;
+        }
+
+        class Launch
+        {
+            public double UT;
+            public double Transfer;
+            public double ApR;
+            public Vector3d ApV;
+            public double Dist = -1;
+
+            public Launch(RendezvousAutopilot ren, double startUT, double transfer, double minPeR, double maxPeR, double ApAArc)
             {
-                double alpha;
-                var TTR = TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT, out res_before, out alpha);
-                Log("old ttr: {}", TTR);//debug
-                ttr_before = TTR;//debug
-                periodT = TargetOrbit.period;
-                periodV_before = VesselOrbit.period;
-                eccT = TargetOrbit.eccentricity;
-                eccV_before = VesselOrbit.eccentricity;
-                enT = TargetOrbit.orbitalEnergy;
-                enV_before = VesselOrbit.orbitalEnergy;
-                var tPe = TargetOrbit.getRelativePositionFromMeanAnomaly(0);//debug
-                var vPe = VesselOrbit.getRelativePositionFromMeanAnomaly(0);//debug
-                PeA_angle_before = Math.Abs(Utils.ProjectionAngle(vPe, tPe, VesselOrbit.getOrbitalVelocityAtObT(0)));//debug
-//                if(false)
-                if(TTR > REN.MaxTTR && alpha*res_before > 0) 
+                var tN = ren.TargetOrbit.GetOrbitNormal();
+                var ApAUT = transfer < 0? startUT : startUT+transfer;
+                var startPos = TrajectoryCalculator.BodyRotationAtdT(ren.Body, startUT-ren.VSL.Physics.UT)*ren.VesselOrbit.pos;
+                var hVdir = Vector3d.Cross(startPos, tN).normalized;
+                ApR = Utils.Clamp(ren.TargetOrbit.getRelativePositionAtUT(ApAUT).magnitude, minPeR, maxPeR);
+                Transfer = AtmoSim.FromSurfaceTTA(ren.VSL, ApR-ren.Body.Radius, 
+                                                  ApAArc, ren.GTurnCurve, 
+                                                  Vector3d.Dot(ren.SurfaceVel, hVdir));
+                UT = startUT;
+                ApV = QuaternionD.AngleAxis(ApAArc*Mathf.Rad2Deg, Vector3d.Cross(hVdir, startPos))*startPos.normalized*ApR;
+                Dist = (ApV-ren.TargetOrbit.getRelativePositionAtUT(UT+Transfer)).magnitude;
+            }
+
+            public static bool operator <(Launch a, Launch b) { return a.Dist < b.Dist; }
+            public static bool operator >(Launch a, Launch b) { return a.Dist > b.Dist; }
+            public override string ToString() 
+            { 
+                return Utils.Format("UT {}, Transfer {}, Dist {}, ApR {}", 
+                                    UT, Transfer, Dist, ApR); 
+            }
+        }
+
+        double inclinationDelta(double UT)
+        {
+            var tN = TargetOrbit.GetOrbitNormal();
+            var startPos = BodyRotationAtdT(Body, UT-VSL.Physics.UT)*VesselOrbit.pos;
+            return Math.Abs(Vector3d.Angle(tN, startPos)-90);
+        }
+
+        double maxInclinationDelta(double startUT, double dT)
+        {
+            var maxIncUT = startUT;
+            var maxInc = 0.0;
+            while(Math.Abs(dT) > 0.01)
+            {
+                var dInc = inclinationDelta(startUT);
+                Log("MaxInc: UT {} : {}, dInc {} : {}, dT {}", startUT, maxIncUT, dInc, maxInc, dT);//debug
+                if(dInc > maxInc) 
                 {
-                    var up = Vector3d.Dot(dV4Resonance(VesselOrbit, TargetOrbit, Math.Max(REN.MaxTTR/2, 0.75), alpha, VSL.Physics.UT), VesselOrbit.vel) > 0;
-                    ttr_up = up;//debug
-                    tPe = TargetOrbit.getRelativePositionFromMeanAnomaly(0);
-                    var tAp = TargetOrbit.getRelativePositionFromMeanAnomaly(Math.PI);
-                    var v2tPe = AngleDelta(VesselOrbit, tPe)*Mathf.Deg2Rad;
-                    var v2tAp = AngleDelta(VesselOrbit, tAp)*Mathf.Deg2Rad;
-                    var vtPe = VesselOrbit.getRelativePositionFromTrueAnomaly(VesselOrbit.trueAnomaly+v2tPe);
-                    var vtAp = VesselOrbit.getRelativePositionFromTrueAnomaly(VesselOrbit.trueAnomaly+v2tAp);
-                    var dPe = tPe.sqrMagnitude-vtPe.sqrMagnitude;
-                    var dAp = tAp.sqrMagnitude-vtAp.sqrMagnitude;
-                    double dTA;
-                    if(dPe*dAp < 0)
-                    {
-                        ttr_async = true;//debug
-                        if(dPe < 0) dTA = up? v2tPe : v2tAp;
-                        else dTA = up? v2tAp : v2tPe;
-                    }
-                    else
-                    {
-                        ttr_async = false;//debug
-                        if(dPe < 0) 
-                        {
-                            if(dPe < dAp) dTA = up? v2tPe : v2tAp;
-                            else dTA = up? v2tAp : v2tPe;
-                        }
-                        else dTA = dPe < dAp ? v2tPe : v2tAp;
-                    }
-                    StartUT = VesselOrbit.GetDTforTrueAnomaly(VesselOrbit.trueAnomaly+dTA, 0);
-                    Log("up {}, dPe {}, dAp {}, v2tPe {}, v2tAp {}, dTA {}, StartT {}\n" +
-                        "tPe  {}\n" +
-                        "vtPe {}\n" +
-                        "tAp  {}\n" +
-                        "vtAp {}", 
-                        up, dPe, dAp, v2tPe, v2tAp, dTA, StartUT, tPe, vtPe, tAp, vtAp);//debug
-                    StartUT = VSL.Physics.UT+Math.Max(StartUT, CorrectionOffset);
+                    maxInc = dInc;
+                    maxIncUT = startUT;
+                }
+                startUT = startUT+dT;
+                if(!maxInc.Equals(dInc))
+                {
+                    dT /= -2.1;
+                    startUT = maxIncUT+dT;
                 }
             }
-            //compute orbit with desired TTR and activate maneuver autopilot
-			dV += dV4TTR(old, TargetOrbit, REN.MaxTTR, REN.MaxDeltaV, MinPeR, StartUT);
-			if(!dV.IsZero())
-			{
-                var new_orb = NewOrbit(old, dV, StartUT);
-                var tPe = TargetOrbit.getRelativePositionFromMeanAnomaly(0);//debug
-                var vPe = new_orb.getRelativePositionFromMeanAnomaly(0);//debug
-                PeA_angle_after = Math.Abs(Utils.ProjectionAngle(vPe, tPe, new_orb.getOrbitalVelocityAtObT(0)));//debug
-                periodV_after = new_orb.period;
-                eccV_after = new_orb.eccentricity;
-                enV_after = new_orb.orbitalEnergy;
-                double alpha;
-                var TTR = TimeToResonance(new_orb, TargetOrbit, StartUT, out res_after, out alpha);
-                signed_ttr_after = alpha*res_after;
-                Log("new ttr: {}", TTR);//debug
-                //PCA divider
-//                # incl, PeA_angle_after, eccV_after
-//                # +0.64, -0.56, -0.52
-//                # -0.07, +0.63, -0.77
-//                # -0.76, -0.53, -0.36
-//                #
-//                # divider: PC1 = 0.5
-//                #
-//                # center:
-//                # incl: 8.474319
-//                # PeA_angle_after: 20.285899
-//                # eccV_after: -0.076491
-//                #
-//                # std:
-//                # incl: 6.042648
-//                # PeA_angle_after: 18.780472
-//                # eccV_after: 0.074847
-//                var incl = Math.Abs(VesselOrbit.inclination-TargetOrbit.inclination);
-//                var PeA_angle = Math.Abs(PeA_angle_after-90)-Math.Abs(PeA_angle_before-90);
-//                var eccV = eccV_after-eccT;
-//                var PC1 = 
-//                    (incl-8.5)/6*0.64 -
-//                    (PeA_angle-20.3)/18.8*0.56 -
-//                    (eccV+0.077)/0.075*0.52;
-//                Log("incl {}, PeA angle {}, eccV {}: PC1 {}", incl, PeA_angle, eccV, PC1);//debug
-//                if(TTR < REN.MaxTTR*2)
-//                if(false)
-//                {
-                    ttr_tuning += dV.magnitude;//debug
-                    ttrUT = StartUT;
-    				add_node(dV, StartUT);
-    				CFG.AP1.On(Autopilot1.Maneuver);
-//                }
-			}
-			stage = Stage.StartOrbit;
-		}
+            return maxInc;
+        }
+
+        double findInPlaneUT(double startUT, double dT)
+        {
+            var inPlaneUT = startUT;
+            var bestInc = double.MaxValue;
+            while(Math.Abs(dT) > 0.01)
+            {
+                var dInc = inclinationDelta(startUT);
+                Log("InPlane: UT {} : {}, dInc {} : {}, dT {}", startUT, inPlaneUT, dInc, bestInc, dT);//debug
+                if(dInc < bestInc) 
+                {
+                    bestInc = dInc;
+                    inPlaneUT = startUT;
+                    if(bestInc < 1e-4) break;
+                }
+                startUT = startUT+dT;
+                if(!bestInc.Equals(dInc))
+                {
+                    dT /= -2.1;
+                    startUT = inPlaneUT+dT;
+                }
+            }
+            return inPlaneUT >= VSL.Physics.UT? inPlaneUT :
+                findInPlaneUT(inPlaneUT+Body.rotationPeriod/2, 60);
+        }
+
+        IEnumerator<object> launch_window_calculator;
+        IEnumerator<object> calculate_launch_window()
+        {
+            var startUT = VSL.Physics.UT;
+            var endUT = startUT + Body.rotationPeriod*REN.MaxTTR;
+            var tEndUT = TargetOrbit.GetEndUT();
+            if(DiscontiniousOrbit(LastOrbit(TargetOrbit)))
+                endUT = tEndUT;
+            else if(!double.IsInfinity(tEndUT))
+                endUT = Math.Max(endUT, tEndUT);
+            var dT = Math.Min((endUT-startUT)/10, Body.rotationPeriod/10);
+            var minPeR = MinPeR;
+            var maxPeR = minPeR+GLB.ORB.RadiusOffset;
+            var ApAArc = Mathf.Lerp((float)((MinPeR-Body.Radius)/Body.Radius/2), 
+                                    (float)((MinPeR-Body.Radius)/Body.Radius*3), 
+                                    Utils.ClampH((2-GTurnCurve)/2, 1));
+            Log("satrtUT {}, endUT {}, dT {}, ApAArc {} < {} < {}, t {}", 
+                startUT, endUT, dT,
+                (MinPeR-Body.Radius)/Body.Radius/2*Mathf.Rad2Deg, ApAArc*Mathf.Rad2Deg, (MinPeR-Body.Radius)/Body.Radius*3*Mathf.Rad2Deg,
+                Utils.ClampH((2-GTurnCurve)/2, 1));//debug
+            //
+            //search for the nearest approach start UT
+            //first scan startUT for possible minima
+            ToOrbit = new ToOrbitExecutor(TCA);
+            var minDis = new MinimumD();
+            var minima = new List<double>();
+            Launch cur = null;
+            while(startUT < endUT)
+            {
+                if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))//debug
+                { yield return null; continue; }
+                cur = new Launch(this, startUT, cur == null? -1 : cur.Transfer, minPeR, maxPeR, ApAArc);
+                ToOrbit.LaunchUT = cur.UT;//debug
+                ToOrbit.ApAUT = cur.UT+cur.Transfer;//debug
+                ToOrbit.Target = cur.ApV;//debug
+                minDis.Update(cur.Dist);
+                if(minDis) minima.Add(startUT);
+                startUT += dT;
+                if(setp_by_step_computation) Status("Push to proceed");//debug
+                yield return null;
+            }
+            //then find each of the minima exactly and choose the best
+            Launch best = null;
+            foreach(var m in minima)
+            {
+                dT = 100;
+                startUT = m;
+                Launch min = null;
+                while(Math.Abs(dT) > 0.01)
+                {
+                    if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))//debug
+                    { yield return null; continue; }
+                    cur = new Launch(this, startUT, cur == null? -1 : cur.Transfer, minPeR, maxPeR, ApAArc);
+                    ToOrbit.LaunchUT = cur.UT;//debug
+                    ToOrbit.ApAUT = cur.UT+cur.Transfer;//debug
+                    ToOrbit.Target = cur.ApV;//debug
+                    Log("Launch.search: Dist {}, dInc {}, dT {}\ncur {}\nmin {}", 
+                        cur.Dist, 
+                        inclinationDelta(startUT),
+                        dT, cur, min);//debug
+                    if(min == null || cur < min) min = cur;
+                    startUT += dT;
+                    if(startUT < VSL.Physics.UT || startUT > endUT || cur != min)
+                    {
+                        dT /= -2.1;
+                        startUT = Utils.Clamp(min.UT+dT, VSL.Physics.UT, endUT);
+                    }
+                    if(setp_by_step_computation) Status("Push to proceed");//debug
+                    yield return null;
+                }
+                var resonance = Math.Abs(ResonanceA(CircularOrbit(Body, min.ApV, 
+                                                                  Vector3d.Cross(min.ApV, TargetOrbit.GetOrbitNormal()).normalized, 
+                                                                  min.UT), TargetOrbit));
+                if(min.Dist/maxPeR < REN.CorrectionStart*Math.Max(resonance, 1) && 
+                   inclinationDelta(min.UT) < 5 && (best == null || min < best)) 
+                    best = min;
+                Log("Launch.min: Dist {}, {} < {}, dInc {}, resonance {}\n{}", 
+                    min.Dist, min.Dist/maxPeR, REN.CorrectionStart*resonance, inclinationDelta(min.UT), resonance,
+                    min);//debug
+            }
+            //if the closest approach is too far away or too out of plane with the target,
+            //start when in plane
+            if(best == null)
+                best = new Launch(this, 
+                                  findInPlaneUT(VSL.Physics.UT, Body.rotationPeriod/10), 
+                                  cur.Transfer, minPeR, maxPeR, ApAArc);
+            Log("Best: {}, ", best);//debug
+            ToOrbit.LaunchUT = best.UT;
+            ToOrbit.ApAUT = best.UT+best.Transfer;
+            ToOrbit.Target = best.ApV;
+        }
 
         //TODO: need to handle high target orbits differenly 
 		void to_orbit()
 		{
-			if(!LiftoffPossible) return;
-			//calculate target vector
-            var ApR = Utils.Clamp((TargetOrbit.PeR+TargetOrbit.ApR)/2, MinPeR, MinPeR+GLB.ORB.RadiusOffset);
-			var hVdir = Vector3d.Cross(TargetOrbit.GetOrbitNormal(), VesselOrbit.pos).normalized;
-			var ascO = AscendingOrbit(ApR, hVdir, GLB.ORB.LaunchSlope);
-			ToOrbit = new ToOrbitExecutor(TCA);
-			ToOrbit.LaunchUT = VSL.Physics.UT;
-			ToOrbit.ApAUT    = VSL.Physics.UT+ascO.timeToAp;
-			ToOrbit.Target = ToOrbitIniApV = ascO.getRelativePositionAtUT(ToOrbit.ApAUT);
-            //tune target vector
-			if(VSL.LandedOrSplashed)
-			{
-				double TTR;
-				do { TTR = correct_launch(); } 
-				while(Math.Abs(TTR) > 1);
-			}
 			//setup launch
 			CFG.DisableVSC();
             if(VSL.LandedOrSplashed)
-                stage = Stage.Launch;
+            {
+                launch_window_calculator = calculate_launch_window();
+                stage = Stage.PreLaunch;
+            }
             else
             {
-                MinDist.Reset();
+                //calculate target vector
+                var ApR = Utils.Clamp((TargetOrbit.PeR+TargetOrbit.ApR)/2, MinPeR, MinPeR+GLB.ORB.RadiusOffset);
+                var hVdir = Vector3d.Cross(VesselOrbit.pos, TargetOrbit.GetOrbitNormal()).normalized;
+                var ascO = AscendingOrbit(ApR, hVdir, GLB.ORB.LaunchSlope);
+                Log("AscendingOrbit {}\nTargetOrbit {}", ascO, TargetOrbit);//debug
+                ToOrbit = new ToOrbitExecutor(TCA);
+                ToOrbit.LaunchUT = VSL.Physics.UT;
+                ToOrbit.ApAUT = VSL.Physics.UT+ascO.timeToAp;
+                ToOrbit.Target = ToOrbitIniApV = ascO.getRelativePositionAtUT(ToOrbit.ApAUT);
                 ToOrbit.StartGravityTurn();
+                MinDist.Reset();
                 stage = Stage.ToOrbit;
             }
 		}
@@ -502,22 +526,27 @@ namespace ThrottleControlledAvionics
 		double correct_launch(bool allow_wait = true)
 		{
 			var TTR = AngleDelta(TargetOrbit, ToOrbit.Target, ToOrbit.ApAUT)/360*TargetOrbit.period;
-			ToOrbit.LaunchUT += TTR;
-			if(allow_wait && ToOrbit.LaunchUT-VSL.Physics.UT <= 0) ToOrbit.LaunchUT += TargetOrbit.period;
+            ToOrbit.LaunchUT += TTR/2*Math.Abs(Vector3d.Dot(Body.angularVelocity.normalized, TargetOrbit.GetOrbitNormal().normalized));
+			if(allow_wait && ToOrbit.LaunchUT-VSL.Physics.UT <= 0) 
+                ToOrbit.LaunchUT += TargetOrbit.period;
 			ToOrbit.ApAUT = ToOrbit.LaunchUT+
 				AtmoSim.FromSurfaceTTA(VSL, ToOrbit.TargetR-Body.Radius, 
 				                       ToOrbit.ArcDistance, GLB.ORB.GTurnCurve, 
 				                       Vector3d.Dot(SurfaceVel, Vector3d.Exclude(VesselOrbit.pos, ToOrbit.Target-VesselOrbit.pos).normalized));
-			ToOrbit.Target = QuaternionD.AngleAxis((VSL.Physics.UT-ToOrbit.LaunchUT)/Body.rotationPeriod*360, Body.angularVelocity.xzy)*
-				ToOrbitIniApV.normalized*TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).magnitude;
-//			LogF("TTR: {}, LaunchT {}, ApAT {}", TTR, ToOrbit.LaunchUT-VSL.Physics.UT, ToOrbit.ApAUT-ToOrbit.LaunchUT);//debug
+            var maxPeR = MinPeR + GLB.ORB.RadiusOffset;
+            var targetR = TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT);
+            ToOrbit.Target = QuaternionD.AngleAxis((VSL.Physics.UT-ToOrbit.LaunchUT)/Body.rotationPeriod*360, Body.angularVelocity.xzy)*
+                (targetR.magnitude < maxPeR? ToOrbitIniApV.normalized*TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).magnitude : ToOrbitIniApV);
+            Log("TTR: {}, LaunchT {}, ApAT {}, TargetR {}", TTR, ToOrbit.LaunchUT-VSL.Physics.UT, ToOrbit.ApAUT-ToOrbit.LaunchUT, ToOrbit.TargetR);//debug
 			return TTR;
 		}
 
 		void match_orbits()
 		{
+            VSL.Controls.StopWarp();
 			SetTarget(CFG.Target);
 			update_trajectory();
+            clear_nodes();
 			add_target_node();
 			CFG.AP1.On(Autopilot1.Maneuver);
 			stage = Stage.MatchOrbits;
@@ -552,6 +581,25 @@ namespace ThrottleControlledAvionics
 			else CFG.AP1.On(Autopilot1.MatchVel);
 		}
 
+        void next_stage(bool direct_distance = false)
+        {
+            if(TargetLoaded) 
+                approach_or_brake();
+            else
+            {
+                var D = (direct_distance? DirectDistance : CurrentDistance);
+                var relD = D/VesselOrbit.semiMajorAxis;
+                if(relD > REN.CorrectionStart) 
+                    compute_rendezvou_trajectory();
+                else if(D > REN.Dtol) //if(relD > REN.CorrectionStart/4) 
+                    fine_tune_approach();
+                else if(direct_distance)
+                    approach_or_brake();
+                else 
+                    match_orbits();
+            }
+        }
+
         void update_direct_distance()
         {
             DirectDistance = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.MinDistance, 0);
@@ -561,14 +609,17 @@ namespace ThrottleControlledAvionics
 		{
 			base.update_trajectory();
 			CurrentDistance = trajectory.DistanceToTarget;
+//            Log("CurrentDistance {}", CurrentDistance);//debug
 		}
 
 		protected override void reset()
 		{
 			base.reset();
 			stage = Stage.None;
+            CorrectingManeuver = false;
 			CurrentDistance = -1;
             DirectDistance = -1;
+            optimizer = null;
 			CFG.AP1.Off();
 		}
 
@@ -599,7 +650,7 @@ namespace ThrottleControlledAvionics
             public double endUT;
             public void Update(RendezvousTrajectory t)
             {
-                dV = t.ManeuverDeltaV.magnitude+t.BrakeDeltaV.magnitude;
+                dV = t.TotalDeltaV;
                 dist = t.DistanceToTarget;
                 endUT = t.AtTargetUT;
             }
@@ -609,137 +660,36 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        bool ttr_up, ttr_async;//debug
-        double ttr_tuning, 
-        PeA_angle_before, PeA_angle_after, 
-        ttr_before, ttr_after, 
-        res_before, res_after, signed_ttr_after,
-        periodV_before, periodV_after, periodT, 
-        eccV_before, eccV_after, eccT,
-        enV_before, enV_after, enT,
-        ttrUT,
-        startUT;//debug
-
-        OptRes cdos, ttr_cdos, old_search;//debug
-        CDOS_Optimizer2D optimizer = new CDOS_Optimizer2D();//debug
-        void init_optimizer()//debug
-        {
-            //compute approach UT estimate
-            var mean_orbit = (TargetOrbit.period+VesselOrbit.period)/2;
-            var minUT = VSL.Physics.UT+ManeuverOffset+TRJ.CorrectionOffset;
-            double maxUT;
-            var lastOrbitV = LastOrbit(VesselOrbit);
-            var lastOrbitT = LastOrbit(TargetOrbit);
-            if(DiscontiniousOrbit(lastOrbitV))
-            {
-                maxUT = DiscontiniousOrbit(lastOrbitT) ? 
-                    Math.Min(lastOrbitV.EndUT, lastOrbitT.EndUT) : lastOrbitV.EndUT;
-            }
-            else if(DiscontiniousOrbit(lastOrbitT)) 
-                maxUT = lastOrbitT.EndUT;
-            else 
-                maxUT = VSL.Physics.UT+Math.Max(lastOrbitT.period, lastOrbitT.period)*(REN.MaxTTR+1);
-//            var approachUT = 0.0;
-//            var ttr = TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT+ManeuverOffset);
-//            if(ttr < REN.MaxTTR) 
-//            {
-//                approachUT = VSL.Physics.UT+ttr*VesselOrbit.period;
-//                StartUT = Math.Max(approachUT-mean_orbit/2, minUT+1);
-//            }
-//            else 
-//                approachUT = VSL.Physics.UT+VesselOrbit.period*REN.MaxTTR;
-//            if(approachUT <= minUT) approachUT += VesselOrbit.period;
-            var StartUT = minUT+1;
-            var transfer = mean_orbit/2;
-            var dT = Utils.Clamp(transfer/10, 10, 1000);
-
-            log_patches(VesselOrbit, "Vessel Orbit");
-            log_patches(TargetOrbit, "Target Orbit");
-
-//            Log("CDOS: ttr {}, StartUT {}, approachT {}, transfer_time {}, dT {}", 
-//                ttr, StartUT-VSL.Physics.UT, approachUT-VSL.Physics.UT, transfer, dT);//debug
-            optimizer.Init(new_trajectory, 
-                           minUT, 
-                           maxUT,
-                           StartUT, 
-                           transfer, 
-                           dT);
-        }
-
-        void log_patches(Orbit o, string tag)
-        {
-            if(string.IsNullOrEmpty(tag))
-                Log("{}", o);
-            else Log("===================== {} : {} =======================\n{}", tag, VSL.Physics.UT, o);
-            if(o.nextPatch != null &&
-               o.nextPatch.referenceBody != null)
-                log_patches(o.nextPatch, "");
-            if(!string.IsNullOrEmpty(tag))
-                Log("===================================================================");
-        }
-
 		protected override void Update()
 		{
 			if(!IsActive) { CFG.AP2.OffIfOn(Autopilot2.Rendezvous); return; }
+//            Log("stage: {}, trajectory {}", stage, trajectory);//debug
 			switch(stage)
 			{
 			case Stage.Start:
-                if(!setp_by_step_computation ||
-                   string.IsNullOrEmpty(TCAGui.StatusMessage))
-                {
-                    RendezvousTrajectory t = null;
-                    for(int i = 0; i < 10; i++)
-                    {
-                        t = optimizer.NextTrajectory();
-                        if(t != null)
-                        {
-                            trajectory = t;
-                            clear_nodes();
-                            add_trajectory_node();
-                            if(setp_by_step_computation)
-                                Status("Push to continue...");
-                            continue;
-                        }
-                        trajectory = optimizer.Best;
-                        clear_nodes();
-                        add_trajectory_node();
-                        break;
-                    }
-                    if(t != null) break;
-                    if(cdos.dV > 0) 
-                        ttr_cdos.Update(trajectory);
-                    else 
-                        cdos.Update(trajectory);
-                    Log("stage {}, first {}, second {}, third {}", 
-                        stage, cdos, ttr_cdos, old_search);//debug
-                    if(ttr_cdos.dV > 0) 
-                    {
-                        CurrentDistance = -1;
-                        compute_rendezvou_trajectory();
-                    }
-                    else
-                    {
-                        clear_nodes();
-                        if(VSL.InOrbit && 
-                           VesselOrbit.ApR > MinPeR &&
-                           VesselOrbit.radius > MinPeR)
-                            start_orbit();
-                        else to_orbit();
-                    }
-                }
-                break;
-
 				if(VSL.InOrbit && 
 				   VesselOrbit.ApR > MinPeR &&
 				   VesselOrbit.radius > MinPeR)
 					start_orbit();
 				else to_orbit();
 				break;
+            case Stage.PreLaunch:
+//                Status("Calculating launch window...");
+                if(launch_window_calculator != null)
+                {
+                    var i = TRJ.PerFrameIterations;
+                    while(i-- > 0) { if(!launch_window_calculator.MoveNext()) break; }
+                    if(i < 0) break;
+                    launch_window_calculator = null;
+                }
+                stage = Stage.Launch;
+                break;
 			case Stage.Launch:
 				if(ToOrbit.LaunchUT > VSL.Physics.UT) 
 				{
 					Status("Waiting for launch window...");
-					correct_launch(false); //FIXME: sometimes AtmoSim returns inconsistent TTA which results in jumps of the Countdown.
+                    ToOrbit.UpdateTargetPosition();
+//					correct_launch(false); //FIXME: sometimes AtmoSim returns inconsistent TTA which results in jumps of the Countdown.
 					VSL.Info.Countdown = ToOrbit.LaunchUT-VSL.Physics.UT;
 					VSL.Controls.WarpToTime = ToOrbit.LaunchUT;
 					break;
@@ -756,161 +706,185 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.ToOrbit:
 //				log_flight();//debug
-				if(ToOrbit.GravityTurn(ManeuverOffset, GLB.ORB.GTurnCurve, GLB.ORB.Dist2VelF, REN.Dtol))
+                if(ToOrbit.GravityTurn(ManeuverOffset, GTurnCurve.Value, GLB.ORB.Dist2VelF, REN.Dtol))
 				{
 					if(ToOrbit.dApA < REN.Dtol)
 					{
 						update_trajectory();
 						MinDist.Update(CurrentDistance);
-						if(MinDist) start_orbit(); 
+						if(MinDist) start_orbit();
 					}
-				} else start_orbit();
+				} 
+                else start_orbit();
 				break;
 			case Stage.StartOrbit:
 //				log_flight();//debug
-				Status("Achiving starting orbit...");
-                CFG.WarpToNode = true;
+				Status("Achiving orbit...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
 				update_trajectory();
-                ttr_after = TimeToResonance(VesselOrbit, TargetOrbit, VSL.Physics.UT);
-
-                init_optimizer();
-                stage = Stage.Start;
-                break;
-
-				CurrentDistance = -1;
-				if(trajectory.RelDistanceToTarget < REN.CorrectionStart ||
-				   trajectory.TimeToTarget/VesselOrbit.period > REN.MaxTTR) 
-					stage = Stage.Rendezvou;
-				else compute_rendezvou_trajectory();
+                next_stage();
 				break;
+            case Stage.ComputeSuborbitRendezvous:
+                if(!trajectory_computed()) break;
+                optimizer = null;
+                var EndApR = trajectory.EndOrbit.ApR;
+                if(!trajectory.KillerOrbit &&
+                   trajectory.RelDistanceToTarget < REN.CorrectionStart &&
+                   Math.Abs(trajectory.AtTargetPos.magnitude-EndApR)/EndApR < 0.1)
+                {
+                    clear_nodes();
+                    add_trajectory_node();
+                    CFG.AP1.On(Autopilot1.Maneuver);
+                    stage = Stage.Rendezvou;
+                }
+                else circularize();
+                break;
 			case Stage.ComputeRendezvou:
 //				log_flight();//debug
-				if(TimeWarp.CurrentRateIndex == 0 && TimeWarp.CurrentRate > 1) 
-				{
-					Status("Waiting for Time Warp to end...");
-					break;
-				}
 				if(!trajectory_computed()) break;
-
-                clear_nodes();
-                add_trajectory_node();
-                old_search.Update(trajectory);
-                Log("stage {}, first: {}; second {}; third {};", 
-                    stage, cdos, ttr_cdos, old_search);//debug
-                if(ttr_cdos.dV.Equals(0))
-                    DebugUtils.CSV("CDOS_test.csv", "initial point", VSL.Physics.UT, ManeuverOffset, -1, 0, 0, -1, -1, DateTime.Now.ToShortTimeString());
-                DebugUtils.CSV("CDOS_dV.csv", 
-                               cdos.dV, cdos.dist, cdos.endUT-startUT,
-                               ttr_tuning, ttrUT-startUT,
-                               ttr_cdos.dV, ttr_cdos.dV+ttr_tuning, ttr_cdos.dist, ttr_cdos.endUT-startUT,
-                               old_search.dV, old_search.dV+ttr_tuning, old_search.dist, old_search.endUT-startUT,
-                               ttr_cdos.dV+ttr_tuning-cdos.dV, old_search.dV-ttr_cdos.dV,
-                               Math.Abs(VesselOrbit.inclination-TargetOrbit.inclination),
-                               VesselOrbit.PeR-MinPeR, VesselOrbit.ApR-MinPeR, 
-                               PeA_angle_before, PeA_angle_after, 
-                               ttr_before, ttr_after, 
-                               res_before, res_after,
-                               signed_ttr_after,
-                               periodT, periodV_before, periodV_after,
-                               eccV_before, eccV_after, eccT,
-                               enV_before, enV_after, enT,
-                               ttr_up? 1 : 0, ttr_async? 1 : 0,
-                               DateTime.Now.ToShortTimeString());
-                cdos = ttr_cdos = old_search = new OptRes();
-                PeA_angle_before = PeA_angle_after = -1;
-                ttr_after = -1;
-                ttr_up = ttr_async = false;
-                CFG.AP2.Off();
-                break;
-
-                #if DEBUG
-                if(trajectory.KillerOrbit ||
-                   trajectory.Orbit.eccentricity > 0.6)
-                    PauseMenu.Display();
-                #endif
+                optimizer = null;
                 if(!trajectory.KillerOrbit &&
-                    trajectory.RelDistanceToTarget < REN.CorrectionStart &&
-                   (CurrentDistance < 0 || trajectory.DistanceToTarget < CurrentDistance))
+                    trajectory.RelDistanceToTarget < REN.CorrectionStart)
 				{
-					CorrectionTimer.Reset();
-					if(trajectory.ManeuverDeltaV.magnitude > 1)
-					{
-						VSL.Controls.StopWarp();
-						if(TimeWarp.CurrentRate > 1 ||
-						   trajectory.TimeToStart < trajectory.ManeuverDuration/2)
-						{
-							update_trajectory();
-							fine_tune_approach();
-						}
-						else
-						{
-							CurrentDistance = trajectory.DistanceToTarget;
-							add_trajectory_node();
-							CFG.AP1.On(Autopilot1.Maneuver);
-							stage = Stage.Rendezvou;
-						}
-						break;
-					}
-					update_trajectory();
-                    if(CurrentDistance > REN.Dtol && 
-                       trajectory.TimeToTarget > trajectory.BrakeDuration+ManeuverOffset+TimeWarp.CurrentRate)
-					{
-						stage = Stage.Coast;
-						break;
-					}
-				}
-				if(CurrentDistance > 0 && 
-				   CurrentDistance/VesselOrbit.semiMajorAxis < REN.CorrectionStart) 
-				{
-					VSL.Controls.StopWarp();
-					match_orbits();
-					break;
-				}
-				Status("red", "Failed to compute rendezvou trajectory.\nPlease, try again.");
-				CFG.AP2.Off();
-                #if DEBUG
-                PauseMenu.Display();
-                #endif
+                    clear_nodes();
+                    add_trajectory_node();
+                    CFG.AP1.On(Autopilot1.Maneuver);
+                    stage = Stage.Rendezvou;
+                }
+                else
+                {
+    				Status("red", "Failed to compute rendezvou trajectory.\nPlease, try again.");
+    				CFG.AP2.Off();
+                }
 				break;
+            case Stage.ComputeCorrection:
+                if(TimeWarp.CurrentRateIndex == 0 && TimeWarp.CurrentRate > 1) 
+                {
+                    Status("Waiting for Time Warp to end...");
+                    break;
+                }
+                if(!trajectory_computed()) break;
+                Log("killer {}, dist {} < cur.dist {}, rel {} < {} < {} computed trajecotry: {}", 
+                    trajectory.KillerOrbit, trajectory.DistanceToTarget, CurrentDistance, 
+                    trajectory.RelDistanceToTarget, CurrentDistance/VesselOrbit.semiMajorAxis, REN.CorrectionStart,
+                    trajectory);//debug
+                if(!trajectory.KillerOrbit &&
+                   trajectory.RelDistanceToTarget < REN.CorrectionStart &&
+                   trajectory.DistanceToTarget < CurrentDistance &&
+                   trajectory.TimeToTarget > trajectory.BrakeDuration+trajectory.ManeuverDuration+ManeuverOffset+TimeWarp.CurrentRate)
+                {
+                    if(trajectory.ManeuverDeltaV.sqrMagnitude > 0.8)
+                    {
+                        VSL.Controls.StopWarp();
+                        if(TimeWarp.CurrentRate > 1 ||
+                           trajectory.TimeToStart < trajectory.ManeuverDuration/2+VSL.Torque.NoEngines.TurnTime)
+                        {
+                            update_trajectory();
+                            fine_tune_approach();
+                        }
+                        else
+                        {
+                            clear_nodes();
+                            add_trajectory_node();
+                            CFG.AP1.On(Autopilot1.Maneuver);
+                            stage = Stage.Rendezvou;
+                        }
+                    }
+                    else
+                    {
+                        update_trajectory();
+                        CorrectionTimer.Period = Math.Max(trajectory.TimeToTarget/100, 10);
+                        CorrectionTimer.Reset();
+                        stage = Stage.Coast;
+                    }
+                }
+                else if(CurrentDistance/VesselOrbit.semiMajorAxis < REN.CorrectionStart) 
+                    match_orbits();
+                else 
+                    compute_rendezvou_trajectory();
+                break;
 			case Stage.Rendezvou:
 //				log_flight();//debug
-				Status("Correcting trajectory...");
+				Status("Executing rendezvous maneuver...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				update_trajectory();
-				if(CurrentDistance < REN.ApproachThreshold) match_orbits();
-				else stage = Stage.Coast;
+                update_trajectory();
+                Log("cur.dist {}, rel {} < {} after maneuver trajecotry: {}", 
+                    CurrentDistance, 
+                    trajectory.RelDistanceToTarget, REN.CorrectionStart/4,
+                    trajectory);//debug
+                next_stage();
 				break;
 			case Stage.Coast:
 				Status("Coasting...");
 				if(!CorrectionTimer.TimePassed)
 				{
 					if(VSL.Controls.CanWarp)
-						VSL.Controls.WarpToTime = trajectory.AtTargetUT-trajectory.BrakeDuration+ManeuverOffset;
+                        VSL.Controls.WarpToTime = VSL.Physics.UT+(trajectory.TimeToTarget-trajectory.BrakeDuration+ManeuverOffset)/2;
 					break;
 				}
 				CorrectionTimer.Reset();
 				update_trajectory();
+                Log("coasting: current trajectory: {}", trajectory);//debug
 				fine_tune_approach();
 				break;
 			case Stage.MatchOrbits:
 //				log_flight();//debug
 				Status("Matching orbits at nearest approach...");
-				if(CFG.AP1[Autopilot1.Maneuver]) break;
                 update_trajectory();
-                update_direct_distance();
-                if(TargetLoaded) 
-                    approach_or_brake();
-                else
+				if(CFG.AP1[Autopilot1.Maneuver]) 
                 {
-                    var relD = DirectDistance/VesselOrbit.semiMajorAxis;
-    				if(relD > REN.CorrectionStart) 
-                        start_orbit();
-    				else if(relD > REN.CorrectionStart/4) 
-                        fine_tune_approach();
-                    else 
-                        approach_or_brake();
+                    if(trajectory.TimeToTarget > 0 &&
+                       (CorrectingManeuver || trajectory.DirectHit && TargetLoaded))
+                    {
+                        var threshold = VSL.Geometry.MinDistance*2-trajectory.AtTargetRelPos.magnitude;
+                        if(!CorrectingManeuver) 
+                            Emailer.SendLocalSelf("allista@gmail.com", "TCA.REN: Proximity Alert!", 
+                                                  "ETA: {} s\ndV: {} m/s\nDist {} m\nEnd Dist: {} m",
+                                                  trajectory.TimeToTarget, 
+                                                  (TargetOrbit.vel-VesselOrbit.vel).magnitude,
+                                                  (TargetOrbit.pos-VesselOrbit.pos).magnitude,
+                                                  trajectory.AtTargetRelPos.magnitude);//debug
+                        CorrectingManeuver = threshold > 0;
+                        if(CorrectingManeuver)
+                        {
+                            var correction = Vector3d.Exclude(TargetOrbit.pos-VesselOrbit.pos, trajectory.AtTargetRelPos).normalized *
+                                threshold/Utils.Clamp(trajectory.TimeToTarget/2, 0.1, 10);
+                            Status("Matching orbits at nearest approach...\n" +
+                                   "<color=yellow><b>PROXIMITY ALERT!</b></color> Clearence {0:F1} m", 
+                                   trajectory.DistanceToTarget);
+                            Log("Avoiding direct hit: ETA {}, dV {}, node dV {}, dPos {}, relPos {}, correction {}", 
+                                trajectory.TimeToTarget, 
+                                (TargetOrbit.vel-VesselOrbit.vel).magnitude,
+                                MAN.NodeDeltaV.magnitude,
+                                (TargetOrbit.pos-VesselOrbit.pos).magnitude,
+                                trajectory.AtTargetRelPos.magnitude, 
+                                correction.magnitude);//debug
+                            if(MAN.ManeuverStage == ManeuverAutopilot.Stage.WAITING)
+                                correction -= MAN.NodeDeltaV/2;
+                            MAN.AddCourseCorrection(correction);
+                            THR.CorrectThrottle = false;
+                        }
+                        else
+                        {
+                            clear_nodes();
+                            add_target_node();
+                            MAN.UpdateNode();
+                        }
+                    }
+                    break;
                 }
+                if(MAN.ManeuverStage == ManeuverAutopilot.Stage.IN_PROGRESS)
+                {
+                    clear_nodes();
+                    add_node(TargetOrbit.vel-VesselOrbit.vel, VSL.Physics.UT);
+                    CFG.AP1.On(Autopilot1.Maneuver);
+                }
+                else if(MAN.ManeuverStage == ManeuverAutopilot.Stage.FINISHED)
+                {
+                    update_direct_distance();
+                    next_stage(true);
+                }
+                else next_stage();
 				break;
 			case Stage.Approach:
 				Status("Approaching...");
@@ -919,14 +893,14 @@ namespace ThrottleControlledAvionics
 				var dPm = dP.magnitude;
                 if(dPm - VSL.Geometry.MinDistance < REN.Dtol) 
 				{ brake(); break; }
-                var throttle = VSL.Controls.OffsetAlignmentFactor();
+                var throttle = VSL.Controls.AlignmentFactor;
                 if(throttle.Equals(0)) break;
-				var dV = Vector3d.Dot(VesselOrbit.vel-TargetOrbit.vel, dP/dPm);
-				var nV = Utils.Clamp(dPm*REN.ApproachVelF, 1, REN.MaxApproachV);
-				if(dV+GLB.THR.MinDeltaV < nV) 
+                var dVr = Vector3d.Dot(VesselOrbit.vel-TargetOrbit.vel, dP/dPm);
+				var nVm = Utils.Clamp(dPm*REN.ApproachVelF, 1, REN.MaxApproachV);
+				if(dVr+GLB.THR.MinDeltaV < nVm) 
 				{
 					VSL.Engines.ActivateEngines();
-                    THR.DeltaV = (float)(nV-dV)*throttle*throttle;
+                    THR.DeltaV = (float)(nVm-dVr)*throttle;
 				}
 				else brake();
 				break;
@@ -939,8 +913,9 @@ namespace ThrottleControlledAvionics
 					CFG.AP1.Off();
 					THR.Throttle = 0;
 				}
-				if((VSL.Physics.wCoM-TargetVessel.CurrentCoM).magnitude-VSL.Geometry.R-TargetVessel.Radius() > REN.Dtol)
+                if((VSL.Physics.wCoM-TargetVessel.CurrentCoM).magnitude-VSL.Geometry.MinDistance > REN.Dtol)
 				{ approach(); break; }
+                Log("Done. Dist to {}: {}", CFG.Target.GetName(), (VSL.Physics.wCoM-TargetVessel.CurrentCoM).magnitude-VSL.Geometry.MinDistance);//debug
 				CFG.AP2.Off();
 				CFG.AT.OnIfNot(Attitude.KillRotation);
 				ClearStatus();
@@ -948,57 +923,88 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+        static GUIContent button_content = new GUIContent("Rendezvous", "Compute and perform a rendezvous maneuver, then brake near the target.");
 		public override void Draw()
 		{
 			#if DEBUG
-//			if(CFG.Target != null && Body != null && TargetOrbit != null)
-//			{
-//				if(ToOrbit != null)
-//				{
-//					Utils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
-//					Utils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
-//					Utils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).xzy, Color.yellow);
-//				}
-//				else Utils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.yellow);
-//				Utils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
-//				Utils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
-//			}
+			if(CFG.Target != null && Body != null && TargetOrbit != null)
+			{
+				if(ToOrbit != null)
+				{
+					Utils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
+					Utils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
+					Utils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).xzy, Color.yellow);
+                    Utils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
+                    Utils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
+                    Utils.GLVec(Body.position, TargetOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, new Color(1, 0.3f, 0));
+				}
+				else Utils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.yellow);
+//                Utils.GLVec(Body.position+VesselOrbit.pos.xzy, Vector3d.Cross(TargetOrbit.GetOrbitNormal().normalized, VesselOrbit.pos.normalized).normalized.xzy*50000, new Color(0.3f, 1, 0));
+			}
 			#endif
 			if(ControlsActive)
 			{
-				if(computing) 
-				{
-					if(GUILayout.Button(new GUIContent("Rendezvous", "Computing trajectory. Push to cancel."), 
-					                    Styles.inactive_button, GUILayout.ExpandWidth(true)))
-						CFG.AP2.Off();
-//					#if DEBUG
-//					if(current != null)
-//					{
-//						Utils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);//debug
-//						Utils.GLVec(Body.position, current.TargetPos.xzy, Color.magenta);//debug
-//						Utils.GLVec(Body.position+current.StartPos.xzy, current.ManeuverDeltaV.normalized.xzy*Body.Radius/4, Color.yellow);//debug
-//						Utils.GLLine(Body.position+current.StartPos.xzy, Body.position+current.TargetPos.xzy, Color.cyan);//debug
-//					}
-//					#endif
-				}
-				else if(Utils.ButtonSwitch("Rendezvous", CFG.AP2[Autopilot2.Rendezvous],
-				                           "Compute and perform a rendezvous maneuver, then brake near the target.", 
-				                           GUILayout.ExpandWidth(true)))
-					CFG.AP2.XToggle(Autopilot2.Rendezvous);
+				if(CFG.AP2[Autopilot2.Rendezvous])
+                    GUILayout.Label(button_content, Styles.enabled_button, GUILayout.ExpandWidth(true));
+                else if(GUILayout.Button(button_content, Styles.active_button, GUILayout.ExpandWidth(true)))
+                    ShowOptions = !ShowOptions;
 			}
-			else GUILayout.Label(new GUIContent("Rendezvous", "Compute and perform a rendezvous maneuver, then brake near the target."), 
-			                     Styles.inactive_button, GUILayout.ExpandWidth(true));
+            else GUILayout.Label(button_content, Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
+
+        public void DrawOptions()
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.BeginVertical();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Gravity Turn:", "Sharpness of the gravity turn"), GUILayout.ExpandWidth(false));
+            GTurnCurve.Draw("", true, 0.1f);
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            if(computing)
+                GUILayout.Label(new GUIContent("Search Mode: "+ModeNames[(int)mode], ModeDesc[(int)mode]), 
+                                Styles.grey, GUILayout.ExpandWidth(true));
+            else 
+            {
+                GUILayout.Label("Search Mode:", GUILayout.ExpandWidth(false));
+                var choice = Utils.LeftRightChooser(ModeNames[(int)mode], ModeDesc[(int)mode]);
+                if(choice > 0) mode = (Mode)(((int)mode+1)%NumModes);
+                if(choice < 0) mode = (Mode)(mode > 0? (int)mode-1 : NumModes-1);
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            if(CFG.AP2[Autopilot2.Rendezvous])
+            {
+                if(GUILayout.Button(new GUIContent("Abort", "Abort Rendezvous Autopilot"), 
+                                    Styles.danger_button, GUILayout.Width(60)))
+                    CFG.AP2.XOff();
+            }
+            else 
+            {
+                if(GUILayout.Button(new GUIContent("Start", "Start Rendezvous Autopilot"), 
+                                    Styles.enabled_button, GUILayout.Width(60)))
+                    VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(Autopilot2.Rendezvous));
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        public void DrawBestTrajectories()
+        {
+            if(optimizer != null && mode == Mode.Manual)
+                optimizer.DrawBestTrajecotries();
+        }
 
         #if DEBUG
         Orbit CreateRandomOrbitNearby(Orbit baseOrbit)
         {
             Orbit orbit = null;
-            while(orbit == null || orbit.PeR < MinPeR)
+            var minR = MinPeR;
+            while(orbit == null || orbit.PeR < minR)
             {
                 orbit = new Orbit();
-                orbit.eccentricity = baseOrbit.eccentricity + (double)UnityEngine.Random.Range(0.001f, 0.2f);
-                orbit.semiMajorAxis = Math.Max(baseOrbit.semiMajorAxis * (double)UnityEngine.Random.Range(0.9f, 1.1f), MinPeR+1000);
+                orbit.eccentricity = (double)UnityEngine.Random.Range(0.001f, (float)Math.Min(baseOrbit.eccentricity+0.2, 0.999));
+                orbit.semiMajorAxis = Math.Max(baseOrbit.semiMajorAxis * (double)UnityEngine.Random.Range(0.9f, 1.1f), minR+1000);
                 orbit.inclination = baseOrbit.inclination + (double)UnityEngine.Random.Range(-20f, 20f);
                 orbit.LAN = baseOrbit.LAN * (double)UnityEngine.Random.Range(0.5f, 1.5f);
                 orbit.argumentOfPeriapsis = baseOrbit.argumentOfPeriapsis * (double)UnityEngine.Random.Range(0.5f, 1.5f);
@@ -1014,6 +1020,7 @@ namespace ThrottleControlledAvionics
         RealTimer delay = new RealTimer(5);
         public void Test(System.Random rnd)
         {
+            CFG.WarpToNode = true;
             if(tgt_ast == null)
             {
                 var obt = CreateRandomOrbitNearby(VesselOrbit);
@@ -1025,11 +1032,16 @@ namespace ThrottleControlledAvionics
                     CheatOptions.InfinitePropellant = true;
                     SetTarget(tgt_ast.vesselRef);
                     CFG.AP2.XOn(Autopilot2.Rendezvous);
+                    MapView.EnterMapView();
                 }
                 return;
             }
             if(CFG.AP2[Autopilot2.Rendezvous]) 
             {
+                if(stage >= Stage.MatchOrbits && MapView.MapIsEnabled)
+                    MapView.ExitMapView();
+                if(tgt_ast.vesselRef != null && tgt_ast.vesselRef.loaded)
+                    FlightCameraOverride.Target(FlightCameraOverride.Mode.LookFromTo, VSL.vessel.transform, tgt_ast.vesselRef.transform, 10);
                 delay.Reset();
                 return;
             }
@@ -1044,40 +1056,217 @@ namespace ThrottleControlledAvionics
         }
         #endif
 
+        #region optimizers
+        abstract class RendezvousTrajectoryOptimizer : TrajectoryOptimizer
+        {
+            protected RendezvousAutopilot ren;
+            protected double minStartUT, maxStartUT, maxEndUT, dT;
+            protected bool softMaxStart;
+
+            protected RendezvousTrajectoryOptimizer(RendezvousAutopilot ren, 
+                                                    double minStartUT, double maxStartUT, 
+                                                    double maxEndUT, bool softMaxStart, double dT)
+            {
+                this.minStartUT = minStartUT;
+                this.maxStartUT = maxStartUT;
+                this.maxEndUT = maxEndUT;
+                this.softMaxStart = softMaxStart;
+                this.dT = dT;
+                this.ren = ren;
+            }
+
+            public RendezvousTrajectory Best { get; protected set; }
+
+            public abstract IEnumerator<RendezvousTrajectory> GetEnumerator();
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            { return GetEnumerator(); }
+
+            protected bool trajectory_is_better(RendezvousTrajectory t)
+            { 
+                //always accept the first trajecotry
+                if(Best == null) return true;
+                //between two killers choose the one with greater PeR
+                if(t.KillerOrbit && Best.KillerOrbit) 
+                    return t.Orbit.PeR > Best.Orbit.PeR;
+                //if current is a killer, it's no better
+                if(t.KillerOrbit) return false;
+                //if best is still a killer, any non-killer is better
+                if(Best.KillerOrbit) return true;
+                //if best is has negligable maneuver dV, or current misses the target,
+                //compare qualities
+                var bestDeltaV = Best.ManeuverDeltaV.sqrMagnitude;
+                if(bestDeltaV > 1 || t.DistanceToTarget > REN.Dtol) 
+                    return t.Quality < Best.Quality;
+                //otherwise select the one with larger maneuver dV
+                return t.ManeuverDeltaV.sqrMagnitude > bestDeltaV;
+            }
+
+            static IEnumerator<char> indicator_seq()
+            {
+                const string clock = "◐◓◑◒";
+                var clen = clock.Length;
+                var timer = new RealTimer(0.125);
+                var i = 0;
+                while(true)
+                {
+                    yield return clock[i];
+                    if(timer.TimePassed)
+                    {
+                        i = (i+1)%clen;
+                        timer.Restart();
+                    }
+                }
+            }
+            static IEnumerator<char> _indicator;
+            protected static IEnumerator<char> indicator
+            {
+                get
+                {
+                    if(_indicator == null)
+                        _indicator = indicator_seq();
+                    return _indicator;
+                }
+            }
+
+            protected string BestDesc
+            {
+                get
+                {
+                    var tts = Best.TimeToStart;
+                    return string.Format("T- {0}  ETA <color=lime>{1}</color>  dV: <color=yellow><b>{2:F1}</b> m/s</color>", 
+                                         Utils.formatTimeDelta(tts),
+                                         Utils.formatTimeDelta(tts+Best.TransferTime),
+                                         Best.TotalDeltaV);
+                }
+            }
+
+            public virtual string Status
+            {
+                get
+                {
+                    indicator.MoveNext();
+                    var s = indicator.Current+" searching for the best trajectory";
+                    if(Best == null) return s+"...";
+                    return s+"\n"+BestDesc;
+                }
+            }
+        }
+
+        class TransferOptimizer : RendezvousTrajectoryOptimizer
+        {
+            readonly double startUT, transferT;
+
+            public TransferOptimizer(RendezvousAutopilot ren,
+                                     double maxEndUT, double startUT, double transfer, double dT)
+
+                : base(ren, ren.VSL.Physics.UT+ren.CorrectionOffset, maxEndUT, maxEndUT, false, dT)
+            {
+                this.startUT = startUT;
+                this.transferT = transfer;
+            }
+
+            public override IEnumerator<RendezvousTrajectory> GetEnumerator()
+            { 
+                var transfer = transferT;
+                var start = startUT;
+                var dt = dT;
+                var scanned = false;
+                while(Math.Abs(dt) > 1e-5)
+                {
+                    var t = ren.new_trajectory(start, transfer);
+                    Utils.Log("start {}, transfer {}, dT {}, scanned {}, trajectory {}", 
+                              start-minStartUT, transfer, dt, scanned, t);//debug
+                    var is_better = trajectory_is_better(t);
+                    if(is_better) Best = t;
+                    minStartUT = ren.VSL.Physics.UT+ren.CorrectionOffset;
+                    if(start-minStartUT < t.ManeuverDuration/2)
+                        start = minStartUT+t.ManeuverDuration/2+TimeWarp.fixedDeltaTime*TRJ.PerFrameIterations*10;
+                    transfer = Math.Max(t.TransferTime+dt, 0);
+                    if(scanned && (start+transfer > maxEndUT || transfer < 1 || t.KillerOrbit ||
+                                   !t.KillerOrbit && !Best.KillerOrbit && !is_better) ||
+                       !scanned && start+transfer > maxEndUT)
+                    {
+                        dt /= -2.1;
+                        transfer = Math.Max(Best.TransferTime+dt, 1);
+                        scanned = true;
+                    }
+                    yield return t;
+                }
+            }
+        }
+
+        class StartTimeOptimizer : RendezvousTrajectoryOptimizer
+        {
+            readonly double startUT;
+
+            public StartTimeOptimizer(RendezvousAutopilot ren,
+                                      double startUT, double transfer, double dT)
+
+                : base(ren, ren.VSL.Physics.UT+ren.CorrectionOffset, startUT+transfer, -1, false, dT)
+            {
+                this.startUT = startUT;
+            }
+
+            public override IEnumerator<RendezvousTrajectory> GetEnumerator()
+            { 
+                var start = startUT;
+                var dt = dT;
+                var scanned = false;
+                while(Math.Abs(dt) > 1e-5)
+                {
+                    var t = ren.new_trajectory(start, maxStartUT-start);
+//                    Utils.Log("start {}, transfer {}, dT {}, trajectory {}", start-minUT, transfer, dt, t);//debug
+                    var is_better = trajectory_is_better(t);
+                    if(is_better) Best = t;
+                    minStartUT = ren.VSL.Physics.UT+ren.CorrectionOffset;
+                    start = t.StartUT+dt;
+                    if(scanned && (start >= maxStartUT || start <= minStartUT ||
+                                   !t.KillerOrbit && !Best.KillerOrbit && !is_better) ||
+                       !scanned && start >= maxStartUT)
+                    {
+                        dt /= -2.1;
+                        start = Utils.Clamp(Best.StartUT+dt, minStartUT, maxStartUT);
+                        scanned = true;
+                    }
+                    yield return t;
+                }
+            }
+        }
+
 
         /// <summary>
         /// 2D optimizer for transfer trajectory based on 
         /// Conjugate Directions with Orthogonal Shift algorithm:
         /// https://arxiv.org/abs/1102.1347
         /// </summary>
-        class CDOS_Optimizer2D
+        class CDOS_Optimizer2D : RendezvousTrajectoryOptimizer
         {
             struct Point : IEquatable<Point>
             {
-                Func<double,double,RendezvousTrajectory> newT;
+                CDOS_Optimizer2D opt;
                 public double start, transfer, distance;
                 public RendezvousTrajectory trajectory;
 
-                public Point(double s, double t, Func<double,double,RendezvousTrajectory> new_trajectory = null)
+                public Point(double s, double t, CDOS_Optimizer2D optimizer)
                 {
                     start = s;
                     transfer = t;
                     distance = double.MaxValue;
                     trajectory = null;
-                    newT = new_trajectory;
+                    opt = optimizer;
                 }
 
                 public void UpdateTrajectory(bool with_distance = false)
                 {
-                    trajectory = newT(start, transfer);
+                    trajectory = opt.ren.new_trajectory(start, transfer);
                     transfer = trajectory.TransferTime;
                     if(with_distance) UpdateDist();
                 }
 
                 public void UpdateDist()
                 {
-                    distance = trajectory.DistanceToTarget*trajectory.DistanceToTarget +
-                        trajectory.ManeuverDeltaV.sqrMagnitude+trajectory.BrakeDeltaV.sqrMagnitude;
+                    distance = trajectory.Quality;
                 }
 
                 public void Shift(double s, double t, bool with_distance = false)
@@ -1121,8 +1310,42 @@ namespace ThrottleControlledAvionics
                 public static double DistK(Point a, Point b)
                 { return 1-Math.Abs(a.distance-b.distance)/Math.Max(a.distance, b.distance); }
 
+                public static bool Close(Point a, Point b)
+                { return Math.Abs(a.start-b.start) < 10 && Math.Abs(a.transfer-b.transfer) < 10; }
+
+                public bool Better(Point b)
+                {
+                    if(opt.ren.mode == Mode.TimeToTarget) 
+                        return 
+                            distance + (transfer + start-opt.minStartUT)/100 < 
+                            b.distance + (b.transfer + b.start-opt.minStartUT)/100;
+                    return distance < b.distance;
+                }
+
                 public override string ToString()
-                { return Utils.Format("startUT {}, transfer {}, distance {}", start, transfer, distance); }
+                { return Utils.Format("startUT {}, transfer {}, distance {}, trajectory {}", 
+                                      start, transfer, distance, trajectory); }
+
+                public bool Draw(bool selected)
+                {
+                    GUILayout.BeginHorizontal();
+                    var tts = trajectory.TimeToStart;
+                    var label = string.Format("ETA:  <color=lime>{0}</color>\n" +
+                                              "Node: <color={1}>{2}</color>",
+                                              Utils.formatTimeDelta(tts+transfer),
+                                              tts > opt.ren.ManeuverOffset? "white" : "red",
+                                              Utils.formatTimeDelta(tts));
+                    var sel = GUILayout.Button(new GUIContent(label, "Press to select this transfer"), 
+                                               Styles.rich_label, GUILayout.ExpandWidth(false));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.Label(string.Format("dV: <color=yellow><b>{0:F1}</b> m/s</color>", trajectory.TotalDeltaV), 
+                                    Styles.rich_label, GUILayout.ExpandWidth(false));
+                    GUILayout.FlexibleSpace();
+                    if(selected) GUILayout.Label("<color=lime><b>●</b></color>", 
+                                                 Styles.rich_label, GUILayout.ExpandWidth(false));
+                    GUILayout.EndHorizontal();
+                    return sel;
+                }
 
                 #region IEquatable implementation
                 public bool Equals(Point other)
@@ -1130,17 +1353,11 @@ namespace ThrottleControlledAvionics
                 #endregion
             }
 
-            double minUT;
-            double maxUT;
-//            Func<double,double,RendezvousTrajectory> T;
-
-            double dT;
             Vector2d dir;
             Point P0, P;
             double dDist = -1;
             List<Point> start_points = new List<Point>();
-            IEnumerator<RendezvousTrajectory> optimization;
-            public RendezvousTrajectory Best { get; private set; }
+            List<Point> best_points = new List<Point>();
 
             #if DEBUG
             void LogP(Point p, string tag = "")
@@ -1153,18 +1370,14 @@ namespace ThrottleControlledAvionics
             void LogP(string tag = "") { LogP(P, tag); }
             #endif
 
-            public void Init(Func<double,double,RendezvousTrajectory> new_trajectory, 
-                         double minUT, double maxUT, double startUT, double startTransfer, double dT)
+            public CDOS_Optimizer2D(RendezvousAutopilot ren,
+                                    double minStartUT, double maxStartUT, 
+                                    double maxEndUT, bool softMaxStart,
+                                    double startUT, double startTransfer, double dT)
+                : base(ren, minStartUT, maxStartUT, maxEndUT, softMaxStart, dT)
             {
-                optimization = null;
-                start_points.Clear();
-                P0 = P = new Point(Math.Max(startUT, minUT+1), startTransfer, new_trajectory);
+                P0 = P = new Point(Math.Max(startUT, minStartUT+1), startTransfer, this);
                 set_dir(new Vector2d(0,1));
-                Best = null;
-                this.maxUT = maxUT;
-                this.minUT = minUT;
-                this.dT = dT;
-                dDist = -1;
             }
 
             void set_dir(Vector2d new_dir)
@@ -1184,9 +1397,16 @@ namespace ThrottleControlledAvionics
 
             bool feasible_point(Point p)
             {
+                var eobt = p.trajectory.EndOrbit;
                 return !p.trajectory.KillerOrbit && 
-                    p.start > minUT && p.transfer > 1 && 
-                    p.trajectory.ManeuverDuration > 0;
+                    p.start > minStartUT && p.transfer > 1 && 
+                    (softMaxStart || p.start < maxStartUT) &&
+                    (maxEndUT < 0 || p.start+p.transfer < maxEndUT) &&
+                    (eobt.patchEndTransition == Orbit.PatchTransitionType.FINAL ||
+                     eobt.EndUT-p.trajectory.AtTargetUT > p.trajectory.BrakeDuration+1) &&
+//                    (obt.patchEndTransition == Orbit.PatchTransitionType.FINAL ||
+//                     obt.EndUT-p.start > p.trajectory.ManeuverDuration+1) &&
+                    p.trajectory.ManeuverDeltaV.sqrMagnitude > 1;
             }
 
             IEnumerable<RendezvousTrajectory> find_first_point()
@@ -1202,14 +1422,28 @@ namespace ThrottleControlledAvionics
                 LogP("first point");
             }
 
+            void add_end_point()
+            {
+                if(ren.TargetOrbit.patchEndTransition != Orbit.PatchTransitionType.FINAL)
+                {
+                    var p = P;
+                    p.start = minStartUT+1;
+                    p.transfer = Math.Max(ren.TargetOrbit.EndUT-p.start-ren.ManeuverOffset, 2);
+                    p.UpdateTrajectory(true);
+                    if(feasible_point(p)) 
+                        start_points.Add(p);
+                    LogP(p, "end point: "+ren.TargetOrbit.patchEndTransition);
+                }
+            }
+
             IEnumerable<RendezvousTrajectory> scan_start_time()
             {
                 var cur  = P;
                 var prev = P;
                 var bestP = cur;
                 var bestOK = feasible_point(bestP);
-                var endUT = Math.Max(P.start+P.transfer*2, maxUT);
-                var maxTT = maxUT-minUT;
+                var endUT = Math.Max(P.start+P.transfer*2, maxStartUT);
+                var maxTT = maxStartUT-minStartUT;
                 var minZ = new MinimumD();
                 while(cur.start < endUT)
                 {
@@ -1315,7 +1549,7 @@ namespace ThrottleControlledAvionics
                     }
                     else 
                     {
-                        scan_finished |= cur.start < minUT || cur.transfer < 1 || path > endL;
+                        scan_finished |= cur.start < minStartUT || cur.transfer < 1 || path > endL;
 //                        LogP(cur, "scanning");
                     }
                     yield return cur.trajectory;
@@ -1356,7 +1590,7 @@ namespace ThrottleControlledAvionics
                     P = P0;
                 }
                 else set_dir(Point.Delta(P0, P).normalized);
-                if(P.start < minUT+1 && dir.x < 0) 
+                if(P.start < minStartUT+1 && dir.x < 0) 
                 { 
                     dir.x = 0.1;
                     dir.y = Math.Sign(dir.y);
@@ -1382,38 +1616,249 @@ namespace ThrottleControlledAvionics
                 foreach(var t in shift_and_find(dt)) yield return t;
             }
 
-            IEnumerable<RendezvousTrajectory> full_search()
+            IEnumerable<RendezvousTrajectory> full_search(double dt)
             {
-                P.UpdateTrajectory(true);
-                LogP("initial point");
-                foreach(var t in scan_start_time()) yield return t;
-                var bestP = P;
-                foreach(var p in start_points)
+                foreach(var t in build_conjugate_set(dt))
+                    yield return t;
+                while(dt > 0.1 || dDist > 0.1 || dDist < 0)
                 {
-                    P = p;
-                    var dt = dT;
-                    foreach(var t in build_conjugate_set(dt)) yield return t;
-                    while(dt > 0.1 || dDist > 0.1 || dDist < 0)
-                    {
-                        foreach(var t in shift_and_find(dt, 3)) yield return t;
-                        dt = 0.3*Point.Delta(P0, P).magnitude+0.1*dt;
-                        if(dt.Equals(0)) dt = 1;
-                    }
-                    if(P < bestP) bestP = P;
+                    if(need_to_stop) yield break;
+                    foreach(var t in shift_and_find(dt, 3)) yield return t;
+                    dt = 0.3 * Point.Delta(P0, P).magnitude + 0.1 * dt;
+                    if(dt.Equals(0)) dt = 1;
                 }
-                P = bestP;
-                Best = P.trajectory;
-                yield return Best;
             }
 
-            public RendezvousTrajectory NextTrajectory()
+            bool need_to_stop
             {
-                if(optimization == null)
-                    optimization = full_search().GetEnumerator();
-                if(optimization.MoveNext()) return optimization.Current;
-                optimization = null;
-                return null;
+                get
+                {
+                    return ren.mode == Mode.Manual && manual_stop ||
+                        Best != null && Best.TimeToStart < ren.CorrectionOffset;
+                }
+            }
+
+            void add_best_node()
+            {
+                ren.clear_nodes();
+                ManeuverAutopilot.AddNodeRaw(ren.VSL, Best.NodeDeltaV, Best.StartUT);
+            }
+
+            float progress;
+            bool manual_stop;
+            public override IEnumerator<RendezvousTrajectory> GetEnumerator()
+            {
+                progress = 0;
+                manual_stop = false;
+                best_points.Clear();
+                start_points.Clear();
+                P.UpdateTrajectory(true);
+                LogP("initial point");
+                add_end_point();
+                foreach(var t in scan_start_time()) yield return t;
+                var bestP = P;
+                Best = bestP.trajectory;
+                if(P.trajectory.DistanceToTarget < REN.Dtol) best_points.Add(P);
+                Utils.Log("bestP: dV: {}, {}", P.trajectory.TotalDeltaV, P);//debug
+                for(int i = 0, count = start_points.Count; i < count; i++)
+                {
+                    if(need_to_stop) yield break;
+                    progress = (i+1f)/(count+1);
+                    P = start_points[i];
+                    foreach(var t in full_search(dT)) yield return t;
+                    if(!manual_stop && 
+                       (ren.mode != Mode.Manual || best_points.Count == 0) &&
+                       P.Better(bestP))
+                    {
+                        bestP = P;
+                        Best = bestP.trajectory;
+                    }
+                    if(ren.mode == Mode.Manual &&
+                       P.trajectory.DistanceToTarget < REN.Dtol)
+                    {
+                        var j = best_points.FindIndex(p => Point.Close(p, P));
+                        if(j < 0) 
+                            best_points.Add(P);
+                        else if(P < best_points[j]) 
+                            best_points[j] = P;
+                        sort_best_points();
+                    }
+                    Utils.Log("bestP: dV: {}, {}", P.trajectory.TotalDeltaV, P);//debug
+                    log_patches(P.trajectory.Orbit, "bestP");//debug
+//                    _CalculatePatch(P.trajectory.Orbit, P.trajectory.Orbit.nextPatch ?? new Orbit(), P.trajectory.Orbit.epoch, new PatchedConics.SolverParameters(), null);//debug
+                }
+                progress = 1;
+                Utils.Log("best points: {}", best_points);//debug
+                if(ren.mode == Mode.Manual && best_points.Count > 1)
+                { 
+                    add_best_node();
+                    while(!manual_stop) yield return null;
+                }
+            }
+
+            void sort_best_points()
+            {
+                switch(sort_order)
+                {
+                case 0:
+                    best_points.Sort((a, b) => a.distance.CompareTo(b.distance));
+                    break;
+                case 1:
+                    best_points.Sort((a, b) => (a.start+a.transfer).CompareTo(b.start+b.transfer));
+                    break;
+                case 2:
+                    best_points.Sort((a, b) => a.start.CompareTo(b.start));
+                    break;
+                }
+            }
+
+            int sort_order = 0;
+            static string[] sorting = {"dV", "ETA", "Start"};
+            Vector2 scroll = Vector2.zero;
+            public void DrawBestTrajecotries()
+            {
+                if(manual_stop) return;
+                GUILayout.BeginVertical();
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Sort by:", GUILayout.ExpandWidth(false));
+                var old_order = sort_order;
+                sort_order = GUILayout.Toolbar(sort_order, sorting, GUILayout.ExpandWidth(true));
+                if(sort_order != old_order) sort_best_points();
+                GUILayout.EndHorizontal();
+                scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(75));
+                foreach(var p in best_points)
+                {
+                    if(p.trajectory.TimeToStart > 0 &&
+                       p.Draw(p.trajectory == Best)) 
+                    { 
+                        Best = p.trajectory;
+                        add_best_node();
+                        Utils.Log("Manually selected: dV: {}, {}", p.trajectory.TotalDeltaV, p);//debug
+                        log_patches(p.trajectory.Orbit, "Manually selected");//debug
+                    }
+                }
+                GUILayout.EndScrollView();
+                if(Best != null && GUILayout.Button(new GUIContent("Continue", "Continue using selected transfer"), 
+                                                    Styles.enabled_button, GUILayout.ExpandWidth(true)))
+                    manual_stop = true;
+                GUILayout.EndVertical();
+            }
+
+            public override string Status
+            {
+                get
+                {
+                    if(ren.mode == Mode.Manual && Best != null && progress.Equals(1))
+                        return "Selected transfer:\n"+BestDesc;
+                    indicator.MoveNext();
+                    var s = indicator.Current + 
+                        (ren.mode == Mode.Manual?
+                         " searching for transfers" : " searching for the best transfer");
+                    if(Best == null) return s+"...";
+                    return s+string.Format(" {0:P0}\n", progress)+BestDesc;
+                }
             }
         }
+        #endregion
+
+        #if DEBUG
+        static void log_patches(Orbit o, string tag)
+        { Utils.Log(Utils.formatPatches(o, tag));}
+         
+        public static bool _CalculatePatch(Orbit p, Orbit nextPatch, double startEpoch, PatchedConics.SolverParameters pars, CelestialBody targetBody)//debug
+        {
+            p.activePatch = true;
+            p.nextPatch = nextPatch;
+            p.patchEndTransition = Orbit.PatchTransitionType.FINAL;
+            p.closestEncounterLevel = Orbit.EncounterSolutionLevel.NONE;
+            p.numClosePoints = 0;
+            log_patches(p, "Patch 0");
+            int count = Planetarium.Orbits.Count;
+            for (int i = 0; i < count; i++)
+            {
+                OrbitDriver orbitDriver = Planetarium.Orbits[i];
+                if(orbitDriver.orbit == p) continue;
+                if(orbitDriver.celestialBody)
+                {
+                    if(targetBody == null)
+                    {
+                        goto IL_B6;
+                    }
+                    if(orbitDriver.celestialBody == targetBody)
+                    {
+                        goto IL_B6;
+                    }
+                    IL_C5:
+                    if(orbitDriver.referenceBody == p.referenceBody)
+                    {
+                        var enc = PatchedConics.CheckEncounter(p, nextPatch, startEpoch, orbitDriver, targetBody, pars);
+                        Utils.Log("Encounter with {}: {}", orbitDriver.celestialBody.bodyName, enc);
+                        log_patches(p, "Patch");
+                        goto IL_FA;
+                    }
+                    goto IL_FA;
+                    IL_B6:
+                    p.closestTgtApprUT = 0.0;
+                    goto IL_C5;
+                }
+                IL_FA:;
+            }
+            log_patches(p, "Patch 1");
+            if (p.patchEndTransition == Orbit.PatchTransitionType.FINAL)
+            {
+                if (!pars.debug_disableEscapeCheck)
+                {
+                    if (p.ApR <= p.referenceBody.sphereOfInfluence)
+                    {
+                        if (p.eccentricity < 1.0)
+                        {
+                            p.UTsoi = -1.0;
+                            p.StartUT = startEpoch;
+                            p.EndUT = startEpoch + p.period;
+                            p.patchEndTransition = Orbit.PatchTransitionType.FINAL;
+                            goto IL_2C0;
+                        }
+                    }
+                    if (double.IsInfinity(p.referenceBody.sphereOfInfluence))
+                    {
+                        p.FEVp = Math.Acos(-(1.0 / p.eccentricity));
+                        p.SEVp = -p.FEVp;
+                        p.StartUT = startEpoch;
+                        p.EndUT = double.PositiveInfinity;
+                        p.UTsoi = double.PositiveInfinity;
+                        p.patchEndTransition = Orbit.PatchTransitionType.FINAL;
+                    }
+                    else
+                    {
+                        p.FEVp = p.TrueAnomalyAtRadius(p.referenceBody.sphereOfInfluence);
+                        p.SEVp = -p.FEVp;
+                        p.timeToTransition1 = p.GetDTforTrueAnomaly(p.FEVp, 0.0);
+                        p.timeToTransition2 = p.GetDTforTrueAnomaly(p.SEVp, 0.0);
+                        p.UTsoi = startEpoch + p.timeToTransition1;
+                        nextPatch.UpdateFromOrbitAtUT(p, p.UTsoi, p.referenceBody.referenceBody);
+                        p.StartUT = startEpoch;
+                        p.EndUT = p.UTsoi;
+                        p.patchEndTransition = Orbit.PatchTransitionType.ESCAPE;
+                    }
+                }
+            }
+            IL_2C0:
+            nextPatch.StartUT = p.EndUT;
+            double arg_2FD_1;
+            if (nextPatch.eccentricity < 1.0)
+            {
+                arg_2FD_1 = nextPatch.StartUT + nextPatch.period;
+            }
+            else
+            {
+                arg_2FD_1 = nextPatch.period;
+            }
+            nextPatch.EndUT = arg_2FD_1;
+            nextPatch.patchStartTransition = p.patchEndTransition;
+            nextPatch.previousPatch = p;
+            log_patches(p, "Patch 2");
+            return p.patchEndTransition != Orbit.PatchTransitionType.FINAL;
+        }
+        #endif
 	}
 }

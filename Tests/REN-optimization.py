@@ -11,11 +11,10 @@ from matplotlib.path import Path
 
 from itertools import combinations
 
-
-def plot_search_paths(N):
+def plot_search_paths(N, filename = 'CDOS_test.csv', num_paths = 3):
     os.chdir('/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/KSP_test_1.2.2/')
-    df = pd.read_csv('CDOS_test.csv',
-                     names=['tag', 'startT', 'transfer', 'dist', 'dir_x', 'dir_y', 'dT', 'dDist', 'time'])
+    df = pd.read_csv(filename,
+                     names=['tag', 'startT', 'transfer', 'dist', 'dir_x', 'dir_y', 'dDist', 'feasible', 'time'])
     # get samples
     starts = df[df['tag'] == 'initial point'].index.tolist()
     samples = []
@@ -31,11 +30,11 @@ def plot_search_paths(N):
     # no line from end to beginning
     cm = plt.get_cmap('gist_rainbow')
     fig = plt.figure()
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot(211)
     n = (N - 1) * 3
-    lines = ['o-', '*-', '^-']
-    for l, s in enumerate(samples[n:n + 3]):
-        print(s)
+    lines = ['o-', '*-', '^-']*(num_paths/3+1)
+    for l, s in enumerate(samples[n:n + num_paths]):
+        print(s.to_string()+'\n')
         path = s.loc[:, 'startT':'dist']
         maxT = max(max(path.startT), max(path.transfer)) + 1
         minT = min(min(path.startT), min(path.transfer)) - 1
@@ -45,6 +44,13 @@ def plot_search_paths(N):
             ax.plot(path.startT[i:i + 2], path.transfer[i:i + 2], lines[l])
             # plt.plot(path.startT, path.transfer, 'x-')
             # plt.axis([minT, maxT, minT, maxT])
+    s1 = samples[n]
+    s1 = s1.loc[s1.tag == 'scan start']
+    s2 = samples[n+1]
+    s2 = s2.loc[s2.tag == 'scan start']
+    ax2 = fig.add_subplot(212)
+    ax2.plot(s1.startT, list(s1.dist), 'b.-')
+    ax2.plot(s2.startT, list(s2.dist), 'r.-')
     plt.show()
 
 
@@ -54,15 +60,17 @@ def center_angle(a):
 
 def plot_dV_PCA():
     os.chdir('/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/KSP_test_1.2.2')
-    names = ['cdos_dV', 'cdos_d', 'correction',
-             'cdos_ttr', 'cdos_ttr_end', 'cdos_ttr_d',
-             'old', 'old_end', 'old_d',
+    names = ['cdos_dV', 'cdos_d', 'cdos_time',
+             'correction', 'correction_time',
+             'cdos_ttr', 'cdos_ttr_end', 'cdos_ttr_d', 'cdos_ttr_time',
+             'old', 'old_end', 'old_d', 'old_time',
              'correction_dV_diff', 'old_dV_diff',
              'incl',
              'PeR', 'ApR',
              'PeA_angle_before', 'PeA_angle_after',
              'ttr_before', 'ttr_after',
              'res_before', 'res_after',
+             'signed_ttr_after',
              'periodT', 'periodV_before', 'periodV_after',
              'eccV_before', 'eccV_after', 'eccT',
              'enV_before', 'enV_after', 'enT',
@@ -70,7 +78,7 @@ def plot_dV_PCA():
              'time']
     df = pd.read_csv('CDOS_dV.csv', names=names)
     # get samples
-    df = df.iloc[:35,:]
+    # df = df.iloc[:35,:]
     df = df.loc[df.correction > 0.1]
     classes = df.correction_dV_diff < -1
     # classes = (df.cdos_ttr - df.cdos_dV) < -1
@@ -103,6 +111,7 @@ def plot_dV_PCA():
         # 'correction_dV_diff',
         #     'cdos_dV',
             'correction',
+            'correction_time',
             'incl',
             # 'PeR',
             # 'ApR',
@@ -112,6 +121,7 @@ def plot_dV_PCA():
             'ttr_after',
             # 'res_before',
             'res_after',
+            'signed_ttr_after',
             # 'periodT',
             'periodV_before',
             'periodV_after',
@@ -127,7 +137,8 @@ def plot_dV_PCA():
 
     def pca_var(sub_dims):
         data = np.array([df[d] for d in sub_dims]).T
-        pca = PCA(data, standardize=True)
+        try: pca = PCA(data, standardize=True)
+        except: return 0,1,0,1,None,None,None,sub_dims
 
         classed_points = zip(classes, pca.Y)
         pos = [(it[0], it[1]) for c, it in classed_points if c]
@@ -181,38 +192,39 @@ def plot_dV_PCA():
         # ax.scatter(pc[0], pc[1], pc[2], c=col)
         # plt.show()
 
-    # max_sep = sorted((pca_var(c) for c in combinations(dims, 3)),
-    #                  key=lambda x: x[0]/x[1]+x[2]/x[3],
-    #                  # key=lambda x: x[0] + x[2],
-    #                  # key=lambda x: x[0],
-    #                  reverse=True)[:10]
-    #
-    # [plot_pca(*s) for s in max_sep]
+    max_sep = sorted((pca_var(c) for c in combinations(dims, 4)),
+                     key=lambda x: x[0]/x[1]+x[2]/x[3],
+                     # key=lambda x: x[0] + x[2],
+                     # key=lambda x: x[0],
+                     reverse=True)[:20]
 
-    plot_pca(*pca_var([
-        # 'cdos_dV',
-        # 'correction',
-        'incl',
-        # 'PeR',
-        # 'ApR',
-        # 'PeA_angle_before',
-        'PeA_angle_after',
-        # 'ttr_before',
-        # 'ttr_after',
-        # 'res_before',
-        # 'res_after',
-        # 'periodT',
-        # 'periodV_before',
-        # 'periodV_after',
-        'eccV_after',
-        # 'enV_after',
-        # 'ttr_up',
-        # 'ttr_async'
-    ]))
+    [plot_pca(*s) for s in max_sep]
+
+    # plot_pca(*pca_var([
+    #     # 'cdos_dV',
+    #     # 'correction',
+    #     'incl',
+    #     # 'PeR',
+    #     # 'ApR',
+    #     # 'PeA_angle_before',
+    #     'PeA_angle_after',
+    #     # 'ttr_before',
+    #     # 'ttr_after',
+    #     # 'res_before',
+    #     # 'res_after',
+    #     # 'periodT',
+    #     # 'periodV_before',
+    #     # 'periodV_after',
+    #     'eccV_after',
+    #     # 'enV_after',
+    #     # 'ttr_up',
+    #     # 'ttr_async'
+    # ]))
 
 
 if __name__ == '__main__':
     plot_dV_PCA()
+    # plot_search_paths(5, num_paths=3)
 
 #best so far
 # incl, PeA_angle_after, eccV_after
