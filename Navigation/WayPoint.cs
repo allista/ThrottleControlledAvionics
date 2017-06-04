@@ -17,7 +17,7 @@ using AT_Utils;
 namespace ThrottleControlledAvionics
 {
 	//adapted from MechJeb
-	public class WayPoint : ConfigNodeObject, ITargetable, IEquatable<WayPoint>
+    public class WayPoint : ConfigNodeObject, ITargetable, IEquatable<WayPoint>
 	{
 		new public const string NODE_NAME = "WAYPOINT";
 
@@ -189,6 +189,16 @@ namespace ThrottleControlledAvionics
 		public Vessel GetVessel() { return target == null? null : target.GetVessel(); }
 		public VesselTargetModes GetTargetingMode() { return target == null? VesselTargetModes.Direction : target.GetTargetingMode(); }
 		public bool GetActiveTargetable() { return false; }
+
+        public string GetDisplayName()
+        {
+            return GetName();
+        }
+
+        string ITargetable.GetDisplayName()
+        {
+            return GetDisplayName();
+        }
 
 		public Transform GetTransform() 
 		{ 
