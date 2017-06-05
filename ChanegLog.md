@@ -2,7 +2,10 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.4.1**
+* **v3.4.1.1** 
+	* Compatible with KSP-1.3
+
+* v3.4.1
     * **Rendezvous Autopilot**:
     	* Lambert Solver now works properly for retrograde transfers.
     	* In rare cases when a rendezvous maneuver went perfect and the ships are on a collision course at rendezvous point, the brake burn now accounts for ships' sizes to stop before the collision.
