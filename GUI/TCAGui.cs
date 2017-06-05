@@ -424,8 +424,8 @@ namespace ThrottleControlledAvionics
 						if(CFG.VF[VFlight.AltitudeControl]) 
 						{ if(ALT != null) ALT.ProcessKeys(); }
 						else if(VSC != null) VSC.ProcessKeys();
-						if(WRP != null) WRP.ProcessKeys();
 					}
+                    if(WRP != null) WRP.ProcessKeys();
 				}
 			}
 		}
