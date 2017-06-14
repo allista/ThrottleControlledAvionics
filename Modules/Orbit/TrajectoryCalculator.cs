@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using FinePrint.Utilities;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -33,13 +34,23 @@ namespace ThrottleControlledAvionics
 		protected Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
 		protected CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
 		protected Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
-		protected double MinPeR { get { return Body.atmosphere? Body.Radius+Body.atmosphereDepth+1000 : Body.Radius+TRJ.MinPeA; } }
         protected double ManeuverOffset { get { return Math.Max(TRJ.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime); } }
         protected double CorrectionOffset { get { return Math.Max(TRJ.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime); } }
 
+        protected double MinPeR 
+        { 
+            get 
+            { 
+                return Body.atmosphere? 
+                    Body.Radius+Body.atmosphereDepth+1000 : 
+                    Body.Radius+CelestialUtilities.GetHighestPeak(Body)+1000; 
+            } 
+        }
+
 		protected static Orbit NextOrbit(Orbit orb, double UT)
 		{
-			while(orb.nextPatch != null && 
+			while(orb != null && 
+                  orb.nextPatch != null && 
 			      orb.nextPatch.referenceBody != null 
 			      && orb.EndUT < UT)
 				orb = orb.nextPatch;
@@ -673,7 +684,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(trajectory != null) return true;
 			#if !DEBUG
-			Status("Computing trajectory...");	
+			Status("Searching the best trajectory...");	
 			#endif
 			if(trajectory_calculator == null)
 				trajectory_calculator = compute_trajectory();
