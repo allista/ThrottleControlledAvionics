@@ -49,9 +49,9 @@ namespace ThrottleControlledAvionics
 			MinKSPVersion = new Version(1,3,0);
 			MaxKSPVersion = new Version(1,3,0);
 
-			VersionURL   = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
+			VersionURL   = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
 			UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
-			ChangeLogURL = "https://raw.githubusercontent.com/qfeys/ThrottleControlledAvionics/master/ChanegLog.md";
+			ChangeLogURL = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/ChanegLog.md";
 		}
 	}
 }

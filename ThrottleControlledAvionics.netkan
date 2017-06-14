@@ -10,9 +10,9 @@
     "resources":
     {
     	"homepage"     : "http://forum.kerbalspaceprogram.com/index.php?/topic/97154-throttle-controlled-avionics",
-        "bugtracker"   : "https://github.com/qfeys/ThrottleControlledAvionics/issues",
-        "repository"   : "https://github.com/qfeys/ThrottleControlledAvionics",
-        "manual"       : "https://github.com/qfeys/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md"
+        "bugtracker"   : "https://github.com/allista/ThrottleControlledAvionics/issues",
+        "repository"   : "https://github.com/allista/ThrottleControlledAvionics",
+        "manual"       : "https://github.com/allista/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md"
     },
     "depends": 
     [
