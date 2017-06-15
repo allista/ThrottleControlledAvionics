@@ -222,9 +222,10 @@ BRC
 
 CC
 {
-	PitchFactor = 0.2
-	MaxRevSpeed = -4
-	UpdateDelay = 10
+	PitchFactor  = 0.2
+	MaxRevSpeed  = -4
+	MaxIdleSpeed = 4
+	UpdateDelay  = 10
 }
 
 PN

@@ -22,6 +22,7 @@ namespace ThrottleControlledAvionics
 		{
 			[Persistent] public float PitchFactor = 0.2f;
 			[Persistent] public float MaxRevSpeed = -4f;
+            [Persistent] public float MaxIdleSpeed = 4f;
 			[Persistent] public float UpdateDelay = 1;
 		}
 		static Config CC { get { return Globals.Instance.CC; } }
@@ -65,9 +66,11 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.On:
 				VSL.UpdateOnPlanetStats();
 				var nV = VSL.HorizontalSpeed.Absolute;
-				if(nV < CC.MaxRevSpeed) nV = CC.MaxRevSpeed;
-				else if(nV > GLB.PN.MaxSpeed) nV = GLB.PN.MaxSpeed;
-				VSL.HorizontalSpeed.SetNeeded(VSL.HorizontalSpeed.Vector.normalized*nV);
+				if(nV > GLB.PN.MaxSpeed) nV = GLB.PN.MaxSpeed;
+                if(nV > CC.MaxIdleSpeed)
+                    VSL.HorizontalSpeed.SetNeeded(VSL.HorizontalSpeed.Vector.normalized*nV);
+                else
+                    VSL.HorizontalSpeed.SetNeeded(VSL.OnPlanetParams.Fwd*nV);
 				CFG.MaxNavSpeed = needed_velocity = nV;
 				CFG.BR.OnIfNot(BearingMode.User);
 				BRC.UpdateBearing((float)VSL.Physics.Bearing(VSL.HorizontalSpeed.Vector));
