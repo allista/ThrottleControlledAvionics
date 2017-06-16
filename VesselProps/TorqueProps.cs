@@ -142,6 +142,7 @@ namespace ThrottleControlledAvionics
 		public void UpdateImbalance(params IList<EngineWrapper>[] engines)
 		{
 			var torque = CalculateImbalance(engines);
+//            if(VSL.OnPlanet) torque += VSL.LocalDir(VSL.OnPlanetParams.AeroTorque);
 			Imbalance.Update(EnginesLimits.Clamp(torque));
 		}
 
