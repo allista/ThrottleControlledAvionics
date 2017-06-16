@@ -27,7 +27,7 @@ namespace ThrottleControlledAvionics
 				                    GUILayout.ExpandWidth(true)))
 					CFG.ShowManualLimits = !CFG.ShowManualLimits;
 				if(CFG.ShowManualLimits) 
-					CFG.EnginesProfiles.DrawManual(Utils.ClampH(TCAGui.LineHeight*CFG.ActiveProfile.NumManual, TCAGui.ControlsHeightHalf));
+                    CFG.EnginesProfiles.DrawManual(Utils.ClampH(TCAGui.LineHeight*CFG.ActiveProfile.NumManual*2, profiles_height));
 			}
 			GUILayout.BeginHorizontal();
 			if(Utils.ButtonSwitch("Smart Engines", ref CFG.UseSmartEngines, 
