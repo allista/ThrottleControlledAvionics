@@ -400,7 +400,7 @@ namespace ThrottleControlledAvionics
             {
                 UnlockControls();
                 GUI.Label(collapsed_rect, new GUIContent("TCA", "Push to show Main Window"), 
-                          CFG.Enabled? Styles.green : Styles.grey);
+                          CFG.Enabled? Styles.green : (VSL.LandedOrSplashed? Styles.white : Styles.red));
                 if(Input.GetMouseButton(0) && collapsed_rect.Contains(Event.current.mousePosition))
                     Collapsed = false;
                 TooltipManager.GetTooltip();
