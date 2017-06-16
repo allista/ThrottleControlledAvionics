@@ -412,10 +412,9 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				VSL.Engines.All.ForEach(e => e.forceThrustPercentage(100));
-				VSL.RestoreUnpackDistance();
-				State = TCAState.Disabled;
 				AllModules.ForEach(m => m.OnEnable(false));
+                VSL.Engines.All.ForEach(e => e.forceThrustPercentage(100));
+                VSL.RestoreUnpackDistance();
 			}
 		}
 		#endregion

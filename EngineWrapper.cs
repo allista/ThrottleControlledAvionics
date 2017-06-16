@@ -416,7 +416,12 @@ namespace ThrottleControlledAvionics
 			}
 		}
 		public void forceThrustPercentage(float value) 
-		{ if(!engine.throttleLocked) engine.thrustPercentage = Mathf.Clamp(value, 0, 100); }
+		{ 
+            if(!engine.throttleLocked) 
+                engine.thrustPercentage = Mathf.Clamp(value, 0, 100); 
+//            if(Role == TCARole.MANUAL && value.Equals(0))//debug
+//                Utils.Log("Manual engine was dethrottled.");
+        }
 
 		public override bool isOperational { get { return engine.isOperational; } }
 		#endregion

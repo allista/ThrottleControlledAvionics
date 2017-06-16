@@ -93,14 +93,25 @@ namespace ThrottleControlledAvionics
 		protected TCAModule(ModuleTCA tca) : base(tca) {}
 
 		public virtual void Init() { InitModuleFields(); LoadFromConfig(); }
-		public void OnFixedUpdate() { UpdateState(); Update(); }
+		public void OnFixedUpdate() 
+        { 
+            if(CFG.Enabled)
+            {
+                UpdateState(); 
+                Update(); 
+            }
+        }
 		public virtual void Reset() {}
 		public virtual void ClearFrameState() {}
 		public virtual void OnEnable(bool enabled) {}
 		public virtual void ProcessKeys() {}
 		public override void Draw() {}
 
-		protected virtual void UpdateState() { IsActive = VSL != null && CFG.Enabled; ControlsActive = true; }
+		protected virtual void UpdateState() 
+        { 
+            IsActive = VSL != null && CFG.Enabled; 
+            ControlsActive = true; 
+        }
 		protected virtual void Update() {}
 		protected virtual void reset() {}
 
@@ -158,8 +169,18 @@ namespace ThrottleControlledAvionics
 			VSL.vessel.OnAutopilotUpdate += UpdateCtrlState; 
 		
 		}
+
 		public override void Reset() { VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; }
-		public void UpdateCtrlState(FlightCtrlState s) { UpdateState(); OnAutopilotUpdate(s); }
+
+		public void UpdateCtrlState(FlightCtrlState s) 
+        { 
+            if(CFG.Enabled)
+            {
+                UpdateState(); 
+                OnAutopilotUpdate(s); 
+            }
+        }
+
 		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
 	}
 

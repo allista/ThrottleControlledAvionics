@@ -156,7 +156,7 @@ namespace ThrottleControlledAvionics
 		void EnableManualTranslation(bool enable = true)
 		{
 			VSL.Controls.ManualTranslationSwitch.Set(enable);
-			if(VSL.Controls.ManualTranslationSwitch.On) return;
+            if(!CFG.Enabled || VSL.Controls.ManualTranslationSwitch.On) return;
 			var Changed = false;
 			for(int i = 0, count = VSL.Engines.Active.Manual.Count; i < count; i++)
 			{
@@ -178,7 +178,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.AutopilotDisabled) { filter.Reset(); return; }
 			CFG.AT.OnIfNot(Attitude.Custom);
 			//calculate prerequisites
-			var thrust = VSL.Engines.DefThrust;
+            var thrust = VSL.Engines.DefThrust;
 			needed_thrust_dir = -VSL.Physics.Up;
 			if(!CFG.HF[HFlight.Level])
 			{

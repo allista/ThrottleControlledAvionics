@@ -233,12 +233,14 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateState()
 		{
+            IsActiveVessel = vessel != null && vessel == FlightGlobals.ActiveVessel;
 			//update onPlanet state
 			var on_planet = vessel.OnPlanet();
 			var in_orbit = vessel.InOrbit();
-			if(on_planet != OnPlanet) 
+            if(on_planet != OnPlanet) 
 			{
-				CFG.EnginesProfiles.OnPlanetChanged(on_planet);
+                if(CFG.Enabled)
+                    CFG.EnginesProfiles.OnPlanetChanged(on_planet);
 				if(!on_planet) 
 				{ 
 					if(CFG.BlockThrottle)
@@ -255,7 +257,6 @@ namespace ThrottleControlledAvionics
 			}
 			OnPlanet = on_planet;
 			InOrbit = in_orbit;
-			IsActiveVessel = vessel != null && vessel == FlightGlobals.ActiveVessel;
 		}
 
 		public void UpdatePhysics()
