@@ -27,12 +27,13 @@ namespace ThrottleControlledAvionics
 		protected override void DrawContent()
 		{
 			GUILayout.BeginVertical();
-			GUILayout.Label(new GUIContent(
-				string.Format("{0} ▲{1} ►{2}", 
-				              Utils.formatBigValue(VSL.Altitude.Current, "m"), 
-				              Utils.formatBigValue(VSL.VerticalSpeed.Display, "m/s", "+0.0;-0.0;+0.0"), 
-				              Utils.formatBigValue(VSL.HorizontalSpeed.Absolute, "m/s")), 
-				"Altitude, Vertical speed, Horizontal speed."),
+            GUILayout.Label(CFG.Enabled?
+                            new GUIContent(
+                                string.Format("{0} ▲{1} ►{2}", 
+                                              Utils.formatBigValue(VSL.Altitude.Current, "m"), 
+                                              Utils.formatBigValue(VSL.VerticalSpeed.Display, "m/s", "+0.0;-0.0;+0.0"), 
+                                              Utils.formatBigValue(VSL.HorizontalSpeed.Absolute, "m/s")), 
+                                "Altitude, Vertical speed, Horizontal speed.") : new GUIContent(""),
 			                Styles.boxed_label, GUILayout.MinWidth(240), GUILayout.ExpandWidth(true));
 			GUILayout.BeginHorizontal();
 			if(ALT != null && CFG.VF[VFlight.AltitudeControl]) ALT.Draw();
