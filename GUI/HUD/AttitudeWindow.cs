@@ -142,6 +142,9 @@ namespace ThrottleControlledAvionics
 
 		protected override void DrawContent()
 		{
+            #if DEBUG
+            ATC.DrawDebugLines();
+            #endif
 			if(GUILayout.Button(new GUIContent("T-SAS", "Push to toggle attitude controls"), 
 			                    CFG.AT && !VSL.AutopilotDisabled? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false)))
 				cues.Toggle();

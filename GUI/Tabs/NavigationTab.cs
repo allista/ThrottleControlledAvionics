@@ -50,7 +50,9 @@ namespace ThrottleControlledAvionics
 			GUILayout.BeginHorizontal();
 			if(HSC != null)
 			{
-//				HSC.DrawDebugLines();//debug
+                #if DEBUG
+				HSC.DrawDebugLines();//debug
+                #endif
 				if(Utils.ButtonSwitch("Stop", CFG.HF[HFlight.Stop], 
 				                      "Kill horizontal velocity", GUILayout.ExpandWidth(true)))
 				{
