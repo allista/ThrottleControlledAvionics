@@ -205,12 +205,14 @@ namespace ThrottleControlledAvionics
 			return aa.Equals(0) ? float.MaxValue : VSL.vessel.angularVelocity.magnitude / aa;
 		}
 
-		//rotation with zero start and end angular velocities and constant angular acceleration
-		public float MinRotationTime(float angle)
-		{ return 2*Mathf.Sqrt(angle/AA_rad/Mathf.Rad2Deg); }
-
-		public float RotationTime(float angle, float throttle)
+		public float RotationTime2Phase(float angle, float throttle = 1)
 		{ return 2*Mathf.Sqrt(angle/AA_rad/throttle/Mathf.Rad2Deg); }
+
+        public float RotationTime3Phase(float angle, float accel_part, float throttle = 1)
+        {
+            var ak2 = 2*accel_part*angle;
+            return (angle+ak2)/Mathf.Sqrt(ak2*AA_rad*throttle*Mathf.Rad2Deg);
+        }
 
 
 		public void Update(Vector3 torque)
@@ -218,7 +220,7 @@ namespace ThrottleControlledAvionics
 			Torque = torque;
 			AA = VSL.Torque.AngularAcceleration(Torque);
 			AA_rad = AA.magnitude;
-			TurnTime = MinRotationTime(180);
+            TurnTime = RotationTime2Phase(180);
 		}
 
 		public static implicit operator bool(TorqueInfo info) { return info.AA_rad > 0; }

@@ -32,6 +32,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float FallingTime       = 1f;
 			[Persistent] public float TimeAhead         = 5f;
 
+            [Persistent] public float SlowCorrectionF   = 0.5f;
+
 			[Persistent] public PIDf_Controller2 RocketPID = new PIDf_Controller2(0.1f, 0.5f, 0.03f, -9.9f, -9.9f);
 			[Persistent] public PIDf_Controller JetsPID   = new PIDf_Controller(0.5f, 0, 0.5f, -9.9f, -9.9f);
 
@@ -146,7 +148,7 @@ namespace ThrottleControlledAvionics
 						if(VSL.Engines.Slow)
 						{
 							var dV = CFG.VerticalCutoff - VSL.VerticalSpeed.Absolute;
-							dV *= dV < 0 ? VSL.Engines.DecelerationTime : VSL.Engines.AccelerationTime;
+                            dV *= dV < 0 ? VSL.Engines.DecelerationTime10 : VSL.Engines.AccelerationTime90;
 							CFG.VerticalCutoff += dV;
 						}
 //						Log("VSF {}, vV {}, hV {}, G_A {}, dAlt {}, ttAp {}, TimeAhead {}", 
@@ -202,7 +204,9 @@ namespace ThrottleControlledAvionics
 				jets_pid.D = ALT.JetsPID.D;
 				if(CFG.AltitudeAboveTerrain)
 					jets_pid.D /= Utils.ClampL(VSL.HorizontalSpeed, 1);
-				jets_pid.D *= error < 0? 1+VSL.Engines.AccelerationTime : 1+VSL.Engines.DecelerationTime;
+				jets_pid.D *= error < 0? 
+                    1+VSL.Engines.AccelerationTime90*ALT.SlowCorrectionF : 
+                    1+VSL.Engines.DecelerationTime10*ALT.SlowCorrectionF;
 				jets_pid.Update(error);
 				CFG.VerticalCutoff = jets_pid.Action;
 //				Log("nAlt {}, alt {}, error {}, hV {}, VSF {}\njPID: {}", 

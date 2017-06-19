@@ -108,8 +108,8 @@ namespace ThrottleControlledAvionics
 			{
 				//estimate time needed to rotate the ship downwards
 				var rotation_time = VSL.Torque.NoEngines? 
-					VSL.Torque.NoEngines.MinRotationTime(90) :
-					VSL.Torque.MaxPossible.RotationTime(90, 0.1f);
+                    VSL.Torque.NoEngines.RotationTime2Phase(90) :
+					VSL.Torque.MaxPossible.RotationTime2Phase(90, 0.1f);
                 //estimate amount fuel needed for the maneuver
                 var vertical_vel = Vector3d.Project(AtTargetVel, AtTargetPos);
                 SetBrakeEndUT(Math.Max(AtTargetUT-GLB.LTRJ.CorrectionOffset+rotation_time, StartUT));

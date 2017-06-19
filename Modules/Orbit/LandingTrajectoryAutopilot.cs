@@ -353,7 +353,7 @@ namespace ThrottleControlledAvionics
 			    VSL.Torque.NoEngines.MinStopTime() > turn_time)
 			   &&
 			   (!VSL.Controls.HaveControlAuthority || rel_dP > 0 ||
-			    VSL.Torque.NoEngines.MinRotationTime(VSL.Controls.AttitudeError) > VSL.Info.Countdown))
+                VSL.Torque.NoEngines.RotationTime2Phase(VSL.Controls.AttitudeError) > VSL.Info.Countdown))
 			{
 				THR.Throttle += (float)Utils.ClampH((1+rel_dP) * turn_time/Utils.Clamp(VSL.Info.Countdown, 1, GLB.ATCB.MaxTimeToAlignment), 1);
 				return true;
@@ -515,7 +515,7 @@ namespace ThrottleControlledAvionics
 				offset = Mathf.Lerp(VSL.Info.TTB, offset, Utils.Clamp(VSL.Engines.TMR-0.1f, 0, 1));
 				VSL.Info.Countdown = trajectory.BrakeEndUT-VSL.Physics.UT-1
 					-Math.Max(offset, LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1)));
-				correct_attitude_with_thrusters(VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError));
+                correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
 				if(obstacle_ahead(trajectory) > 0) 
 				{ decelerate(true); break; }
 				if(VSL.Info.Countdown <= rel_dP ||
@@ -533,7 +533,7 @@ namespace ThrottleControlledAvionics
 				if(Working)
 				{
 					Status("red", "Possible collision detected.");
-					correct_attitude_with_thrusters(VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError));
+                    correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
 					Executor.Execute(VSL.Physics.Up*10);
 					if(obstacle_ahead(trajectory) > 0) { CollisionTimer.Reset(); break; }
 					if(!CollisionTimer.TimePassed) break;
@@ -587,7 +587,7 @@ namespace ThrottleControlledAvionics
 				nose_to_target();
 				setup_for_deceleration();
 				if(correct_landing_site())
-					correct_attitude_with_thrusters(VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError));
+                    correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
 				if(landing_before_target || 
 				   target_within_range && !vessel_within_range)
 					stop_aerobraking();
@@ -693,7 +693,7 @@ namespace ThrottleControlledAvionics
 				if(vessel_within_range || vessel_after_target ||
 				   trajectory.BrakeEndUT-VSL.Physics.UT < LTRJ.ParachutesDeployOffset) 
 					do_aerobraking_if_requested(true);
-				var turn_time = VSL.Torque.MaxPossible.MinRotationTime(VSL.Controls.AttitudeError);
+                var turn_time = VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError);
 				if(!Working)
 				{
 					correct_landing_site();

@@ -53,7 +53,7 @@ namespace ThrottleControlledAvionics
 				(WarpToTime > VSL.Physics.UT || 
 				 VSL.Controls.Aligned && 
 				 (VSL.Physics.NoRotation || VSL.Physics.ConstantRotation));
-			MinAlignmentTime = VSL.Torque.MaxCurrent.MinRotationTime(AttitudeError);
+            MinAlignmentTime = VSL.Torque.MaxCurrent.RotationTime2Phase(AttitudeError);
 			AlignmentFactor = Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0);
 			InvAlignmentFactor = Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1);
 		}

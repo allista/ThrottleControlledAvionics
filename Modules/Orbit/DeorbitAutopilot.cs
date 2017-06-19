@@ -311,7 +311,7 @@ namespace ThrottleControlledAvionics
 				{ 
 					if(VSL.Info.Countdown > 0 ||
 					   trajectory.BrakeStartUT-Math.Max(MAN.NodeUT, VSL.Physics.UT)-VSL.Info.TTB -
-					   VSL.Torque.NoEngines.MinRotationTime(Vector3.Angle(VesselOrbit.vel, MAN.NodeDeltaV)) > CorrectionOffset)
+                       VSL.Torque.NoEngines.RotationTime2Phase(Vector3.Angle(VesselOrbit.vel, MAN.NodeDeltaV)) > CorrectionOffset)
 					{
 						Status("Correcting trajectory..."); 
 						break; 

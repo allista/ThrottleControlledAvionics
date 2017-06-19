@@ -250,7 +250,7 @@ namespace ThrottleControlledAvionics
 				for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
 				{
 					var c = clusters[j];
-					var time = VSL.Torque.NoEngines.RotationTime(Vector3.Angle(loc_dV, c.Dir), 1);
+					var time = VSL.Torque.NoEngines.RotationTime2Phase(Vector3.Angle(loc_dV, c.Dir), 1);
 //					Log("Dir {}, Angle {}, Rot.time: {}, coutdown {}", c.Dir, Vector3.Angle(loc_dV, c.Dir), time, VSL.Info.Countdown);//debug
 					if(VSL.Info.Countdown > 0 && time > VSL.Info.Countdown) continue;
 					time += VSL.Engines.TTB(dVm, c.MaxThrust.magnitude, (float)c.MaxMassFlow, 1);
@@ -275,7 +275,7 @@ namespace ThrottleControlledAvionics
 				for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
 				{
 					var c = clusters[j];
-					var score = VSL.Torque.NoEngines.RotationTime(Vector3.Angle(loc_dV, c.Dir), 1);
+					var score = VSL.Torque.NoEngines.RotationTime2Phase(Vector3.Angle(loc_dV, c.Dir), 1);
 //					Log("Dir {}, Angle {}, Rot.time: {}, coutdown {}", c.Dir, Vector3.Angle(loc_dV, c.Dir), score, VSL.Info.Countdown);//debug
 					var thrust = c.MaxThrust.magnitude;
 					var ttb = VSL.Engines.TTB(dVm, thrust, (float)c.MaxMassFlow, 1);
@@ -361,8 +361,10 @@ namespace ThrottleControlledAvionics
 		public float    MaxThrustM { get; private set; }
 		public float    MaxAccel { get; private set; }
 		public float    TMR { get; private set; }
-		public float    DecelerationTime { get; private set; }
-		public float    AccelerationTime { get; private set; }
+        public float    AccelerationSpeed { get; private set; } //thrust-wighted engine acceleration speed
+        public float    DecelerationSpeed { get; private set; } //thrust-wighted engine deceleration speed
+		public float    AccelerationTime90 { get; private set; } //time it takes to accelerate to 90% of thrust
+        public float    DecelerationTime10 { get; private set; } //time it takes to decelerate to 10% of thrust
 		public bool     Slow { get; private set; }
 
 		public float    MassFlow { get; private set; }
@@ -725,8 +727,10 @@ namespace ThrottleControlledAvionics
 				VSL.Torque.UpdateImbalance(Active.Manual, Active.UnBalanced, Active.Balanced);
 				VSL.TCA.ENG.OptimizeLimitsForTorque(Active.Steering, Vector3.zero);
 			}
-			DecelerationTime = 0f;
-			AccelerationTime = 0f;
+            AccelerationSpeed = 0f;
+            DecelerationSpeed = 0;
+            AccelerationTime90 = 0f;
+            DecelerationTime10 = 0f;
 			MaxDefThrust = Vector3.zero;
 			MaxThrust = Vector3.zero;
 			MaxMassFlow = 0f;
@@ -746,15 +750,25 @@ namespace ThrottleControlledAvionics
 					if(e.useEngineResponseTime && e.finalThrust > 0)
 					{
 						if(e.engineDecelerationSpeed > 0)
-							DecelerationTime += thrust/e.engineDecelerationSpeed;
+							DecelerationSpeed += thrust*e.engineDecelerationSpeed;
 						if(e.engineAccelerationSpeed > 0)
-							AccelerationTime += thrust/e.engineAccelerationSpeed;
+							AccelerationSpeed += thrust*e.engineAccelerationSpeed;
 					}
 				}
 				if(e.isSteering && have_steering) e.InitLimits();
 			}
-			if(DecelerationTime > 0) { DecelerationTime /= total_thrust; Slow = true; }
-			if(AccelerationTime > 0) { AccelerationTime /= total_thrust; Slow = true; }
+            if(AccelerationSpeed > 0)
+            { 
+                AccelerationSpeed /= total_thrust; 
+                AccelerationTime90 = Utils.LerpTime(AccelerationSpeed, 0.9f);
+                Slow = true;
+            }
+            if(DecelerationSpeed > 0) 
+            { 
+                DecelerationSpeed /= total_thrust; 
+                DecelerationTime10 = Utils.LerpTime(DecelerationSpeed, 0.9f);
+                Slow = true;
+            }
 			if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
 			MaxThrustM = MaxThrust.magnitude;
 			MaxVe = MaxThrustM/MaxMassFlow;

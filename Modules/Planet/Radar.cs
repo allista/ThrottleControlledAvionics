@@ -187,7 +187,7 @@ namespace ThrottleControlledAvionics
 			}
 			//calculate closing speed and initial ray direction
 			Dir = Vector3.zero;
-			LookAheadTime = Utils.ClampL(RAD.LookAheadTime/VSL.OnPlanetParams.MaxTWR*VSL.Engines.AccelerationTime, 10);
+			LookAheadTime = Utils.ClampL(RAD.LookAheadTime/VSL.OnPlanetParams.MaxTWR*VSL.Engines.AccelerationTime90, 10);
 			SurfaceVelocity = VSL.PredictedSrfVelocity(GLB.CPS.LookAheadTime);
 			var SurfaceVelocityDir = SurfaceVelocity.normalized;
 			var SurfaceSpeed = (float)SurfaceVelocity.magnitude;
