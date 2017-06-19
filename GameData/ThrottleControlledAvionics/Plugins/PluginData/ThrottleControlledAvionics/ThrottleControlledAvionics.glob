@@ -100,6 +100,8 @@ ALT
 	TimeAhead         = 5
 	FallingTime       = 1  //min. time falling to trigger Loosing Altitude alert
 	
+	SlowCorrectionF = 0.5
+	
 	RocketPID
 	{
 		P = 0.3	
@@ -170,7 +172,9 @@ HSC
 	RotationUpperThreshold     = 30
 	TranslationMaxAngle        = 80
 	RotationMaxAngle           = 15
+	
 	ManualTranslationIMinSpeed = 20
+	ManualTranslationThrustF   = 6
 		
 	ManualTranslationPID
 	{
@@ -236,7 +240,7 @@ PN
 	OnPathMinDistance    = 6
 	MinTime              = 5
 	
-	DistanceFactor       = 0.3
+	DistanceFactor       = 0.5
 	AngularAccelFactor   = 3
 	DirectNavThreshold   = 1
 	GCNavStep            = 0.1
@@ -255,6 +259,25 @@ PN
 	
 	BrakeOffset          = 0.9
 	PitchRollAAf         = 100
+	
+	MaxSpeedFilterUp     = 1000
+	MaxSpeedFilterDown   = 100
+	RotationAccelPhase   = 0.1
+	CorrectionEasingRate = 0.3
+	
+	DistancePID
+	{
+		P = 0.5
+		I = 0
+		D = 0.5
+	}
+	
+	CorrectionPID
+	{
+		P = 1
+		I = 0.5
+		D = 0.0
+	}
 	
 	LateralPID
 	{
