@@ -45,6 +45,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float RotationMaxAngle           = 15f;
 
 			[Persistent] public float ManualTranslationIMinSpeed = 20f;
+            [Persistent] public float ManualTranslationThrustF   = 11.47f;
 			[Persistent] public PIDf_Controller ManualTranslationPID = new PIDf_Controller(0.5f, 0, 0.5f, 0, 1);
 
 			public float TranslationMaxCos;
@@ -254,9 +255,10 @@ namespace ThrottleControlledAvionics
 							                               VSL.Physics.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
 							BRC.DirectionOverride = rot*pure_hV;
 							transF = Utils.ClampL(Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized), 0);
-							transF *= transF*transF*transF;
 						}
 					}
+                    transF *= Utils.Clamp(1+Vector3.Dot(thrust.normalized, pure_hV.normalized)*HSC.ManualTranslationThrustF, 0, 1);
+                    transF *= transF*transF*transF;
 					translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslationIMinSpeed && 
 					                     VSL.vessel.mainBody.atmosphere)? 
 						HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
