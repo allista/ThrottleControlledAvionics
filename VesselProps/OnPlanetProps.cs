@@ -40,6 +40,8 @@ namespace ThrottleControlledAvionics
 
         public Vector3 Lift { get; private set; } //current lift vector
         public Vector3 Drag { get; private set; } //current drag vector
+        public float  vLift { get; private set; } //current vertical lift kN
+        public Vector3 AeroForce { get; private set; } //current lift+drag vector
         public Vector3 AeroTorque { get; private set; } //current torque produced by aero forcess
 
 		public float   MaxTWR { get; private set; }
@@ -133,11 +135,12 @@ namespace ThrottleControlledAvionics
                 {
                     var p = VSL.vessel.Parts[i];
                     var r = p.Rigidbody.worldCenterOfMass-VSL.Physics.wCoM;
-                    torque += Vector3.Cross(r, p.dragVector);
-                    drag += p.dragVector;
+                    var d = -p.dragVectorDir * p.dragScalar;
+                    torque += Vector3.Cross(r, d);
+                    drag += d;
                     if(!p.hasLiftModule)
                     {
-                        var lift_mod = p.partTransform.InverseTransformDirection(p.bodyLiftLocalVector);
+                        var lift_mod = p.transform.rotation * (p.bodyLiftScalar * p.DragCubes.LiftForce);
                         torque += Vector3.Cross(r, lift_mod);
                         lift += lift_mod;
                     }
@@ -163,19 +166,18 @@ namespace ThrottleControlledAvionics
 			CurrentThrustAccelerationTime = 0f; CurrentThrustDecelerationTime = 0f; TWRf = 1;
             update_aero_forces();
 			//calculate total downward thrust and slow engines' corrections
-            var actual_force = VSL.Engines.Thrust+Lift+Drag;
-			MaxTWR  = VSL.Engines.MaxThrustM/VSL.Physics.mg;
-            DTWR = Vector3.Dot(actual_force, VSL.Physics.Up) < 0? 
-                Vector3.Project(actual_force, VSL.Physics.Up).magnitude/VSL.Physics.mg : 0f;
-            if(DTWR > MaxTWR) MaxTWR = DTWR;
-			DTWR_filter.TauUp = VSL.Engines.AccelerationTime;
-			DTWR_filter.TauDown = VSL.Engines.DecelerationTime;
+            AeroForce = Lift+Drag;
+            vLift = Vector3.Dot(AeroForce, VSL.Physics.Up);
+            MaxTWR = (VSL.Engines.MaxThrustM+Mathf.Max(vLift, 0))/VSL.Physics.mg;
+            DTWR = Mathf.Max((vLift-Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up))/VSL.Physics.mg, 0);
+			DTWR_filter.TauUp = VSL.Engines.AccelerationTime90;
+			DTWR_filter.TauDown = VSL.Engines.DecelerationTime10;
 			DTWR_filter.Update(DTWR);
 			GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
 			var mVSFtor = (VSL.Torque.MaxPitchRoll.AA_rad > 0)? 
 				Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRoll.AA_rad, GLB.VSC.MaxVSFtwr*GeeVSF) : 0;
 			MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
-            var down_thrust = DTWR*VSL.Physics.mg;
+            var down_thrust = Mathf.Max(vLift, 0);
 			var slow_thrust = 0f;
 			var fast_thrust = 0f;
 			for(int i = 0; i < VSL.Engines.NumActive; i++)
@@ -213,8 +215,10 @@ namespace ThrottleControlledAvionics
 			{
 				//correct setpoint for current TWR and slow engines
 				var rel_slow_thrust = slow_thrust*slow_thrust/controllable_thrust;
-				if(CurrentThrustAccelerationTime > 0) CurrentThrustAccelerationTime = rel_slow_thrust/CurrentThrustAccelerationTime*GLB.VSC.ASf;
-				if(CurrentThrustDecelerationTime > 0) CurrentThrustDecelerationTime = rel_slow_thrust/CurrentThrustDecelerationTime*GLB.VSC.DSf;
+				if(CurrentThrustAccelerationTime > 0) 
+                    CurrentThrustAccelerationTime = rel_slow_thrust/CurrentThrustAccelerationTime*GLB.VSC.ASf;
+				if(CurrentThrustDecelerationTime > 0) 
+                    CurrentThrustDecelerationTime = rel_slow_thrust/CurrentThrustDecelerationTime*GLB.VSC.DSf;
 				//TWR factor
 				var vsf = CFG.VSCIsActive && VSL.VerticalSpeed.Absolute < 0? 
 					Utils.Clamp(1-(Utils.ClampH(CFG.VerticalCutoff, 0)-VSL.VerticalSpeed.Absolute)/GLB.TDC.VSf, 1e-9f, 1) : 1;
