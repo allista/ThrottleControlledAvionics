@@ -316,14 +316,6 @@ namespace ThrottleControlledAvionics
 			attitude_locked = false;
 			needed_lthrust = Vector3.zero;
 			lthrust = Vector3.zero;
-			#if DEBUG
-			Pf.Value = ATCB.PID.P;
-			If.Value = ATCB.PID.I;
-			Df.Value = ATCB.PID.D;
-			SlowF.Value = ATCB.SlowTorqueF;
-			MinAA_F.Value = ATCB.MinAAf;
-			MaxAA_F.Value = ATCB.MaxAAf;
-			#endif
 		}
 
 		public void UpdateCues()
@@ -510,78 +502,6 @@ namespace ThrottleControlledAvionics
 //				Utils.GLVec(e.wThrustPos, e.defThrustDir*2, Color.yellow);
 //			});
 		}
-
-		Vector3Field Pf = new Vector3Field();
-		Vector3Field If = new Vector3Field();
-		Vector3Field Df = new Vector3Field();
-		FloatField SlowF = new FloatField();
-		FloatField MinAA_F = new FloatField();
-		FloatField MaxAA_F = new FloatField();
 		#endif
-
-		public override void Draw()
-		{
-			#if DEBUG
-			DrawDebugLines();
-//			GUILayout.BeginVertical();
-//			if(Pf.Draw("P")) ATCB.PID.P = Pf.Value;
-//			if(If.Draw("I")) ATCB.PID.I = If.Value;
-//			if(Df.Draw("D")) ATCB.PID.D = Df.Value;
-//			GUILayout.BeginHorizontal();
-//			GUILayout.Label("SlowF", GUILayout.ExpandWidth(false));
-//			if(SlowF.Draw()) ATCB.SlowTorqueF = SlowF.Value;
-//			GUILayout.Label("MinAAf", GUILayout.ExpandWidth(false));
-//			if(MinAA_F.Draw()) ATCB.MinAAf = MinAA_F.Value;
-//			GUILayout.Label("MaxAAf", GUILayout.ExpandWidth(false));
-//			if(MaxAA_F.Draw()) ATCB.MaxAAf = MaxAA_F.Value;
-//			GUILayout.EndHorizontal();
-//			GUILayout.BeginHorizontal();
-//			GUILayout.Label(Utils.Format("AA {}\nAAf {}\nSlow {}\n" +
-//			                             "P {}\nI {}\nD {}\n" +
-//			                             "steering {}", 
-//			                             AA, AAf_filter.Value.ClampComponents(ATCB.MinAAf, ATCB.MaxAAf), slow, 
-//			                             steering_pid.P, steering_pid.I, steering_pid.D, steering
-//			                            ), 
-//			                GUILayout.ExpandWidth(true));
-//			GUILayout.EndHorizontal();
-//			GUILayout.EndVertical();
-			#endif
-			GUILayout.BeginHorizontal();
-			GUILayout.Label(new GUIContent("T-SAS", "Thrust attitude control"), 
-			                CFG.AT && !VSL.AutopilotDisabled? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false));
-			if(Utils.ButtonSwitch("Kill", CFG.AT[Attitude.KillRotation], "Kill rotation", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.KillRotation);
-			if(Utils.ButtonSwitch("Hold", CFG.AT[Attitude.HoldAttitude], "Hold current attitude", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.HoldAttitude);
-			if(Utils.ButtonSwitch("Maneuver", CFG.AT[Attitude.ManeuverNode], "Maneuver node", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.ManeuverNode);
-			if(Utils.ButtonSwitch("PG", CFG.AT[Attitude.Prograde], "Prograde", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.Prograde);
-			if(Utils.ButtonSwitch("RG", CFG.AT[Attitude.Retrograde], "Retrograde", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.Retrograde);
-			if(Utils.ButtonSwitch("R+", CFG.AT[Attitude.Radial], "Radial", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.Radial);
-			if(Utils.ButtonSwitch("R-", CFG.AT[Attitude.AntiRadial], "AntiRadial", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.AntiRadial);
-			if(Utils.ButtonSwitch("N+", CFG.AT[Attitude.Normal], "Normal", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.Normal);
-			if(Utils.ButtonSwitch("N-", CFG.AT[Attitude.AntiNormal], "AntiNormal", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.AntiNormal);
-			if(Utils.ButtonSwitch("T+", CFG.AT[Attitude.Target], "Target", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.Target);
-			if(Utils.ButtonSwitch("T-", CFG.AT[Attitude.AntiTarget], "AntiTarget", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.AntiTarget);
-			if(Utils.ButtonSwitch("rV+", CFG.AT[Attitude.RelVel], "Relative Velocity", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.RelVel);
-			if(Utils.ButtonSwitch("rV-", CFG.AT[Attitude.AntiRelVel], "Against Relative Velocity", GUILayout.ExpandWidth(false)))
-				CFG.AT.XToggle(Attitude.AntiRelVel);
-			if(GUILayout.Button("Auto", CFG.AT[Attitude.Custom]? Styles.enabled_button : Styles.grey, GUILayout.ExpandWidth(false)))
-				CFG.AT.OffIfOn(Attitude.Custom);
-			var err = "OFF";
-			if(VSL.AutopilotDisabled) err = "USER";
-			else if(CFG.AT) err = string.Format("Err: {0:F1}°", VSL.Controls.AttitudeError);
-			GUILayout.Label(err, VSL.Controls.Aligned? Styles.green : Styles.white, GUILayout.ExpandWidth(true));
-			GUILayout.EndHorizontal();
-		}
 	}
 }
