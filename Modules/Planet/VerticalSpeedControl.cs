@@ -80,8 +80,10 @@ namespace ThrottleControlledAvionics
 			var raw_setpoint = overriden? SetpointOverride : CFG.VerticalCutoff;
 			var setpoint = raw_setpoint;
 			SetState(TCAState.VerticalSpeedControl);
-			var upAF = -VSL.VerticalSpeed.Derivative
-				*(VSL.VerticalSpeed.Derivative < 0? VSL.OnPlanetParams.CurrentThrustAccelerationTime : VSL.OnPlanetParams.CurrentThrustDecelerationTime)*VSC.UpAf;
+            var upAF = -VSL.VerticalSpeed.Derivative * VSC.UpAf *
+				(VSL.VerticalSpeed.Derivative < 0? 
+                 VSL.OnPlanetParams.CurrentThrustAccelerationTime : 
+                 VSL.OnPlanetParams.CurrentThrustDecelerationTime);
 			if(VSL.OnPlanetParams.MaxDTWR > 0)
 				setpoint += (VSC.TWRf+upAF)/VSL.OnPlanetParams.MaxDTWR;
 			//calculate new VSF
