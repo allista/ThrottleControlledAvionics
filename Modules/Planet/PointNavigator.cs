@@ -43,8 +43,14 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float PitchRollAAf         = 100f;
 			[Persistent] public float FollowerMaxAwaySpeed = 15f;
 
+            [Persistent] public float MaxSpeedFilterUp     = 1000f;
+            [Persistent] public float MaxSpeedFilterDown   = 100f;
+            [Persistent] public float RotationAccelPhase   = 0.1f;
+            [Persistent] public float CorrectionEasingRate = 0.8f;
+
 			[Persistent] public PIDf_Controller DistancePID = new PIDf_Controller(0.5f, 0f, 0.5f, 0, 100);
 			[Persistent] public PIDvd_Controller LateralPID = new PIDvd_Controller(0.5f, 0f, 0.5f, -100, 100);
+            [Persistent] public PIDf_Controller CorrectionPID = new PIDf_Controller(0.5f, 0f, 0.5f, -100, 0);
 
 			public float BearingCutoffCos;
 			public float FormationSpeedSqr;
@@ -64,8 +70,10 @@ namespace ThrottleControlledAvionics
 		public bool Maneuvering { get; private set; }
 		public List<FormationNode> Formation;
 
+        AsymmetricFiterF max_speed = new AsymmetricFiterF();
 		readonly PIDf_Controller DistancePID = new PIDf_Controller();
 		readonly PIDvd_Controller LateralPID = new PIDvd_Controller();
+        readonly PIDf_Controller CorrectionPID = new PIDf_Controller();
 		readonly Timer ArrivedTimer = new Timer();
 		readonly Timer SharpTurnTimer = new Timer();
 
@@ -80,7 +88,6 @@ namespace ThrottleControlledAvionics
 		Timer FormationUpdateTimer = new Timer();
 		bool keep_formation;
 
-
 		HorizontalSpeedControl HSC;
 		AltitudeControl ALT;
 		AutoLander LND;
@@ -93,11 +100,16 @@ namespace ThrottleControlledAvionics
 			DistancePID.Reset();
 			LateralPID.setPID(PN.LateralPID);
 			LateralPID.Reset();
+            CorrectionPID.setPID(PN.CorrectionPID);
+            CorrectionPID.Reset();
 			ArrivedTimer.Period = PN.MinTime;
 			FormationBreakTimer.Period = PN.FormationBreakTime;
 			FormationUpdateTimer.Period = PN.FormationUpdateTimer;
 			CFG.Nav.AddCallback(GoToTargetCallback, Navigation.GoToTarget, Navigation.FollowTarget);
 			CFG.Nav.AddCallback(FollowPathCallback, Navigation.FollowPath);
+            max_speed.TauUp = PN.MaxSpeedFilterUp;
+            max_speed.TauDown = PN.MaxSpeedFilterDown;
+            max_speed.Set(CFG.MaxNavSpeed);
 		}
 
 		protected override void UpdateState() 
@@ -161,10 +173,12 @@ namespace ThrottleControlledAvionics
 			}				
 			else if(CFG.VTOLAssistON) 
 				VSL.GearOn(false);
+            max_speed.Set(CFG.MaxNavSpeed);
 			reset_formation();
 			SetTarget(wp);
 			DistancePID.Reset();
 			LateralPID.Reset();
+            CorrectionPID.Reset();
 			CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 			RegisterTo<Radar>();
 		}
@@ -488,32 +502,54 @@ namespace ThrottleControlledAvionics
 				if(CFG.MaxNavSpeed < 10) CFG.MaxNavSpeed = 10;
 				DistancePID.Min = 0;
 				DistancePID.Max = CFG.MaxNavSpeed;
-				if(cur_vel > 0)
+                if(cur_vel > 0)
 				{
-					var brake_thrust = Mathf.Min(VSL.Physics.mg, VSL.Engines.MaxThrustM/2*VSL.OnPlanetParams.TWRf);
+                    var mg2 = VSL.Physics.mg*VSL.Physics.mg;
+//                    var brake_thrust_act = Vector3.Dot(VSL.Engines.Thrust, vdir);
+                    var brake_thrust = Mathf.Min(VSL.Physics.mg, VSL.Engines.MaxThrustM/2*VSL.OnPlanetParams.TWRf);
+                    var max_thrust = Mathf.Min(Mathf.Sqrt(brake_thrust*brake_thrust + mg2), VSL.Engines.MaxThrustM*0.99f);
 					var manual_thrust = VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
 					if(manual_thrust > brake_thrust) brake_thrust = manual_thrust;
 					else manual_thrust = -1;
-					var eta = hdistance/cur_vel;
-					var max_speed = 0f;
-					if(brake_thrust > 0)
+                    if(brake_thrust > 0)
 					{
-						var brake_accel = brake_thrust/VSL.Physics.M;
-						var brake_time = cur_vel/brake_accel;
+                        var brake_accel = brake_thrust/VSL.Physics.M;
+						var prep_time = 0f;
 						if(manual_thrust < 0) 
 						{
 							var brake_angle = Vector3.Angle(VSL.Engines.CurrentDefThrustDir, vdir)-45;
 							if(brake_angle > 0)
 							{
-								if(VSL.Engines.Slow) brake_time += VSL.Torque.NoEngines.MinRotationTime(brake_angle);
-								else brake_time += VSL.Torque.MaxCurrent.RotationTime(brake_angle, VSL.OnPlanetParams.GeeVSF);
+                                //count rotation of the vessel to braking position
+								if(VSL.Engines.Slow)
+                                {
+                                    prep_time = VSL.Torque.NoEngines.RotationTime3Phase(brake_angle, PN.RotationAccelPhase);
+                                    //also count time needed for the engines to get to full thrust
+                                    prep_time += Utils.LerpTime(VSL.Engines.Thrust.magnitude, VSL.Engines.MaxThrustM, max_thrust, VSL.Engines.AccelerationSpeed);
+                                }
+								else 
+                                    prep_time = VSL.Torque.MaxCurrent.RotationTime2Phase(brake_angle, VSL.OnPlanetParams.GeeVSF);
 							}
 						}
-						max_speed = Utils.ClampL(brake_accel*eta, 1);
-						if(eta <= brake_time*PN.BrakeOffset)
-							HSC.AddRawCorrection((eta/brake_time/PN.BrakeOffset-1)*VSL.HorizontalSpeed.Vector);
+                        var prep_dist = cur_vel*prep_time+CFG.Target.AbsRadius;
+                        var eta = hdistance/cur_vel;
+                        max_speed.TauUp = PN.MaxSpeedFilterUp/eta/brake_accel;
+                        max_speed.TauDown = eta*brake_accel/PN.MaxSpeedFilterDown;
+                        max_speed.Update(prep_dist < hdistance?
+                                         (1+Mathf.Sqrt(1+2/brake_accel*(hdistance-prep_dist)))*brake_accel : 
+                                         2*brake_accel);
+                        CorrectionPID.Min = -VSL.HorizontalSpeed.Absolute;
+                        if(max_speed < cur_vel) 
+                            CorrectionPID.Update(max_speed-cur_vel);
+                        else
+                        {
+                            CorrectionPID.IntegralError *= (1-TimeWarp.fixedDeltaTime*PN.CorrectionEasingRate);
+                            CorrectionPID.Update(0);
+                        }
+                        HSC.AddRawCorrection(CorrectionPID.Action*VSL.HorizontalSpeed.Vector.normalized);
 					}
-					if(max_speed < CFG.MaxNavSpeed) DistancePID.Max = max_speed;
+                    if(max_speed < CFG.MaxNavSpeed)
+                        DistancePID.Max = max_speed;
 				}
 				//take into account vertical distance and obstacle
 				var rel_ahead = VSL.Altitude.Ahead-VSL.Altitude.Absolute;
