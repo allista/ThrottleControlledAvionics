@@ -2,7 +2,15 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.4.1.1** 
+* **v3.4.2**
+    * Improved navigation autopilot (Go To, Follow Path, etc.), especially for low TWR, slow-engine VTOLs and H/VTOL-planes.
+    * Improved usage of Manual engines for translation/horizonal propulsion.
+    * Cruise Control, when engaged, now uses forward direction instead of _low_ current velocity. That is, ships slowly drifting backward will not try to rotate 180deg on the spot.
+    * Added a button to collapse main window.
+    * Fixed ATC+PersistentRotation.
+    * Various bugfixes and small improvements.
+
+* v3.4.1.1
 	* Compatible with KSP-1.3
 
 * v3.4.1
