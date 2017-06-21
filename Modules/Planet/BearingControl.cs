@@ -75,7 +75,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Resume:
 			case Multiplexer.Command.On:
 				RegisterTo<SASBlocker>();
-				NeedRadarWhenMooving();
+                NeedCPSWhenMooving();
 				ForwardDirection = VSL.OnPlanetParams.Fwd;
 				Bearing.Value = (float)VSL.Physics.Bearing(ForwardDirection);
 				break;

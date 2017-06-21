@@ -107,18 +107,21 @@ namespace ThrottleControlledAvionics
 					if(Utils.ButtonSwitch("Go To", CFG.Nav[Navigation.GoToTarget],
 					                      "Fly to current target", GUILayout.ExpandWidth(true)))
 					{
-						CFG.Nav.XOn(Navigation.GoToTarget);
-						if(CFG.Nav[Navigation.GoToTarget]) follow_me();
+                        VSL.Engines.ActivateEnginesAndRun(() => 
+                        {
+                            CFG.Nav.XOn(Navigation.GoToTarget);
+                            if(CFG.Nav[Navigation.GoToTarget]) follow_me();    
+                        });
 					}
 					if(Utils.ButtonSwitch("Follow", CFG.Nav[Navigation.FollowTarget], 
 					                      "Follow current target", GUILayout.ExpandWidth(true)))
-						TCA.SquadAction(tca => 
-					{
-						if(TCA.vessel.targetObject as Vessel == tca.vessel) return;
-						tca.vessel.targetObject = TCA.vessel.targetObject;
-						tca.CFG.Nav.XOn(Navigation.FollowTarget);
-					});
-				}
+                        VSL.Engines.ActivateEnginesAndRun(() => TCA.SquadAction(tca =>
+                    {
+                        if(TCA.vessel.targetObject as Vessel == tca.vessel) return;
+                        tca.vessel.targetObject = TCA.vessel.targetObject;
+                        tca.CFG.Nav.XOn(Navigation.FollowTarget);
+                    }));
+                }
 				else 
 				{
 					GUILayout.Label(new GUIContent("Go To", CFG.Nav.Paused? "Paused" : "No target selected"),  
@@ -168,9 +171,11 @@ namespace ThrottleControlledAvionics
 				{
 					if(Utils.ButtonSwitch("Follow Route", CFG.Nav[Navigation.FollowPath], "", GUILayout.ExpandWidth(true)))
 					{
-						CFG.Nav.XToggle(Navigation.FollowPath);
-						if(CFG.Nav[Navigation.FollowPath])
-							follow_me();
+                        VSL.Engines.ActivateEnginesAndRun(() => 
+                        {
+                            CFG.Nav.XToggle(Navigation.FollowPath);
+                            if(CFG.Nav[Navigation.FollowPath]) follow_me();
+                        });
 					}
 				}
 				else GUILayout.Label(new GUIContent("Follow Route", CFG.Nav.Paused? "Paused" : "Add some waypoints first"), 
@@ -194,6 +199,7 @@ namespace ThrottleControlledAvionics
 		string path_name = "";
 		bool show_path_library;
 		bool show_stock_waypoints;
+        bool was_in_map_view;
 
 		public void TargetUI()
 		{
@@ -201,16 +207,26 @@ namespace ThrottleControlledAvionics
 				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(true));
 			else if(CFG.Target != null)
 			{
-				if(VSL.TargetUsers.Count > 0)
+                GUILayout.BeginHorizontal();
+                if(GUILayout.Button(new GUIContent("Edit Target", "Edit target point"), 
+                                    Styles.active_button, GUILayout.ExpandWidth(true)))
+                {
+                    if(!CFG.Target.IsMovable)
+                        VSL.UpdateTarget(CFG.Target.CopyMovable());
+                    edit_waypoint(CFG.Target);
+                }
+                if(VSL.TargetUsers.Count > 0)
 					GUILayout.Label(new GUIContent("Del Target", "Target point is in use"),
 					                Styles.grey_button, GUILayout.ExpandWidth(true));
 				else if(GUILayout.Button(new GUIContent("Del Target", "Remove target point"), 
 				                         Styles.danger_button, GUILayout.ExpandWidth(true)))
 					VSL.SetTarget(null);
+                GUILayout.EndHorizontal();
 			}
 			else if(GUILayout.Button(new GUIContent("Set Surface Target", "Select target point on the surface"), 
 			                         Styles.active_button, GUILayout.ExpandWidth(true)))
 			{
+                was_in_map_view = MapView.MapIsEnabled;
 				select_single = true;
 				SelectingTarget = true;
 				CFG.GUIVisible = true;
@@ -460,11 +476,18 @@ namespace ThrottleControlledAvionics
 			GUILayout.FlexibleSpace();
 			if(GUILayout.Button("Cancel", Styles.active_button)) close = true;
 			GUILayout.FlexibleSpace();
-			if(LND != null && 
+            if(GUILayout.Button(new GUIContent("◉", "Target this waypoint"), Styles.enabled_button))
+                VSL.SetTarget(null, edited_waypoint);
+            if(GUILayout.Button(new GUIContent("⊥", "Set altitude to ground level"), Styles.active_button))
+            {
+                edited_waypoint.Pos.SetAlt2Surface(VSL.Body);
+                AltField.Value = (float)edited_waypoint.Pos.Alt;
+            }
+            if(Utils.ButtonSwitch("||", edited_waypoint.Pause, "Pause on arrival", GUILayout.Width(25))) 
+                edited_waypoint.Pause = !edited_waypoint.Pause;
+            if(LND != null && 
 			   Utils.ButtonSwitch("Land", edited_waypoint.Land, "Land on arrival"))
 				edited_waypoint.Land = !edited_waypoint.Land;
-			if(Utils.ButtonSwitch("||", edited_waypoint.Pause, "Pause on arrival", GUILayout.Width(25))) 
-				edited_waypoint.Pause = !edited_waypoint.Pause;
 			if(GUILayout.Button("Apply", Styles.confirm_button))
 			{
 				LatField.UpdateValue(); LonField.UpdateValue(); AltField.UpdateValue();
@@ -587,7 +610,8 @@ namespace ThrottleControlledAvionics
 								SelectingTarget = false;
 								select_single = false;
 								VSL.SetTarget(null, t);
-								MapView.ExitMapView();
+                                if(!was_in_map_view)
+                                    MapView.ExitMapView();
 							}
 							else 
 							{

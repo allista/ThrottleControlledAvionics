@@ -95,7 +95,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				NeedRadarWhenMooving();
+				NeedCPSWhenMooving();
 				break;
 
 			case Multiplexer.Command.On:
@@ -105,7 +105,7 @@ namespace ThrottleControlledAvionics
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
-				UnregisterFrom<Radar>();
+				ReleaseCPS();
 				break;
 			}
 		}

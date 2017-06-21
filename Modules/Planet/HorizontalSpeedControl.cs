@@ -129,7 +129,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 				RegisterTo<SASBlocker>();
-				NeedRadarWhenMooving();
+				NeedCPSWhenMooving();
 				break;
 
 			case Multiplexer.Command.On:
@@ -146,7 +146,7 @@ namespace ThrottleControlledAvionics
 
 			case Multiplexer.Command.Off:
 				UnregisterFrom<SASBlocker>();
-				UnregisterFrom<Radar>();
+				ReleaseCPS();
 				CFG.AT.OffIfOn(Attitude.Custom);
 				CFG.BR.OffIfOn(BearingMode.Auto);
 				EnableManualTranslation(false); 

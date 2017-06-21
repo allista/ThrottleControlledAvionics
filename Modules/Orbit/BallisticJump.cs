@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
@@ -89,7 +90,7 @@ namespace ThrottleControlledAvionics
 //				LogFST("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
 				if(!check_patched_conics()) return;
 				UseTarget();
-				NeedRadarWhenMooving();
+				NeedCPSWhenMooving();
 				if(VSL.HasManeuverNode) 
 					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
 				if(stage == Stage.None && !landing) 
@@ -107,48 +108,89 @@ namespace ThrottleControlledAvionics
 				return;
 
 			case Multiplexer.Command.Off:
-				UnregisterFrom<Radar>();
+                ReleaseCPS();
 				SetTarget();
 				reset();
 				break;
 			}
 		}
 
-		protected LandingTrajectory fixed_inclination_orbit(LandingTrajectory old, LandingTrajectory best, 
-                                                            ref Vector3d dir, ref double V, float start_offset)
-		{
-			var StartUT = VSL.Physics.UT+start_offset;
-			if(old != null) 
-			{
-				V += old.DeltaR*(1-CFG.Target.AngleTo(VSL)/Math.PI*0.9)*Body.GeeASL;
-				dir = Quaternion.AngleAxis((float)old.DeltaFi, VSL.Physics.Up.xzy) * dir;
-			}
-			return new LandingTrajectory(VSL, dir*V-VesselOrbit.getOrbitalVelocityAtUT(StartUT), StartUT, 
-			                             CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
-		}
+        class LandingSiteOptimizer : LandingSiteOptimizerBase
+        {
+            readonly BallisticJump m;
+            readonly Vector3d direction;
+            readonly double velocity;
 
-		protected LandingTrajectory orbit_correction(LandingTrajectory old, LandingTrajectory best, 
-                                                     ref double angle, ref double V, double start_offset)
-		{
-			var StartUT = VSL.Physics.UT+start_offset;
-			if(old != null) 
-			{
-				V += old.DeltaR*(1-CFG.Target.AngleTo(VSL)/Math.PI*0.9)*Body.GeeASL;
-				angle += old.DeltaFi;
-			}
-			var vel = VesselOrbit.getOrbitalVelocityAtUT(StartUT);
-			return new LandingTrajectory(VSL, QuaternionD.AngleAxis(angle, VSL.Physics.Up.xzy)*vel.normalized*V - vel, StartUT, 
-			                             CFG.Target, old == null? TargetAltitude : old.TargetAltitude);
-		}
+            public LandingSiteOptimizer(BallisticJump module, double velocity, Vector3d direction, float dtol) : base(dtol)
+            { 
+                m = module;
+                this.direction = direction;
+                this.velocity = velocity;
+            }
+
+            public override IEnumerator<LandingTrajectory> GetEnumerator()
+            {
+                var targetAlt = m.TargetAltitude;
+                var dir = direction;
+                var V = velocity;
+                LandingTrajectory prev = null, cur = null;
+                while(continue_calculation(prev, cur))
+                {       
+                    prev = cur;
+                    var startUT = m.VSL.Physics.UT+BJ.StartOffset;
+                    cur = new LandingTrajectory(m.VSL, 
+                                                dir*V-m.VesselOrbit.getOrbitalVelocityAtUT(startUT), 
+                                                startUT, m.CFG.Target, targetAlt);
+                    if(Best == null || cur.Quality < Best.Quality) Best = cur;
+                    targetAlt = cur.TargetAltitude;
+                    V += cur.DeltaR*(1-m.CFG.Target.AngleTo(m.VSL)/Math.PI*0.9)*m.Body.GeeASL;
+                    dir = Quaternion.AngleAxis((float)cur.DeltaFi, m.VSL.Physics.Up.xzy) * dir;
+                    yield return cur;
+                }
+            }
+        }
+
+        class LandingSiteCorrector : LandingSiteOptimizerBase
+        {
+            readonly BallisticJump m;
+            readonly double velocity;
+
+            public LandingSiteCorrector(BallisticJump module, double velocity, float dtol) : base(dtol)
+            { 
+                m = module;
+                this.velocity = velocity;
+            }
+
+            public override IEnumerator<LandingTrajectory> GetEnumerator()
+            {
+                var V = velocity;
+                var angle = 0.0;
+                var start_offset = Math.Max(m.CorrectionOffset, m.VSL.Torque.NoEngines.TurnTime);
+                var targetAlt = m.TargetAltitude;
+                LandingTrajectory prev = null, cur = null;
+                while(continue_calculation(prev, cur))
+                {       
+                    prev = cur;
+                    var startUT = m.VSL.Physics.UT+start_offset;
+                    var vel = m.VesselOrbit.getOrbitalVelocityAtUT(startUT);
+                    cur = new LandingTrajectory(m.VSL, 
+                                                QuaternionD.AngleAxis(angle, m.VSL.Physics.Up.xzy)*vel.normalized*V - vel, 
+                                                startUT, m.CFG.Target, targetAlt);
+                    if(Best == null || cur.Quality < Best.Quality) Best = cur;
+                    targetAlt = cur.TargetAltitude;
+                    V += cur.DeltaR*(1-m.CFG.Target.AngleTo(m.VSL)/Math.PI*0.9)*m.Body.GeeASL;
+                    angle += cur.DeltaFi;
+                    yield return cur;
+                }
+            }
+        }
 
 		#if DEBUG
 		public static bool ME_orbit = true;
 		#endif
 		void compute_initial_trajectory()
 		{
-			trajectory = null;
 			MAN.MinDeltaV = 1f;
-			stage = Stage.Compute;
 			var tPos = CFG.Target.RelOrbPos(Body);
 			var solver = new LambertSolver(VesselOrbit, tPos+tPos.normalized*LTRJ.FlyOverAlt, VSL.Physics.UT);
 			var vel = (VesselOrbit.vel+solver.dV4TransferME());
@@ -161,7 +203,9 @@ namespace ThrottleControlledAvionics
 			           Vector3d.Exclude(VSL.Physics.Up, vel).normalized *
 			           BJ.StartTangent*(1+CFG.Target.AngleTo(VSL)/Utils.TwoPI)*BJ.InclinationF).normalized.xzy;
 			#endif
-			setup_calculation((o, b) => fixed_inclination_orbit(o, b, ref dir, ref V, BJ.StartOffset));
+            ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LTRJ.Dtol));
+            stage = Stage.Compute;
+            trajectory = null;
 		}
 
 		void accelerate()
@@ -174,11 +218,10 @@ namespace ThrottleControlledAvionics
 
 		protected override void fine_tune_approach()
 		{
-			trajectory = null;
-			stage = Stage.CorrectTrajectory;
-			double angle = 0;
 			double V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
-			setup_calculation((o, b) => orbit_correction(o, b, ref angle, ref V, CorrectionOffset));
+            ComputeTrajectory(new LandingSiteCorrector(this, V, LTRJ.Dtol/2));
+            stage = Stage.CorrectTrajectory;
+            trajectory = null;
 		}
 
 		protected override void UpdateState()
@@ -276,7 +319,7 @@ namespace ThrottleControlledAvionics
 				else if(Utils.ButtonSwitch("Jump To", CFG.AP2[Autopilot2.BallisticJump],
 				                           "Fly to the target using ballistic trajectory.", 
 				                           GUILayout.ExpandWidth(true)))
-					CFG.AP2.XToggle(Autopilot2.BallisticJump);
+                    VSL.XToggleWithEngines(CFG.AP2, Autopilot2.BallisticJump);
 			}
 			else GUILayout.Label(new GUIContent("Jump To", "Target a landed vessel or create a waypoint"),
 			                     Styles.inactive_button, GUILayout.ExpandWidth(true));

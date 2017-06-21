@@ -16,18 +16,16 @@ namespace ThrottleControlledAvionics
 	{
 		public double SearchStart { get; private set; }
 		public Vector3d TargetPos { get; private set; }
-		public double DeltaTA { get; private set; }
-		public double DeltaR { get; private set; }
-		public double MinPeR { get; private set; }
 		public bool KillerOrbit { get; private set; }
+        public Vector3d AtTargetRelPos { get; private set; }
+        public bool DirectHit { get; private set; }
 		public Orbit TargetOrbit { get; private set; }
 
-		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target, double min_PeR, double transfer_time = -1) 
+		public RendezvousTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, WayPoint target, double transfer_time = -1) 
 			: base(vsl, dV, startUT, target) 
 		{ 
-			MinPeR = min_PeR;
 			TransferTime = transfer_time;
-			TargetOrbit = Target.GetOrbit();
+            TargetOrbit = Target.GetOrbit();
 			update(); 
 		}
 
@@ -38,6 +36,18 @@ namespace ThrottleControlledAvionics
 			update();
 		}
 
+        void update_killer(Orbit obt, double endUT)
+        {
+            while(!KillerOrbit && obt != null && obt.referenceBody != null)
+            {
+                var PeR_UT = obt.StartUT+obt.timeToPe;
+                var MinPeR = obt.MinPeR();
+                KillerOrbit |= obt.PeR < MinPeR && PeR_UT < obt.EndUT && PeR_UT < endUT;
+                if(obt.patchEndTransition == Orbit.PatchTransitionType.FINAL) break;
+                obt = obt.nextPatch;
+            }
+        }
+
 		void update()
 		{
 			if(TransferTime < 0)
@@ -46,34 +56,31 @@ namespace ThrottleControlledAvionics
 				TransferTime = AtTargetUT-StartUT;
 			}
 			else AtTargetUT = StartUT+TransferTime;
-			AtTargetPos = Orbit.getRelativePositionAtUT(AtTargetUT);
-			AtTargetVel = Orbit.getOrbitalVelocityAtUT(AtTargetUT);
-			TargetPos = TargetOrbit.getRelativePositionAtUT(AtTargetUT);
-            DistanceToTarget = Utils.ClampL((AtTargetPos-TargetPos).magnitude-VSL.Geometry.MinDistance, 0);
-			DeltaTA = Utils.ProjectionAngle(AtTargetPos, TargetPos, 
-			                                Vector3d.Cross(Orbit.GetOrbitNormal(), AtTargetPos))*
-				Math.Sign(TargetOrbit.period-OrigOrbit.period);
-			DeltaFi = TrajectoryCalculator.RelativeInclination(Orbit, TargetPos);
-			DeltaR = Vector3d.Dot(TargetPos-AtTargetPos, AtTargetPos.normalized);
-			var t_orbit = Target.GetOrbit();
-			var t_vel = t_orbit != null? t_orbit.getOrbitalVelocityAtUT(AtTargetUT) : Vector3d.zero;
-			BrakeDeltaV = t_vel-Orbit.getOrbitalVelocityAtUT(AtTargetUT);
-			BrakeDuration = VSL.Engines.TTB((float)BrakeDeltaV.magnitude);
-            KillerOrbit = Orbit.PeR < MinPeR && Orbit.timeToPe < TransferTime;
+            var obt = TrajectoryCalculator.NextOrbit(Orbit, AtTargetUT);
+            var t_orbit = TrajectoryCalculator.NextOrbit(TargetOrbit, AtTargetUT);
+            AtTargetPos = obt.getRelativePositionAtUT(AtTargetUT);
+			AtTargetVel = obt.getOrbitalVelocityAtUT(AtTargetUT);
+            TargetPos = TrajectoryCalculator.RelativePosAtUT(obt.referenceBody, t_orbit, AtTargetUT);
+            AtTargetRelPos = AtTargetPos-TargetPos;
+            DistanceToTarget = AtTargetRelPos.magnitude-VSL.Geometry.MinDistance;
+            DirectHit = DistanceToTarget < 1;
+            DistanceToTarget = Utils.ClampL(DistanceToTarget, 0);
+            BrakeDeltaV = t_orbit.GetFrameVelAtUT(AtTargetUT)-obt.GetFrameVelAtUT(AtTargetUT);
+			BrakeDuration = VSL.Engines.TTB_Precise((float)BrakeDeltaV.magnitude);
+            //check if this trajectory is too close to any of celestial bodies it passes by
+            KillerOrbit = TransferTime < BrakeDuration+ManeuverDuration;
+            update_killer(OrigOrbit, StartUT);
+            update_killer(Orbit, AtTargetUT);
 //            Utils.Log("{}", this);//debug
 		}
 
 		public override string ToString()
 		{
 			return base.ToString() +
-				Utils.Format("\nTargetOrbit:\n{}\n" +
-				             "DeltaTA: {} deg\n" +
-				             "DeltaR: {} m\n" +
-				             "MinPeR: {} m\n" +
+				Utils.Format("\n{}\n" +
 				             "Killer: {}\n",
-				             TargetOrbit,
-				             DeltaTA, 
-				             DeltaR, MinPeR, KillerOrbit);
+                             Utils.formatPatches(TargetOrbit, "TargetOrbit"),
+                             KillerOrbit);
 		}
 	}
 }

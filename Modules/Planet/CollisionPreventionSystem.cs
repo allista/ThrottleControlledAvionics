@@ -16,11 +16,11 @@ using AT_Utils;
 namespace ThrottleControlledAvionics
 {
 	[CareerPart]
-	[RequireModules(typeof(HorizontalSpeedControl))]
-	[OptionalModules(typeof(VerticalSpeedControl))]
-	[OverrideModules(typeof(AltitudeControl),
-	                 typeof(VTOLAssist))]
-	public class CollisionPreventionSystem : TCAModule
+    [OptionalModules(typeof(HorizontalSpeedControl),
+                     typeof(VerticalSpeedControl))]
+    [OverrideModules(typeof(AltitudeControl),
+                     typeof(VTOLAssist))]
+    public class CollisionPreventionSystem : TCAService
 	{
 		public class Config : ModuleConfig
 		{
@@ -43,7 +43,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
-			IsActive &= CFG.UseCPS && CFG.HF && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null; 
+            IsActive &= CFG.UseCPS && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null && HasActiveClients; 
 			if(IsActive) return;
 			Correction = Vector3.zero;
 		}
@@ -55,6 +55,8 @@ namespace ThrottleControlledAvionics
 		IEnumerator scanner;
 		readonly LowPassFilterV filter = new LowPassFilterV();
 		readonly Timer ManeuverTimer = new Timer();
+
+        public Vector3 CourseCorrection { get { return Correction.IsZero()? Correction : filter.Value; } }
 
 		public override void Init()
 		{
@@ -232,7 +234,7 @@ namespace ThrottleControlledAvionics
 				               out raycastHit, dist, RadarMask))
 					vR = (raycastHit.point-v.CurrentCoM).magnitude;
 				vT = v.ReferenceTransform;
-                vB = v.BoundsWithExhaust(vT);
+				vB = v.BoundsWithExhaust(vT);
 			}
 			//compute course correction
 			var dV = VSL.vessel.srf_velocity-v.srf_velocity+(VSL.vessel.acceleration-v.acceleration)*CPS.LookAheadTime;
@@ -308,21 +310,21 @@ namespace ThrottleControlledAvionics
 			if(Correction.IsZero()) return;
 			filter.Update(Correction.ClampComponents(-CPS.MaxAvoidanceSpeed, CPS.MaxAvoidanceSpeed));
 			//correct needed vertical speed
-			if(CFG.VF[VFlight.AltitudeControl])
+            if(VSC != null && CFG.VF[VFlight.AltitudeControl])
 			{
 				var dVSP = (float)Vector3d.Dot(filter.Value, VSL.Physics.Up);
-				if(VSC != null &&
-				   (dVSP > 0 || 
-				    VSL.Altitude.Relative-VSL.Geometry.H +
-				    (dVSP+VSL.VerticalSpeed.Relative)*CPS.LookAheadTime > 0))
-					VSC.SetpointOverride = CFG.VerticalCutoff+dVSP;
+				if(dVSP > 0 || 
+                   VSL.Altitude.Relative-VSL.Geometry.H +
+                   (dVSP+VSL.VerticalSpeed.Relative)*CPS.LookAheadTime > 0)
+                    VSC.SetpointOverride = CFG.VerticalCutoff+dVSP;
 //				else dVSP = 0;//debug
 //				Log("\nCorrection {}\nAction {}\ndVSP {}\ncorrectins: {}", 
 //				    Correction, filter.Value, dVSP,
 //				    Corrections.Aggregate("\n", (s, v) => s+v+"\n"));//debug
 			}
 			//correct horizontal course
-			HSC.AddWeightedCorrection(Vector3d.Exclude(VSL.Physics.Up, filter.Value));
+            if(HSC != null) 
+                HSC.AddWeightedCorrection(Vector3d.Exclude(VSL.Physics.Up, filter.Value));
 		}
 	}
 }

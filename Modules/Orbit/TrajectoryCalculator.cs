@@ -10,7 +10,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using FinePrint.Utilities;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -31,34 +30,43 @@ namespace ThrottleControlledAvionics
 
 		protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 		//multiple inheritance or some sort of mixins or property extensions would be great here =/
-		protected Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
-		protected CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
-		protected Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
-        protected double ManeuverOffset { get { return Math.Max(TRJ.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime); } }
-        protected double CorrectionOffset { get { return Math.Max(TRJ.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime); } }
+        public Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
+        public CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
+        public Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
+        public double ManeuverOffset { get { return Math.Max(TRJ.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime); } }
+        public double CorrectionOffset { get { return Math.Max(TRJ.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime); } }
+        public double MinPeR { get { return VesselOrbit.MinPeR(); } }
 
-        protected double MinPeR 
-        { 
-            get 
-            { 
-                return Body.atmosphere? 
-                    Body.Radius+Body.atmosphereDepth+1000 : 
-                    Body.Radius+CelestialUtilities.GetHighestPeak(Body)+1000; 
-            } 
-        }
-
-		protected static Orbit NextOrbit(Orbit orb, double UT)
+		public static Orbit NextOrbit(Orbit orb, double UT)
 		{
 			while(orb != null && 
                   orb.nextPatch != null && 
-			      orb.nextPatch.referenceBody != null 
-			      && orb.EndUT < UT)
+			      orb.nextPatch.referenceBody != null &&
+                  orb.patchEndTransition != Orbit.PatchTransitionType.FINAL &&
+			      orb.EndUT < UT)
 				orb = orb.nextPatch;
 			return orb;
 		}
 
 		protected Orbit NextOrbit(double UT)
 		{ return NextOrbit(VesselOrbit, UT); }
+
+        public static Orbit LastOrbit(Orbit orb)
+        {
+            while(orb != null && 
+                  orb.nextPatch != null && 
+                  orb.nextPatch.referenceBody != null &&
+                  orb.patchEndTransition != Orbit.PatchTransitionType.FINAL)
+                orb = orb.nextPatch;
+            return orb;
+        }
+
+        public static bool DiscontiniousOrbit(Orbit o)
+        {
+            return o.EndUT > 0 && !double.IsInfinity(o.EndUT) &&
+                (o.patchEndTransition == Orbit.PatchTransitionType.ESCAPE ||
+                 o.patchEndTransition == Orbit.PatchTransitionType.IMPACT);
+        }
 
 		protected Vector3d hV(double UT) { return VesselOrbit.hV(UT); }
 
@@ -119,6 +127,10 @@ namespace ThrottleControlledAvionics
 //                    Utils.Message("Circular orbit was corrected!");
 				}
 			}
+            obt.StartUT = UT;
+            obt.EndUT = UT+obt.period;
+            obt.patchEndTransition = Orbit.PatchTransitionType.FINAL;
+            obt.patchStartTransition = Orbit.PatchTransitionType.MANEUVER;
 			return obt;
 		}
 
@@ -138,6 +150,15 @@ namespace ThrottleControlledAvionics
 		{ return NewOrbit(VesselOrbit, dV4C(VesselOrbit, dir, UT), UT); }
 
 		protected Orbit CircularOrbit(double UT) { return CircularOrbit(hV(UT), UT); }
+
+        public static Orbit CircularOrbit(CelestialBody body, Vector3d pos, Vector3d dir, double UT)
+        {
+            var vel = dir.normalized*Math.Sqrt(body.gMagnitudeAtCenter/pos.magnitude);
+            var obt = new Orbit();
+            obt.UpdateFromStateVectors(pos, vel, body, UT);
+            obt.Init();
+            return obt;
+        }
 
 		public static Vector3d dV4Pe(Orbit old, double R, double UT, Vector3d add_dV = default(Vector3d))
 		{
@@ -357,6 +378,34 @@ namespace ThrottleControlledAvionics
 				Math.Sqrt((2/R - 1/sma)*body.gravParameter) - vel;
 		}
 
+        public static Vector3d dV4T2(Orbit old, double T, double UT)
+        {
+            var up = old.period < T;
+            var vel = old.getOrbitalVelocityAtUT(UT);
+            var velM = vel.magnitude;
+            var dir = vel/velM;
+            var maxV = up? 1.0 :  0.0;
+            var minV = up? 0.0 : -velM;
+            if(up)
+            {
+                var t = old.period;
+                while(t < T)
+                {
+                    maxV *= 2;
+                    t = NewOrbit(old, dir*maxV, UT).period;
+                }
+            }
+            while(maxV-minV > TRJ.dVtol)
+            {
+                var v = (maxV+minV)/2;
+                var t = NewOrbit(old, dir*v, UT).period;
+//                Utils.Log("{} : {} : {} = {}/{}", minV, v, maxV, t, T);//debug
+                if(t > T) maxV = v;
+                else minV = v;
+            }
+            return dir*(maxV+minV)/2;
+        }
+
 		public static Vector3d dV4Resonance(Orbit old, Orbit target, double TTR, double alpha, double UT)
 		{ 
 			if(alpha < 0) 
@@ -364,7 +413,7 @@ namespace ThrottleControlledAvionics
 				var minTTR = -alpha*target.period/old.period*1.1;
 				if(TTR < minTTR) TTR = minTTR;
 			}
-			return dV4T(old, target.period/(1+alpha*target.period/old.period/TTR), UT);
+			return dV4T2(old, target.period/(1+alpha*target.period/old.period/TTR), UT);
 		}
 
 		/// <summary>
@@ -378,81 +427,133 @@ namespace ThrottleControlledAvionics
 		/// <param name="UT">Starting UT.</param>
 		public static Vector3d dV4TTR(Orbit old, Orbit target, double max_TTR, double max_dV, double min_PeR, double UT)
 		{
-			double min_dV;
-			Vector3d dV, dVdir;
-			double alpha, resonance;
-			var TTR = TimeToResonance(old, target, UT, out resonance, out alpha);
-//			Utils.Log("\nTTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
-			if(TTR > max_TTR) dV = dV4Resonance(old, target, Math.Max(max_TTR/2, 0.75), alpha, UT);
-			else return Vector3d.zero;
-			min_dV = dV.magnitude;
-			dVdir  = dV/min_dV;
-			if(min_dV > max_dV) min_dV = max_dV;
-            if(NewOrbit(old, dVdir*min_dV, UT).PeR > min_PeR) return dVdir*min_dV;
-			max_dV = min_dV;
-			min_dV = 0;
-			//tune orbit for maximum dV but PeR above the min_PeR
-			while(max_dV-min_dV > TRJ.dVtol)
-			{
-				var dVm  = (max_dV+min_dV)/2;
-				var orb  = NewOrbit(old, dVdir*dVm, UT);
-				if(orb.PeR > min_PeR) min_dV = dVm;
-				else max_dV = dVm;
-			}
-			return dVdir*(max_dV+min_dV)/2;
+            double alpha, resonance;
+            var TTR = TimeToResonance(old, target, UT, out resonance, out alpha);
+            Utils.Log("TTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
+            if(TTR < max_TTR) return Vector3d.zero;
+            TTR = Math.Max(max_TTR/2, 0.75);
+            var dir = old.getOrbitalVelocityAtUT(UT).normalized;
+            //check lower orbits
+            var minV = -max_dV;
+            var maxV = 0.0;
+            var lowTTR = double.MaxValue;
+            double lowV;
+            while(maxV-minV > TRJ.dVtol)
+            {
+                lowV = (maxV+minV)/2;
+                var o = NewOrbit(old, dir*lowV, UT);
+                lowTTR = TimeToResonance(o, target, UT, out resonance, out alpha);
+                if(lowTTR > TTR && o.PeR > min_PeR) maxV = lowV;
+                else minV = lowV;
+            }
+            lowV = (maxV+minV)/2;
+            Utils.Log("lowTTR {}, lowV {}", lowTTR, lowV);//debug
+            //check higher orbits
+            minV = 0;
+            maxV = max_dV;
+            var highTTR = double.MaxValue;
+            double highV;
+            while(maxV-minV > TRJ.dVtol)
+            {
+                highV = (maxV+minV)/2;
+                var o = NewOrbit(old, dir*highV, UT);
+                highTTR = TimeToResonance(o, target, UT, out resonance, out alpha);
+                if(highTTR > TTR) minV = highV;
+                else maxV = highV;
+            }
+            highV = (maxV+minV)/2;
+            Utils.Log("highTTR {}, highV {}", highTTR, highV);//debug
+            //choose the best maneuver
+            if(lowTTR < max_TTR && highTTR < max_TTR)
+                return Math.Abs(lowV) < highV? dir*lowV : dir*highV;
+            if(lowTTR < max_TTR) 
+                return dir*lowV;
+            if(highTTR < max_TTR)
+                return dir*highV;
+            return lowTTR < highTTR? dir*lowV : dir*highV;
 		}
+
+        public static Vector3d RelativePosAtUT(CelestialBody referenceBody, Orbit obt, double UT)
+        { 
+            obt = NextOrbit(obt, UT);
+            return referenceBody == obt.referenceBody? 
+                obt.getRelativePositionAtUT(UT) :
+                (obt.getTruePositionAtUT(UT) - referenceBody.getTruePositionAtUT(UT)).xzy;
+        }
 
 		public static double SqrDistAtUT(Orbit a, Orbit b, double UT)
-		{ return (a.getRelativePositionAtUT(UT)-b.getRelativePositionAtUT(UT)).sqrMagnitude; }
+        { 
+            a = NextOrbit(a, UT); b = NextOrbit(b, UT);
+            return a.referenceBody == b.referenceBody ? 
+                (a.getRelativePositionAtUT(UT) - b.getRelativePositionAtUT(UT)).sqrMagnitude : 
+                (a.getTruePositionAtUT(UT) - b.getTruePositionAtUT(UT)).sqrMagnitude;
+        }
 
-		public static double ClosestApproach(Orbit a, Orbit t, double StartUT, double minDist, out double ApproachUT)
+		public static double ClosestApproach(Orbit a, Orbit t, double fromUT, double minDist, out double ApproachUT)
 		{
-			double UT1;
-			double D1 = NearestApproach(a, t, StartUT, StartUT+a.period, minDist, out UT1);
-			double UT2;
-			double D2 = NearestApproach(a, t, StartUT+a.period, StartUT, minDist, out UT2);
-//            Utils.Log("T1 {}, D1 {}; T2 {}, D2 {}", UT1-StartUT, D1, UT2-StartUT, D2);//debug
-			if(D1 <= D2 || Math.Abs(D1-D2) < GLB.REN.Dtol) { ApproachUT = UT1; return D1; }
-			ApproachUT = UT2; return D2;
+            var minUT = fromUT;
+            var toUT = Math.Max(a.GetEndUT(), t.GetEndUT());
+//            Utils.Log("a.endUT {}, t.endUT {}, toUT {}", a.GetEndUT(), t.GetEndUT(), toUT);//debug
+            if(!double.IsInfinity(toUT))
+            {
+                var dT = (toUT-fromUT)/10;
+                var minD  = double.MaxValue;
+                var UT = fromUT;
+                while(UT <= toUT)
+                {
+                    var d = SqrDistAtUT(a, t, UT);
+//                    Utils.Log("Scan: d {} < minD {}, UT {}, minUT {}, dT {}", d, minD, UT, minUT, dT);//debug
+                    if(d < minD) { minD = d; minUT = UT; }
+                    UT += dT;
+                }
+            }
+            return NearestApproach(a, t, minUT, fromUT, toUT, minDist, out ApproachUT);
 		}
 
-		public static double NearestApproach(Orbit a, Orbit t, double StartUT, double minDist, out double ApproachUT)
-		{ return NearestApproach(a, t, StartUT, StartUT+a.period, minDist, out ApproachUT); }
+        public static double NearestApproach(Orbit a, Orbit t, double fromUT, double minDist, out double ApproachUT)
+        { return NearestApproach(a, t, fromUT, fromUT, fromUT+a.GetEndUT(), minDist, out ApproachUT); }
 
-		public static double NearestApproach(Orbit a, Orbit t, double StartUT, double StopUT, double minDist, out double ApproachUT)
+		public static double NearestApproach(Orbit a, Orbit t, double startUT, double fromUT, double toUT, double minDist, out double ApproachUT)
 		{
-			double UT = StartUT;
-			double dT = (StopUT-StartUT)/10;
+			double UT = startUT;
+			double dT = (toUT-fromUT)/10;
 			bool dir = dT > 0;
-			double lastD = double.MaxValue;
 			double minD  = double.MaxValue;
 			double minUT = UT;
 			minDist *= minDist;
+//            Utils.Log("fromUT {}, toUT {}, startUT {}", fromUT, toUT, startUT);//debug
             //search nearest point
 			while(Math.Abs(dT) > 0.01)
 			{
-				var d = SqrDistAtUT(NextOrbit(a, UT), NextOrbit(t, UT), UT);
+				var d = SqrDistAtUT(a, t, UT);
                 if(d < minD) { minD = d; minUT = UT; }
-				if(d > lastD || 
-				   (dir? UT+dT < StartUT : UT+dT > StartUT) ||
-				   (dir? UT+dT > StopUT  : UT+dT < StopUT))
-					dT /= -2.1;
-				lastD = d;
+//                Utils.Log("Search: d {} < minD {}, UT {}, minUT {}, dT {}", d, minD, UT, minUT, dT);//debug
                 UT += dT;
+                if(d > minD || 
+				   (dir? UT < fromUT : UT > fromUT) ||
+				   (dir? UT > toUT  : UT < toUT))
+                {
+					dT /= -2.1;
+                    UT = Utils.Clamp(minUT+dT, fromUT, toUT);
+                }
 			}
             //if it's too near, find the border of the minDist using binary search
             if(minD < minDist)
             {
-                StopUT = minUT;
-                while(StopUT-StartUT > 0.01)
+                toUT = minUT;
+                while(toUT-fromUT > 0.01)
                 {
-                    minUT = StartUT+(StopUT-StartUT)/2;
-                    minD = SqrDistAtUT(NextOrbit(a, minUT), NextOrbit(t, minUT), minUT)-minDist;
-                    if(minD > 0) StartUT = minUT;
-                    else StopUT = minUT;
+                    minUT = fromUT+(toUT-fromUT)/2;
+                    minD = SqrDistAtUT(a, t, minUT)-minDist;
+                    if(minD > 0) fromUT = minUT;
+                    else toUT = minUT;
                 }
+//                Utils.Log("Result: minD {}, threshold {}", Math.Sqrt(SqrDistAtUT(a, t, minUT)), Math.Sqrt(minUT));//debug
+                minD += minDist;
             }
-            ApproachUT = minUT; return Math.Sqrt(minD+minDist);
+            ApproachUT = minUT;
+//            Utils.Log("Result: minD {}, minUT {}", minD, minUT);//debug
+            return Math.Sqrt(minD);
 		}
 
 		public static double NearestRadiusUT(Orbit orb, double radius, double StartUT, bool descending = true)
@@ -542,6 +643,7 @@ namespace ThrottleControlledAvionics
 		protected double AngleDelta2StartUT(BaseTrajectory old, double angle, double offset, double forward_step, double period)
 		{ return NextStartUT(old, angle/360*period, offset, forward_step); }
 
+        //deprecated
 		protected Vector3d OptimizeManeuver(Func<double, Vector3d> next_dV, ref double StartUT, double offset)
 		{
 			Vector3d dV;
@@ -592,10 +694,77 @@ namespace ThrottleControlledAvionics
 
 	public abstract class TrajectoryCalculator<T> : TrajectoryCalculator where T : BaseTrajectory
 	{
-		protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
+        protected interface TrajectoryOptimizer : IEnumerable<T>
+        {
+            T Best { get; }
+            string Status { get; }
+        }
 
-		public delegate T NextTrajectory(T old, T best);
-		public delegate bool TrajectoryPredicate(T old, T cur, T best);
+        #if DEBUG
+        IEnumerator<T> create_trajecory_calculator(TrajectoryOptimizer optimizer)
+        {
+            yield return null;
+            var I = 0;
+            T t = null;
+            var frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
+            var ioptimizer = optimizer.GetEnumerator();
+            while(true)
+            {
+                var lt = t as LandingTrajectory;
+                if(lt != null) VSL.Info.CustomMarkersWP.Add(lt.SurfacePoint);
+                if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))
+                { yield return t; continue; }
+                if(!ioptimizer.MoveNext()) break;
+                t = ioptimizer.Current;
+                frameI--; I++;
+                if(t == null) 
+                {
+                    Status("white", "{0}\nPush to continue", optimizer.Status);
+                    yield return t;
+                    continue;
+                }
+                clear_nodes();
+                if(frameI <= 0)
+                {
+                    
+                    ManeuverAutopilot.AddNodeRaw(VSL, t.NodeDeltaV, t.StartUT);
+                    if(setp_by_step_computation) 
+                    {
+                        Log("Trajectory #{}\n{}", I, t);
+                        Status("white", "{0}\nPush to continue", optimizer.Status);
+                    }
+                    else Status(optimizer.Status);
+                    yield return t;
+                    frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
+                }
+            }
+            clear_nodes();
+            trajectory = optimizer.Best;
+            Log("Best trajectory:\n{}", trajectory);
+        }
+        #else
+        IEnumerator<T> create_trajecory_calculator(TrajectoryOptimizer optimizer)
+        {
+            yield return null;
+            var frameI = TRJ.PerFrameIterations;
+            foreach(var t in optimizer)
+            {
+                frameI--;
+                if(frameI <= 0)
+                {
+                    Status(optimizer.Status);
+                    frameI = TRJ.PerFrameIterations;
+                    yield return t;
+                }
+            }
+            trajectory = optimizer.Best;
+        }
+        #endif
+
+        protected void ComputeTrajectory(TrajectoryOptimizer optimizer)
+        { trajectory_calculator = create_trajecory_calculator(optimizer); }
+
+		protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
 		protected TimeWarpControl WRP;
 
@@ -603,7 +772,7 @@ namespace ThrottleControlledAvionics
 		{ ManeuverAutopilot.AddNode(VSL, dV, UT); }
 
 		protected void add_trajectory_node()
-		{ ManeuverAutopilot.AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT); }
+		{ ManeuverAutopilot.AddNodeRaw(VSL, trajectory.NodeDeltaV, trajectory.StartUT); }
 
 		protected override void reset()
 		{
@@ -612,90 +781,23 @@ namespace ThrottleControlledAvionics
 			trajectory_calculator = null;
 		}
 
-		#if DEBUG
-		IEnumerator<T> compute_trajectory()
-		{
-			T current = null;
-			T best = null;
-            T old = null;
-			var maxI = TRJ.MaxIterations;
-			var frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
-			do {
-				var lt = current as LandingTrajectory;
-				if(lt != null) VSL.Info.CustomMarkersWP.Add(lt.SurfacePoint);
-				if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))
-				{ yield return null; continue; }
-				clear_nodes();
-                old = current;
-				current = next_trajectory(current, best);
-				if(best == null || better_predicate(old ?? current, current, best)) 
-					best = current;
-				frameI--; maxI--;
-				if(frameI <= 0)
-				{
-					add_node(current.ManeuverDeltaV, current.StartUT);
-					if(setp_by_step_computation) 
-					{
-						Log("Trajectory #{}\n{}", TRJ.MaxIterations-maxI, current);
-						Status("Push to continue");
-					}
-//					else Status("Computing trajectory...");
-					yield return null;
-					frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
-				}
-			} while(current == null || best == null ||
-                    continue_predicate(old ?? current, current, best) && maxI > 0);
-			Log("Best trajectory:\n{}", best);
-			clear_nodes();
-			yield return best;
-		}
-		#else
-		IEnumerator<T> compute_trajectory()
-		{
-			T current = null;
-			T best = null;
-            T old = null;
-			var maxI = TRJ.MaxIterations;
-			var frameI = TRJ.PerFrameIterations;
-			do {
-                old = current;
-				current = next_trajectory(current, best);
-                if(best == null || better_predicate(old ?? current, current, best)) 
-					best = current;
-				frameI--; maxI--;
-				if(frameI <= 0)
-				{
-					yield return null;
-					frameI = TRJ.PerFrameIterations;
-				}
-            } while(current == null || best == null ||
-                    continue_predicate(old ?? current, current, best) && maxI > 0);
-			yield return best;
-		}
-		#endif
-
 		protected T trajectory;
-		protected NextTrajectory next_trajectory;
-		protected TrajectoryPredicate continue_predicate;
-		protected TrajectoryPredicate better_predicate;
 		IEnumerator<T> trajectory_calculator;
 		protected bool computing { get { return trajectory_calculator != null; } }
 		protected bool trajectory_computed()
 		{
 			if(trajectory != null) return true;
-			#if !DEBUG
-			Status("Searching the best trajectory...");	
-			#endif
-			if(trajectory_calculator == null)
-				trajectory_calculator = compute_trajectory();
-			if(trajectory_calculator.MoveNext())
-				trajectory = trajectory_calculator.Current;
-			if(trajectory != null)
-			{ 
-				trajectory_calculator = null;
-				return true;
-			}
-			return false;
+            if(trajectory_calculator == null)
+            {
+                Log("ERROR: trajectory_computed is called while trajectory_calculator is null. This should never happen.");
+                return false;
+            }
+            if(trajectory_calculator.MoveNext()) return false;
+            trajectory_calculator = null;
+            if(trajectory == null) 
+                update_trajectory();
+            ClearStatus();
+            return true;
 		}
 
 		protected abstract T CurrentTrajectory { get; }
@@ -712,24 +814,7 @@ namespace ThrottleControlledAvionics
 
 		protected ManeuverAutopilot MAN;
 
-		protected double Dtol;
 		protected Timer CorrectionTimer = new Timer();
-
-        protected abstract bool continue_calculation(T old, T cur, T best);
-
-        protected virtual bool trajectory_is_better(T old, T cur, T best)
-		{
-			return best.DistanceToTarget < 0 || cur.DistanceToTarget >= 0 && 
-                (cur.DistanceToTarget*cur.DistanceToTarget+cur.ManeuverDeltaV.sqrMagnitude+cur.BrakeDeltaV.sqrMagnitude < 
-                 best.DistanceToTarget*best.DistanceToTarget+best.ManeuverDeltaV.sqrMagnitude+best.BrakeDeltaV.sqrMagnitude);
-		}
-
-		protected virtual void setup_calculation(NextTrajectory next)
-		{
-			next_trajectory = next;
-			continue_predicate = continue_calculation;
-			better_predicate = trajectory_is_better;
-		}
 
         protected void add_target_node()
         {
@@ -741,15 +826,7 @@ namespace ThrottleControlledAvionics
 
 		protected virtual bool check_target()
 		{
-			if(CFG.Target == null) return false;
-			var orb = CFG.Target.GetOrbit();
-			if(orb != null && orb.referenceBody != VSL.Body)
-			{
-				Status("yellow", "This autopilot requires a target to be\n" +
-				       "in the sphere of influence of the same planetary body.");
-				return false;
-			}
-			return true;
+            return CFG.Target != null;
 		}
 
 		protected virtual void setup_target()
@@ -769,7 +846,7 @@ namespace ThrottleControlledAvionics
 			}
 			if(!VSL.Engines.HaveThrusters)
 			{
-				Status("yellow", "Only Maneuver/Manual engines in current profile.\n" +
+				Status("yellow", "There are only Maneuver/Manual engines in current profile.\n" +
 				       "Please, change engines profile.");
 				return false;
 			}

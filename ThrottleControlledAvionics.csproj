@@ -154,8 +154,6 @@
     <Compile Include="Modules\Orbit\Components\ManeuverExecutor.cs" />
     <Compile Include="Modules\Orbit\RendezvousAutopilot.cs" />
     <Compile Include="Modules\Orbit\Components\OrbitalComponent.cs" />
-    <Compile Include="Modules\Orbit\Components\TrajectoryOptimizers.cs" />
-    <Compile Include="Modules\Orbit\Trajectories\CurrentTrajectory.cs" />
     <Compile Include="Navigation\NavPath.cs" />
     <Compile Include="Navigation\WayPoint.cs" />
     <Compile Include="Navigation\PathDB.cs" />
@@ -175,6 +173,10 @@
     <Compile Include="GUI\TCAPartsEditor.cs" />
     <Compile Include="Utils\ComponentDB.cs" />
     <Compile Include="Modules\ModuleTester.cs" />
+    <Compile Include="Testing\REN_Tests.cs" />
+    <Compile Include="Testing\TCA_Test.cs" />
+    <Compile Include="VesselProps\StagingModel.cs" />
+    <Compile Include="Testing\DEO_Tests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -191,6 +193,7 @@
     <Folder Include="Navigation\" />
     <Folder Include="GUI\HUD\" />
     <Folder Include="GUI\Tabs\" />
+    <Folder Include="Testing\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AT_Utils\AT_Utils.csproj">

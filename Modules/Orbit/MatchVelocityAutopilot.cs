@@ -45,7 +45,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			base.UpdateState();
 			IsActive &= 
-				VSL.Engines.HaveThrusters &&
+                (VSL.Engines.HaveThrusters || VSL.Engines.HaveNextStageEngines) &&
 				!VSL.LandedOrSplashed && VSL.orbit != null && 
 				CFG.Target != null && CFG.Target.GetOrbit() != null && 
 				CFG.AP1.Any(Autopilot1.MatchVel, Autopilot1.MatchVelNear);
@@ -90,35 +90,60 @@ namespace ThrottleControlledAvionics
 			Working = false;
 		}
 
-		public static float BrakingDistance(float V0, float thrust, float mflow, float throttle, VesselWrapper VSL, out float ttb)
-		{
-			ttb = VSL.Engines.TTB(V0, thrust, mflow, throttle);
+		public static float BrakeDistance(float V0, VesselWrapper VSL, out float ttb)
+		{ 
+            ttb = VSL.Engines.TTB(V0);
+            var throttle = ThrottleControl.NextThrottle((float)V0, 1, VSL);
             if(CheatOptions.InfinitePropellant)
-                return (V0 - thrust*throttle*ttb/2/VSL.Physics.M)*ttb;
-			return V0*ttb + 
-				thrust/mflow * 
-				((ttb-VSL.Physics.M/mflow/throttle) * 
-				 Mathf.Log((VSL.Physics.M-mflow*throttle*ttb)/VSL.Physics.M) - ttb);
+                return (V0 - VSL.Engines.MaxThrustM*throttle*ttb/2/VSL.Physics.M)*ttb;
+            return V0*ttb + 
+                VSL.Engines.MaxThrustM/VSL.Engines.MaxMassFlow * 
+                ((ttb-VSL.Physics.M/VSL.Engines.MaxMassFlow/throttle) * 
+                 Mathf.Log((VSL.Physics.M-VSL.Engines.MaxMassFlow*throttle*ttb)/VSL.Physics.M) - ttb);
 		}
 
-		public static float BrakingDistance(float V0, VesselWrapper VSL, out float ttb)
-		{ 
-			return BrakingDistance(V0, VSL.Engines.MaxThrustM, VSL.Engines.MaxMassFlow, 
-			                       ThrottleControl.NextThrottle((float)V0, 1, VSL), 
-			                       VSL, out ttb);
-		}
+        public static float BrakeDistance(float V0, float ttb, float thrust, float mass, float mflow, float throttle)
+        {
+            return CheatOptions.InfinitePropellant? 
+                (V0 - thrust*throttle*ttb/2/mass) * ttb : 
+                V0*ttb + thrust/mflow * ((ttb - mass/mflow /throttle) * Mathf.Log((mass - mflow*throttle*ttb) / mass) - ttb);
+        }
+
+        public static float BrakeDistancePrecise(float V0, VesselWrapper VSL, out float ttb)
+        {
+            ttb = 0f;
+            var dist = 0f;
+            var mass = VSL.Physics.M;
+            var throttle = ThrottleControl.NextThrottle(V0, 1, mass, VSL.Engines.MaxThrustM, VSL.Engines.DecelerationTime10);
+            float next_mass;
+            float ttb_cur;
+            while(V0 > 0.1)
+            {
+                throttle = ThrottleControl.NextThrottle(V0, throttle, mass, VSL.Engines.MaxThrustM, VSL.Engines.DecelerationTime10);
+                ttb_cur = EnginesProps.TTB(V0/2, VSL.Engines.MaxThrustM, mass, VSL.Engines.MaxMassFlow, throttle, out next_mass);
+                dist += BrakeDistance(V0, ttb_cur, VSL.Engines.MaxThrustM, mass, VSL.Engines.MaxMassFlow, throttle);
+                ttb += ttb_cur;
+                mass = next_mass;
+                V0 /= 2;
+            }
+            throttle = ThrottleControl.NextThrottle(V0, throttle, mass, VSL.Engines.MaxThrustM, VSL.Engines.DecelerationTime10);
+            ttb_cur = EnginesProps.TTB(V0, VSL.Engines.MaxThrustM, mass, VSL.Engines.MaxMassFlow, throttle, out next_mass);
+            dist += BrakeDistance(V0, ttb_cur, VSL.Engines.MaxThrustM, mass, VSL.Engines.MaxMassFlow, throttle);
+            ttb += ttb_cur;
+            return dist;
+        }
 
 		public static float BrakingOffset(float V0, VesselWrapper VSL, out float ttb)
-		{ return BrakingDistance(V0, VSL, out ttb)/V0; }
+        { return BrakeDistancePrecise(V0, VSL, out ttb)/V0; }
 
 		public static float BrakingOffset(float V0, VesselWrapper VSL)
-		{ float ttb; return BrakingDistance(V0, VSL, out ttb)/V0; }
+        { float ttb; return BrakeDistancePrecise(V0, VSL, out ttb)/V0; }
 
 		public static float BrakingNodeCorrection(float V0, VesselWrapper VSL)
 		{ 
 			float ttb;
-			var offset = BrakingOffset(V0, VSL, out ttb);
-			return  offset - ttb/2;
+            var offset = BrakingOffset(V0, VSL, out ttb);
+			return offset - ttb/2;
 		}
 
 		bool StartCondition(float dV)
@@ -126,7 +151,7 @@ namespace ThrottleControlledAvionics
 			if(Working) return true;
 			if(TTA > 0)
 			{
-				VSL.Info.Countdown = TTA-BrakingOffset(dV, VSL, out VSL.Info.TTB);
+                VSL.Info.Countdown = TTA-BrakeDistancePrecise(dV, VSL, out VSL.Info.TTB);
 				if(VSL.Info.Countdown > 0)
 				{
 					if(VSL.Controls.CanWarp) 
@@ -148,6 +173,7 @@ namespace ThrottleControlledAvionics
 			Vector3 dV;
 			if(CFG.AP1[Autopilot1.MatchVel])
 			{
+                Working = true;
 				dV = CFG.Target.GetObtVelocity()-VSL.vessel.obt_velocity;
 				VSL.Engines.RequestClusterActivationForManeuver(dV);
 				Executor.Execute(dV, GLB.THR.MinDeltaV);
@@ -156,7 +182,7 @@ namespace ThrottleControlledAvionics
 			{
 				double ApprUT;
 				var tOrb = CFG.Target.GetOrbit();
-				var dist = TrajectoryCalculator.NearestApproach(VSL.orbit, tOrb, VSL.Physics.UT, VSL.Geometry.MinDistance+10, out ApprUT);
+                var dist = TrajectoryCalculator.NearestApproach(VSL.orbit, tOrb, VSL.Physics.UT, VSL.Geometry.MinDistance+10, out ApprUT);
 				TTA = (float)(ApprUT-VSL.Physics.UT);
 				switch(stage)
 				{
@@ -176,7 +202,7 @@ namespace ThrottleControlledAvionics
 					stage = Stage.Brake;
 					goto case Stage.Brake;
 				case Stage.Brake:
-					dV = (tOrb.getOrbitalVelocityAtUT(ApprUT)-VSL.orbit.getOrbitalVelocityAtUT(ApprUT)).xzy;
+                    dV = (TrajectoryCalculator.NextOrbit(tOrb, ApprUT).GetFrameVelAtUT(ApprUT)-VSL.orbit.GetFrameVelAtUT(ApprUT)).xzy;
 					VSL.Engines.RequestClusterActivationForManeuver(dV);
 					if(Executor.Execute(dV, GLB.THR.MinDeltaV, StartCondition)) break;
 					reset();

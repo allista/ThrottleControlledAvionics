@@ -42,6 +42,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MaxDPressure       = 3f;    //kPa
 			[Persistent] public float MinDPressure       = 1f;    //kPa
 			[Persistent] public float MachThreshold      = 0.9f;
+            [Persistent] public float MinAerobrakeDensity = 0.4f;
 
 			[Persistent] public int   MaxScanningCycles  = 50;
 			[Persistent] public int   PointsPerFrame     = 5;
@@ -68,39 +69,72 @@ namespace ThrottleControlledAvionics
 		protected ManeuverExecutor Executor;
 		protected PQS_Scanner scanner;
 		protected AtmoSim sim;
-		protected bool scanned;
+		protected bool scanned, flat_target;
 		protected double PressureASL;
 
 		protected Timer dP_up_timer = new Timer(1);
 		protected Timer dP_down_timer = new Timer(1);
 		protected double dP_threshold;
 		protected double landing_deadzone;
+        protected double terminal_velocity;
 		protected double last_dP;
 		protected double rel_dP;
 		protected float last_Err;
+
+        protected bool vessel_within_range;
+        protected bool vessel_after_target;
+        protected bool target_within_range;
+        protected bool landing_before_target;
 
 		protected AttitudeControl ATC;
 		protected ThrottleControl THR;
 		protected BearingControl  BRC;
 		protected AutoLander      LND;
+        protected CollisionPreventionSystem CPS;
 
 		protected double TargetAltitude { get { return CFG.Target.SurfaceAlt(Body); } }
 
 		protected override LandingTrajectory CurrentTrajectory
 		{ get { return new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, false); } }
 
-        protected override bool continue_calculation(LandingTrajectory old, LandingTrajectory cur, LandingTrajectory best)
+
+        protected abstract class LandingSiteOptimizerBase : TrajectoryOptimizer
         {
-            return best.DistanceToTarget > Dtol && 
-                (cur == old || 
-                 Math.Abs(cur.DeltaR-old.DeltaR) > 1e-5 || 
-                 Math.Abs(cur.DeltaFi-old.DeltaFi) > 1e-5);
+            protected readonly double dtol;
+
+            public LandingTrajectory Best { get; protected set; }
+
+            public string Status
+            { 
+                get 
+                { 
+                    if(Best == null)
+                        return "Computing landing trajectory...";
+                    return string.Format("Computing landing trajectory.\n" +
+                                         "Landing site error: {0}", Utils.formatBigValue((float)Best.DistanceToTarget, "m")); 
+                } 
+            }
+
+            protected LandingSiteOptimizerBase(float dtol)
+            { this.dtol = dtol; }
+
+            public abstract IEnumerator<LandingTrajectory> GetEnumerator();
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            { return GetEnumerator(); }
+
+            protected bool continue_calculation(LandingTrajectory prev, LandingTrajectory cur)
+            {
+                return Best == null || prev == null || 
+                    Best.DistanceToTarget > dtol && 
+                    (Math.Abs(cur.DeltaR-prev.DeltaR) > 1e-5 || 
+                     Math.Abs(cur.DeltaFi-prev.DeltaFi) > 1e-5);
+            }
         }
 
 		public override void Init()
 		{
 			base.Init();
-			Dtol = LTRJ.Dtol;
 			CorrectionTimer.Period = LTRJ.CorrectionTimer;
 			StageTimer.action = () => 
 			{
@@ -146,6 +180,18 @@ namespace ThrottleControlledAvionics
 			scanned = false;
 		}
 
+        protected override bool check_target()
+        {
+            if(!base.check_target()) return false;
+            var orb = CFG.Target.GetOrbit();
+            if(orb != null && orb.referenceBody != VSL.Body)
+            {
+                Status("yellow", "Target should be in the same sphere of influence.");
+                return false;
+            }
+            return true;
+        }
+
 		protected bool landing { get { return landing_stage != LandingStage.None; } }
 
 		protected bool check_initial_trajectory()
@@ -159,29 +205,28 @@ namespace ThrottleControlledAvionics
 			var needed_hover_time = LandASAP? LTRJ.HoverTimeThreshold / 5 : LTRJ.HoverTimeThreshold;
 			var enough_fuel = hover_time > needed_hover_time || CheatOptions.InfinitePropellant;
 			if(trajectory.DistanceToTarget < LTRJ.Dtol && enough_fuel) return true;
-			else
+			if(!enough_fuel)
 			{
-				if(!enough_fuel)
-				{
-					status += "WARNING: Not enough fuel for powered landing.\n";
-					if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
-						status += "<i>Landing with parachutes may be possible, " +
-							"but you're advised to supervise the process.</i>\n";
-				}
-				if(trajectory.DistanceToTarget > LTRJ.Dtol)
-					status += string.Format("WARNING: Predicted landing site is too far from the target.\n" +
-					                        "Error is <color=magenta><b>{0}</b></color>\n", 
-					                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
-				status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
-				Status("yellow", status);
-				return false;
+                status += string.Format("WARNING: Fuel is <color=magenta><b>{0:P0}</b></color> below safe margin for powered landing.\n", 
+                                        (needed_hover_time-hover_time)/needed_hover_time);
+				if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
+					status += "<i>Landing with parachutes may be possible, " +
+						"but you're advised to supervise the process.</i>\n";
 			}
+			if(trajectory.DistanceToTarget > LTRJ.Dtol)
+				status += string.Format("WARNING: Predicted landing site is too far from the target.\n" +
+				                        "Error is <color=magenta><b>{0}</b></color>\n", 
+				                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+			status += "<color=red><b>Push to proceed. At your own risk.</b></color>";
+			Status("yellow", status);
+			return false;
 		}
 
 		protected void start_landing()
 		{
 			Working = false;
 			scanned = false;
+            flat_target = false;
 			clear_nodes();
 			update_trajectory();
 			VSL.Controls.StopWarp();
@@ -189,9 +234,6 @@ namespace ThrottleControlledAvionics
 			CFG.AltitudeAboveTerrain = false;
 			landing_stage = LandingStage.Wait;
 			PressureASL = Body.GetPressure(0);
-			#if DEBUG
-			PauseMenu.Display();
-			#endif
 		}
 
 		protected void warp_to_coundown()
@@ -424,20 +466,32 @@ namespace ThrottleControlledAvionics
 		{
 			if(scanned || scanner.FlatRegion != null) return;
 			if(scanner.Idle) scanner.Start(CFG.Target.Pos, LTRJ.MaxScanningCycles, LTRJ.PointsPerFrame);
-			Status("Scanning for <b>flat</b> surface to land: {0:P1}", scanner.Progress);
+			Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", scanner.Progress);
 			if(scanner.Scan()) return;
-			if(scanner.FlatRegion != null && !scanner.FlatRegion.Equals(CFG.Target.Pos))
+            flat_target = scanner.FlatRegion != null && (!scanner.FlatRegion.Equals(CFG.Target.Pos) || !CFG.Target.IsVessel);
+            if(flat_target)
 			{
-				CFG.Target = new WayPoint(scanner.FlatRegion);
-				if(trajectory != null) 
-				{
-					trajectory.TargetAltitude = CFG.Target.Pos.Alt;
-					trajectory.Target = CFG.Target;
-				}
+                if(!scanner.FlatRegion.Equals(CFG.Target.Pos))
+                {
+                    CFG.Target = new WayPoint(scanner.FlatRegion);
+    				if(trajectory != null) 
+    				{
+    					trajectory.TargetAltitude = CFG.Target.Pos.Alt;
+    					trajectory.Target = CFG.Target;
+    				}
+                }
 				Utils.Message("Found flat region for landing.");
 			}
 			scanned = true;
 		}
+
+        bool can_aerobrake()
+        {
+            Log("FlyByAlt {}, BrakeEnd {} > AerobrakeStart {}", 
+                trajectory.BrakeEndDeltaAlt, trajectory.BrakeEndUT, trajectory.AerobrakeStartUT);//debug
+            return Body.atmosphere && UseChutes && VSL.OnPlanetParams.HaveParachutes &&
+                trajectory.BrakeEndUT > trajectory.AerobrakeStartUT;
+        }
 
 		void do_aerobraking_if_requested(bool full = false)
 		{
@@ -458,6 +512,14 @@ namespace ThrottleControlledAvionics
 				VSL.OnPlanetParams.CutActiveParachutes();
 		}
 
+        void stop_aerobraking_if_needed()
+        {
+            if(landing_before_target || 
+               target_within_range && !vessel_within_range ||
+               can_aerobrake())
+                stop_aerobraking();
+        }
+
 		void brake_with_drag()
 		{
 //			ATC.SetCustomRotationW(VSL.Geometry.MaxDragDirection, VSL.vessel.srf_velocity);
@@ -466,10 +528,20 @@ namespace ThrottleControlledAvionics
 			                       VSL.vessel.srf_velocity);
 		}
 
+        bool is_overheating()
+        {
+            return rel_dP > 0 &&
+                VSL.vessel.Parts.Any(p => 
+                                     p.temperature/p.maxTemp > PhysicsGlobals.TemperatureGaugeThreshold || 
+                                     p.skinTemperature/p.skinMaxTemp > PhysicsGlobals.TemperatureGaugeThreshold);
+        }
+
 		protected bool do_land()
 		{
 			if(VSL.LandedOrSplashed) 
 			{ 
+                update_trajectory();//debug
+                Log("LND.Done: landing site error: {}m, {}", trajectory.DistanceToTarget, CFG.Target);//debug
 				stop_aerobraking();
 				THR.Throttle = 0; 
 				SetTarget();
@@ -493,11 +565,11 @@ namespace ThrottleControlledAvionics
 			last_Err = VSL.Controls.AttitudeError;
 			float rel_Ve;
 			Vector3d brake_pos, brake_vel, obt_vel;
-			var vessel_within_range = CFG.Target.DistanceTo(VSL.vessel) < LTRJ.Dtol;
-			var vessel_after_target = Vector3.Dot(VSL.HorizontalSpeed.Vector, CFG.Target.VectorTo(VSL.vessel)) >= 0;
-			var target_within_range = trajectory.DistanceToTarget < LTRJ.Dtol;
-			var landing_before_target = trajectory.DeltaR > 0;
-			var terminal_velocity = compute_terminal_velocity();;
+			vessel_within_range = CFG.Target.DistanceTo(VSL.vessel) < LTRJ.Dtol;
+			vessel_after_target = Vector3.Dot(VSL.HorizontalSpeed.Vector, CFG.Target.VectorTo(VSL.vessel)) >= 0;
+			target_within_range = trajectory.DistanceToTarget < LTRJ.Dtol;
+			landing_before_target = trajectory.DeltaR > 0;
+			terminal_velocity = compute_terminal_velocity();
 			switch(landing_stage)
 			{
 			case LandingStage.Wait:
@@ -520,7 +592,7 @@ namespace ThrottleControlledAvionics
 				{ decelerate(true); break; }
 				if(VSL.Info.Countdown <= rel_dP ||
 				   will_overheat(trajectory.GetAtmosphericCurve(5, VSL.Physics.UT+TRJ.ManeuverOffset)))
-				{ decelerate(false); break; }
+                { decelerate(false); break; }
 				if(VSL.Controls.CanWarp) 
 					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else VSL.Controls.StopWarp();
@@ -540,45 +612,53 @@ namespace ThrottleControlledAvionics
 					start_landing();
 					break;
 				}
-				else
-				{
-					Status("white", "Decelerating. Landing site error: {0}", 
-					       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
-					if(CorrectTarget) 
-						scan_for_landing_site();
-					do_aerobraking_if_requested();
-					if(VSL.Controls.HaveControlAuthority) DecelerationTimer.Reset();
-					if(Vector3d.Dot(VSL.HorizontalSpeed.Vector, CFG.Target.WorldPos(Body)-VSL.Physics.wCoM) < 0)
-					{ if(Executor.Execute(-VSL.vessel.srf_velocity, LTRJ.BrakeEndSpeed)) break; }
-					else if(!DecelerationTimer.TimePassed && 
-					        trajectory.DistanceToTarget > landing_deadzone &&
-					        Vector3d.Dot(CFG.Target.VectorTo(trajectory.SurfacePoint, Body), VSL.HorizontalSpeed.Vector) > 0)
-					{ 
-						THR.Throttle = 0;
-						brake_vel = corrected_brake_velocity(VesselOrbit.vel, VesselOrbit.pos);
-						brake_vel = corrected_brake_direction(brake_vel, VesselOrbit.pos.xzy);
-						VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
-						var aerobraking = rel_dP > 0 && VSL.OnPlanetParams.ParachutesActive;
-						if(!vessel_after_target)
-						{
-							var overheating = rel_dP > 0 &&
-								VSL.vessel.Parts.Any(p => 
-								                     p.temperature/p.maxTemp > PhysicsGlobals.TemperatureGaugeThreshold || 
-								                     p.skinTemperature/p.skinMaxTemp > PhysicsGlobals.TemperatureGaugeThreshold);
-							if(!overheating)
-							{
-								ATC.SetThrustDirW(brake_vel);
-								THR.Throttle = CFG.Target.DistanceTo(VSL.vessel) > trajectory.DistanceToTarget?
-									(float)Utils.ClampH(trajectory.DistanceToTarget/LTRJ.Dtol/2, 1) : 1;
-							}
-							else THR.Throttle = 1;
-						}
-						if(THR.Throttle > 0 || aerobraking) break;
+				Status("white", "Decelerating. Landing site error: {0}", 
+				       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+				if(CorrectTarget) 
+					scan_for_landing_site();
+				do_aerobraking_if_requested();
+                var overheating = is_overheating();
+                if(!overheating && VSL.Engines.GetAvailableFuelMass()/VSL.Engines.MaxMassFlow < 3)
+                {
+                    Message(10, "Not enough fuel for powered landing.\nPerforming emergency landing...");
+                    landing_stage = LandingStage.HardLanding;
+                    break;
+                }
+                if(VSL.Controls.HaveControlAuthority) 
+                    DecelerationTimer.Reset();
+                if(vessel_after_target)
+				{ 
+                    if(Executor.Execute(-VSL.vessel.srf_velocity, LTRJ.BrakeEndSpeed)) 
+                        break; 
+                }
+                else if(overheating ||
+                        !landing_before_target && 
+                        !DecelerationTimer.TimePassed &&
+                        trajectory.DistanceToTarget > landing_deadzone &&
+                        !can_aerobrake())
+				{ 
+					THR.Throttle = 0;
+					brake_vel = corrected_brake_velocity(VesselOrbit.vel, VesselOrbit.pos);
+					brake_vel = corrected_brake_direction(brake_vel, VesselOrbit.pos.xzy);
+					VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
+					var aerobraking = rel_dP > 0 && VSL.OnPlanetParams.ParachutesActive;
+                    if(overheating) THR.Throttle = 1;
+                    else
+					{
+						ATC.SetThrustDirW(brake_vel);
+//                            Log("{}, dist {}/{} = {} * brake dir K {} = {}", 
+//                                CFG.Target.DistanceTo(VSL.vessel) > trajectory.DistanceToTarget,
+//                                trajectory.DistanceToTarget, landing_deadzone, trajectory.DistanceToTarget/landing_deadzone, 
+//                                1/3f/(1+Vector3.Dot(brake_vel.normalized, VSL.Physics.Up)),
+//                                Utils.ClampH(trajectory.DistanceToTarget/landing_deadzone/3
+//                                            /(1+Vector3.Dot(brake_vel.normalized, VSL.Physics.Up)), 1));
+						THR.Throttle = CFG.Target.DistanceTo(VSL.vessel) > trajectory.DistanceToTarget?
+                            (float)Utils.ClampH(trajectory.DistanceToTarget/landing_deadzone/3
+                                                /(1+Vector3.Dot(brake_vel.normalized, VSL.Physics.Up)), 1) : 1;
 					}
+					if(THR.Throttle > 0 || aerobraking) break;
 				}
-				if(landing_before_target || 
-				   target_within_range && !vessel_within_range)
-					stop_aerobraking();
+                stop_aerobraking_if_needed();
 				landing_stage = LandingStage.Coast;
 				break;
 			case LandingStage.Coast:
@@ -586,11 +666,9 @@ namespace ThrottleControlledAvionics
 				THR.Throttle = 0;
 				nose_to_target();
 				setup_for_deceleration();
-				if(correct_landing_site())
+                if(!can_aerobrake() && correct_landing_site())
                     correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
-				if(landing_before_target || 
-				   target_within_range && !vessel_within_range)
-					stop_aerobraking();
+                stop_aerobraking_if_needed();
 				VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
 				VSL.Info.Countdown -= Math.Max(VSL.Info.TTB+VSL.Torque.NoEngines.TurnTime+VSL.vessel.dynamicPressurekPa, ManeuverOffset);
 				if(VSL.Info.Countdown > 0)
@@ -628,33 +706,41 @@ namespace ThrottleControlledAvionics
 				}
 				break;
 			case LandingStage.HardLanding:
-				Status("yellow", VSL.OnPlanetParams.ParachutesActive? 
-				       "Landing on parachutes..." : "Emergency Landing...");
+                var status = VSL.OnPlanetParams.ParachutesActive? 
+                    "<color=yellow><b>Landing on parachutes.</b></color>" : 
+                    "<color=yellow><b>Emergency Landing.</b></color>";
+                status += string.Format("\nVertical impact speed: <color=red><b>{0}</b></color>", 
+                                        Utils.formatBigValue((float)terminal_velocity, "m/s"));
 				set_destination_vector();
 				CFG.BR.Off();
 				var not_too_hot = VSL.vessel.externalTemperature < VSL.Physics.MinMaxTemperature;
 				if(not_too_hot) setup_for_deceleration();
-
-				if(VSL.Engines.MaxThrustM > 0 && 
+                if(VSL.Engines.MaxThrustM > 0 && terminal_velocity > 4 &&
 				   (VSL.Controls.HaveControlAuthority || VSL.Torque.HavePotentialControlAuthority))
 				{
-					rel_Ve = VSL.Engines.RelVeASL;
-					var fuel_left = VSL.Engines.GetAvailableFuelMass();
-					var fuel_needed = rel_Ve > 0? VSL.Engines.FuelNeeded((float)terminal_velocity, rel_Ve) : fuel_left*2;
-					VSL.Info.Countdown -= fuel_left > fuel_needed ? 
-						VSL.Engines.TTB((float)terminal_velocity) : 
-						VSL.Engines.TTB(VSL.Engines.DeltaV(fuel_left));
+                    VSL.Info.TTB = VSL.Engines.OnPlanetTTB(VSL.vessel.srf_velocity, VSL.Physics.Up, VSL.Altitude.Absolute);
+                    VSL.Info.Countdown -= VSL.Info.TTB;
 					if((VSL.Info.Countdown < 0 && 
 					    (!VSL.OnPlanetParams.HaveParachutes || 
 					     VSL.OnPlanetParams.ParachutesActive && VSL.OnPlanetParams.ParachutesDeployed)))
-						THR.Throttle = VSL.VerticalSpeed.Absolute < -5? 1 : VSL.OnPlanetParams.GeeVSF;
-					else if(VSL.Info.Countdown > 0.5f) THR.Throttle = 0;
-					Status("yellow", "Not enough fuel for powered landing.\nWill deceletate as much as possible before impact.");
+                        Working = true;
+                    else if(VSL.Info.Countdown > 0.5f)
+                    {
+                        Working = false;
+                        THR.Throttle = 0;
+                    }
+                    if(Working)
+                    {
+                        THR.CorrectThrottle = false;
+                        THR.Throttle = VSL.VerticalSpeed.Absolute < -5? 1 : VSL.OnPlanetParams.GeeVSF;
+                    }
+                    status += "\nWill deceletate as much as possible before impact.";
 				}
 				if(Body.atmosphere && VSL.OnPlanetParams.HaveUsableParachutes)
 				{
 					if(vessel_within_range || vessel_after_target ||
-					   trajectory.BrakeEndUT-VSL.Physics.UT < LTRJ.ParachutesDeployOffset)
+                       trajectory.BrakeEndUT < trajectory.AerobrakeStartUT ||
+                       trajectory.BrakeEndUT-VSL.Physics.UT < LTRJ.ParachutesDeployOffset)
 						VSL.OnPlanetParams.ActivateParachutesASAP();
 					else 
 						VSL.OnPlanetParams.ActivateParachutesBeforeUnsafe();
@@ -672,34 +758,58 @@ namespace ThrottleControlledAvionics
 						                 VSL.vessel.currentStage-1 > VSL.OnPlanetParams.NearestParachuteStage &&
 						                 VSL.vessel.dynamicPressurekPa > LTRJ.DropBallastThreshold*PressureASL && 
 						                 VSL.vessel.mach > LTRJ.MachThreshold);
-						if(CFG.AutoParachutes) Status("yellow", "Waiting for the right moment to deploy parachutes...");
-						else Status("red", "Automatic parachute deployment is disabled.\nActivate parachutes manually when needed.");
+						if(CFG.AutoParachutes) 
+                            status += "\nWaiting for the right moment to deploy parachutes.";
+						else 
+                            status += "\n<color=red>Automatic parachute deployment is disabled." +
+                                "\nActivate parachutes manually when needed.</color>";
 					}
 				}
-				if(Body.atmosphere) VSL.BrakesOn();
+                if(Body.atmosphere && 
+                   (!not_too_hot || 
+                    trajectory.BrakeEndUT < trajectory.AerobrakeStartUT || 
+                    VSL.Physics.UT > trajectory.AerobrakeStartUT)) 
+                    VSL.BrakesOn();
 				if(!VSL.OnPlanetParams.HaveParachutes && 
 				   !VSL.Engines.HaveNextStageEngines && 
 				   (VSL.Engines.MaxThrustM.Equals(0) || !VSL.Controls.HaveControlAuthority))
 				{
 					if(Body.atmosphere && not_too_hot) brake_with_drag();
-					Status("red", "Crash is imminent.\nVertical impact speed: {0}", Utils.formatBigValue((float)terminal_velocity, "m/s"));
+                    status += "\n<color=red><b>Crash is imminent!</b></color>";
 				}
+                Status(status);
 				break;
 			case LandingStage.SoftLanding:
 				CFG.BR.Off();
 				THR.Throttle = 0;
 				set_destination_vector();
 				setup_for_deceleration();
+//                Log("vessel within range {}, vessel after target {}, chutes start {}, active chutes {}",
+//                    vessel_within_range, vessel_after_target,
+//                    trajectory.BrakeEndUT-VSL.Physics.UT < LTRJ.ParachutesDeployOffset,
+//                    VSL.OnPlanetParams.ActiveParachutes);//debug
 				if(vessel_within_range || vessel_after_target ||
 				   trajectory.BrakeEndUT-VSL.Physics.UT < LTRJ.ParachutesDeployOffset) 
 					do_aerobraking_if_requested(true);
                 var turn_time = VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError);
+                var CPS_Correction = CPS.CourseCorrection;
+                if(!CPS_Correction.IsZero())
+                {
+                    Status("red", "Avoiding collision!");
+                    CFG.Target = trajectory.SurfacePoint;
+                    trajectory.Target = CFG.Target;
+                    trajectory.TargetAltitude = CFG.Target.Pos.Alt;
+                    ATC.SetThrustDirW(CPS_Correction-VSL.vessel.srf_velocity);
+                    THR.DeltaV = CPS_Correction.magnitude+(float)VSL.vessel.srfSpeed;
+                    THR.CorrectThrottle = false;
+                    flat_target = false;
+                    break;
+                }
 				if(!Working)
 				{
 					correct_landing_site();
 					correct_attitude_with_thrusters(turn_time);
-					VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
-						//VSL.Engines.OnPlanetTTB(VSL.vessel.srf_velocity, VSL.Physics.Up);
+                    VSL.Info.TTB = VSL.Engines.OnPlanetTTB(VSL.vessel.srf_velocity, VSL.Physics.Up, VSL.Altitude.Absolute);
 					VSL.Info.Countdown -= VSL.Info.TTB+turn_time;
 					Working = VSL.Info.Countdown <= 0 || VSL.vessel.srfSpeed < LTRJ.BrakeEndSpeed;//TODO: is this correct?
 					if(!Working)
@@ -723,7 +833,8 @@ namespace ThrottleControlledAvionics
 							landing_stage = LandingStage.HardLanding;
 						break; 
 					}
-					if(vessel_within_range || VSL.Altitude.Relative > GLB.LND.WideCheckAltitude)
+                    THR.CorrectThrottle = false;
+                    if(vessel_within_range && flat_target || VSL.Altitude.Relative > GLB.LND.WideCheckAltitude)
 					{
 						var brake_spd = -VSL.VerticalSpeed.Absolute;
 						var min_thrust = Utils.Clamp(brake_spd/(VSL.Engines.MaxAccel-VSL.Physics.G)/
@@ -732,10 +843,10 @@ namespace ThrottleControlledAvionics
 						THR.Throttle = Utils.Clamp(brake_spd/LTRJ.BrakeThrustThreshod, min_thrust, 1);
 					}
 					else THR.Throttle = 1;
-					if(vessel_within_range && VSL.Altitude.Relative > GLB.LND.StopAtH*VSL.Geometry.D ||
+                    if(vessel_within_range && flat_target && VSL.Altitude.Relative > GLB.LND.StopAtH*VSL.Geometry.D ||
 					   VSL.Altitude.Relative > GLB.LND.WideCheckAltitude)
 					{
-						VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
+						VSL.Info.TTB = VSL.Engines.OnPlanetTTB(VSL.vessel.srf_velocity, VSL.Physics.Up, VSL.Altitude.Absolute);
 						VSL.Info.Countdown -= VSL.Info.TTB+turn_time;
 						Working = THR.Throttle > 0.7 || VSL.Info.Countdown < 10;
 						Status("white", "Final deceleration. Landing site error: {0}", 

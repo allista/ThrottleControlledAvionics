@@ -348,10 +348,10 @@ namespace ThrottleControlledAvionics
 			stage = Stage.MoveNext;
 		}
 
-		void land()
+        void land(SurfaceNode n)
 		{
-			var c = center_node;
-			CFG.Anchor = new WayPoint(c.position, VSL.Body);
+            CFG.Anchor = new WayPoint(n.position, VSL.Body);
+            Log("Node.pos - WP.pos: {}", n.position-CFG.Anchor.WorldPos(VSL.Body));//debug
 			CFG.Anchor.Radius = LND.NodeTargetRange;
 			CFG.Target = CFG.Anchor;
 			CFG.Nav.OnIfNot(Navigation.Anchor);
@@ -385,11 +385,10 @@ namespace ThrottleControlledAvionics
 				Status("Checking the surface underneath the ship...");
 				if(!stopped) break;
 				if(scan(1, StartNode, VSL.Geometry.D)) break;
-				if(Nodes == null || center_node == null) 
-				{ wide_check(); break; }
-				TriedNodes.Add(center_node);
-				if(!center_node.flat) wide_check();
-				else land();
+                if(center_node == null) { wide_check(); break; }
+                TriedNodes.Add(center_node);
+                if(!center_node.flat) wide_check();
+                else land(center_node);
 				break;
 			case Stage.FlatCheck:
 				Status("Checking potential landing sites...");
@@ -398,9 +397,8 @@ namespace ThrottleControlledAvionics
 				{
 					if(scan(1, FlatNodes[0], VSL.Geometry.D)) break;
 					FlatNodes.RemoveAt(0);
-					var c = center_node;
-					if(c == null || !c.flat) break;
-					NextNode = c;
+                    if(center_node == null || !center_node.flat) break;
+                    NextNode = center_node;
 					move_next();
 					break;
 				}
@@ -501,53 +499,53 @@ namespace ThrottleControlledAvionics
 		}
 		#endif
 
-		class SurfaceNode
-		{
-			internal class Comparer : IEqualityComparer<SurfaceNode>
-			{
-				readonly float threshold;
+        class SurfaceNode
+        {
+            internal class Comparer : IEqualityComparer<SurfaceNode>
+            {
+                readonly float threshold;
 
-				public Comparer(float threshold) { this.threshold = threshold; }
+                public Comparer(float threshold) { this.threshold = threshold; }
 
-				public bool Equals(SurfaceNode n1, SurfaceNode n2)
-				{ return (n1.position-n2.position).magnitude < threshold; }
+                public bool Equals(SurfaceNode n1, SurfaceNode n2)
+                { return (n1.position-n2.position).magnitude < threshold; }
 
-				public int GetHashCode(SurfaceNode n) 
-				{ return (int)(n.position.x/threshold) ^ (int)(n.position.y/threshold) ^ (int)(n.position.z/threshold); }
-			}
+                public int GetHashCode(SurfaceNode n) 
+                { return (int)(n.position.x/threshold) ^ (int)(n.position.y/threshold) ^ (int)(n.position.z/threshold); }
+            }
 
-			Vector3 up;
-			public Vector3 position;
-			public float unevenness;
-			public bool flat;
-			public readonly  HashSet<SurfaceNode> neighbours = new HashSet<SurfaceNode>();
+            Vector3 up;
+            public Vector3 position;
+            public float unevenness;
+            public bool flat;
+            public readonly  HashSet<SurfaceNode> neighbours = new HashSet<SurfaceNode>();
 
-			public SurfaceNode(Vector3 pos, Vector3 up) 
-			{ 
-				position = pos;
-				this.up  = up; 
-			}
+            public SurfaceNode(Vector3 pos, Vector3 up) 
+            { 
+                position = pos;
+                this.up  = up; 
+            }
 
-			public SurfaceNode(WayPoint wp, CelestialBody body)
-			{
-				position = wp.GetTransform().position;
-				up = body.GetSurfaceNVector(wp.Pos.Lat, wp.Pos.Lon);
-			}
+            public SurfaceNode(WayPoint wp, CelestialBody body)
+            {
+                position = wp.WorldPos(body);
+                up = body.GetSurfaceNVector(wp.Pos.Lat, wp.Pos.Lon);
+            }
 
-			public float DistanceTo(VesselWrapper VSL)
-			{ return Vector3.ProjectOnPlane(position-VSL.Physics.wCoM, VSL.Physics.Up).magnitude; }
+            public float DistanceTo(VesselWrapper VSL)
+            { return Vector3.ProjectOnPlane(position-VSL.Physics.wCoM, VSL.Physics.Up).magnitude; }
 
-			public void UpdateUnevenness(SurfaceNode n)
-			{
-				if(neighbours.Contains(n)) return;
-				var unev = Mathf.Abs(Vector3.Dot((n.position-position).normalized, up));
-				unevenness += unev;
-				n.unevenness += unev;
-				neighbours.Add(n);
-				n.neighbours.Add(this);
-				flat = unevenness < LND.MaxUnevenness;
-			}
-		}
+            public void UpdateUnevenness(SurfaceNode n)
+            {
+                if(neighbours.Contains(n)) return;
+                var unev = Mathf.Abs(Vector3.Dot((n.position-position).normalized, up));
+                unevenness += unev;
+                n.unevenness += unev;
+                neighbours.Add(n);
+                n.neighbours.Add(this);
+                flat = unevenness < LND.MaxUnevenness;
+            }
+        }
 	}
 }
 

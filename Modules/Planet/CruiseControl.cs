@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
 			{
 			case Multiplexer.Command.Resume:
 				RegisterTo<SASBlocker>();
-				NeedRadarWhenMooving();
+				NeedCPSWhenMooving();
 				break;
 
 			case Multiplexer.Command.On:
@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Off:
 				VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
 				UnregisterFrom<SASBlocker>();
-				UnregisterFrom<Radar>();
+				ReleaseCPS();
 				CFG.BR.OffIfOn(BearingMode.User);
 				break;
 			}

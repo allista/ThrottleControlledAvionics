@@ -15,24 +15,26 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
+    public class EnginesStats : VesselProps
+    {
+        public EnginesStats(VesselWrapper vsl) : base(vsl) 
+        { TorqueInfo = new TorqueInfo(vsl); }
+
+        public Vector3 MaxThrust;
+        public Vector3 MaxDefThrust;
+        public double  MaxMassFlow;
+        public double  MaxFuelMass;
+        public double  MaxDeltaV;
+
+        public Vector6 TorqueLimits = new Vector6();
+        public readonly TorqueInfo TorqueInfo;
+
+        public override void Update()
+        { TorqueInfo.Update(TorqueLimits.Max); }
+    }
+
 	public class EnginesProps : VesselProps
 	{
-		public class EnginesStats : VesselProps
-		{
-			public EnginesStats(VesselWrapper vsl) : base(vsl) 
-			{ TorqueInfo = new TorqueInfo(vsl); }
-
-			public Vector3 MaxThrust;
-			public Vector3 MaxDefThrust;
-			public double  MaxMassFlow;
-
-			public Vector6 TorqueLimits = new Vector6();
-			public readonly TorqueInfo TorqueInfo;
-
-			public override void Update()
-			{ TorqueInfo.Update(TorqueLimits.Max); }
-		}
-
 		public class EnginesDB : List<EngineWrapper>
 		{
 			public List<EngineWrapper> Main       = new List<EngineWrapper>();
@@ -284,7 +286,7 @@ namespace ThrottleControlledAvionics
 					score += ttb;
 					var fuel = VSL.Engines.FuelNeeded(dVm, (float)(thrust/c.MaxMassFlow));
 					if(fuel/VSL.Physics.M > GLB.MAN.EfficientCluster) score += fuel*GLB.MAN.EfficiencyWeight;
-//					Log("ttb {}, fuel {}, score {} < min score {}", ttb, fuel, score, min_score);//debug
+//                    Log("thrust {}, dV {}, ttb {}, fuel {}, score {} < min score {}", thrust, dVm, ttb, fuel, score, min_score);//debug
 					if(score < min_score)
 					{
 						min_score = score;
@@ -422,12 +424,24 @@ namespace ThrottleControlledAvionics
 			return thrust;
 		}
 
+        public static float TTB(float dV, float thrust, float mass, float mflow, float throttle, out float end_mass)
+        {
+            if(CheatOptions.InfinitePropellant)
+            {
+                end_mass = mass;
+                return mass/thrust*dV/throttle;
+            }
+            var fuel = FuelNeeded(dV, thrust/mflow, mass);
+            end_mass = mass-fuel;
+            return fuel/mflow/throttle;
+        }
+
 		public float TTB(float dV, float thrust, float mflow, float throttle)
 		{
 			if(thrust.Equals(0)) return float.MaxValue;
 			if(dV.Equals(0)) return 0;
 			return (CheatOptions.InfinitePropellant?
-			        VSL.Physics.M/thrust*dV : FuelNeeded(dV, thrust/mflow)/mflow) / throttle;
+                    VSL.Physics.M/thrust*dV : FuelNeeded(dV, thrust/mflow, VSL.Physics.M)/mflow) / throttle;
 		}
 
 		public float TTB(float dV, float throttle = -1)
@@ -436,6 +450,20 @@ namespace ThrottleControlledAvionics
 			return TTB(dV, MaxThrustM, MaxMassFlow, throttle); 
 		}
 
+        public float TTB_Precise(float dV)
+        {
+            var ttb = 0f;
+            var mass = VSL.Physics.M;
+            var throttle = ThrottleControl.NextThrottle(dV, 1, mass, MaxThrustM, DecelerationTime10);
+            while(dV > 0.1)
+            {
+                throttle = ThrottleControl.NextThrottle(dV, throttle, mass, MaxThrustM, DecelerationTime10);
+                dV /= 2;
+                ttb += TTB(dV, MaxThrustM, mass, MaxMassFlow, throttle, out mass);
+            }
+            throttle = ThrottleControl.NextThrottle(dV, throttle, mass, MaxThrustM, DecelerationTime10);
+            return ttb + TTB(dV, MaxThrustM, mass, MaxMassFlow, throttle, out mass);
+        }
 
 		public float AntigravTTB(float vertical_V, float throttle = -1)
 		{
@@ -447,21 +475,37 @@ namespace ThrottleControlledAvionics
 
 		public float OnPlanetTTB(Vector3 dV, Vector3 up, float alt = float.MinValue)
 		{
-			var Vm = dV.sqrMagnitude;
-			var vV = Mathf.Abs(Vector3.Dot(dV, up));
+            var Vm = dV.sqrMagnitude;
+			var vV = Vector3.Dot(dV, up);
 			var hV = Mathf.Sqrt(Vm-vV*vV);
+            var V = new Vector2(hV, vV);
+            var V0 = V;
 			Vm = Mathf.Sqrt(Vm);
-			var vT = vV/Vm;
-			var hT = hV/Vm;
 			var mflow = MaxMassFlow;
 			var thrust = MaxThrustM;
 			if(VSL.vessel.mainBody.atmosphere && !alt.Equals(float.MinValue))
 				thrust = ThrustAtAlt(Vm, alt, out mflow);
-			return TTB(hV, thrust, mflow, hT) +
-				VSL.Engines.TTB(vV, Utils.ClampL(thrust - VSL.Physics.StG*VSL.Physics.M, 0.1f), mflow, vT);
+			var dT = TTB(Vm, thrust, mflow, 1)/10;
+            var mass = VSL.Physics.M;
+            var min_mass = mass-GetAvailableFuelMass();
+            var g = Vector2.up*VSL.Physics.StG;
+            var Ve = thrust/mflow;
+            var T = 0f;
+//            Log("dT {},  V0 {}", dT, V0);//debug
+            while(mass > min_mass && Vector2.Dot(V, V0) > 0)
+            {
+                var dt = Mathf.Max(dT*V.magnitude/Vm, 0.1f);
+                var m1 = mass-mflow*dt;
+                V += V.normalized*Ve*Mathf.Log(m1/mass)-g*dt;
+                mass = m1;
+                T += dt;
+//                Log("T {}, dT {}, V {}, m {} > {}, V*V0 {}", T, dt, V, mass, min_mass, Vector2.Dot(V, V0));//debug
+            }
+            return T;
 		}
 
-		public float FuelNeeded(float dV, float Ve) { return VSL.Physics.M*(1-Mathf.Exp(-dV/Ve)); }
+        public static float FuelNeeded(float dV, float Ve, float mass) { return mass*(1-Mathf.Exp(-dV/Ve)); }
+        public float FuelNeeded(float dV, float Ve) { return FuelNeeded(dV, Ve, VSL.Physics.M); }
 		public float FuelNeeded(float dV) { return FuelNeeded(dV, MaxVe); }
 		public float FuelNeededAtAlt(float dV, float alt) 
 		{ 
@@ -643,10 +687,10 @@ namespace ThrottleControlledAvionics
 			{
 				for(int i = 0; i < num_engines; i++)
 				{ 
-					var e = All[i]; 
+					var e = All[i];
 					if(e.engine.flameout &&
 					   e.Role != TCARole.MANUAL) 
-						e.forceThrustPercentage(10); 
+						e.forceThrustPercentage(10);
 				}
 			}
 			//sync with active profile
@@ -940,16 +984,34 @@ namespace ThrottleControlledAvionics
 
 		public bool ActivateNextStageOnFlameout()
 		{
+//            Log("NoActiveEngines {}, HaveThrusters {}, HaveNextStage {}", NoActiveEngines, HaveThrusters, HaveNextStageEngines);//debug
 			if(!CFG.AutoStage || !HaveNextStageEngines) return false;
 			var this_engines = All.Where(e => e.Role != TCARole.MANEUVER && e.part.inverseStage >= vessel.currentStage).ToList();
-			return stage_cooldown.RunIf(VSL.ActivateNextStage,
-			                            this_engines.Count == 0 ||
-			                            this_engines.Any(e => e.engine.flameout));
+//            Log("this stage engines: {}", this_engines);//debug
+            if(this_engines.Count == 0 || this_engines.Any(e => e.engine.flameout))
+            { VSL.ActivateNextStage(); return true; }
+            return false;
 		}
-		readonly Timer stage_cooldown = new Timer(0.5);
-
 		public bool ActivateEngines()
 		{ return VSL.Engines.ActivateNextStageOnFlameout() || VSL.Engines.ActivateInactiveEngines(); }
+
+        public void ActivateEnginesAndRun(Callback action)
+        {
+            if(NoActiveEngines)
+            {
+                if(CFG.AutoStage)
+                {
+                    if(HaveNextStageEngines)
+                    {
+                        VSL.ActivateNextStageImmidiate();
+                        VSL.TCA.StartCoroutine(CallbackUtil.WaitUntil(() => !NoActiveEngines, action));
+                    }
+                    else Utils.Message("No engines left to activate");
+                }
+                else Utils.Message("Automatic staging is disabled");
+            }
+            else action();
+        }
 
 		static void collect_fuels(EngineWrapper e, Dictionary<int, PartResourceDefinition> db)
 		{

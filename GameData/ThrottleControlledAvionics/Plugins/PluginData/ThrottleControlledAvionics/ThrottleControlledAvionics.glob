@@ -125,6 +125,7 @@ ATCB
 		D = 5, 5, 5
 	}
 	
+	
 	MaxAA                  = 2
 	MinAAf                 = 0.5
 	MaxAAf                 = 2.5
@@ -138,7 +139,7 @@ ATCB
 	MaxSlowF               = 3
 	AALowPassF             = 1
 	
-	AngleThreshold         = 60 //deg
+	AngleThreshold         = 50 //deg
 	MaxAttitudeError       = 10 //deg
 	AttitudeErrorThreshold = 3  //deg
 	MaxTimeToAlignment     = 15 //s
@@ -374,8 +375,8 @@ STB
 
 THR
 {
-	MinDeltaV       = 0.1 //m/s
-	DeltaVThreshold = 10  //sec
+	MinDeltaV        = 0.1 //m/s
+	DeltaVThreshold  = 10  //sec
 	AttitudeDeadzone = 1  //deg
 }
 
@@ -397,6 +398,16 @@ WRP
 	FramesToSkip = 3
 }
 
+MAN
+{
+	WrapThreshold = 600 //s
+
+	//controls best engine cluster calculation
+	ClosestCluster   = 5   //s
+	EfficientCluster = 0.1 //fraction of vessel mass
+	EfficiencyWeight = 10  //how much the fuel mass will affect cluster selection
+}
+
 MVA
 {
 	TranslationThreshold  = 5     //m/s
@@ -409,7 +420,7 @@ TRJ
 	dV4dRf             = 1e-4
 	MinPeA             = 10000 //m
 	MaxIterations      = 1000
-	PerFrameIterations = 5
+	PerFrameIterations = 10
 	ManeuverOffset     = 60   //s
 	CorrectionOffset   = 20   //s
 }
@@ -438,6 +449,7 @@ LTRJ
 	MaxDPressure       = 3     //kPa
 	MinDPressure       = 0.8   //kPa
 	MachThreshold      = 0.9
+	MinAerobrakeDensity = 0.4
 	
 	MaxScanningCycles  = 50
 	PointsPerFrame     = 5
@@ -448,7 +460,8 @@ LTRJ
 DEO
 {
 	MinLandingAngle    = 20
-	MaxDynPressure     = 8
+	MaxLandingAngle    = 50
+	MaxDynPressure     = 0.9
 	EccSteps           = 10
 }
 

@@ -79,6 +79,18 @@ namespace ThrottleControlledAvionics
 		public ManeuverNode FirstManeuverNode { get { return vessel.patchedConicSolver.maneuverNodes[0]; } }
 		public Vessel.Situations Situation { get { return vessel.situation; } }
 
+        public void UpdateTarget(WayPoint wp)
+        {
+            if(wp != null && CFG.Target != null && wp != CFG.Target)
+            {
+                var t = wp.GetTarget();
+                if(IsActiveVessel)
+                    FlightGlobals.fetch.SetVesselTarget(t, true);
+                else Target = t;
+                CFG.Target = wp;
+            }
+        }
+
 		public void SetTarget(TCAModule user, WayPoint wp = null)
 		{
 			if(wp == null)
@@ -353,7 +365,7 @@ namespace ThrottleControlledAvionics
 		bool stage_is_empty(int stage)
 		{ return !vessel.parts.Any(p => p.hasStagingIcon && p.inverseStage == stage); }
 
-		void activate_next_stage()
+		public void ActivateNextStageImmidiate()
 		{
 			var next_stage = vessel.currentStage;
 			while(next_stage >= 0 && stage_is_empty(next_stage)) next_stage--;
@@ -377,7 +389,13 @@ namespace ThrottleControlledAvionics
 			}
 		}
 		readonly ActionDamper next_cooldown = new ActionDamper(0.5);
-		public void ActivateNextStage() { next_cooldown.Run(activate_next_stage); }
+		public void ActivateNextStage() { next_cooldown.Run(ActivateNextStageImmidiate); }
+
+        public void XToggleWithEngines<T>(Multiplexer<T> mp, T cmd) where T : struct
+        {
+            if(mp[cmd]) mp.XOff();
+            else Engines.ActivateEnginesAndRun(() => mp.XOn(cmd));
+        }
 
 		public void GearOn(bool enable = true)
 		{
