@@ -429,7 +429,6 @@ namespace ThrottleControlledAvionics
 		{
             double alpha, resonance;
             var TTR = TimeToResonance(old, target, UT, out resonance, out alpha);
-            Utils.Log("TTR {}, alpha {}, resonance {}", TTR, alpha, resonance);//debug
             if(TTR < max_TTR) return Vector3d.zero;
             TTR = Math.Max(max_TTR/2, 0.75);
             var dir = old.getOrbitalVelocityAtUT(UT).normalized;
@@ -447,7 +446,6 @@ namespace ThrottleControlledAvionics
                 else minV = lowV;
             }
             lowV = (maxV+minV)/2;
-            Utils.Log("lowTTR {}, lowV {}", lowTTR, lowV);//debug
             //check higher orbits
             minV = 0;
             maxV = max_dV;
@@ -462,7 +460,6 @@ namespace ThrottleControlledAvionics
                 else maxV = highV;
             }
             highV = (maxV+minV)/2;
-            Utils.Log("highTTR {}, highV {}", highTTR, highV);//debug
             //choose the best maneuver
             if(lowTTR < max_TTR && highTTR < max_TTR)
                 return Math.Abs(lowV) < highV? dir*lowV : dir*highV;

@@ -51,7 +51,7 @@ namespace ThrottleControlledAvionics
 			if(HSC != null)
 			{
                 #if DEBUG
-				HSC.DrawDebugLines();//debug
+				HSC.DrawDebugLines();
                 #endif
 				if(Utils.ButtonSwitch("Stop", CFG.HF[HFlight.Stop], 
 				                      "Kill horizontal velocity", GUILayout.ExpandWidth(true)))
@@ -68,7 +68,9 @@ namespace ThrottleControlledAvionics
 			}
 			if(LND != null)
 			{
-//				LND.DrawDebugLines();//debug
+                #if DEBUG
+				LND.DrawDebugLines();
+                #endif
 				if(Utils.ButtonSwitch("Land", CFG.AP1[Autopilot1.Land], 
 				                      "Try to land on a nearest flat surface", GUILayout.ExpandWidth(true)))
 				{

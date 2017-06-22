@@ -620,7 +620,6 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		//test: double timer for cluster activation
 		void activate_cluster(Func<bool> activate)
 		{
 			if(cluster_switch_cooldown.Start() ||

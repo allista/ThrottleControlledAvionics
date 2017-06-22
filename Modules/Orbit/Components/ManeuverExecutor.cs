@@ -45,11 +45,6 @@ namespace ThrottleControlledAvionics
 			//end if below the minimum dV
 			if(dVrem < MinDeltaV) return false;
 			VSL.Engines.ActivateEngines();
-			//test: flameouted engines are automatically excluded from Active,
-			//so this should work without this check; but this needs to be tested
-			//in-game anyway with: MAN, REN, DEO
-//			if(VSL.Engines.MaxThrustM.Equals(0)) 
-//				return VSL.Engines.HaveNextStageEngines;
 			//orient along the burning vector
 			if(dVrem && VSL.Controls.RCSAvailableInDirection(-dV)) 
 				CFG.AT.OnIfNot(Attitude.KillRotation);
@@ -73,8 +68,6 @@ namespace ThrottleControlledAvionics
 				else THR.DeltaV = (float)dVrem;
 			}
 			else THR.DeltaV = (float)dVrem;
-//			Log("\ndVrem: {}\nAttitudeError {}, DeltaV: {}, Throttle {}, RCS {}", 
-//			    dVrem, VSL.Controls.AttitudeError, THR.DeltaV, THR.Throttle, VSL.Controls.RCSAvailableInDirection(-dV));//debug
 			return true;
 		}
 	}

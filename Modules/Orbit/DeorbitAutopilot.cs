@@ -390,7 +390,6 @@ namespace ThrottleControlledAvionics
 		IEnumerator<YieldInstruction> eccentricity_calculator = null;
 		IEnumerator<YieldInstruction> compute_initial_eccentricity()
 		{
-//			Log("Calculating initial orbit eccentricity...");//debug
 			var tPos = CFG.Target.RelOrbPos(Body);
 			var UT = VSL.Physics.UT +
 				AngleDelta(VesselOrbit, tPos, VSL.Physics.UT)/360*VesselOrbit.period;
@@ -406,16 +405,13 @@ namespace ThrottleControlledAvionics
 			var dV = 0.0;
 			var in_plane = Math.Abs(90-Vector3.Angle(tPos, VesselOrbit.GetOrbitNormal())) < 5;
             var maxDynP = DEO.MaxDynPressure*VSL.Torque.MaxPossible.AngularDragResistance;
-            LandingTrajectory trj = new LandingTrajectory(VSL, ini_dV, UT, CFG.Target, TargetAltitude);//debug
-            var atmo_curve = trj.GetAtmosphericCurve(5);//debug
-            Log("in plane {}, ini dV {}, maxDynP {}\nini trj:\n{}", in_plane, ini_dV, maxDynP, trj);//debug
+            var trj = new LandingTrajectory(VSL, ini_dV, UT, CFG.Target, TargetAltitude);
 			yield return null;
 			while(maxV-minV > 1)
 			{
 				dV = (maxV+minV)/2;
 				trj = new LandingTrajectory(VSL, ini_dV+dir*dV, UT, CFG.Target, trj.TargetAltitude);
-				atmo_curve = trj.GetAtmosphericCurve(5);
-				Log("dV: {} : {} : {} m/s\ntrj:\n{}", minV, dV, maxV, trj);//debug
+				var atmo_curve = trj.GetAtmosphericCurve(5);
                 if(trj.FullManeuver && (in_plane || trj.DeltaR < 1) && trj.LandingAngle < DEO.MaxLandingAngle && trj.BrakeDuration > 3 &&
                    (!Body.atmosphere && trj.LandingAngle < DEO.MinLandingAngle || 
                     atmo_curve != null && (atmo_curve[atmo_curve.Count-1].DynamicPressure > maxDynP || will_overheat(atmo_curve))))
@@ -425,7 +421,6 @@ namespace ThrottleControlledAvionics
 			}
 			currentEcc = trj.Orbit.eccentricity;
 			dEcc = currentEcc/DEO.EccSteps;
-			Log("currentEcc: {}, dEcc {}", currentEcc, dEcc);//debug
 		}
 
 		public void DeorbitCallback(Multiplexer.Command cmd)
@@ -520,8 +515,6 @@ namespace ThrottleControlledAvionics
 				Status("Executing deorbit burn...");
 				VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-                update_trajectory();//debug
-                Log("After maneuver trajectory: {}", trajectory);//debug
 				fine_tune_approach();
 				break;
 			case Stage.Correct:

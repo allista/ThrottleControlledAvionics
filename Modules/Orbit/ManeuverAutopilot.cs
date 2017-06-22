@@ -204,8 +204,6 @@ namespace ThrottleControlledAvionics
                NodeCB != Node.patch.referenceBody) 
             { 
                 Message("Maneuver has been interrupted.");
-                if(VSL.HasManeuverNode && Node == Solver.maneuverNodes[0])//debug
-                    Utils.Log("Node has moved\nfrom: {}\nto:   {}", NodeCB, Node.patch.referenceBody);
                 reset(); 
                 return; 
             }

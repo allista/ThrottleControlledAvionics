@@ -487,8 +487,6 @@ namespace ThrottleControlledAvionics
 
         bool can_aerobrake()
         {
-            Log("FlyByAlt {}, BrakeEnd {} > AerobrakeStart {}", 
-                trajectory.BrakeEndDeltaAlt, trajectory.BrakeEndUT, trajectory.AerobrakeStartUT);//debug
             return Body.atmosphere && UseChutes && VSL.OnPlanetParams.HaveParachutes &&
                 trajectory.BrakeEndUT > trajectory.AerobrakeStartUT;
         }
@@ -540,8 +538,6 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL.LandedOrSplashed) 
 			{ 
-                update_trajectory();//debug
-                Log("LND.Done: landing site error: {}m, {}", trajectory.DistanceToTarget, CFG.Target);//debug
 				stop_aerobraking();
 				THR.Throttle = 0; 
 				SetTarget();

@@ -353,8 +353,6 @@ namespace ThrottleControlledAvionics
 			}
 			Physics.AngularDrag /= drag_parts;
 			Engines.Clusters.Update();
-			//test: adjusting vessel stage seems to be not that strightforward
-			Log("max active stage {}, vessel stage {}", max_active_stage, vessel.currentStage);//debug
 			if(max_active_stage >= 0 && 
 			   (vessel.currentStage < 0 || vessel.currentStage > max_active_stage))
 				vessel.currentStage = StageManager.RecalculateVesselStaging(vessel);
