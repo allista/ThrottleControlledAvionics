@@ -10,11 +10,15 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-    public abstract class LND_Test_Base : TCA_Test
+    public abstract class LND_Test_Base<T> : TCA_Test where T : LandingTrajectoryAutopilot
     {
         protected string Save = "";
+        protected double latSpread;
+
         protected Autopilot2 program = Autopilot2.None;
         protected RealTimer delay = new RealTimer(5);
+
+        protected T MOD;
 
         bool level_loaded;
         void onLevelWasLoaded(GameScenes scene) { level_loaded = true; }
@@ -29,8 +33,25 @@ namespace ThrottleControlledAvionics
             return null;
         }
 
-        protected abstract bool GetModule();
-        protected abstract void CreateTarget(System.Random RND);
+        protected virtual bool GetModule()
+        {
+            MOD = TCA.GetModule<T>();
+            return MOD != null;
+        }
+
+        protected virtual void CreateTarget(Random RND)
+        {
+            Coordinates c =  null;
+            while(c == null || c.OnWater)
+            {
+                c = Coordinates.SurfacePoint(RND.NextDouble()*latSpread-latSpread/2,
+                                             RND.NextDouble()*360, 
+                                             VSL.Body);
+                c.SetAlt2Surface(VSL.Body);
+            }
+            VSL.SetTarget(MOD, new WayPoint(c));
+        }
+
         protected abstract void OnLand();
 
         public override bool Update(Random RND)
@@ -71,6 +92,7 @@ namespace ThrottleControlledAvionics
                     CreateTarget(RND);
                     CheatOptions.InfinitePropellant = false;
                     CheatOptions.InfiniteElectricity = true;
+                    Log("Target: {}", CFG.Target);
                     VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(program));
                     break;
                 }
@@ -78,6 +100,7 @@ namespace ThrottleControlledAvionics
                 {
                     MapView.EnterMapView();
                     VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.RCS, true);
+                    delay.Reset();
                     stage = Stage.LAND;
                 }
                 break;
@@ -86,6 +109,7 @@ namespace ThrottleControlledAvionics
                 if(VSL == null || VSL.vessel == null || 
                    VSL.vessel.state == Vessel.State.DEAD)
                 {
+                    Log("Vessel was destroyed:\n{}", FlightLogger.getMissionStats());
                     stage = Stage.FINISH;
                     delay.Reset();
                     break;
@@ -102,7 +126,7 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.FINISH:
                 if(!delay.TimePassed) break;
-                Utils.Log("{}, Done.", GetType().Name);//debug
+                Log("Done.");
                 Cleanup();
                 Setup();
                 break;
@@ -120,49 +144,27 @@ namespace ThrottleControlledAvionics
         public override bool NeedsUpdate { get { return true; } }
     }
 
-    public abstract class DEO_Test_Base : LND_Test_Base
+    public abstract class DEO_Test_Base : LND_Test_Base<DeorbitAutopilot>
     {
-        protected DeorbitAutopilot DEO;
-        protected double latSpread;
-
         protected DEO_Test_Base()
         {
             program = Autopilot2.Deorbit;
         }
 
-        protected override bool GetModule()
-        {
-            DEO = TCA.GetModule<DeorbitAutopilot>();
-            return DEO != null;
-        }
-
-        protected override void CreateTarget(Random RND)
-        {
-            Coordinates c =  null;
-            while(c == null || c.OnWater)
-            {
-                c = Coordinates.SurfacePoint(RND.NextDouble()*latSpread-latSpread/2,
-                                             RND.NextDouble()*360, 
-                                             VSL.Body);
-                c.SetAlt2Surface(VSL.Body);
-            }
-            VSL.SetTarget(DEO, new WayPoint(c));
-        }
-
         protected override void OnLand()
         {
-            DEO.UseBrakes = DEO.UseChutes = true;
+            MOD.UseBrakes = MOD.UseChutes = true;
             if(!TrajectoryCalculator.setp_by_step_computation)
             {
-                if(DEO.stage == DeorbitAutopilot.Stage.Wait)
+                if(MOD.stage == DeorbitAutopilot.Stage.Wait)
                     TCAGui.ClearStatus();
                 if(TimeWarp.CurrentRateIndex == 0 && 
                    VSL.OnPlanetParams.ParachutesActive && VSL.vessel.srfSpeed < 50 && VSL.Altitude > 100)
                     TimeWarp.SetRate(3, false, false);
                 else if(TimeWarp.CurrentRateIndex > 0 && VSL.Altitude < 100)
                     TimeWarp.SetRate(0, false);
-                if(DEO.landing_stage == LandingTrajectoryAutopilot.LandingStage.None &&
-                   (DEO.stage < DeorbitAutopilot.Stage.Correct || DEO.stage == DeorbitAutopilot.Stage.Wait))
+                if(MOD.landing_stage == LandingTrajectoryAutopilot.LandingStage.None &&
+                   (MOD.stage < DeorbitAutopilot.Stage.Correct || MOD.stage == DeorbitAutopilot.Stage.Wait))
                 {
                     VSL.Info.AddCustopWaypoint(new Coordinates(0,0,0),   "Zero");
                     VSL.Info.AddCustopWaypoint(new Coordinates(90,0,0),  "North");

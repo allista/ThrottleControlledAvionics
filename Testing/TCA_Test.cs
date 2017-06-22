@@ -16,12 +16,27 @@ namespace ThrottleControlledAvionics
         protected ModuleTCA TCA;
         protected VesselWrapper VSL { get { return TCA.VSL; } }
         protected VesselConfig CFG { get { return TCA.CFG; } }
+        protected readonly string Name;
+        protected readonly string LogFile;
 
         protected bool GetTCA()
         {
             if(FlightGlobals.ActiveVessel != null)
                 TCA = ModuleTCA.EnabledTCA(FlightGlobals.ActiveVessel);
             return TCA != null;
+        }
+
+        protected TCA_Test()
+        {
+            Name = GetType().Name;
+            LogFile = Name+DateTime.Now.ToString("-yyyy-mm-dd_HH-ss")+".log";
+        }
+
+        protected void Log(string msg, params object[] args)
+        {
+            msg = string.Format("{0}: {1}", GetType().Name, msg);
+            Utils.Log2File(LogFile, msg, args);
+            Utils.Log(msg, args);
         }
 
         #region ITestScenario implementation

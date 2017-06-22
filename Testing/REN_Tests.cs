@@ -97,7 +97,16 @@ namespace ThrottleControlledAvionics
                 CheatOptions.InfinitePropellant = true;
                 CFG.AP2.XOn(Autopilot2.Rendezvous);
                 MapView.EnterMapView();
+                Log("Target: {}", target.vesselName);
                 return true;
+            }
+            if(VSL == null || VSL.vessel == null ||
+               VSL.vessel.state == Vessel.State.DEAD)
+            {
+                if(!delay.TimePassed) return true;
+                Log("Vessel was destroyed:\n{}", FlightLogger.getMissionStats());
+                Log("Done.");
+                return false;
             }
             if(CFG.AP2[Autopilot2.Rendezvous]) 
             {
@@ -112,7 +121,7 @@ namespace ThrottleControlledAvionics
             CFG.AP2.XOff();
             Status = "Waiting for next iteration";
             if(!delay.TimePassed) return true;
-            Utils.Log("{}, Done.", GetType().Name);//debug
+            Log("Done.");
             CleanupTarget();
             return true;
         }
@@ -234,7 +243,7 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.FINISH:
                 if(!delay.TimePassed) break;
-                Utils.Log("{}, Done.", GetType().Name);//debug
+                Log("Done.");
                 CleanupTarget();
                 stage = Stage.LOAD;
                 break;
