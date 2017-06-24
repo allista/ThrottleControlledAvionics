@@ -75,6 +75,7 @@ namespace ThrottleControlledAvionics
 
 	public abstract class DrawableComponent : TCAComponent
 	{
+        protected TCAGui UI { get { return TCAGui.Instance; } }
 		protected DrawableComponent(ModuleTCA tca) : base(tca) {}
 		public abstract void Draw();
 	}

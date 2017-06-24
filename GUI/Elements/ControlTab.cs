@@ -69,8 +69,6 @@ namespace ThrottleControlledAvionics
 	/// </summary>
 	public abstract class ControlTab : DrawableComponent
 	{
-		protected TCAGui UI { get { return TCAGui.Instance; } }
-
 		GUIContent TabButtonContent = new GUIContent();
 		public int Index = -1;
 
