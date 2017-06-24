@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
         protected TCA_Test()
         {
             Name = GetType().Name;
-            LogFile = Name+DateTime.Now.ToString("-yyyy-mm-dd_HH-ss")+".log";
+            LogFile = Name+DateTime.Now.ToString("-yyyy-MM-dd_HH-ss")+".log";
         }
 
         protected void Log(string msg, params object[] args)
@@ -37,6 +37,14 @@ namespace ThrottleControlledAvionics
             msg = string.Format("{0}: {1}", GetType().Name, msg);
             Utils.Log2File(LogFile, msg, args);
             Utils.Log(msg, args);
+        }
+
+        protected void LogFlightLog(string msg, params object[] args)
+        {
+            msg += string.Format("\n{0}\n\n{1}\n", 
+                                 string.Join("\n", FlightLogger.eventLog.ToArray()),
+                                 FlightLogger.getMissionStats());
+            Log(msg, args);
         }
 
         #region ITestScenario implementation
