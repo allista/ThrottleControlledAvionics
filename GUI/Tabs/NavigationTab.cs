@@ -225,17 +225,20 @@ namespace ThrottleControlledAvionics
 					VSL.SetTarget(null);
                 GUILayout.EndHorizontal();
 			}
-			else if(GUILayout.Button(new GUIContent("Set Surface Target", "Select target point on the surface"), 
-			                         Styles.active_button, GUILayout.ExpandWidth(true)))
-			{
-                was_in_map_view = MapView.MapIsEnabled;
-				select_single = true;
-				SelectingTarget = true;
-				CFG.GUIVisible = true;
-				CFG.ShowPath = true;
-				MapView.EnterMapView();
-			}
+            else if(GUILayout.Button(new GUIContent("Set Surface Target", "Select target point on the surface"), 
+                                     Styles.active_button, GUILayout.ExpandWidth(true)))
+                SetSurfaceTarget();
 		}
+
+        public void SetSurfaceTarget()
+        {
+            was_in_map_view = MapView.MapIsEnabled;
+            select_single = true;
+            SelectingTarget = true;
+            CFG.GUIVisible = true;
+            CFG.ShowPath = true;
+            MapView.EnterMapView();
+        }
 
 		void path_library()
 		{
