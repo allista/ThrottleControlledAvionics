@@ -290,12 +290,11 @@ PN
 
 LND
 {
-	MaxUnevenness        = 0.35
-	UnevennessThreshold  = 0.6
+	MaxUnevenness        = 0.4
 	MaxHorizontalTime    = 2
 	MinVerticalSpeed     = 5
 	WideCheckAltitude    = 100
-	MaxWideCheckAltitude = 1000
+	MaxWideCheckAltitude = 5000
 	WideCheckLevel       = 7
 	NodeTargetRange      = 1
 	GearOnAtH            = 5
@@ -393,7 +392,7 @@ TRA
 
 WRP
 {
-	DewarpTime = 20 //sec
+	DewarpTime = 10 //sec
 	MaxWarp    = 10000
 	FramesToSkip = 3
 }
@@ -471,6 +470,14 @@ BJ
 	StartInclination = 30  //deg
 	StartAltitude    = 50  //m
 	InclinationF     = 2
+	ObstacleOffset   = 50  //m
+	
+	FallCorrectionPID
+	{
+		P = 1
+		I = 3
+		D = 0
+	}
 }
 
 ORB
