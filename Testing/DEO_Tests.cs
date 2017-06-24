@@ -109,7 +109,7 @@ namespace ThrottleControlledAvionics
                 if(VSL == null || VSL.vessel == null || 
                    VSL.vessel.state == Vessel.State.DEAD)
                 {
-                    Log("Vessel was destroyed:\n{}", FlightLogger.getMissionStats());
+                    LogFlightLog("Vessel was destroyed:");
                     stage = Stage.FINISH;
                     delay.Reset();
                     break;
@@ -185,9 +185,10 @@ namespace ThrottleControlledAvionics
                     if(delay.TimePassed && CFG.Target != null)
                     {
                         var target = CFG.Target.GetTransform();
-                        FlightCameraOverride.Target(FlightCameraOverride.Mode.LookFromTo, 
-                                                    VSL.vessel.vesselTransform, target, 10, 
-                                                    target != FlightCameraOverride.target);
+                        if(target != null)
+                            FlightCameraOverride.Target(FlightCameraOverride.Mode.LookFromTo, 
+                                                        VSL.vessel.vesselTransform, target, 10, 
+                                                        target != FlightCameraOverride.target);
                     }
                 }
             }
