@@ -88,6 +88,7 @@ namespace ThrottleControlledAvionics
                     FlightGlobals.fetch.SetVesselTarget(t, true);
                 else Target = t;
                 CFG.Target = wp;
+                CFG.Target.Update(this);
             }
         }
 
@@ -115,6 +116,7 @@ namespace ThrottleControlledAvionics
 //                }
 				else Target = t;
 				CFG.Target = wp;
+                CFG.Target.Update(this);
 			}
 		}
 
