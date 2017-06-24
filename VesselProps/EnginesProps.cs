@@ -491,7 +491,8 @@ namespace ThrottleControlledAvionics
             var g = Vector2.up*VSL.Physics.StG;
             var Ve = thrust/mflow;
             var T = 0f;
-//            Log("dT {},  V0 {}", dT, V0);//debug
+//            Log("dT {}, Vm {}, thrust {}, mflow {}, Ve {}, m {}, V0 {}, G {}", 
+//                dT, Vm, thrust, mflow, Ve, mass, V0, VSL.Physics.StG);//debug
             while(mass > min_mass && Vector2.Dot(V, V0) > 0)
             {
                 var dt = Mathf.Max(dT*V.magnitude/Vm, 0.1f);
@@ -762,6 +763,14 @@ namespace ThrottleControlledAvionics
 			//first optimize engines for zero torque to have actual MaxThrust in case of unbalanced ship design
 			if(VSL.Torque != null && VSL.TCA != null && VSL.TCA.ENG != null)
 			{
+                //use defThrustDir for all calculations
+                for(int i = 0; i < NumActive; i++) 
+                {
+                    var e = Active[i];
+                    e.UseDefThrust = true;
+                    e.InitTorque(VSL, GLB.ENG.TorqueRatioFactor);
+                    e.UpdateCurrentTorque(1);
+                }
 				if(Active.Balanced.Count > 0)
 				{
 					VSL.Torque.UpdateImbalance(Active.Manual, Active.UnBalanced);
@@ -783,6 +792,10 @@ namespace ThrottleControlledAvionics
 			for(int i = 0; i < NumActive; i++) 
 			{
 				var e = Active[i];
+                //use actual thrust dir
+                e.UseDefThrust = false;
+                e.InitTorque(VSL, GLB.ENG.TorqueRatioFactor);
+                e.UpdateCurrentTorque(1);
 				if(e.isVSC)
 				{
 					var thrust = e.nominalCurrentThrust(e.limit);
