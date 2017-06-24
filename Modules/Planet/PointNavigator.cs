@@ -437,7 +437,11 @@ namespace ThrottleControlledAvionics
 							}
 						}
 						else if(ArrivedTimer.TimePassed) 
-						{ if(on_arrival()) return; finish(); return; }
+						{ 
+                            if(on_arrival()) return; 
+                            finish(); 
+                            return; 
+                        }
 					}
 				}
 			}
