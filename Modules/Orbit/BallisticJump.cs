@@ -29,6 +29,9 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float StartAltitude    = 100f; //m
 			[Persistent] public float InclinationF     = 2f;
 			[Persistent] public float ObstacleOffset   = 50f;
+
+            [Persistent] public PIDf_Controller FallCorrectionPID = new PIDf_Controller(1, 0.5f, 0, 0, float.PositiveInfinity);
+
 			public float StartTangent = 1;
 
 			public override void Init()
@@ -40,13 +43,16 @@ namespace ThrottleControlledAvionics
 
 		public BallisticJump(ModuleTCA tca) : base(tca) {}
 
-		public enum Stage { None, Start, Compute, Accelerate, CorrectAltitude, CorrectTrajectory, Coast, Wait }
+		public enum Stage { None, Start, GainAltitude, Compute, Accelerate, CorrectAltitude, CorrectTrajectory, Coast, Wait }
 		[Persistent] public Stage stage;
 		float StartAltitude;
+
+        PIDf_Controller fall_correction = new PIDf_Controller(1, 0.5f, 0, 0, float.PositiveInfinity);
 
 		public override void Init()
 		{
 			base.Init();
+            fall_correction.setPID(BJ.FallCorrectionPID);
 			CFG.AP2.AddHandler(this, Autopilot2.BallisticJump);
 		}
 
@@ -87,7 +93,6 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-//				LogFST("Resuming: stage {}, landing_stage {}, landing {}", stage, landing_stage, landing);//debug
 				if(!check_patched_conics()) return;
 				UseTarget();
 				NeedCPSWhenMooving();
@@ -185,9 +190,6 @@ namespace ThrottleControlledAvionics
             }
         }
 
-		#if DEBUG
-		public static bool ME_orbit = true;
-		#endif
 		void compute_initial_trajectory()
 		{
 			MAN.MinDeltaV = 1f;
@@ -197,12 +199,6 @@ namespace ThrottleControlledAvionics
 			if(Vector3d.Dot(vel, VesselOrbit.pos) < 0) vel = -vel;
 			var dir = vel.normalized;
 			var V = vel.magnitude;
-			#if DEBUG
-			if(!ME_orbit)
-				dir = (VSL.Physics.Up+ 
-			           Vector3d.Exclude(VSL.Physics.Up, vel).normalized *
-			           BJ.StartTangent*(1+CFG.Target.AngleTo(VSL)/Utils.TwoPI)*BJ.InclinationF).normalized.xzy;
-			#endif
             ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LTRJ.Dtol));
             stage = Stage.Compute;
             trajectory = null;
@@ -213,6 +209,7 @@ namespace ThrottleControlledAvionics
 			CFG.HF.Off();
 			clear_nodes(); add_trajectory_node();
 			CFG.AT.OnIfNot(Attitude.ManeuverNode);
+            fall_correction.Reset();
 			stage = Stage.Accelerate;
 		}
 
@@ -223,6 +220,14 @@ namespace ThrottleControlledAvionics
             stage = Stage.CorrectTrajectory;
             trajectory = null;
 		}
+
+        void VSC_ON()
+        {
+            CFG.HF.OnIfNot(HFlight.Stop);
+            CFG.BlockThrottle = true;
+            CFG.AltitudeAboveTerrain = true;
+            CFG.VF.OnIfNot(VFlight.AltitudeControl);
+        }
 
 		protected override void UpdateState()
 		{
@@ -238,24 +243,30 @@ namespace ThrottleControlledAvionics
 			switch(stage)
 			{
 			case Stage.Start:
-				CFG.HF.OnIfNot(HFlight.Stop);
-				CFG.AltitudeAboveTerrain = true;
-				CFG.VF.OnIfNot(VFlight.AltitudeControl);
+                VSC_ON();
 				if(VSL.LandedOrSplashed || VSL.Altitude.Relative < StartAltitude) 
-					CFG.DesiredAltitude = StartAltitude;
-				else CFG.DesiredAltitude = VSL.Altitude.Relative;
-				if(VSL.Altitude.Relative > StartAltitude-5)
-					compute_initial_trajectory();
-				else Status("Gaining initial altitude...");
+                    CFG.DesiredAltitude = StartAltitude;
+                else CFG.DesiredAltitude = VSL.Altitude.Relative;
+                if(!VSL.LandedOrSplashed)
+                    compute_initial_trajectory();
 				break;
+            case Stage.GainAltitude:
+                Status("Gaining altitude...");
+                VSC_ON();
+                if(VSL.Altitude.Relative > CFG.DesiredAltitude-10)
+                    compute_initial_trajectory();
+                break;
 			case Stage.Compute:
 				if(!trajectory_computed()) break;
-				var obst = obstacle_ahead(trajectory);
-				if(obst > 0)
+                var obst = obstacle_ahead(trajectory, BJ.StartAltitude);
+                if(obst > 0)
 				{
-					StartAltitude += (float)obst+BJ.ObstacleOffset;
-					stage = Stage.Start;
+                    StartAltitude += (float)obst+BJ.ObstacleOffset;
+                    CFG.DesiredAltitude = StartAltitude;
+                    stage = Stage.GainAltitude;
 				}
+                else if(VSL.Altitude.Relative < BJ.StartAltitude-10)
+                    stage = Stage.GainAltitude;
 				else if(check_initial_trajectory()) accelerate();
 				else stage = Stage.Wait;
 				break;
@@ -264,18 +275,38 @@ namespace ThrottleControlledAvionics
 				accelerate();
 				break;
 			case Stage.Accelerate:
-				if(!VSL.HasManeuverNode) { CFG.AP2.Off(); break; }
+                if(!VSL.HasManeuverNode) { CFG.AP2.Off(); break; }
 				if(VSL.Controls.AlignmentFactor > 0.9 || !CFG.VSCIsActive)
 				{
 					CFG.DisableVSC();
-					if(!Executor.Execute(VSL.FirstManeuverNode.GetBurnVector(VesselOrbit), 10)) fine_tune_approach();
+                    var dV = VSL.FirstManeuverNode.GetBurnVector(VesselOrbit);
+//                        (trajectory.Orbit.GetFrameVelAtUT(VSL.Physics.UT)-
+//                              VSL.orbit.GetFrameVelAtUT(VSL.Physics.UT)).xzy;
+                    if(VSL.VerticalSpeed.Absolute < 0)
+                        fall_correction.Update(-VSL.VerticalSpeed.Absolute);
+                    else
+                    {
+                        fall_correction.IntegralError *= 1-fall_correction.I/10*TimeWarp.fixedDeltaTime;
+                        fall_correction.Update(0);
+                    }
+                    if(!Executor.Execute(dV+fall_correction*VSL.Physics.Up, 10)) 
+                        fine_tune_approach();
 					Status("white", "Accelerating...");
 				}
 				break;
 			case Stage.CorrectTrajectory:
-				if(!trajectory_computed()) break;
-				add_correction_node_if_needed();
-				stage = Stage.Coast;
+                warp_to_coundown();
+                if(VesselOrbit.ApAhead())
+                {
+    				if(!trajectory_computed()) break;
+    				add_correction_node_if_needed();
+    				stage = Stage.Coast;
+                }
+                else
+                {
+                    stage = Stage.None;
+                    start_landing();
+                }
 				break;
 			case Stage.Coast:
 				var ap_ahead = VesselOrbit.ApAhead();
@@ -309,7 +340,6 @@ namespace ThrottleControlledAvionics
 //				                      current.BrakeDeltaV).xzy.normalized*2000, 
 //				              Color.magenta);
 //			}
-//			Utils.ButtonSwitch("ME", ref ME_orbit, "Use ME orbit instead of a shallow one.", GUILayout.ExpandWidth(false));
 			#endif
 			if(ControlsActive) 
 			{	
@@ -321,8 +351,14 @@ namespace ThrottleControlledAvionics
 				                           GUILayout.ExpandWidth(true)))
                     VSL.XToggleWithEngines(CFG.AP2, Autopilot2.BallisticJump);
 			}
-			else GUILayout.Label(new GUIContent("Jump To", "Target a landed vessel or create a waypoint"),
-			                     Styles.inactive_button, GUILayout.ExpandWidth(true));
+            else if(UI.NAV != null)
+            {
+                if(GUILayout.Button(new GUIContent("Jump To", "Select target point to jump to"),
+                                    Styles.active_button, GUILayout.ExpandWidth(true)))
+                    UI.NAV.SetSurfaceTarget();
+            }
+            else GUILayout.Label(new GUIContent("Jump To", "Target a landed vessel or create a waypoint"),
+                                 Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
 	}
 }
