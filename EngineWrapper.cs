@@ -184,8 +184,9 @@ namespace ThrottleControlledAvionics
 		Vector3 act_thrust_dir;
 		Vector3 act_thrust_pos;
 		public Vector3 defThrustDir { get; private set; }
-		public override Vector3 wThrustDir { get { return act_thrust_dir; } }
+        public override Vector3 wThrustDir { get { return UseDefThrust? defThrustDir : act_thrust_dir; } }
 		public override Vector3 wThrustPos { get { return act_thrust_pos; } }
+        public bool UseDefThrust;
 
 		public float DefTorqueRatio
 		{ get { return Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(wThrustLever, defThrustDir))); } }
@@ -297,6 +298,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(engine == null || part == null || vessel == null) return;
 			//update thrust info
+            UseDefThrust = false;
 			UpdateThrustInfo();
 			realIsp = GetIsp((float)(part.staticPressureAtm), (float)(part.atmDensity/1.225), (float)part.machNumber);
 			flowMod = GetFlowMod((float)(part.atmDensity/1.225), (float)part.machNumber);
