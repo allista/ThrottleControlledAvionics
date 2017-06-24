@@ -68,7 +68,7 @@ namespace ThrottleControlledAvionics
 		protected Timer StageTimer = new Timer(5);
 		protected Timer NoEnginesTimer = new Timer(1);
 		protected ManeuverExecutor Executor;
-        protected PQS_Scanner_Grad scanner;
+        protected PQS_Scanner_Gradient scanner;
 		protected AtmoSim sim;
 		protected bool scanned, flat_target;
 		protected double PressureASL;
@@ -158,7 +158,7 @@ namespace ThrottleControlledAvionics
 			};
 			sim = new AtmoSim(VSL);
 			Executor = new ManeuverExecutor(TCA);
-			scanner = new PQS_Scanner_Grad(VSL);
+			scanner = new PQS_Scanner_Gradient(VSL);
 			scanner.MaxUnevennes = GLB.LND.MaxUnevenness/3;
 			dP_threshold = LTRJ.MaxDPressure;
 			last_Err = 0;
@@ -1005,7 +1005,7 @@ namespace ThrottleControlledAvionics
         public abstract bool Scan();
     }
 
-    public class PQS_Scanner_Grad : PQS_Scanner
+    public class PQS_Scanner_Gradient : PQS_Scanner
     {
         double min_unevenness;
         double tolerance, turn_threshold;
@@ -1014,13 +1014,13 @@ namespace ThrottleControlledAvionics
         public override float Progress
         { get { return min_unevenness < 0? 0 : (float)Math.Min(MaxUnevennes/min_unevenness, 1); } }
 
-        public PQS_Scanner_Grad(VesselWrapper vsl) : base(vsl) {}
+        public PQS_Scanner_Gradient(VesselWrapper vsl) : base(vsl) {}
 
         public void Start(Coordinates pos, int num_points_per_frame, double tol, double turn_threshold)
         {
             base.Start(pos, num_points_per_frame);
             this.turn_threshold = turn_threshold;
-            dir = new Vector2d(delta, 0);
+            dir = new Vector2d(1, 0);
             tolerance = tol*delta;
         }
 
@@ -1047,17 +1047,15 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        IEnumerable scan_dir()
+        IEnumerable scan_dir(double d, bool strict = false)
         {
-            var d = dir;
             var minP = current_point.Copy();
             var minU = cur_unevenness;
-            var scanned = false;
-            while(d.magnitude > tolerance)
+            while(d > tolerance)
             {
                 scan_current_point();
-                Utils.Log("scan dir: {}, ({}, {}) [{} > {}], cur {}, min {}", 
-                          current_point, d.x, d.y, d.magnitude, tolerance, cur_unevenness, minU);//debug
+                Utils.Log("scan dir: {}, {} > {}, cur {}, min {}", 
+                          current_point, d, tolerance, cur_unevenness, minU);//debug
                 if(cur_unevenness < minU)
                 {
                     minP = current_point.Copy();
@@ -1065,15 +1063,15 @@ namespace ThrottleControlledAvionics
                     if(cur_unevenness < min_unevenness) 
                         min_unevenness = cur_unevenness;
                 }
-                else if(scanned || 1-minU/cur_unevenness > turn_threshold)
+                else if(strict || 1-minU/cur_unevenness > turn_threshold)
                 {
                     d /= -2;
                     current_point = minP.Copy();
                     cur_unevenness = minU;
-                    scanned = true;
+                    strict = true;
                 }
-                current_point.Lat += d.x;
-                current_point.Lon += d.y;
+                current_point.Lat += dir.x*d;
+                current_point.Lon += dir.y*d;
                 yield return null;
             }
             current_point = minP;
@@ -1087,14 +1085,15 @@ namespace ThrottleControlledAvionics
             scan_current_point();
             min_unevenness = cur_unevenness;
             yield return null;
-            foreach(var f in scan_dir()) yield return f;
-            while(min_unevenness >= MaxUnevennes && dir.magnitude > tolerance)
+            foreach(var f in scan_dir(delta)) yield return f;
+            var d = delta;
+            while(min_unevenness >= MaxUnevennes && d > tolerance)
             {
                 var prevP = current_point.Copy();
-                foreach(var f in scan_dir()) yield return f;
+                foreach(var f in scan_dir(d)) yield return f;
                 shift_dir();
-                dir = (0.1 * prevP.AngleTo(current_point)*Mathf.Rad2Deg + 0.1) * dir.normalized;
-                Utils.Log("dir {}/{} > {}", dir.magnitude, delta, tolerance);//debug
+                d = 0.1 * prevP.AngleTo(current_point)*Mathf.Rad2Deg + 0.1 * d;
+                Utils.Log("delta {}/{} > {}", d, delta, tolerance);//debug
                 yield return null;
             }
         }
@@ -1118,7 +1117,7 @@ namespace ThrottleControlledAvionics
         }
     }
 
-    public class PQS_Scanner_Cycle : PQS_Scanner
+    public class PQS_Scanner_Area : PQS_Scanner
 	{
 		int max_cycles, cycle;
 		int points_in_cycle, points_per_side, side, cycle_point;
@@ -1126,7 +1125,7 @@ namespace ThrottleControlledAvionics
 
         public override float Progress { get { return point/(float)total_points; } }
 
-        public PQS_Scanner_Cycle(VesselWrapper vsl) : base(vsl) {}
+        public PQS_Scanner_Area(VesselWrapper vsl) : base(vsl) {}
 
 		public override void Reset()
 		{
