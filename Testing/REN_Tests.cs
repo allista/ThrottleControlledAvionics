@@ -104,7 +104,7 @@ namespace ThrottleControlledAvionics
                VSL.vessel.state == Vessel.State.DEAD)
             {
                 if(!delay.TimePassed) return true;
-                Log("Vessel was destroyed:\n{}", FlightLogger.getMissionStats());
+                LogFlightLog("Vessel was destroyed:");
                 Log("Done.");
                 return false;
             }
@@ -118,11 +118,18 @@ namespace ThrottleControlledAvionics
                 delay.Reset();
                 return true;
             }
-            CFG.AP2.XOff();
+            if(CFG.AP2)
+            {
+                FlightCameraOverride.AnchorForSeconds(FlightCameraOverride.Mode.OrbitAround, VSL.vessel.transform, delay.Period);
+                CFG.AP2.XOff();
+            }
             Status = "Waiting for next iteration";
-            if(!delay.TimePassed) return true;
-            Log("Done.");
-            CleanupTarget();
+            if(delay.TimePassed)
+            {
+                FlightCameraOverride.Deactivate();
+                CleanupTarget();
+                Log("Done.");
+            }
             return true;
         }
 
