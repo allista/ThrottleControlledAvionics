@@ -631,7 +631,7 @@ namespace ThrottleControlledAvionics
 			CSV(VSL.Physics.UT-startUT, VSL.VerticalSpeed.Absolute, Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel).magnitude, 
 			    arc, VesselOrbit.radius-Body.Radius, 
 			    VSL.Engines.Thrust.magnitude,
-			    VSL.Physics.M, 90-Vector3d.Angle(VesselOrbit.vel.xzy, VSL.Physics.Up));//debug
+			    VSL.Physics.M, 90-Vector3d.Angle(VesselOrbit.vel.xzy, VSL.Physics.Up));
 		}
 
         struct OptRes
@@ -813,7 +813,7 @@ namespace ThrottleControlledAvionics
                                                   trajectory.TimeToTarget, 
                                                   (TargetOrbit.vel-VesselOrbit.vel).magnitude,
                                                   (TargetOrbit.pos-VesselOrbit.pos).magnitude,
-                                                  trajectory.AtTargetRelPos.magnitude);//debug
+                                                  trajectory.AtTargetRelPos.magnitude);
                         #endif
                         CorrectingManeuver = threshold > 0;
                         if(CorrectingManeuver)
@@ -1691,7 +1691,7 @@ namespace ThrottleControlledAvionics
         static void log_patches(Orbit o, string tag)
         { Utils.Log(Utils.formatPatches(o, tag));}
          
-        public static bool _CalculatePatch(Orbit p, Orbit nextPatch, double startEpoch, PatchedConics.SolverParameters pars, CelestialBody targetBody)//debug
+        public static bool _CalculatePatch(Orbit p, Orbit nextPatch, double startEpoch, PatchedConics.SolverParameters pars, CelestialBody targetBody)
         {
             p.activePatch = true;
             p.nextPatch = nextPatch;
