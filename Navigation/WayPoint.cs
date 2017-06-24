@@ -65,33 +65,28 @@ namespace ThrottleControlledAvionics
             return wp;
         }
 
-		//using Haversine formula (see http://www.movable-type.co.uk/scripts/latlong.html)
-		public double AngleTo(double lat, double lon)
-		{
-			var lat1 = Pos.Lat*Mathf.Deg2Rad;
-			var lat2 = lat*Mathf.Deg2Rad;
-			var dlat = lat2-lat1;
-			var dlon = (lon-Pos.Lon)*Mathf.Deg2Rad;
-			var a = (1-Math.Cos(dlat))/2 + Math.Cos(lat1)*Math.Cos(lat2)*(1-Math.Cos(dlon))/2;
-			return 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1-a));
-		}
-		public double AngleTo(Coordinates c) { return AngleTo(c.Lat, c.Lon); }
-		public double AngleTo(WayPoint wp) { return AngleTo(wp.Pos); }
-		public double AngleTo(Vessel vsl) { return AngleTo(vsl.latitude, vsl.longitude); }
-		public double AngleTo(VesselWrapper vsl) { return AngleTo(vsl.vessel.latitude, vsl.vessel.longitude); }
-		public Vector3 VectorTo(Vessel vsl) { return vsl.transform.position-GetTransform().position; }
-		public float  DirectDistanceTo(Vessel vsl) { return VectorTo(vsl).magnitude; }
+        public double AngleTo(double lat, double lon) { return Pos.AngleTo(lat, lon); }
+		public double AngleTo(Coordinates c) { return Pos.AngleTo(c); }
+		public double AngleTo(WayPoint wp) { return Pos.AngleTo(wp.Pos); }
+		public double AngleTo(Vessel vsl) { return Pos.AngleTo(vsl.latitude, vsl.longitude); }
+		public double AngleTo(VesselWrapper vsl) { return Pos.AngleTo(vsl.vessel.latitude, vsl.vessel.longitude); }
+
+        public Vector3  VectorTo(Vessel vsl) { return vsl.transform.position-GetTransform().position; }
+        public Vector3d VectorTo(WayPoint wp, CelestialBody body) { return wp.RelSurfPos(body)-RelSurfPos(body); }
+        public Vector3d VectorTo(VesselWrapper VSL, CelestialBody body) { return VSL.Physics.wCoM-WorldPos(body); }
+
 		public double DistanceTo(WayPoint wp, CelestialBody body) { return AngleTo(wp)*body.Radius; }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
 		public double DistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius; }
-		public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius/VSL.Geometry.R; }
+
+        public float  DirectDistanceTo(Vessel vsl) { return VectorTo(vsl).magnitude; }
+        public double RelDistanceTo(VesselWrapper VSL) { return AngleTo(VSL)*VSL.Body.Radius/VSL.Geometry.R; }
 		public bool   CloseEnough(VesselWrapper VSL) { return RelDistanceTo(VSL)-1 < Radius; }
+
 		public double SurfaceAlt(CelestialBody body) { return Pos.SurfaceAlt(body); }
-		public Vector3d RelSurfPos(CelestialBody body) { return body.GetRelSurfacePosition(Pos.Lat, Pos.Lon, Pos.Alt); }
-		public Vector3d RelOrbPos(CelestialBody body) { return RelSurfPos(body).xzy; }
-		public Vector3d WorldPos(CelestialBody body) { return body.GetWorldSurfacePosition(Pos.Lat, Pos.Lon, Pos.Alt); }
-		public Vector3d VectorTo(WayPoint wp, CelestialBody body) { return wp.RelSurfPos(body)-RelSurfPos(body); }
-		public Vector3d VectorTo(VesselWrapper VSL, CelestialBody body) { return VSL.Physics.wCoM-WorldPos(body); }
+        public Vector3d RelSurfPos(CelestialBody body) { return Pos.RelSurfPos(body); }
+        public Vector3d RelOrbPos(CelestialBody body) { return Pos.RelOrbPos(body); }
+        public Vector3d WorldPos(CelestialBody body) { return Pos.WorldPos(body); }
 
 		public static double BearingTo(double lat1, double lat2, double dlon)
 		{
