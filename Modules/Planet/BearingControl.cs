@@ -121,7 +121,11 @@ namespace ThrottleControlledAvionics
 			var axis  = VSL.Engines.refT_thrust_axis;
 			var laxis = VSL.LocalDir(axis);
 			var cDir  = VSL.OnPlanetParams.Heading;
-			var angle = Vector3.Angle(cDir, nDir)*Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis));
+			var angle = Vector3.Angle(cDir, nDir) *
+                //choose right turning direction
+                Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis)) *
+                //lower the error when the nose is up or down
+                (1- Mathf.Abs(Vector3.Dot(VSL.OnPlanetParams.Fwd, VSL.Physics.Up)));
 			var maxAA = VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis);
 			var AAf = BRC.AAf_a/(BRC.AAf_b+Mathf.Pow(maxAA, BRC.AAf_c));
 			bearing_pid.D = AAf;
