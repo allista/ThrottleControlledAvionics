@@ -281,7 +281,6 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				VSL.Controls.StopWarp();
 				RegisterTo<SASBlocker>();
 				break;
 
