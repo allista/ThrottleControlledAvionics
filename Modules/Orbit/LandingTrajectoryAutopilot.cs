@@ -45,7 +45,7 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MachThreshold      = 0.9f;
             [Persistent] public float MinAerobrakeDensity = 0.4f;
 
-			[Persistent] public int   MaxScanningCycles  = 50;
+            [Persistent] public float ScanningAngle      = 15;
 			[Persistent] public int   PointsPerFrame     = 5;
 
 			[Persistent] public float HeatingCoefficient = 0.02f;
@@ -68,7 +68,7 @@ namespace ThrottleControlledAvionics
 		protected Timer StageTimer = new Timer(5);
 		protected Timer NoEnginesTimer = new Timer(1);
 		protected ManeuverExecutor Executor;
-        protected PQS_Scanner_Gradient scanner;
+        protected PQS_Scanner_CDOS scanner;
 		protected AtmoSim sim;
 		protected bool scanned, flat_target;
 		protected double PressureASL;
@@ -158,8 +158,7 @@ namespace ThrottleControlledAvionics
 			};
 			sim = new AtmoSim(VSL);
 			Executor = new ManeuverExecutor(TCA);
-			scanner = new PQS_Scanner_Gradient(VSL);
-			scanner.MaxUnevennes = GLB.LND.MaxUnevenness/3;
+            scanner = new PQS_Scanner_CDOS(VSL, GLB.LND.MaxUnevenness/3);
 			dP_threshold = LTRJ.MaxDPressure;
 			last_Err = 0;
 			last_dP = 0;
@@ -267,7 +266,7 @@ namespace ThrottleControlledAvionics
 			if(trajectory.ManeuverDeltaV.magnitude > dV_threshold)
 			{
 				clear_nodes(); 
-				add_trajectory_node();
+				add_trajectory_node_rel();
 				CFG.AP1.OnIfNot(Autopilot1.Maneuver);
 				VSL.Controls.StopWarp();
 			}
@@ -283,27 +282,64 @@ namespace ThrottleControlledAvionics
 			return pos.magnitude-VSL.Geometry.D-Body.Radius - Body.TerrainAltitude(pos.xzy+Body.position);
 		}
 
-		protected double obstacle_ahead(LandingTrajectory trj, float offset = 0)
-		{
-			if(trj == null) return -1;
-			var start = trj.StartUT;
-			var stop = trj.BrakeEndUT;
-			var UT = start;
-			var dT = (stop-start);
-			double dist = 1;
-//			Utils.Log("Start {}, Stop {}", start-VSL.Physics.UT, stop-VSL.Physics.UT);//debug
-			while(dT > 0.01)
-			{
-				var d1p = UT+dT > stop?  double.MaxValue : distance_from_ground(trj.Orbit, UT+dT);
-				var d1m = UT-dT < start? double.MaxValue : distance_from_ground(trj.Orbit, UT-dT);
-//				Utils.Log("d1 {}, d2 {}, dT {}, T {}", d1p, d1m, dT, UT-VSL.Physics.UT);//debug
-				if(d1p < d1m) { dist = d1p; UT += dT; }
-				else { dist = d1m; UT -= dT; }
+        double obstacle_between(BaseTrajectory trj, double start, double stop, float offset)
+        {
+            var UT = start;
+            var dT = (stop-start);
+            double dist = 1;
+            while(dT > 0.01)
+            {
+                var d1p = UT+dT > stop?  double.MaxValue : distance_from_ground(trj.Orbit, UT+dT);
+                var d1m = UT-dT < start? double.MaxValue : distance_from_ground(trj.Orbit, UT-dT);
+                if(d1p < d1m) { dist = d1p; UT += dT; }
+                else { dist = d1m; UT -= dT; }
                 if(dist < offset) return offset-dist;
-				dT /= 2;
-			}
-			return -dist;
+                dT /= 2;
+            }
+            return offset-dist;
+        }
+
+        protected double obstacle_ahead(float offset = 0)
+        { 
+            return trajectory != null? 
+                obstacle_between(trajectory, trajectory.StartUT, trajectory.BrakeEndUT, offset) : -1;
+        }
+
+        IEnumerator<double> obstacle_searcher;
+        IEnumerator<double> biggest_obstacle_searcher(LandingTrajectory trj, float offset)
+		{
+            var start = trj.StartUT;
+            var stop = trj.BrakeEndUT;
+            var dT = (stop-start)/100;
+            var UT0 = start;
+            var UT1 = UT0+dT;
+            var dist = -1.0;
+            while(UT0 < stop)
+            {
+                Status("white", "Scanning for obstacles: <color=lime>{0:P1}</color>", 
+                       Math.Min(1, (UT1-start)/(stop-start)));
+                var d = obstacle_between(trj, UT0, UT1, offset);
+                UT0 = UT1; UT1 += dT;
+                if(d > dist) dist = d;
+                yield return dist;
+            }
+            ClearStatus();
 		}
+
+        protected bool find_biggest_obstacle_ahead(float offset, out double obstacle_height)
+        {
+            obstacle_height = -1;
+            if(trajectory == null) return false ;
+            if(obstacle_searcher == null)
+            {
+                obstacle_searcher = biggest_obstacle_searcher(trajectory, offset);
+                if(!obstacle_searcher.MoveNext()) return false;
+            }
+            obstacle_height = obstacle_searcher.Current;
+            if(obstacle_searcher.MoveNext()) return true;
+            obstacle_searcher = null;
+            return false;
+        }
 
 		protected double final_temp(double start_T, AtmosphericConditions cond)
 		{
@@ -421,16 +457,6 @@ namespace ThrottleControlledAvionics
 				Math.Pow(Utils.ClampH(trajectory.DistanceToTarget/LTRJ.Dtol *LTRJ.FlyOverAlt/VSL.Altitude.Relative *
 				                      Utils.ClampL(2 + Vector3.Dot(TL.normalized, VSL.HorizontalSpeed.normalized)*LTRJ.CorrectionDirF, 1), 1), 
 				         GLB.ANC.DistanceCurve);
-            
-//            CSV(correction, //debug
-//                -VSL.Physics.Up*VSL.Physics.G*(1-t0*t0/t1/t1) + VSL.vessel.srf_velocity * 2 * ((t1-t0)/t1/t1),
-//                TL.ClampMagnitudeH((float)correction.magnitude),
-//                1 / VSL.Engines.MaxAccel*Utils.G0*Body.GeeASL,  
-//                Utils.ClampH(1 + rel_dP, 2),  
-//                Math.Pow(Utils.ClampH(trajectory.DistanceToTarget/LTRJ.Dtol *LTRJ.FlyOverAlt/VSL.Altitude.Relative *
-//                                      Utils.ClampL(2 + Vector3.Dot(TL.normalized, VSL.HorizontalSpeed.normalized)*LTRJ.CorrectionDirF, 1), 1), 
-//                         GLB.ANC.DistanceCurve));
-			
             return correction.normalized;
 		}
 
@@ -480,7 +506,12 @@ namespace ThrottleControlledAvionics
 		void scan_for_landing_site()
 		{
 			if(scanned || scanner.FlatRegion != null) return;
-            if(scanner.Idle) scanner.Start(CFG.Target.Pos, LTRJ.PointsPerFrame, 0.01, 0.3);
+            if(scanner.Idle) 
+            {
+                scanner.Start(CFG.Target.Pos, LTRJ.PointsPerFrame, 0.01);
+                scanner.MaxDist = VSL.Altitude.Relative * Mathf.Tan(LTRJ.ScanningAngle/2*Mathf.Deg2Rad);
+                Log("MaxDist: {}", scanner.MaxDist);//debug
+            }
 			Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", scanner.Progress);
 			if(scanner.Scan()) return;
             flat_target = scanner.FlatRegion != null && (!scanner.FlatRegion.Equals(CFG.Target.Pos) || !CFG.Target.IsVessel);
@@ -495,7 +526,10 @@ namespace ThrottleControlledAvionics
     					trajectory.Target = CFG.Target;
     				}
                 }
-				Utils.Message("Found flat region for landing.");
+                if(scanner.BestUnevennes < GLB.LND.MaxUnevenness)
+                    Utils.Message("Found flat region for landing.");
+                else 
+                    Utils.Message("Moved landing site to a flatter region.");
 			}
 			scanned = true;
 		}
@@ -535,9 +569,14 @@ namespace ThrottleControlledAvionics
 
 		void brake_with_drag()
 		{
-			var max_area_dir = VSL.Geometry.MaxAreaDirection;
-			ATC.SetCustomRotationW(Mathf.Sign(Vector3.Dot(max_area_dir, VSL.vessel.srf_velocity))*max_area_dir, 
-			                       VSL.vessel.srf_velocity);
+            var dir = VSL.OnPlanetParams.MaxAeroForceL;
+            if(dir.IsZero()) 
+            {
+                dir = VSL.Geometry.MaxAreaDirection;
+                dir = Mathf.Sign(Vector3.Dot(dir, VSL.vessel.srf_velocity))*dir;
+            }
+            else dir = -VSL.WorldDir(dir);
+			ATC.SetCustomRotationW(dir, VSL.vessel.srf_velocity);
 		}
 
         bool is_overheating()
@@ -597,19 +636,13 @@ namespace ThrottleControlledAvionics
 				offset = Mathf.Lerp(VSL.Info.TTB, offset, Utils.Clamp(VSL.Engines.TMR-0.1f, 0, 1));
 				VSL.Info.Countdown = trajectory.BrakeEndUT-VSL.Physics.UT-1
 					-Math.Max(offset, LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1)));
-//                Log("UT {}, V {}, ttb {} -> offset {} = {} Countdown {} - {} = {}", 
-//                    trajectory.BrakeStartUT, obt_vel,
-//                    VSL.Info.TTB, MatchVelocityAutopilot.BrakingOffset((float)obt_vel.magnitude, VSL, out VSL.Info.TTB), offset, 
-//                    trajectory.BrakeEndUT-VSL.Physics.UT-1,
-//                    Math.Max(offset, LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1))),
-//                    VSL.Info.Countdown);//debug
                 correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
-                if(obstacle_ahead(trajectory, 50) > 0) 
+                if(obstacle_ahead(50) > 0) 
 				{ decelerate(true); break; }
 				if(VSL.Info.Countdown <= rel_dP ||
 				   will_overheat(trajectory.GetAtmosphericCurve(5, VSL.Physics.UT+TRJ.ManeuverOffset)))
                 { decelerate(false); break; }
-				if(VSL.Controls.CanWarp) 
+                if(VSL.Controls.CanWarp && (!CorrectTarget || VSL.Info.Countdown > CorrectionOffset))
 					VSL.Controls.WarpToTime = VSL.Physics.UT+VSL.Info.Countdown;
 				else VSL.Controls.StopWarp();
 				if(CorrectTarget && VSL.Info.Countdown < CorrectionOffset) 
@@ -623,7 +656,7 @@ namespace ThrottleControlledAvionics
 					Status("red", "Possible collision detected.");
                     correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
 					Executor.Execute(VSL.Physics.Up*10);
-                    if(obstacle_ahead(trajectory, 100) > 0) { CollisionTimer.Reset(); break; }
+                    if(obstacle_ahead(100) > 0) { CollisionTimer.Reset(); break; }
 					if(!CollisionTimer.TimePassed) break;
 					start_landing();
 					break;
@@ -773,10 +806,7 @@ namespace ThrottleControlledAvionics
                                 "\nActivate parachutes manually when needed.</color>";
 					}
 				}
-                if(Body.atmosphere && 
-                   (!not_too_hot || 
-                    trajectory.BrakeEndUT < trajectory.AerobrakeStartUT || 
-                    VSL.Physics.UT > trajectory.AerobrakeStartUT)) 
+                if(Body.atmosphere)
                     VSL.BrakesOn();
 				if(!VSL.OnPlanetParams.HaveParachutes && 
 				   !VSL.Engines.HaveNextStageEngines && 
@@ -809,18 +839,13 @@ namespace ThrottleControlledAvionics
                     flat_target = false;
                     break;
                 }
-//                Log("Working {}: countdown {} - turn {} - ttb {} || srfV {} < {}; target in range {} && flat target {} || alt > {}",
-//                    Working, VSL.Info.Countdown, turn_time, 
-//                    VSL.Engines.OnPlanetTTB(VSL.vessel.srf_velocity, VSL.Physics.Up, VSL.Altitude.Absolute),
-//                    VSL.vessel.srfSpeed, LTRJ.BrakeEndSpeed,
-//                    target_within_range , flat_target , VSL.Altitude.Relative , GLB.LND.WideCheckAltitude);//debug
 				if(!Working)
 				{
 					correct_landing_site();
 					correct_attitude_with_thrusters(turn_time);
                     VSL.Info.TTB = VSL.Engines.OnPlanetTTB(VSL.vessel.srf_velocity, VSL.Physics.Up, VSL.Altitude.Absolute);
 					VSL.Info.Countdown -= VSL.Info.TTB+turn_time;
-					Working = VSL.Info.Countdown <= 0 || VSL.vessel.srfSpeed < LTRJ.BrakeEndSpeed;//TODO: is this correct?
+					Working = VSL.Info.Countdown <= 0 || VSL.vessel.srfSpeed < LTRJ.BrakeEndSpeed;
 					if(!Working)
 					{
 						if(VSL.Controls.InvAlignmentFactor > 0.5) 
@@ -890,9 +915,6 @@ namespace ThrottleControlledAvionics
 				Status("Approaching the target...");
 				set_destination_vector();
 				if(!CFG.Nav[Navigation.GoToTarget]) land();
-//                Log("Dist2Target: {}, hV {}, vD {}", 
-//                    CFG.Target.DistanceTo(VSL), VSL.HorizontalSpeed.Absolute,
-//                    VSL.Altitude.LowerThreshold+CFG.DesiredAltitude-VSL.Altitude.Absolute);//debug
 				break;
 			case LandingStage.Land: 
 				set_destination_vector();
@@ -951,256 +973,114 @@ namespace ThrottleControlledAvionics
     {
         protected readonly VesselWrapper VSL;
 
+        protected Coordinates start;
         protected int points_per_frame;
-        protected Coordinates current_point;
-        protected double cur_unevenness;
         protected double delta, half;
 
         public double Delta { get { return delta*Mathf.Deg2Rad*VSL.Body.Radius; } }
 
+        public double MaxDist = -1;
         public double MaxUnevennes;
+        public double BestUnevennes { get; protected set; }
         public Coordinates FlatRegion { get; protected set; }
-        public bool Idle { get { return current_point == null; } }
+        public abstract bool Idle { get; }
         public abstract float Progress { get; }
 
-        protected PQS_Scanner(VesselWrapper vsl) { VSL = vsl; }
+        protected PQS_Scanner(VesselWrapper vsl, double max_unevenness) 
+        { 
+            VSL = vsl; 
+            MaxUnevennes = max_unevenness;
+        }
 
         public virtual void Reset()
         {
             FlatRegion = null;
-            current_point = null;
-            cur_unevenness = -1;
+            BestUnevennes = double.MaxValue;
         }
 
-        protected void Start(Coordinates pos, int points_per_frame)
+        protected void Start(Coordinates start, int points_per_frame)
         {
             Reset();
-            current_point = pos.Copy();
+            this.start = start.Copy();
             this.points_per_frame = points_per_frame;
             delta = VSL.Geometry.D/VSL.Body.Radius*Mathf.Rad2Deg;
             half = delta/2;
         }
 
-        protected double altitude_delta(double lat, double lon)
-        { return Math.Abs(new Coordinates(lat, lon, 0).SurfaceAlt(VSL.Body, true)-current_point.Alt); }
+        protected double altitude_delta(double lat, double lon, double prev_alt)
+        { return Math.Abs(new Coordinates(lat, lon, 0).SurfaceAlt(VSL.Body, true)-prev_alt); }
 
-        protected void scan_current_point()
+        protected double calculate_unevenness(double lat, double lon)
         {
+            var current_point = Coordinates.SurfacePoint(lat, lon, VSL.Body);
             #if DEBUG
             VSL.Info.AddCustopWaypoint(current_point, "Checking...");
             #endif
-            current_point.SetAlt2Surface(VSL.Body);
             if(current_point.OnWater) 
-                cur_unevenness = double.MaxValue;
+                return double.PositiveInfinity;
             else
             {
-                var alt_delta = altitude_delta(current_point.Lat-half, current_point.Lon-half);
-                alt_delta += altitude_delta(current_point.Lat+half, current_point.Lon-half);
-                alt_delta += altitude_delta(current_point.Lat+half, current_point.Lon+half);
-                alt_delta += altitude_delta(current_point.Lat-half, current_point.Lon+half);
-                cur_unevenness = alt_delta/VSL.Geometry.D;
+                var alt_delta = altitude_delta(current_point.Lat-half, current_point.Lon-half, current_point.Alt);
+                alt_delta += altitude_delta(current_point.Lat+half, current_point.Lon-half, current_point.Alt);
+                alt_delta += altitude_delta(current_point.Lat+half, current_point.Lon+half, current_point.Alt);
+                alt_delta += altitude_delta(current_point.Lat-half, current_point.Lon+half, current_point.Alt);
+                return alt_delta/VSL.Geometry.D;
             }
+        }
+
+        protected bool good_point(double lat, double lon, double unevenness)
+        {
+            return MaxDist < 0 || start.DistanceTo(new Coordinates(lat, lon, 0), VSL.Body) < MaxDist;
         }
 
         public abstract bool Scan();
     }
 
-    public class PQS_Scanner_Gradient : PQS_Scanner
+    public class PQS_Scanner_CDOS : PQS_Scanner
     {
-        double min_unevenness;
-        double tolerance, turn_threshold;
-        Vector2d dir;
+        CDOS_Optimizer2D_Generic optimizer;
+        IEnumerator optimization;
+
+        public override bool Idle 
+        { get { return optimizer == null; } }
 
         public override float Progress
-        { get { return min_unevenness < 0? 0 : (float)Math.Min(MaxUnevennes/min_unevenness, 1); } }
+        { get { return optimizer == null? 0 : (float)Math.Min(MaxUnevennes/optimizer.BestValue, 1); } }
 
-        public PQS_Scanner_Gradient(VesselWrapper vsl) : base(vsl) {}
+        public PQS_Scanner_CDOS(VesselWrapper vsl, double max_unevenness) 
+            : base(vsl, max_unevenness) {}
 
-        public void Start(Coordinates pos, int num_points_per_frame, double tol, double turn_threshold)
+        public void Start(Coordinates pos, int num_points_per_frame, double tol)
         {
             base.Start(pos, num_points_per_frame);
-            this.turn_threshold = turn_threshold;
-            dir = new Vector2d(1, 0);
-            tolerance = tol*delta;
+            optimizer = new CDOS_Optimizer2D_Generic(pos.Lat, pos.Lon, delta*10, tol*delta, 1e-7, calculate_unevenness, good_point);
         }
 
         public override void Reset()
         {
             base.Reset();
-            scanner = null;
-            min_unevenness = -1;
-        }
-
-        void shift_dir()
-        {
-            dir = new Vector2d(-dir.y, dir.x);
-            var p = current_point.Copy();
-            var u = cur_unevenness;
-            current_point.Lat += dir.x;
-            current_point.Lon += dir.y;
-            scan_current_point();
-            if(u < cur_unevenness)
-            {
-                dir *= -1;
-                current_point = p;
-                cur_unevenness = u;
-            }
-        }
-
-        IEnumerable scan_dir(double d, bool strict = false)
-        {
-            var minP = current_point.Copy();
-            var minU = cur_unevenness;
-            while(d > tolerance)
-            {
-                scan_current_point();
-                Utils.Log("scan dir: {}, {} > {}, cur {}, min {}", 
-                          current_point, d, tolerance, cur_unevenness, minU);//debug
-                if(cur_unevenness < minU)
-                {
-                    minP = current_point.Copy();
-                    minU = cur_unevenness;
-                    if(cur_unevenness < min_unevenness) 
-                        min_unevenness = cur_unevenness;
-                }
-                else if(strict || 1-minU/cur_unevenness > turn_threshold)
-                {
-                    d /= -2;
-                    current_point = minP.Copy();
-                    cur_unevenness = minU;
-                    strict = true;
-                }
-                current_point.Lat += dir.x*d;
-                current_point.Lon += dir.y*d;
-                yield return null;
-            }
-            current_point = minP;
-            cur_unevenness = minU;
-        }
-
-        IEnumerator scanner;
-        IEnumerator new_scanner()
-        {
-            Utils.Log("Created new scanner");//debug
-            scan_current_point();
-            min_unevenness = cur_unevenness;
-            yield return null;
-            foreach(var f in scan_dir(delta)) yield return f;
-            var d = delta;
-            while(min_unevenness >= MaxUnevennes && d > tolerance)
-            {
-                var prevP = current_point.Copy();
-                foreach(var f in scan_dir(d)) yield return f;
-                shift_dir();
-                d = 0.1 * prevP.AngleTo(current_point)*Mathf.Rad2Deg + 0.1 * d;
-                Utils.Log("delta {}/{} > {}", d, delta, tolerance);//debug
-                yield return null;
-            }
+            optimizer = null;
+            optimization = null;
         }
 
         public override bool Scan()
         {
-            if(scanner == null) 
-                scanner = new_scanner();
+            if(optimizer == null) return false;
+            if(optimization == null)
+                optimization = optimizer.GetEnumerator();
             for(var p = 0; p < points_per_frame; p++)
             {
-                if(!scanner.MoveNext())
+                if(!optimization.MoveNext())
                 {
-                    FlatRegion = current_point;
-                    current_point = null;
+                    var best = optimizer.Best;
+                    FlatRegion = Coordinates.SurfacePoint(best.x, best.y, VSL.Body);
+                    BestUnevennes = best.z;
+                    Utils.Log("Best: {}", BestUnevennes);
                     return false;
                 }
             }
-            Utils.Log("Current: UNV {}, minUNV {}, Flat {}", 
-                      cur_unevenness, min_unevenness, FlatRegion);//debug
             return true;
         }
     }
-
-    public class PQS_Scanner_Area : PQS_Scanner
-	{
-		int max_cycles, cycle;
-		int points_in_cycle, points_per_side, side, cycle_point;
-        int point, total_points;
-
-        public override float Progress { get { return point/(float)total_points; } }
-
-        public PQS_Scanner_Area(VesselWrapper vsl) : base(vsl) {}
-
-		public override void Reset()
-		{
-            base.Reset();
-			cycle = side = cycle_point = 0;
-			points_in_cycle = 1;
-			points_per_side = 1;
-		}
-
-        public void Start(Coordinates pos, int num_points_per_frame, int num_cycles)
-		{
-            base.Start(pos, num_points_per_frame);
-            total_points = 1+num_cycles*(num_cycles+1)*4;
-            point = 0;
-		}
-
-		void move_to_next_point()
-		{
-			point++;
-			cycle_point++;
-			side = cycle_point/points_per_side;
-			switch(side)
-			{
-			case 0:
-				current_point.Lon += delta;
-				break;
-			case 1:
-				current_point.Lat += delta;
-				break;
-			case 2:
-				current_point.Lon -= delta;
-				break;
-			case 3:
-				current_point.Lat -= delta;
-				break;
-			}
-		}
-
-		void start_next_cycle()
-		{
-			cycle++;
-			points_per_side = cycle*2;
-			points_in_cycle = cycle*8;
-			current_point.Lat -= delta;
-			side = 0;
-			cycle_point = 0;
-		}
-
-        public override bool Scan()
-		{
-			if(current_point == null) return false;
-			bool working = true;
-			for(int i = 0; i < points_per_frame; i++)
-			{
-				if(cycle_point < points_in_cycle)
-				{
-					scan_current_point();
-                    if(cur_unevenness < MaxUnevennes)
-					{
-                        current_point = null;
-						working = false;
-						break;
-					}
-					move_to_next_point();
-				}
-				else
-				{
-					start_next_cycle();
-					if(cycle < max_cycles) continue;
-					working = false;
-					break;
-				}
-			}
-			return working;
-		}
-	}
 }
 
