@@ -25,27 +25,23 @@ namespace ThrottleControlledAvionics
 		public new class Config : TCAModule.ModuleConfig
 		{
 			[Persistent] public float StartOffset      = 30f;  //s
-			[Persistent] public float StartInclination = 30f;  //deg
 			[Persistent] public float StartAltitude    = 100f; //m
 			[Persistent] public float InclinationF     = 2f;
 			[Persistent] public float ObstacleOffset   = 50f;
+            [Persistent] public float MinStartAngle    = 10f;
 
             [Persistent] public PIDf_Controller FallCorrectionPID = new PIDf_Controller(1, 0.5f, 0, 0, float.PositiveInfinity);
-
-			public float StartTangent = 1;
-
-			public override void Init()
-			{
-				StartTangent = 1/Mathf.Tan(Utils.Clamp(StartInclination, 10, 80)*Mathf.Deg2Rad);
-			}
 		}
 		static Config BJ { get { return Globals.Instance.BJ; } }
 
 		public BallisticJump(ModuleTCA tca) : base(tca) {}
 
+        Radar RAD;
+
 		public enum Stage { None, Start, GainAltitude, Compute, Accelerate, CorrectAltitude, CorrectTrajectory, Coast, Wait }
 		[Persistent] public Stage stage;
 		float StartAltitude;
+        double LandingStartUT;
 
         PIDf_Controller fall_correction = new PIDf_Controller(1, 0.5f, 0, 0, float.PositiveInfinity);
 
@@ -122,72 +118,116 @@ namespace ThrottleControlledAvionics
 
         class LandingSiteOptimizer : LandingSiteOptimizerBase
         {
-            readonly BallisticJump m;
-            readonly Vector3d direction;
-            readonly double velocity;
+            protected readonly BallisticJump m;
+            protected readonly Vector3d direction;
+            protected double velocity;
+            protected double angle;
 
             public LandingSiteOptimizer(BallisticJump module, double velocity, Vector3d direction, float dtol) : base(dtol)
             { 
                 m = module;
-                this.direction = direction;
                 this.velocity = velocity;
+                this.direction = direction;
+                angle = 0;
+                Utils.Log("BJ: V {}, dir {}", velocity, direction);
+            }
+
+            protected virtual double start_offset() { return BJ.StartOffset; }
+            protected double startUT { get { return m.VSL.Physics.UT + start_offset(); } }
+            protected virtual Vector3d dir { get { return direction; } }
+            protected virtual bool ScanDeltaFi { get { return Best.DistanceToTarget > 1000; } }
+
+            IEnumerable<LandingTrajectory> optimize_DeltaV()
+            {
+                var dV = Best.DeltaR*(10-m.CFG.Target.AngleTo(m.VSL)/Math.PI*9.9)*m.Body.GeeASL;
+                Utils.Log("dR {}, Angle2Tgt {}, G {}", Best.DeltaR, m.CFG.Target.AngleTo(m.VSL), m.Body.GeeASL);//debug
+                var bestV = velocity;
+                var dVEnd = Math.Abs(dV)/100;
+                LandingTrajectory cur = Best, prev;
+                while(Math.Abs(dV) > dVEnd)
+                {
+                    prev = cur;
+                    cur = new LandingTrajectory(m.VSL, 
+                                                (QuaternionD.AngleAxis(angle, m.VesselOrbit.getRelativePositionAtUT(startUT)) * dir)*velocity -
+                                                m.VesselOrbit.getOrbitalVelocityAtUT(startUT), 
+                                                startUT, m.CFG.Target, cur.TargetAltitude);
+                    if(cur.DistanceToTarget < Best.DistanceToTarget) 
+                    {
+                        Best = cur;
+                        bestV = velocity;
+                    }
+                    if(cur.DistanceToTarget > prev.DistanceToTarget) 
+                    {
+                        dV /= -2.1;
+                        velocity = bestV;
+                    }
+                    velocity += dV;
+//                    Utils.Log("D {}, dR {}, dV {}, V {}", cur.DistanceToTarget, cur.DeltaR, dV, velocity);//debug
+                    yield return cur;
+                }
+                velocity = bestV;
+            }
+
+            IEnumerable<LandingTrajectory> optimize_DeltaFi()
+            {
+                var dFi = ScanDeltaFi? 10.0*Math.Sign(Best.DeltaFi) : Best.DeltaFi;
+                var fi = 0.0;
+                var bestFi = fi;
+                var cur = Best;
+                var scanned = !ScanDeltaFi;
+                while(Math.Abs(dFi) > 1e-3)
+                {
+                    cur = new LandingTrajectory(m.VSL, 
+                                                (QuaternionD.AngleAxis(fi+angle, m.VesselOrbit.getRelativePositionAtUT(startUT)) * dir)*velocity -
+                                                m.VesselOrbit.getOrbitalVelocityAtUT(startUT),
+                                                startUT, m.CFG.Target, cur.TargetAltitude);
+                    if(Math.Abs(cur.DeltaFi) < Math.Abs(Best.DeltaFi))
+                    {
+                        Best = cur;
+                        bestFi = fi;
+                    }
+                    else if(scanned || Math.Abs(fi+angle) > 120) 
+                    {
+                        dFi /= -2.1;
+                        fi = bestFi;
+                        scanned = true;
+                    }
+                    fi += dFi;
+//                    Utils.Log("D {}, fi {} ({}), dfi {}, DeltaFi {}, trajectory {}", 
+//                              cur.DistanceToTarget, fi, fi+angle, dFi, cur.DeltaFi, cur);//debug
+                    yield return cur;
+                }
+                angle += bestFi;
             }
 
             public override IEnumerator<LandingTrajectory> GetEnumerator()
             {
-                var targetAlt = m.TargetAltitude;
-                var dir = direction;
-                var V = velocity;
-                LandingTrajectory prev = null, cur = null;
-                while(continue_calculation(prev, cur))
+                Best = new LandingTrajectory(m.VSL, 
+                                             dir*velocity-m.VesselOrbit.getOrbitalVelocityAtUT(startUT), 
+                                             startUT, m.CFG.Target, m.TargetAltitude);
+                LandingTrajectory prev = null;
+                while(continue_calculation(prev, Best))
                 {       
-                    prev = cur;
-                    var startUT = m.VSL.Physics.UT+BJ.StartOffset;
-                    cur = new LandingTrajectory(m.VSL, 
-                                                dir*V-m.VesselOrbit.getOrbitalVelocityAtUT(startUT), 
-                                                startUT, m.CFG.Target, targetAlt);
-                    if(Best == null || cur.Quality < Best.Quality) Best = cur;
-                    targetAlt = cur.TargetAltitude;
-                    V += cur.DeltaR*(1-m.CFG.Target.AngleTo(m.VSL)/Math.PI*0.9)*m.Body.GeeASL;
-                    dir = Quaternion.AngleAxis((float)cur.DeltaFi, m.VSL.Physics.Up.xzy) * dir;
-                    yield return cur;
+                    prev = Best;
+                    foreach(var t in optimize_DeltaV()) yield return t;
+                    foreach(var t in optimize_DeltaFi()) yield return t;
+                    Utils.Log("Best so far: {}", Best.DistanceToTarget);
                 }
             }
         }
 
-        class LandingSiteCorrector : LandingSiteOptimizerBase
+        class LandingSiteCorrector : LandingSiteOptimizer
         {
-            readonly BallisticJump m;
-            readonly double velocity;
+            public LandingSiteCorrector(BallisticJump module, double velocity, float dtol) 
+                : base(module, velocity, Vector3d.zero, dtol) {}
 
-            public LandingSiteCorrector(BallisticJump module, double velocity, float dtol) : base(dtol)
-            { 
-                m = module;
-                this.velocity = velocity;
-            }
+            protected override double start_offset() 
+            { return Math.Max(m.CorrectionOffset, m.VSL.Torque.NoEngines.TurnTime); }
 
-            public override IEnumerator<LandingTrajectory> GetEnumerator()
-            {
-                var V = velocity;
-                var angle = 0.0;
-                var start_offset = Math.Max(m.CorrectionOffset, m.VSL.Torque.NoEngines.TurnTime);
-                var targetAlt = m.TargetAltitude;
-                LandingTrajectory prev = null, cur = null;
-                while(continue_calculation(prev, cur))
-                {       
-                    prev = cur;
-                    var startUT = m.VSL.Physics.UT+start_offset;
-                    var vel = m.VesselOrbit.getOrbitalVelocityAtUT(startUT);
-                    cur = new LandingTrajectory(m.VSL, 
-                                                QuaternionD.AngleAxis(angle, m.VSL.Physics.Up.xzy)*vel.normalized*V - vel, 
-                                                startUT, m.CFG.Target, targetAlt);
-                    if(Best == null || cur.Quality < Best.Quality) Best = cur;
-                    targetAlt = cur.TargetAltitude;
-                    V += cur.DeltaR*(1-m.CFG.Target.AngleTo(m.VSL)/Math.PI*0.9)*m.Body.GeeASL;
-                    angle += cur.DeltaFi;
-                    yield return cur;
-                }
-            }
+            protected override Vector3d dir
+            { get { return m.VesselOrbit.getOrbitalVelocityAtUT(startUT).normalized; } }
+
+            protected override bool ScanDeltaFi { get { return false; } }
         }
 
 		void compute_initial_trajectory()
@@ -195,10 +235,16 @@ namespace ThrottleControlledAvionics
 			MAN.MinDeltaV = 1f;
 			var tPos = CFG.Target.RelOrbPos(Body);
 			var solver = new LambertSolver(VesselOrbit, tPos+tPos.normalized*LTRJ.FlyOverAlt, VSL.Physics.UT);
-			var vel = (VesselOrbit.vel+solver.dV4TransferME());
+            var vel = VesselOrbit.vel +
+                solver.dV4TransferME()
+                .ClampMagnitudeH(Math.Sqrt(Body.gMagnitudeAtCenter/VesselOrbit.radius));
 			if(Vector3d.Dot(vel, VesselOrbit.pos) < 0) vel = -vel;
-			var dir = vel.normalized;
 			var V = vel.magnitude;
+            //correcto for low trajectories
+            var ascention_angle = 90-Vector3d.Angle(vel, VesselOrbit.pos);
+            if(ascention_angle < BJ.MinStartAngle)
+                vel = QuaternionD.AngleAxis(BJ.MinStartAngle-ascention_angle, Vector3d.Cross(vel, VesselOrbit.pos)) * vel;
+            var dir = vel.normalized;
             ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LTRJ.Dtol));
             stage = Stage.Compute;
             trajectory = null;
@@ -207,23 +253,23 @@ namespace ThrottleControlledAvionics
 		void accelerate()
 		{
 			CFG.HF.Off();
-			clear_nodes(); add_trajectory_node();
-			CFG.AT.OnIfNot(Attitude.ManeuverNode);
+			clear_nodes();
             fall_correction.Reset();
 			stage = Stage.Accelerate;
 		}
 
 		protected override void fine_tune_approach()
 		{
+            LandingStartUT = trajectory != null? trajectory.BrakeStartUT-180 : -1;
 			double V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
             ComputeTrajectory(new LandingSiteCorrector(this, V, LTRJ.Dtol/2));
             stage = Stage.CorrectTrajectory;
             trajectory = null;
 		}
 
-        void VSC_ON()
+        void VSC_ON(HFlight program)
         {
-            CFG.HF.OnIfNot(HFlight.Stop);
+            CFG.HF.OnIfNot(program);
             CFG.BlockThrottle = true;
             CFG.AltitudeAboveTerrain = true;
             CFG.VF.OnIfNot(VFlight.AltitudeControl);
@@ -243,7 +289,7 @@ namespace ThrottleControlledAvionics
 			switch(stage)
 			{
 			case Stage.Start:
-                VSC_ON();
+                VSC_ON(HFlight.Stop);
 				if(VSL.LandedOrSplashed || VSL.Altitude.Relative < StartAltitude) 
                     CFG.DesiredAltitude = StartAltitude;
                 else CFG.DesiredAltitude = VSL.Altitude.Relative;
@@ -252,16 +298,17 @@ namespace ThrottleControlledAvionics
 				break;
             case Stage.GainAltitude:
                 Status("Gaining altitude...");
-                VSC_ON();
+                VSC_ON(HFlight.Level);
                 if(VSL.Altitude.Relative > CFG.DesiredAltitude-10)
                     compute_initial_trajectory();
                 break;
 			case Stage.Compute:
-				if(!trajectory_computed()) break;
-                var obst = obstacle_ahead(trajectory, BJ.StartAltitude);
-                if(obst > 0)
+                double obstacle;
+                if(!trajectory_computed()) break;
+                if(find_biggest_obstacle_ahead(BJ.StartAltitude, out obstacle)) break;
+                if(obstacle > 0)
 				{
-                    StartAltitude += (float)obst+BJ.ObstacleOffset;
+                    StartAltitude += (float)obstacle+BJ.ObstacleOffset;
                     CFG.DesiredAltitude = StartAltitude;
                     stage = Stage.GainAltitude;
 				}
@@ -275,29 +322,42 @@ namespace ThrottleControlledAvionics
 				accelerate();
 				break;
 			case Stage.Accelerate:
-                if(!VSL.HasManeuverNode) { CFG.AP2.Off(); break; }
+                CFG.AT.OnIfNot(Attitude.Custom);
+                var dV = (trajectory.Orbit.GetFrameVelAtUT(trajectory.StartUT)-
+                          VSL.orbit.GetFrameVelAtUT(trajectory.StartUT)).xzy;
 				if(VSL.Controls.AlignmentFactor > 0.9 || !CFG.VSCIsActive)
 				{
 					CFG.DisableVSC();
-                    var dV = VSL.FirstManeuverNode.GetBurnVector(VesselOrbit);
-//                        (trajectory.Orbit.GetFrameVelAtUT(VSL.Physics.UT)-
-//                              VSL.orbit.GetFrameVelAtUT(VSL.Physics.UT)).xzy;
-                    if(VSL.VerticalSpeed.Absolute < 0)
-                        fall_correction.Update(-VSL.VerticalSpeed.Absolute);
+                    var dVv = -VSL.Altitude.Absolute;//Vector3d.Dot(dV, VSL.Physics.Up);
+                    if(RAD != null)
+                    {
+                        var dH = VSL.Altitude.Relative - VSL.Altitude.Ahead - VSL.Geometry.H;
+                        if(dH < 0) dVv -= dH/RAD.TimeAhead*1.1f;
+                    }
+                    if(dVv > 0)
+                    {
+                        fall_correction.I = BJ.FallCorrectionPID.I * Utils.ClampL(100/VSL.Altitude.Relative, 1);
+                        fall_correction.Update(-VSL.Altitude.Absolute);
+                    }
                     else
                     {
-                        fall_correction.IntegralError *= 1-fall_correction.I/10*TimeWarp.fixedDeltaTime;
+                        fall_correction.IntegralError *= Utils.ClampL(1-fall_correction.I/10*TimeWarp.fixedDeltaTime, 0);
                         fall_correction.Update(0);
                     }
-                    if(!Executor.Execute(dV+fall_correction*VSL.Physics.Up, 10)) 
-                        fine_tune_approach();
-					Status("white", "Accelerating...");
+//                    Log("dV {}, dVv {}, correction {}, I {}", dV, dVv, fall_correction.Action, fall_correction.I);//debug
+                    if(Executor.Execute(dV+fall_correction*VSL.Physics.Up, 10)) 
+                        Status("white", 
+                               "Accelerating: <color=yellow><b>{0}</b> m/s</color>", 
+                               (dV.magnitude-10).ToString("F1"));
+                    else fine_tune_approach();
 				}
+                else ATC.SetThrustDirW(-dV);
 				break;
 			case Stage.CorrectTrajectory:
-                warp_to_coundown();
-                if(VesselOrbit.ApAhead())
+                VSL.Info.Countdown = LandingStartUT-VSL.Physics.UT;
+                if(LandingStartUT < 0 || VSL.Info.Countdown > 0)
                 {
+                    warp_to_coundown();
     				if(!trajectory_computed()) break;
     				add_correction_node_if_needed();
     				stage = Stage.Coast;
@@ -309,17 +369,20 @@ namespace ThrottleControlledAvionics
                 }
 				break;
 			case Stage.Coast:
-				var ap_ahead = VesselOrbit.ApAhead();
-				if(CFG.AP1[Autopilot1.Maneuver]) 
-				{ 
-					if(ap_ahead)
-					{
-						Status("Correcting trajectory..."); 
-						break; 
-					}
-				}
-				Status("Coasting...");
-				if(ap_ahead && !correct_trajectory()) break;
+                VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-180;
+                if(VSL.Info.Countdown > 0)
+                {
+                    if(CFG.AP1[Autopilot1.Maneuver]) 
+                    { 
+                        Status("Correcting trajectory...");
+                        break; 
+                    }
+                    if(!correct_trajectory()) 
+                    {
+                        Status("Coasting...");
+                        break;
+                    }
+                }
 				stage = Stage.None;
 				start_landing();
 				break;

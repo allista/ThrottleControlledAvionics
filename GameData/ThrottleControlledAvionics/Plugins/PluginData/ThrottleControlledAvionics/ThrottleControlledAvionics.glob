@@ -436,6 +436,7 @@ LTRJ
 	FinalBrakeOffset   = 3    //s
 	ParachutesDeployOffset = 10 //s
 	
+	
 	CorrectionTimer    = 30   //s
 	CorrectionMinDv    = 1    //m/s
 	CorrectionThrustF  = 4
@@ -467,15 +468,15 @@ DEO
 BJ
 {
 	StartOffset      = 15  //s
-	StartInclination = 30  //deg
 	StartAltitude    = 50  //m
 	InclinationF     = 2
 	ObstacleOffset   = 50  //m
+	MinStartAngle    = 10  //deg
 	
 	FallCorrectionPID
 	{
 		P = 1
-		I = 3
+		I = 1
 		D = 0
 	}
 }
