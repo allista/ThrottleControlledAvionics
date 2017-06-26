@@ -144,6 +144,7 @@ namespace ThrottleControlledAvionics
 		{
             #if DEBUG
             ATC.DrawDebugLines();
+            Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.OnPlanetParams.MaxAeroForceL)*10, Color.magenta);
             #endif
 			if(GUILayout.Button(new GUIContent("T-SAS", "Push to toggle attitude controls"), 
 			                    CFG.AT && !VSL.AutopilotDisabled? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false)))
