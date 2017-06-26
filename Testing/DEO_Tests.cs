@@ -219,7 +219,7 @@ namespace ThrottleControlledAvionics
         public DEO_Test_Kerbin()
         {
             Save = "Kerbin Chute Landing";
-            latSpread = 20;
+            latSpread = 30;
         }
     }
 
