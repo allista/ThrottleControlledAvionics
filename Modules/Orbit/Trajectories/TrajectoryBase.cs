@@ -128,7 +128,7 @@ namespace ThrottleControlledAvionics
 		public Vector3d AtTargetPos { get; protected set; }
 		public Vector3d AtTargetVel { get; protected set; }
         public double DistanceToTarget { get; protected set; } = double.MaxValue;
-		public double DeltaFi { get; protected set; }
+        public double DeltaFi { get; protected set; } = double.MaxValue;
 
 		public double TimeToTarget { get { return AtTargetUT-VSL.Physics.UT; } }
 		public double RelDistanceToTarget { get { return DistanceToTarget/Orbit.semiMajorAxis; } }
