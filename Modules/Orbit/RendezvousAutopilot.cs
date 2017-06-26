@@ -714,7 +714,7 @@ namespace ThrottleControlledAvionics
                    Math.Abs(trajectory.AtTargetPos.magnitude-EndApR)/EndApR < 0.1)
                 {
                     clear_nodes();
-                    add_trajectory_node();
+                    add_trajectory_node_rel();
                     CFG.AP1.On(Autopilot1.Maneuver);
                     stage = Stage.Rendezvou;
                 }
@@ -727,7 +727,7 @@ namespace ThrottleControlledAvionics
                     trajectory.RelDistanceToTarget < REN.CorrectionStart)
 				{
                     clear_nodes();
-                    add_trajectory_node();
+                    add_trajectory_node_rel();
                     CFG.AP1.On(Autopilot1.Maneuver);
                     stage = Stage.Rendezvou;
                 }
@@ -761,7 +761,7 @@ namespace ThrottleControlledAvionics
                         else
                         {
                             clear_nodes();
-                            add_trajectory_node();
+                            add_trajectory_node_rel();
                             CFG.AP1.On(Autopilot1.Maneuver);
                             stage = Stage.Rendezvou;
                         }

@@ -768,8 +768,11 @@ namespace ThrottleControlledAvionics
 		protected void add_node(Vector3d dV, double UT) 
 		{ ManeuverAutopilot.AddNode(VSL, dV, UT); }
 
-		protected void add_trajectory_node()
+		protected void add_trajectory_node_rel()
 		{ ManeuverAutopilot.AddNodeRaw(VSL, trajectory.NodeDeltaV, trajectory.StartUT); }
+
+        protected void add_trajectory_node_abs()
+        { ManeuverAutopilot.AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT); }
 
 		protected override void reset()
 		{

@@ -466,7 +466,7 @@ namespace ThrottleControlledAvionics
 		{
             SaveGame("before_landing");
 			CorrectionTimer.Reset();
-			clear_nodes(); add_trajectory_node();
+			clear_nodes(); add_trajectory_node_rel();
 			CFG.AP1.On(Autopilot1.Maneuver); 
 			stage = Stage.Deorbit; 
 		}
