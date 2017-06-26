@@ -123,7 +123,8 @@ namespace ThrottleControlledAvionics
                 {
                     var cur = newT(startUT, inclination, deorbit(startUT));
 //                    m.Log("scan.startUT {}, I {}, dT {}, dist {}", startUT, inclination, dT, cur.DistanceToTarget);//debug
-                    if(Best == null || cur.DistanceToTarget < Best.DistanceToTarget) Best = cur;
+                    if(cur.DistanceToTarget < Best.DistanceToTarget) 
+                        Best = cur;
                     startUT += dT;
                     yield return cur;
                 }
@@ -131,13 +132,13 @@ namespace ThrottleControlledAvionics
 
             IEnumerable<LandingTrajectory> optimize_startUT(double dT)
             {
-                LandingTrajectory cur = null;
                 var startUT = Best.StartUT;
                 while(Math.Abs(dT) > 0.1)
                 {
-                    cur = cur == null? Best : newT(startUT, inclination, deorbit(startUT));
+                    var cur = newT(startUT, inclination, deorbit(startUT));
 //                    m.Log("opt.startUT {}, I {}, dT {}, dist {}", startUT, inclination, dT, cur.DistanceToTarget);//debug
-                    if(cur.DistanceToTarget < Best.DistanceToTarget) Best = cur;
+                    if(cur.DistanceToTarget < Best.DistanceToTarget) 
+                        Best = cur;
                     startUT += dT;
                     var minUT = m.VSL.Physics.UT+m.ManeuverOffset;
                     if(startUT < minUT || Best != cur)
@@ -151,12 +152,11 @@ namespace ThrottleControlledAvionics
 
             IEnumerable<LandingTrajectory> optimize_startUT_inc(double dT, float dI)
             {
-                LandingTrajectory cur = null;
                 var startUT = Best.StartUT;
                 var I = inclination;
                 while(Math.Abs(dT) > 0.1 && Math.Abs(dI) > 1e-5)
                 {
-                    cur = cur == null? Best : newT(startUT, I, deorbit(startUT));
+                    var cur = newT(startUT, I, deorbit(startUT));
 //                    m.Log("opt.startUT {}, opt.I {}, dT {}, dI {}, dist {}", startUT, I, dT, dI, cur.DistanceToTarget);//debug
                     if(cur.DistanceToTarget < Best.DistanceToTarget) 
                     {
@@ -179,7 +179,6 @@ namespace ThrottleControlledAvionics
 
             IEnumerable<LandingTrajectory> optimize_ecc(double ddV)
             {
-                LandingTrajectory cur = null;
                 var startUT = Best.StartUT;
                 var dir = deorbit(startUT);
                 var dVm = dir.magnitude;
@@ -187,7 +186,7 @@ namespace ThrottleControlledAvionics
                 var bestDeltaV = dVm;
                 while(Math.Abs(ddV) > TRJ.dVtol)
                 {
-                    cur = cur == null? Best : newT(startUT, inclination, dir*dVm);
+                    var cur = newT(startUT, inclination, dir*dVm);
 //                    m.Log("startUT {}, I {}, opt.dV {}, dist {}", startUT, inclination, dVm, cur.DistanceToTarget);//debug
                     if(cur.DistanceToTarget < Best.DistanceToTarget) 
                     {
@@ -209,17 +208,21 @@ namespace ThrottleControlledAvionics
             {
                 inclination = 0f;
                 targetAlt = m.TargetAltitude;
+                var startUT = m.VSL.Physics.UT+m.ManeuverOffset;
+                Best = newT(startUT, inclination, deorbit(startUT));
                 foreach(var t in scan_startUT()) yield return t;
-                while(Best.DistanceToTarget > dtol)
+                LandingTrajectory cur = null;
+                while(continue_calculation(cur, Best))
                 {
+                    cur = Best;
+                    startUT = Best.StartUT;
                     var dR = Math.Abs(Best.DeltaR);
                     var I = inclination;
-                    var startUT = Best.StartUT;
                     var dT = Mathf.Abs((float)Best.DeltaR)/360*m.VesselOrbit.period;
                     foreach(var t in optimize_startUT(dT)) yield return t;
                     var dI = Utils.Clamp((float)Best.DeltaFi, -10, 10);
                     foreach(var t in optimize_inclination(dI, deorbit(Best.StartUT))) yield return t;
-                    foreach(var t in optimize_startUT_inc((Best.StartUT-startUT)/10, (inclination-I)/10)) yield return t;
+                    foreach(var t in optimize_startUT((Best.StartUT-startUT)/10)) yield return t;
                     if(Math.Abs(Math.Abs(Best.DeltaR)-dR) < 1)
                     { 
                         var ddV = Utils.ClampSignedL(Best.DeltaR, 1);
@@ -267,8 +270,10 @@ namespace ThrottleControlledAvionics
                 prograde_dV = 0;
                 targetAlt = m.TargetAltitude;
                 Best = newT(m.VSL.Physics.UT+m.CorrectionOffset+1, 0, Vector3d.zero);
-                while(Best.DistanceToTarget > dtol)
+                LandingTrajectory cur = null;
+                while(continue_calculation(cur, Best))
                 {
+                    cur = Best;
                     var ddV = Utils.ClampSignedL(Best.DeltaR, 1);
                     foreach(var t in optimize_prograde(ddV)) yield return t;
                     var dI = Utils.Clamp((float)Best.DeltaFi, -10, 10);
