@@ -510,7 +510,7 @@ namespace ThrottleControlledAvionics
             {
                 scanner.Start(CFG.Target.Pos, LTRJ.PointsPerFrame, 0.01);
                 scanner.MaxDist = VSL.Altitude.Relative * Mathf.Tan(LTRJ.ScanningAngle/2*Mathf.Deg2Rad);
-                Log("MaxDist: {}", scanner.MaxDist);//debug
+//                Log("MaxDist: {}", scanner.MaxDist);//debug
             }
 			Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", scanner.Progress);
 			if(scanner.Scan()) return;

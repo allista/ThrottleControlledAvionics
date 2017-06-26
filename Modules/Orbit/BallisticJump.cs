@@ -129,7 +129,7 @@ namespace ThrottleControlledAvionics
                 this.velocity = velocity;
                 this.direction = direction;
                 angle = 0;
-                Utils.Log("BJ: V {}, dir {}", velocity, direction);
+//                Utils.Log("BJ: V {}, dir {}", velocity, direction);
             }
 
             protected virtual double start_offset() { return BJ.StartOffset; }
@@ -140,7 +140,7 @@ namespace ThrottleControlledAvionics
             IEnumerable<LandingTrajectory> optimize_DeltaV()
             {
                 var dV = Best.DeltaR*(10-m.CFG.Target.AngleTo(m.VSL)/Math.PI*9.9)*m.Body.GeeASL;
-                Utils.Log("dR {}, Angle2Tgt {}, G {}", Best.DeltaR, m.CFG.Target.AngleTo(m.VSL), m.Body.GeeASL);//debug
+//                Utils.Log("dR {}, Angle2Tgt {}, G {}", Best.DeltaR, m.CFG.Target.AngleTo(m.VSL), m.Body.GeeASL);//debug
                 var bestV = velocity;
                 var dVEnd = Math.Abs(dV)/100;
                 LandingTrajectory cur = Best, prev;
