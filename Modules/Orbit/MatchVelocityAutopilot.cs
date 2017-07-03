@@ -104,9 +104,10 @@ namespace ThrottleControlledAvionics
 
         public static float BrakeDistance(float V0, float ttb, float thrust, float mass, float mflow, float throttle)
         {
-            return CheatOptions.InfinitePropellant? 
-                (V0 - thrust*throttle*ttb/2/mass) * ttb : 
-                V0*ttb + thrust/mflow * ((ttb - mass/mflow /throttle) * Mathf.Log((mass - mflow*throttle*ttb) / mass) - ttb);
+            if(CheatOptions.InfinitePropellant)
+                return (V0 - thrust*throttle*ttb/2/mass) * ttb;
+            var _mflow = mflow*throttle;
+            return V0*ttb + thrust/mflow * ((ttb - mass/_mflow) * Mathf.Log((mass - _mflow*ttb) / mass) - ttb);
         }
 
         public static float BrakeDistancePrecise(float V0, VesselWrapper VSL, out float ttb)
