@@ -17,7 +17,18 @@ namespace ThrottleControlledAvionics
 	{
 		const double DeltaTime = 0.5;
 		static Globals GLB { get { return Globals.Instance; } }
-		static double Cd;
+
+        static double _Cd = -1;
+        public static double Cd
+        {
+            get 
+            {
+                if(_Cd < 0)
+                    //0.0005 converts dynamic pressure to kPa and divides area by 2: Drag = dP * Cd * S/2.
+                    _Cd = 0.0005 * Globals.Instance.ORB.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
+                return _Cd;
+            }
+        }
 
 		readonly VesselWrapper VSL;
 		CelestialBody Body { get { return VSL.Body; } }
@@ -29,22 +40,20 @@ namespace ThrottleControlledAvionics
 		public AtmoSim(VesselWrapper vsl)
 		{
 			VSL = vsl;
-			//0.0005 converts dynamic pressure to kPa and divides area by 2: Drag = dP * Cd * S/2.
-			Cd = 0.0005 * Globals.Instance.ORB.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
 		}
 
-		double drag(double s, double h, double v)
-		{ 
-			if(h > Body.atmosphereDepth) return 0;
-			var atm = Body.AtmoParamsAtAltitude(h);
-			var v2 = v*v;
-			var dP = atm.Rho * v2;
-			var mach = v/atm.Mach1;
-			var Cd = AtmoSim.Cd *
-			    PhysicsGlobals.DragCurveMultiplier.Evaluate((float)mach) *
-				PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(atm.Rho*Math.Abs(v)));
-			return dP * Cd * s;
-		}
+        double drag(double s, double h, double v)
+        { 
+            if(h > Body.atmosphereDepth) return 0;
+            var atm = Body.AtmoParamsAtAltitude(h);
+            var v2 = v*v;
+            var dP = atm.Rho * v2;
+            var mach = v/atm.Mach1;
+            var Cd = AtmoSim.Cd *
+                PhysicsGlobals.DragCurveMultiplier.Evaluate((float)mach) *
+                PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(atm.Rho*Math.Abs(v)));
+            return dP * Cd * s;
+        }
 
 		double StG(double h) 
 		{ 
@@ -66,6 +75,53 @@ namespace ThrottleControlledAvionics
 			}
 			return H;
 		}
+
+        public struct PV 
+        { 
+            public Vector3d pos, vel; 
+            public double time, alt;
+        }
+
+        public double FreeFallTime(Orbit orb, double startUT,
+                                   Vector3d vel, Vector3d pos, double end_altitude, double dt,
+                                   out Vector3d terminal_velocity, out Vector3d end_position)
+        {
+            var R = Body.Radius+end_altitude;
+            var p = new PV{pos=pos.xzy, vel=vel.xzy, alt=pos.magnitude-R};
+            var m = (double)VSL.Physics.M;
+            var s = (double)VSL.Geometry.BoundsSideAreas.MinComponentF();
+            var started = false;
+            var UT = startUT;
+            var endUT = startUT+orb.timeToPe;
+            while(p.alt > 0 && UT < endUT)
+            {
+                var sv = p.vel-Vector3d.Cross(Body.angularVelocity, p.pos);
+                var svm = sv.magnitude;
+                var drag_dv = drag(s, p.alt, svm)/m*dt;
+                started |= drag_dv > 0.1;
+                UT = startUT+p.time;
+                if(started)
+                {
+                    var r = p.pos.magnitude;
+                    p.vel -= p.pos*Body.gMagnitudeAtCenter/r/r/r*dt + sv/svm*Math.Min(drag_dv, svm);
+                    p.pos += p.vel*dt;
+                }
+                else
+                {
+                    p.vel = orb.getOrbitalVelocityAtUT(UT).xzy;
+                    p.pos = orb.getRelativePositionAtUT(UT).xzy;
+                }
+                p.alt = p.pos.magnitude-R;
+                p.time += dt;
+                if(dt > 0.01 && p.alt/svm < dt) 
+                    dt = p.alt/svm*0.9;
+//                Utils.Log("h {}, t {}, dt {}, pos {}, vel {}", 
+//                          p.alt, p.time, dt, p.pos, p.vel);//debug
+            }
+            terminal_velocity = p.vel.xzy;
+            end_position = p.pos.xzy;
+            return p.time;
+        }
 
 		public double FreeFallTime(double end_altitude, out double terminal_velocity)
 		{
