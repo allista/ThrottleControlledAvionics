@@ -8,6 +8,7 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
@@ -17,8 +18,11 @@ namespace ThrottleControlledAvionics
 	public class LandingTrajectory : TargetedTrajectory
 	{
 		public double TargetAltitude;
-		public double LandingAngle;
+        public double ActualLandingAngle { get; private set; }
+        public double LandingSteepness { get; private set; }
 		public WayPoint SurfacePoint { get; private set; }
+
+        public AtmosphericTrajoctory AtmoTrajectory { get; private set; }
 
 		public double VslStartLat { get; private set; }
 		public double VslStartLon { get; private set; }
@@ -38,7 +42,20 @@ namespace ThrottleControlledAvionics
 		public double BrakeStartUT { get; private set; }
 		public double BrakeEndUT { get; private set; }
 		public double BrakeEndDeltaAlt { get; private set; }
+        public double FlyAboveUT { get; private set; }
         public double AerobrakeStartUT { get; private set; }
+        public double AerobrakeStopUT { get; private set; }
+        public AtmosphericTrajoctory AfterBrakeTrajectory { get; private set; }
+        public AtmosphericTrajoctory.Point BrakePoint { get; private set; }
+        public double MaxDynamicPressure { get; private set; }
+        public double MaxShipTemperature { get; private set; }
+        public bool WillOverheat { get; private set; }
+
+        public override float GetTotalFuel()
+        {
+            return base.GetTotalFuel() + 
+                VSL.Engines.FuelNeededAtAlt((float)AtTargetVel.magnitude, (float)TargetAltitude);
+        }
 
 		public LandingTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, 
 		                         WayPoint target, double target_altitude = 0, bool with_brake = true)
@@ -51,23 +68,87 @@ namespace ThrottleControlledAvionics
         void update_landing_site()
         {
             var at_target_rot = TrajectoryCalculator.BodyRotationAtdT(Body, -TimeToTarget);
-            approach = new Coordinates((at_target_rot*Orbit.getRelativePositionAtUT(BrakeEndUT-1)).xzy+Body.position, Body);
+            approach = AtmoTrajectory != null?
+                new Coordinates((at_target_rot*AtmoTrajectory.PointAtUT(BrakeEndUT-1).pos).xzy+Body.position, Body) :
+                new Coordinates((at_target_rot*Orbit.getRelativePositionAtUT(BrakeEndUT-1)).xzy+Body.position, Body);
             SurfacePoint = new WayPoint((at_target_rot*AtTargetPos).xzy+Body.position, Body);
             SurfacePoint.Pos.SetAlt2Surface(Body);
             SurfacePoint.Name = "Landing Site";
+        }
+
+        void update_overheat_info(AtmosphericTrajoctory trj, double startT)
+        {
+            trj.UpdateOverheatInto(startT);
+            MaxShipTemperature = trj.MaxShipTemperature;
+            MaxDynamicPressure = Math.Max(MaxDynamicPressure, trj.MaxDynamicPressure/1000);
+            WillOverheat = MaxShipTemperature > VSL.Physics.MinMaxTemperature;
+        }
+
+        void update_landing_site_after_brake(Vector3d brake_pos, Vector3d brake_vel)
+        {
+            var srfVel = Vector3d.Cross(Body.zUpAngularVelocity, brake_pos.normalized*(Body.Radius+TargetAltitude));
+            var vFactor = 0.1;
+            if(AtmoTrajectory != null)
+                vFactor = WillOverheat ? 0 : 0.5 * (Body.atmDensityASL + BrakePoint.DynamicPressure / 1000 / GLB.LTRJ.MinDPressure);
+            var brakeV = -brake_vel-srfVel 
+                +Vector3d.Project(brake_vel, brake_pos) * (1-Utils.Clamp(vFactor, 0.1, 1));
+            SetBrakeDeltaV(brakeV);
+            BrakeStartUT = Math.Max(BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration), StartUT);
+            Vector3d pos, vel;
+            if(AtmoTrajectory != null)
+            {
+                pos = BrakePoint.pos;
+                vel = BrakePoint.vel+BrakeDeltaV;
+            }
+            else
+            {
+                pos = Orbit.getRelativePositionAtUT(BrakeEndUT);
+                vel = Orbit.getOrbitalVelocityAtUT(BrakeEndUT)+BrakeDeltaV;
+            }
+            AfterBrakeTrajectory = new AtmosphericTrajoctory(VSL, 
+                                                             TrajectoryCalculator.NewOrbit(Body, pos, vel, BrakeEndUT), 
+                                                             TargetAltitude, 
+                                                             BrakeEndUT, 
+                                                             GLB.LTRJ.AtmoTrajectoryResolution);
+            if(AtmoTrajectory != null)
+                update_overheat_info(AfterBrakeTrajectory, BrakePoint.ShipTemperature);
+            AtTargetVel = AfterBrakeTrajectory.LastPoint.vel;
+            AtTargetPos = AfterBrakeTrajectory.LastPoint.pos;
+            AtTargetUT = AfterBrakeTrajectory.LastPoint.UT;
+            update_landing_site();
         }
 
 		void update_from_orbit(Orbit orb, double UT)
 		{
 			//calculate the position of a landing site
 			if(orb.ApA <= TargetAltitude) 
+            {
 				AtTargetUT = orb.StartUT+(orb.ApAhead()? orb.timeToAp : 1);
-			else if(orb.PeA < TargetAltitude) 
-				AtTargetUT = TrajectoryCalculator.NearestRadiusUT(orb, Body.Radius+TargetAltitude, UT);
-			else AtTargetUT = orb.StartUT+orb.timeToPe;
+                AtTargetPos = orb.getRelativePositionAtUT(AtTargetUT);
+                AtTargetVel = orb.getOrbitalVelocityAtUT(AtTargetUT);
+            }
+            else if(Body.atmosphere && TargetAltitude < Body.atmosphereDepth)
+            {
+                AtTargetUT = orb.altitude > Body.atmosphereDepth?
+                    TrajectoryCalculator.NearestRadiusUT(orb, Body.Radius+Body.atmosphereDepth, UT)+1 : UT;
+                var end_alt = Math.Max(orb.PeA+10, TargetAltitude);
+                AtmoTrajectory = new AtmosphericTrajoctory(VSL, orb, end_alt, 
+                                                           AtTargetUT,
+                                                           GLB.LTRJ.AtmoTrajectoryResolution);
+                update_overheat_info(AtmoTrajectory, VSL.TCA.part.temperature);
+                AtTargetVel = AtmoTrajectory.LastPoint.vel;
+                AtTargetPos = AtmoTrajectory.LastPoint.pos;
+                AtTargetUT = AtmoTrajectory.LastPoint.UT;
+            }
+            else
+            {
+                if(orb.PeA < TargetAltitude) 
+                    AtTargetUT = TrajectoryCalculator.NearestRadiusUT(orb, Body.Radius+TargetAltitude, UT);
+                else AtTargetUT = orb.StartUT+orb.timeToPe;
+                AtTargetPos = orb.getRelativePositionAtUT(AtTargetUT);
+                AtTargetVel = orb.getOrbitalVelocityAtUT(AtTargetUT);
+            }
 			TransferTime = AtTargetUT-StartUT;
-			AtTargetPos = orb.getRelativePositionAtUT(AtTargetUT);
-			AtTargetVel = orb.getOrbitalVelocityAtUT(AtTargetUT);
             update_landing_site();
 		}
 
@@ -78,7 +159,7 @@ namespace ThrottleControlledAvionics
 			var dVm = BrakeDeltaV.magnitude;
 			if(dVm > 0) 
 			{
-				var fuel = VSL.Engines.GetAvailableFuelMass()-ManeuverFuel;
+                var fuel = VSL.Engines.AvailableFuelMass-ManeuverFuel-VSL.Engines.MaxMassFlow*GLB.LTRJ.LandingThrustTime;
 				if(fuel <= 0) BrakeDeltaV = Vector3d.zero;
 				else
 				{
@@ -94,10 +175,20 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+        void SetBrakePoint(AtmosphericTrajoctory.Point p)
+        {
+            BrakePoint = p;
+            BrakeEndUT = BrakePoint.UT;
+            BrakeEndDeltaAlt = BrakePoint.Altitude-TargetAltitude;
+        }
+
 		void SetBrakeEndUT(double UT)
 		{ 
 			BrakeEndUT = UT;
-			BrakeEndDeltaAlt = Orbit.getRelativePositionAtUT(BrakeEndUT).magnitude-Body.Radius-TargetAltitude; 
+            if(AtmoTrajectory != null)
+                SetBrakePoint(AtmoTrajectory.PointAtUT(UT));
+            else
+                BrakeEndDeltaAlt = Orbit.getRelativePositionAtUT(BrakeEndUT).magnitude-Body.Radius-TargetAltitude; 
 		}
 
 		void SetBrakeDeltaV(Vector3d dV)
@@ -106,28 +197,37 @@ namespace ThrottleControlledAvionics
 			ClampBrakeDeltaV();
 		}
 
-        double GetAerobrakeStartUT()
+        void update_landing_steepness()
         {
-            if(!Body.atmosphere) return AtTargetUT-1;
-            var start = StartUT;
-            var end = AtTargetUT;
-            while(end-start > 0.1)
+            if(Orbit.PeA >= TargetAltitude)
+                LandingSteepness = 0;
+            else
             {
-                var UT = start+(end-start)/2;
-                var pos = Orbit.getRelativePositionAtUT(UT);
-                var alt = pos.magnitude-Body.Radius;
-                var density = Body.GetDensity(Body.GetPressure(alt), Body.GetTemperature(alt));
-                if(density > GLB.LTRJ.MinAerobrakeDensity) end = UT;
-                else start = UT;
+                var tA = Orbit.TrueAnomalyAtRadius(Body.Radius+TargetAltitude);
+                var cosA = Math.Cos(tA);
+                var sinA = Math.Sin(tA);
+                var velN = Math.Sqrt(1+2*Orbit.eccentricity*cosA + Orbit.eccentricity * Orbit.eccentricity);
+                var pos2vel_cos = Utils.Clamp(sinA*Orbit.eccentricity/velN, -1, 1);
+                LandingSteepness = 90-Math.Acos(pos2vel_cos)/Math.PI*180;
             }
-            return start+(end-start)/2;
         }
 
 		void update(bool with_brake)
 		{
+            //reset state
+            AtmoTrajectory = null;
+            AfterBrakeTrajectory = null;
+            WillOverheat = false;
+            MaxDynamicPressure = -1;
+            MaxShipTemperature = -1;
+            //update everything
             update_from_orbit(Orbit, StartUT);
-			LandingAngle = 90-Vector3d.Angle(AtTargetPos, -AtTargetVel);
-            AerobrakeStartUT = GetAerobrakeStartUT();
+            update_landing_steepness();
+            ActualLandingAngle = AtmoTrajectory != null?
+                90-Vector3d.Angle(AtTargetPos, -AtTargetVel) :
+                LandingSteepness;
+            AerobrakeStartUT = AtmoTrajectory != null? AtmoTrajectory.AtmoStartUT : AtTargetUT-1;
+            AerobrakeStopUT = AtmoTrajectory != null? AtmoTrajectory.AtmoStopUT : AtTargetUT-1;
 			//correct for brake maneuver
 			if(with_brake)
 			{
@@ -148,31 +248,37 @@ namespace ThrottleControlledAvionics
 					BrakeDuration += rotation_time;
                     if(FullBrake)
                     {
-                        //find appropriate point to perform the maneuver
                         var brake_end_UT = Math.Max(AtTargetUT-Mathf.Max(GLB.LTRJ.CorrectionOffset, BrakeDuration*1.1f), StartUT);
-                        var vertical_speed = vertical_vel.magnitude;
-                        double fly_over_error;
-                        do {
-                            SetBrakeEndUT(brake_end_UT);
-                            fly_over_error = BrakeEndDeltaAlt - GLB.LTRJ.FlyOverAlt;
-                            brake_end_UT -= Math.Abs(fly_over_error/vertical_speed);
-                        } while(brake_end_UT > StartUT && fly_over_error < -1);
+                        //find appropriate point to perform the maneuver
+                        if(AtmoTrajectory != null)
+                        {
+                            var fly_over_alt = TargetAltitude+GLB.LTRJ.FlyOverAlt;
+                            if(WillOverheat)
+                                SetBrakePoint(AtmoTrajectory.PointAtShipTemp(VSL.Physics.MinMaxTemperature-100));
+                            else if(AtmoTrajectory.UT2Altitude(brake_end_UT) < fly_over_alt)
+                                SetBrakePoint(AtmoTrajectory.PointAtAltitude(fly_over_alt));
+                            else 
+                                SetBrakeEndUT(brake_end_UT);
+                        }
+                        else
+                        {
+                            var vertical_speed = vertical_vel.magnitude;
+                            double fly_over_error;
+                            do {
+                                SetBrakeEndUT(brake_end_UT);
+                                fly_over_error = BrakeEndDeltaAlt - GLB.LTRJ.FlyOverAlt;
+                                brake_end_UT -= Math.Abs(fly_over_error/vertical_speed);
+                            } while(brake_end_UT > StartUT && fly_over_error < -1);
+                        }
                     }
-                    else SetBrakeEndUT(AerobrakeStartUT);
+                    else 
+                        SetBrakeEndUT(AerobrakeStartUT);
                     //update landing site
-                    var atBrakeVel = Orbit.getOrbitalVelocityAtUT(BrakeEndUT);
-                    AtTargetPos = Orbit.getRelativePositionAtUT(BrakeEndUT).normalized*(Body.Radius+TargetAltitude);
-                    var srfVel = Vector3d.Cross(Body.zUpAngularVelocity, AtTargetPos);
-                    SetBrakeDeltaV(-Vector3d.Exclude(AtTargetPos, atBrakeVel)+srfVel);
-                    BrakeStartUT = Math.Max(BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration), StartUT);
-                    AtTargetVel = Vector3d.Project(atBrakeVel, AtTargetPos);
-                    var v2 = AtTargetVel.sqrMagnitude;
-                    var v0 = Math.Sqrt(v2);
-                    AtTargetUT = (Math.Sqrt(v2+2*VSL.Physics.StG*BrakeEndDeltaAlt)-v0)/VSL.Physics.StG;
-                    AtTargetVel *= VSL.Physics.StG*AtTargetUT/v0+1;
-                    AtTargetVel += srfVel;
-                    AtTargetUT += BrakeEndUT;
-                    update_landing_site();
+                    if(AtmoTrajectory != null)
+                        update_landing_site_after_brake(BrakePoint.pos, BrakePoint.vel);
+                    else
+                        update_landing_site_after_brake(Orbit.getRelativePositionAtUT(BrakeEndUT), 
+                                                        Orbit.getOrbitalVelocityAtUT(BrakeEndUT));
 				}
 				else //no brake maneuver
 				{
@@ -183,17 +289,35 @@ namespace ThrottleControlledAvionics
 			}
 			else
 			{
-				SetBrakeEndUT(TrajectoryCalculator.FlyAboveUT(Orbit, Target.RelOrbPos(Body), StartUT));
-				SetBrakeDeltaV(-AtTargetVel+Vector3d.Cross(Body.zUpAngularVelocity, AtTargetPos));
+                if(AtmoTrajectory != null)
+                {
+                    var FlyAbovePoint = AtmoTrajectory.FlyAbovePoint(TrajectoryCalculator
+                                                                     .BodyRotationAtdT(Body, AtmoTrajectory.StartUT-VSL.Physics.UT) *
+                                                                     Target.RelOrbPos(Body));
+                    FlyAboveUT = FlyAbovePoint.UT;
+                    if(WillOverheat)
+                        SetBrakePoint(AtmoTrajectory.PointAtShipTemp(VSL.Physics.MinMaxTemperature-100));
+                    else
+                        SetBrakePoint(FlyAbovePoint);
+                }
+                else 
+                {
+                    FlyAboveUT = TrajectoryCalculator.FlyAboveUT(Orbit, 
+                                                                 TrajectoryCalculator
+                                                                 .BodyRotationAtdT(Body, TimeToStart) *
+                                                                 Target.RelOrbPos(Body), 
+                                                                 StartUT);
+                    SetBrakeEndUT(FlyAboveUT);
+                }
+				SetBrakeDeltaV(-AtTargetVel-Vector3d.Cross(Body.zUpAngularVelocity, AtTargetPos));
 				if(BrakeFuel > 0)
 				{
 					var offset = MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration);
-//                    if(!FullBrake) SetBrakeEndUT(AerobrakeStartUT);
 					BrakeStartUT = Math.Max(BrakeEndUT-offset, StartUT);
 				}
 				else
 				{
-                    SetBrakeEndUT(AtTargetUT-1);
+                    SetBrakeEndUT(AerobrakeStartUT);
                     BrakeStartUT = BrakeEndUT;  
                     BrakeDuration = 0;
 				}
@@ -221,29 +345,9 @@ namespace ThrottleControlledAvionics
                 Math.Sign(Utils.AngleDelta(approach.Lon, SurfacePoint.Pos.Lon));
 			//compute distance in radial coordinates
 			DeltaFi = 90-Vector3d.Angle(Orbit.GetOrbitNormal(),
-			                            TrajectoryCalculator.BodyRotationAtdT(Body, TimeToTarget) * 
-			                            Body.GetRelSurfacePosition(Target.Pos.Lat, Target.Pos.Lon, TargetAltitude).xzy);
+                                        TrajectoryCalculator.BodyRotationAtdT(Body, TimeToTarget) * Target.RelOrbPos(Body));
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 //            Utils.Log("{}", this);//debug
-		}
-
-		public List<AtmosphericConditions> GetAtmosphericCurve(double dT, double endUT = -1)
-		{
-			if(!Body.atmosphere) return null;
-			var atmoR = Body.Radius+Body.atmosphereDepth;
-			var startUT = StartPos.magnitude < atmoR? StartUT : TrajectoryCalculator.NearestRadiusUT(Orbit, atmoR, StartUT);
-			if(endUT < 0) endUT = BrakeEndUT;
-			if(startUT > endUT) return null;
-			var samples = (int)Math.Ceiling((endUT-startUT)/dT)+1;
-			var curve = new List<AtmosphericConditions>(samples);
-			dT = (endUT-startUT)/samples;
-			for(int i = 1; i <= samples; i++)
-			{
-				var cond = new AtmosphericConditions(Orbit, startUT+dT*i);
-				cond.Duration = dT;
-				curve.Add(cond);
-			}
-			return curve;
 		}
 
 		public Vector3d GetOrbitVelocityAtSurface()
@@ -266,149 +370,374 @@ namespace ThrottleControlledAvionics
 			return base.ToString()+
 				Utils.Format("\nLanding Site: {},\n" +
 		                     "Delta R: {} deg\n" +
-				             "Delta Lat: {} deg, Delta Lon: {} deg\n" +
+				             "Delta Lat: {} deg\n" +
+                             "Delta Lon: {} deg\n\n" +
+
+                             "Fly Above UT {}\n" +
+                             "Brake Start UT {}\n" +
                              "Brake End UT {}\n" +
-				             "Time to Brake: {} s\n" +
-				             "BrakeEnd Altitude {} m\n" +
-				             "Atmo Conditions: {}\n" +
-				             "Landing Angle {} deg",
+                             "Brake Offset {}\n" +
+				             "Time to Brake {} s\n" +
+				             "BrakeEnd Altitude {} m\n\n" +
+
+				             "Landing Angle {} deg\n" +
+                             "Landing Steepness {} deg\n" +
+                             "WillOverheat {}\n" +
+                             "MaxShipTemp {}\n" +
+                             "MaxDynPressure {}\n\n" +
+
+                             "AtmoTrajectory:\n{}\n\n" +
+
+                             "AfterBrakeTrajectory:\n{}\n",
 				             SurfacePoint,
-				             DeltaR, DeltaLat, DeltaLon,
-                             BrakeEndUT, BrakeStartUT-VSL.Physics.UT, BrakeEndDeltaAlt,
-				             GetAtmosphericCurve(5),
-				             LandingAngle);
+                             DeltaR, DeltaLat, DeltaLon, FlyAboveUT,
+                             BrakeStartUT, BrakeEndUT, BrakeOffset, BrakeStartUT-VSL.Physics.UT, 
+                             BrakeEndDeltaAlt, ActualLandingAngle, LandingSteepness,
+                             WillOverheat, MaxShipTemperature, MaxDynamicPressure,
+                             AtmoTrajectory, AfterBrakeTrajectory);
 		}
 	}
 
-    public class AtmosphericConditionsGeneric
+    public class AtmosphericTrajoctory
     {
-        public double Altitude;
-        public double Speed;
-
-        public bool   Atmosphere;
-        public double Pressure;
-        public double Density;
-        public double AtmosphericTemperature;
-
-        public double DynamicPressure;
-        public double ShockTemperature;
-        public double ConvectiveCoefficient;
-
-//      ptd.finalCoeff = this.convectiveCoefficient * ptd.convectionArea * 0.001 * part.heatConvectiveConstant * ptd.convectionCoeffMultiplier;
-//      ptd.finalCoeff = Math.Min(ptd.finalCoeff, part.skinThermalMass * part.skinExposedAreaFrac);
-
-        public AtmosphericConditionsGeneric(CelestialBody Body, double altitude, double speed)
+        public struct Point
         {
-            if(!Body.atmosphere) return;
-            Altitude = altitude-Body.Radius;
-            Pressure = Body.GetPressure(Altitude);
-            Speed = speed;
-            if(Pressure > 0)
-            {
-                Atmosphere = true;
-                AtmosphericTemperature = Body.GetTemperature(Altitude);
-                Density = Body.GetDensity(Pressure, AtmosphericTemperature);
-                DynamicPressure = 0.0005 * Density * Speed*Speed;
+            public VesselWrapper VSL;
+            public Orbit Orbit;
 
-                var soundV = Body.GetSpeedOfSound(Pressure, Density);
-                var mach = soundV > 0? Speed/soundV : 0;
-                var convectiveMachLerp = Math.Pow(UtilMath.Clamp01((mach - PhysicsGlobals.NewtonianMachTempLerpStartMach) / 
-                                                                   (PhysicsGlobals.NewtonianMachTempLerpEndMach - PhysicsGlobals.NewtonianMachTempLerpStartMach)), 
-                                                  PhysicsGlobals.NewtonianMachTempLerpExponent);
-                ShockTemperature = Speed * PhysicsGlobals.NewtonianTemperatureFactor;
-                if(convectiveMachLerp > 0.0)
-                {
-                    double b = PhysicsGlobals.MachTemperatureScalar * Math.Pow(Speed, PhysicsGlobals.MachTemperatureVelocityExponent);
-                    ShockTemperature = UtilMath.LerpUnclamped(ShockTemperature, b, convectiveMachLerp);
-                }
-                ShockTemperature *= (double)HighLogic.CurrentGame.Parameters.Difficulty.ReentryHeatScale * Body.shockTemperatureMultiplier;
-                ShockTemperature = Math.Max(AtmosphericTemperature, ShockTemperature);
-                //calculate convective coefficient for speed > Mach1; lower speed is not a concern
-                ConvectiveCoefficient = 1E-10 * PhysicsGlobals.MachConvectionFactor;
-                ConvectiveCoefficient *= Density > 1? Density : Math.Pow(Density, PhysicsGlobals.MachConvectionDensityExponent);
-                ConvectiveCoefficient *= Math.Pow(Speed, PhysicsGlobals.MachConvectionVelocityExponent) * Body.convectionMultiplier;
+            public double UT;
+            public double Duration;
+
+            public Vector3d vel, srf_vel, pos;
+
+            public double Altitude;
+            public bool   Atmosphere;
+            public double Pressure;
+            public double AtmosphereTemperature;
+            public double Density;
+            public double Mach1;
+
+            /// <summary>
+            /// The dynamic pressure in Pa
+            /// </summary>
+            public double DynamicPressure;
+            public double SrfSpeed;
+            public double Mach;
+            public double SpecificDrag;
+
+            public double ShockTemperature;
+            public double ConvectiveCoefficient;
+            public double ShipTemperature;
+
+            public CelestialBody Body { get { return Orbit.referenceBody; } }
+
+            public void Update(double UT)
+            {
+                this.UT = UT;
+                pos = Orbit.getRelativePositionAtUT(UT);
+                vel = Orbit.getOrbitalVelocityAtUT(UT);
+                Update();
             }
+
+            public void Update()
+            {
+                Altitude = pos.magnitude-Body.Radius;
+                Atmosphere = Altitude < Body.atmosphereDepth;
+
+                if(Atmosphere)
+                {
+                    Pressure = Body.GetPressure(Altitude);
+                    AtmosphereTemperature = Body.GetTemperature(Altitude);
+                    Density = Body.GetDensity(Pressure, AtmosphereTemperature);
+                    Mach1 = Body.GetSpeedOfSound(Pressure, Density);
+
+                    srf_vel = vel+Vector3d.Cross(Body.zUpAngularVelocity, pos);
+                    SrfSpeed = srf_vel.magnitude;
+                    var Rho_v = Density*SrfSpeed;
+                    DynamicPressure = Rho_v * SrfSpeed;
+                    Mach = SrfSpeed/Mach1;
+                    this.SpecificDrag = AtmoSim.Cd * DynamicPressure *
+                        PhysicsGlobals.DragCurveMultiplier.Evaluate((float)Mach) *
+                        PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(Rho_v));
+
+                    var convectiveMachLerp = Math.Pow(UtilMath.Clamp01((Mach - PhysicsGlobals.NewtonianMachTempLerpStartMach) / 
+                                                                       (PhysicsGlobals.NewtonianMachTempLerpEndMach - PhysicsGlobals.NewtonianMachTempLerpStartMach)), 
+                                                      PhysicsGlobals.NewtonianMachTempLerpExponent);
+                    ShockTemperature = SrfSpeed * PhysicsGlobals.NewtonianTemperatureFactor;
+                    if (convectiveMachLerp > 0.0)
+                    {
+                        double b = PhysicsGlobals.MachTemperatureScalar * Math.Pow(SrfSpeed, PhysicsGlobals.MachTemperatureVelocityExponent);
+                        ShockTemperature = UtilMath.LerpUnclamped(ShockTemperature, b, convectiveMachLerp);
+                    }
+                    ShockTemperature *= (double)HighLogic.CurrentGame.Parameters.Difficulty.ReentryHeatScale * Body.shockTemperatureMultiplier;
+                    ShockTemperature = Math.Max(AtmosphereTemperature, ShockTemperature);
+                    //calculate convective coefficient for speed > Mach1; lower speed is not a concern
+                    ConvectiveCoefficient = 1E-10 * PhysicsGlobals.MachConvectionFactor;
+                    ConvectiveCoefficient *= Density > 1? Density : Math.Pow(Density, PhysicsGlobals.MachConvectionDensityExponent);
+                    ConvectiveCoefficient *= Math.Pow(SrfSpeed, PhysicsGlobals.MachConvectionVelocityExponent) * Body.convectionMultiplier;
+                }
+                else AtmosphereTemperature = -273;
+            }
+
+            public double UpdateShipTemp(double startT)
+            {
+                var K = VSL.Physics.MMT_ThermalMass > ConvectiveCoefficient? 
+                        -ConvectiveCoefficient/VSL.Physics.MMT_ThermalMass : -1;
+                ShipTemperature = ShockTemperature + (startT-ShockTemperature) * Math.Exp(K*Globals.Instance.LTRJ.HeatingCoefficient*Duration);
+                return ShipTemperature;
+            }
+
+            public override string ToString()
+            {
+                return Utils.Format("Altitude {} m\n" +
+                                    "Density {}, Pressure {} kPa, Atm.T {} K\n" +
+                                    "SrfSpeed {} m/s, Dyn.Pressure {} kPa, Shock.T {} K\n" +
+                                    "ConvectiveCoefficient {}, Ship.T {} K\n" +
+                                    "UT {}, Duration {} s\n",
+                                    Altitude, Density, Pressure, AtmosphereTemperature, 
+                                    SrfSpeed, DynamicPressure/1000, ShockTemperature, 
+                                    ConvectiveCoefficient, ShipTemperature, UT, Duration);
+            }
+        }
+
+        public readonly VesselWrapper VSL;
+        public readonly Orbit Orbit;
+        public readonly double TargetAltitude;
+
+        public List<Point> Points = new List<Point>();
+        public Point LastPoint { get; private set; }
+        public bool Atmosphere { get; private set; }
+        public double StartUT = -1;
+        public double AtmoStartUT = -1;
+        public double AtmoStopUT = -1;
+        public double EndUT = -1;
+        public double MaxShipTemperature = -1;
+        public double MaxDynamicPressure = -1;
+
+        Point newP(double UT)
+        { 
+            var p = new Point{VSL=VSL, Orbit=Orbit}; 
+            p.Update(UT); 
+            return p; 
+        }
+
+        public AtmosphericTrajoctory(VesselWrapper vsl, Orbit orb, double target_altitude, double startUT, double dt)
+        {
+            VSL = vsl;
+            Orbit = orb;
+            TargetAltitude = target_altitude;
+            StartUT = startUT;
+            EndUT = startUT+orb.timeToPe;
+            var p = newP(StartUT);
+            var m = (double)VSL.Physics.M;
+            var s = (double)VSL.Geometry.BoundsSideAreas.MinComponentF();
+            Atmosphere = false;
+            p.Duration = dt;
+            while(p.Altitude > TargetAltitude && p.UT < EndUT)
+            {
+                var drag_dv = p.SpecificDrag*s/m*dt;
+                Atmosphere |= drag_dv > 0;
+                if(Atmosphere)
+                {
+                    if(Points.Count == 0)
+                        AtmoStartUT = p.UT;
+                    Points.Add(p);
+                    var r = p.pos.magnitude;
+                    p.vel -= p.pos*p.Body.gMagnitudeAtCenter/r/r/r*dt + p.srf_vel/p.SrfSpeed*Math.Min(drag_dv, p.SrfSpeed);
+                    p.pos += p.vel*dt;
+                    p.UT += dt;
+                    p.Update();
+                    if(AtmoStopUT < 0 && p.SrfSpeed < 10)
+                        AtmoStopUT = p.UT;
+                }
+                else p.Update(p.UT+dt);
+                if(dt > 0.01) 
+                {
+                    var dAlt = p.Altitude-TargetAltitude;
+                    if(dAlt/p.SrfSpeed < dt)
+                    {
+                        dt = dAlt/p.SrfSpeed*0.9;
+                        p.Duration = dt;
+                    }
+                }
+            }
+            if(Atmosphere) 
+            {
+                Points.Add(p);
+                if(AtmoStopUT < 0)
+                    AtmoStopUT = p.UT;
+            }
+            EndUT = p.UT;
+            LastPoint = p;
+        }
+
+        public void UpdateOverheatInto(double startT)
+        {
+            if(!Atmosphere) return;
+            MaxShipTemperature = startT;
+            for(int i = 0, count = Points.Count; i < count; i++)
+            {
+                var p = Points[i];
+                startT = p.UpdateShipTemp(startT);
+                if(startT > MaxShipTemperature) 
+                    MaxShipTemperature = startT;
+                if(p.DynamicPressure > MaxDynamicPressure)
+                    MaxDynamicPressure = p.DynamicPressure;
+                Points[i] = p;
+            }
+        }
+
+        public double Altitude2UT(double altitude)
+        {
+            if(Points.Count == 0 || altitude > Points[0].Altitude)
+                return TrajectoryCalculator.NearestRadiusUT(Orbit, altitude+Orbit.referenceBody.Radius, StartUT);
+            for(int i = 1, count = Points.Count; i < count; i++)
+            {
+                var p1 = Points[i];
+                if(p1.Altitude > altitude) continue;
+                var p0 = Points[i-1];
+                return p0.UT + p0.Duration * (altitude-p0.Altitude)/(p1.Altitude-p0.Altitude);
+            }
+            return EndUT;
+        }
+
+        public double UT2Altitude(double UT)
+        {
+            if(Points.Count == 0 || UT < AtmoStartUT)
+                return Orbit.RadiusAtTrueAnomaly(Orbit.TrueAnomalyAtUT(UT))-Orbit.referenceBody.Radius;
+            for(int i = 1, count = Points.Count; i < count; i++)
+            {
+                var p1 = Points[i];
+                if(p1.UT < UT) continue;
+                var p0 = Points[i-1];
+                var t = (UT-p0.UT)/(p0.Duration);
+                return p0.Altitude + (p1.Altitude-p0.Altitude)*t;
+            }
+            return TargetAltitude;
+        }
+
+        public Point PointAtShipTemp(double T)
+        {
+            if(Points.Count == 0)
+                return newP(StartUT);
+            for(int i = 1, count = Points.Count; i < count; i++)
+            {
+                var p1 = Points[i];
+                if(p1.ShipTemperature < T) continue;
+                var p0 = Points[i-1];
+                var p = p0;
+                var t = (T-p0.ShipTemperature)/(p1.ShipTemperature-p0.ShipTemperature);
+                p.UT = p0.UT+p0.Duration*t;
+                p.Duration = p1.UT-p.UT;
+                p.pos = Vector3d.Lerp(p0.pos, p1.pos, t);
+                p.ShipTemperature = T;
+                p.Update();
+                return p;
+            }
+            return LastPoint;
+        }
+
+        public Point PointAtUT(double UT)
+        {
+            if(Points.Count == 0 || UT < AtmoStartUT)
+                return newP(UT);
+            for(int i = 1, count = Points.Count; i < count; i++)
+            {
+                var p1 = Points[i];
+                if(p1.UT < UT) continue;
+                var p0 = Points[i-1];
+                var p = p0;
+                var t = (UT-p0.UT)/(p0.Duration);
+                p.UT = UT;
+                p.Duration = p1.UT-UT;
+                p.pos = Vector3d.Lerp(p0.pos, p1.pos, t);
+                p.Update();
+                return p;
+            }
+            return LastPoint;
+        }
+
+        public Point PointAtAltitude(double altitude)
+        {
+            if(Points.Count == 0 || altitude > Points[0].Altitude)
+                return newP(TrajectoryCalculator.NearestRadiusUT(Orbit, altitude+Orbit.referenceBody.Radius, StartUT));
+            for(int i = 1, count = Points.Count; i < count; i++)
+            {
+                var p1 = Points[i];
+                if(p1.Altitude > altitude) continue;
+                var p0 = Points[i-1];
+                var p = p0;
+                var t = (p0.Altitude-altitude)/(p0.Altitude-p1.Altitude);
+                p.UT += p0.Duration*t;
+                p.Duration = p1.UT-p.UT;
+                p.pos = Vector3d.Lerp(p0.pos, p1.pos, t);
+                p.Update();
+                return p;
+            }
+            return LastPoint;
+        }
+
+        public Point FlyAbovePoint(Vector3d pos)
+        {
+            if(Utils.ProjectionAngle(Orbit.getRelativePositionAtUT(StartUT), pos, 
+                                     Orbit.getOrbitalVelocityAtUT(StartUT)) < 0)
+                return newP(StartUT);
+            if(Points.Count == 0 ||
+               Utils.ProjectionAngle(Orbit.getRelativePositionAtUT(AtmoStartUT), 
+                                     TrajectoryCalculator.BodyRotationAtdT(Orbit.referenceBody, AtmoStartUT-StartUT)*pos, 
+                                     Orbit.getOrbitalVelocityAtUT(AtmoStartUT)) < 0)
+                return newP(TrajectoryCalculator.FlyAboveUT(Orbit, pos, StartUT));
+            var p0 = Points[0];
+            var angle0 = Utils.ProjectionAngle(p0.pos, 
+                                               TrajectoryCalculator
+                                               .BodyRotationAtdT(Orbit.referenceBody, p0.UT-StartUT)*pos, 
+                                               p0.vel);
+            for(int i = 1, count = Points.Count; i < count; i++)
+            {
+                var p1 = Points[i];
+                var angle1 = Utils.ProjectionAngle(p1.pos, 
+                                                   TrajectoryCalculator
+                                                   .BodyRotationAtdT(Orbit.referenceBody, p1.UT-StartUT)*pos, 
+                                                   p1.vel);
+                if(angle1 > 0) 
+                {
+                    angle0 = angle1;
+                    continue;
+                }
+                p0 = Points[i-1];
+                var p = p0;
+                var t = angle0/(angle0-angle1);
+                p.UT += p0.Duration*t;
+                p.Duration = p1.UT-p.UT;
+                p.pos = Vector3d.Lerp(p0.pos, p1.pos, t);
+                p.Update();
+                return p;
+            }
+            return LastPoint;
+        }
+
+        public Vector3[] ToCBFramePath(double UT)
+        {
+            return Points
+                .Select(p => (Vector3)((TrajectoryCalculator
+                                        .BodyRotationAtdT(Orbit.referenceBody, UT-p.UT) * p.pos).xzy
+                                       +Orbit.referenceBody.position))
+                .ToArray();
         }
 
         public override string ToString()
         {
-            return Utils.Format("Altitude {} m, Density {}, Pressure {} kPa, Atm.T {} K\n" +
-                                "Speed {} m/s, Dyn.Pressure {} kPa, Shock.T {} K\n" +
-                                "ConvectiveCoefficient {}",
-                                Altitude, Density, Pressure, AtmosphericTemperature, 
-                                Speed, DynamicPressure, ShockTemperature, 
-                                ConvectiveCoefficient);
+            return Utils.Format("StartUT {}\n" +
+                                "AtmoStartUT {}\n" +
+                                "AtmoStopUT {}\n" +
+                                "EndUT {}\n" +
+                                "MaxShipT {}\n" +
+                                "MaxDynP {}\n" +
+                                "Points: {}", 
+                                StartUT, AtmoStartUT, AtmoStopUT, EndUT,
+                                MaxShipTemperature, MaxDynamicPressure/1000,
+                                Points);
         }
     }
-
-	public class AtmosphericConditions
-	{
-		public double UT = -1;
-		public double Duration;
-
-		public double Altitude;
-		public double Speed;
-
-		public bool   Atmosphere;
-		public double Pressure;
-		public double Density;
-		public double AtmosphericTemperature;
-
-		public double DynamicPressure;
-		public double ShockTemperature;
-		public double ConvectiveCoefficient;
-
-		public AtmosphericConditions(double UT)
-		{ this.UT = UT; }
-
-
-//		ptd.finalCoeff = this.convectiveCoefficient * ptd.convectionArea * 0.001 * part.heatConvectiveConstant * ptd.convectionCoeffMultiplier;
-//		ptd.finalCoeff = Math.Min(ptd.finalCoeff, part.skinThermalMass * part.skinExposedAreaFrac);
-
-		public AtmosphericConditions(Orbit orb, double UT) : this(UT)
-		{
-			var Body = orb.referenceBody;
-			if(!Body.atmosphere) return;
-			var pos = orb.getRelativePositionAtUT(UT);
-			Altitude = pos.magnitude-Body.Radius;
-			Pressure = Body.GetPressure(Altitude);
-			if(Pressure > 0)
-			{
-				Speed = orb.getOrbitalSpeedAtRelativePos(pos);
-				Atmosphere = true;
-				AtmosphericTemperature = Body.GetTemperature(Altitude);
-				Density = Body.GetDensity(Pressure, AtmosphericTemperature);
-				DynamicPressure = 0.0005 * Density * Speed*Speed;
-
-				var soundV = Body.GetSpeedOfSound(Pressure, Density);
-				var mach = soundV > 0? Speed/soundV : 0;
-				var convectiveMachLerp = Math.Pow(UtilMath.Clamp01((mach - PhysicsGlobals.NewtonianMachTempLerpStartMach) / 
-				                                                   (PhysicsGlobals.NewtonianMachTempLerpEndMach - PhysicsGlobals.NewtonianMachTempLerpStartMach)), 
-				                                      PhysicsGlobals.NewtonianMachTempLerpExponent);
-				ShockTemperature = Speed * PhysicsGlobals.NewtonianTemperatureFactor;
-				if (convectiveMachLerp > 0.0)
-				{
-					double b = PhysicsGlobals.MachTemperatureScalar * Math.Pow(Speed, PhysicsGlobals.MachTemperatureVelocityExponent);
-					ShockTemperature = UtilMath.LerpUnclamped(ShockTemperature, b, convectiveMachLerp);
-				}
-				ShockTemperature *= (double)HighLogic.CurrentGame.Parameters.Difficulty.ReentryHeatScale * Body.shockTemperatureMultiplier;
-				ShockTemperature = Math.Max(AtmosphericTemperature, ShockTemperature);
-				//calculate convective coefficient for speed > Mach1; lower speed is not a concern
-				ConvectiveCoefficient = 1E-10 * PhysicsGlobals.MachConvectionFactor;
-				ConvectiveCoefficient *= Density > 1? Density : Math.Pow(Density, PhysicsGlobals.MachConvectionDensityExponent);
-				ConvectiveCoefficient *= Math.Pow(Speed, PhysicsGlobals.MachConvectionVelocityExponent) * Body.convectionMultiplier;
-			}
-		}
-
-		public override string ToString()
-		{
-			return Utils.Format("Altitude {} m, Density {}, Pressure {} kPa, Atm.T {} K\n" +
-			                    "Speed {} m/s, Dyn.Pressure {} kPa, Shock.T {} K\n" +
-			                    "Duration {} s, ConvectiveCoefficient {}",
-			                    Altitude, Density, Pressure, AtmosphericTemperature, 
-			                    Speed, DynamicPressure, ShockTemperature, 
-			                    Duration, ConvectiveCoefficient);
-		}
-	}
 }
 

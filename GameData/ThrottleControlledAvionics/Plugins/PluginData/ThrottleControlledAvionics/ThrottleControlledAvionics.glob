@@ -451,7 +451,7 @@ LTRJ
 	MachThreshold      = 0.9
 	MinAerobrakeDensity = 0.4
 	
-	MaxScanningCycles  = 50
+	ScanningAngle      = 21
 	PointsPerFrame     = 5
 	
 	HeatingCoefficient = 0.02

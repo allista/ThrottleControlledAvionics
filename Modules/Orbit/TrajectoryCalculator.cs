@@ -84,54 +84,53 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		public static Orbit NewOrbit(Orbit old, Vector3d dV, double UT)
-		{
-			var obt = new Orbit();
-			var pos = old.getRelativePositionAtUT(UT);
-			var vel = old.getOrbitalVelocityAtUT(UT)+dV;
-			obt.UpdateFromStateVectors(pos, vel, old.referenceBody, UT);
+        public static Orbit NewOrbit(CelestialBody body, Vector3d pos, Vector3d vel, double UT)
+        {
+            var obt = new Orbit();
+            obt.UpdateFromStateVectors(pos, vel, body, UT);
             obt.Init();
-			if(obt.eccentricity < 0.01)
-			{
-				var T   = UT;
-				var v   = obt.getOrbitalVelocityAtUT(UT);
-				var D   = (vel-v).sqrMagnitude;
-//                Utils.Log("circular orbit: {}\nneede vel: {}\ncurnt vel: {}", obt, vel, v);//debug
-				var Dot = Vector3d.Dot(vel, v);
-				var dT  = obt.period/10;
-				while(D > 1e-4 && Math.Abs(dT) > 0.01)
-				{
-					T += dT;
-					v = obt.getOrbitalVelocityAtUT(T);
-//                    Utils.Log("\nneede vel: {}\ncurnt vel: {}", vel, v);//debug
-					var dot = Vector3d.Dot(vel, v);
-					if(dot > 0)
-					{
-						D = (vel-v).sqrMagnitude;
-						if(dot < Dot) dT /= -2;
-						Dot = dot;
-					}
-				}
-//                Utils.Log("dT: {}", T-UT);//debug
-//				Utils.Log2File("NewOrbit-dT.log", (T-UT).ToString());//debug
-				if(!T.Equals(UT))
-				{
-					var dP = (T-UT)/obt.period;
+            if(obt.eccentricity < 0.01)
+            {
+                var T   = UT;
+                var v   = obt.getOrbitalVelocityAtUT(UT);
+                var D   = (vel-v).sqrMagnitude;
+                var Dot = Vector3d.Dot(vel, v);
+                var dT  = obt.period/10;
+                while(D > 1e-4 && Math.Abs(dT) > 0.01)
+                {
+                    T += dT;
+                    v = obt.getOrbitalVelocityAtUT(T);
+                    var dot = Vector3d.Dot(vel, v);
+                    if(dot > 0)
+                    {
+                        D = (vel-v).sqrMagnitude;
+                        if(dot < Dot) dT /= -2;
+                        Dot = dot;
+                    }
+                }
+                if(!T.Equals(UT))
+                {
+                    var dP = (T-UT)/obt.period;
                     obt.LAN = (obt.LAN-dP*360)%360;
                     obt.argumentOfPeriapsis = (obt.argumentOfPeriapsis-dP*360)%360;
                     obt.meanAnomalyAtEpoch = (obt.meanAnomaly+dP*Utils.TwoPI)%Utils.TwoPI;
                     obt.eccentricAnomaly = obt.solveEccentricAnomaly(obt.meanAnomalyAtEpoch, obt.eccentricity, 1e-7, 8);
-					obt.trueAnomaly = obt.GetTrueAnomaly(obt.eccentricAnomaly);
+                    obt.trueAnomaly = obt.GetTrueAnomaly(obt.eccentricAnomaly);
                     obt.Init();
-//                    Utils.Log("corrected orbit: {}\nneede vel: {}\ncurnt vel: {}", obt, vel, obt.getOrbitalVelocityAtUT(UT));//debug
-//                    Utils.Message("Circular orbit was corrected!");
-				}
-			}
+                }
+            }
             obt.StartUT = UT;
             obt.EndUT = UT+obt.period;
             obt.patchEndTransition = Orbit.PatchTransitionType.FINAL;
             obt.patchStartTransition = Orbit.PatchTransitionType.MANEUVER;
-			return obt;
+            return obt;
+        }
+
+		public static Orbit NewOrbit(Orbit old, Vector3d dV, double UT)
+		{
+			var pos = old.getRelativePositionAtUT(UT);
+			var vel = old.getOrbitalVelocityAtUT(UT)+dV;
+            return NewOrbit(old.referenceBody, pos, vel, UT);
 		}
 
 		public static Orbit CopyOrbit(Orbit o)
@@ -162,13 +161,13 @@ namespace ThrottleControlledAvionics
 
 		public static Vector3d dV4Pe(Orbit old, double R, double UT, Vector3d add_dV = default(Vector3d))
 		{
-			var up     = old.PeR < R;
-			var pos    = old.getRelativePositionAtUT(UT);
-			var vel    = Vector3d.Exclude(pos, old.getOrbitalVelocityAtUT(UT));
-			var dVdir  = vel.normalized * (up? 1 : -1);
+			var up = old.PeR < R;
+			var pos = old.getRelativePositionAtUT(UT);
+            var vel = old.getOrbitalVelocityAtUT(UT);
+			var hvel = Vector3d.Exclude(pos, vel);
+            var dir = up? hvel.normalized : -hvel.normalized;
 			var min_dV = 0.0;
 			var max_dV = 0.0;
-//			Utils.Log("up: {}, PeR {} < R {}", up, old.PeR, R);//debug
 			if(up)
 			{
 				max_dV = 10;
@@ -176,32 +175,31 @@ namespace ThrottleControlledAvionics
 				if(R > max_PeR) R = max_PeR;
 				while(max_dV < 100000)
 				{ 
-					var orb = NewOrbit(old, dVdir*max_dV, UT);
-//					Utils.Log("max dV: {}\norb\n{}", max_dV, orb);//debug
+                    var orb = NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT);
 					if(orb.eccentricity >= 1 || orb.PeR > R) break;
 					max_dV *= 2;
 				}
 			}
-			else max_dV = vel.magnitude+add_dV.magnitude;
-//			Utils.Log("min dV: {}, max dV: {}", min_dV, max_dV);//debug
+            else max_dV = hvel.magnitude+add_dV.magnitude;
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
 				var dV = (max_dV+min_dV)/2;
-				var orb = NewOrbit(old, dVdir*dV+add_dV, UT);
-//				Utils.Log("dV: {}\norb\n{}", dV, orb);//debug
+                var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT);
 				if(up && (orb.eccentricity >= 1 || orb.PeR > R) || 
 				   !up && orb.PeR < R) 
 					max_dV = dV;
 				else min_dV = dV;
 			}
-			return (max_dV+min_dV)/2*dVdir+add_dV;
+			return (max_dV+min_dV)/2*dir+add_dV;
 		}
 
 		public static Vector3d dV4Ap(Orbit old, double R, double UT, Vector3d add_dV = default(Vector3d))
 		{
-			var up     = old.ApR < R;
-			var vel    = old.hV(UT);
-			var dVdir  = vel.normalized * (up? 1 : -1);
+			var up = old.ApR < R;
+            var pos = old.getRelativePositionAtUT(UT);
+            var vel = old.getOrbitalVelocityAtUT(UT);
+            var hvel = Vector3d.Exclude(pos, vel);
+            var dir = up? hvel.normalized : -hvel.normalized;
 			var min_dV = 0.0;
 			var max_dV = 0.0;
 			if(up)
@@ -209,7 +207,7 @@ namespace ThrottleControlledAvionics
 				max_dV = 10;
 				while(max_dV < 100000)
 				{ 
-					var orb = NewOrbit(old, dVdir*max_dV, UT);
+                    var orb = NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT);
 					if(orb.eccentricity >= 1 || orb.ApR > R) break;
 					max_dV *= 2;
 				}
@@ -218,31 +216,34 @@ namespace ThrottleControlledAvionics
 			{
 				var min_ApR = old.getRelativePositionAtUT(UT).magnitude;
 				if(R < min_ApR) R = min_ApR;
-				max_dV = vel.magnitude+add_dV.magnitude;
+				max_dV = hvel.magnitude+add_dV.magnitude;
 			}
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
 				var dV = (max_dV+min_dV)/2;
-				var orb = NewOrbit(old, dVdir*dV+add_dV, UT);
+                var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT);
 				if(up && (orb.eccentricity >= 1 || orb.ApR > R) ||
 				   !up && orb.ApR < R) 
 					max_dV = dV;
 				else min_dV = dV;
 			}
-			return (max_dV+min_dV)/2*dVdir+add_dV;
+			return (max_dV+min_dV)/2*dir+add_dV;
 		}
 
 		public static Vector3d dV4R(Orbit old, double R, double UT, double TargetUT, Vector3d add_dV = default(Vector3d))
 		{
-			var oldR   = old.getRelativePositionAtUT(TargetUT);
-			var up     = oldR.magnitude < R;
-			var dVdir  = old.hV(UT).normalized * (up? 1 : -1);
+            var pos = old.getRelativePositionAtUT(UT);
+            var vel = old.getOrbitalVelocityAtUT(UT);
+			var oldR = old.getRelativePositionAtUT(TargetUT);
+			var up  = oldR.magnitude < R;
+            var dir = old.hV(UT).normalized;
+            if(!up) dir = -dir;
 			var min_dV = 0.0;
 			var max_dV = 0.0;
 			if(up)
 			{
 				max_dV = 1;
-				while(NewOrbit(old, dVdir*max_dV, UT)
+                while(NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT)
 				      .getRelativePositionAtUT(TargetUT)
 				      .magnitude < R)
 				{ max_dV *= 2; if(max_dV > 100000) break; }
@@ -251,27 +252,29 @@ namespace ThrottleControlledAvionics
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
 				var dV = (max_dV+min_dV)/2;
-				var nR = NewOrbit(old, dVdir*dV+add_dV, UT)
+                var nR = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT)
 					.getRelativePositionAtUT(TargetUT)
 					.magnitude;
 				if(up && nR > R || !up && nR < R) max_dV = dV;
 				else min_dV = dV;
 			}
-			return (max_dV+min_dV)/2*dVdir+add_dV;
+			return (max_dV+min_dV)/2*dir+add_dV;
 		}
 
 		public static Vector3d dV4Ecc(Orbit old, double ecc, double UT, double maxR = -1)
 		{
 			var up = old.eccentricity > ecc;
-			var dir = old.getOrbitalVelocityAtUT(UT);
+            var pos = old.getRelativePositionAtUT(UT);
+            var vel = old.getOrbitalVelocityAtUT(UT);
+			var dir = vel;
 			var min_dV = 0.0;
 			var max_dV = up? dV4C(old, dir, UT).magnitude : dir.magnitude;
-			if(!up) dir *= -1;
+			if(!up) dir = -dir;
 			dir.Normalize();
 			while(max_dV-min_dV > TRJ.dVtol)
 			{
 				var dV = (max_dV+min_dV)/2;
-				var orb = NewOrbit(old, dir*dV, UT);
+                var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV, UT);
 				if( up && (orb.eccentricity < ecc || maxR > 0 && orb.PeR > maxR) || 
 				   !up && orb.eccentricity > ecc) 
 					max_dV = dV;
@@ -587,27 +590,27 @@ namespace ThrottleControlledAvionics
 
 		public static double FlyAboveUT(Orbit orb, Vector3d pos, double StartUT)
 		{
-			var ini_error = Utils.ClampedProjectionAngle(orb.getRelativePositionAtUT(StartUT), pos, 
-			                                      		 orb.getOrbitalVelocityAtUT(StartUT))/360*orb.period;
-			var dT = orb.period/10; 
-			StartUT += Utils.ClampL(ini_error-dT, 0);
-			var StopUT = StartUT;
-			while(StopUT-StartUT < orb.period)
+			var dT = orb.period/10;
+            var startUT = StartUT;
+            var StopUT = startUT;
+            while(StopUT-startUT < orb.period)
 			{
-				if(Utils.ProjectionAngle(orb.getRelativePositionAtUT(StopUT), pos, 
+				if(Utils.ProjectionAngle(orb.getRelativePositionAtUT(StopUT), 
+                                         BodyRotationAtdT(orb.referenceBody, StopUT-StartUT)*pos, 
 				                         orb.getOrbitalVelocityAtUT(StopUT)) < 0) break;
 				StopUT += dT;
 			}
-			StartUT = Math.Max(StartUT, StopUT-dT);
-			while(StopUT-StartUT > 0.01)
+            startUT = Math.Max(startUT, StopUT-dT);
+            while(StopUT-startUT > 0.01)
 			{
-				var UT = StartUT+(StopUT-StartUT)/2;
-				if(Utils.ProjectionAngle(orb.getRelativePositionAtUT(UT), pos, 
+                var UT = startUT+(StopUT-startUT)/2;
+				if(Utils.ProjectionAngle(orb.getRelativePositionAtUT(UT), 
+                                         BodyRotationAtdT(orb.referenceBody, UT-StartUT)*pos, 
 				                         orb.getOrbitalVelocityAtUT(UT)) > 0) 
-					StartUT = UT;
+                    startUT = UT;
 				else StopUT = UT;
 			}
-			return StartUT+(StopUT-StartUT)/2;
+            return startUT+(StopUT-startUT)/2;
 		}
 
 		//Node: radial, normal, prograde
@@ -698,6 +701,7 @@ namespace ThrottleControlledAvionics
         }
 
         #if DEBUG
+        protected LandingTrajectory current_landing_trajectory;
         IEnumerator<T> create_trajecory_calculator(TrajectoryOptimizer optimizer)
         {
             yield return null;
@@ -707,8 +711,9 @@ namespace ThrottleControlledAvionics
             var ioptimizer = optimizer.GetEnumerator();
             while(true)
             {
-                var lt = t as LandingTrajectory;
-                if(lt != null) VSL.Info.CustomMarkersWP.Add(lt.SurfacePoint);
+                current_landing_trajectory = t as LandingTrajectory;
+                if(current_landing_trajectory != null) 
+                    VSL.Info.CustomMarkersWP.Add(current_landing_trajectory.SurfacePoint);
                 if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))
                 { yield return t; continue; }
                 if(!ioptimizer.MoveNext()) break;
@@ -737,6 +742,7 @@ namespace ThrottleControlledAvionics
             }
             clear_nodes();
             trajectory = optimizer.Best;
+            current_landing_trajectory = null;
             Log("Best trajectory:\n{}", trajectory);
         }
         #else
@@ -763,10 +769,11 @@ namespace ThrottleControlledAvionics
 
 		protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
-		protected TimeWarpControl WRP;
-
-		protected void add_node(Vector3d dV, double UT) 
+		protected void add_node_abs(Vector3d dV, double UT) 
 		{ ManeuverAutopilot.AddNode(VSL, dV, UT); }
+
+        protected void add_node_rel(Vector3d dV, double UT) 
+        { ManeuverAutopilot.AddNodeRaw(VSL, dV, UT); }
 
 		protected void add_trajectory_node_rel()
 		{ ManeuverAutopilot.AddNodeRaw(VSL, trajectory.NodeDeltaV, trajectory.StartUT); }
@@ -812,6 +819,10 @@ namespace ThrottleControlledAvionics
 	{
 		protected TargetedTrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
+        protected Orbit TargetOrbit { get { return CFG.Target.GetOrbit(); } }
+        protected Vessel TargetVessel { get { return CFG.Target.GetVessel(); } }
+        protected bool TargetLoaded { get { return TargetVessel != null && TargetVessel.loaded; } }
+
 		protected ManeuverAutopilot MAN;
 
 		protected Timer CorrectionTimer = new Timer();
@@ -831,9 +842,13 @@ namespace ThrottleControlledAvionics
 
 		protected virtual void setup_target()
 		{
-			SetTarget(VSL.TargetAsWP);
-			if(CFG.Target != null)
-				CFG.Target.UpdateCoordinates(Body);
+            if(VSL.HasTarget)
+                SetTarget(VSL.TargetAsWP);
+            else if(CFG.Target != null)
+            {
+                CFG.Target.UpdateCoordinates(Body);
+                VSL.Target = CFG.Target.GetTarget();
+            }
 		}
 
 		protected bool setup()

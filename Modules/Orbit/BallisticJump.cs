@@ -123,7 +123,8 @@ namespace ThrottleControlledAvionics
             protected double velocity;
             protected double angle;
 
-            public LandingSiteOptimizer(BallisticJump module, double velocity, Vector3d direction, float dtol) : base(dtol)
+            public LandingSiteOptimizer(BallisticJump module, double velocity, Vector3d direction, float dtol) 
+                : base(module, dtol)
             { 
                 m = module;
                 this.velocity = velocity;
@@ -139,7 +140,7 @@ namespace ThrottleControlledAvionics
 
             IEnumerable<LandingTrajectory> optimize_DeltaV()
             {
-                var dV = Best.DeltaR*(10-m.CFG.Target.AngleTo(m.VSL)/Math.PI*9.9)*m.Body.GeeASL;
+                var dV = dR2dV(Best.DeltaR);
 //                Utils.Log("dR {}, Angle2Tgt {}, G {}", Best.DeltaR, m.CFG.Target.AngleTo(m.VSL), m.Body.GeeASL);//debug
                 var bestV = velocity;
                 var dVEnd = Math.Abs(dV)/100;
@@ -279,7 +280,8 @@ namespace ThrottleControlledAvionics
 		{
 			base.UpdateState();
 			IsActive &= CFG.AP2[Autopilot2.BallisticJump];
-			ControlsActive &= IsActive || (VSL.TargetIsNavPoint || VSL.TargetIsWayPoint || VSL.TargetVessel != null && VSL.TargetVessel.LandedOrSplashed);
+			ControlsActive &= IsActive || 
+                VSL.HasTarget || CFG.Target != null;
 		}
 
 		protected override void Update()
@@ -369,7 +371,11 @@ namespace ThrottleControlledAvionics
                 }
 				break;
 			case Stage.Coast:
-                VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-180;
+                update_trajectory();
+                VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-ManeuverOffset;
+                if(scan_for_landing_site_when_in_range())
+                    break;
+                Status("Coasting...");
                 if(VSL.Info.Countdown > 0)
                 {
                     if(CFG.AP1[Autopilot1.Maneuver]) 
@@ -377,11 +383,8 @@ namespace ThrottleControlledAvionics
                         Status("Correcting trajectory...");
                         break; 
                     }
-                    if(!correct_trajectory()) 
-                    {
-                        Status("Coasting...");
-                        break;
-                    }
+                    VSL.Controls.NoDewarpOffset = true;
+                    if(!correct_trajectory())  break;
                 }
 				stage = Stage.None;
 				start_landing();

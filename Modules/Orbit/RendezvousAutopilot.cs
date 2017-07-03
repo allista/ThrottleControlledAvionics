@@ -77,9 +77,6 @@ namespace ThrottleControlledAvionics
 		double CurrentDistance = -1;
         double DirectDistance = -1;
         bool CorrectingManeuver;
-		Orbit TargetOrbit { get { return CFG.Target.GetOrbit(); } }
-		Vessel TargetVessel { get { return CFG.Target.GetVessel(); } }
-        bool TargetLoaded { get { return TargetVessel != null && TargetVessel.loaded; } }
 
 		public override void Init()
 		{
@@ -307,7 +304,7 @@ namespace ThrottleControlledAvionics
             dV += dV4TTR(NewOrbit(VesselOrbit, dV, StartUT), TargetOrbit, REN.MaxTTR, REN.MaxDeltaV, MinPeR, StartUT);
             if(!dV.IsZero())
             {
-                add_node(dV, StartUT);
+                add_node_abs(dV, StartUT);
                 CFG.AP1.On(Autopilot1.Maneuver);
             }
             stage = Stage.StartOrbit;
@@ -617,7 +614,8 @@ namespace ThrottleControlledAvionics
 		{
 			base.UpdateState();
             IsActive &= CFG.AP2[Autopilot2.Rendezvous] && TargetOrbit != null;
-			ControlsActive &= IsActive || VSL.TargetVessel != null;
+			ControlsActive &= IsActive || 
+                VSL.TargetVessel != null;
 		}
 
         #if DEBUG
@@ -641,7 +639,7 @@ namespace ThrottleControlledAvionics
             public double endUT;
             public void Update(RendezvousTrajectory t)
             {
-                dV = t.TotalDeltaV;
+                dV = t.GetTotalDeltaV();
                 dist = t.DistanceToTarget;
                 endUT = t.AtTargetUT;
             }
@@ -840,7 +838,7 @@ namespace ThrottleControlledAvionics
                 if(MAN.ManeuverStage == ManeuverAutopilot.Stage.IN_PROGRESS)
                 {
                     clear_nodes();
-                    add_node(TargetOrbit.vel-VesselOrbit.vel, VSL.Physics.UT);
+                    add_node_abs(TargetOrbit.vel-VesselOrbit.vel, VSL.Physics.UT);
                     CFG.AP1.On(Autopilot1.Maneuver);
                 }
                 else if(MAN.ManeuverStage == ManeuverAutopilot.Stage.FINISHED)
@@ -921,7 +919,7 @@ namespace ThrottleControlledAvionics
             GUILayout.BeginVertical();
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Gravity Turn:", "Sharpness of the gravity turn"), GUILayout.ExpandWidth(false));
-            GTurnCurve.Draw("", true, 0.1f);
+            GTurnCurve.Draw("", 0.1f);
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             if(computing)
@@ -1100,7 +1098,7 @@ namespace ThrottleControlledAvionics
                     return string.Format("T- {0}  ETA <color=lime>{1}</color>  dV: <color=yellow><b>{2:F1}</b> m/s</color>", 
                                          Utils.formatTimeDelta(tts),
                                          Utils.formatTimeDelta(tts+Best.TransferTime),
-                                         Best.TotalDeltaV);
+                                         Best.GetTotalDeltaV());
                 }
             }
 
@@ -1298,7 +1296,7 @@ namespace ThrottleControlledAvionics
                     var sel = GUILayout.Button(new GUIContent(label, "Press to select this transfer"), 
                                                Styles.rich_label, GUILayout.ExpandWidth(false));
                     GUILayout.FlexibleSpace();
-                    GUILayout.Label(string.Format("dV: <color=yellow><b>{0:F1}</b> m/s</color>", trajectory.TotalDeltaV), 
+                    GUILayout.Label(string.Format("dV: <color=yellow><b>{0:F1}</b> m/s</color>", trajectory.GetTotalDeltaV()), 
                                     Styles.rich_label, GUILayout.ExpandWidth(false));
                     GUILayout.FlexibleSpace();
                     if(selected) GUILayout.Label("<color=lime><b>●</b></color>", 

@@ -29,11 +29,13 @@ namespace ThrottleControlledAvionics
 		public double ManeuverDuration { get; protected set; }
 		public float  ManeuverFuel { get; protected set; }
 		public bool   FullManeuver { get; protected set; }
-        public virtual double TotalDeltaV { get { return ManeuverDeltaV.magnitude; } }
 
 		public Vector3d StartPos { get; protected set; }
 		public Vector3d StartVel { get; protected set; }
         public Vector3d AfterStartVel { get; protected set; }
+
+        public virtual double GetTotalDeltaV() { return ManeuverDeltaV.magnitude; }
+        public virtual float GetTotalFuel() { return ManeuverFuel; }
 
 		protected BaseTrajectory(VesselWrapper vsl, Vector3d dV, double startUT)
 		{
@@ -42,7 +44,7 @@ namespace ThrottleControlledAvionics
 			if(dVm > 0) 
 			{
 				ManeuverFuel = VSL.Engines.FuelNeeded(dVm);
-				FullManeuver = ManeuverFuel < VSL.Engines.GetAvailableFuelMass();
+                FullManeuver = ManeuverFuel < VSL.Engines.AvailableFuelMass;
 				ManeuverDuration = VSL.Engines.TTB_Precise(dVm);
 			}
 			else 
@@ -139,11 +141,12 @@ namespace ThrottleControlledAvionics
 			: base(vsl, dV, startUT) {}
 
 		public Vector3d BrakeDeltaV { get; protected set; }
-        public float  BrakeFuel { get; protected set; }
+        public float BrakeFuel { get; protected set; }
 		public float BrakeDuration;
         public bool FullBrake;
 
-        public override double TotalDeltaV { get { return base.TotalDeltaV+BrakeDeltaV.magnitude; } }
+        public override double GetTotalDeltaV() { return base.GetTotalDeltaV()+BrakeDeltaV.magnitude; }
+        public override float GetTotalFuel() { return base.GetTotalFuel()+BrakeFuel; }
 
         /// <summary>
         /// The numeric "quality" of the trajectory. The less, the better, i.e. closer to the target for less dV.
@@ -167,7 +170,8 @@ namespace ThrottleControlledAvionics
 				Utils.Format("\nDistance To Target: {} m\n" +
 				             "Transfer Time:  {} s\n" +
 				             "Time To Target: {} s\n" +
-                             "AtTargetUT {}\n" +
+                             "AtTargetUT {}\n\n" +
+
 				             "Brake DeltaV:   {} m/s\n" +
                              "Brake Fuel: {}, Full Brake: {}\n" +
 				             "Brake Duration: {} s\n" +
