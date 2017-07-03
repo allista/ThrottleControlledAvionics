@@ -347,7 +347,7 @@ namespace ThrottleControlledAvionics
 		public bool NoActiveRCS { get; private set; }
 		public bool HaveMainEngines { get; private set; }
 		public bool HaveThrusters { get; private set; }
-		public bool ForceUpdateEngines = false;
+		public bool ForceUpdateParts = false;
 
 		public bool HaveNextStageEngines { get; private set; }
 		public int  NearestEnginedStage { get; private set; }
@@ -487,7 +487,7 @@ namespace ThrottleControlledAvionics
 				thrust = ThrustAtAlt(Vm, alt, out mflow);
 			var dT = TTB(Vm, thrust, mflow, 1)/10;
             var mass = VSL.Physics.M;
-            var min_mass = mass-GetAvailableFuelMass();
+            var min_mass = mass-AvailableFuelMass;
             var g = Vector2.up*VSL.Physics.StG;
             var Ve = thrust/mflow;
             var T = 0f;
@@ -529,10 +529,10 @@ namespace ThrottleControlledAvionics
 		{ 
 			float mflow;
 			float thrust = ThrustAtAlt(0, alt, out mflow);
-			return DeltaV(thrust/mflow, GetAvailableFuelMass()); 
+            return DeltaV(thrust/mflow, AvailableFuelMass); 
 		}
 
-		public float MaxDeltaV { get { return DeltaV(MaxVe, GetAvailableFuelMass()); } }
+        public float MaxDeltaV { get { return DeltaV(MaxVe, AvailableFuelMass); } }
 
 		public float RelVeASL 
 		{ 
@@ -652,22 +652,22 @@ namespace ThrottleControlledAvionics
 		{
 			//update engines' list if needed
 			var num_engines = All.Count;
-			if(!ForceUpdateEngines)
+			if(!ForceUpdateParts)
 			{
 				for(int i = 0; i < num_engines; i++)
-				{ ForceUpdateEngines |= !All[i].Valid(VSL); if(ForceUpdateEngines) break; }
-				if(!ForceUpdateEngines)
+				{ ForceUpdateParts |= !All[i].Valid(VSL); if(ForceUpdateParts) break; }
+				if(!ForceUpdateParts)
 				{
 					for(int i = 0; i < RCS.Count; i++)
-					{ ForceUpdateEngines |= !RCS[i].Valid(VSL); if(ForceUpdateEngines) break; }
+					{ ForceUpdateParts |= !RCS[i].Valid(VSL); if(ForceUpdateParts) break; }
 				}
 			}
 			//update parts if needed
-			if(ForceUpdateEngines) 
+			if(ForceUpdateParts) 
 			{ 
-				VSL.UpdateParts(); 
+				VSL.UpdateParts();
 				num_engines = All.Count;
-				ForceUpdateEngines = false;
+				ForceUpdateParts = false;
 			}
 			//update engine clusters if needed
 			else if(Clusters.Dirty)
@@ -1031,19 +1031,33 @@ namespace ThrottleControlledAvionics
 				.ForEach(r => { if(!db.ContainsKey(r.id)) db.Add(r.id, r); });
 		}
 
-		public float GetAvailableFuelMass()
+        float _AvailableFuelMass = -1;
+		public float AvailableFuelMass
 		{
-			double fuel_mass = 0;
-			double amount, max_amount;
-			var fuels = new Dictionary<int, PartResourceDefinition>();
-			Active.ForEach(e => collect_fuels(e, fuels));
-			foreach(var r in fuels)
-			{
-				vessel.GetConnectedResourceTotals(r.Key, out amount, out max_amount);
-				fuel_mass += amount * r.Value.density;
-			}
-			return (float)fuel_mass;
+            get
+            {
+                if(_AvailableFuelMass < 0)
+                {
+        			double fuel_mass = 0;
+        			double amount, max_amount;
+        			var fuels = new Dictionary<int, PartResourceDefinition>();
+        			Active.ForEach(e => collect_fuels(e, fuels));
+        			foreach(var r in fuels)
+        			{
+        				vessel.GetConnectedResourceTotals(r.Key, out amount, out max_amount);
+        				fuel_mass += amount * r.Value.density;
+        			}
+                    _AvailableFuelMass = (float)fuel_mass;
+                }
+                return _AvailableFuelMass;
+            }
 		}
+
+        public override void ClearFrameState()
+        {
+            base.ClearFrameState();
+            _AvailableFuelMass = -1;
+        }
 	}
 }
 

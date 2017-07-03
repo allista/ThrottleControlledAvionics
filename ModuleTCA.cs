@@ -233,7 +233,7 @@ namespace ThrottleControlledAvionics
 			{ reset(); init(); }
 			else 
 			{
-				VSL.Engines.ForceUpdateEngines = true;
+				VSL.Engines.ForceUpdateParts = true;
 				StartCoroutine(updateUnpackDistance());
 			}
 		}
