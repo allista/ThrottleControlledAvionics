@@ -180,7 +180,10 @@ namespace ThrottleControlledAvionics
 			{
 				if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold ||
 				   TCAScenario.HavePersistentRotation && burn-VSL.Physics.UT > 180+GLB.WRP.DewarpTime)
+                {
+                    VSL.Controls.NoDewarpOffset = true;
 					VSL.Controls.WarpToTime = burn-180;
+                }
 				else if(VSL.Controls.CanWarp) 
 					VSL.Controls.WarpToTime = burn-VSL.Controls.MinAlignmentTime;
 			}

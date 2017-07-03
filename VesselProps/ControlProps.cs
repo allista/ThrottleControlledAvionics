@@ -29,6 +29,7 @@ namespace ThrottleControlledAvionics
 		public float   GimbalLimit = 100;
 		public bool    HaveControlAuthority = true;
 		public double  WarpToTime = -1;
+        public bool    NoDewarpOffset;
 
 		public bool  Aligned = true;
 		public bool  CanWarp = true;

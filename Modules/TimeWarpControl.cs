@@ -25,7 +25,6 @@ namespace ThrottleControlledAvionics
 
 		public TimeWarpControl(ModuleTCA tca) : base(tca) {}
 
-		public bool NoDewarpOffset;
 		int last_warp_index;
         int frames_to_skip;
 
@@ -39,7 +38,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.reset();
 			last_warp_index = TimeWarp.CurrentRateIndex;
-			NoDewarpOffset = false;
+            VSL.Controls.NoDewarpOffset = false;
             frames_to_skip = -1;
 		}
 
@@ -65,7 +64,7 @@ namespace ThrottleControlledAvionics
 		//but due to deltaTime steps it is safer to offset the dewarp time with F+1
 		double TimeToDewarp(int rate_index)
 		{ 
-			var offset = NoDewarpOffset? 0 : WRP.DewarpTime/(VSL.LandedOrSplashed? 2 : 1);
+            var offset = VSL.Controls.NoDewarpOffset? 0 : WRP.DewarpTime/(VSL.LandedOrSplashed? 2 : 1);
 			return VSL.Controls.WarpToTime-(offset+TimeWarp.fetch.warpRates[rate_index]-1)-VSL.Physics.UT;
 		}
 
