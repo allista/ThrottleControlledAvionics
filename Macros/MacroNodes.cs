@@ -160,7 +160,7 @@ namespace ThrottleControlledAvionics
 			if(Edit)
 			{ 
 				GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false));
-				OrbitInfo.Draw(false);
+				OrbitInfo.Draw();
 				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
 				{ 
 					OrbitInfo.UpdateValues();
@@ -304,8 +304,8 @@ namespace ThrottleControlledAvionics
 				GUILayout.Label(Name, Styles.label, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(mode.ToString(), Styles.normal_button, GUILayout.ExpandWidth(false)))
 					mode = (Mode)(((int)mode+1)%6);
-				if(mode == Mode.Bearing) Bearing.Draw("°", false, 10);
-				if(mode != Mode.Off) Value.Draw(Suffix, false);
+				if(mode == Mode.Bearing) Bearing.Draw("°", 10);
+				if(mode != Mode.Off) Value.Draw(Suffix);
 				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
 				{ 
 					Bearing.UpdateValue();

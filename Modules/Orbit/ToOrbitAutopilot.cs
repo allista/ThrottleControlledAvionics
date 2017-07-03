@@ -272,6 +272,7 @@ namespace ThrottleControlledAvionics
 			                    Styles.confirm_button, GUILayout.ExpandWidth(true)))
 			{
 				ShowEditor = false;
+                TargetOrbit.UpdateValues();
                 VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(Autopilot2.ToOrbit));
 			}
 			GUILayout.EndHorizontal();
@@ -293,30 +294,34 @@ namespace ThrottleControlledAvionics
 			Inclination.UpdateValue();
 		}
 
-		public void Draw(bool show_set_buttons = true)
+		public void Draw()
 		{
 			GUILayout.BeginHorizontal();
-			GUILayout.Label("Radius:", GUILayout.ExpandWidth(false));
-			GUILayout.FlexibleSpace();
-			ApA.Draw("km", show_set_buttons, 5);
-			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Inclination:", GUILayout.ExpandWidth(false));
-			GUILayout.FlexibleSpace();
-			if(GUILayout.Button(new GUIContent(DescendingNode? "DN" : "AN", "Launch from Ascending or Descending Node?"), 
-			                    DescendingNode? Styles.danger_button : Styles.enabled_button,
-			                    GUILayout.ExpandWidth(false)))
-				DescendingNode = !DescendingNode;
-			if(GUILayout.Button(new GUIContent(RetrogradeOrbit? "RG" : "PG", "Prograde or retrograde orbit?"), 
-			                    RetrogradeOrbit? Styles.danger_button : Styles.enabled_button,
-			                    GUILayout.ExpandWidth(false)))
-				RetrogradeOrbit = !RetrogradeOrbit;
-			Inclination.Draw("°", show_set_buttons, 5);
-			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Steepness:", GUILayout.ExpandWidth(false));
-			GUILayout.FlexibleSpace();
-			Slope.Draw("%", show_set_buttons, 5);
+            GUILayout.BeginVertical();
+            GUILayout.Label("Radius:", GUILayout.ExpandWidth(true));
+            GUILayout.Label("Inclination:", GUILayout.ExpandWidth(true));
+            GUILayout.Label("Steepness:", GUILayout.ExpandWidth(true));
+            GUILayout.EndVertical();
+            GUILayout.BeginVertical();
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if(GUILayout.Button(new GUIContent(DescendingNode? "DN" : "AN", "Launch from Ascending or Descending Node?"), 
+                                DescendingNode? Styles.danger_button : Styles.enabled_button,
+                                GUILayout.ExpandWidth(false)))
+                DescendingNode = !DescendingNode;
+            if(GUILayout.Button(new GUIContent(RetrogradeOrbit? "RG" : "PG", "Prograde or retrograde orbit?"), 
+                                RetrogradeOrbit? Styles.danger_button : Styles.enabled_button,
+                                GUILayout.ExpandWidth(false)))
+                RetrogradeOrbit = !RetrogradeOrbit;
+            GUILayout.EndHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.EndVertical();
+            GUILayout.BeginVertical();
+			ApA.Draw("km", 5, suffix_width: 25);
+            Inclination.Draw("°", 5, suffix_width: 25);
+            Slope.Draw("%", 5, suffix_width: 25);
+            GUILayout.EndVertical();
 			GUILayout.EndHorizontal();
 		}
 	}

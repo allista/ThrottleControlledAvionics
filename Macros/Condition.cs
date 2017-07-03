@@ -147,16 +147,16 @@ namespace ThrottleControlledAvionics
                 GUILayout.Label(Label, Styles.white, GUILayout.ExpandWidth(false));
 				if(GUILayout.Button(OperatorNames[Operator], Styles.yellow, GUILayout.ExpandWidth(false)))
 					Operator = (CompareOperator)(((int)Operator+1)%3);
-				Value.Draw(Suffix, false);
+				Value.Draw(Suffix);
 				if(Operator == CompareOperator.EQ)
 				{
                     GUILayout.Label(new GUIContent("Error", "Interval of tolerance"), 
                                     Styles.white, GUILayout.ExpandWidth(false));
-					Error.Draw(Suffix, false);
+					Error.Draw(Suffix);
 				}
                 GUILayout.Label(new GUIContent("Wait for:", "The condition should be met at least this number of seconds"), 
                                 Styles.white, GUILayout.ExpandWidth(false));
-				Period.Draw("s", false);
+				Period.Draw("s");
 				if(GUILayout.Button("Done", Styles.confirm_button, GUILayout.ExpandWidth(false)))
 				{
 					Value.UpdateValue();

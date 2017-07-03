@@ -462,15 +462,15 @@ namespace ThrottleControlledAvionics
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Latitude:", GUILayout.Width(70));
-			LatField.Draw("°", false, 1, "F1");
+			LatField.Draw("°", 1, "F1");
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Longitude:", GUILayout.Width(70));
-			LonField.Draw("°", false, 1, "F1");
+			LonField.Draw("°", 1, "F1");
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			GUILayout.Label("Altitude:", GUILayout.Width(70));
-			AltField.Draw("°", false, 100, "F0");
+			AltField.Draw("°", 100, "F0");
 			GUILayout.EndHorizontal();
 			GUILayout.BeginHorizontal();
 			if(GUILayout.Button("Delete", Styles.danger_button))
