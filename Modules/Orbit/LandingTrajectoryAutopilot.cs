@@ -503,15 +503,18 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		Vector3d corrected_brake_velocity(Vector3d obt_vel, Vector3d obt_pos)
+        public static Vector3d CorrectedBrakeVelocity(VesselWrapper VSL, Vector3d obt_vel, Vector3d obt_pos, double rel_dP, double countdown)
+        {
+            var vV = Vector3d.Project(obt_vel, obt_pos);
+            var srfVel = Vector3d.Cross(VSL.Body.zUpAngularVelocity, obt_pos);
+            var vBrake = VSL.Engines.AntigravTTB((float)vV.magnitude);
+            var vFactor = 0.5*(VSL.Body.atmDensityASL+rel_dP)+vBrake/Utils.ClampL(countdown, 0.1f);
+            return obt_vel - vV*(1-Utils.Clamp(vFactor, 0.1, 1)) + srfVel;
+        }
+
+		Vector3d CorrectedBrakeVelocity(Vector3d obt_vel, Vector3d obt_pos)
 		{ 
-			var vV = Vector3d.Project(obt_vel, obt_pos);
-			var vBrake = VSL.Engines.AntigravTTB((float)vV.magnitude);
-			var vFactor = 0.5*(Body.atmDensityASL+rel_dP)+vBrake/Utils.ClampL(VSL.Info.Countdown, 0.1f);
-			return (obt_vel -
-			        vV*(1-Utils.Clamp(vFactor, 0.1, 1)) +
-			        Vector3d.Cross(Body.zUpAngularVelocity, obt_pos))
-				.xzy;
+            return CorrectedBrakeVelocity(VSL, obt_vel, obt_pos, rel_dP, VSL.Info.Countdown).xzy;
 		}
 
 		Vector3d corrected_brake_direction(Vector3d vel, Vector3d pos)
@@ -671,7 +674,7 @@ namespace ThrottleControlledAvionics
 				rel_altitude_if_needed();
 				obt_vel = VesselOrbit.getOrbitalVelocityAtUT(trajectory.BrakeStartUT);
 				brake_pos = VesselOrbit.getRelativePositionAtUT(trajectory.BrakeStartUT);
-				brake_vel = corrected_brake_velocity(obt_vel, brake_pos);
+				brake_vel = CorrectedBrakeVelocity(obt_vel, brake_pos);
 				brake_vel = corrected_brake_direction(brake_vel, brake_pos.xzy);
 				CFG.AT.OnIfNot(Attitude.Custom);
 				ATC.SetThrustDirW(brake_vel);
@@ -750,7 +753,7 @@ namespace ThrottleControlledAvionics
                     }
                     else
 					{
-                        brake_vel = corrected_brake_velocity(VesselOrbit.vel, VesselOrbit.pos);
+                        brake_vel = CorrectedBrakeVelocity(VesselOrbit.vel, VesselOrbit.pos);
                         brake_vel = corrected_brake_direction(brake_vel, VesselOrbit.pos.xzy);
                         ATC.SetThrustDirW(brake_vel);
 						THR.Throttle = CFG.Target.DistanceTo(VSL.vessel) > trajectory.DistanceToTarget?

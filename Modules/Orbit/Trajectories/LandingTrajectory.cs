@@ -86,13 +86,9 @@ namespace ThrottleControlledAvionics
 
         void update_landing_site_after_brake(Vector3d brake_pos, Vector3d brake_vel)
         {
-            var srfVel = Vector3d.Cross(Body.zUpAngularVelocity, brake_pos.normalized*(Body.Radius+TargetAltitude));
-            var vFactor = 0.1;
-            if(AtmoTrajectory != null)
-                vFactor = WillOverheat ? 0 : 0.5 * (Body.atmDensityASL + BrakePoint.DynamicPressure / 1000 / GLB.LTRJ.MinDPressure);
-            var brakeV = -brake_vel-srfVel 
-                +Vector3d.Project(brake_vel, brake_pos) * (1-Utils.Clamp(vFactor, 0.1, 1));
-            SetBrakeDeltaV(brakeV);
+            SetBrakeDeltaV(LandingTrajectoryAutopilot.CorrectedBrakeVelocity(VSL, brake_vel, brake_pos, 
+                                                                             BrakePoint.DynamicPressure / 1000 / GLB.LTRJ.MinDPressure,
+                                                                             AtTargetUT-BrakePoint.UT));
             BrakeStartUT = Math.Max(BrakeEndUT-MatchVelocityAutopilot.BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration), StartUT);
             Vector3d pos, vel;
             if(AtmoTrajectory != null)
