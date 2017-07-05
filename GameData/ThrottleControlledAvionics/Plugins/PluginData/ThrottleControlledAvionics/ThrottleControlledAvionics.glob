@@ -416,10 +416,7 @@ MVA
 TRJ
 {
 	dVtol              = 0.01  //m/s
-	dV4dRf             = 1e-4
-	MinPeA             = 10000 //m
-	MaxIterations      = 1000
-	PerFrameIterations = 10
+	PerFrameIterations = 5
 	ManeuverOffset     = 60   //s
 	CorrectionOffset   = 20   //s
 }

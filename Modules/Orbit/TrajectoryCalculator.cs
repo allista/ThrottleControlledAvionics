@@ -19,9 +19,6 @@ namespace ThrottleControlledAvionics
 		public class Config : TCAModule.ModuleConfig
 		{
 			[Persistent] public float dVtol              = 0.01f; //m/s
-			[Persistent] public float dV4dRf             = 1e-4f;
-			[Persistent] public float MinPeA             = 10000f; //m
-			[Persistent] public int   MaxIterations      = 1000;
 			[Persistent] public int   PerFrameIterations = 10;
 			[Persistent] public float ManeuverOffset     = 60f;    //s
             [Persistent] public float CorrectionOffset   = 20f;    //s
@@ -791,7 +788,7 @@ namespace ThrottleControlledAvionics
 		protected T trajectory;
 		IEnumerator<T> trajectory_calculator;
 		protected bool computing { get { return trajectory_calculator != null; } }
-		protected bool trajectory_computed()
+		protected virtual bool trajectory_computed()
 		{
 			if(trajectory != null) return true;
             if(trajectory_calculator == null)
