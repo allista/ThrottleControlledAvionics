@@ -216,10 +216,6 @@ namespace ThrottleControlledAvionics
 			}
 			ControllerProperties();
 			ConfigsGUI();
-            #if DEBUG
-            GUILayout.Space(10);
-            TCA.TEST.Draw();
-            #endif
 		}
 
 		public override void Update()

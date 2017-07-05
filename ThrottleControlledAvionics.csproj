@@ -172,7 +172,6 @@
     <Compile Include="GUI\Tabs\EnginesTab.cs" />
     <Compile Include="GUI\TCAPartsEditor.cs" />
     <Compile Include="Utils\ComponentDB.cs" />
-    <Compile Include="Modules\ModuleTester.cs" />
     <Compile Include="Testing\REN_Tests.cs" />
     <Compile Include="Testing\TCA_Test.cs" />
     <Compile Include="VesselProps\StagingModel.cs" />

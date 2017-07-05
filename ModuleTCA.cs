@@ -26,10 +26,6 @@ namespace ThrottleControlledAvionics
 		public void SetState(TCAState state) { VSL.State |= state; }
 		public bool IsStateSet(TCAState state) { return Available && VSL.IsStateSet(state); }
 
-        #if DEBUG
-        public ModuleTester TEST;
-        #endif
-
 		#region Modules
 		//core modules
 		public EngineOptimizer ENG;
@@ -456,6 +452,7 @@ namespace ThrottleControlledAvionics
 		public override void OnUpdate()
 		{
 			if(VSL == null) return;
+            Profiler.BeginSample("TCA-update");//debug
 			//update vessel config if needed
 			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) updateCFG();
 			if(CFG.Enabled)
@@ -473,15 +470,21 @@ namespace ThrottleControlledAvionics
 //				           VSL.Torque.MaxAngularDragResistance, VSL.Torque.NoEnginesAngularDragResistance, VSL.Torque.MaxPossibleAngularDragResistance
 //				          );//debug
 			}
+            Profiler.EndSample();//debug
 		}
 
 		public void FixedUpdate() 
 		{
 			if(VSL == null) return;
+            Profiler.BeginSample("TCA-fixed-update");//debug
 			//initialize systems
 			VSL.UpdateState();
 			State = TCAState.Disabled;
-			if(!CFG.Enabled) return;
+			if(!CFG.Enabled) 
+            {
+                Profiler.EndSample();//debug
+                return;
+            }
 			State = TCAState.Enabled;
 			localControlState = VesselControlState.None;
 			if(!VSL.Info.ElectricChargeAvailible) 
@@ -519,9 +522,7 @@ namespace ThrottleControlledAvionics
 			RCS.Steer();
 			VSL.Engines.SetControls();
 			VSL.FinalUpdate();
-            #if DEBUG
-            TEST.OnFixedUpdate();
-            #endif
+            Profiler.EndSample();//debug
 		}
 	}
 }
