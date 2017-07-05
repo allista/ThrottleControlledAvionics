@@ -956,67 +956,6 @@ namespace ThrottleControlledAvionics
                 optimizer.DrawBestTrajecotries();
         }
 
-        #if DEBUG
-        Orbit CreateRandomOrbitNearby(Orbit baseOrbit)
-        {
-            Orbit orbit = null;
-            var minR = MinPeR;
-            while(orbit == null || orbit.PeR < minR)
-            {
-                orbit = new Orbit();
-                orbit.eccentricity = (double)UnityEngine.Random.Range(0.001f, (float)Math.Min(baseOrbit.eccentricity+0.2, 0.999));
-                orbit.semiMajorAxis = Math.Max(baseOrbit.semiMajorAxis * (double)UnityEngine.Random.Range(0.9f, 1.1f), minR+1000);
-                orbit.inclination = baseOrbit.inclination + (double)UnityEngine.Random.Range(-20f, 20f);
-                orbit.LAN = baseOrbit.LAN * (double)UnityEngine.Random.Range(0.5f, 1.5f);
-                orbit.argumentOfPeriapsis = baseOrbit.argumentOfPeriapsis * (double)UnityEngine.Random.Range(0.5f, 1.5f);
-                orbit.meanAnomalyAtEpoch = baseOrbit.meanAnomalyAtEpoch * (double)UnityEngine.Random.Range(0.5f, 1.5f);
-                orbit.epoch = baseOrbit.epoch;
-                orbit.referenceBody = baseOrbit.referenceBody;
-                orbit.Init();
-            }
-            return orbit;
-        }
-
-        ProtoVessel tgt_ast;
-        RealTimer delay = new RealTimer(5);
-        public void Test(System.Random rnd)
-        {
-            CFG.WarpToNode = true;
-            if(tgt_ast == null)
-            {
-                var obt = CreateRandomOrbitNearby(VesselOrbit);
-                var seed = (uint)rnd.Next();
-                tgt_ast = DiscoverableObjectsUtil.SpawnAsteroid("REN Test "+seed, obt, seed, UntrackedObjectClass.C, 5e5, 1e6);
-                if(tgt_ast.vesselRef != null) 
-                {
-                    tgt_ast.vesselRef.DiscoveryInfo.SetLevel(DiscoveryLevels.Owned);
-                    CheatOptions.InfinitePropellant = true;
-                    SetTarget(tgt_ast.vesselRef);
-                    CFG.AP2.XOn(Autopilot2.Rendezvous);
-                    MapView.EnterMapView();
-                }
-                return;
-            }
-            if(CFG.AP2[Autopilot2.Rendezvous]) 
-            {
-                if(stage >= Stage.MatchOrbits && MapView.MapIsEnabled)
-                    MapView.ExitMapView();
-                if(tgt_ast.vesselRef != null && tgt_ast.vesselRef.loaded)
-                    FlightCameraOverride.Target(FlightCameraOverride.Mode.LookFromTo, VSL.vessel.transform, tgt_ast.vesselRef.transform, 10);
-                delay.Reset();
-                return;
-            }
-            CFG.AP2.XOff();
-            if(!delay.TimePassed) return;
-            if(tgt_ast != null)
-            {
-                if(tgt_ast.vesselRef != null)
-                    tgt_ast.vesselRef.Die();
-                tgt_ast = null;
-            }
-        }
-        #endif
-
         #region optimizers
         abstract class RendezvousTrajectoryOptimizer : TrajectoryOptimizer
         {
