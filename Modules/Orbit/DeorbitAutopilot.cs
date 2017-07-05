@@ -205,13 +205,14 @@ namespace ThrottleControlledAvionics
                     foreach(var t in optimize_startUT(dT)) yield return t;
                     var dI = (float)Utils.Clamp(Utils.ClampSignedL(Best.DeltaFi, 0.1), -10, 10);
                     foreach(var t in optimize_inclination(dI, deorbit(Best.StartUT))) yield return t;
-                    if(Math.Abs(Best.DeltaR) < 1)
+                    var dR1 = Math.Abs(Best.DeltaR);
+                    if(!Best.FullBrake || dR1 < 1 || Math.Abs(dR-dR1) < 1)
                     { 
                         var ddV = -Utils.ClampSignedL(dR2dV(Best.DeltaR), 1);
                         foreach(var t in optimize_ecc(ddV)) yield return t; 
                     }
-                    if(Math.Abs(dR-Math.Abs(Best.DeltaR)) < 1)
-                        Ecc = Math.Max(Ecc-dEcc, 0);
+//                    if(Math.Abs(dR-Math.Abs(Best.DeltaR)) < 1)
+//                        Ecc = Math.Max(Ecc-dEcc, 0);
                 }
             }
         }
@@ -470,29 +471,13 @@ namespace ThrottleControlledAvionics
 				if(!trajectory_computed()) break;
                 if(!trajectory.WillOverheat)
 					add_correction_node_if_needed();
+                else 
+                    update_landing_trajecotry();
 				stage = Stage.Coast; 
 				break;
 			case Stage.Coast:
-				update_trajectory();
-				VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-ManeuverOffset;
-                if(scan_for_landing_site_when_in_range())
-                    break;
-                Status("Coasting...");
-				if(CFG.AP1[Autopilot1.Maneuver]) 
-				{ 
-					if(VSL.Info.Countdown > 0 ||
-					   trajectory.BrakeStartUT-Math.Max(MAN.NodeUT, VSL.Physics.UT)-VSL.Info.TTB -
-                       VSL.Torque.NoEngines.RotationTime2Phase(Vector3.Angle(VesselOrbit.vel, MAN.NodeDeltaV)) > CorrectionOffset)
-					{
-						Status("Correcting trajectory..."); 
-						break; 
-					}
-				}
-                VSL.Controls.NoDewarpOffset = true;
-				if(VSL.Info.Countdown > 0 && !correct_trajectory()) break;
-				CFG.AP1.OffIfOn(Autopilot1.Maneuver);
-				stage = Stage.None;
-				start_landing();
+                if(!coast_to_start())
+                    stage = Stage.None;
 				break;
 			}
 		}

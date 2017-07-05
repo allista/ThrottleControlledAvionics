@@ -41,7 +41,6 @@ namespace ThrottleControlledAvionics
 		public enum Stage { None, Start, GainAltitude, Compute, Accelerate, CorrectAltitude, CorrectTrajectory, Coast, Wait }
 		[Persistent] public Stage stage;
 		float StartAltitude;
-        double LandingStartUT;
 
         PIDf_Controller fall_correction = new PIDf_Controller(1, 0.5f, 0, 0, float.PositiveInfinity);
 
@@ -261,8 +260,8 @@ namespace ThrottleControlledAvionics
 
 		protected override void fine_tune_approach()
 		{
-            LandingStartUT = trajectory != null? trajectory.BrakeStartUT-180 : -1;
-			double V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
+            update_landing_trajecotry();
+			var V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
             ComputeTrajectory(new LandingSiteCorrector(this, V, LTRJ.Dtol/2));
             stage = Stage.CorrectTrajectory;
             trajectory = null;
@@ -356,8 +355,8 @@ namespace ThrottleControlledAvionics
                 else ATC.SetThrustDirW(-dV);
 				break;
 			case Stage.CorrectTrajectory:
-                VSL.Info.Countdown = LandingStartUT-VSL.Physics.UT;
-                if(LandingStartUT < 0 || VSL.Info.Countdown > 0)
+                VSL.Info.Countdown = landing_trajectory.BrakeStartUT-VSL.Physics.UT-ManeuverOffset;
+                if(VSL.Info.Countdown > 0)
                 {
                     warp_to_coundown();
     				if(!trajectory_computed()) break;
@@ -371,23 +370,8 @@ namespace ThrottleControlledAvionics
                 }
 				break;
 			case Stage.Coast:
-                update_trajectory();
-                VSL.Info.Countdown = trajectory.BrakeStartUT-VSL.Physics.UT-ManeuverOffset;
-                if(scan_for_landing_site_when_in_range())
-                    break;
-                Status("Coasting...");
-                if(VSL.Info.Countdown > 0)
-                {
-                    if(CFG.AP1[Autopilot1.Maneuver]) 
-                    { 
-                        Status("Correcting trajectory...");
-                        break; 
-                    }
-                    VSL.Controls.NoDewarpOffset = true;
-                    if(!correct_trajectory())  break;
-                }
-				stage = Stage.None;
-				start_landing();
+                if(!coast_to_start())
+                    stage = Stage.None;
 				break;
 			}
 		}
