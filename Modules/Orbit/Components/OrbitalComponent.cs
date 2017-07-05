@@ -19,8 +19,6 @@ namespace ThrottleControlledAvionics
 		protected Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
 		protected CelestialBody Body { get { return VesselOrbit.referenceBody; } }
 		protected Vector3d hV(double UT) { return VesselOrbit.hV(UT); }
-		protected Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
-		protected double MinPeR { get { return Body.atmosphere? Body.Radius+Body.atmosphereDepth+1000 : Body.Radius+GLB.TRJ.MinPeA; } }
 	}
 }
 
