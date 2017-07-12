@@ -69,13 +69,13 @@ namespace ThrottleControlledAvionics
 				return false;
 			}
 			//compute initial orbit estimation using LambertSolver
-			var solver = new LambertSolver(VesselOrbit, CFG.Target.RelOrbPos(Body), VSL.Physics.UT);
-			var dV = solver.dV4TransferME();
-			if(Vector3d.Dot(VesselOrbit.vel+dV, VesselOrbit.pos) < 0)
-				dV = -2*VesselOrbit.vel-dV;
-			var trj = new LandingTrajectory(VSL, dV, VSL.Physics.UT, CFG.Target, TargetAltitude, false);
-			if(trj.TransferTime < ManeuverOffset)
+            var dV = compute_intial_jump_velocity()-VesselOrbit.vel;
+            var trj = new LandingTrajectory(VSL, dV, VSL.Physics.UT, CFG.Target, TargetAltitude, false);
+            if(trj.TransferTime < ManeuverOffset)
 			{
+                #if DEBUG
+                Log("Too close jump trajectory: {}", trj);
+                #endif
 				Status("yellow", "The target is too close for the jump.\n" +
 				       "Use <b>Go To</b> instead.");
 				return false;
@@ -181,7 +181,7 @@ namespace ThrottleControlledAvionics
                                                 (QuaternionD.AngleAxis(fi+angle, m.VesselOrbit.getRelativePositionAtUT(startUT)) * dir)*velocity -
                                                 m.VesselOrbit.getOrbitalVelocityAtUT(startUT),
                                                 startUT, m.CFG.Target, cur.TargetAltitude);
-                    if(Math.Abs(cur.DeltaFi) < Math.Abs(Best.DeltaFi))
+                    if(cur.DistanceToTarget < Best.DistanceToTarget)
                     {
                         Best = cur;
                         bestFi = fi;
@@ -230,21 +230,27 @@ namespace ThrottleControlledAvionics
             protected override bool ScanDeltaFi { get { return false; } }
         }
 
-		void compute_initial_trajectory()
-		{
-			MAN.MinDeltaV = 1f;
-			var tPos = CFG.Target.RelOrbPos(Body);
-			var solver = new LambertSolver(VesselOrbit, tPos+tPos.normalized*LTRJ.FlyOverAlt, VSL.Physics.UT);
+        Vector3d compute_intial_jump_velocity()
+        {
+            var tPos = CFG.Target.RelOrbPos(Body);
+            var solver = new LambertSolver(VesselOrbit, tPos+tPos.normalized*LTRJ.FlyOverAlt, VSL.Physics.UT);
             var vel = VesselOrbit.vel +
                 solver.dV4TransferME()
                 .ClampMagnitudeH(Math.Sqrt(Body.gMagnitudeAtCenter/VesselOrbit.radius));
-			if(Vector3d.Dot(vel, VesselOrbit.pos) < 0) vel = -vel;
-			var V = vel.magnitude;
+            if(Vector3d.Dot(vel, VesselOrbit.pos) < 0) vel = -vel;
             //correcto for low trajectories
             var ascention_angle = 90-Vector3d.Angle(vel, VesselOrbit.pos);
             if(ascention_angle < BJ.MinStartAngle)
                 vel = QuaternionD.AngleAxis(BJ.MinStartAngle-ascention_angle, Vector3d.Cross(vel, VesselOrbit.pos)) * vel;
+            return vel;
+        }
+
+		void compute_initial_trajectory()
+		{
+			MAN.MinDeltaV = 1f;
+            var vel = compute_intial_jump_velocity();
             var dir = vel.normalized;
+            var V = vel.magnitude;
             ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LTRJ.Dtol));
             stage = Stage.Compute;
             trajectory = null;
@@ -355,7 +361,7 @@ namespace ThrottleControlledAvionics
                 else ATC.SetThrustDirW(-dV);
 				break;
 			case Stage.CorrectTrajectory:
-                VSL.Info.Countdown = landing_trajectory.BrakeStartUT-VSL.Physics.UT-ManeuverOffset;
+                VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT-VSL.Physics.UT-ManeuverOffset;
                 if(VSL.Info.Countdown > 0)
                 {
                     warp_to_coundown();
@@ -384,7 +390,7 @@ namespace ThrottleControlledAvionics
 //			{
 //				Utils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);
 //				Utils.GLLine(Body.position, current.SurfacePoint.WorldPos(Body), Color.yellow);
-//				var brake = current.NewOrbit.getPositionAtUT(current.BrakeStartUT);
+//				var brake = current.NewOrbit.getPositionAtUT(current.BrakeStartPoint.UT);
 //				Utils.GLVec(brake, current.BrakeDeltaV.xzy.normalized*2000, Color.red);
 //				Utils.GLVec(brake, (current.NewOrbit.getOrbitalVelocityAtUT(current.BrakeNodeUT)+
 //				                      current.BrakeDeltaV).xzy.normalized*2000, 

@@ -48,6 +48,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float ScanningAngle      = 21;
 			[Persistent] public int   PointsPerFrame     = 5;
             [Persistent] public int   AtmoTrajectoryResolution = 5;
+            [Persistent] public float MaxCorrectionDist  = 1;
 
 			[Persistent] public float HeatingCoefficient = 0.02f;
 		}
@@ -148,7 +149,7 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-            CorrectionMaxDist.Value = 5;
+            CorrectionMaxDist.Value = LTRJ.MaxCorrectionDist;
 			CorrectionTimer.Period = LTRJ.CorrectionTimer;
 			StageTimer.action = () => 
 			{
@@ -192,6 +193,7 @@ namespace ThrottleControlledAvionics
 			last_dP = 0;
 			Working = false;
 			scanned = false;
+            flat_target = false;
 		}
 
         protected override bool check_target()
@@ -267,14 +269,14 @@ namespace ThrottleControlledAvionics
 
         protected bool coast_to_start()
         {
-            VSL.Info.Countdown = landing_trajectory.BrakeStartUT-VSL.Physics.UT-ManeuverOffset;
+            VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT-VSL.Physics.UT-ManeuverOffset;
             if(VSL.Info.Countdown > 0)
             {
                 if(scan_for_landing_site_when_in_range())
                     return true;
                 if(CFG.AP1[Autopilot1.Maneuver]) 
                 { 
-                    if(landing_trajectory.BrakeStartUT-Math.Max(MAN.NodeUT, VSL.Physics.UT)-VSL.Info.TTB -
+                    if(landing_trajectory.BrakeStartPoint.UT-Math.Max(MAN.NodeUT, VSL.Physics.UT)-VSL.Info.TTB -
                            VSL.Torque.NoEngines.RotationTime2Phase(Vector3.Angle(VesselOrbit.vel, MAN.NodeDeltaV)) < CorrectionOffset)
                     {
                         CFG.AP1.OffIfOn(Autopilot1.Maneuver);
@@ -298,7 +300,6 @@ namespace ThrottleControlledAvionics
 		protected void start_landing()
 		{
 			Working = false;
-            flat_target = false;
 			clear_nodes();
 			update_trajectory();
 			VSL.Controls.StopWarp();
@@ -323,11 +324,10 @@ namespace ThrottleControlledAvionics
 			warp_to_coundown();
 			if(!CorrectionTimer.TimePassed) return false;
 			CorrectionTimer.Reset();
-            update_trajectory();
+            trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude);
             Log("Correcting? DeltaR {} deg, DeltaFi {} m",
                 trajectory.DeltaR, Math.Abs(trajectory.DeltaFi)*Mathf.Deg2Rad*Body.Radius);//debug
             if(trajectory.DeltaR > 0 ||
-//               trajectory.BrakeEndDeltaAlt < LTRJ.FlyOverAlt ||
                Math.Abs(trajectory.DeltaFi)*Mathf.Deg2Rad*Body.Radius >= LTRJ.Dtol)
 			{ 
 				fine_tune_approach(); 
@@ -339,12 +339,6 @@ namespace ThrottleControlledAvionics
 		protected void add_correction_node_if_needed()
 		{
             var nodeDeltaV = trajectory.NodeDeltaV;
-            //forbid moving landing site further from the target
-            if(CurrentTrajectory.DeltaR < 0)//test it
-            {
-                nodeDeltaV.x = Math.Min(nodeDeltaV.x, 0);     
-                nodeDeltaV.z = Math.Min(nodeDeltaV.z, 0);
-            }
             var dV_threshold = Utils.ClampL(LTRJ.CorrectionMinDv * (1-CFG.Target.AngleTo(VSL)/Math.PI), 
                                             GLB.THR.MinDeltaV*2);
             Log("add correction: min dV {}, dV {}, Current Trajectory: {}", 
@@ -387,10 +381,10 @@ namespace ThrottleControlledAvionics
             if(trajectory != null)
             {
                 var dist = obstacle_between(trajectory, trajectory.StartUT, 
-                                            Math.Min(trajectory.FlyAboveUT, trajectory.AtTargetUT-0.1), offset);
+                                            Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT-0.1), offset);
                 if(dist > 0)//debug
                     Log("Obstacle ahead: dist {}, startUT {}, endUT {}, offset {}m", 
-                        dist, trajectory.StartUT, Math.Min(trajectory.FlyAboveUT, trajectory.AtTargetUT-0.1), offset);//debug
+                        dist, trajectory.StartUT, Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT-0.1), offset);//debug
             }
             return -1;
         }
@@ -399,7 +393,7 @@ namespace ThrottleControlledAvionics
         IEnumerator<double> biggest_obstacle_searcher(LandingTrajectory trj, float offset)
 		{
             var start = trj.StartUT;
-            var stop = trj.BrakeEndUT;
+            var stop = trj.BrakeEndPoint.UT;
             var dT = (stop-start)/100;
             var UT0 = start;
             var UT1 = UT0+dT;
@@ -609,11 +603,11 @@ namespace ThrottleControlledAvionics
     					trajectory.TargetAltitude = CFG.Target.Pos.Alt;
     					trajectory.Target = CFG.Target;
     				}
+                    if(scanner.BestUnevennes < GLB.LND.MaxUnevenness)
+                        Utils.Message("Found flat region for landing.");
+                    else 
+                        Utils.Message("Moved landing site to a flatter region.");
                 }
-                if(scanner.BestUnevennes < GLB.LND.MaxUnevenness)
-                    Utils.Message("Found flat region for landing.");
-                else 
-                    Utils.Message("Moved landing site to a flatter region.");
 			}
 			scanned = true;
 		}
@@ -640,7 +634,7 @@ namespace ThrottleControlledAvionics
         bool can_aerobrake()
         {
             return Body.atmosphere && UseChutes && VSL.OnPlanetParams.HaveParachutes &&
-                trajectory.BrakeEndUT > trajectory.AerobrakeStartUT;
+                trajectory.BrakeEndPoint.UT > trajectory.Path.AtmoStartUT;
         }
 
 		void do_aerobraking_if_requested(bool full = false)
@@ -718,7 +712,7 @@ namespace ThrottleControlledAvionics
 			rel_dP = VSL.vessel.dynamicPressurekPa/dP_threshold;
 			last_Err = VSL.Controls.AttitudeError;
 			float rel_Ve;
-			Vector3d brake_pos, brake_vel, obt_vel;
+			Vector3d brake_pos, brake_vel;
 			vessel_within_range = CFG.Target.DistanceTo(VSL.vessel) < LTRJ.Dtol;
 			vessel_after_target = Vector3.Dot(VSL.HorizontalSpeed.Vector, CFG.Target.VectorTo(VSL.vessel)) >= 0;
 			target_within_range = trajectory.DistanceToTarget < LTRJ.Dtol;
@@ -731,17 +725,21 @@ namespace ThrottleControlledAvionics
 				THR.Throttle = 0;
 				nose_to_target();
 				rel_altitude_if_needed();
-                VesselOrbit.GetOrbitalStateVectorsAtUT(landing_trajectory.BrakeStartUT, out brake_pos, out obt_vel);
-				brake_vel = corrected_brake_velocity(obt_vel, brake_pos);
+                brake_pos = VesselOrbit.getRelativePositionAtUT(landing_trajectory.BrakeStartPoint.UT);
+                brake_vel = VesselOrbit.getOrbitalVelocityAtUT(landing_trajectory.BrakeStartPoint.UT);
+                brake_vel = corrected_brake_velocity(brake_vel, brake_pos);
 				brake_vel = corrected_brake_direction(brake_vel, brake_pos.xzy);
 				CFG.AT.OnIfNot(Attitude.Custom);
 				ATC.SetThrustDirW(brake_vel);
                 VSL.Info.TTB = landing_trajectory.BrakeDuration;
-                var offset = Mathf.Lerp(VSL.Info.TTB, landing_trajectory.BrakeOffset, Utils.Clamp(VSL.Engines.TMR-0.1f, 0, 1));
-                VSL.Info.Countdown = Math.Min(landing_trajectory.BrakeStartUT,
-                                              landing_trajectory.BrakeEndUT -
-                                              Math.Max(offset, LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1)))) -
-                    VSL.Physics.UT-1;
+                VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT-VSL.Physics.UT-1;
+//                var offset = Mathf.Lerp(VSL.Info.TTB, landing_trajectory.BrakeOffset, Utils.Clamp(VSL.Engines.TMR-0.1f, 0, 1));
+//                VSL.Info.Countdown = Math.Min(landing_trajectory.BrakeStartPoint.UT,
+//                                              landing_trajectory.BrakeEndPoint.UT -
+//                                              Math.Max(offset, LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1)))) -
+//                    VSL.Physics.UT-1;
+                if(landing_trajectory.DeltaR < 0)
+                    VSL.Info.Countdown += landing_trajectory.DeltaR*Body.Radius*Mathf.Deg2Rad/VSL.HorizontalSpeed;
                 correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
                 if(obstacle_ahead(0) > 0) 
 				{ 
@@ -836,7 +834,7 @@ namespace ThrottleControlledAvionics
                     correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
 				VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
 				VSL.Info.Countdown -= Math.Max(VSL.Info.TTB+VSL.Torque.NoEngines.TurnTime+VSL.vessel.dynamicPressurekPa, ManeuverOffset);
-				if(VSL.Info.Countdown > 0)
+                if(VSL.Info.Countdown > 0 && !vessel_after_target)
 				{ 
                     if(THR.Throttle.Equals(0)) 
                         warp_to_coundown(); 
@@ -999,7 +997,9 @@ namespace ThrottleControlledAvionics
 						break; 
 					}
                     THR.CorrectThrottle = false;
-                    if(target_within_range && (flat_target || VSL.Altitude.Relative > GLB.LND.WideCheckAltitude))
+                    VSL.Info.TTB = VSL.Engines.OnPlanetTTB(VSL.vessel.srf_velocity, VSL.Physics.Up, VSL.Altitude.Absolute);
+                    VSL.Info.Countdown -= VSL.Info.TTB+turn_time;
+                    if(target_within_range && flat_target || VSL.Altitude.Relative > GLB.LND.WideCheckAltitude)
 					{
                         if(VSL.VerticalSpeed.Absolute < 0)
                             THR.Throttle = VSL.Info.Countdown < 0.1f? 1 :
@@ -1011,11 +1011,14 @@ namespace ThrottleControlledAvionics
                                                         VSL.Controls.AlignmentFactor, 1);
 					}
 					else THR.Throttle = 1;
+//                    Utils.Log("Countdown {}, Throttle {}\n" +
+//                              "Alt {} > {}, target in range {}, flat target {}", 
+//                              VSL.Info.Countdown, THR.Throttle,
+//                              VSL.Altitude.Relative, GLB.LND.WideCheckAltitude, 
+//                              target_within_range, flat_target);//debug
                     if(VSL.Altitude.Relative > GLB.LND.StopAtH*VSL.Geometry.D &&
                        VSL.VerticalSpeed.Absolute < 0)
 					{
-						VSL.Info.TTB = VSL.Engines.OnPlanetTTB(VSL.vessel.srf_velocity, VSL.Physics.Up, VSL.Altitude.Absolute);
-						VSL.Info.Countdown -= VSL.Info.TTB+turn_time;
 						Working = THR.Throttle > 0.7 || VSL.Info.Countdown < 10;
 						Status("white", "Final deceleration. Landing site error: {0}", 
 						       Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
@@ -1079,16 +1082,6 @@ namespace ThrottleControlledAvionics
                 GUILayout.EndHorizontal();
             }
             GUILayout.EndVertical();
-            #if DEBUG
-            draw_atmo_trajectory(trajectory ?? current_landing_trajectory, Color.magenta);
-            if(landing_trajectory != trajectory)
-                draw_atmo_trajectory(landing_trajectory, Color.yellow);
-            if(landing_trajectory != null)
-            {
-                VSL.Info.AddCustopWaypoint(landing_trajectory.Orbit.getPositionAtUT(landing_trajectory.BrakeStartUT), "Brake Start");
-                VSL.Info.AddCustopWaypoint(landing_trajectory.Orbit.getPositionAtUT(landing_trajectory.BrakeEndUT), "Brake End");
-            }
-            #endif
 		}
 
 		#if DEBUG
@@ -1119,30 +1112,58 @@ namespace ThrottleControlledAvionics
 				if(CFG.Target != null)
 					Utils.GLLine(VSL.refT.position, CFG.Target.WorldPos(Body), Color.magenta);
 			}
+            draw_trajectory(trajectory ?? current_landing_trajectory, Color.magenta);
+            if(landing_trajectory != trajectory)
+                draw_trajectory(landing_trajectory, Color.yellow);
+            if(landing_trajectory != null)
+            {
+                VSL.Info.AddCustopWaypoint(
+                    (BodyRotationAtdT(Body, VSL.Physics.UT-landing_trajectory.BrakeStartPoint.UT) * 
+                     landing_trajectory.BrakeStartPoint.pos).xzy
+                    +Body.position, "Brake Start");
+                VSL.Info.AddCustopWaypoint(
+                    (BodyRotationAtdT(Body, VSL.Physics.UT-landing_trajectory.BrakeEndPoint.UT) * 
+                     landing_trajectory.BrakeEndPoint.pos).xzy
+                    +Body.position, "Brake End");
+            }
 		}
 
-        void draw_atmo_trajectory(LandingTrajectory t, Color c)
+        void draw_trajectory(LandingTrajectory t, Color c)
         {
             if(MapView.MapIsEnabled && t != null)
             {
-                if(t.AtmoTrajectory != null &&
-                   t.AtmoTrajectory.Points.Count > 1)
+                if(t.Path != null)
+                {
+                    if(t.Path.Points.Count > 1)
+                    {
+                        Utils.GLLines(t
+                                      .Path
+                                      .ToCBFramePath(VSL.Physics.UT),
+                                      c);
+                    }
+                    else
+                    {
+                        var npoints = (int)(t.TransferTime/LTRJ.AtmoTrajectoryResolution)+1;
+                        var points = new Vector3[npoints];
+                        var time = t.Path.StartUT;
+                        var dT = t.TransferTime/npoints;
+                        for(int p = 0; p < npoints; p++)
+                        {
+                            points[p] = t.Path.PointAtUT(time).ToCBPos(VSL.Physics.UT);
+                            time += dT;
+                        }
+                        Utils.GLLines(points, c);
+                    }
+                }
+                if(t.AfterBrakePath != null && 
+                   t.AfterBrakePath.Points.Count > 1)
                 {
                     Utils.GLLines(t
-                                  .AtmoTrajectory
-                                  .ToCBFramePath(VSL.Physics.UT),
-                                  c);
-                }
-                if(t.AfterBrakeTrajectory != null && 
-                   t.AfterBrakeTrajectory.Points.Count > 1)
-                    Utils.GLLines(t
-                                  .AfterBrakeTrajectory
+                                  .AfterBrakePath
                                   .ToCBFramePath(VSL.Physics.UT),
                                   Color.green);
-//                if(t.BrakePoint.UT > 0)
-//                    VSL.Info.CustomMarkersVec.Add((TrajectoryCalculator.
-//                                                   BodyRotationAtdT(Body, VSL.Physics.UT-t.BrakePoint.UT)*
-//                                                   t.BrakePoint.pos).xzy);
+                    t.AfterBrakePath.Orbit.DrawOrbit();
+                }
             }
         }
 		#endif

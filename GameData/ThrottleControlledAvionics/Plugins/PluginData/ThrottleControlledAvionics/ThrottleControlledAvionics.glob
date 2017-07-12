@@ -450,6 +450,8 @@ LTRJ
 	
 	ScanningAngle      = 21
 	PointsPerFrame     = 5
+	AtmoTrajectoryResolution = 5
+	MaxCorrectionDist  = 1
 	
 	HeatingCoefficient = 0.02
 }
