@@ -5,14 +5,9 @@
 //
 //  Copyright (c) 2017 Allis Tauri
 
-using System;
 using UnityEngine;
 using AT_Utils;
 
-#if DEBUG
-using System.Linq;
-using System.Collections.Generic;
-#endif
 
 namespace ThrottleControlledAvionics
 {
@@ -39,15 +34,15 @@ namespace ThrottleControlledAvionics
 			if(REN != null) REN.Draw();
 			if(DEO != null) DEO.Draw();
 			GUILayout.EndHorizontal();
-            if(ORB != null && ORB.ShowEditor)
-                ORB.DrawOrbitEditor();
+            if(ORB != null && ORB.ShowOptions)
+                ORB.DrawOptions();
             if(REN != null && REN.ShowOptions)
             {
                 REN.DrawOptions();
                 REN.DrawBestTrajectories();
             }
-			if(DEO != null && CFG.AP2[Autopilot2.Deorbit])
-				DEO.DrawDeorbitSettings();
+            if(DEO != null && DEO.ShowOptions)
+				DEO.DrawOptions();
 			#if DEBUG
 			if(Utils.ButtonSwitch("DBG", ref TrajectoryCalculator.setp_by_step_computation, 
 			                      "Toggles step-by-step trajectory computation", GUILayout.ExpandWidth(true)) &&

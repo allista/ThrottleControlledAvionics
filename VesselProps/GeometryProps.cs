@@ -71,7 +71,7 @@ namespace ThrottleControlledAvionics
             AreaWithBrakes = BoundsSideAreas.MinComponentF();
             while(!brakes_measured_timer.TimePassed)
             {
-                TCAGui.Status(0.1, "Measuring ship area with brakes on...");
+                TCAGui.Status(0.1, "Testing aero-brakes...");
                 var min_area = BoundsSideAreas.MinComponentF();
                 if(min_area > AreaWithBrakes)
                 {

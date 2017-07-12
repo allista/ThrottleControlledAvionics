@@ -133,8 +133,8 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			GUILayout.EndHorizontal();
-			if(BJ != null && CFG.AP2[Autopilot2.BallisticJump])
-				BJ.DrawDeorbitSettings();
+            if(BJ != null && BJ.ShowOptions)
+				BJ.DrawOptions();
 			GUILayout.BeginHorizontal();
 			if(SQD != null && SQD.SquadMode)
 			{

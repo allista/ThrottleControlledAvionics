@@ -40,7 +40,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public Vector3 Target;
 		[Persistent] public Stage stage;
 
-		public bool ShowEditor { get; private set; }
+		public bool ShowOptions { get; private set; }
 
 		double ApR { get { return TargetOrbit.ApA*1000+Body.Radius; } }
 		ToOrbitExecutor ToOrbit;
@@ -229,8 +229,8 @@ namespace ThrottleControlledAvionics
 
 		void toggle_orbit_editor()
 		{
-			ShowEditor = !ShowEditor;
-			if(ShowEditor) update_limits();
+			ShowOptions = !ShowOptions;
+			if(ShowOptions) update_limits();
 		}
 
 		public override void Draw()
@@ -246,7 +246,7 @@ namespace ThrottleControlledAvionics
 			#endif
 			if(stage == Stage.None)
 			{
-				if(Utils.ButtonSwitch("ToOrbit", ShowEditor, 
+				if(Utils.ButtonSwitch("ToOrbit", ShowOptions, 
 				                   	  "Achieve a circular orbit with desired radius and inclination", 
 				                      GUILayout.ExpandWidth(true)))
 					toggle_orbit_editor();
@@ -256,22 +256,22 @@ namespace ThrottleControlledAvionics
 				toggle_orbit_editor();
 		}
 
-		public void DrawOrbitEditor()
+		public void DrawOptions()
 		{
 			GUILayout.BeginVertical();
 			TargetOrbit.Draw();
 			GUILayout.BeginHorizontal();
-			ShowEditor = !GUILayout.Button("Cancel", Styles.active_button, GUILayout.ExpandWidth(true));
+			ShowOptions = !GUILayout.Button("Cancel", Styles.active_button, GUILayout.ExpandWidth(true));
 			if(stage != Stage.None && 
 			   GUILayout.Button("Abort", Styles.danger_button, GUILayout.ExpandWidth(true)))
 			{
-				ShowEditor = false;
+				ShowOptions = false;
 				CFG.AP2.XOff();
 			}
 			if(GUILayout.Button(stage == Stage.None? "Launch" : "Change", 
 			                    Styles.confirm_button, GUILayout.ExpandWidth(true)))
 			{
-				ShowEditor = false;
+				ShowOptions = false;
                 TargetOrbit.UpdateValues();
                 VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(Autopilot2.ToOrbit));
 			}

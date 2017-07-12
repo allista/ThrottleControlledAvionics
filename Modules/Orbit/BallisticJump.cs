@@ -51,6 +51,16 @@ namespace ThrottleControlledAvionics
 			CFG.AP2.AddHandler(this, Autopilot2.BallisticJump);
 		}
 
+        protected override Autopilot2 program
+        {
+            get { return Autopilot2.BallisticJump; }
+        }
+
+        protected override string program_name
+        {
+            get { return "'Jump To' Autopilot"; }
+        }
+
 		protected override void reset()
 		{
 			base.reset();
@@ -382,6 +392,7 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+        static readonly GUIContent button_content = new GUIContent("Jump To", "Fly to the target using ballistic trajectory.");
 		public override void Draw()
 		{
 			#if DEBUG
@@ -399,13 +410,10 @@ namespace ThrottleControlledAvionics
 			#endif
 			if(ControlsActive) 
 			{	
-				if(computing) 
-					GUILayout.Label(new GUIContent("Jump To", "Computing maneuver. Push to cancel."), 
-					                Styles.inactive_button, GUILayout.ExpandWidth(true));
-				else if(Utils.ButtonSwitch("Jump To", CFG.AP2[Autopilot2.BallisticJump],
-				                           "Fly to the target using ballistic trajectory.", 
-				                           GUILayout.ExpandWidth(true)))
-                    VSL.XToggleWithEngines(CFG.AP2, Autopilot2.BallisticJump);
+                if(CFG.AP2[program])
+                    GUILayout.Label(button_content, Styles.enabled_button, GUILayout.ExpandWidth(true));
+                else if(GUILayout.Button(button_content, Styles.active_button, GUILayout.ExpandWidth(true)))
+                    ShowOptions = !ShowOptions;
 			}
             else if(UI.NAV != null)
             {
@@ -413,8 +421,7 @@ namespace ThrottleControlledAvionics
                                     Styles.active_button, GUILayout.ExpandWidth(true)))
                     UI.NAV.SetSurfaceTarget();
             }
-            else GUILayout.Label(new GUIContent("Jump To", "Target a landed vessel or create a waypoint"),
-                                 Styles.inactive_button, GUILayout.ExpandWidth(true));
+            else GUILayout.Label(button_content, Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
 	}
 }

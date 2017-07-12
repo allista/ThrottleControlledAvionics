@@ -64,32 +64,33 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool UseBrakes = true;
 		[Persistent] public bool CorrectTarget = true;
 		[Persistent] public bool LandASAP;
-		public bool ShowSettings;
+        public bool ShowOptions { get; protected set; }
 
-		protected Timer DecelerationTimer = new Timer(0.5);
-		protected Timer CollisionTimer = new Timer(1);
-		protected Timer StageTimer = new Timer(5);
-		protected Timer NoEnginesTimer = new Timer(1);
-		protected ManeuverExecutor Executor;
-        protected PQS_Scanner_CDOS scanner;
-		protected AtmoSim sim;
-		protected bool scanned, flat_target;
-		protected double PressureASL;
         protected LandingTrajectory landing_trajectory;
+        protected ManeuverExecutor Executor;
 
-		protected Timer dP_up_timer = new Timer(1);
-		protected Timer dP_down_timer = new Timer(1);
-		protected double dP_threshold;
-		protected double landing_deadzone;
-        protected double terminal_velocity;
-		protected double last_dP;
-		protected double rel_dP;
-		protected float last_Err;
+		Timer DecelerationTimer = new Timer(0.5);
+		Timer CollisionTimer = new Timer(1);
+		Timer StageTimer = new Timer(5);
+		Timer NoEnginesTimer = new Timer(1);
+		
+        PQS_Scanner_CDOS scanner;
+		bool scanned, flat_target;
 
-        protected bool vessel_within_range;
-        protected bool vessel_after_target;
-        protected bool target_within_range;
-        protected bool landing_before_target;
+		Timer dP_up_timer = new Timer(1);
+		Timer dP_down_timer = new Timer(1);
+        double pressureASL;
+		double dP_threshold;
+		double landing_deadzone;
+        double terminal_velocity;
+		double last_dP;
+		double rel_dP;
+		float last_Err;
+
+        bool vessel_within_range;
+        bool vessel_after_target;
+        bool target_within_range;
+        bool landing_before_target;
 
 		protected AttitudeControl ATC;
 		protected ThrottleControl THR;
@@ -170,7 +171,6 @@ namespace ThrottleControlledAvionics
 			{
 				landing_stage = LandingStage.HardLanding;
 			};
-			sim = new AtmoSim(VSL);
 			Executor = new ManeuverExecutor(TCA);
             scanner = new PQS_Scanner_CDOS(VSL, GLB.LND.MaxUnevenness/3);
 			dP_threshold = LTRJ.MaxDPressure;
@@ -307,7 +307,7 @@ namespace ThrottleControlledAvionics
 			CFG.AltitudeAboveTerrain = false;
             update_landing_trajecotry();
 			landing_stage = LandingStage.Wait;
-			PressureASL = Body.GetPressure(0);
+			pressureASL = Body.GetPressure(0);
 		}
 
 		protected void warp_to_coundown()
@@ -787,6 +787,9 @@ namespace ThrottleControlledAvionics
                 }
                 if(VSL.Controls.HaveControlAuthority) 
                     DecelerationTimer.Reset();
+                Log("ControlAuthority {}, DecelerationTimer {}", 
+                    VSL.Controls.HaveControlAuthority,
+                    DecelerationTimer);//debug
                 if(vessel_after_target)
 				{ 
                     if(Executor.Execute(-VSL.vessel.srf_velocity, LTRJ.BrakeEndSpeed)) 
@@ -927,7 +930,7 @@ namespace ThrottleControlledAvionics
 						}
 						StageTimer.RunIf(Body.atmosphere && //!VSL.Controls.HaveControlAuthority &&
 						                 VSL.vessel.currentStage-1 > VSL.OnPlanetParams.NearestParachuteStage &&
-						                 VSL.vessel.dynamicPressurekPa > LTRJ.DropBallastThreshold*PressureASL && 
+						                 VSL.vessel.dynamicPressurekPa > LTRJ.DropBallastThreshold*pressureASL && 
 						                 VSL.vessel.mach > LTRJ.MachThreshold);
 						if(CFG.AutoParachutes) 
                             status += "\nWaiting for the right moment to deploy parachutes.";
@@ -1002,7 +1005,7 @@ namespace ThrottleControlledAvionics
                     if(target_within_range && flat_target || VSL.Altitude.Relative > GLB.LND.WideCheckAltitude)
 					{
                         if(VSL.VerticalSpeed.Absolute < 0)
-                            THR.Throttle = VSL.Info.Countdown < 0.1f? 1 :
+                            THR.Throttle = VSL.Info.Countdown < 1f? 1 :
                                 Utils.Clamp(-VSL.VerticalSpeed.Absolute/(VSL.Engines.MaxAccel-VSL.Physics.G)/
                                             Utils.ClampL((float)VSL.Info.Countdown, 0.01f), 
                                             VSL.OnPlanetParams.GeeVSF*1.1f, 1);
@@ -1060,7 +1063,10 @@ namespace ThrottleControlledAvionics
 			return false;
 		}
 
-		public void DrawDeorbitSettings()
+        protected abstract Autopilot2 program { get; }
+        protected abstract string program_name { get; }
+
+		public void DrawOptions()
 		{
             GUILayout.BeginVertical();
 			GUILayout.BeginHorizontal();
@@ -1073,14 +1079,33 @@ namespace ThrottleControlledAvionics
 			Utils.ButtonSwitch("Land ASAP", ref LandASAP, 
 			                   "Do not try to Go To the target if missed or to search for a landing site near the surface.");
 			GUILayout.EndHorizontal();
-            if(CorrectTarget)
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Max. Correction:", 
+                                           "Maximum distance of a corrected landing site from the original one"));
+            CorrectionMaxDist.Draw("km", 1f, suffix_width: 25);
+            GUILayout.FlexibleSpace();
+            if(CFG.AP2[program])
             {
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(new GUIContent("Max. Correction:", 
-                                               "Maximum distance of a corrected landing site from the original one"));
-                CorrectionMaxDist.Draw("km", 1f, suffix_width: 25);
-                GUILayout.EndHorizontal();
+                if(GUILayout.Button(new GUIContent("Abort", "Abort "+program_name), 
+                                    Styles.danger_button, GUILayout.Width(60)))
+                    CFG.AP2.XOff();
             }
+            else 
+            {
+                if(GUILayout.Button(new GUIContent("Start", "Start "+program_name), 
+                                    Styles.enabled_button, GUILayout.Width(60)))
+                {
+                    if(UseBrakes && Body.atmosphere)
+                        VSL.Geometry.MeasureAreaWithBrakesAndRun(() =>
+                            VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(program)));
+                    else
+                    {
+                        VSL.Geometry.ResetAreaWithBrakes();
+                        VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(program));
+                    }
+                }
+            }
+            GUILayout.EndHorizontal();
             GUILayout.EndVertical();
 		}
 

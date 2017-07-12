@@ -35,16 +35,25 @@ namespace ThrottleControlledAvionics
 
 		public DeorbitAutopilot(ModuleTCA tca) : base(tca) {}
 
+        public enum Stage { None, Precalculate, Compute, Deorbit, Correct, Coast, Wait }
+        [Persistent] public Stage stage;
+        double initialEcc;
+
 		public override void Init()
 		{
 			base.Init();
 			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
 		}
 
-		public enum Stage { None, Precalculate, Compute, Deorbit, Correct, Coast, Wait }
-		[Persistent] public Stage stage;
-		double initialEcc;
+        protected override Autopilot2 program
+        {
+            get { return Autopilot2.Deorbit; }
+        }
 
+        protected override string program_name
+        {
+            get { return "Landing Autopilot"; }
+        }
 
 		Vector3d PlaneCorrection(TargetedTrajectoryBase old)
 		{
@@ -482,26 +491,20 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+        static readonly GUIContent button_content = new GUIContent("Land", "Compute and perform a deorbit maneuver, then land near the target.");
 		public override void Draw()
 		{
 			#if DEBUG
 			DrawDebugLines();
 			#endif
-			if(ControlsActive)
-			{
-				if(computing) 
-				{
-					if(GUILayout.Button(new GUIContent("Land", "Computing trajectory. Push to cancel."), 
-					                    Styles.inactive_button, GUILayout.ExpandWidth(true)))
-						CFG.AP2.XOff();
-				}
-				else if(Utils.ButtonSwitch("Land", CFG.AP2[Autopilot2.Deorbit],
-				                           "Compute and perform a deorbit maneuver, then land near the target.", 
-				                           GUILayout.ExpandWidth(true)))
-                    VSL.XToggleWithEngines(CFG.AP2, Autopilot2.Deorbit);
-			}
-			else GUILayout.Label(new GUIContent("Land", "Compute and perform a deorbit maneuver, then land near the target."), 
-			                     Styles.inactive_button, GUILayout.ExpandWidth(true));
+            if(ControlsActive)
+            {
+                if(CFG.AP2[program])
+                    GUILayout.Label(button_content, Styles.enabled_button, GUILayout.ExpandWidth(true));
+                else if(GUILayout.Button(button_content, Styles.active_button, GUILayout.ExpandWidth(true)))
+                    ShowOptions = !ShowOptions;
+            }
+            else GUILayout.Label(button_content, Styles.inactive_button, GUILayout.ExpandWidth(true));
 		}
 	}
 }
