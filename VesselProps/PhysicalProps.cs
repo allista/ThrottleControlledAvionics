@@ -51,7 +51,9 @@ namespace ThrottleControlledAvionics
 
 		public double GetSoundSpeed(double alt)
 		{
-			if(alt > VSL.Body.atmosphereDepth) return 0;
+            if(!VSL.Body.atmosphere || 
+               alt > VSL.Body.atmosphereDepth) 
+                return 0;
 			var P  = VSL.Body.GetPressure(alt);
 			var T  = VSL.Body.GetTemperature(alt);
 			var r  = VSL.Body.GetDensity(P, T);
@@ -63,6 +65,7 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateMaxTemp(Part p)
 		{
+//            if(p.ShieldedFromAirstream) return; //TODO: need to recalculate when a part becomes unshielded; but need to know about it first, somehow
 			var skinE = p.skinThermalMass * p.skinMaxTemp;
 			var coreE = p.thermalMass * p.maxTemp;
 			var minE = MinMaxTemperature * MMT_ThermalMass;
