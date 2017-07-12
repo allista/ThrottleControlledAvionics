@@ -7,6 +7,7 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
+using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
@@ -24,7 +25,8 @@ namespace ThrottleControlledAvionics
         public float   E { get; private set; } //radius including engines' exhaust
 		public float   D { get; private set; } //diamiter
         public Vector3 RelC { get; private set; } //center relative to CoM
-		public float Area { get; private set; }
+		public float   Area { get; private set; }
+        public float   AreaWithBrakes { get; private set; }
 		public Vector3 BoundsSideAreas { get; private set; }
 
 		public float DistToBounds(Vector3 world_point)
@@ -60,6 +62,42 @@ namespace ThrottleControlledAvionics
 			B = b;
 		}
 
+        Timer brakes_measured_timer = new Timer();
+        IEnumerator<YieldInstruction> measure_area_with_brakes_and_run(Callback action)
+        {
+            var brakes = VSL.vessel.ActionGroups[KSPActionGroup.Brakes];
+            VSL.BrakesOn();
+            brakes_measured_timer.Reset();
+            AreaWithBrakes = BoundsSideAreas.MinComponentF();
+            while(!brakes_measured_timer.TimePassed)
+            {
+                TCAGui.Status(0.1, "Measuring ship area with brakes on...");
+                var min_area = BoundsSideAreas.MinComponentF();
+                if(min_area > AreaWithBrakes)
+                {
+                    AreaWithBrakes = min_area;
+                    brakes_measured_timer.Reset();
+                }
+                yield return null;
+            }
+            if(!brakes)
+                VSL.BrakesOn(false);
+            action();
+        }
+
+        public void MeasureAreaWithBrakesAndRun(Callback action)
+        {
+            if(CFG.AutoBrakes)
+            {
+                VSL.TCA.StartCoroutine(measure_area_with_brakes_and_run(action));
+                return;
+            }
+            Utils.Message("TCA is not allowed to use brakes. Check Advanced Tab.");
+            action();
+        }
+
+        public void ResetAreaWithBrakes() { AreaWithBrakes = 0; }
+
 		public float AreaInDirection(Vector3 wdir)
 		{
 			wdir.Normalize();
@@ -68,6 +106,12 @@ namespace ThrottleControlledAvionics
 				Mathf.Abs(Vector3.Dot(wdir, VSL.refT.up)),
 				Mathf.Abs(Vector3.Dot(wdir, VSL.refT.forward))));
 		}
+
+        public float MinArea
+        { get { return BoundsSideAreas.MinComponentF(); } }
+
+        public float MaxArea
+        { get { return BoundsSideAreas.MaxComponentF(); } }
 
 		public Vector3 MinAreaDirection
 		{
