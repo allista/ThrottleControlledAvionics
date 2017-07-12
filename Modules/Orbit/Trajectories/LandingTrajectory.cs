@@ -113,7 +113,8 @@ namespace ThrottleControlledAvionics
             var end_alt = Math.Max(Orbit.PeA+10, TargetAltitude);
             Path = new LandingPath(VSL, Orbit, end_alt, 
                                    AtTargetUT,
-                                   GLB.LTRJ.AtmoTrajectoryResolution,
+                                   Math.Min(GLB.LTRJ.AtmoTrajectoryResolution,
+                                            Utils.ClampL((VSL.Altitude.Absolute-TargetAltitude)/Math.Abs(VSL.VerticalSpeed.Absolute)/20, 0.1)),
                                    VSL.Physics.M-ManeuverFuel);
             update_overheat_info(Path, VSL.TCA.part.temperature);
             AtTargetVel = Path.LastPoint.vel;
@@ -492,7 +493,7 @@ namespace ThrottleControlledAvionics
                 HavePoints = brake_vel > 0 && fuel > 0;
                 var p = newP(StartUT);
                 var m = start_mass;
-                var s = (double)VSL.Geometry.BoundsSideAreas.MinComponentF();
+                var s = Math.Max(VSL.Geometry.MinArea, VSL.Geometry.AreaWithBrakes);
                 var ascending = p.Ascending;
                 p.Duration = dt;
                 while((ascending || p.Altitude > TargetAltitude) && p.UT < EndUT)
