@@ -93,7 +93,13 @@ namespace ThrottleControlledAvionics
                     CheatOptions.InfinitePropellant = false;
                     CheatOptions.InfiniteElectricity = true;
                     Log("Target: {}", CFG.Target);
-                    VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(program));
+                    MOD.UseBrakes = true;
+                    MOD.UseChutes = true;
+                    VSL.Geometry
+                        .MeasureAreaWithBrakesAndRun(() =>
+                                                     VSL.Engines
+                                                     .ActivateEnginesAndRun(() => 
+                                                                            CFG.AP2.XOn(program)));
                     break;
                 }
                 if(CFG.AP2[program])
@@ -220,6 +226,15 @@ namespace ThrottleControlledAvionics
         {
             Save = "Kerbin Chute Landing";
             latSpread = 30;
+        }
+    }
+
+    public class DEO_Test_Kerbin_Tardegrade : DEO_Test_Base
+    {
+        public DEO_Test_Kerbin_Tardegrade()
+        {
+            Save = "DEO Kerbin Tardegrade";
+            latSpread = 10;
         }
     }
 
