@@ -150,10 +150,7 @@ namespace ThrottleControlledAvionics
         public static Orbit CircularOrbit(CelestialBody body, Vector3d pos, Vector3d dir, double UT)
         {
             var vel = dir.normalized*Math.Sqrt(body.gMagnitudeAtCenter/pos.magnitude);
-            var obt = new Orbit();
-            obt.UpdateFromStateVectors(pos, vel, body, UT);
-            obt.Init();
-            return obt;
+            return NewOrbit(body, pos, vel, UT);
         }
 
 		public static Vector3d dV4Pe(Orbit old, double R, double UT, Vector3d add_dV = default(Vector3d))
@@ -608,25 +605,6 @@ namespace ThrottleControlledAvionics
 				else StopUT = UT;
 			}
             return startUT+(StopUT-startUT)/2;
-		}
-
-		//Node: radial, normal, prograde
-		protected Vector3d Orbit2NodeDeltaV(Vector3d OrbitDeltaV, double StartUT)
-		{
-			var norm = VesselOrbit.GetOrbitNormal().normalized;
-			var prograde = hV(StartUT).normalized;
-			var radial = Vector3d.Cross(prograde, norm).normalized;
-			return new Vector3d(Vector3d.Dot(OrbitDeltaV, radial),
-			                    Vector3d.Dot(OrbitDeltaV, norm),
-			                    Vector3d.Dot(OrbitDeltaV, prograde));
-		}
-
-		protected Vector3d Node2OrbitDeltaV(Vector3d NodeDeltaV, double StartUT)
-		{ 
-			var norm = VesselOrbit.GetOrbitNormal().normalized;
-			var prograde = hV(StartUT).normalized;
-			var radial = Vector3d.Cross(prograde, norm).normalized;
-			return radial*NodeDeltaV.x + norm*NodeDeltaV.y + prograde*NodeDeltaV.z;
 		}
 
 		protected double NextStartUT(BaseTrajectory old, double dUT, double offset, double forward_step)

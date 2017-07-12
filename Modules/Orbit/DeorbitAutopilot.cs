@@ -52,7 +52,7 @@ namespace ThrottleControlledAvionics
 			angle *= Math.Sin(old.TransferTime/old.Orbit.period*2*Math.PI);
             angle *= Math.Sign(Utils.ProjectionAngle(old.StartPos, old.AtTargetPos, old.AfterStartVel));
 			var rot = QuaternionD.AngleAxis(angle, old.StartPos);
-            return Orbit2NodeDeltaV((rot*old.AfterStartVel)-old.AfterStartVel, old.StartUT);
+            return ManeuverAutopilot.Orbital2NodeDeltaV(VesselOrbit, (rot*old.AfterStartVel)-old.AfterStartVel, old.StartUT);
 		}
 
         double ProgradeCorrection(LandingTrajectory old)
