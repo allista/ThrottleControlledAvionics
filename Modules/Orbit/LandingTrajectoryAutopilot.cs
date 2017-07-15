@@ -1005,7 +1005,7 @@ namespace ThrottleControlledAvionics
                     if(target_within_range && flat_target || VSL.Altitude.Relative > GLB.LND.WideCheckAltitude)
 					{
                         if(VSL.VerticalSpeed.Absolute < 0)
-                            THR.Throttle = VSL.Info.Countdown < 1f? 1 :
+                            THR.Throttle = VSL.Info.Countdown < 0.1f? 1 :
                                 Utils.Clamp(-VSL.VerticalSpeed.Absolute/(VSL.Engines.MaxAccel-VSL.Physics.G)/
                                             Utils.ClampL((float)VSL.Info.Countdown, 0.01f), 
                                             VSL.OnPlanetParams.GeeVSF*1.1f, 1);
