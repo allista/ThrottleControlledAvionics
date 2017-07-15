@@ -6,6 +6,7 @@
 //  Copyright (c) 2017 Allis Tauri
 #if DEBUG
 using System;
+using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -39,7 +40,7 @@ namespace ThrottleControlledAvionics
             return MOD != null;
         }
 
-        protected virtual void CreateTarget(Random RND)
+        protected virtual void CreateTarget(System.Random RND)
         {
             Coordinates c =  null;
             while(c == null || c.OnWater)
@@ -54,7 +55,7 @@ namespace ThrottleControlledAvionics
 
         protected abstract void OnLand();
 
-        public override bool Update(Random RND)
+        public override bool Update(System.Random RND)
         {
             Status = stage.ToString().Replace("_", " ");
             switch(stage)
@@ -83,6 +84,7 @@ namespace ThrottleControlledAvionics
                         return false;
                     }
                     VSL.SetTarget(null);
+                    Debug.ClearDeveloperConsole();
                     stage = Stage.CREATE_TARGET;
                 }
                 break;
