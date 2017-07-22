@@ -63,46 +63,40 @@ namespace ThrottleControlledAvionics
 		protected override void correct_steering()
 		{
 			if(BRC != null && BRC.IsActive)
-				steering = Vector3.ProjectOnPlane(steering, VSL.LocalDir(VSL.Engines.CurrentDefThrustDir));
+                steering = Vector3.ProjectOnPlane(steering, VSL.LocalDir(VSL.Engines.refT_thrust_axis));
 		}
 
 		protected override void OnAutopilotUpdate(FlightCtrlState s)
 		{
 			if(!IsActive) return;
+            needed_thrust = -VSL.Physics.Up;
+            rotation_axis = Vector3.zero;
 			if(VSL.HasUserInput) 
 			{ 
-				Quaternion rot = Quaternion.identity;
 				var angle = VTOL.MaxAngle*VSL.OnPlanetParams.TWRf;
 				var pitch_roll = Mathf.Abs(s.pitch)+Mathf.Abs(s.roll);
-				if(!s.pitch.Equals(0)) 
-					rot = Quaternion.AngleAxis(Mathf.Abs(s.pitch)/pitch_roll*s.pitch*angle, VSL.refT.right) * rot;
+                if(!s.pitch.Equals(0)) 
+                    needed_thrust = Quaternion.AngleAxis(-Mathf.Abs(s.pitch)/pitch_roll*s.pitch*angle, VSL.refT.right) * needed_thrust;
 				if(!s.roll.Equals(0)) 
-					rot = Quaternion.AngleAxis(Mathf.Abs(s.roll)/pitch_roll*s.roll*angle, VSL.Engines.refT_forward_axis) * rot;
+                    needed_thrust = Quaternion.AngleAxis(-Mathf.Abs(s.roll)/pitch_roll*s.roll*angle, VSL.Engines.refT_forward_axis) * needed_thrust;
+                compute_steering(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL));
 				if(!s.yaw.Equals(0))
-					rot = Quaternion.AngleAxis(s.yaw*60, VSL.Engines.CurrentDefThrustDir) * rot;
-				rot *= Quaternion.FromToRotation(-VSL.Physics.Up, VSL.Engines.CurrentDefThrustDir);
-				update_angular_error(rot);
-				steering = rotation2steering(world2local_rotation(rot));
-				VSL.Controls.SetAttitudeError(steering.magnitude*Mathf.Rad2Deg);
-				tune_steering();
+                {
+                    rotation_axis = (rotation_axis*VSL.Controls.AttitudeError/angle-VSL.LocalDir(needed_thrust.normalized*s.yaw*Mathf.PI/3)).normalized;
+                    VSL.Controls.SetAttitudeError(Mathf.Min(VSL.Controls.AttitudeError+Math.Abs(s.yaw)*30, 180));
+                }
+				tune_steering2();
 				VSL.Controls.AddSteering(steering);
 				VSL.HasUserInput = false;
 				VSL.AutopilotDisabled = true;
 				s.yaw = s.pitch = s.roll = 0;
-				#if DEBUG
-				needed_thrust = rot.Inverse() * VSL.Engines.CurrentMaxThrustDir;
-				#endif
 			}
 			else if(!(VSL.LandedOrSplashed || CFG.AT))
 			{ 
-				#if DEBUG
-				needed_thrust = -VSL.Physics.Up;
-				#endif
-				compute_steering(Rotation.Local(VSL.Engines.CurrentDefThrustDir, -VSL.Physics.Up, VSL)); 
-				tune_steering();
+                compute_steering(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL)); 
+				tune_steering2();
 				VSL.Controls.AddSteering(steering);
 			}
-
 		}
 
 		#if DEBUG
@@ -112,16 +106,16 @@ namespace ThrottleControlledAvionics
 		{
 			base.Draw();
 			if(!IsActive || CFG.CTRL.Not(ControlMode.VTOL)) return;
-			if(!VSL.Engines.MaxThrust.IsZero())
-				Utils.GLVec(VSL.Physics.wCoM, VSL.Engines.MaxThrust.normalized*20, Color.red);
-			if(!needed_thrust.IsZero())
-				Utils.GLVec(VSL.Physics.wCoM, needed_thrust.normalized*20, Color.yellow);
-			if(!steering.IsZero())
-				Utils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(steering.normalized*20), Color.cyan);
+            Utils.GLVec(VSL.refT.position, VSL.Engines.MaxThrust.normalized*20, Color.yellow);
+            Utils.GLVec(VSL.refT.position, needed_thrust.normalized*20, Color.red);
+            Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.cyan);
+            Utils.GLVec(VSL.refT.position, VSL.WorldDir(rotation_axis*25), Color.green);
+//			if(!steering.IsZero())
+//				Utils.GLVec(VSL.Physics.wCoM, VSL.WorldDir(steering.normalized*20), Color.cyan);
 			
-			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.up*3, Color.green);
-			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.forward*3, Color.blue);
-			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.right*3, Color.red);
+//			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.up*3, Color.green);
+//			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.forward*3, Color.blue);
+//			Utils.GLVec(VSL.Physics.wCoM, VSL.refT.right*3, Color.red);
 		}
 		#endif
 	}

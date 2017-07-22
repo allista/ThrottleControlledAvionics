@@ -34,7 +34,7 @@ namespace ThrottleControlledAvionics
 
 		readonly Timer DirectionLineTimer = new Timer();
 		readonly PIDf_Controller bearing_pid = new PIDf_Controller();
-		readonly PIDf_Controller av_pid = new PIDf_Controller();
+        readonly PIDf_Controller bearing_av_pid = new PIDf_Controller();
 		public readonly FloatField Bearing = new FloatField("F1", min:0, max:360, circle:true);
 
 		#if DEBUG
@@ -61,15 +61,15 @@ namespace ThrottleControlledAvionics
 			base.Init();
 			bearing_pid.setPID(BRC.DirectionPID);
 			bearing_pid.Reset();
-			av_pid.setPID(BRC.AV_PID);
-			av_pid.Reset();
+			bearing_av_pid.setPID(BRC.AV_PID);
+			bearing_av_pid.Reset();
 			CFG.BR.AddSingleCallback(ControlCallback);
 		}
 
 		public void ControlCallback(Multiplexer.Command cmd)
 		{
 			bearing_pid.Reset();
-			av_pid.Reset();
+			bearing_av_pid.Reset();
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
@@ -130,8 +130,8 @@ namespace ThrottleControlledAvionics
 			var AAf = BRC.AAf_a/(BRC.AAf_b+Mathf.Pow(maxAA, BRC.AAf_c));
 			bearing_pid.D = AAf;
 			bearing_pid.Update(angle/180);
-			av_pid.Update(bearing_pid.Action+Vector3.Dot(VSL.vessel.angularVelocity, laxis));
-			steering = laxis*av_pid.Action*Mathf.PI;
+			bearing_av_pid.Update(bearing_pid.Action+Vector3.Dot(VSL.vessel.angularVelocity, laxis));
+			steering = laxis*bearing_av_pid.Action*Mathf.PI;
 			VSL.Controls.AddSteering(steering);
 //			if(VSL.IsActiveVessel)
 //				TCAGui.DebugMessage = 
@@ -149,10 +149,10 @@ namespace ThrottleControlledAvionics
 //					             AAf, 
 //					             bearing_pid, av_pid);//debug
 			end: 
-			DirectionOverride = Vector3d.zero;
+            DirectionOverride = Vector3d.zero;
 //			if(VSL.IsActiveVessel && string.IsNullOrEmpty(TCAGui.DebugMessage))
 //				TCAGui.DebugMessage = 
-//					Utils.Format("forward {}\noverride {}\nnDir {}\n" +
+//					Utils.Format("forward {}\noverribearing_av_pidnnDir {}\n" +
 //					             "AutopilotDisabled {}, IsActive {}",
 //					             ForwardDirection, DirectionOverride, 
 //					             DirectionOverride.IsZero()? H(ForwardDirection) : H(DirectionOverride),

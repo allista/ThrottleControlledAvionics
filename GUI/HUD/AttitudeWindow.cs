@@ -58,9 +58,18 @@ namespace ThrottleControlledAvionics
 
 		class Cues : ControlSubwindow
 		{
+            #if DEBUG
+            AttitudeControl ATC;
+            #endif
+
 			protected override void MainWindow(int windowID)
 			{
 				GUILayout.BeginVertical();
+                #if DEBUG
+                ATC.DrawDebugLines();
+                Utils.ButtonSwitch("Old PID", ref AttitudeControlBase.UseOldPID, "Use old PID system", GUILayout.ExpandWidth(false));
+                Utils.ButtonSwitch("Mouse", ref ATC.FollowMouse, "Follow mouse", GUILayout.ExpandWidth(false));
+                #endif
 				GUILayout.BeginHorizontal();
 				if(Utils.ButtonSwitch("Kill", CFG.AT[Attitude.KillRotation], "Kill rotation", GUILayout.ExpandWidth(false)))
 					CFG.AT.XToggle(Attitude.KillRotation);

@@ -125,25 +125,95 @@ ATCB
 		D = 5, 5, 5
 	}
 	
+	MinAAf = 0.5
+	MaxAAf = 2.5
+	MaxAA = 2
+	MaxPD = 0.9
 	
-	MaxAA                  = 2
-	MinAAf                 = 0.5
-	MaxAAf                 = 2.5
+	InertiaFactor = 10
+	AngularMf = 0.001
+	MoIFactor = 0.01
+	MinEf = 1E-04
+	MaxEf = 2
+	AALowPassF = 1
+	
+	AngleThreshold = 50
+	MaxAttitudeError = 10
+	AttitudeErrorThreshold = 3
+	MaxTimeToAlignment = 15
+	DragResistanceF = 10
 
-	AngularMf              = 0.001
-	InertiaFactor          = 10
-	MoIFactor              = 0.01
-	MinEf                  = 0.0001
-	MaxEf                  = 2
-	SlowTorqueF            = 0.06 //0.2
-	MaxSlowF               = 3
-	AALowPassF             = 1
+	AT_PID
+	{
+		Min = -31.4159279
+		Max = 31.4159279
+		P = 1
+		I = 0
+		D = 1
+	}
 	
-	AngleThreshold         = 50 //deg
-	MaxAttitudeError       = 10 //deg
-	AttitudeErrorThreshold = 3  //deg
-	MaxTimeToAlignment     = 15 //s
-	DragResistanceF        = 10
+	AV_PID
+	{
+		Min = -1000,-1000,-1000
+		Max = 1000,1000,1000
+		P = 1,1,1
+		I = 0,0,0
+		D = 0,0,0
+	}
+	
+	FastConfig
+	{
+		atP_Scale = 10
+		atP_Min = 1
+		atP_Max = 200
+		
+		atP_ErrThreshold = 0.8
+		atP_ErrCurve = 0.5
+		atP_ErrScale = 100
+		
+		atD_Curve = 1
+		atD_Scale = 3
+		atD_Min = 0
+		
+		atI_Scale = 1
+		atI_AV_Scale = 10
+		atI_ErrThreshold = 0.8
+		atI_ErrCurve = 2
+		
+		avP_Scale = 0.5
+		avP_Min = 1
+		avI_Scale = 0.4
+		
+		AxisCorrection = 0.2
+	}
+	
+	SlowConfig
+	{
+		atP_Scale = 8
+		atP_Min = 1
+		atP_Max = 5
+		
+		atP_ErrThreshold = 0.7
+		atP_ErrScale = 4
+		
+		atD_Curve = 1
+		atD_Scale = 3
+		atD_Min = 0
+		
+		atI_Scale = 1
+		atI_AV_Scale = 10
+		atI_ErrThreshold = 0.8
+		atI_ErrCurve = 1
+		
+		avP_Scale = 0.5
+		avP_Min = 1
+		avI_Scale = 0.4
+		
+		AxisCorrection = 0.2
+		
+		SlowTorqueF = 0.06
+		MaxSlowF = 3
+	}
 	
 	OD_low                 = 5   //Hz
 	OD_high                = 45  //Hz; note that frequency that are multiples of the physics framerate will produce high values in the spectrum given constant signal!!!

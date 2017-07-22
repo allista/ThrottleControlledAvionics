@@ -1,9 +1,14 @@
-import sys
+import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 dt = 0.02
+
+gamedir = u'/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
+game = u'KSP_test_1.3'
+
+def gamefile(filename): return os.path.join(gamedir, game, filename)
 
 
 def clampL(x, L): return x if x > L else L
@@ -22,6 +27,9 @@ def clamp01(x):
     if x > 1: return 1.0
     elif x < 0: return 0.0
     return x
+    
+
+vclamp01 = np.vectorize(clamp01)
 
 
 def lerp(f, t, time): return f+(t-f)*clamp01(time)
@@ -31,6 +39,151 @@ def center_deg(a):
     a %= 360
     if a > 180: a -= 360
     return a
+
+
+def asymp01(x, k=1):
+    return 1.0-1.0/(x/k+1.0);
+
+
+def plt_show_maxed():
+    plt.tight_layout(pad=0, h_pad=0, w_pad=0)
+    plt.subplots_adjust(top=0.99, bottom=0.03, left=0.05, right=0.99, hspace=0.25, wspace=0.1)
+    mng = plt.get_current_fig_manager()
+    try:
+        mng.window.showMaximized()
+    except AttributeError:
+        try:
+            mng.frame.Maximize(True)
+        except AttributeError:
+            try:
+                mng.full_screen_toggle()
+            except AttributeError:
+                pass
+    plt.show()
+
+
+def legend():
+    plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    
+    
+def color_grad(num, repeat=1):
+    colors = [(0, 1, 0)] * repeat
+    n = float(num)
+    for i in range(1, num):
+        c = (i / n, 1 - i / n, 1 - i / n)
+        colors += (c,) * repeat
+    return colors
+
+
+class vec(object):
+    def __init__(self, x=0, y=0, z=0):
+        self.v = np.array([float(x), float(y), float(z)])
+
+    @property
+    def xzy(self):
+        return vec(self[0], self[2], self[1])
+
+    @property
+    def norm(self):
+        return vec.from_array(np.array(self.v) / np.linalg.norm(self.v))
+
+    def __str__(self):
+        return '[%+.4f, %+.4f, %+.4f] |%.4f|' % tuple(list(self.v) + [abs(self), ])
+
+    def __repr__(self): return str(self)
+
+    def __getitem__(self, index): return self.v[index]
+
+    def __setitem__(self, index, value): self.v[index] = value
+
+    def __nonzero__(self): return bool(np.any(self.v))
+
+    def __abs__(self):
+        return np.linalg.norm(self.v)
+
+    def __add__(self, other):
+        return vec.from_array(self.v + other.v)
+
+    def __iadd__(self, other):
+        self[0] += other[0]
+        self[1] += other[1]
+        self[2] += other[2]
+        return self
+
+    def __sub__(self, other):
+        return vec.from_array(self.v - other.v)
+
+    def __neg__(self):
+        return self * -1
+
+    def __rmul__(self, other): return self * other
+
+    def __mul__(self, other):
+        if isinstance(other, vec):
+            return np.dot(self.v, other.v)
+        elif isinstance(other, (int, float)):
+            return vec.from_array(self.v * float(other))
+        raise TypeError('vec: unsupported multiplier type %s' % type(other))
+
+    def __div__(self, other):
+        return self * (1.0 / other)
+
+    def cross(self, other):
+        return vec.from_array(np.cross(self.v, other.v))
+
+    def project(self, onto):
+        m2 = onto * onto
+        return onto * (self * onto / m2)
+
+    def angle(self, other):
+        """
+        :rtype float: radians
+        """
+        return np.arccos(self * other / (abs(self) * abs(other)))
+
+    def cube_norm(self):
+        return self / max(abs(x) for x in self)
+
+    @classmethod
+    def from_array(cls, a):
+        assert len(a) == 3, 'Array should be 1D with 3 elements'
+        return vec(a[0], a[1], a[2])
+
+    @classmethod
+    def sum(cls, vecs): return sum(vecs, vec())
+
+    @classmethod
+    def rnd(cls, magnitude=1):
+        return cls.from_array(np.random.rand(3) * 2 - 1).norm * magnitude
+
+
+class vec6(object):
+    def __init__(self):
+        self.positive = vec()
+        self.negative = vec()
+
+    def add(self, v):
+        for i, d in enumerate(v):
+            if d >= 0: self.positive[i] += d
+            else: self.negative[i] += d
+
+    def sum(self, vecs):
+        for v in vecs: self.add(v)
+
+    def clamp(self, v):
+        c = vec()
+        for i, d in enumerate(v):
+            if d >= 0: c[i] = min(d, self.positive[i])
+            else: c[i] = max(d, self.negative[i])
+        return c
+
+    def __str__(self):
+        return 'positive: %s\nnegative: %s' % (self.positive, self.negative)
+
+    def __repr__(self): return str(self)
+
+
+def xzy(v): return [v[0], v[2], v[1]]
 
 
 class PID(object):
@@ -98,10 +251,16 @@ class PID(object):
 
 class PID2(PID):
     def update(self, err):
+        self.update2(err, (err - self.perror) / dt)
+        return self.action
+
+    def update2(self, err, spd):
         if self.perror == 0: self.perror = err
-        d = self.D * (err - self.perror) / dt
-        self.ierror = clamp(self.ierror + self.I * err * dt if abs(d) < 0.6 * self.max else 0.9 * self.ierror, self.min, self.max)
+        d = self.D * spd
+        self.ierror = clamp(self.ierror + self.I * err * dt if abs(d) < 0.6 * self.max else 0.9 * self.ierror,
+                            self.min, self.max)
         self.perror = err
         self.action = clamp(self.P * err + self.ierror + d, self.min, self.max)
-#         print '%f %+f %+f' % (self.P*err, self.ierror, d)
+        #         print '%f %+f %+f' % (self.P*err, self.ierror, d)
         return self.action
+
