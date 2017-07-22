@@ -56,10 +56,10 @@ namespace ThrottleControlledAvionics
 		SurfaceNode[,] Nodes;
 		readonly List<SurfaceNode> FlatNodes = new List<SurfaceNode>();
 		HashSet<SurfaceNode> TriedNodes;
-        SurfaceNode StartNode, NextNode, FlattestNode, ClosestNode, FlattestNodeTired;
+        SurfaceNode StartNode, NextNode, FlattestNode, FlattestNodeTired;
         Coordinates anchor;
 		int side, bside, center, total_rays, done_rays;
-		Vector3 right, fwd, up, down, dir, sdir;
+		Vector3 right, fwd, up, dir, sdir;
 		float WideCheckAlt, MaxDistance, delta;
 		readonly Timer StopTimer = new Timer();
 		readonly Timer CutoffTimer = new Timer();
@@ -142,7 +142,6 @@ namespace ThrottleControlledAvionics
 			bside  = side+2;
 			center = (bside-1)/2;
 			up     = VSL.Physics.Up;
-			down   = -VSL.Altitude.Relative*up;
 			right  = Vector3d.Cross(VSL.Physics.Up, VSL.OnPlanetParams.Fwd).normalized;
 			fwd    = Vector3.Cross(right, up);
 			Nodes  = new SurfaceNode[bside,bside];
@@ -444,7 +443,6 @@ namespace ThrottleControlledAvionics
                 Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", Progress);
 				if(scan(LND.WideCheckLevel)) break;
                 FlattestNode = flattest_node;
-                ClosestNode = closest_node;
 				if(FlatNodes.Count > 0) 
                     stage = Stage.FlatCheck;
 				else 
