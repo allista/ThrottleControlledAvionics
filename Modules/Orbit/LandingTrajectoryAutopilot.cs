@@ -325,8 +325,8 @@ namespace ThrottleControlledAvionics
 			if(!CorrectionTimer.TimePassed) return false;
 			CorrectionTimer.Reset();
             trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude);
-            Log("Correcting? DeltaR {} deg, DeltaFi {} m",
-                trajectory.DeltaR, Math.Abs(trajectory.DeltaFi)*Mathf.Deg2Rad*Body.Radius);//debug
+//            Log("Correcting? DeltaR {} deg, DeltaFi {} m",
+//                trajectory.DeltaR, Math.Abs(trajectory.DeltaFi)*Mathf.Deg2Rad*Body.Radius);//debug
             if(trajectory.DeltaR > 0 ||
                Math.Abs(trajectory.DeltaFi)*Mathf.Deg2Rad*Body.Radius >= LTRJ.Dtol)
 			{ 
@@ -341,8 +341,8 @@ namespace ThrottleControlledAvionics
             var nodeDeltaV = trajectory.NodeDeltaV;
             var dV_threshold = Utils.ClampL(LTRJ.CorrectionMinDv * (1-CFG.Target.AngleTo(VSL)/Math.PI), 
                                             GLB.THR.MinDeltaV*2);
-            Log("add correction: min dV {}, dV {}, Current Trajectory: {}", 
-                dV_threshold, nodeDeltaV, CurrentTrajectory);//debug
+//            Log("add correction: min dV {}, dV {}, Current Trajectory: {}", 
+//                dV_threshold, nodeDeltaV, CurrentTrajectory);//debug
             if(nodeDeltaV.magnitude > dV_threshold)
 			{
 				clear_nodes(); 
@@ -380,11 +380,12 @@ namespace ThrottleControlledAvionics
         { 
             if(trajectory != null)
             {
-                var dist = obstacle_between(trajectory, trajectory.StartUT, 
-                                            Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT-0.1), offset);
-                if(dist > 0)//debug
-                    Log("Obstacle ahead: dist {}, startUT {}, endUT {}, offset {}m", 
-                        dist, trajectory.StartUT, Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT-0.1), offset);//debug
+//                var dist = //debug
+                    obstacle_between(trajectory, trajectory.StartUT, 
+                                     Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT-0.1), offset);
+//                if(dist > 0)//debug
+//                    Log("Obstacle ahead: dist {}, startUT {}, endUT {}, offset {}m", 
+//                        dist, trajectory.StartUT, Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT-0.1), offset);//debug
             }
             return -1;
         }
@@ -625,7 +626,7 @@ namespace ThrottleControlledAvionics
                     clear_nodes();
                     fine_tune_approach();
                 }
-                Log("scanned {}, scanner {}, flat {}", scanned, scanner, scanner != null? scanner.FlatRegion : null);//debug
+//                Log("scanned {}, scanner {}, flat {}", scanned, scanner, scanner != null? scanner.FlatRegion : null);//debug
                 return scanned;
             }
             return false;
@@ -787,9 +788,9 @@ namespace ThrottleControlledAvionics
                 }
                 if(VSL.Controls.HaveControlAuthority) 
                     DecelerationTimer.Reset();
-                Log("ControlAuthority {}, DecelerationTimer {}", 
-                    VSL.Controls.HaveControlAuthority,
-                    DecelerationTimer);//debug
+//                Log("ControlAuthority {}, DecelerationTimer {}", 
+//                    VSL.Controls.HaveControlAuthority,
+//                    DecelerationTimer);//debug
                 if(vessel_after_target)
 				{ 
                     if(Executor.Execute(-VSL.vessel.srf_velocity, LTRJ.BrakeEndSpeed)) 
@@ -1300,7 +1301,7 @@ namespace ThrottleControlledAvionics
                     var best = optimizer.Best;
                     FlatRegion = Coordinates.SurfacePoint(best.x, best.y, VSL.Body);
                     BestUnevennes = best.z;
-                    Utils.Log("Best: {} < {}", BestUnevennes, MaxUnevennes);//debug
+//                    Utils.Log("Best: {} < {}", BestUnevennes, MaxUnevennes);//debug
                     return false;
                 }
             }

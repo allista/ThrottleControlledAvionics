@@ -309,7 +309,7 @@ namespace ThrottleControlledAvionics
 
             public IEnumerator<LandingTrajectory> GetEnumerator()
             {
-                m.Log("Calculating initial orbit eccentricity...");//debug
+//                m.Log("Calculating initial orbit eccentricity...");//debug
                 var tPos = m.CFG.Target.RelOrbPos(m.Body);
                 var UT = m.VSL.Physics.UT +
                     TrajectoryCalculator.AngleDelta(m.VesselOrbit, tPos, m.VSL.Physics.UT)/360*m.VesselOrbit.period;
@@ -335,7 +335,7 @@ namespace ThrottleControlledAvionics
                     while(Math.Abs(dV) > TRJ.dVtol)
                     {
                         var cur = new LandingTrajectory(m.VSL, start.ManeuverDeltaV+dir*V, start.StartUT, m.CFG.Target, start.TargetAltitude);
-                        m.Log("V {}, dV {}, is better {}", V, dV, comparer.isBetter(cur, Best));//debug
+//                        m.Log("V {}, dV {}, is better {}", V, dV, comparer.isBetter(cur, Best));//debug
                         if(comparer.isBetter(cur, Best))
                         {
                             Best = cur;
@@ -351,7 +351,7 @@ namespace ThrottleControlledAvionics
                     }
                 }
                 m.initialEcc = Best.Orbit.eccentricity;
-                m.Log("initialEcc: {}", m.initialEcc);//debug
+//                m.Log("initialEcc: {}", m.initialEcc);//debug
             }
 
             IEnumerator IEnumerable.GetEnumerator()
@@ -472,8 +472,8 @@ namespace ThrottleControlledAvionics
 				Status("Executing deorbit burn...");
 				VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-                update_trajectory();//debug
-                Log("Trajectory after deorbit: {}", trajectory);//debug
+//                update_trajectory();//debug
+//                Log("Trajectory after deorbit: {}", trajectory);//debug
 				fine_tune_approach();
 				break;
 			case Stage.Correct:
