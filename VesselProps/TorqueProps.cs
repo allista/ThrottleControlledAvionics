@@ -88,7 +88,7 @@ namespace ThrottleControlledAvionics
 			{
 				var w = Wheels[i];
 				if(w.State != ModuleReactionWheel.WheelState.Active) continue;
-				var torque = new Vector3(w.PitchTorque, w.RollTorque, w.YawTorque);
+                var torque = new Vector3(w.PitchTorque, w.RollTorque, w.YawTorque)*w.authorityLimiter/100;
 				WheelsLimits.Add(torque);
 				WheelsLimits.Add(-torque);
 			}
