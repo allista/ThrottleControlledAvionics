@@ -26,6 +26,7 @@ namespace ThrottleControlledAvionics
 		static Texture2D CoM_Icon;
 
 		TCAPartsEditor PartsEditor;
+        SimpleWarning warning;
 
 		ModuleTCA TCA;
 		NamedConfig CFG;
@@ -122,8 +123,9 @@ namespace ThrottleControlledAvionics
 			}
 			if(CFG == null)
 			{
-				CFG = new NamedConfig(ship.shipName);
-				CFG.EnginesProfiles.AddProfile(Engines);
+                CFG = NamedConfig.FromVesselConfig(ship.shipName, TCAScenario.GetDefaultConfig(ship.shipFacility));
+                if(CFG.EnginesProfiles.Empty)
+                    CFG.EnginesProfiles.AddProfile(Engines);
 			}
 			else CFG.ActiveProfile.Apply(Engines);
 			UpdateCFG(TCA_Modules);
@@ -403,6 +405,9 @@ namespace ThrottleControlledAvionics
 						else if(GUILayout.Button("Edit Macros", Styles.active_button, GUILayout.ExpandWidth(true)))
 							TCAMacroEditor.Edit(CFG);
 					}
+                    if(GUILayout.Button(new GUIContent("Save As Default", "Save current configuration as default for new ships in this facility (VAB/SPH)"),
+                                        Styles.active_button, GUILayout.ExpandWidth(true)))
+                        warning.Show(true);
 				}
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
@@ -565,6 +570,13 @@ namespace ThrottleControlledAvionics
 				                 Title,
 				                 GUILayout.Width(width),
 				                 GUILayout.Height(height)).clampToScreen();
+            if(warning.doShow)
+            {
+                var facility = EditorLogic.fetch.ship.shipFacility;
+                warning.Draw("Are you sure you want to save current ship configuration as default for "+facility+"?");
+                if(warning.Result == SimpleDialog.Answer.Yes) 
+                    TCAScenario.UpdateDefaultConfig(facility, CFG);
+            }
 			PartsEditor.Draw();
 			if(show_imbalance && ActiveEngines.Count > 0)
 			{
