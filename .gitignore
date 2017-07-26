@@ -249,3 +249,4 @@ pip-log.txt
 /TechTree/TechTreeGraph.svg
 /TechTree/TechTreeGraph_PartDeps.svg
 *.new
+/Images/*.png
