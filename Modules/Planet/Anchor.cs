@@ -104,7 +104,7 @@ namespace ThrottleControlledAvionics
 				pid.D = 0;
 			}
 			// CFG.Anchor.AbsRadius*Mathf.Pow(real_dist/CFG.Anchor.AbsRadius, ANC.DistanceCurve);
-			pid.Update(distance*ANC.DistanceF/(VSL.Engines.Slow? 1+VSL.Torque.EnginesResponseTimeM*ANC.SlowTorqueF : 1f));
+            pid.Update(distance*ANC.DistanceF/(VSL.Torque.Slow? 1+VSL.Torque.EnginesResponseTimeM*ANC.SlowTorqueF : 1f));
 			VSL.HorizontalSpeed.SetNeeded(vdir*pid.Action);
 //			CSV(pid.P, pid.D, distance, real_dist, pid.Action);//debug
 		}

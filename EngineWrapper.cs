@@ -43,8 +43,13 @@ namespace ThrottleControlledAvionics
 		public abstract Vector3 wThrustPos { get; }
 		public abstract Vector3 wThrustDir { get; }
 
-		public abstract Vector3 Thrust(float throttle);
-		public abstract Vector3 Torque(float throttle);
+        public abstract float ThrustM(float throttle);
+		
+        public Vector3 Thrust(float throttle)
+        { return thrustDirection*ThrustM(throttle); }
+
+		public Vector3 Torque(float throttle)
+        { return specificTorque*ThrustM(throttle); }
 
 		public abstract void InitLimits();
 		public abstract void InitState();
@@ -56,7 +61,7 @@ namespace ThrottleControlledAvionics
 		public void InitTorque(VesselWrapper VSL, float ratio_factor)
 		{ InitTorque(VSL.refT, VSL.Physics.wCoM, ratio_factor); }
 
-		public void InitTorque(Transform vesselTransform, Vector3 CoM, float ratio_factor)
+		public virtual void InitTorque(Transform vesselTransform, Vector3 CoM, float ratio_factor)
 		{
 			wThrustLever = wThrustPos-CoM;
 			thrustDirection = vesselTransform.InverseTransformDirection(wThrustDir);
@@ -123,11 +128,8 @@ namespace ThrottleControlledAvionics
 		public override float finalThrust { get { return current_thrust; } }
 		public float maxThrust { get { return rcs.thrusterPower*thrustMod; } }
 
-		public override Vector3 Thrust (float throttle)
-		{ return thrustDirection*current_max_thrust*throttle; }
-
-		public override Vector3 Torque (float throttle)
-		{ return specificTorque*current_max_thrust*throttle; }
+        public override float ThrustM(float throttle)
+        { return current_max_thrust*throttle; }
 
 		public override float thrustLimit
 		{
@@ -183,13 +185,17 @@ namespace ThrottleControlledAvionics
 
 		Vector3 act_thrust_dir;
 		Vector3 act_thrust_pos;
-		public Vector3 defThrustDir { get; private set; }
-        public override Vector3 wThrustDir { get { return UseDefThrust? defThrustDir : act_thrust_dir; } }
+        public override Vector3 wThrustDir { get { return act_thrust_dir; } }
 		public override Vector3 wThrustPos { get { return act_thrust_pos; } }
-        public bool UseDefThrust;
 
-		public float DefTorqueRatio
-		{ get { return Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(wThrustLever, defThrustDir))); } }
+        public Vector3 defThrustDir { get; private set; }
+        public Vector3 defThrustDirL { get; private set; }
+        public Vector3 defSpecificTorque { get; private set; }
+        public Vector3 defCurrentTorque { get; private set; }
+        public float defCurrentTorque_m { get; private set; }
+        public float defTorqueRatio { get; private set; }
+
+        public float nominalFullThrust { get; private set; }
 
 		class GimbalInfo
 		{
@@ -249,6 +255,23 @@ namespace ThrottleControlledAvionics
 		public void SetRole(TCARole role) { info.SetRole(role); }
 		public void SetGroup(int group) { info.group = group; }
 
+        public override void InitTorque(Transform vesselTransform, Vector3 CoM, float ratio_factor)
+        {
+            base.InitTorque(vesselTransform, CoM, ratio_factor);
+            if(gimbal != null)
+            {
+                defThrustDirL = vesselTransform.InverseTransformDirection(defThrustDir);
+                defSpecificTorque = vesselTransform.InverseTransformDirection(Vector3.Cross(wThrustLever, defThrustDir));
+                defTorqueRatio = Mathf.Pow(Mathf.Clamp01(1-Mathf.Abs(Vector3.Dot(wThrustLever.normalized, defThrustDir))), ratio_factor);
+            }
+            else
+            {
+                defThrustDirL = thrustDirection;
+                defSpecificTorque = specificTorque;
+                defTorqueRatio = torqueRatio;
+            }
+        }
+
 		public override void InitLimits()
 		{
 			isVSC = isSteering = false;
@@ -298,7 +321,6 @@ namespace ThrottleControlledAvionics
 		{
 			if(engine == null || part == null || vessel == null) return;
 			//update thrust info
-            UseDefThrust = false;
 			UpdateThrustInfo();
 			realIsp = GetIsp((float)(part.staticPressureAtm), (float)(part.atmDensity/1.225), (float)part.machNumber);
 			flowMod = GetFlowMod((float)(part.atmDensity/1.225), (float)part.machNumber);
@@ -307,6 +329,7 @@ namespace ThrottleControlledAvionics
 			if(engine.throttleLocked && info.Role != TCARole.MANUAL) 
 				info.SetRole(TCARole.MANUAL);
 			InitLimits();
+            nominalFullThrust = nominalCurrentThrust(1);
 //			Utils.Log("Engine.InitState: {}\n" +
 //			          "wThrustDir {}\n" +
 //			          "wThrustPos {}\n" +
@@ -322,25 +345,53 @@ namespace ThrottleControlledAvionics
 		public override void UpdateCurrentTorque(float throttle)
 		{
 			this.throttle = throttle;
-			currentTorque = Torque(throttle);
+            var thrust = ThrustM(throttle);
+            currentTorque = specificTorque*thrust;
 			currentTorque_m = currentTorque.magnitude;
+            if(gimbal != null)
+            {
+                defCurrentTorque = defSpecificTorque*thrust;
+                defCurrentTorque_m = defCurrentTorque.magnitude;
+            }
+            else
+            {
+                defCurrentTorque = currentTorque;
+                defCurrentTorque_m = currentTorque_m;
+            }
 		}
 
-		public override Vector3 Thrust(float throttle)
-		{
-			return thrustDirection * 
-				(Role != TCARole.MANUAL? 
-				 nominalCurrentThrust(throttle) :
-				 engine.finalThrust);
-		}
+        public override float ThrustM(float throttle)
+        {
+            return (Role != TCARole.MANUAL? 
+                    nominalCurrentThrust(throttle) :
+                    engine.finalThrust);
+        }
 
-		public override Vector3 Torque(float throttle)
-		{
-			return specificTorque * 
-				(Role != TCARole.MANUAL? 
-				 nominalCurrentThrust(throttle) :
-				 engine.finalThrust);
-		}
+        public Vector3 Thrust(float throttle, bool useDefDirection)
+        { 
+            return useDefDirection?
+                defThrustDirL * ThrustM(throttle) :
+                Thrust(throttle);
+        }
+
+        public Vector3 Torque(float throttle, bool useDefDirection)
+        { 
+            return useDefDirection?
+                defSpecificTorque * ThrustM(throttle) :
+                Torque(throttle);
+        }
+
+        public Vector3 getSpecificTorque(bool useDefDirection)
+        { return useDefDirection? defSpecificTorque : specificTorque; }
+
+        public Vector3 getCurrentTorque(bool useDefDirection)
+        { return useDefDirection? defCurrentTorque : currentTorque; }
+
+        public float getCurrentTorqueM(bool useDefDirection)
+        { return useDefDirection? defCurrentTorque_m : currentTorque_m; }
+
+        public float getTorqueRatio(bool useDefDirection)
+        { return useDefDirection? defTorqueRatio : torqueRatio; }
 
 		float GetIsp(float pressureAtm, float rel_density, float vel_mach) 
 		{
@@ -439,7 +490,7 @@ namespace ThrottleControlledAvionics
 			                    useEngineResponseTime, engineAccelerationSpeed, engineDecelerationSpeed, 
 			                    finalThrust, thrustLimit, isOperational, 
 			                    limit, best_limit, limit_tmp, preset_limit,
-			                    nominalCurrentThrust(1), 
+                                nominalFullThrust, 
 			                    wThrustDir, defThrustDir, wThrustPos, wThrustLever, 
 			                    currentTorque, torqueRatio
 			                   );

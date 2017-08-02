@@ -278,7 +278,7 @@ namespace ThrottleControlledAvionics
 			}
 			needed_thrust_dir.Normalize();
 			//tune filter
-			filter.Tau = VSL.Engines.Slow ? 
+            filter.Tau = VSL.Torque.Slow ? 
 				HSC.LowPassF / (1 + VSL.Torque.EnginesResponseTimeM * HSC.SlowTorqueF) : 
 				HSC.LowPassF;
 			ATC.SetCustomRotationW(thrust, filter.Update(needed_thrust_dir).normalized);

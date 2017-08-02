@@ -31,7 +31,7 @@ namespace ThrottleControlledAvionics
 		ModuleTCA TCA;
 		NamedConfig CFG;
 		readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
-		readonly EnginesProps.EnginesDB ActiveEngines = new EnginesProps.EnginesDB();
+		readonly EnginesDB ActiveEngines = new EnginesDB();
 		static bool HaveSelectedPart { get { return EditorLogic.SelectedPart != null && EditorLogic.SelectedPart.potentialParent != null; } }
 
 		HighlightSwitcher TCA_highlight, Engines_highlight;
@@ -267,16 +267,16 @@ namespace ThrottleControlledAvionics
 					selected_parts.ForEach(update_inertia_tensor);
 					ActiveEngines.SortByRole();
 					float max_limit, torque_error, angle_error;
-					var imbalance = TorqueProps.CalculateImbalance(ActiveEngines.Manual, ActiveEngines.UnBalanced);
+					var imbalance = TorqueProps.CalculateImbalance(true, ActiveEngines.Manual, ActiveEngines.UnBalanced);
 					if(ActiveEngines.Balanced.Count > 0)
 					{
-						EngineOptimizer.OptimizeLimitsForTorque(ActiveEngines.Balanced, Vector3.zero, imbalance, MoI, 
+                        EngineOptimizer.OptimizeLimitsForTorque(ActiveEngines.Balanced, Vector3.zero, imbalance, MoI, true, 
 						                                        out max_limit, out torque_error, out angle_error);
-						imbalance = TorqueProps.CalculateImbalance(ActiveEngines.Manual, ActiveEngines.UnBalanced, ActiveEngines.Balanced);
+                        imbalance = TorqueProps.CalculateImbalance(true, ActiveEngines.Manual, ActiveEngines.UnBalanced, ActiveEngines.Balanced);
 					}
 					if(ActiveEngines.Steering.Count > 0)
 					{
-						if(!EngineOptimizer.OptimizeLimitsForTorque(ActiveEngines.Steering, Vector3.zero, imbalance, MoI, 
+                        if(!EngineOptimizer.OptimizeLimitsForTorque(ActiveEngines.Steering, Vector3.zero, imbalance, MoI, true, 
 						                                            out max_limit, out torque_error, out angle_error))
 						{
 							ActiveEngines.Steering.ForEach(e => e.limit = 0);

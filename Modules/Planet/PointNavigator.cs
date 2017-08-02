@@ -525,7 +525,7 @@ namespace ThrottleControlledAvionics
 							if(brake_angle > 0)
 							{
                                 //count rotation of the vessel to braking position
-								if(VSL.Engines.Slow)
+                                if(VSL.Torque.Slow)
                                 {
                                     prep_time = VSL.Torque.NoEngines.RotationTime3Phase(brake_angle, PN.RotationAccelPhase);
                                     //also count time needed for the engines to get to full thrust

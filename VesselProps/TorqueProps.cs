@@ -26,11 +26,15 @@ namespace ThrottleControlledAvionics
 		public TorqueInfo Imbalance; //current torque imbalance, set by UpdateImbalance
 		public TorqueInfo Engines; //current torque applied to the vessel by engines
 		public TorqueInfo NoEngines; //current maximum torque
+        public TorqueInfo SlowMaxPossible; //current maximum torque
+        public TorqueInfo Instant; //current maximum torque
 		public TorqueInfo MaxCurrent; //current maximum torque
 		public TorqueInfo MaxPitchRoll; //current maximum torque
 		public TorqueInfo MaxPossible; //theoretical maximum torque from active engines, wheels and RCS
 		public TorqueInfo MaxEngines; //theoretical maximum torque from active engines
 
+        public bool     Gimball { get; private set; } //if there are stirring engines that have gimball
+        public bool     Slow { get; private set; } //if there are MAIN or MANEUVER engines with non-zero acceleration/deceleration speed
 		public Vector3  EnginesResponseTime { get; private set; }
 		public float    EnginesResponseTimeM { get; private set; }
 
@@ -63,6 +67,7 @@ namespace ThrottleControlledAvionics
 		public override void Update()
 		{
 			//engines
+            Slow = false;
 			EnginesResponseTime = Vector3.zero;
 			EnginesResponseTimeM = 0f;
 			EnginesLimits = Vector6.zero;
@@ -70,17 +75,21 @@ namespace ThrottleControlledAvionics
 			var EnginesSpecificTorque = Vector6.zero;
 			var TorqueResponseSpeed = Vector6.zero;
 			var TotalSlowTorque = Vector6.zero;
+            var TotalSlowSpecificTorque = Vector6.zero;
 			for(int i = 0, count = VSL.Engines.Active.Steering.Count; i < count; i++)
 			{
 				var e = VSL.Engines.Active.Steering[i];
-				EnginesLimits.Add(e.currentTorque);
-				EnginesSpecificTorque.Add(e.specificTorque);
-				MaxEnginesLimits.Add(e.specificTorque*e.nominalCurrentThrust(1));
-				if(e.useEngineResponseTime && (e.Role == TCARole.MAIN || e.Role == TCARole.MANEUVER))
+                var max_torque = e.defSpecificTorque*e.nominalFullThrust;
+                EnginesLimits.Add(e.defCurrentTorque);
+                EnginesSpecificTorque.Add(e.defSpecificTorque);
+                MaxEnginesLimits.Add(max_torque);
+				if(e.useEngineResponseTime)
 				{
-					TotalSlowTorque.Add(e.currentTorque);
-					TorqueResponseSpeed.Add(e.currentTorque*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
+                    TotalSlowTorque.Add(max_torque);
+                    TotalSlowSpecificTorque.Add(e.defSpecificTorque);
+                    TorqueResponseSpeed.Add(max_torque*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
 				}
+                Gimball |= e.gimbal != null && e.gimbal.gimbalActive && !e.gimbal.gimbalLock;
 			}
 			//wheels
 			WheelsLimits = Vector6.zero;
@@ -113,22 +122,25 @@ namespace ThrottleControlledAvionics
 			MaxEngines.Update(MaxEnginesLimits.Max);
 			MaxCurrent.Update(NoEngines.Torque+Engines.Torque);
 			MaxPossible.Update(NoEngines.Torque+MaxEngines.Torque);
-			MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrustDir));
-			//specifc angular acceleration
+            MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrustDir).AbsComponents());
+            SlowMaxPossible.Update(TotalSlowTorque.Max);
+            Instant.Update(MaxCurrent.Torque-SlowMaxPossible.Torque);
+			//specifc torque
 			Engines.SpecificTorque = EnginesSpecificTorque.Max;
-//			Log("Engines.SpecificTorque: {}, TorqueResponseTime: {}", Engines.SpecificTorque, VSL.Engines.TorqueResponseTime);//debug
 			NoEngines.SpecificTorque = RCSSpecificTorque.Max;
 			MaxEngines.SpecificTorque = Engines.SpecificTorque;
 			MaxCurrent.SpecificTorque = Engines.SpecificTorque+NoEngines.SpecificTorque;
 			MaxPossible.SpecificTorque = MaxCurrent.SpecificTorque;
-			MaxPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxCurrent.SpecificTorque, VSL.Engines.CurrentThrustDir);
+            MaxPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxCurrent.SpecificTorque, VSL.Engines.CurrentThrustDir).AbsComponents();
+            SlowMaxPossible.SpecificTorque = TotalSlowSpecificTorque.Max;
+            Instant.SpecificTorque = MaxCurrent.SpecificTorque-SlowMaxPossible.SpecificTorque;
 			//torque response time
 			if(!TorqueResponseSpeed.IsZero()) 
 			{ 
-				var slow_torque = TotalSlowTorque.Max;
-				EnginesResponseTime = Vector3.Scale(slow_torque, TorqueResponseSpeed.Max.Inverse(0));
-				EnginesResponseTime = EnginesResponseTime.ScaleChain(slow_torque, MaxCurrent.Torque.Inverse(0));
+                EnginesResponseTime = Vector3.Scale(SlowMaxPossible.Torque, TorqueResponseSpeed.Max.Inverse(0));
+                EnginesResponseTime = EnginesResponseTime.ScaleChain(SlowMaxPossible.Torque, MaxPossible.Torque.Inverse(0));
 				EnginesResponseTimeM = EnginesResponseTime.MaxComponentF();
+                Slow = true;
 			}
 			//Max AA filter
 			if(MaxCurrent.AA_rad > 0)
@@ -139,14 +151,14 @@ namespace ThrottleControlledAvionics
 			else MaxAAMod = 1;
 		}
 
-		public void UpdateImbalance(params IList<EngineWrapper>[] engines)
+        public void UpdateImbalance(bool useDefTorque, params IList<EngineWrapper>[] engines)
 		{
-			var torque = CalculateImbalance(engines);
+            var torque = CalculateImbalance(useDefTorque, engines);
 //            if(VSL.OnPlanet) torque += VSL.LocalDir(VSL.OnPlanetParams.AeroTorque);
 			Imbalance.Update(EnginesLimits.Clamp(torque));
 		}
 
-		public static Vector3 CalculateImbalance(params IList<EngineWrapper>[] engines)
+		public static Vector3 CalculateImbalance(bool useDefTorque, params IList<EngineWrapper>[] engines)
 		{
 			var torque = Vector3.zero;
 			for(int i = 0; i < engines.Length; i++)
@@ -154,7 +166,7 @@ namespace ThrottleControlledAvionics
 				for(int j = 0; j < engines[i].Count; j++)
 				{
 					var e = engines[i][j];
-					torque += e.Torque(e.throttle * e.limit);
+                    torque += e.Torque(e.throttle * e.limit, useDefTorque);
 				}
 			}
 			return torque;
@@ -170,7 +182,7 @@ namespace ThrottleControlledAvionics
 		public Vector3 AA { get; private set; } //angular acceleration vector in radians
 		public float   AA_rad { get; private set; } = 0f ;//angular acceleration in radians
 		public float   TurnTime { get; private set; }
-		public Vector3 SpecificTorque; //change in angular acceleration per thrust
+		public Vector3 SpecificTorque; //change in torque per thrust
 
 		public float   AngularDragResistance 
 		{ 
