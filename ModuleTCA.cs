@@ -458,8 +458,8 @@ namespace ThrottleControlledAvionics
 			if(CFG.Enabled)
 			{
 				//update heavy to compute parameters
-				VSL.Physics.UpdateCoM();
-				VSL.Physics.UpdateMoI();
+//				VSL.Physics.UpdateCoM();
+//				VSL.Physics.UpdateMoI();
 				VSL.Geometry.Update();
 				var ATC = GetModule<AttitudeControl>();
 				if(ATC != null) ATC.UpdateCues();

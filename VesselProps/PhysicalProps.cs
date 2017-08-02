@@ -45,7 +45,7 @@ namespace ThrottleControlledAvionics
 		State<float> angular_vel = new State<float>(0);
 		float av_threshold = 1e-6f;
 
-		public void UpdateCoM() { wCoM = vessel.CoM; }
+//		public void UpdateCoM() { wCoM = vessel.CoM; }
 
 		public double GeeAt(double sqrRadius) { return vessel.mainBody.gMagnitudeAtCenter/sqrRadius; }
 
@@ -109,6 +109,7 @@ namespace ThrottleControlledAvionics
 			StG    = (float)GeeAt(Radial.sqrMagnitude);
             G      = Utils.ClampL(StG-(float)(Vector3d.Exclude(VSL.orbit.pos, VSL.orbit.vel).sqrMagnitude/VSL.orbit.radius), 1e-5f);
 			mg     = M*G;
+            MoI    = vessel.MOI;
 			//compute rotational stats
 			angular_vel.current = VSL.vessel.angularVelocity.sqrMagnitude;
 			constant_AV_timer.StartIf(Mathf.Abs(angular_vel.current-angular_vel.old)/TimeWarp.fixedDeltaTime < av_threshold*100);
@@ -133,41 +134,41 @@ namespace ThrottleControlledAvionics
 		// KSP's calculation of the vessel's moment of inertia is broken.
 		// This function is somewhat expensive :(
 		// Maybe it can be optimized more.
-		static readonly Vector3[] unitVectors = { new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1) };
-		public void UpdateMoI()
-		{
-			if(vessel == null || vessel.rootPart.Rigidbody == null) return;
-			InertiaTensor = new Matrix3x3f();
-			var vesselTransform = vessel.GetTransform();
-			var inverseVesselRotation = Quaternion.Inverse(vesselTransform.rotation);
-			for(int pi = 0, vesselpartsCount = vessel.parts.Count; pi < vesselpartsCount; pi++)
-			{
-				Part p = vessel.parts[pi];
-				var rb = p.Rigidbody;
-				if(rb == null) continue;
-				//Compute the contributions to the vessel inertia tensor due to the part inertia tensor
-				Vector3 principalMoments = rb.inertiaTensor;
-				Quaternion principalAxesRot = inverseVesselRotation * p.transform.rotation * rb.inertiaTensorRotation;
-				Quaternion invPrincipalAxesRot = Quaternion.Inverse(principalAxesRot);
-				for(int j = 0; j < 3; j++)
-				{
-					Vector3 partInertiaTensorTimesjHat = principalAxesRot * Vector3.Scale(principalMoments, invPrincipalAxesRot * unitVectors[j]);
-					for(int i = 0; i < 3; i++)
-						InertiaTensor.Add(i, j, Vector3.Dot(unitVectors[i], partInertiaTensorTimesjHat));
-				}
-				//Compute the contributions to the vessel inertia tensor due to the part mass and position
-				float partMass = rb.mass;
-				Vector3 partPosition = vesselTransform.InverseTransformDirection(rb.worldCenterOfMass - wCoM);
-				for(int i = 0; i < 3; i++)
-				{
-					InertiaTensor.Add(i, i, partMass * partPosition.sqrMagnitude);
-					for(int j = 0; j < 3; j++)
-						InertiaTensor.Add(i, j, -partMass * partPosition[i] * partPosition[j]);
-				}
-			}
-			MoI = new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]);
-			MoI = refT.InverseTransformDirection(vessel.transform.TransformDirection(MoI)).AbsComponents();
-		}
+//		static readonly Vector3[] unitVectors = { new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1) };
+//		public void UpdateMoI()
+//		{
+//			if(vessel == null || vessel.rootPart.Rigidbody == null) return;
+//			InertiaTensor = new Matrix3x3f();
+//			var vesselTransform = vessel.GetTransform();
+//			var inverseVesselRotation = Quaternion.Inverse(vesselTransform.rotation);
+//			for(int pi = 0, vesselpartsCount = vessel.parts.Count; pi < vesselpartsCount; pi++)
+//			{
+//				Part p = vessel.parts[pi];
+//				var rb = p.Rigidbody;
+//				if(rb == null) continue;
+//				//Compute the contributions to the vessel inertia tensor due to the part inertia tensor
+//				Vector3 principalMoments = rb.inertiaTensor;
+//				Quaternion principalAxesRot = inverseVesselRotation * p.transform.rotation * rb.inertiaTensorRotation;
+//				Quaternion invPrincipalAxesRot = Quaternion.Inverse(principalAxesRot);
+//				for(int j = 0; j < 3; j++)
+//				{
+//					Vector3 partInertiaTensorTimesjHat = principalAxesRot * Vector3.Scale(principalMoments, invPrincipalAxesRot * unitVectors[j]);
+//					for(int i = 0; i < 3; i++)
+//						InertiaTensor.Add(i, j, Vector3.Dot(unitVectors[i], partInertiaTensorTimesjHat));
+//				}
+//				//Compute the contributions to the vessel inertia tensor due to the part mass and position
+//				float partMass = rb.mass;
+//				Vector3 partPosition = vesselTransform.InverseTransformDirection(rb.worldCenterOfMass - wCoM);
+//				for(int i = 0; i < 3; i++)
+//				{
+//					InertiaTensor.Add(i, i, partMass * partPosition.sqrMagnitude);
+//					for(int j = 0; j < 3; j++)
+//						InertiaTensor.Add(i, j, -partMass * partPosition[i] * partPosition[j]);
+//				}
+//			}
+//			MoI = new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]);
+//			MoI = refT.InverseTransformDirection(vessel.transform.TransformDirection(MoI)).AbsComponents();
+//		}
 	}
 }
 
