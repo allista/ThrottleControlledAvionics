@@ -110,6 +110,8 @@ namespace ThrottleControlledAvionics
             G      = Utils.ClampL(StG-(float)(Vector3d.Exclude(VSL.orbit.pos, VSL.orbit.vel).sqrMagnitude/VSL.orbit.radius), 1e-5f);
 			mg     = M*G;
             MoI    = vessel.MOI;
+            if(MoI.IsInvalid() || MoI.IsZero()) 
+                MoI = Vector3.one;
 			//compute rotational stats
 			angular_vel.current = VSL.vessel.angularVelocity.sqrMagnitude;
 			constant_AV_timer.StartIf(Mathf.Abs(angular_vel.current-angular_vel.old)/TimeWarp.fixedDeltaTime < av_threshold*100);
