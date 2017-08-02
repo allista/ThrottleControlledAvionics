@@ -395,7 +395,7 @@ namespace ThrottleControlledAvionics
             var MaxAA = AA;
             var MaxAAf = Vector3.Dot(MaxAA, abs_rotation_axis);
             var iMaxAA = 1/MaxAAf;
-            var AM = Mathf.Abs(Vector3.Dot(Vector3.Scale(AV, VSL.Physics.MoI), rotation_axis));
+            var AM = Mathf.Abs(Vector3.Dot(VSL.vessel.angularMomentum, rotation_axis));
             if(VSL.Torque.Slow)
             {
                 var InstantTorqueRatio = Vector3.Dot(VSL.Torque.Instant.AA, abs_rotation_axis)/MaxAAf;
@@ -550,8 +550,8 @@ namespace ThrottleControlledAvionics
 			AAf_filter.Tau = (1-Mathf.Sqrt(Ef))*ATCB.AALowPassF;
 			//tune PID parameters
 			var angularV = VSL.vessel.angularVelocity;
-			var angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
-			var slow = VSL.Engines.Slow? 
+            var angularM = VSL.vessel.angularMomentum;
+            var slow = VSL.Torque.Slow? 
 				(Vector3.one+Vector3.Scale(VSL.Torque.EnginesResponseTime, 
                                            VSL.Torque.Engines.SpecificTorque)*ATCB.SlowTorqueF)
                 .ClampComponentsH(ATCB.MaxSlowF) : Vector3.one;
