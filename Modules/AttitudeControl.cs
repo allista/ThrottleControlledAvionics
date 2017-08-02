@@ -21,19 +21,13 @@ namespace ThrottleControlledAvionics
 				Vector3.one*10f, Vector3.one*0.02f, Vector3.one*0.5f, -Vector3.one, Vector3.one
 			);
 
-            [Persistent] public PIDf_Controller2 AT_PID = new PIDf_Controller2(
-                1, 0, 1, -10*Mathf.PI, 10*Mathf.PI
-            );
-            [Persistent] public PIDv_Controller AV_PID = new PIDv_Controller(
-                Vector3.one*10f, Vector3.zero, Vector3.one*0.5f, -Vector3.one, Vector3.one
-            );
-
-            //new 2xPID
+            //new 2xPID tuning parameters
             public class PIDCascadeConfig : ConfigNodeObject
             {
                 [Persistent] public float atP_Scale = 0.7f;
                 [Persistent] public float atP_Min = 0.7f;
                 [Persistent] public float atP_Max = 0.7f;
+
                 [Persistent] public float atP_ErrThreshold = 0.7f;
                 [Persistent] public float atP_ErrScale = 4;
 
@@ -46,26 +40,53 @@ namespace ThrottleControlledAvionics
                 [Persistent] public float atI_ErrThreshold = 0.9f;
                 [Persistent] public float atI_ErrCurve = 2;
 
-                [Persistent] public float avP_Scale = 0.4f;
-                [Persistent] public float avP_Min   = 0.4f;
                 [Persistent] public float avI_Scale = 0.4f;
-
-                [Persistent] public float AxisCorrection = 2f;
             }
 
-            public class CascadeConfigFast : PIDCascadeConfig
+            public class CascadeConfigMixed : PIDCascadeConfig
             {
-                [Persistent] public float atP_ErrCurve = 0.2f;
+                [Persistent] public float atP_LowAA_Inclination = 200;
+
+                [Persistent] public float avP_MaxAA_Intersect = 9;
+                [Persistent] public float avP_MaxAA_Inclination = 0.7f;
+                [Persistent] public float avP_MaxAA_Curve = 0.8f;
+                [Persistent] public float avP_Min = 0.2f;
+            }
+
+            public class CascadeConfigFast : CascadeConfigMixed
+            {
+                [Persistent] public float atP_ErrCurve = 0.5f;
+
+                [Persistent] public float atP_LowAA_Scale = 1.2f;
+                [Persistent] public float atP_LowAA_Curve = 0.3f;
+                [Persistent] public float atD_LowAA_Scale = 1;
+                [Persistent] public float atD_LowAA_Curve = 0.5f;
+
+                [Persistent] public float atP_HighAA_Scale = 0.8f;
+                [Persistent] public float atP_HighAA_Curve = 0.3f;
+                [Persistent] public float atP_HighAA_Max = 3.95f;
+                [Persistent] public float atD_HighAA_Scale = 1;
+                [Persistent] public float atD_HighAA_Curve = 2;
             }
 
             public class CascadeConfigSlow : PIDCascadeConfig
             {
-                [Persistent] public float SlowTorqueF = 0.05f;
-                [Persistent] public float MaxSlowF = 3f;
+                [Persistent] public float avP_Scale = 16;
+                [Persistent] public float avP_Max = 10;
+                [Persistent] public float avD_Min = 1;
+                [Persistent] public float avD_MaxAA_Inclination = 0.6f;
+                [Persistent] public float avD_MaxAA_Intersect = 6;
+                [Persistent] public float SlowTorqueF = 0.2f;
             }
 
-            [Persistent] public CascadeConfigFast FastConfig = new CascadeConfigFast();
-            [Persistent] public CascadeConfigSlow SlowConfig = new CascadeConfigSlow();
+            [Persistent] public CascadeConfigFast  FastConfig = new CascadeConfigFast();
+            [Persistent] public CascadeConfigMixed MixedConfig = new CascadeConfigMixed();
+            [Persistent] public CascadeConfigSlow  SlowConfig = new CascadeConfigSlow();
+
+            [Persistent] public float atPID_Clamp = 10*Mathf.PI;
+            [Persistent] public float avPID_Clamp = 1000;
+            [Persistent] public float AxisCorrection = 2f;
+            [Persistent] public float SlowThreshold = 0.01f; //% of the AA is instant
 
             //old PID
 			[Persistent] public float MinAAf  = 0.1f, MaxAAf  = 1f;
@@ -76,6 +97,8 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float MoIFactor              = 0.01f;
 			[Persistent] public float MinEf = 0.001f, MaxEf  = 5f;
 			[Persistent] public float AALowPassF             = 1f;
+            [Persistent] public float SlowTorqueF = 0.05f;
+            [Persistent] public float MaxSlowF = 3f;
 
             //attitude error and other stats
 			[Persistent] public float AngleThreshold         = 60f;
@@ -102,24 +125,28 @@ namespace ThrottleControlledAvionics
 
 		protected Vector3 steering;
 		protected Vector3 angle_error;
+
         protected Vector3 rotation_axis;
-		protected readonly PIDv_Controller2 steering_pid = new PIDv_Controller2();
         protected readonly PIDf_Controller2 at_pid = new PIDf_Controller2();
         protected readonly PIDv_Controller av_pid = new PIDv_Controller();
+
+        protected readonly PIDf_Controller av_pid_pitch = new PIDf_Controller();
+        protected readonly PIDf_Controller av_pid_roll = new PIDf_Controller();
+        protected readonly PIDf_Controller av_pid_yaw = new PIDf_Controller();
+
+        protected readonly PIDv_Controller2 steering_pid = new PIDv_Controller2();
 		protected readonly LowPassFilterV AAf_filter = new LowPassFilterV();
+
 		protected readonly Timer AuthorityTimer = new Timer();
 		protected readonly DifferentialF ErrorDif = new DifferentialF();
-
-        protected Vector3 Torque
-        { get { return VSL.Engines.Slow? VSL.Torque.MaxPossible.Torque*VSL.vessel.ctrlState.mainThrottle : VSL.Torque.MaxCurrent.Torque; } }
 
 		protected Vector3 AA 
 		{ 
             get 
             { 
-                return VSL.Engines.Slow? 
-                    VSL.Torque.MaxPossible.AA*Mathf.Min(VSL.vessel.ctrlState.mainThrottle, VSL.OnPlanetParams.GeeVSF) : 
-                    VSL.Torque.MaxCurrent.AA; 
+                return VSL.Torque.Slow? 
+                    VSL.Torque.Instant.AA + VSL.Torque.SlowMaxPossible.AA*Mathf.Min(VSL.vessel.ctrlState.mainThrottle, VSL.OnPlanetParams.GeeVSF) :
+                    VSL.Torque.MaxCurrent.AA;
             } 
         }
 
@@ -130,8 +157,12 @@ namespace ThrottleControlledAvionics
 		{ 
 			base.Init();
 			steering_pid.setPID(ATCB.PID);
-            at_pid.setPID(ATCB.AT_PID);
-            av_pid.setPID(ATCB.AV_PID);
+            at_pid.setClamp(0, ATCB.atPID_Clamp);
+            av_pid.setClamp(ATCB.avPID_Clamp*Vector3.one);
+
+            av_pid_pitch.setClamp(ATCB.avPID_Clamp);
+            av_pid_roll.setClamp(ATCB.avPID_Clamp);
+            av_pid_yaw.setClamp(ATCB.avPID_Clamp);
 			reset();
 		}
 
@@ -171,7 +202,7 @@ namespace ThrottleControlledAvionics
 				Mathf.Abs(Utils.CenterAngle(angle_error.z)/180));	
 		}
 
-        protected Vector3 MaxComponentV(Vector3 v, float threshold)
+        Vector3 MaxComponentV(Vector3 v, float threshold)
         {
             threshold += 1;
             int maxI = 0;
@@ -210,9 +241,11 @@ namespace ThrottleControlledAvionics
             rotation_axis = VSL.Controls.AttitudeError < 175f? 
                 Vector3.Cross(current, needed) : 
                 -MaxComponentV(VSL.Torque.MaxCurrent.AA.Exclude(current_maxI), 0.01f);
+            if(rotation_axis.IsZero())
+                rotation_axis = -VSL.vessel.angularVelocity;
             rotation_axis.Normalize();
 			//deprecated: calculate steering
-			if(VSL.Controls.AttitudeError > ATCB.AngleThreshold)
+            if(VSL.Controls.AttitudeError > ATCB.AngleThreshold && !rotation_axis.IsZero())
 			{
 				//rotational axis
                 var axis = -rotation_axis.Exclude(current_maxI);
@@ -229,11 +262,6 @@ namespace ThrottleControlledAvionics
 				            axis2.normalized * angle2) * Mathf.Deg2Rad;
 			}
 			else steering = rotation2steering(direct_rotation);
-			//FIXME: sometimes generates NaN
-//			needed (2.309423E+09, -5.479368E+11, -2.858228E+11); |v| = 6.180087E+11
-//			current (-0.0680542, -28.58647, -718.0868); |v| = 718.6556
-//			angle 60.17245 > threshold
-//			steering [pitch NaN, roll NaN, yaw NaN]
 		}
 
 		protected void compute_steering(Quaternion rotation)
@@ -244,105 +272,277 @@ namespace ThrottleControlledAvionics
 
 		protected virtual void correct_steering() {}
 
-        protected void tune_steering2()
+        #region PID Tuning
+        void tune_at_I(Config.PIDCascadeConfig cfg, float MaxAA, float iErr, float AV)
         {
-            VSL.Controls.GimbalLimit = VSL.vessel.ctrlState.mainThrottle.Equals(0)? 0 : VSL.OnPlanetParams.TWRf*100;
-            var AV = CFG.BR? 
-                Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.LocalDir(VSL.Engines.refT_thrust_axis)) : 
-                VSL.vessel.angularVelocity;
-            var AVm = Vector3.Dot(AV, rotation_axis);
-            var err = VSL.Controls.AttitudeError/180;
-            var iErrf = 1-err;
-            var maxAA = AA;
-            var maxAAf = Mathf.Abs(Vector3.Dot(maxAA, rotation_axis.AbsComponents()));
-            var imaxAA = maxAA.Inverse(0);
-            var AM = Vector3.Scale(AV, VSL.Physics.MoI);
-            if(VSL.Engines.Slow)
-                tune_steering_slow(err, iErrf, AV, AVm, maxAAf, imaxAA, AM);
-            else 
-                tune_steering_fast(err, iErrf, AV, AVm, maxAAf, imaxAA, AM);
-            correct_steering();
-            TCAGui.DebugMessage += Utils.Format("\nMoI: {}\nAA: {}\nsteering: {}", VSL.Physics.MoI, maxAA, steering);//debug
-        }
-
-        void tune_pids_set_steering(Config.PIDCascadeConfig cfg,
-                                    float err, float atI_iErrf, 
-                                    float atP, float atD, 
-                                    Vector3 avP, Vector3 avD,
-                                    Vector3 AV, float AVm, float maxAAf)
-        {
-            if(atI_iErrf <= 0 || AVm < 0)
+            var atI_iErr = Utils.ClampL(iErr-ATCB.FastConfig.atI_ErrThreshold, 0);
+            if(atI_iErr <= 0 || AV < 0)
             {
                 at_pid.I = 0;
                 at_pid.IntegralError = 0;
             }
             else 
             {
-                atI_iErrf = Mathf.Pow(atI_iErrf, cfg.atI_ErrCurve);
-                at_pid.I = cfg.atI_Scale * maxAAf * atI_iErrf / (1+Utils.ClampL(AVm, 0)*cfg.atI_AV_Scale*atI_iErrf);
+                atI_iErr = Mathf.Pow(atI_iErr, cfg.atI_ErrCurve);
+                at_pid.I = cfg.atI_Scale * MaxAA * atI_iErr / (1+Utils.ClampL(AV, 0)*cfg.atI_AV_Scale*atI_iErr);
             }
-            at_pid.P = atP;
-            at_pid.D = atD;
-            av_pid.P = avP;
-            av_pid.I = cfg.avI_Scale * avP;
-            av_pid.D = avD;
-            TCAGui.DebugMessage = Utils.Format("atPID: {}\navPID: {}", at_pid, av_pid);//debug
-            at_pid.Update(err*Mathf.PI, -AVm);
-            var avErr = AV-rotation_axis*at_pid.Action + 
-                Vector3.ProjectOnPlane(AV, rotation_axis).ScaleChain(avP)*cfg.AxisCorrection;
-            av_pid.Update(avErr);
-            var maxPRY = Mathf.Abs(av_pid.Action.MaxComponentF());
-            steering = maxPRY > 1? av_pid.Action/maxPRY : av_pid.Action;
         }
 
-        void tune_steering_fast(float err, float iErrf, 
-                                Vector3 AV, float AVm, 
-                                float maxAAf, Vector3 imaxAA, 
-                                Vector3 AM)
+        void tune_at_pid_fast(float AV, float AM, float MaxAA, float iMaxAA, float iErr)
         {
-            var avP = (ATCB.FastConfig.avP_Scale*imaxAA).ClampComponentsL(ATCB.FastConfig.avP_Min);
-            var atP = Utils.Clamp(ATCB.FastConfig.atP_Scale * imaxAA.magnitude *
-                                  (1 + Utils.ClampL(iErrf-ATCB.FastConfig.atP_ErrThreshold, 0) * ATCB.FastConfig.atP_ErrScale),
-                                  ATCB.FastConfig.atP_Min, Utils.ClampL(ATCB.FastConfig.atP_Max*maxAAf, ATCB.FastConfig.atP_Min));
-            var atI_iErrf = Utils.ClampL(iErrf-ATCB.FastConfig.atI_ErrThreshold, 0);
-            var atD = Utils.ClampL(atP - Mathf.Pow(maxAAf-1, ATCB.FastConfig.atD_Curve)*ATCB.FastConfig.atD_Scale, ATCB.FastConfig.atD_Min);
-            atD *= Utils.ClampH(iErrf+
-                                (1-Utils.ClampH(maxAAf, 1))+
-                                Mathf.Abs(Vector3.Dot(AM, rotation_axis)), 1);
-            atD /= atP;
-            atP = Utils.ClampH(200*maxAAf*Utils.ClampL(iErrf, 0.1f), 1+Mathf.Pow(atI_iErrf, ATCB.FastConfig.atP_ErrCurve));
-            tune_pids_set_steering(ATCB.FastConfig, err, atI_iErrf, atP, atD, avP, Vector3.zero, AV, AVm, maxAAf);
+            var atP_iErr = Mathf.Pow(Utils.ClampL(iErr - ATCB.FastConfig.atP_ErrThreshold, 0), ATCB.FastConfig.atP_ErrCurve);
+            if(MaxAA >= 1)
+            {
+                at_pid.P = Utils.ClampH(1
+                                        + ATCB.FastConfig.atP_HighAA_Scale * Mathf.Pow(MaxAA, ATCB.FastConfig.atP_HighAA_Curve)
+                                        + atP_iErr, ATCB.FastConfig.atP_HighAA_Max);
+                at_pid.D = ATCB.FastConfig.atD_HighAA_Scale * Mathf.Pow(iMaxAA, ATCB.FastConfig.atD_HighAA_Curve) * Utils.ClampH(iErr + AM, 1.2f);
+            }
+            else
+            {
+                at_pid.P = (1
+                            + ATCB.FastConfig.atP_LowAA_Scale * Mathf.Pow(MaxAA, ATCB.FastConfig.atP_LowAA_Curve)
+                            + atP_iErr);
+                at_pid.D = ATCB.FastConfig.atD_LowAA_Scale * Mathf.Pow(iMaxAA, ATCB.FastConfig.atD_LowAA_Curve) * Utils.ClampH(iErr + AM, 1.2f);
+            }
+            tune_at_I(ATCB.FastConfig, MaxAA, iErr, AV);
         }
 
-        void tune_steering_slow(float err, float iErrf, 
-                                Vector3 AV, float AVm, 
-                                float maxAAf, Vector3 imaxAA, 
-                                Vector3 AM)
+        void tune_at_pid_mixed(float AV, float AM, float MaxAA, float iMaxAA, float iErr)
         {
-            var slow = (Vector3.one+Vector3.Scale(VSL.Torque.EnginesResponseTime, 
-                                                  VSL.Torque.Engines.SpecificTorque)*ATCB.SlowConfig.SlowTorqueF)
-                .ClampComponentsH(ATCB.SlowConfig.MaxSlowF);
-            //compute coefficients of angular velocity PID
-//            var avP = (ATCB.SlowConfig.avP_Scale*imaxAA).ClampComponentsL(ATCB.SlowConfig.avP_Min);
-            var avD = Vector3.Scale(slow,slow);
-            var avP = Vector3.one;
-            //compute coefficients of attitude PID
-            var atP = Utils.Clamp(ATCB.SlowConfig.atP_Scale * imaxAA.magnitude *
-                                  (1 + Utils.ClampL(iErrf-ATCB.SlowConfig.atP_ErrThreshold, 0) * ATCB.SlowConfig.atP_ErrScale),
+//            var atP_iErr = Utils.ClampL(iErr-ATCB.FastConfig.atP_ErrThreshold, 0);
+            var atP = Utils.Clamp(ATCB.MixedConfig.atP_Scale * iMaxAA *
+                                  (1 + Utils.ClampL(iErr-ATCB.MixedConfig.atP_ErrThreshold, 0) * ATCB.MixedConfig.atP_ErrScale * MaxAA),
+                                  ATCB.MixedConfig.atP_Min, ATCB.MixedConfig.atP_Max);
+            var atD = Utils.ClampL(atP - Mathf.Pow((MaxAA-1)*ATCB.MixedConfig.atD_Scale, ATCB.MixedConfig.atD_Curve), ATCB.MixedConfig.atD_Min);
+            at_pid.D = atD*Utils.ClampH(iErr+(1-Utils.ClampH(MaxAA, 1))+AM, 1);
+            at_pid.P = atP*Utils.ClampH(ATCB.MixedConfig.atP_LowAA_Inclination*MaxAA*Utils.ClampL(iErr, 0.1f), 1);
+            tune_at_I(ATCB.MixedConfig, MaxAA, iErr, AV);
+        }
+
+        void tune_at_pid_slow(float AV, float AM, float MaxAA, float iMaxAA, float iErr)
+        {
+            var atP = Utils.Clamp(ATCB.SlowConfig.atP_Scale * iMaxAA *
+                                  (1 + Utils.ClampL(iErr-ATCB.SlowConfig.atP_ErrThreshold, 0) * ATCB.SlowConfig.atP_ErrScale * MaxAA),
                                   ATCB.SlowConfig.atP_Min, ATCB.SlowConfig.atP_Max);
-            var atI_iErrf = Utils.ClampL(iErrf-ATCB.SlowConfig.atI_ErrThreshold, 0);
-            var atD = Utils.ClampL(atP - Mathf.Pow(maxAAf-1, ATCB.SlowConfig.atD_Curve)*ATCB.SlowConfig.atD_Scale, ATCB.SlowConfig.atD_Min);
-            atD *= Utils.ClampH(iErrf+
-                                (1-Utils.ClampH(maxAAf, 1))+
-                                Mathf.Abs(Vector3.Dot(AM, rotation_axis)), 1);
-            //tune PIDS and compute steering
-            tune_pids_set_steering(ATCB.SlowConfig, err, atI_iErrf, atP, atD, avP, avD, AV, AVm, maxAAf);
-            steering.Scale(slow.Inverse(0));
+            var atD = Utils.ClampL(atP - Mathf.Pow((MaxAA-1)*ATCB.SlowConfig.atD_Scale, ATCB.SlowConfig.atD_Curve), ATCB.SlowConfig.atD_Min);
+            at_pid.D = atD*Utils.ClampH(iErr+(1-Utils.ClampH(MaxAA, 1))+AM, 1);
+            tune_at_I(ATCB.SlowConfig, MaxAA, iErr, AV);
         }
+
+        void tune_av_pid_fast(PIDf_Controller pid, float MaxAA)
+        {
+            pid.P = Utils.ClampL(ATCB.FastConfig.avP_MaxAA_Intersect - 
+                                 ATCB.FastConfig.avP_MaxAA_Inclination * Mathf.Pow(MaxAA, ATCB.FastConfig.avP_MaxAA_Curve),
+                                 ATCB.FastConfig.avP_Min);
+            pid.I = ATCB.FastConfig.avI_Scale * pid.P;
+            pid.D = 0;
+        }
+
+        void tune_av_pid_mixed(PIDf_Controller pid, float MaxAA, float InstantTorqueRatio)
+        {
+            pid.P = Utils.ClampL(ATCB.MixedConfig.avP_MaxAA_Intersect - 
+                                 ATCB.MixedConfig.avP_MaxAA_Inclination * Mathf.Pow(MaxAA, ATCB.MixedConfig.avP_MaxAA_Curve),
+                                 ATCB.MixedConfig.avP_Min)/InstantTorqueRatio;
+            pid.I = ATCB.MixedConfig.avI_Scale * pid.P;
+            pid.D = 0;
+        }
+
+        void tune_av_pid_slow(PIDf_Controller pid, float MaxAA, float EnginesResponseTime, float SpecificTorque)
+        {
+            var slowF = (1 + ATCB.SlowConfig.SlowTorqueF*EnginesResponseTime*SpecificTorque);
+            pid.P = Utils.Clamp(ATCB.SlowConfig.avP_Scale*MaxAA, 1, ATCB.SlowConfig.avP_Max);
+            pid.I = ATCB.MixedConfig.avI_Scale * pid.P;
+            pid.D = Utils.ClampL(ATCB.SlowConfig.avD_MaxAA_Intersect*slowF - MaxAA*ATCB.SlowConfig.avD_MaxAA_Inclination, 
+                                 ATCB.SlowConfig.avD_Min);
+        }
+
+        void tune_av_pid(PIDf_Controller pid, float MaxAA, float InstantTorqueRatio, float EnginesResponseTime, float SpecificTorque)
+        {
+            if(InstantTorqueRatio > 0.99f)
+                tune_av_pid_fast(pid, MaxAA);
+            else if(InstantTorqueRatio > ATCB.SlowThreshold)
+                tune_av_pid_mixed(pid, MaxAA, InstantTorqueRatio);
+            else 
+                tune_av_pid_slow(pid, MaxAA, EnginesResponseTime, SpecificTorque);
+        }
+
+        Vector3 compute_av_error(Vector3 AV, float Err)
+        {
+            var avErr = AV-rotation_axis*Math.Abs(at_pid.Action);
+            var axis_correction = Vector3.ProjectOnPlane(AV, rotation_axis);
+            if(axis_correction.IsInvalid() || axis_correction.IsZero())
+            {
+                TCAGui.DebugMessage += "Axis Correction: 0\n";//debug
+                return avErr;
+            }
+            var ACf = axis_correction.sqrMagnitude/AV.sqrMagnitude*Utils.ClampH(Err*ATCB.AxisCorrection, 1);
+            TCAGui.DebugMessage += Utils.Format("Axis Correction: {}\n", ACf);//debug
+            return Vector3.Lerp(avErr, axis_correction, ACf);
+        }
+
+        protected void tune_steering3()
+        {
+            VSL.Controls.GimbalLimit = UseGimball && VSL.vessel.ctrlState.mainThrottle > 0? VSL.OnPlanetParams.TWRf*100 : 0;
+            if(rotation_axis.IsZero()) return;
+            var AV = CFG.BR? 
+                Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.LocalDir(VSL.Engines.refT_thrust_axis)) : 
+                VSL.vessel.angularVelocity;
+            var abs_rotation_axis = rotation_axis.AbsComponents();
+            var AVm = Vector3.Dot(AV, rotation_axis);
+            var Err = VSL.Controls.AttitudeError/180;
+            var iErr = 1-Err;
+            var MaxAA = AA;
+            var MaxAAf = Vector3.Dot(MaxAA, abs_rotation_axis);
+            var iMaxAA = 1/MaxAAf;
+            var AM = Mathf.Abs(Vector3.Dot(Vector3.Scale(AV, VSL.Physics.MoI), rotation_axis));
+            if(VSL.Torque.Slow)
+            {
+                var InstantTorqueRatio = Vector3.Dot(VSL.Torque.Instant.AA, abs_rotation_axis)/MaxAAf;
+                TCAGui.DebugMessage = Utils.Format("Slow: ITR {}\n", InstantTorqueRatio);
+                if(InstantTorqueRatio >= 0.7f || MaxAAf >= 1 && InstantTorqueRatio >= 0.3f)
+                    tune_at_pid_fast(AVm, AM, MaxAAf, iMaxAA, iErr);
+                else if(InstantTorqueRatio > ATCB.SlowThreshold)
+                    tune_at_pid_mixed(AVm, AM, MaxAAf, iMaxAA, iErr);
+                else 
+                    tune_at_pid_slow(AVm, AM, MaxAAf, iMaxAA, iErr);
+                tune_av_pid(av_pid_pitch, MaxAA.x, VSL.Torque.Instant.AA.x/MaxAA.x, VSL.Torque.EnginesResponseTime.x, VSL.Torque.MaxPossible.SpecificTorque.x);
+                tune_av_pid(av_pid_roll, MaxAA.y, VSL.Torque.Instant.AA.y/MaxAA.y, VSL.Torque.EnginesResponseTime.y, VSL.Torque.MaxPossible.SpecificTorque.y);
+                tune_av_pid(av_pid_yaw, MaxAA.z, VSL.Torque.Instant.AA.z/MaxAA.z, VSL.Torque.EnginesResponseTime.z, VSL.Torque.MaxPossible.SpecificTorque.z);
+            }
+            else
+            {
+                TCAGui.DebugMessage = Utils.Format("Fast.\n");
+                tune_at_pid_fast(AVm, AM, MaxAAf, iMaxAA, iErr);
+                tune_av_pid_fast(av_pid_pitch, MaxAA.x);
+                tune_av_pid_fast(av_pid_roll, MaxAA.y);
+                tune_av_pid_fast(av_pid_yaw, MaxAA.z);
+            }
+            TCAGui.DebugMessage += Utils.Format("atPID: {}\n" +
+                                                "avPID.p: {}\n" +
+                                                "avPID.r: {}\n" +
+                                                "avPID.y: {}\n",
+                                                at_pid, av_pid_pitch, av_pid_roll, av_pid_yaw);//debug
+            at_pid.Update(Err*Mathf.PI, -AVm);
+            var avErr = compute_av_error(AV, Err);
+            av_pid_pitch.Update(avErr.x);
+            av_pid_roll.Update(avErr.y);
+            av_pid_yaw.Update(avErr.z);
+            steering = new Vector3(av_pid_pitch.Action, av_pid_roll.Action, av_pid_yaw.Action);
+            var maxPRY = Mathf.Abs(steering.MaxComponentF());
+            if(maxPRY > 1) steering /= maxPRY;
+            correct_steering();
+            TCAGui.DebugMessage += Utils.Format("\nMoI: {}\nAA: {}\nAAf: {}\nsteering: {}", VSL.Physics.MoI, MaxAA, MaxAAf, steering);//debug
+        }
+        #endregion
+
+//        protected void tune_steering2()
+//        {
+//            VSL.Controls.GimbalLimit = UseGimball && VSL.vessel.ctrlState.mainThrottle > 0? VSL.OnPlanetParams.TWRf*100 : 0;
+//            var AV = CFG.BR? 
+//                Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.LocalDir(VSL.Engines.refT_thrust_axis)) : 
+//                VSL.vessel.angularVelocity;
+//            var AVm = Vector3.Dot(AV, rotation_axis);
+//            var err = VSL.Controls.AttitudeError/180;
+//            var iErrf = 1-err;
+//            var maxAA = AA;
+//            var maxAAf = Mathf.Abs(Vector3.Dot(maxAA, rotation_axis.AbsComponents()));
+//            var imaxAA = maxAA.Inverse(0);
+//            var AM = Vector3.Scale(AV, VSL.Physics.MoI);
+//            if(VSL.Engines.Slow)
+//                tune_steering_slow(err, iErrf, AV, AVm, maxAAf, maxAA, imaxAA, AM);
+//            else 
+//                tune_steering_fast(err, iErrf, AV, AVm, maxAAf, imaxAA, AM);
+//            correct_steering();
+//            TCAGui.DebugMessage += Utils.Format("\nMoI: {}\nAA: {}\nsteering: {}", VSL.Physics.MoI, maxAA, steering);//debug
+//        }
+//
+//        void tune_pids_set_steering(Config.PIDCascadeConfig cfg,
+//                                    float err, float atI_iErrf, 
+//                                    float atP, float atD, 
+//                                    Vector3 avP, Vector3 avD,
+//                                    Vector3 AV, float AVm, float maxAAf)
+//        {
+//            if(atI_iErrf <= 0 || AVm < 0)
+//            {
+//                at_pid.I = 0;
+//                at_pid.IntegralError = 0;
+//            }
+//            else 
+//            {
+//                atI_iErrf = Mathf.Pow(atI_iErrf, cfg.atI_ErrCurve);
+//                at_pid.I = cfg.atI_Scale * maxAAf * atI_iErrf / (1+Utils.ClampL(AVm, 0)*cfg.atI_AV_Scale*atI_iErrf);
+//            }
+//            at_pid.P = atP;
+//            at_pid.D = atD;
+//            av_pid.P = avP;
+//            av_pid.I = cfg.avI_Scale * avP;
+//            av_pid.D = avD;
+//            TCAGui.DebugMessage = Utils.Format("atPID: {}\navPID: {}", at_pid, av_pid);//debug
+//            at_pid.Update(err*Mathf.PI, -AVm);
+//            var avErr = AV-rotation_axis*at_pid.Action + 
+//                Vector3.ProjectOnPlane(AV, rotation_axis).ScaleChain(avP)*cfg.AxisCorrection;
+//            av_pid.Update(avErr);
+//            var maxPRY = Mathf.Abs(av_pid.Action.MaxComponentF());
+//            steering = maxPRY > 1? av_pid.Action/maxPRY : av_pid.Action;
+//        }
+//
+//        void tune_steering_fast(float err, float iErrf, 
+//                                Vector3 AV, float AVm, 
+//                                float maxAAf, Vector3 imaxAA, 
+//                                Vector3 AM)
+//        {
+//            var avP = Utils.ClampL(ATCB.FastConfig.avP_MaxAA_Intersect - 
+//                                   ATCB.FastConfig.avP_MaxAA_Inclination * Mathf.Pow(maxAAf, ATCB.FastConfig.avP_MaxAA_Curve),
+//                                   ATCB.FastConfig.avP_Min);
+//            var atP = Utils.Clamp(ATCB.FastConfig.atP_Scale * imaxAA.magnitude *
+//                                  (1 + Utils.ClampL(iErrf-ATCB.FastConfig.atP_ErrThreshold, 0) * ATCB.FastConfig.atP_ErrScale),
+//                                  ATCB.FastConfig.atP_Min, Utils.ClampL(ATCB.FastConfig.atP_Max*maxAAf, ATCB.FastConfig.atP_Min));
+//            var atI_iErrf = Utils.ClampL(iErrf-ATCB.FastConfig.atI_ErrThreshold, 0);
+//            var atD = Utils.ClampL(atP - Mathf.Pow(maxAAf-1, ATCB.FastConfig.atD_Curve)*ATCB.FastConfig.atD_Scale, ATCB.FastConfig.atD_Min);
+//            atD *= Utils.ClampH(iErrf+
+//                                (1-Utils.ClampH(maxAAf, 1))+
+//                                Mathf.Abs(Vector3.Dot(AM, rotation_axis)), 1);
+//            atD /= atP;
+//            atP = Utils.ClampH(200*maxAAf*Utils.ClampL(iErrf, 0.1f), 1+Mathf.Pow(atI_iErrf, ATCB.FastConfig.atP_ErrCurve));
+//            tune_pids_set_steering(ATCB.FastConfig, err, atI_iErrf, atP, atD, avP, Vector3.zero, AV, AVm, maxAAf);
+//        }
+//
+//        void tune_steering_slow(float err, float iErrf, 
+//                                Vector3 AV, float AVm, 
+//                                float maxAAf, Vector3 maxAA, Vector3 imaxAA, 
+//                                Vector3 AM)
+//        {
+////            var slow = (Vector3.one+Vector3.Scale(VSL.Torque.EnginesResponseTime, 
+////                                                  VSL.Torque.Engines.SpecificTorque)*ATCB.SlowConfig.SlowTorqueF)
+////                .ClampComponentsH(ATCB.SlowConfig.MaxSlowF);
+//            //compute coefficients of angular velocity PID
+////            var avP = (ATCB.SlowConfig.avP_Scale*imaxAA).ClampComponentsL(ATCB.SlowConfig.avP_Min);
+////            var avD = Vector3.Scale(slow,slow);
+//            var slowF = (Vector3.one + 
+//                         ATCB.SlowConfig.SlowTorqueF*Vector3.Scale(VSL.Torque.EnginesResponseTime, 
+//                                                                   VSL.Torque.Engines.SpecificTorque));
+//            var avD = (ATCB.SlowConfig.avD_MaxAA_Intersect*slowF
+//                       -maxAA*ATCB.SlowConfig.avD_MaxAA_Inclination)
+//                .ClampComponentsL(ATCB.SlowConfig.avD_Min);
+//            var avP = Vector3.one*ATCB.SlowConfig.avP;
+//            //compute coefficients of attitude PID
+//            var atP = Utils.Clamp(ATCB.SlowConfig.atP_Scale * imaxAA.magnitude *
+//                                  (1 + Utils.ClampL(iErrf-ATCB.SlowConfig.atP_ErrThreshold, 0) * ATCB.SlowConfig.atP_ErrScale),
+//                                  ATCB.SlowConfig.atP_Min, ATCB.SlowConfig.atP_Max);
+//            var atI_iErrf = Utils.ClampL(iErrf-ATCB.SlowConfig.atI_ErrThreshold, 0);
+//            var atD = Utils.ClampL(atP - Mathf.Pow(maxAAf-1, ATCB.SlowConfig.atD_Curve)*ATCB.SlowConfig.atD_Scale, ATCB.SlowConfig.atD_Min);
+//            atD *= Utils.ClampH(iErrf+
+//                                (1-Utils.ClampH(maxAAf, 1))+
+//                                Mathf.Abs(Vector3.Dot(AM, rotation_axis)), 1);
+//            //tune PIDS and compute steering
+//            tune_pids_set_steering(ATCB.SlowConfig, err, atI_iErrf, atP, atD, avP, avD, AV, AVm, maxAAf);
+////            steering.Scale(slow.Inverse(0));
+//        }
 
 		protected void tune_steering()
 		{
-            VSL.Controls.GimbalLimit = VSL.vessel.ctrlState.mainThrottle.Equals(0)? 0 : VSL.OnPlanetParams.TWRf*100;
+            VSL.Controls.GimbalLimit = UseGimball && VSL.vessel.ctrlState.mainThrottle > 0? VSL.OnPlanetParams.TWRf*100 : 0;
 			//calculate attitude error
 			var Ef = Utils.Clamp(VSL.Controls.AttitudeError/180, ATCB.MinEf, 1);
 //			var ini_steering = steering;//debug
@@ -353,8 +553,8 @@ namespace ThrottleControlledAvionics
 			var angularM = Vector3.Scale(angularV, VSL.Physics.MoI);
 			var slow = VSL.Engines.Slow? 
 				(Vector3.one+Vector3.Scale(VSL.Torque.EnginesResponseTime, 
-                                           VSL.Torque.Engines.SpecificTorque)*ATCB.SlowConfig.SlowTorqueF)
-                .ClampComponentsH(ATCB.SlowConfig.MaxSlowF) : Vector3.one;
+                                           VSL.Torque.Engines.SpecificTorque)*ATCB.SlowTorqueF)
+                .ClampComponentsH(ATCB.MaxSlowF) : Vector3.one;
 			var slowi = slow.Inverse();
             var iErr = (Vector3.one-angle_error);
             var AAf = AAf_filter.Update(CurrentAAf);
@@ -413,6 +613,7 @@ namespace ThrottleControlledAvionics
 
         #if DEBUG
         public static bool UseOldPID;
+        public static bool UseGimball = true;
         #endif
 	}
 
@@ -637,7 +838,7 @@ namespace ThrottleControlledAvionics
 			if(VSL.AutopilotDisabled) { reset(); return; }
 			compute_steering();
             if(UseOldPID) tune_steering();
-            else tune_steering2();
+            else tune_steering3();
 			set_authority_flag();
 			VSL.Controls.AddSteering(steering);
 		}

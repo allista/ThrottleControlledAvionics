@@ -1,17 +1,16 @@
 import os
-import sys
 import csv
+from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
-from mpl_toolkits.mplot3d import Axes3D
+
+import sys
 from sklearn.decomposition import PCA
 from scipy.optimize import curve_fit
 import pandas as pd
 
-from common import clampL, clampH, clamp01, clamp, lerp, PID, PID2, plt_show_maxed
+from common import clampL, clampH, clamp, lerp, PID, PID2, plt_show_maxed, color_grad
 
-from itertools import combinations_with_replacement
 from KSPUtils import Part, SearchTerm
 from BioUtils.Tools.Multiprocessing import MPMain, parallelize_work
 
@@ -43,8 +42,7 @@ class Engine(object):
         delta = request-self.thrust
         if abs(delta) < 0.000001:
             self.thrust = request
-            return
-        if delta > 0:
+        elif delta > 0:
             if self.acceleration > 0:
                 self.thrust = lerp(self.thrust, request, self.acceleration * dt)
             else: self.thrust = request
@@ -91,7 +89,7 @@ class Engine(object):
 class ATC(object):
     twoPi = np.pi * 2
 
-    def __init__(self, engine, lever, MoI, atPID, avPID, base_level, on_update=None):
+    def __init__(self, engine, lever, MoI, atPID, avPID, base_level, on_update=None, wheels_torque=0):
         self.error = 0
         self.atPID = atPID
         self.avPID = avPID
@@ -103,8 +101,13 @@ class ATC(object):
         self.engineF.thrust = self.engineF.maxThrust*base_level
         self.engineR = self.engineF.clone()
         self.instant = self.engineF.instant
+        self.wheels = wheels_torque
         self.MoI = MoI
-        self.MaxAA = self.engineF.maxThrust*self.engineF.lever/self.MoI
+        self.EnginesMaxAA = self.engineF.maxThrust*base_level*self.engineF.lever/self.MoI
+        self.WheelsMaxAA = self.wheels/self.MoI
+        self.MaxAA = self.EnginesMaxAA+self.WheelsMaxAA
+        self.WheelsRatio = self.WheelsMaxAA/self.MaxAA
+        self.InstantRatio = 1.0 if self.instant else self.WheelsMaxAA/self.MaxAA
         self.on_update = on_update
         self.AV = 0
         self.AA = 0
@@ -119,22 +122,24 @@ class ATC(object):
 
     def updateAV(self):
         if self.avPID.action > 0:
-            self.engineF.limit = min(self.base_level + self.avPID.action, 1)
+            # self.engineF.limit = min(self.base_level + self.avPID.action, 1)
+            self.engineF.limit = self.base_level
             self.engineR.limit = max(self.base_level - self.avPID.action, 0)
         else:
-            self.engineR.limit = min(self.base_level - self.avPID.action, 1)
+            # self.engineR.limit = min(self.base_level - self.avPID.action, 1)
+            self.engineR.limit = self.base_level
             self.engineF.limit = max(self.base_level + self.avPID.action, 0)
         self.engineF.update()
         self.engineR.update()
-        self.AA = (self.engineF.torque - self.engineR.torque) / self.MoI
+        self.AA = (self.engineF.torque - self.engineR.torque + self.wheels*self.avPID.action) / self.MoI
         self.AV += self.AA * dt
 
     def update(self):
         if self.on_update is not None:
             self.on_update(self)
         else:
-            self.atPID.update(self.error)
-            self.avPID.update(self.atPID.action - self.AV)
+            self.atPID.update(abs(self.error))
+            self.avPID.update(self.atPID.action * np.sign(self.error) - self.AV)
         self.updateAV()
         self.error -= self.AV*dt
         self.error %= self.twoPi
@@ -157,8 +162,8 @@ class ATC(object):
         t = 0
         time = [0]
         error = [needed_av]
-        limit = [self.engineF.limit]
-        thrust = [self.engineF.limit]
+        action = [self.avPID.action]
+        thrust = [(self.engineF.thrust-self.engineR.thrust) / self.engineF.maxThrust]
         zero_stats = None
         self.reset()
         while t < end_time:
@@ -172,11 +177,11 @@ class ATC(object):
             if not zero_stats and (av_error < self.tenth_deg or av_error*error[-1] < 0):
                 zero_stats = self.ZeroStats(t, abs(self.AA), 'AA', 'rad/s2')
             error.append(av_error)
-            limit.append(self.engineF.limit)
-            thrust.append(self.engineF.thrust / self.engineF.maxThrust)
+            action.append(self.avPID.action)
+            thrust.append((self.engineF.thrust-self.engineR.thrust) / self.engineF.maxThrust)
             time.append(t)
             if zero_stats and end_on_zero: break
-        return 'dAV [AA %.2f]' % self.MaxAA, time, np.fromiter(error, float)/np.pi*180, limit, thrust, zero_stats
+        return 'dAV [AA %.2f]' % self.MaxAA, time, np.fromiter(error, float)/np.pi*180, action, thrust, zero_stats
 
     tenth_deg = 0.1/180*np.pi
 
@@ -185,7 +190,7 @@ class ATC(object):
         t = 0
         time = [0]
         error = [self.error]
-        limit = [self.engineF.limit]
+        action = [self.avPID.action]
         thrust = [self.engineF.limit]
         zero_stats = None
         self.reset()
@@ -198,10 +203,10 @@ class ATC(object):
             if not zero_stats and (self.error < self.tenth_deg or self.error*error[-1] < 0):
                 zero_stats = self.ZeroStats(t, abs(self.AV+self.AA*dt), 'AV', 'rad/s')
             error.append(self.error)
-            limit.append(self.engineF.limit)
-            thrust.append(self.engineF.thrust / self.engineF.maxThrust)
+            action.append(self.avPID.action)
+            thrust.append((self.engineF.thrust-self.engineR.thrust) / self.engineF.maxThrust)
             time.append(t)
-        return 'dAng [AA %.2f]' % self.MaxAA, time, np.fromiter(error, float)/np.pi*180, limit, thrust, zero_stats
+        return 'dAng [AA %.2f]' % self.MaxAA, time, np.fromiter(error, float)/np.pi*180, action, thrust, zero_stats
 
     def optimize_av_PID(self, needed_av, aa_threshold, step, end_time, P, I, D):
         best_pid = None
@@ -264,18 +269,21 @@ class ATC(object):
 
     @classmethod
     def analyze_results(cls, cols, col, *results):
-        for result in results:
-            name, time, error, limit, thrust, zero_stats = result
+        colors = color_grad(len(results))
+        for i, result in enumerate(results):
+            name, time, error, action, thrust, zero_stats = result
             if zero_stats:
                 print '\n%s\n' % str(zero_stats)
             print '=' * 80
             plt.subplot(3, cols, col)
-            plt.plot(time, error, label=name)
+            plt.plot(time, error, label=name, color=colors[i])
+            plt.ylabel('error (deg)')
             plt.legend()
             plt.subplot(3, cols, cols+col)
-            plt.plot(time, limit)
+            plt.plot(time, action, color=colors[i])
+            plt.ylabel('action')
             plt.subplot(3, cols, cols*2+col)
-            plt.plot(time, thrust)
+            plt.plot(time, thrust, color=colors[i])
             plt.xlabel('time')
             plt.ylabel('thrust')
         # plt.show()
@@ -406,12 +414,12 @@ if __name__ == '__main__':
         jets = df[df.accelSpeed > 0]
 
         def model(x, a,b): return a/(b+x)
-        abc, conv = curve_fit(model, rocket.maxAA, rocket.AV_P)
+        abc, conv = curve_fit(IR_vs_avD, rocket.maxAA, rocket.AV_P)
         print 'AV.P(aa): %f/(%f+aa)' % tuple(abc)
 
         plt.plot(rocket.maxAA, rocket.AV_P, '.-')
         plt.plot(rocket.maxAA, rocket.AV_D, 'r.-')
-        plt.plot(rocket.maxAA, model(rocket.maxAA, *abc))
+        plt.plot(rocket.maxAA, IR_vs_avD(rocket.maxAA, *abc))
         plt.show()
 
         plt.plot(rocket.maxAA, rocket.AT_P, '.-')
@@ -433,144 +441,336 @@ if __name__ == '__main__':
         # do_pca(at_pids, df['maxAA'])
         # do_pca(df.ix[:,2:][df.accelSpeed == 0], df['maxAA'])
     elif stage == 3:
-        class MinMaxK(object):
-            def __init__(self, Min, Max, K):
-                self.Min = float(Min)
-                self.Max = float(Max)
-                self.K = float(K)
-                
-            def apply(self, val):
-                return clamp(val*self.K, self.Min, self.Max)
-        
-        atP_clamp = MinMaxK(1, 5e10, 10)
-        avP_clamp = MinMaxK(1, 5, 0.5)
+        class FastConfig(object):
+            atP_ErrThreshold = 0.7
+            atP_ErrCurve = 0.5
 
-        atD_Curve = 1
-        atD_Scale = 3
-        atD_Clamp = 0
+            atP_LowAA_Scale = 1.2
+            atP_LowAA_Curve = 0.8
+            atD_LowAA_Scale = 1
+            atD_LowAA_Curve = 0.5
 
-        atI_Scale = 1
-        atI_AV_Scale = 10
-        atI_ErrThreshold = 0.8
-        atI_ErrCurve = 2
-        atP_ErrCurve = 0.2
+            atP_HighAA_Scale = 0.2
+            atP_HighAA_Curve = 0.3
+            atP_HighAA_Max = 4
+            atD_HighAA_Scale = 1.0
+            atD_HighAA_Curve = 0.4
+            atD_Min = 0
 
-        atErrThreshold = 0.8
-        atErrScale = 100
+            atI_Scale = 1
+            atI_AV_Scale = 10
+            atI_ErrThreshold = 0.8
+            atI_ErrCurve = 2
 
-        avI_Scale = 0.4
+            avP_MaxAA_Intersect = 5
+            avP_MaxAA_Inclination = 0.4
+            avP_MaxAA_Curve = 0.8
+            avP_Min = 0.2
 
-        AxisCorrection = 0.2
+            avI_Scale = 0.4
 
-        SlowTorqueF = 0.06
-        MaxSlowF = 3
+        def tune_steering_fast(atc, iErrf, imaxAA, AM):
+            # compute coefficients of attitude PID
+            atP_iErrf = clampL(iErrf - FastConfig.atP_ErrThreshold, 0) ** FastConfig.atP_ErrCurve
+            if atc.MaxAA >= 1:
+                atP = clampH(1
+                             + FastConfig.atP_HighAA_Scale * atc.MaxAA ** FastConfig.atP_HighAA_Curve
+                             + atP_iErrf, FastConfig.atP_HighAA_Max)
+                atD = FastConfig.atD_HighAA_Scale * imaxAA ** FastConfig.atD_HighAA_Curve * clampH(iErrf + abs(AM), 1.2)
+            else:
+                atP = (1
+                       + FastConfig.atP_LowAA_Scale * atc.MaxAA ** FastConfig.atP_LowAA_Curve
+                       + atP_iErrf)
+                atD = FastConfig.atD_LowAA_Scale * imaxAA ** FastConfig.atD_LowAA_Curve * clampH(iErrf + abs(AM), 1.2)
+            # compute coefficients of angular velocity PID
+            avP = clampL(FastConfig.avP_MaxAA_Intersect -
+                         FastConfig.avP_MaxAA_Inclination * atc.MaxAA ** FastConfig.avP_MaxAA_Curve,
+                         FastConfig.avP_Min)
+            # tune PIDS and compute steering
+            tune_pids_set_steering(FastConfig, atc, iErrf, atP, atD, avP, 0)
 
-        atClamp = np.pi * 10
-        avClamp = 1000
+        class MixedConfig(object):
+            atP_ErrThreshold = 0.9
+            atP_ErrCurve = 0.9
+
+            atP_LowAA_Scale = 1
+            atP_LowAA_Curve = 1
+            atD_LowAA_Scale = 1
+            atD_LowAA_Curve = 1
+
+            atP_HighAA_Scale = 0.1
+            atP_HighAA_Curve = 1
+            atP_HighAA_Max = 3e10
+            atD_HighAA_Scale = 8
+            atD_HighAA_Curve = 0.5
+            atD_Min = 0
+
+            atI_Scale = 0
+            atI_AV_Scale = 10
+            atI_ErrThreshold = 0.9
+            atI_ErrCurve = 2
+
+            avP_MaxAA_Intersect = 100
+            avP_MaxAA_Inclination = 10
+            avP_MaxAA_Curve = 0.5
+            avP_Min = 0.2
+
+            avI_Scale = 0.0
+
+        def tune_steering_mixed(atc, iErrf, imaxAA, AM):
+            # compute coefficients of attitude PID
+            atP_iErrf = clampL(iErrf - MixedConfig.atP_ErrThreshold, 0) ** MixedConfig.atP_ErrCurve
+            # atP = clamp(MixedConfig.atP_iMaxAA_Scale * imaxAA
+            #             * (1 + atP_iErrf * MixedConfig.atP_ErrScale),
+            #             MixedConfig.atP_Min, clampL(MixedConfig.atP_Max * atc.MaxAA, MixedConfig.atP_Min))
+            # atD = clampL(atP - ((atc.MaxAA - 1) * MixedConfig.atD_Scale)**MixedConfig.atD_Curve, MixedConfig.atD_Min)
+            # atD *= clampH(iErrf + (1 - clampH(atc.MaxAA, 1)) + abs(AM), 1)/atP
+            # if atc.MaxAA >= 1:
+            # atP = clampH(1
+            #              + MixedConfig.atP_HighAA_Scale * atc.MaxAA ** MixedConfig.atP_HighAA_Curve
+            #              + atP_iErrf, MixedConfig.atP_HighAA_Max)
+            # atD = MixedConfig.atD_HighAA_Scale * imaxAA ** MixedConfig.atD_HighAA_Curve
+            # else:
+            #     # atP = clampH(MixedConfig.atP_LowAA_Inclination * imaxAA ** MixedConfig.atP_LowAA_Curve, 1)
+            #     atP = (1
+            #            + MixedConfig.atP_LowAA_Scale * atc.MaxAA ** MixedConfig.atP_LowAA_Curve
+            #            + atP_iErrf)
+            #     atD = MixedConfig.atD_LowAA_Scale * imaxAA ** MixedConfig.atD_LowAA_Curve * clampH(iErrf + abs(AM), 1.2)
+            # atD = clampL(MixedConfig.atD_MaxAA_Intersept-atc.MaxAA*MixedConfig.atD_MaxAA_Inclination, 0)
+            # atP = clampH(MixedConfig.atP_LowAA_Inclination * atc.MaxAA * clampL(iErrf, 0.1),
+            #              1 + atc.MaxAA*MixedConfig.atP_Max_AA_Inclination + atP_iErrf**MixedConfig.atP_ErrCurve)
+            # compute coefficients of angular velocity PID
+            # avP = clampL(MixedConfig.avP_MaxAA_Intersect -
+            #              MixedConfig.avP_MaxAA_Inclination * atc.MaxAA ** MixedConfig.avP_MaxAA_Curve,
+            #              MixedConfig.avP_Min)
+
+            if atc.MaxAA >= 1 and atc.InstantRatio >= 0.3 or atc.InstantRatio >= 0.7:
+                tune_steering_fast(atc, iErrf, imaxAA, AM)
+                return
+            atP = 1#*clampL(atc.EnginesMaxAA**0.5, 1)
+            atD = 0
+            avP = (125/(atc.InstantRatio**0.1-0.44987646)-192.39182672)/(1+abs(AM)+iErrf)/atc.EnginesMaxAA**0.5
+            avD = (0.37/(atc.InstantRatio**0.1-0.54644358)+0.33470994)/atc.EnginesMaxAA**0.5
+            # tune PIDS and compute steering
+            tune_pids_set_steering(MixedConfig, atc, iErrf, atP, atD, avP, avD)
+
+        wheels_ratio = 0.02
+        AAs = 0.3, 1, 2, 5, 9
+        angles = 85, 25, 3
+        # angles = 85,
+
+        #### Analysis of avP/avD coefficients for mixed torque system ####
+        #
+        # avP_curve = [(0.01, 4.2, 500),
+        #              (0.02, 2.8, 360),
+        #              (0.05, 2.1, 240), #280
+        #              (0.1,  1.6, 170),
+        #              (0.2,  1.4, 120),
+        #              ]
+        # avP_curve = np.array(avP_curve, float)
+        #
+        # def IR_vs_avD(x, a, b, c): return a / (b + x**0.1) + c
+        # opt, cov = curve_fit(IR_vs_avD, avP_curve[:, 0], avP_curve[:, 1])
+        # print opt
+        #
+        # avD_mod = IR_vs_avD(avP_curve[:, 0], *opt)
+        # plt.plot(avP_curve[:, 0], avP_curve[:, 1], '.-')
+        # plt.plot(avP_curve[:, 0], avD_mod, '--')
+        # plt.show()
+        #
+        # def IR_vs_avP(x, a, b, c): return a/(x**0.1+b)+c
+        # opt, cov = curve_fit(IR_vs_avP, avP_curve[:,0], avP_curve[:, 2])
+        # print opt
+        #
+        # plt.plot(avP_curve[:,0], avP_curve[:,2], '.-')
+        # plt.plot(avP_curve[:,0], IR_vs_avP(avP_curve[:,0], *opt), '--')
+        # plt.show()
+        ###################################################################
+
+        # class MixedConfig(object):
+        #     atP_Scale = 10
+        #     atP_Min = 1
+        #     atP_Max = 100
+        # 
+        #     atP_ErrThreshold = 0.7
+        #     atP_ErrScale = 100
+        #     atP_ErrCurve = 0.5
+        #     atP_LowAA_Curve = 0.1
+        #     atP_LowAA_Inclination = 2
+        #     atP_Max_AA_Inclination = 0.2
+        # 
+        #     atD_Curve = 1
+        #     atD_Scale = 3
+        #     atD_Min = 0
+        # 
+        #     atD_MaxAA_Intersept = 5
+        #     atD_MaxAA_Inclination = 4.9
+        # 
+        #     atI_Scale = 1
+        #     atI_AV_Scale = 10
+        #     atI_ErrThreshold = 0.8
+        #     atI_ErrCurve = 2
+        # 
+        #     avP_MaxAA_Intersect = 9
+        #     avP_MaxAA_Inclination = 0.7
+        #     avP_MaxAA_Curve = 0.2
+        #     avP_Min = 0.2
+        # 
+        #     avI_Scale = 0.4
+
+        # def tune_steering_mixed(atc, iErrf, imaxAA, AM):
+        #     # compute coefficients of attitude PID
+        #     atP_iErrf = clampL(iErrf - MixedConfig.atP_ErrThreshold, 0)
+        #     atP = clamp(MixedConfig.atP_Scale * imaxAA
+        #                 * (1 + atP_iErrf * MixedConfig.atP_ErrScale),
+        #                 MixedConfig.atP_Min, clampL(MixedConfig.atP_Max * atc.MaxAA, MixedConfig.atP_Min))
+        #     atD = clampL(atP - ((atc.MaxAA - 1) * MixedConfig.atD_Scale) ** MixedConfig.atD_Curve, MixedConfig.atD_Min)
+        #     atD *= clampH(iErrf + (1 - clampH(atc.MaxAA, 1)) + abs(AM), 1) / atP
+        #     atP = clampH((MixedConfig.atP_LowAA_Inclination * atc.MaxAA * clampL(iErrf, 0.1))
+        #                  ** MixedConfig.atP_LowAA_Curve,
+        #                  1 + atc.MaxAA * MixedConfig.atP_Max_AA_Inclination + atP_iErrf ** MixedConfig.atP_ErrCurve)
+        #     
+        #     # atP = clamp(MixedConfig.atP_Scale * imaxAA
+        #     #             * (1 + clampL(iErrf - MixedConfig.atP_ErrThreshold, 0) * MixedConfig.atP_ErrScale*atc.MaxAA),
+        #     #             MixedConfig.atP_Min, MixedConfig.atP_Max)
+        #     # atD = clampL(atP - ((atc.MaxAA - 1) * MixedConfig.atD_Scale)**MixedConfig.atD_Curve, MixedConfig.atD_Min)
+        #     # atD *= clampH(iErrf + (1 - clampH(atc.MaxAA, 1)) + abs(AM), 1)
+        #     # atP *= clampH((MixedConfig.atP_LowAA_Inclination * atc.MaxAA * clampL(iErrf, 0.1))
+        #     #               ** MixedConfig.atP_LowAA_Curve, 1)
+        # 
+        #     # atD = clampL(5 - atc.MaxAA * 4.9, 0)
+        #     # atD = clampL(MixedConfig.atD_MaxAA_Intersept-atc.MaxAA*MixedConfig.atD_MaxAA_Inclination, 0)
+        #     # atP = clampH(MixedConfig.atP_LowAA_Inclination * atc.MaxAA * clampL(iErrf, 0.1),
+        #     #              1 + atc.MaxAA * MixedConfig.atP_Max_AA_Inclination + atP_iErrf ** MixedConfig.atP_ErrCurve)
+        #     # compute coefficients of angular velocity PID
+        #     # avP = clampL(MixedConfig.avP_MaxAA_Intersect -
+        #     #              MixedConfig.avP_MaxAA_Inclination * atc.MaxAA ** MixedConfig.avP_MaxAA_Curve,
+        #     #              MixedConfig.avP_Min)
+        #     # atP = 1
+        #     # atD = 2
+        #     avP = 1
+        #     avD = 0.1
+        #     # tune PIDS and compute steering
+        #     tune_pids_set_steering(MixedConfig, atc, iErrf, atP, atD, avP, avD)
+
+        class SlowConfig(object):
+            atP_Scale = 8
+            atP_Min = 1
+            atP_Max = 5
+
+            atP_ErrThreshold = 0.8
+            atP_ErrScale = 0.1
+
+            atD_Curve = 1
+            atD_Scale = 3
+            atD_Min = 0
+
+            atI_Scale = 1
+            atI_AV_Scale = 10
+            atI_ErrThreshold = 0.8
+            atI_ErrCurve = 2
+
+            avP_Scale = 16
+            avP_Max = 10
+
+            avI_Scale = 0.1
+
+            avD_Min = 2
+            avD_MaxAA_Inclination = 0.6
+            avD_MaxAA_Intersect = 6
+
+            SlowTorqueF = 0.2
+
+        def tune_steering_slow(atc, iErrf, imaxAA, AM):
+            # compute coefficients of attitude PID
+            atP = clamp(SlowConfig.atP_Scale * imaxAA
+                        * (1 + clampL(iErrf - SlowConfig.atP_ErrThreshold, 0) * SlowConfig.atP_ErrScale*atc.MaxAA),
+                        SlowConfig.atP_Min, SlowConfig.atP_Max)
+            atD = clampL(atP - ((atc.MaxAA - 1) * SlowConfig.atD_Scale)**SlowConfig.atD_Curve, SlowConfig.atD_Min)
+            atD *= clampH(iErrf + (1 - clampH(atc.MaxAA, 1)) + abs(AM), 1)
+            # compute coefficients of angular velocity PID
+            slowF = (1 + SlowConfig.SlowTorqueF / max(atc.engineF.acceleration, atc.engineF.deceleration))
+            avD = clampL((SlowConfig.avD_MaxAA_Intersect * slowF
+                          - atc.MaxAA * SlowConfig.avD_MaxAA_Inclination),
+                         SlowConfig.avD_Min)
+            avP = clamp(atc.MaxAA * SlowConfig.avP_Scale, 1, SlowConfig.avP_Max)
+            # tune PIDS and compute steering
+            tune_pids_set_steering(SlowConfig, atc, iErrf, atP, atD, avP, avD)
+
+        def tune_pids_set_steering(cfg, atc, iErrf, atP, atD, avP, avD):
+            atI_iErrf = clampL(iErrf - cfg.atI_ErrThreshold, 0)
+            overshot = atc.AV*atc.error < 0
+            if atI_iErrf <= 0 or overshot:
+                atc.atPID.I = 0
+                atc.atPID.ierror = 0
+            else:
+                atI_iErrf = atI_iErrf**cfg.atI_ErrCurve
+                atc.atPID.I = cfg.atI_Scale * atc.MaxAA * atI_iErrf \
+                    /(1 + clampL(atc.AV*np.sign(atc.error), 0) * cfg.atI_AV_Scale * atI_iErrf)
+            atc.atPID.P = atP
+            atc.atPID.D = atD
+            atc.avPID.P = avP
+            atc.avPID.D = avD
+            atc.avPID.I = cfg.avI_Scale * avP
+            atc.atPID.update2(abs(atc.error), -atc.AV)
+            avErr = abs(atc.atPID.action) * np.sign(atc.error) - atc.AV
+            atc.avPID.update(avErr)
+            atc.avPID.action = clamp(atc.avPID.action, -1, 1)
+
+        def tune_steering2(atc):
+            """
+            :param atc: attitude controller
+            :type atc: ATC
+            """
+            iErrf = 1 - abs(atc.error/np.pi)
+            imaxAA = 1 / atc.MaxAA
+            AM = atc.AV*atc.MoI
+            if atc.instant:
+                tune_steering_fast(atc, iErrf, imaxAA, AM)
+            elif atc.InstantRatio < 0.01:
+                tune_steering_slow(atc, iErrf, imaxAA, AM)
+            else:
+                tune_steering_mixed(atc, iErrf, imaxAA, AM)
+            print ('atc.MaxAA %f, err %f, av %f, iErr %f\natPID %s\navPID %s' %
+                   (atc.MaxAA, atc.error / np.pi * 180, atc.AV / np.pi * 180, iErrf, atc.atPID, atc.avPID))
 
         lever = 4
+
+        def simAA(error, maxAA, engine, base_thrust, wheels_ratio):
+            at_pid = PID2(1, 0.0, 1, 0, np.pi*10)
+            av_pid = PID(1, 0.0, 1, -1000, 1000)
+            if wheels_ratio < 1:
+                MoI = engine.maxThrust*lever*2/maxAA/(1-wheels_ratio)*base_thrust
+                wheels_torque = maxAA * wheels_ratio * MoI
+            else:
+                base_thrust = 0
+                wheels_torque = engine.maxThrust*lever*2
+                MoI = wheels_torque / maxAA
+            atc = ATC(engine, lever, MoI,
+                      at_pid, av_pid,
+                      base_thrust,
+                      tune_steering2, wheels_torque)
+            return atc.simulate_static_attitude(error, clampL(error*2, 60))
+
+        def simAngle(eng, AA, base_thrust, wheels_ratio, *angles):
+            cols = len(angles)
+            for c, ang in enumerate(angles):
+                ATC.analyze_results(cols, c+1, *[simAA(ang, aa, eng, base_thrust, wheels_ratio) for aa in AA])
+            fig = plt.gcf()
+            fig.canvas.set_window_title(datetime.strftime(datetime.now(), '%H:%M:%S'))
+            plt_show_maxed()
+
         wheesly = Engine.from_file(datafile('Squad/Parts/Engine/jetEngines/jetEngineBasic.cfg'))
         LV_T30 = Engine.from_file(datafile('Squad/Parts/Engine/liquidEngineLV-T30/liquidEngineLV-T30.cfg'))
-        stats = []
 
+        # wheesly.acceleration /= 2
+        # wheesly.deceleration /= 2
+        # simAngle(wheesly, (0.2, 19, 4), 0.7, 0.002, 45, 15, 3)
+        simAngle(wheesly, AAs, 0.7, wheels_ratio, *angles)
+        # simAngle(wheesly, (0.5, 0.7, 0.9), 0.7, 0.02, 45, 15, 3)
+        # simAngle(wheesly, (0.5, 1, 2, 5, 10, 19), 0.7, 0.02, 45, 15, 3)
+        # simAngle(LV_T30, (0.009, 0.03, 0.1, 0.9, 1, 2, 10, 20), 1, 0.02, 175, 60, 15, 3)
+        # simAngle(LV_T30, (0.009, 0.03, 0.1), 1, 0.02, 175, 60, 15, 3)
 
-        def simAA(cols, col, error, maxAA, engine):
-            def on_update(atc):
-                Err = atc.error/np.pi
-                iErr = 1-Err
-                atI_iErr = clampL(iErr - atI_ErrThreshold, 0)
-                imaxAA = 1/maxAA
-                L = abs(atc.AV*atc.MoI)
-                atP = atP_clamp.apply(imaxAA * (1 + clampL(iErr - atErrThreshold, 0) * atErrScale))
-                atD = clampL(atP - ((maxAA - 1)**atD_Curve) * atD_Scale, atD_Clamp)
-                atD *= clampH(iErr + (1 - clampH(maxAA, 1)) + L, 1)
-                avP = clampL(avP_clamp.K * imaxAA, avP_clamp.Min)
-                avD = 0
-                slow = 1
-                if not engine.instant:
-                    slow = clampH(1 + max(engine.acceleration, engine.deceleration)*atc.engineF.lever*SlowTorqueF,
-                                  MaxSlowF)
-                    avD = slow*slow
-                    avP = 1
-                else:
-                    atD /= atP
-                    atP = clampH(200 * maxAA * clampL(iErr, 0.1), 1+atI_iErr**atP_ErrCurve)
-                if iErr < atI_ErrThreshold or atc.AV*atc.error < 0:
-                    atc.atPID.I = 0
-                    atc.atPID.ierror = 0
-                else:
-                    atI_iErr = atI_iErr**atI_ErrCurve
-                    atc.atPID.I = atI_Scale * maxAA * atI_iErr / (1+abs(atc.AV)*atI_AV_Scale*atI_iErr)
-                atc.atPID.P = atP
-                atc.atPID.D = atD
-                atc.avPID.P = avP
-                atc.avPID.I = avI_Scale * avP
-                atc.avPID.D = avD
-                atc.atPID.update2(atc.error, -atc.AV)
-                avErr = atc.AV - atc.atPID.action + atc.AV*avP*AxisCorrection
-                atc.avPID.update(-avErr)
-                atc.avPID.action /= slow
-                # print "\nAA: %.2f" % maxAA
-                # print "AV %f, error %f" % (atc.AV, atc.error/np.pi)
-                # print "AT: "+str(at_pid)
-                # print "AV: "+str(av_pid)
-
-            at_pid = PID2(1, 0.0, 1, -atClamp, atClamp)
-            av_pid = PID(1, 0.0, 1, -avClamp, avClamp)
-            atc = ATC(engine, lever, engine.maxThrust*lever/maxAA*2, at_pid, av_pid, 0.0, on_update)
-            # atc.optimize_av_D(1, ATC.tenth_deg, 30, 60, (0.1*avAAf, 10*avAAf))
-            # st.append(atc.avPID.P)
-            # st.append(atc.avPID.D)
-
-            ATC.analyze_results(cols, col,
-                                (atc.simulate_static_attitude(error, clampL(error*2, 60))))
-
-        def simAngle(eng, *angles, **kwargs):
-            cols = len(angles)
-            AA = kwargs.get('AA', (0.01, 10, 10))
-            for c, ang in enumerate(angles):
-                [simAA(cols, c+1, ang, aa, eng) for aa in np.linspace(*AA)]
-            plt_show_maxed()
-
-        def simSpeed(eng, ang, *mults):
-            cols = len(mults)
-            for c, m in enumerate(mults):
-                e = eng.clone()
-                e.acceleration *= m
-                e.deceleration *= m
-                [simAA(cols, c+1, ang, aa, e) for aa in np.linspace(0.01, 2, 10)]
-            plt_show_maxed()
-
-
-        # simSpeed(wheesly, 90, 0.2, 1, 3)
-        # simAngle(wheesly, 45, 30, 15, 3, AA=(0.1, 1, 5))
-        simAngle(LV_T30, 175, 60, 15, 3)
-
-        # force = False
-        # fname = 'avD.csv'
-        # if force or not os.path.isfile(fname):
-        #     simSpeed(wheesly, 135, 0.2, 0.5, 1, 1.5, 2)
-        #     df = pd.DataFrame.from_records(stats, columns=('maxAA', 'avAAf', 'ADspeed', 'avD'))
-        #     df.to_csv(fname)
-        # else:
-        #     df = pd.read_csv(fname)
-        # print df.to_string()
-        # bounds = 8, 10
-        # df1 = df[df.avAAf > bounds[0]][df.avAAf < bounds[1]]
-        # def model((AAf, AD), a, b):
-        #     # return AAf*a*AD**b
-        #     return AAf * 0.74 * AD ** -0.265 +(a*AD)**(b*(AAf-bounds[0]+0.1))
-        #     # return (a*AD)**((AAf-bound+0.1)*b)+(c*AD)**((AAf-bound+0.1)*d)# + c/(AAf-bound+1)
-        # abc, conv = curve_fit(model, (df1.avAAf, df1.ADspeed), df1.avD)
-        # print abc
-        # fig = plt.figure()
-        # ax = fig.add_subplot(111, projection='3d')
-        # ax.scatter(df.avAAf, df.ADspeed, df.avD, c='red')
-        # AAf, AD = np.mgrid[bounds[0]:bounds[1]:0.1, 0.02:0.25:0.02]
-        # ax.plot_wireframe(AAf, AD, model((AAf, AD), *abc))
-        # plt_show_maxed()
-
-        # df.sort_values('avAAf')
-        # plt.plot(df.avAAf, df.avD, '.')
-        # plt_show_maxed()
-    else: print "No %d stage" % stage
+    else:
+        print "No %d stage" % stage

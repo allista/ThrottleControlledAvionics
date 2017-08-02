@@ -118,7 +118,106 @@ ALT
 
 ATCB
 {
-	PID
+	AngleThreshold = 50
+	MaxAttitudeError = 10
+	AttitudeErrorThreshold = 3
+	MaxTimeToAlignment = 15
+	DragResistanceF = 10
+
+	FastConfig
+	{
+        atP_ErrThreshold = 0.7
+        atP_ErrCurve = 0.5
+
+        atP_LowAA_Scale = 1.2
+        atP_LowAA_Curve = 0.8
+        atD_LowAA_Scale = 1
+        atD_LowAA_Curve = 0.5
+
+        atP_HighAA_Scale = 0.2
+        atP_HighAA_Curve = 0.3
+        atP_HighAA_Max = 4
+        atD_HighAA_Scale = 1.0
+        atD_HighAA_Curve = 0.4
+        atD_Min = 0
+
+        atI_Scale = 1
+        atI_AV_Scale = 10
+        atI_ErrThreshold = 0.8
+        atI_ErrCurve = 2
+
+        avP_MaxAA_Intersect = 5
+        avP_MaxAA_Inclination = 0.4
+        avP_MaxAA_Curve = 0.8
+        avP_Min = 0.2
+
+        avI_Scale = 0.4
+	}
+	
+	MixedConfig
+	{
+        atP_Scale = 10
+        atP_Min = 1
+        atP_Max = 5
+
+        atP_ErrThreshold = 0.7
+        atP_ErrScale = 10
+        atP_LowAA_Inclination = 200
+
+        atD_Curve = 1
+        atD_Scale = 1
+        atD_Min = 0
+
+        atI_Scale = 1
+        atI_AV_Scale = 10
+        atI_ErrThreshold = 0.8
+        atI_ErrCurve = 2
+
+        avP_MaxAA_Intersect = 9
+        avP_MaxAA_Inclination = 0.7
+        avP_MaxAA_Curve = 0.8
+        avP_Min = 0.2
+
+        avI_Scale = 0.4
+	}
+	
+	SlowConfig
+	{
+        atP_Scale = 8
+        atP_Min = 1
+        atP_Max = 5
+
+        atP_ErrThreshold = 0.8
+        atP_ErrScale = 0.1
+
+        atD_Curve = 1
+        atD_Scale = 3
+        atD_Min = 0
+
+        atI_Scale = 1
+        atI_AV_Scale = 10
+        atI_ErrThreshold = 0.8
+        atI_ErrCurve = 2
+
+        avP_Scale = 16
+        avP_Max = 10
+
+        avI_Scale = 0.1
+
+        avD_Min = 2
+        avD_MaxAA_Inclination = 0.6
+        avD_MaxAA_Intersect = 6
+
+        SlowTorqueF = 0.2
+	}
+	
+    atPID_Clamp = 31.41592653589793
+    avPID_Clamp = 1000
+	AxisCorrection = 3
+    SlowThreshold = 0.01 //% of the AA is instant
+
+    //old PID config
+    PID
 	{
 		P = 5, 5, 5
 		I = 0.04, 0.04, 0.04
@@ -136,85 +235,11 @@ ATCB
 	MinEf = 1E-04
 	MaxEf = 2
 	AALowPassF = 1
+    
+   	SlowTorqueF = 0.06
+	MaxSlowF = 3
 	
-	AngleThreshold = 50
-	MaxAttitudeError = 10
-	AttitudeErrorThreshold = 3
-	MaxTimeToAlignment = 15
-	DragResistanceF = 10
-
-	AT_PID
-	{
-		Min = -31.4159279
-		Max = 31.4159279
-		P = 1
-		I = 0
-		D = 1
-	}
-	
-	AV_PID
-	{
-		Min = -1000,-1000,-1000
-		Max = 1000,1000,1000
-		P = 1,1,1
-		I = 0,0,0
-		D = 0,0,0
-	}
-	
-	FastConfig
-	{
-		atP_Scale = 10
-		atP_Min = 1
-		atP_Max = 200
-		
-		atP_ErrThreshold = 0.8
-		atP_ErrCurve = 0.5
-		atP_ErrScale = 100
-		
-		atD_Curve = 1
-		atD_Scale = 3
-		atD_Min = 0
-		
-		atI_Scale = 1
-		atI_AV_Scale = 10
-		atI_ErrThreshold = 0.8
-		atI_ErrCurve = 2
-		
-		avP_Scale = 0.5
-		avP_Min = 1
-		avI_Scale = 0.4
-		
-		AxisCorrection = 0.2
-	}
-	
-	SlowConfig
-	{
-		atP_Scale = 8
-		atP_Min = 1
-		atP_Max = 5
-		
-		atP_ErrThreshold = 0.7
-		atP_ErrScale = 4
-		
-		atD_Curve = 1
-		atD_Scale = 3
-		atD_Min = 0
-		
-		atI_Scale = 1
-		atI_AV_Scale = 10
-		atI_ErrThreshold = 0.8
-		atI_ErrCurve = 1
-		
-		avP_Scale = 0.5
-		avP_Min = 1
-		avI_Scale = 0.4
-		
-		AxisCorrection = 0.2
-		
-		SlowTorqueF = 0.06
-		MaxSlowF = 3
-	}
-	
+	//obsolete oscillation detector config
 	OD_low                 = 5   //Hz
 	OD_high                = 45  //Hz; note that frequency that are multiples of the physics framerate will produce high values in the spectrum given constant signal!!!
 	OD_bins                = 58  //fitted value to eliminate physics framerate harmonics

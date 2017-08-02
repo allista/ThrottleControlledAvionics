@@ -256,6 +256,7 @@ class PID2(PID):
 
     def update2(self, err, spd):
         if self.perror == 0: self.perror = err
+        if self.ierror * err < 0: self.ierror = 0
         d = self.D * spd
         self.ierror = clamp(self.ierror + self.I * err * dt if abs(d) < 0.6 * self.max else 0.9 * self.ierror,
                             self.min, self.max)

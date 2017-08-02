@@ -69,6 +69,7 @@ namespace ThrottleControlledAvionics
                 ATC.DrawDebugLines();
                 Utils.ButtonSwitch("Old PID", ref AttitudeControlBase.UseOldPID, "Use old PID system", GUILayout.ExpandWidth(false));
                 Utils.ButtonSwitch("Mouse", ref ATC.FollowMouse, "Follow mouse", GUILayout.ExpandWidth(false));
+                Utils.ButtonSwitch("Gimball", ref AttitudeControlBase.UseGimball, "Use gimball", GUILayout.ExpandWidth(false));
                 #endif
 				GUILayout.BeginHorizontal();
 				if(Utils.ButtonSwitch("Kill", CFG.AT[Attitude.KillRotation], "Kill rotation", GUILayout.ExpandWidth(false)))

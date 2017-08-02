@@ -85,7 +85,7 @@ namespace ThrottleControlledAvionics
                     rotation_axis = (rotation_axis*VSL.Controls.AttitudeError/angle-VSL.LocalDir(needed_thrust.normalized*s.yaw*Mathf.PI/3)).normalized;
                     VSL.Controls.SetAttitudeError(Mathf.Min(VSL.Controls.AttitudeError+Math.Abs(s.yaw)*30, 180));
                 }
-				tune_steering2();
+				tune_steering3();
 				VSL.Controls.AddSteering(steering);
 				VSL.HasUserInput = false;
 				VSL.AutopilotDisabled = true;
@@ -94,7 +94,7 @@ namespace ThrottleControlledAvionics
 			else if(!(VSL.LandedOrSplashed || CFG.AT))
 			{ 
                 compute_steering(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL)); 
-				tune_steering2();
+				tune_steering3();
 				VSL.Controls.AddSteering(steering);
 			}
 		}
