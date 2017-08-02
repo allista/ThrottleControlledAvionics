@@ -124,7 +124,7 @@ namespace ThrottleControlledAvionics
 			MaxPossible.Update(NoEngines.Torque+MaxEngines.Torque);
             MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrustDir).AbsComponents());
             SlowMaxPossible.Update(TotalSlowTorque.Max);
-            Instant.Update(MaxCurrent.Torque-SlowMaxPossible.Torque);
+            Instant.Update(MaxPossible.Torque-SlowMaxPossible.Torque);
 			//specifc torque
 			Engines.SpecificTorque = EnginesSpecificTorque.Max;
 			NoEngines.SpecificTorque = RCSSpecificTorque.Max;
@@ -133,7 +133,7 @@ namespace ThrottleControlledAvionics
 			MaxPossible.SpecificTorque = MaxCurrent.SpecificTorque;
             MaxPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxCurrent.SpecificTorque, VSL.Engines.CurrentThrustDir).AbsComponents();
             SlowMaxPossible.SpecificTorque = TotalSlowSpecificTorque.Max;
-            Instant.SpecificTorque = MaxCurrent.SpecificTorque-SlowMaxPossible.SpecificTorque;
+            Instant.SpecificTorque = MaxPossible.SpecificTorque-SlowMaxPossible.SpecificTorque;
 			//torque response time
 			if(!TorqueResponseSpeed.IsZero()) 
 			{ 
