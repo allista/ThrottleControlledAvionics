@@ -413,19 +413,19 @@ if __name__ == '__main__':
         rocket = df[df.accelSpeed == 0]
         jets = df[df.accelSpeed > 0]
 
-        def model(x, a,b): return a/(b+x)
-        abc, conv = curve_fit(IR_vs_avD, rocket.maxAA, rocket.AV_P)
-        print 'AV.P(aa): %f/(%f+aa)' % tuple(abc)
-
-        plt.plot(rocket.maxAA, rocket.AV_P, '.-')
-        plt.plot(rocket.maxAA, rocket.AV_D, 'r.-')
-        plt.plot(rocket.maxAA, IR_vs_avD(rocket.maxAA, *abc))
-        plt.show()
-
-        plt.plot(rocket.maxAA, rocket.AT_P, '.-')
-        plt.plot(rocket.maxAA, rocket.AT_D, 'r.-')
-        # plt.plot(rocket.maxAA, model(rocket.maxAA, *abc))
-        plt.show()
+        # def model(x, a,b): return a/(b+x)
+        # abc, conv = curve_fit(model, rocket.maxAA, rocket.AV_P)
+        # print 'AV.P(aa): %f/(%f+aa)' % tuple(abc)
+        #
+        # plt.plot(rocket.maxAA, rocket.AV_P, '.-')
+        # plt.plot(rocket.maxAA, rocket.AV_D, 'r.-')
+        # plt.plot(rocket.maxAA, IR_vs_avD(rocket.maxAA, *abc))
+        # plt.show()
+        #
+        # plt.plot(rocket.maxAA, rocket.AT_P, '.-')
+        # plt.plot(rocket.maxAA, rocket.AT_D, 'r.-')
+        # # plt.plot(rocket.maxAA, model(rocket.maxAA, *abc))
+        # plt.show()
 
         # def model(x, a, b, c): return a ** (b * x + c)
         # abc, conv = curve_fit(model, rocket_prim.maxAA, rocket_prim['AV_P'])
@@ -490,41 +490,13 @@ if __name__ == '__main__':
             tune_pids_set_steering(FastConfig, atc, iErrf, atP, atD, avP, 0)
 
         # Valid for InstantRatios >= 0.3
-        # class MixedConfig(object):
-        #     atP_ErrThreshold = 0.8
-        #     atP_ErrCurve = 0.5
-        #
-        #     atP_LowAA_Scale = 0.2
-        #     atP_LowAA_Curve = 1.2
-        #     atD_LowAA_Scale = 1.2
-        #     atD_LowAA_Curve = 0.6
-        #
-        #     atP_HighAA_Scale = 0.2
-        #     atP_HighAA_Curve = 0.3
-        #     atP_HighAA_Max = 4
-        #     atD_HighAA_Scale = 1.0
-        #     atD_HighAA_Curve = 0.4
-        #     atD_Min = 0
-        #
-        #     atI_Scale = 1
-        #     atI_AV_Scale = 10
-        #     atI_ErrThreshold = 0.8
-        #     atI_ErrCurve = 2
-        #
-        #     avP_MaxAA_Intersect = 5
-        #     avP_MaxAA_Inclination = 0.4
-        #     avP_MaxAA_Curve = 0.8
-        #     avP_Min = 0.2
-        #
-        #     avI_Scale = 0.4
-
-        class MixedConfig(object):
+        class MixedConfig3plus(object):
             atP_ErrThreshold = 0.8
             atP_ErrCurve = 0.5
 
-            atP_LowAA_Scale = 0.1
-            atP_LowAA_Curve = 4
-            atD_LowAA_Scale = 2.2
+            atP_LowAA_Scale = 0.2
+            atP_LowAA_Curve = 1.2
+            atD_LowAA_Scale = 1.2
             atD_LowAA_Curve = 0.6
 
             atP_HighAA_Scale = 0.2
@@ -534,42 +506,52 @@ if __name__ == '__main__':
             atD_HighAA_Curve = 0.4
             atD_Min = 0
 
+            atI_Scale = 1
+            atI_AV_Scale = 10
+            atI_ErrThreshold = 0.8
+            atI_ErrCurve = 2
+
+            avP_MaxAA_Intersect = 5
+            avP_MaxAA_Inclination = 0.4
+            avP_MaxAA_Curve = 0.8
+            avP_Min = 0.2
+
+            avI_Scale = 0.4
+
+        class MixedConfig(object):
             atI_Scale = 0
             atI_AV_Scale = 10
             atI_ErrThreshold = 0.8
             atI_ErrCurve = 2
 
-            avP_MaxAA_Intersect = 100
-            avP_MaxAA_Inclination = 1
-            avP_MaxAA_Curve = 1
-            avP_Min = 0.2
+            avP_A = 100
+            avP_B = 0.04
+            avP_C = -100
+            avP_D = 0.7
+
+            avD_A = 0.65
+            avD_B = -0.01
+            avD_C = 0.5
+            avD_D = 0.7
 
             avI_Scale = 0.0
 
         def tune_steering_mixed(atc, iErrf, imaxAA, AM):
-            # compute coefficients of attitude PID
-            atP_iErrf = clampL(iErrf - MixedConfig.atP_ErrThreshold, 0) ** MixedConfig.atP_ErrCurve
-            if atc.MaxAA >= 1:
-                atP = clampH(1
-                             + MixedConfig.atP_HighAA_Scale * atc.MaxAA ** MixedConfig.atP_HighAA_Curve
-                             + atP_iErrf, MixedConfig.atP_HighAA_Max)
-                atD = MixedConfig.atD_HighAA_Scale * imaxAA ** MixedConfig.atD_HighAA_Curve * clampH(iErrf + abs(AM), 1.2)
+            if atc.InstantRatio > 0.3:
+                tune_steering_fast(MixedConfig3plus, atc, iErrf, imaxAA, AM)
             else:
-                atP = (1
-                       + MixedConfig.atP_LowAA_Scale * atc.MaxAA ** MixedConfig.atP_LowAA_Curve
-                       + atP_iErrf)
-                atD = MixedConfig.atD_LowAA_Scale * imaxAA ** MixedConfig.atD_LowAA_Curve * clampH(iErrf + abs(AM), 1.2)
-            # compute coefficients of angular velocity PID
-            avP = clampL(MixedConfig.avP_MaxAA_Intersect -
-                         MixedConfig.avP_MaxAA_Inclination * atc.MaxAA ** MixedConfig.avP_MaxAA_Curve,
-                         MixedConfig.avP_Min)
-            # tune PIDS and compute steering
-            tune_pids_set_steering(MixedConfig, atc, iErrf, atP, atD, avP, 0)
+                atP = 1#*clampL(atc.EnginesMaxAA**0.5, 1)
+                atD = 0
+                avP = ((MixedConfig.avP_A / (atc.InstantRatio ** MixedConfig.avP_D + MixedConfig.avP_B) +
+                        MixedConfig.avP_C) / (1 + abs(AM)) / atc.MaxAA)
+                avD = ((MixedConfig.avD_A / (atc.InstantRatio ** MixedConfig.avD_D + MixedConfig.avD_B) +
+                        MixedConfig.avD_C) / atc.MaxAA)
+                # tune PIDS and compute steering
+                tune_pids_set_steering(MixedConfig, atc, iErrf, atP, atD, avP, avD)
 
-        wheels_ratio = 0.3
-        AAs = 0.3, 0.7, 0.9
+        wheels_ratio = 0.001
+        AAs = 0.3, 0.7, 0.9, 1.5, 3, 9
         angles = 85, 25, 3
-        # angles = 85,
 
         #### Analysis of avP/avD coefficients for mixed torque system ####
         #
@@ -599,72 +581,6 @@ if __name__ == '__main__':
         # plt.show()
         ###################################################################
 
-        # class MixedConfig(object):
-        #     atP_Scale = 10
-        #     atP_Min = 1
-        #     atP_Max = 100
-        #
-        #     atP_ErrThreshold = 0.7
-        #     atP_ErrScale = 100
-        #     atP_ErrCurve = 0.5
-        #     atP_LowAA_Curve = 0.1
-        #     atP_LowAA_Inclination = 2
-        #     atP_Max_AA_Inclination = 0.2
-        #
-        #     atD_Curve = 1
-        #     atD_Scale = 3
-        #     atD_Min = 0
-        #
-        #     atD_MaxAA_Intersept = 5
-        #     atD_MaxAA_Inclination = 4.9
-        #
-        #     atI_Scale = 1
-        #     atI_AV_Scale = 10
-        #     atI_ErrThreshold = 0.8
-        #     atI_ErrCurve = 2
-        #
-        #     avP_MaxAA_Intersect = 9
-        #     avP_MaxAA_Inclination = 0.7
-        #     avP_MaxAA_Curve = 0.2
-        #     avP_Min = 0.2
-        #
-        #     avI_Scale = 0.4
-
-        # def tune_steering_mixed(atc, iErrf, imaxAA, AM):
-        #     # compute coefficients of attitude PID
-        #     atP_iErrf = clampL(iErrf - MixedConfig.atP_ErrThreshold, 0)
-        #     atP = clamp(MixedConfig.atP_Scale * imaxAA
-        #                 * (1 + atP_iErrf * MixedConfig.atP_ErrScale),
-        #                 MixedConfig.atP_Min, clampL(MixedConfig.atP_Max * atc.MaxAA, MixedConfig.atP_Min))
-        #     atD = clampL(atP - ((atc.MaxAA - 1) * MixedConfig.atD_Scale) ** MixedConfig.atD_Curve, MixedConfig.atD_Min)
-        #     atD *= clampH(iErrf + (1 - clampH(atc.MaxAA, 1)) + abs(AM), 1) / atP
-        #     atP = clampH((MixedConfig.atP_LowAA_Inclination * atc.MaxAA * clampL(iErrf, 0.1))
-        #                  ** MixedConfig.atP_LowAA_Curve,
-        #                  1 + atc.MaxAA * MixedConfig.atP_Max_AA_Inclination + atP_iErrf ** MixedConfig.atP_ErrCurve)
-        #
-        #     # atP = clamp(MixedConfig.atP_Scale * imaxAA
-        #     #             * (1 + clampL(iErrf - MixedConfig.atP_ErrThreshold, 0) * MixedConfig.atP_ErrScale*atc.MaxAA),
-        #     #             MixedConfig.atP_Min, MixedConfig.atP_Max)
-        #     # atD = clampL(atP - ((atc.MaxAA - 1) * MixedConfig.atD_Scale)**MixedConfig.atD_Curve, MixedConfig.atD_Min)
-        #     # atD *= clampH(iErrf + (1 - clampH(atc.MaxAA, 1)) + abs(AM), 1)
-        #     # atP *= clampH((MixedConfig.atP_LowAA_Inclination * atc.MaxAA * clampL(iErrf, 0.1))
-        #     #               ** MixedConfig.atP_LowAA_Curve, 1)
-        #
-        #     # atD = clampL(5 - atc.MaxAA * 4.9, 0)
-        #     # atD = clampL(MixedConfig.atD_MaxAA_Intersept-atc.MaxAA*MixedConfig.atD_MaxAA_Inclination, 0)
-        #     # atP = clampH(MixedConfig.atP_LowAA_Inclination * atc.MaxAA * clampL(iErrf, 0.1),
-        #     #              1 + atc.MaxAA * MixedConfig.atP_Max_AA_Inclination + atP_iErrf ** MixedConfig.atP_ErrCurve)
-        #     # compute coefficients of angular velocity PID
-        #     # avP = clampL(MixedConfig.avP_MaxAA_Intersect -
-        #     #              MixedConfig.avP_MaxAA_Inclination * atc.MaxAA ** MixedConfig.avP_MaxAA_Curve,
-        #     #              MixedConfig.avP_Min)
-        #     # atP = 1
-        #     # atD = 2
-        #     avP = 1
-        #     avD = 0.1
-        #     # tune PIDS and compute steering
-        #     tune_pids_set_steering(MixedConfig, atc, iErrf, atP, atD, avP, avD)
-
         class SlowConfig(object):
             atP_Scale = 8
             atP_Min = 1
@@ -673,8 +589,8 @@ if __name__ == '__main__':
             atP_ErrThreshold = 0.8
             atP_ErrScale = 0.1
 
-            atD_Curve = 1
-            atD_Scale = 1.5
+            atD_Curve = 3
+            atD_Scale = 1
             atD_Min = 0
 
             atI_Scale = 0.0
@@ -739,7 +655,7 @@ if __name__ == '__main__':
             AM = atc.AV*atc.MoI
             if atc.InstantRatio > 0.7:
                 tune_steering_fast(FastConfig, atc, iErrf, imaxAA, AM)
-            elif atc.InstantRatio > 0.01:
+            elif atc.InstantRatio >= 0.005:
                 tune_steering_mixed(atc, iErrf, imaxAA, AM)
             else:
                 tune_steering_slow(atc, iErrf, imaxAA, AM)
