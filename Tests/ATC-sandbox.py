@@ -12,7 +12,7 @@ import pandas as pd
 from common import clampL, clampH, clamp, lerp, PID, PID2, plt_show_maxed, color_grad
 
 from KSPUtils import Part, SearchTerm
-from BioUtils.Tools.Multiprocessing import MPMain, parallelize_work
+# from BioUtils.Tools.Multiprocessing import MPMain, parallelize_work
 
 dt = 0.02
 
@@ -288,48 +288,49 @@ class ATC(object):
             plt.ylabel('thrust')
         # plt.show()
 
+#
+# class Main(MPMain):
+#     class Craft(object):
+#         lever = 4
+#         maxThrust = 120
+#
+#         def __init__(self, maxAA, accelSpeed):
+#             at_pid = PID2(0, 0, 0, -np.pi, np.pi)
+#             av_pid = PID(0, 0, 0, -1, 1)
+#             engine = Engine(self.maxThrust, accelSpeed, accelSpeed*2)
+#             self.atc = ATC(engine, self.lever, self.maxThrust*self.lever/maxAA*2, at_pid, av_pid, 0)
+#
+#         def optimize(self):
+#             if not self.atc.optimize_av_PID(0.5, 0.06, 20, 10, (0.1, 10), (0, 0.2), (0, 10)): return False
+#             if not self.atc.optimize_at_PID(5, ATC.tenth_deg, 20, 10, (0.1, 10), (0, 0.2), (0, 10)): return False
+#             return True
+#
+#         def pack(self):
+#             return ([self.atc.MaxAA, self.atc.engineF.acceleration]+
+#                     self.atc.avPID.pack() + self.atc.atPID.pack())
+#
+#     def _main(self):
+#         maxAA = np.linspace(0.001, 2, 100)
+#         accelSpeed = np.linspace(0, 0, 1)
+#
+#         def mapper(index, params):
+#             print '%d ' % index
+#             craft = self.Craft(*params[index])
+#             if craft.optimize():
+#                 pack = craft.pack()
+#                 return pack
+#             return None
+#         work = np.array(np.meshgrid(maxAA, accelSpeed)).T.reshape(-1, 2)
+#         print 'Checking %d craft configurations...' % work.shape[0]
+#         results = parallelize_work(self.abort_event, True, 1, mapper, range(0, work.shape[0]), work)
+#         if results:
+#             with open('ATC-stats.csv', 'wb') as out:
+#                 writer = csv.writer(out)
+#                 writer.writerow(('maxAA', 'accelSpeed', 'AV_P', 'AV_I', 'AV_D', 'AT_P', 'AT_I', 'AT_D'))
+#                 writer.writerows((r for r in results if r is not None))
+#         return 0
 
-class Main(MPMain):
-    class Craft(object):
-        lever = 4
-        maxThrust = 120
-
-        def __init__(self, maxAA, accelSpeed):
-            at_pid = PID2(0, 0, 0, -np.pi, np.pi)
-            av_pid = PID(0, 0, 0, -1, 1)
-            engine = Engine(self.maxThrust, accelSpeed, accelSpeed*2)
-            self.atc = ATC(engine, self.lever, self.maxThrust*self.lever/maxAA*2, at_pid, av_pid, 0)
-
-        def optimize(self):
-            if not self.atc.optimize_av_PID(0.5, 0.06, 20, 10, (0.1, 10), (0, 0.2), (0, 10)): return False
-            if not self.atc.optimize_at_PID(5, ATC.tenth_deg, 20, 10, (0.1, 10), (0, 0.2), (0, 10)): return False
-            return True
-
-        def pack(self):
-            return ([self.atc.MaxAA, self.atc.engineF.acceleration]+
-                    self.atc.avPID.pack() + self.atc.atPID.pack())
-
-    def _main(self):
-        maxAA = np.linspace(0.001, 2, 100)
-        accelSpeed = np.linspace(0, 0, 1)
-
-        def mapper(index, params):
-            print '%d ' % index
-            craft = self.Craft(*params[index])
-            if craft.optimize():
-                pack = craft.pack()
-                return pack
-            return None
-        work = np.array(np.meshgrid(maxAA, accelSpeed)).T.reshape(-1, 2)
-        print 'Checking %d craft configurations...' % work.shape[0]
-        results = parallelize_work(self.abort_event, True, 1, mapper, range(0, work.shape[0]), work)
-        if results:
-            with open('ATC-stats.csv', 'wb') as out:
-                writer = csv.writer(out)
-                writer.writerow(('maxAA', 'accelSpeed', 'AV_P', 'AV_I', 'AV_D', 'AT_P', 'AT_I', 'AT_D'))
-                writer.writerows((r for r in results if r is not None))
-        return 0
-
+gamedir = u'/media/user/Lir\'s/allis/AT_KSP_Plugins/KSP-test/'
 gamedir = u'/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
 game = u'KSP_test_1.3'
 gamedata = u'GameData'
@@ -389,8 +390,8 @@ if __name__ == '__main__':
         #
         # ATC.analyze_results(heavy.simulate_constant_angular_velocity(1, 60))
         # ATC.analyze_results(heavy.simulate_static_attitude(15, 60))
-    elif stage == 1:
-        Main(run=True)
+    # elif stage == 1:
+    #     Main(run=True)
     elif stage == 2:
         df = pd.read_csv('ATC-stats.csv')
         params = df.ix[:,0:2]
@@ -455,7 +456,6 @@ if __name__ == '__main__':
             atP_HighAA_Max = 4
             atD_HighAA_Scale = 1.0
             atD_HighAA_Curve = 0.4
-            atD_Min = 0
 
             atI_Scale = 1
             atI_AV_Scale = 10
@@ -470,6 +470,18 @@ if __name__ == '__main__':
             avI_Scale = 0.4
 
         def tune_steering_fast(cfg, atc, iErrf, imaxAA, AM):
+            """
+            :param cfg: Configuration object
+            :type cfg: FastConfig
+            :param atc: Attitude Controll model
+            :type atc: ATC
+            :param iErrf: inverse error factor
+            :type iErrf: float
+            :param imaxAA: inverse maxAA
+            :type imaxAA: float
+            :param AM: angular momentum
+            :type AM: float
+            """
             # compute coefficients of attitude PID
             atP_iErrf = clampL(iErrf - cfg.atP_ErrThreshold, 0) ** cfg.atP_ErrCurve
             if atc.MaxAA >= 1:
@@ -487,7 +499,7 @@ if __name__ == '__main__':
                          cfg.avP_MaxAA_Inclination * atc.MaxAA ** cfg.avP_MaxAA_Curve,
                          cfg.avP_Min)
             # tune PIDS and compute steering
-            tune_pids_set_steering(FastConfig, atc, iErrf, atP, atD, avP, 0)
+            tune_pids_set_steering(cfg, atc, iErrf, atP, atD, avP, 0)
 
         # Valid for InstantRatios >= 0.3
         class MixedConfig3plus(object):
@@ -504,7 +516,6 @@ if __name__ == '__main__':
             atP_HighAA_Max = 4
             atD_HighAA_Scale = 1.0
             atD_HighAA_Curve = 0.4
-            atD_Min = 0
 
             atI_Scale = 1
             atI_AV_Scale = 10
@@ -549,10 +560,6 @@ if __name__ == '__main__':
                 # tune PIDS and compute steering
                 tune_pids_set_steering(MixedConfig, atc, iErrf, atP, atD, avP, avD)
 
-        wheels_ratio = 0.001
-        AAs = 0.3, 0.7, 0.9, 1.5, 3, 9
-        angles = 85, 25, 3
-
         #### Analysis of avP/avD coefficients for mixed torque system ####
         #
         # avP_curve = [(0.01, 4.2, 500),
@@ -582,48 +589,40 @@ if __name__ == '__main__':
         ###################################################################
 
         class SlowConfig(object):
-            atP_Scale = 8
-            atP_Min = 1
-            atP_Max = 5
-
-            atP_ErrThreshold = 0.8
-            atP_ErrScale = 0.1
-
-            atD_Curve = 3
-            atD_Scale = 1
-            atD_Min = 0
-
             atI_Scale = 0.0
             atI_AV_Scale = 10
             atI_ErrThreshold = 0.8
             atI_ErrCurve = 2
 
-            avP_Scale = 16
-            avP_Max = 10
+            avP_HighAA_Scale = 5
+            avD_HighAA_Intersect = 10
+            avD_HighAA_Inclination = 2
+            avD_HighAA_Max = 2
+
+            avP_LowAA_Scale = 8
+            avD_LowAA_Intersect = 25
+            avD_LowAA_Inclination = 10
 
             avI_Scale = 0.0
-
-            avD_Min = 2
-            avD_MaxAA_Inclination = 0.6
-            avD_MaxAA_Intersect = 6
 
             SlowTorqueF = 0.2
 
         def tune_steering_slow(atc, iErrf, imaxAA, AM):
-            # compute coefficients of attitude PID
-            atP = clamp(SlowConfig.atP_Scale * imaxAA
-                        * (1 + clampL(iErrf - SlowConfig.atP_ErrThreshold, 0) * SlowConfig.atP_ErrScale*atc.MaxAA),
-                        SlowConfig.atP_Min, SlowConfig.atP_Max)
-            atD = clampL(atP - ((atc.MaxAA - 1) * SlowConfig.atD_Scale)**SlowConfig.atD_Curve, SlowConfig.atD_Min)
-            atD *= clampH(iErrf + (1 - clampH(atc.MaxAA, 1)) + abs(AM), 1)
-            # compute coefficients of angular velocity PID
+            atP = 1
+            atD = 0
             slowF = (1 + SlowConfig.SlowTorqueF / max(atc.engineF.acceleration, atc.engineF.deceleration))
-            avD = clampL((SlowConfig.avD_MaxAA_Intersect * slowF
-                          - atc.MaxAA * SlowConfig.avD_MaxAA_Inclination),
-                         SlowConfig.avD_Min)
-            avP = clamp(atc.MaxAA * SlowConfig.avP_Scale, 1, SlowConfig.avP_Max)
+            if atc.MaxAA >= 1:
+                avP = SlowConfig.avP_HighAA_Scale/slowF
+                avD = clampL(SlowConfig.avD_HighAA_Intersect - SlowConfig.avD_HighAA_Inclination * atc.MaxAA, SlowConfig.avD_HighAA_Max)
+            else:
+                avP = SlowConfig.avP_LowAA_Scale/slowF
+                avD = SlowConfig.avD_LowAA_Intersect - SlowConfig.avD_LowAA_Inclination * atc.MaxAA
             # tune PIDS and compute steering
             tune_pids_set_steering(SlowConfig, atc, iErrf, atP, atD, avP, avD)
+
+        wheels_ratio = 0.4
+        AAs = 0.3, 0.7, 0.9, 1.5, 3, 9
+        angles = 85, 25, 3
 
         def tune_pids_set_steering(cfg, atc, iErrf, atP, atD, avP, avD):
             atI_iErrf = clampL(iErrf - cfg.atI_ErrThreshold, 0)
@@ -659,8 +658,8 @@ if __name__ == '__main__':
                 tune_steering_mixed(atc, iErrf, imaxAA, AM)
             else:
                 tune_steering_slow(atc, iErrf, imaxAA, AM)
-            # print ('atc.MaxAA %f, err %f, av %f, iErr %f\natPID %s\navPID %s' %
-            #        (atc.MaxAA, atc.error / np.pi * 180, atc.AV / np.pi * 180, iErrf, atc.atPID, atc.avPID))
+            print ('atc.MaxAA %f, err %f, av %f, iErr %f\natPID %s\navPID %s' %
+                   (atc.MaxAA, atc.error / np.pi * 180, atc.AV / np.pi * 180, iErrf, atc.atPID, atc.avPID))
 
         lever = 4
 
@@ -691,8 +690,8 @@ if __name__ == '__main__':
         wheesly = Engine.from_file(datafile('Squad/Parts/Engine/jetEngines/jetEngineBasic.cfg'))
         LV_T30 = Engine.from_file(datafile('Squad/Parts/Engine/liquidEngineLV-T30/liquidEngineLV-T30.cfg'))
 
-        # wheesly.acceleration /= 2
-        # wheesly.deceleration /= 2
+        wheesly.acceleration /= 2
+        wheesly.deceleration /= 2
         # simAngle(wheesly, (0.2, 1, 2, 9, 19), 0.7, 0.01, 45, 15, 3)
         simAngle(wheesly, AAs, 0.7, wheels_ratio, *angles)
         # simAngle(wheesly, (0.5, 0.7, 0.9), 0.7, 0.02, 45, 15, 3)
