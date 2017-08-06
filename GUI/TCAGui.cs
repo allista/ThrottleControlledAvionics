@@ -205,12 +205,6 @@ namespace ThrottleControlledAvionics
 
 		void DrawStatusMessage()
 		{
-			#if DEBUG
-//			DebugInfo();
-//			EnginesInfo();
-            if(!string.IsNullOrEmpty(DebugMessage))
-                GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.ExpandWidth(true));
-			#endif
 			if(!string.IsNullOrEmpty(StatusMessage))
 			{ 
 				if(GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
@@ -258,62 +252,6 @@ namespace ThrottleControlledAvionics
 			GUILayout.Label(state, style, GUILayout.ExpandWidth(false));
 		}
 		#endregion
-
-		#if DEBUG
-		public static string DebugMessage;
-
-		static Vector2 eInfoScroll;
-		void EnginesInfo()
-		{
-			GUILayout.BeginVertical();
-			GUILayout.BeginHorizontal();
-			GUILayout.Label(string.Format("Steering: {0}", VSL.Controls.Steering), GUILayout.ExpandWidth(false));
-			GUILayout.Label(string.Format("Angular Accel Error: {0:F3}rad/s2", TCA.ENG.TorqueError), GUILayout.ExpandWidth(false));
-			GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", VSL.OnPlanetParams.VSF), GUILayout.ExpandWidth(false));
-			GUILayout.EndHorizontal();
-			eInfoScroll = GUILayout.BeginScrollView(eInfoScroll, GUILayout.Height(ControlsHeight*2));
-			GUILayout.BeginVertical();
-			foreach(var e in VSL.Engines.Active)
-			{
-				if(!e.Valid(VSL)) continue;
-				GUILayout.BeginHorizontal();
-				GUILayout.Label(e.name + "\n" +
-				                string.Format(
-					                "Torque: {0}\n" +
-					                "Attitude Modifier: {1:P1}\n" +
-					                "Thrust Limit:      {2:F1}%",
-					                e.currentTorque,
-					                e.limit, e.thrustLimit*100));
-				GUILayout.EndHorizontal();
-			}
-			GUILayout.EndVertical();
-			GUILayout.EndScrollView();
-			GUILayout.EndVertical();
-		}
-
-		void DebugInfo()
-		{
-			GUILayout.BeginHorizontal();
-			GUILayout.Label(string.Format("vV: {0:0.0}m/s", VSL.VerticalSpeed.Absolute), GUILayout.Width(100));
-			GUILayout.Label(string.Format("A: {0:0.0}m/s2", VSL.VerticalSpeed.Derivative), GUILayout.Width(80));
-			GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.orbit.ApA), GUILayout.Width(120));
-			GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed.Absolute), GUILayout.Width(100));
-			GUILayout.Label(string.Format("Rho: {0:0.000}ASL", VSL.Body.atmosphere? VSL.vessel.atmDensity/VSL.Body.atmDensityASL : 0), GUILayout.Width(100));
-			GUILayout.Label(string.Format("aV2: {0:0.0E0}", VSL.vessel.angularVelocity.sqrMagnitude), GUILayout.Width(100));
-			GUILayout.Label(string.Format("inc: {0:0.000}", VSL.orbit.inclination), GUILayout.Width(100));
-			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			GUILayout.Label(string.Format("VSP: {0:0.0m/s}", CFG.VerticalCutoff), GUILayout.Width(100));
-			GUILayout.Label(string.Format("TWR: {0:0.0}", VSL.OnPlanetParams.DTWR), GUILayout.Width(80));
-			if(VSL.Altitude.Ahead.Equals(float.MinValue)) GUILayout.Label("Obst: N/A", GUILayout.Width(120));
-			else GUILayout.Label(string.Format("Obst: {0:0.0}m", VSL.Altitude.Ahead), GUILayout.Width(120));
-			GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)), GUILayout.Width(100));
-			GUILayout.Label(string.Format("dP: {0:0.000}kPa", VSL.vessel.dynamicPressurekPa), GUILayout.Width(100));
-			GUILayout.Label(string.Format("Thr: {0:P1}", VSL.vessel.ctrlState.mainThrottle), GUILayout.Width(100));
-			GUILayout.Label(string.Format("ecc: {0:0.000}", VSL.orbit.eccentricity), GUILayout.Width(100));
-			GUILayout.EndHorizontal();
-		}
-		#endif
 
 		void DrawMainWindow(int windowID)
 		{
@@ -450,5 +388,80 @@ namespace ThrottleControlledAvionics
 				}
 			}
 		}
-	}
+
+
+        #if DEBUG
+        public static string DebugMessage;
+        DebugMessageWindow debug_window;
+
+        static Vector2 eInfoScroll;
+        void EnginesInfo()
+        {
+            GUILayout.BeginVertical();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(string.Format("Steering: {0}", VSL.Controls.Steering), GUILayout.ExpandWidth(false));
+            GUILayout.Label(string.Format("Angular Accel Error: {0:F3}rad/s2", TCA.ENG.TorqueError), GUILayout.ExpandWidth(false));
+            GUILayout.Label(string.Format("Vertical Speed Factor: {0:P1}", VSL.OnPlanetParams.VSF), GUILayout.ExpandWidth(false));
+            GUILayout.EndHorizontal();
+            eInfoScroll = GUILayout.BeginScrollView(eInfoScroll, GUILayout.Height(ControlsHeight*2));
+            GUILayout.BeginVertical();
+            foreach(var e in VSL.Engines.Active)
+            {
+                if(!e.Valid(VSL)) continue;
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(e.name + "\n" +
+                                string.Format(
+                                    "Torque: {0}\n" +
+                                    "Attitude Modifier: {1:P1}\n" +
+                                    "Thrust Limit:      {2:F1}%",
+                                    e.currentTorque,
+                                    e.limit, e.thrustLimit*100));
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndVertical();
+            GUILayout.EndScrollView();
+            GUILayout.EndVertical();
+        }
+
+        void DebugInfo()
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(string.Format("vV: {0:0.0}m/s", VSL.VerticalSpeed.Absolute), GUILayout.Width(100));
+            GUILayout.Label(string.Format("A: {0:0.0}m/s2", VSL.VerticalSpeed.Derivative), GUILayout.Width(80));
+            GUILayout.Label(string.Format("ApA: {0:0.0}m", VSL.orbit.ApA), GUILayout.Width(120));
+            GUILayout.Label(string.Format("hV: {0:0.0}m/s", VSL.HorizontalSpeed.Absolute), GUILayout.Width(100));
+            GUILayout.Label(string.Format("Rho: {0:0.000}ASL", VSL.Body.atmosphere? VSL.vessel.atmDensity/VSL.Body.atmDensityASL : 0), GUILayout.Width(100));
+            GUILayout.Label(string.Format("aV2: {0:0.0E0}", VSL.vessel.angularVelocity.sqrMagnitude), GUILayout.Width(100));
+            GUILayout.Label(string.Format("inc: {0:0.000}", VSL.orbit.inclination), GUILayout.Width(100));
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(string.Format("VSP: {0:0.0m/s}", CFG.VerticalCutoff), GUILayout.Width(100));
+            GUILayout.Label(string.Format("TWR: {0:0.0}", VSL.OnPlanetParams.DTWR), GUILayout.Width(80));
+            if(VSL.Altitude.Ahead.Equals(float.MinValue)) GUILayout.Label("Obst: N/A", GUILayout.Width(120));
+            else GUILayout.Label(string.Format("Obst: {0:0.0}m", VSL.Altitude.Ahead), GUILayout.Width(120));
+            GUILayout.Label(string.Format("Orb: {0:0.0}m/s", Math.Sqrt(VSL.Physics.StG*VSL.Physics.Radial.magnitude)), GUILayout.Width(100));
+            GUILayout.Label(string.Format("dP: {0:0.000}kPa", VSL.vessel.dynamicPressurekPa), GUILayout.Width(100));
+            GUILayout.Label(string.Format("Thr: {0:P1}", VSL.vessel.ctrlState.mainThrottle), GUILayout.Width(100));
+            GUILayout.Label(string.Format("ecc: {0:0.000}", VSL.orbit.eccentricity), GUILayout.Width(100));
+            GUILayout.EndHorizontal();
+        }
+
+        class DebugMessageWindow : ControlWindow
+        {
+            public DebugMessageWindow()
+            {
+                width = 600;
+                height = 800;
+            }
+
+            protected override void DrawContent()
+            {
+    //          DebugInfo();
+    //          EnginesInfo();
+                if(!string.IsNullOrEmpty(DebugMessage))
+                    GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.Width(width));
+            }
+        }
+        #endif
+    }
 }
