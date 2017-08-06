@@ -126,98 +126,98 @@ ATCB
 
 	FastConfig
 	{
-        atP_ErrThreshold = 0.7
-        atP_ErrCurve = 0.5
-
-        atP_LowAA_Scale = 1.2
-        atP_LowAA_Curve = 0.8
-        atD_LowAA_Scale = 1
-        atD_LowAA_Curve = 0.5
-
-        atP_HighAA_Scale = 0.2
-        atP_HighAA_Curve = 0.3
-        atP_HighAA_Max = 4
-        atD_HighAA_Scale = 1.0
-        atD_HighAA_Curve = 0.4
-        atD_Min = 0
-
-        atI_Scale = 1
-        atI_AV_Scale = 10
-        atI_ErrThreshold = 0.8
-        atI_ErrCurve = 2
-
-        avP_MaxAA_Intersect = 5
-        avP_MaxAA_Inclination = 0.4
-        avP_MaxAA_Curve = 0.8
-        avP_Min = 0.2
-
-        avI_Scale = 0.4
+		atP_ErrThreshold = 0.7
+		atP_ErrCurve = 0.5
+		
+		atP_LowAA_Scale = 1.2
+		atP_LowAA_Curve = 0.8
+		atD_LowAA_Scale = 1
+		atD_LowAA_Curve = 0.5
+		
+		atP_HighAA_Scale = 0.2
+		atP_HighAA_Curve = 0.3
+		atP_HighAA_Max = 4
+		atD_HighAA_Scale = 1.0
+		atD_HighAA_Curve = 0.4
+		
+		atI_Scale = 1
+		atI_AV_Scale = 10
+		atI_ErrThreshold = 0.8
+		atI_ErrCurve = 2
+		
+		avP_MaxAA_Intersect = 5
+		avP_MaxAA_Inclination = 0.4
+		avP_MaxAA_Curve = 0.8
+		avP_Min = 0.2
+		
+		avI_Scale = 0.4
 	}
 	
 	MixedConfig
 	{
-        atP_Scale = 10
-        atP_Min = 1
-        atP_Max = 5
-
-        atP_ErrThreshold = 0.7
-        atP_ErrScale = 10
-        atP_LowAA_Inclination = 200
-
-        atD_Curve = 1
-        atD_Scale = 1
-        atD_Min = 0
-
-        atI_Scale = 1
-        atI_AV_Scale = 10
-        atI_ErrThreshold = 0.8
-        atI_ErrCurve = 2
-
-        avP_MaxAA_Intersect = 9
-        avP_MaxAA_Inclination = 0.7
-        avP_MaxAA_Curve = 0.8
-        avP_Min = 0.2
-
-        avI_Scale = 0.4
+		atP_ErrThreshold = 0.8
+		atP_ErrCurve = 0.5
+		
+		atP_LowAA_Scale = 0.2
+		atP_LowAA_Curve = 1.2
+		atD_LowAA_Scale = 1.2
+		atD_LowAA_Curve = 0.6
+		
+		atP_HighAA_Scale = 0.2
+		atP_HighAA_Curve = 0.3
+		atP_HighAA_Max = 4
+		atD_HighAA_Scale = 1.0
+		atD_HighAA_Curve = 0.4
+		
+		atI_Scale = 1
+		atI_AV_Scale = 10
+		atI_ErrThreshold = 0.8
+		atI_ErrCurve = 2
+		
+		avP_MaxAA_Intersect = 5
+		avP_MaxAA_Inclination = 0.4
+		avP_MaxAA_Curve = 0.8
+		avP_Min = 0.2
+		
+		avI_Scale = 0.4
+		
+		avP_A = 100
+		avP_B = 0.04
+		avP_C = -100
+		avP_D = 0.7
+		
+		avD_A = 0.65
+		avD_B = -0.01
+		avD_C = 0.5
+		avD_D = 0.7
 	}
 	
 	SlowConfig
 	{
-        atP_Scale = 8
-        atP_Min = 1
-        atP_Max = 5
-
-        atP_ErrThreshold = 0.8
-        atP_ErrScale = 0.1
-
-        atD_Curve = 1
-        atD_Scale = 3
-        atD_Min = 0
-
-        atI_Scale = 1
-        atI_AV_Scale = 10
-        atI_ErrThreshold = 0.8
-        atI_ErrCurve = 2
-
-        avP_Scale = 16
-        avP_Max = 10
-
-        avI_Scale = 0.1
-
-        avD_Min = 2
-        avD_MaxAA_Inclination = 0.6
-        avD_MaxAA_Intersect = 6
-
-        SlowTorqueF = 0.2
+		avP_HighAA_Scale = 5
+		avD_HighAA_Intersect = 10
+		avD_HighAA_Inclination = 2
+		avD_HighAA_Max = 2
+		
+		avP_LowAA_Scale = 8
+		avD_LowAA_Intersect = 25
+		avD_LowAA_Inclination = 10
+		
+		avI_Scale = 0.0
+		
+		SlowTorqueF = 0.2
 	}
 	
-    atPID_Clamp = 31.41592653589793
-    avPID_Clamp = 1000
+	atPID_Clamp = 31.41592653589793
+	avPID_Clamp = 1000
 	AxisCorrection = 3
-    SlowThreshold = 0.01 //% of the AA is instant
-
-    //old PID config
-    PID
+	
+	FastThreshold = 0.7   //% of the AA is instant
+	MixedThreshold = 0.3  //% of the AA is instant
+	SlowThreshold = 0.005 //% of the AA is instant
+	
+	//old PID config
+	PID
 	{
 		P = 5, 5, 5
 		I = 0.04, 0.04, 0.04
