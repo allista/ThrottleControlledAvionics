@@ -132,7 +132,7 @@ class ATC(object):
         self.engineF.update()
         self.engineR.update()
         self.AA = (self.engineF.torque - self.engineR.torque + self.wheels*self.avPID.action) / self.MoI
-        self.AV += self.AA * dt
+        self.AV += self.AA * dt + (np.random.rand()-1)*1e-5
 
     def update(self):
         if self.on_update is not None:
@@ -554,11 +554,15 @@ if __name__ == '__main__':
                 atP = 1#*clampL(atc.EnginesMaxAA**0.5, 1)
                 atD = 0
                 avP = ((MixedConfig.avP_A / (atc.InstantRatio ** MixedConfig.avP_D + MixedConfig.avP_B) +
-                        MixedConfig.avP_C) / (1 + abs(AM)) / atc.MaxAA)
+                       MixedConfig.avP_C) / clampL(abs(AM), 1) / atc.MaxAA)
                 avD = ((MixedConfig.avD_A / (atc.InstantRatio ** MixedConfig.avD_D + MixedConfig.avD_B) +
                         MixedConfig.avD_C) / atc.MaxAA)
                 # tune PIDS and compute steering
                 tune_pids_set_steering(MixedConfig, atc, iErrf, atP, atD, avP, avD)
+
+        wheels_ratio = 0.02
+        AAs = 0.3, 0.7, 0.9, 1.9, 3, 9
+        angles = 85, 25, 3
 
         #### Analysis of avP/avD coefficients for mixed torque system ####
         #
@@ -620,10 +624,6 @@ if __name__ == '__main__':
             # tune PIDS and compute steering
             tune_pids_set_steering(SlowConfig, atc, iErrf, atP, atD, avP, avD)
 
-        wheels_ratio = 0.4
-        AAs = 0.3, 0.7, 0.9, 1.5, 3, 9
-        angles = 85, 25, 3
-
         def tune_pids_set_steering(cfg, atc, iErrf, atP, atD, avP, avD):
             atI_iErrf = clampL(iErrf - cfg.atI_ErrThreshold, 0)
             overshot = atc.AV*atc.error < 0
@@ -658,8 +658,9 @@ if __name__ == '__main__':
                 tune_steering_mixed(atc, iErrf, imaxAA, AM)
             else:
                 tune_steering_slow(atc, iErrf, imaxAA, AM)
-            print ('atc.MaxAA %f, err %f, av %f, iErr %f\natPID %s\navPID %s' %
-                   (atc.MaxAA, atc.error / np.pi * 180, atc.AV / np.pi * 180, iErrf, atc.atPID, atc.avPID))
+            print ('atc.MaxAA %f, err %f, av %f, am %f, iErr %f\natPID %s\navPID %s' %
+                   (atc.MaxAA, atc.error / np.pi * 180, atc.AV / np.pi * 180, AM, iErrf, atc.atPID,
+                    atc.avPID))
 
         lever = 4
 

@@ -216,29 +216,6 @@ ATCB
 	MixedThreshold = 0.3  //% of the AA is instant
 	SlowThreshold = 0.005 //% of the AA is instant
 	
-	//old PID config
-	PID
-	{
-		P = 5, 5, 5
-		I = 0.04, 0.04, 0.04
-		D = 5, 5, 5
-	}
-	
-	MinAAf = 0.5
-	MaxAAf = 2.5
-	MaxAA = 2
-	MaxPD = 0.9
-	
-	InertiaFactor = 10
-	AngularMf = 0.001
-	MoIFactor = 0.01
-	MinEf = 1E-04
-	MaxEf = 2
-	AALowPassF = 1
-    
-   	SlowTorqueF = 0.06
-	MaxSlowF = 3
-	
 	//obsolete oscillation detector config
 	OD_low                 = 5   //Hz
 	OD_high                = 45  //Hz; note that frequency that are multiples of the physics framerate will produce high values in the spectrum given constant signal!!!

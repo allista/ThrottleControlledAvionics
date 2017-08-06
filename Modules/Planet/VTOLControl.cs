@@ -79,13 +79,13 @@ namespace ThrottleControlledAvionics
                     needed_thrust = Quaternion.AngleAxis(-Mathf.Abs(s.pitch)/pitch_roll*s.pitch*angle, VSL.refT.right) * needed_thrust;
 				if(!s.roll.Equals(0)) 
                     needed_thrust = Quaternion.AngleAxis(-Mathf.Abs(s.roll)/pitch_roll*s.roll*angle, VSL.Engines.refT_forward_axis) * needed_thrust;
-                compute_steering(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL));
+                compute_rotation(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL));
 				if(!s.yaw.Equals(0))
                 {
                     rotation_axis = (rotation_axis*VSL.Controls.AttitudeError/angle-VSL.LocalDir(needed_thrust.normalized*s.yaw*Mathf.PI/3)).normalized;
                     VSL.Controls.SetAttitudeError(Mathf.Min(VSL.Controls.AttitudeError+Math.Abs(s.yaw)*30, 180));
                 }
-				tune_steering3();
+				compute_steering();
 				VSL.Controls.AddSteering(steering);
 				VSL.HasUserInput = false;
 				VSL.AutopilotDisabled = true;
@@ -93,8 +93,8 @@ namespace ThrottleControlledAvionics
 			}
 			else if(!(VSL.LandedOrSplashed || CFG.AT))
 			{ 
-                compute_steering(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL)); 
-				tune_steering3();
+                compute_rotation(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL)); 
+				compute_steering();
 				VSL.Controls.AddSteering(steering);
 			}
 		}
