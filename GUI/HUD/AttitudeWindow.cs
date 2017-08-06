@@ -67,7 +67,6 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginVertical();
                 #if DEBUG
                 ATC.DrawDebugLines();
-                Utils.ButtonSwitch("Old PID", ref AttitudeControlBase.UseOldPID, "Use old PID system", GUILayout.ExpandWidth(false));
                 Utils.ButtonSwitch("Mouse", ref ATC.FollowMouse, "Follow mouse", GUILayout.ExpandWidth(false));
                 Utils.ButtonSwitch("Gimball", ref AttitudeControlBase.UseGimball, "Use gimball", GUILayout.ExpandWidth(false));
                 #endif
@@ -136,9 +135,9 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		AttitudeControl ATC;
+        #pragma warning disable 169
+        AttitudeControl ATC;
 
-		#pragma warning disable 169
 		[SubwindowSpec(AnchorPosition.BottomRight, -0.1f, -1, xRelative = true, yRelative = true)]
 		Cues cues;
 
