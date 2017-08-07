@@ -265,3 +265,39 @@ class PID2(PID):
         #         print '%f %+f %+f' % (self.P*err, self.ierror, d)
         return self.action
 
+
+class Filter(object):
+    def __init__(self, ratio):
+        self.ratio = ratio
+        self._ratio = 1-ratio
+        self.cur = 0
+
+    def Gauss(self, next, poles=2):
+        for _i in range(poles):
+            self.cur = self._ratio * self.cur + self.ratio * next
+        return self.cur
+
+    def EWA(self, new):
+        self.cur = self._ratio * self.cur + self.ratio * new
+        return self.cur
+
+    def EWA2(self, new):
+        if new < self.cur:
+            ratio = clamp01(1 - self.ratio)
+        else:
+            ratio = self.ratio
+        self.cur = (1 - ratio) * self.cur + ratio * new
+        return self.cur
+
+    def Equilibrium(self, new):
+        if new*self.cur < 0:
+            return self.EWA(new)
+        else:
+            self.cur = new
+            return self.cur
+
+def vFilter(v, flt, **kwargs):
+    f = [v[0]]
+    for val in v[:-1]:
+        f.append(flt(f[-1], val, **kwargs))
+    return np.fromiter(f, float)
