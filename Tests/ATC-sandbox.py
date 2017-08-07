@@ -9,7 +9,7 @@ from sklearn.decomposition import PCA
 from scipy.optimize import curve_fit
 import pandas as pd
 
-from common import clampL, clampH, clamp, lerp, PID, PID2, plt_show_maxed, color_grad
+from common import clampL, clampH, clamp, lerp, PID, PID2, plt_show_maxed, color_grad, Filter
 
 from KSPUtils import Part, SearchTerm
 # from BioUtils.Tools.Multiprocessing import MPMain, parallelize_work
@@ -509,6 +509,7 @@ if __name__ == '__main__':
                                  cfg.avP_Min)
             atc.avPID.I = cfg.avI_Scale * atc.avPID.P
             atc.avPID.D = 0
+            update_pids(cfg, atc, iErrf)
 
         # Valid for InstantRatios >= 0.3
         class MixedConfig3plus(object):
@@ -559,11 +560,14 @@ if __name__ == '__main__':
                 atc.atPID.I = 0
                 atc.atPID.D = 0
                 atc.avPID.P = ((MixedConfig.avP_A / (atc.InstantRatio ** MixedConfig.avP_D + MixedConfig.avP_B) +
-                               MixedConfig.avP_C) / clampL(abs(AM), 1) / atc.MaxAA)
+                               MixedConfig.avP_C) / clampL(abs(AM), 1) / atc.MaxAA) \
+                              * clamp(abs(50*atc.error)**0.5, 0.1, 1)
                 atc.avPID.D = ((MixedConfig.avD_A / (atc.InstantRatio ** MixedConfig.avD_D + MixedConfig.avD_B) +
-                               MixedConfig.avD_C) / atc.MaxAA)
+                               MixedConfig.avD_C) / atc.MaxAA) \
+                              * clampH(abs(40*atc.error)**6, 1)
                 # tune PIDS and compute steering
                 atc.avPID.I = MixedConfig.avI_Scale*clampH(atc.MaxAA, 1)
+                update_pids(MixedConfig, atc, iErrf)
 
         wheels_ratio = 0.05
         AAs = 0.3, 0.7, 0.9, 1.9, 3, 9
@@ -579,6 +583,8 @@ if __name__ == '__main__':
             avD_LowAA_Intersect = 25
             avD_LowAA_Inclination = 10
 
+            avI_Scale = 0.005
+
             SlowTorqueF = 0.2
 
         def tune_steering_slow(atc, iErrf, imaxAA, AM):
@@ -586,16 +592,20 @@ if __name__ == '__main__':
             atc.atPID.I = 0
             atc.atPID.D = 0
             slowF = (1 + SlowConfig.SlowTorqueF / max(atc.engineF.acceleration, atc.engineF.deceleration))
+            avP_filter = clamp((abs(300 * atc.AV)) ** 0.5, 1.1 - iErrf ** 4, 1)
+            avD_filter = clamp((abs(200 * atc.AV)) ** 0.5, 1.1 - iErrf ** 4, 1)
             if atc.MaxAA >= 1:
-                atc.avPID.P = SlowConfig.avP_HighAA_Scale/slowF
+                atc.avPID.P = SlowConfig.avP_HighAA_Scale/slowF * avP_filter
                 atc.avPID.D = clampL(SlowConfig.avD_HighAA_Intersect - SlowConfig.avD_HighAA_Inclination * atc.MaxAA,
-                                     SlowConfig.avD_HighAA_Max)
+                                     SlowConfig.avD_HighAA_Max) * avD_filter
             else:
-                atc.avPID.P = SlowConfig.avP_LowAA_Scale/slowF
-                atc.avPID.D = SlowConfig.avD_LowAA_Intersect - SlowConfig.avD_LowAA_Inclination * atc.MaxAA
-            atc.avPID.I = 0
+                atc.avPID.P = SlowConfig.avP_LowAA_Scale/slowF * avP_filter
+                atc.avPID.D = (SlowConfig.avD_LowAA_Intersect - SlowConfig.avD_LowAA_Inclination * atc.MaxAA) \
+                                                               * avD_filter
+            atc.avPID.I = SlowConfig.avI_Scale*clampH(atc.MaxAA, 1)
+            update_pids(SlowConfig, atc, iErrf)
 
-        def update_pids(atc, iErrf):
+        def update_pids(cfg, atc, iErrf):
             atc.atPID.update2(abs(atc.error), -atc.AV)
             avErr = abs(atc.atPID.action) * np.sign(atc.error) - atc.AV
             atc.avPID.update(avErr)
@@ -615,7 +625,6 @@ if __name__ == '__main__':
                 tune_steering_mixed(atc, iErrf, imaxAA, AM)
             else:
                 tune_steering_slow(atc, iErrf, imaxAA, AM)
-            update_pids(atc, iErrf)
             print ('atc.MaxAA %f, err %f, av %f, am %f, iErr %f\natPID %s\navPID %s' %
                    (atc.MaxAA, atc.error / np.pi * 180, atc.AV / np.pi * 180, AM, iErrf, atc.atPID,
                     atc.avPID))
