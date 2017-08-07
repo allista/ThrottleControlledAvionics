@@ -392,8 +392,10 @@ namespace ThrottleControlledAvionics
 				if(CFG.Nav[Navigation.FollowTarget])
 				{
 					var prev_needed_speed = VSL.HorizontalSpeed.NeededVector.magnitude;
-					if(prev_needed_speed < 1 && !CFG.HF[HFlight.Move]) CFG.HF.OnIfNot(HFlight.Move);
-					else if(prev_needed_speed > 10 && !CFG.HF[HFlight.NoseOnCourse]) CFG.HF.OnIfNot(HFlight.NoseOnCourse);
+					if(prev_needed_speed < 1 && !CFG.HF[HFlight.Move]) 
+                        CFG.HF.OnIfNot(HFlight.Move);
+					else if(prev_needed_speed > 10 && !CFG.HF[HFlight.NoseOnCourse]) 
+                        CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 					if(tvel.sqrMagnitude > 1)
 					{
 						//set needed velocity and starboard to match that of the target
@@ -401,13 +403,14 @@ namespace ThrottleControlledAvionics
 						VSL.HorizontalSpeed.SetNeeded(tvel);
 						HSC.AddRawCorrection((tvel-VSL.HorizontalSpeed.Vector)*0.9f);
 					}
-					else VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
+					else 
+                        VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
 					vel_is_set = true;
 				}
 				else
 				{
+                    CFG.HF.OnIfNot(HFlight.Stop);
 					VSL.Altitude.DontCorrectIfSlow();
-					CFG.HF.OnIfNot(HFlight.Move);
 					if(vdistance <= 0 && vdistance > -end_distance)
 					{
 						if(CFG.Nav[Navigation.FollowPath] && CFG.Path.Count > 0)
@@ -421,7 +424,7 @@ namespace ThrottleControlledAvionics
 									start_to(CFG.Path.Peek());
 									return;
 								}
-								else if(ArrivedTimer.TimePassed)
+								if(ArrivedTimer.TimePassed)
 								{ 
 									CFG.Path.Clear();
 									if(on_arrival()) return;
