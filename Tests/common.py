@@ -1,12 +1,13 @@
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
-
+from scipy.optimize import curve_fit
 
 dt = 0.02
 
 gamedir = u'/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
 game = u'KSP_test_1.3'
+
 
 def gamefile(filename): return os.path.join(gamedir, game, filename)
 
@@ -27,12 +28,12 @@ def clamp01(x):
     if x > 1: return 1.0
     elif x < 0: return 0.0
     return x
-    
+
 
 vclamp01 = np.vectorize(clamp01)
 
 
-def lerp(f, t, time): return f+(t-f)*clamp01(time)
+def lerp(f, t, time): return f + (t - f) * clamp01(time)
 
 
 def center_deg(a):
@@ -42,7 +43,17 @@ def center_deg(a):
 
 
 def asymp01(x, k=1):
-    return 1.0-1.0/(x/k+1.0);
+    return 1.0 - 1.0 / (x / k + 1.0)
+
+
+def fit_plot(xydata, model):
+    data = np.array(xydata, float)
+    xdata, ydata = data[:, 0], data[:, 1]
+    opt, cov = curve_fit(model, xdata, ydata)
+    yfit = model(xdata, *opt)
+    plt.plot(xdata, ydata, '.')
+    plt.plot(xdata, yfit, '-x')
+    return opt
 
 
 def plt_show_maxed():
@@ -64,8 +75,8 @@ def plt_show_maxed():
 
 def legend():
     plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-    
-    
+
+
 def color_grad(num, repeat=1):
     colors = [(0, 1, 0)] * repeat
     n = float(num)
@@ -137,8 +148,8 @@ class vec(object):
 
     def angle(self, other):
         """
-        :rtype float: radians
-        """
+		:rtype float: radians
+		"""
         return np.arccos(self * other / (abs(self) * abs(other)))
 
     def cube_norm(self):
@@ -217,13 +228,21 @@ class PID(object):
         self.action = 0
 
     def update(self, err):
-        if self.perror == 0: self.perror = err
-        if self.ierror*err < 0: self.ierror = 0
+        if self.perror == 0:
+            self.perror = err
+        return self.update2(err, (err - self.perror) / dt)
+
+    def update2(self, err, spd):
+        if self.perror == 0:
+            self.perror = err
+        if self.ierror * err < 0:
+            self.ierror = 0
         old_ierror = self.ierror
-        self.ierror += err*dt
-        act = self.P * err + self.I * self.ierror + self.D * (err - self.perror) / dt
+        self.ierror += err * dt
+        act = self.P * err + self.I * self.ierror + self.D * spd
         clamped = clamp(act, self.min, self.max)
-        if clamped != act: self.ierror = old_ierror
+        if clamped != act:
+            self.ierror = old_ierror
         self.perror = err
         self.action = clamped
         return self.action
@@ -231,54 +250,56 @@ class PID(object):
     def sim(self, PV, SV, T):
         V = [0.0]
         for sv in SV[1:]:
-            act = self.update(sv-V[-1])
+            act = self.update(sv - V[-1])
             if np.isinf(act) or np.isnan(act):
                 act = sys.float_info.max
-            V.append(V[-1]+act)
-        #plot
-        V = np.array(V); SV = np.array(SV)
-        plt.subplot(3,1,1)
+            V.append(V[-1] + act)
+        # plot
+        V = np.array(V);
+        SV = np.array(SV)
+        plt.subplot(3, 1, 1)
         plt.plot(T, SV)
-        plt.subplot(3,1,2)
+        plt.subplot(3, 1, 2)
         plt.plot(T, V)
-        plt.subplot(3,1,3)
-        plt.plot(T, V-SV)
+        plt.subplot(3, 1, 3)
+        plt.plot(T, V - SV)
 
     def __str__(self, *args, **kwargs):
-        return ('p % 8.5f, i % 8.5f, d % 8.5f, min % 8.5f, max % 8.5f; action = % 8.5f'
-                % (self.P, self.I, self.D, self.min, self.max, self.action))
+        return ('p % 8.5f, i % 8.5f, d % 8.5f, min % 8.5f, max % 8.5f, ierror % 8.5f; action = % 8.5f'
+                % (self.P, self.I, self.D, self.min, self.max, self.ierror, self.action))
 
 
 class PID2(PID):
     def update(self, err):
-        self.update2(err, (err - self.perror) / dt)
-        return self.action
+        if self.perror == 0:
+            self.perror = err
+        return self.update2(err, (err - self.perror) / dt)
 
     def update2(self, err, spd):
-        if self.perror == 0: self.perror = err
-        if self.ierror * err < 0: self.ierror = 0
+        if self.perror == 0:
+            self.perror = err
+        if self.ierror * err < 0:
+            self.ierror = 0
         d = self.D * spd
         self.ierror = clamp(self.ierror + self.I * err * dt if abs(d) < 0.6 * self.max else 0.9 * self.ierror,
                             self.min, self.max)
         self.perror = err
         self.action = clamp(self.P * err + self.ierror + d, self.min, self.max)
-        #         print '%f %+f %+f' % (self.P*err, self.ierror, d)
         return self.action
 
 
 class Filter(object):
     def __init__(self, ratio):
         self.ratio = ratio
-        self._ratio = 1-ratio
         self.cur = 0
 
-    def Gauss(self, next, poles=2):
+    def Gauss(self, new, poles=2):
         for _i in range(poles):
-            self.cur = self._ratio * self.cur + self.ratio * next
+            self.cur = self.cur + (new - self.cur) * self.ratio
         return self.cur
 
     def EWA(self, new):
-        self.cur = self._ratio * self.cur + self.ratio * new
+        self.cur = self.cur+(new-self.cur) * self.ratio
         return self.cur
 
     def EWA2(self, new):
@@ -286,18 +307,43 @@ class Filter(object):
             ratio = clamp01(1 - self.ratio)
         else:
             ratio = self.ratio
-        self.cur = (1 - ratio) * self.cur + ratio * new
+        self.cur = self.cur + (new - self.cur) * ratio
         return self.cur
 
     def Equilibrium(self, new):
-        if new*self.cur < 0:
+        if new * self.cur < 0:
             return self.EWA(new)
         else:
             self.cur = new
             return self.cur
+
 
 def vFilter(v, flt, **kwargs):
     f = [v[0]]
     for val in v[:-1]:
         f.append(flt(f[-1], val, **kwargs))
     return np.fromiter(f, float)
+
+
+class SimpleKalman(object):
+    def __init__(self, Q, R):
+        self.Q = Q
+        self.R = R
+        self._X = 0
+        self._P = 1
+        self._K = 1
+
+    @property
+    def value(self):
+        return self._X
+
+    def update(self, measurement):
+        # time update
+        P = self._P + self.Q
+        X = self._X
+
+        # measurement update
+        self._K = P / (P + self.R)
+        self._X = X + self._K * (measurement - X)
+        self._P = (1 - self._K) * self._P
+        return self._X
