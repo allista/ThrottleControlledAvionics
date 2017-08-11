@@ -35,6 +35,14 @@ namespace ThrottleControlledAvionics
 	{
 		public new class Config : ModuleConfig
 		{
+            public class ManualTranslationConfig : ConfigNodeObject
+            {
+                [Persistent] public PIDf_Controller PID = new PIDf_Controller(0.5f, 0, 0.5f, 0, 1);
+                [Persistent] public float ThrustF = 11.47f;
+                [Persistent] public float I_MinSpeed = 20f;
+                [Persistent] public float D_Max = 2;
+            }
+
 			[Persistent] public float TranslationUpperThreshold  = 5f;
 			[Persistent] public float TranslationLowerThreshold  = 0.2f;
 
@@ -44,13 +52,6 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float TranslationMaxAngle        = 80f;
 			[Persistent] public float RotationMaxAngle           = 15f;
 
-			[Persistent] public float ManualTranslationIMinSpeed = 20f;
-            [Persistent] public float ManualTranslationThrustF   = 11.47f;
-			[Persistent] public PIDf_Controller ManualTranslationPID = new PIDf_Controller(0.5f, 0, 0.5f, 0, 1);
-
-			public float TranslationMaxCos;
-			public float RotationMaxCos;
-
 			[Persistent] public float HVCurve = 2;
 			[Persistent] public float MinHVCurve = 0.5f;
 			[Persistent] public float SlowTorqueF = 2;
@@ -58,6 +59,11 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float LowPassF = 0.1f;
 
 			[Persistent] public float MaxCorrectionWeight = 1f;
+
+            [Persistent] public ManualTranslationConfig ManualTranslation = new ManualTranslationConfig();
+
+            public float TranslationMaxCos;
+            public float RotationMaxCos;
 
 			public override void Init() 
 			{ 
@@ -86,7 +92,7 @@ namespace ThrottleControlledAvionics
 		{ 
 			base.Init(); 
 			filter.Tau = HSC.LowPassF;
-			translation_pid.setPID(HSC.ManualTranslationPID);
+			translation_pid.setPID(HSC.ManualTranslation.PID);
 			CFG.HF.AddSingleCallback(ControlCallback);
 		}
 
@@ -251,20 +257,25 @@ namespace ThrottleControlledAvionics
 						var max_MT = VSL.Engines.ManualThrustLimits.MaxInPlane(VSL.Physics.UpL);
 						if(!max_MT.IsZero())
 						{
-							var rot = Quaternion.AngleAxis(Vector3.Angle(max_MT, Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL)),
-							                               VSL.Physics.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
+                            var axis = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL);
+                            var angle = Vector3.Angle(max_MT, axis);
+                            var rot = Quaternion.AngleAxis(angle, VSL.Physics.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
 							BRC.DirectionOverride = rot*pure_hV;
 							transF = Utils.ClampL(Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized), 0);
 						}
 					}
-                    transF *= Utils.Clamp(1+Vector3.Dot(thrust.normalized, pure_hV.normalized)*HSC.ManualTranslationThrustF, 0, 1);
+                    transF *= Utils.Clamp(1+Vector3.Dot(thrust.normalized, pure_hV.normalized)*HSC.ManualTranslation.ThrustF, 0, 1);
                     transF *= transF*transF*transF;
-					translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslationIMinSpeed && 
+					translation_pid.I = (VSL.HorizontalSpeed > HSC.ManualTranslation.I_MinSpeed && 
 					                     VSL.vessel.mainBody.atmosphere)? 
-						HSC.ManualTranslationPID.I*VSL.HorizontalSpeed : 0;
+						HSC.ManualTranslation.PID.I*VSL.HorizontalSpeed : 0;
+                    var D = VSL.Engines.ManualThrustSpeed.Project(hVl.normalized).magnitude;
+                    if(D > 0) D = Mathf.Min(HSC.ManualTranslation.PID.D/D, HSC.ManualTranslation.D_Max);
+                    translation_pid.D = D;
 					translation_pid.Update((float)fVm);
 					VSL.Controls.ManualTranslation = translation_pid.Action*hVl.CubeNorm()*transF;
-//					LogF("\nPID: {}\nManualTranslation: {}", translation_pid, VSL.Controls.ManualTranslation);
+                    Log("D {}, ManualThrustSpeed {}\ntranslation PID {}\ntranslation {}", 
+                        D, VSL.Engines.ManualThrustSpeed, translation_pid, VSL.Controls.ManualTranslation);//debug
 					EnableManualTranslation(translation_pid.Action > 0);
 				}
 				else EnableManualTranslation(false);
