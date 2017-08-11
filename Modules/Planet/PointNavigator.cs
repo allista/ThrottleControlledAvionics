@@ -409,8 +409,10 @@ namespace ThrottleControlledAvionics
 				}
 				else
 				{
-                    CFG.HF.OnIfNot(HFlight.Stop);
-					VSL.Altitude.DontCorrectIfSlow();
+                    CFG.HF.OnIfNot(HFlight.Move);
+                    VSL.Altitude.DontCorrectIfSlow();
+                    VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
+                    vel_is_set = true;
 					if(vdistance <= 0 && vdistance > -end_distance)
 					{
 						if(CFG.Nav[Navigation.FollowPath] && CFG.Path.Count > 0)
@@ -507,12 +509,11 @@ namespace ThrottleControlledAvionics
 					hdistance = Utils.ClampL(hdistance-end_distance+VSL.Geometry.D, 0);
 				//tune maximum speed and PID
 				if(CFG.MaxNavSpeed < 10) CFG.MaxNavSpeed = 10;
-				DistancePID.Min = 0;
+                DistancePID.Min = GLB.HSC.TranslationLowerThreshold+0.1f;
 				DistancePID.Max = CFG.MaxNavSpeed;
                 if(cur_vel > 0)
 				{
                     var mg2 = VSL.Physics.mg*VSL.Physics.mg;
-//                    var brake_thrust_act = Vector3.Dot(VSL.Engines.Thrust, vdir);
                     var brake_thrust = Mathf.Min(VSL.Physics.mg, VSL.Engines.MaxThrustM/2*VSL.OnPlanetParams.TWRf);
                     var max_thrust = Mathf.Min(Mathf.Sqrt(brake_thrust*brake_thrust + mg2), VSL.Engines.MaxThrustM*0.99f);
 					var manual_thrust = VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
@@ -528,14 +529,15 @@ namespace ThrottleControlledAvionics
 							if(brake_angle > 0)
 							{
                                 //count rotation of the vessel to braking position
+                                var axis = Vector3.Cross(VSL.Engines.CurrentDefThrustDir, vdir);
                                 if(VSL.Torque.Slow)
                                 {
-                                    prep_time = VSL.Torque.NoEngines.RotationTime3Phase(brake_angle, PN.RotationAccelPhase);
+                                    prep_time = VSL.Torque.NoEngines.RotationTime3Phase(brake_angle, axis, PN.RotationAccelPhase);
                                     //also count time needed for the engines to get to full thrust
                                     prep_time += Utils.LerpTime(VSL.Engines.Thrust.magnitude, VSL.Engines.MaxThrustM, max_thrust, VSL.Engines.AccelerationSpeed);
                                 }
 								else 
-                                    prep_time = VSL.Torque.MaxCurrent.RotationTime2Phase(brake_angle, VSL.OnPlanetParams.GeeVSF);
+                                    prep_time = VSL.Torque.MaxCurrent.RotationTime2Phase(brake_angle, axis, VSL.OnPlanetParams.GeeVSF);
 							}
 						}
                         var prep_dist = cur_vel*prep_time+CFG.Target.AbsRadius;
@@ -556,7 +558,7 @@ namespace ThrottleControlledAvionics
                         HSC.AddRawCorrection(CorrectionPID.Action*VSL.HorizontalSpeed.Vector.normalized);
 					}
                     if(max_speed < CFG.MaxNavSpeed)
-                        DistancePID.Max = max_speed;
+                        DistancePID.Max = Mathf.Max(DistancePID.Min, max_speed);
 				}
 				//take into account vertical distance and obstacle
 				var rel_ahead = VSL.Altitude.Ahead-VSL.Altitude.Absolute;
