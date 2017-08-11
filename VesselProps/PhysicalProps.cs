@@ -19,6 +19,7 @@ namespace ThrottleControlledAvionics
 		{
 			av_threshold = TCAScenario.HavePersistentRotation? 
 				GLB.PersistentRotationThreshold : GLB.NoPersistentRotationThreshold;
+            angular_vel_filter.Tau = 1;
 		}
 
 		public Vector3d   Radial { get; private set; }  //up unit vector in world space
@@ -43,6 +44,7 @@ namespace ThrottleControlledAvionics
 
 		Timer constant_AV_timer = new Timer();
 		State<float> angular_vel = new State<float>(0);
+        LowPassFilterV angular_vel_filter = new LowPassFilterV();
 		float av_threshold = 1e-6f;
 
 //		public void UpdateCoM() { wCoM = vessel.CoM; }
@@ -113,9 +115,9 @@ namespace ThrottleControlledAvionics
             if(MoI.IsInvalid() || MoI.IsZero()) 
                 MoI = Vector3.one;
 			//compute rotational stats
-			angular_vel.current = VSL.vessel.angularVelocity.sqrMagnitude;
+            angular_vel.current = angular_vel_filter.Update(VSL.vessel.angularVelocity).sqrMagnitude;
 			constant_AV_timer.StartIf(Mathf.Abs(angular_vel.current-angular_vel.old)/TimeWarp.fixedDeltaTime < av_threshold*100);
-			NoRotation = angular_vel.current < av_threshold;
+            NoRotation = angular_vel.current < av_threshold;
 			ConstantRotation = constant_AV_timer.TimePassed;
 		}
 
