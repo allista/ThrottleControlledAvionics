@@ -45,6 +45,7 @@ namespace ThrottleControlledAvionics
 		public Vector3  MaxDefThrust { get; private set; }
 		public Vector3  DefManualThrust { get; private set; }
 		public Vector6  ManualThrustLimits { get; private set; } = Vector6.zero;
+        public Vector6  ManualThrustSpeed { get; private set; } = Vector6.zero;
 		public float    MaxThrustM { get; private set; }
 		public float    MaxAccel { get; private set; }
 		public float    TMR { get; private set; }
@@ -551,6 +552,7 @@ namespace ThrottleControlledAvionics
 			DefThrust = Vector3.zero;
 			DefManualThrust = Vector3.zero;
 			ManualThrustLimits = Vector6.zero;
+            ManualThrustSpeed = Vector6.zero;
 			MassFlow = 0f;
 			ManualMassFlow = 0f;
 			for(int i = 0; i < NumActive; i++) 
@@ -569,10 +571,14 @@ namespace ThrottleControlledAvionics
 				{
 					DefManualThrust += e.defThrustDir*e.finalThrust;
 					ManualMassFlow += e.RealFuelFlow;
-                    ManualThrustLimits.Add(e.defThrustDirL*e.nominalFullThrust);
+                    var man_thrust = e.defThrustDirL*e.nominalFullThrust;
+                    ManualThrustLimits.Add(man_thrust);
+                    if(e.useEngineResponseTime)
+                        ManualThrustSpeed.Add(man_thrust*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
 				}
 				MassFlow += e.RealFuelFlow;
 			}
+            ManualThrustSpeed.Scale(ManualThrustLimits.Inverse());
 			update_MaxThrust();
 			update_RCS();
 			//update engines' current torque
