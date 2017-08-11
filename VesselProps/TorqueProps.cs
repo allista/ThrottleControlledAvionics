@@ -217,14 +217,26 @@ namespace ThrottleControlledAvionics
 			return aa.Equals(0) ? float.MaxValue : VSL.vessel.angularVelocity.magnitude / aa;
 		}
 
-		public float RotationTime2Phase(float angle, float throttle = 1)
-		{ return 2*Mathf.Sqrt(angle/AA_rad/throttle/Mathf.Rad2Deg); }
+        public float RotationTime2Phase(float angle, float aa, float throttle)
+        { return 2*Mathf.Sqrt(angle/aa/throttle/Mathf.Rad2Deg); }
 
-        public float RotationTime3Phase(float angle, float accel_part, float throttle = 1)
+		public float RotationTime2Phase(float angle, float throttle = 1)
+        { return RotationTime2Phase(angle, AA_rad, throttle); }
+
+        public float RotationTime2Phase(float angle, Vector3 axis, float throttle = 1)
+        { return RotationTime2Phase(angle, AngularAccelerationAroundAxis(axis), throttle); }
+
+        public float RotationTime3Phase(float angle, float aa, float accel_part, float throttle)
         {
             var ak2 = 2*accel_part*angle;
-            return (angle+ak2)/Mathf.Sqrt(ak2*AA_rad*throttle*Mathf.Rad2Deg);
+            return (angle+ak2)/Mathf.Sqrt(ak2*aa*throttle*Mathf.Rad2Deg);
         }
+
+        public float RotationTime3Phase(float angle, float accel_part, float throttle = 1)
+        { return RotationTime3Phase(angle, AA_rad, accel_part, throttle); }
+
+        public float RotationTime3Phase(float angle, Vector3 axis, float accel_part, float throttle = 1)
+        { return RotationTime3Phase(angle, AngularAccelerationAroundAxis(axis), accel_part, throttle); }
 
 
 		public void Update(Vector3 torque)
