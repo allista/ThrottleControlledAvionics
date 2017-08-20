@@ -134,8 +134,8 @@ ATCB
 		atD_LowAA_Scale = 1
 		atD_LowAA_Curve = 0.5
 		
-		atP_HighAA_Scale = 0.2
-		atP_HighAA_Curve = 0.3
+		atP_HighAA_Scale = 0.7
+		atP_HighAA_Curve = 0.1
 		atP_HighAA_Max = 4
 		atD_HighAA_Scale = 1.0
 		atD_HighAA_Curve = 0.4
@@ -225,9 +225,10 @@ ATCB
 	avPID_Clamp = 1
 	avAction_Filter = 3
 	AxisCorrection = 3
+	AALowPassF = 1
 	
 	FastThreshold = 0.7   //% of the AA is instant
-	MixedThreshold = 0.2  //% of the AA is instant
+	MixedThreshold = 0.3  //% of the AA is instant
 	SlowThreshold = 0.005 //% of the AA is instant
 	
 	//obsolete oscillation detector config
