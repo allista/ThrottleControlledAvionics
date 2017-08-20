@@ -181,15 +181,20 @@ ATCB
 		
 		avI_Scale = 0.4
 		
-		avP_A = 100
+		avP_A = 10
 		avP_B = 0.04
-		avP_C = -100
-		avP_D = 0.7
+		avP_C = -22
+		avP_D = 0.8
 		
-		avD_A = 0.65
+		avD_A = 0.6
 		avD_B = -0.01
 		avD_C = 0.5
 		avD_D = 0.7
+		avD_MaxAA_Curve = 0.8
+		
+		NoiseF_Scale = 50
+		NoiseF_Curve = 0.6
+		NoiseF_Min = 0.001
 	}
 	
 	SlowConfig
@@ -206,14 +211,23 @@ ATCB
 		avI_Scale = 0.0
 		
 		SlowTorqueF = 0.2
+		
+		NoiseF_Scale = 50
+		NoiseF_Curve = 0.6
+		NoiseF_Min = 0.001
+		
+		atP_Curve = 0
+		atP_Min = 0.1
+		atP_Max = 1.4
 	}
 	
 	atPID_Clamp = 31.41592653589793
-	avPID_Clamp = 1000
+	avPID_Clamp = 1
+	avAction_Filter = 3
 	AxisCorrection = 3
 	
 	FastThreshold = 0.7   //% of the AA is instant
-	MixedThreshold = 0.3  //% of the AA is instant
+	MixedThreshold = 0.2  //% of the AA is instant
 	SlowThreshold = 0.005 //% of the AA is instant
 	
 	//obsolete oscillation detector config
@@ -239,6 +253,16 @@ TDC
 
 HSC
 {
+	NeededThrustPID
+	{
+		P = 0.03
+		I = 0.0
+		D = 0.002
+		Tau = 0.5
+	}
+	
+	TurnTime_Curve = 1.8
+
 	TranslationUpperThreshold  = 5
 	TranslationLowerThreshold  = 0.5
 	RotationLowerThreshold     = 0.05
@@ -246,14 +270,18 @@ HSC
 	TranslationMaxAngle        = 80
 	RotationMaxAngle           = 15
 	
-	ManualTranslationIMinSpeed = 20
-	ManualTranslationThrustF   = 6
-		
-	ManualTranslationPID
+	ManualTranslation
 	{
-		P = 0.05
-		I = 0.000001
-		D = 0.0
+		ThrustF = 6
+		I_MinSpeed = 20
+		D_Max = 0.3
+		
+		PID
+		{
+			P = 0.05
+			I = 0.000001
+			D = 5
+		}
 	}
 
 	AccelerationFactor = 1
@@ -313,7 +341,6 @@ PN
 	OnPathMinDistance    = 6
 	MinTime              = 5
 	
-	DistanceFactor       = 0.5
 	AngularAccelFactor   = 3
 	DirectNavThreshold   = 1
 	GCNavStep            = 0.1
@@ -340,9 +367,9 @@ PN
 	
 	DistancePID
 	{
-		P = 0.5
+		P = 0.2
 		I = 0
-		D = 0.5
+		D = 0
 	}
 	
 	CorrectionPID
@@ -413,6 +440,7 @@ ANC
 
 TLA
 {
+	MinHSpeed = 0.1
 	MaxHSpeed = 10
 	MinVSpeed = 1
 	GearTimer = 1
