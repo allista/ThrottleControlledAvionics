@@ -1,4 +1,4 @@
-from common import lerp, dt
+from common import lerp, dt, clamp01
 from KSPUtils import Part, SearchTerm
 
 class Engine(object):
@@ -24,9 +24,7 @@ class Engine(object):
     def update(self):
         request = self.maxThrust*self.limit
         delta = request-self.thrust
-        if abs(delta) < 0.000001:
-            self.thrust = request
-        elif delta > 0:
+        if delta > 0:
             if self.acceleration > 0:
                 self.thrust = lerp(self.thrust, request, self.acceleration * dt)
             else: self.thrust = request
