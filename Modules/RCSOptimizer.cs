@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
@@ -53,7 +54,7 @@ namespace ThrottleControlledAvionics
 				cur_imbalance = Vector3.zero;
 				for(int j = 0; j < num_engines; j++) 
 				{ var e = engines[j]; cur_imbalance += e.Torque(e.limit); }
-				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);
+				angle  = zero_torque? 0f : Utils.Angle2(cur_imbalance, needed_torque);
 				target = needed_torque-cur_imbalance;
 				error  = VSL.Torque.AngularAcceleration(target).magnitude;
 				//remember the best state

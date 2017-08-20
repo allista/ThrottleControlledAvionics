@@ -316,9 +316,9 @@ namespace ThrottleControlledAvionics
                 if(UT < m.VSL.Physics.UT) UT += m.VesselOrbit.period;
                 var vPos = m.VesselOrbit.getRelativePositionAtUT(UT);
                 var vVel = m.VesselOrbit.getOrbitalVelocityAtUT(UT);
-                var incl = Math.Abs(90-Vector3.Angle(tPos, m.VesselOrbit.GetOrbitNormal()));
+                var incl = Math.Abs(90-Utils.Angle2(tPos, m.VesselOrbit.GetOrbitNormal()));
                 var ini_dV = TrajectoryCalculator.dV4Pe(m.VesselOrbit, (m.Body.Radius+m.TargetAltitude*0.9), UT);
-                ini_dV = Quaternion.AngleAxis(incl, vPos)*(ini_dV+vVel);
+                ini_dV = QuaternionD.AngleAxis(incl, vPos)*(ini_dV+vVel);
                 var dir = -ini_dV.normalized;
                 var maxV = ini_dV.magnitude;
                 ini_dV -=  vVel;

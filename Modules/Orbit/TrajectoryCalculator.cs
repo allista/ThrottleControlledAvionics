@@ -353,7 +353,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		public static double RelativeInclination(Orbit orb, Vector3d srf_pos)
-		{ return 90-Vector3d.Angle(orb.GetOrbitNormal(), srf_pos); }
+		{ return 90-Utils.Angle2(orb.GetOrbitNormal(), srf_pos); }
 
 		public static double RelativeInclinationAtResonance(Orbit orb, Vector3d srf_pos, double UT, out double ttr)
 		{

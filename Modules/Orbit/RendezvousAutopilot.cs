@@ -346,7 +346,7 @@ namespace ThrottleControlledAvionics
         {
             var tN = TargetOrbit.GetOrbitNormal();
             var startPos = BodyRotationAtdT(Body, UT-VSL.Physics.UT)*VesselOrbit.pos;
-            return Math.Abs(Vector3d.Angle(tN, startPos)-90);
+            return Math.Abs(Utils.Angle2(tN, startPos)-90);
         }
 
         double maxInclinationDelta(double startUT, double dT)
@@ -629,7 +629,7 @@ namespace ThrottleControlledAvionics
 			CSV(VSL.Physics.UT-startUT, VSL.VerticalSpeed.Absolute, Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel).magnitude, 
 			    arc, VesselOrbit.radius-Body.Radius, 
 			    VSL.Engines.Thrust.magnitude,
-			    VSL.Physics.M, 90-Vector3d.Angle(VesselOrbit.vel.xzy, VSL.Physics.Up));
+			    VSL.Physics.M, 90-Utils.Angle2(VesselOrbit.vel.xzy, VSL.Physics.Up));
 		}
 
         struct OptRes

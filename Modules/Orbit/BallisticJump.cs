@@ -249,7 +249,7 @@ namespace ThrottleControlledAvionics
                 .ClampMagnitudeH(Math.Sqrt(Body.gMagnitudeAtCenter/VesselOrbit.radius));
             if(Vector3d.Dot(vel, VesselOrbit.pos) < 0) vel = -vel;
             //correcto for low trajectories
-            var ascention_angle = 90-Vector3d.Angle(vel, VesselOrbit.pos);
+            var ascention_angle = 90-Utils.Angle2(vel, VesselOrbit.pos);
             if(ascention_angle < BJ.MinStartAngle)
                 vel = QuaternionD.AngleAxis(BJ.MinStartAngle-ascention_angle, Vector3d.Cross(vel, VesselOrbit.pos)) * vel;
             return vel;

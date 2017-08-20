@@ -277,7 +277,7 @@ namespace ThrottleControlledAvionics
                 if(CFG.AP1[Autopilot1.Maneuver]) 
                 { 
                     if(landing_trajectory.BrakeStartPoint.UT-Math.Max(MAN.NodeUT, VSL.Physics.UT)-VSL.Info.TTB -
-                           VSL.Torque.NoEngines.RotationTime2Phase(Vector3.Angle(VesselOrbit.vel, MAN.NodeDeltaV)) < CorrectionOffset)
+                       VSL.Torque.NoEngines.RotationTime2Phase((float)Utils.Angle2(VesselOrbit.vel, MAN.NodeDeltaV)) < CorrectionOffset)
                     {
                         CFG.AP1.OffIfOn(Autopilot1.Maneuver);
                         clear_nodes();
@@ -616,7 +616,7 @@ namespace ThrottleControlledAvionics
         protected bool scan_for_landing_site_when_in_range()
         {
             if(CorrectTarget && !scanned &&
-               Vector3.Angle(VSL.orbit.vel.xzy, -CFG.Target.VectorTo(VSL)) < LTRJ.ScanningAngle)
+               Utils.Angle2((Vector3)VSL.orbit.vel.xzy, -CFG.Target.VectorTo(VSL)) < LTRJ.ScanningAngle)
             {
                 VSL.Controls.StopWarp();
                 scan_for_landing_site();

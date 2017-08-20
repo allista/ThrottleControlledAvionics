@@ -194,7 +194,7 @@ namespace ThrottleControlledAvionics
             //update everything
             update_from_orbit();
             update_landing_steepness();
-            ActualLandingAngle = 90-Vector3d.Angle(AtTargetPos, -AtTargetVel);
+            ActualLandingAngle = 90-Utils.Angle2(AtTargetPos, -AtTargetVel);
             var AerobrakeStartUT = Path.Atmosphere? Path.AtmoStartUT : AtTargetUT-1;
 			//correct for brake maneuver
 			if(with_brake)
@@ -282,7 +282,7 @@ namespace ThrottleControlledAvionics
 			DeltaLon = Utils.AngleDelta(SurfacePoint.Pos.Lon, Target.Pos.Lon)*
                 Math.Sign(Utils.AngleDelta(approach.Lon, SurfacePoint.Pos.Lon));
 			//compute distance in radial coordinates
-			DeltaFi = 90-Vector3d.Angle(Orbit.GetOrbitNormal(),
+			DeltaFi = 90-Utils.Angle2(Orbit.GetOrbitNormal(),
                                         TrajectoryCalculator.BodyRotationAtdT(Body, TimeToTarget) * Target.RelOrbPos(Body));
 			DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon))*Mathf.Rad2Deg;
 //            Utils.Log("{}", this);//debug

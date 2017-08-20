@@ -118,7 +118,7 @@ namespace ThrottleControlledAvionics
 				if(!vel.IsZero())
 				{
 					var norm = VesselOrbit.GetOrbitNormal();
-					var dFi = (90-Vector3d.Angle(norm, target))*Mathf.Deg2Rad;
+					var dFi = (90-Utils.Angle2(norm, target))*Mathf.Deg2Rad;
 					vel += norm*Math.Sin(dFi)*vel.magnitude*startF
 						*Utils.Clamp(VSL.VerticalSpeed.Absolute/VSL.Physics.G-MinClimbTime, 0, 100)
 						*Utils.ClampL(Vector3d.Dot(hv, VesselOrbit.vel.normalized), 0);
