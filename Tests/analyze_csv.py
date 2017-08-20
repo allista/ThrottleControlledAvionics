@@ -26,14 +26,20 @@ def drawDF(df, x, columns, colors=None, axes=None):
         nrows = max(num_axes.values())
         ncols = len(num_axes.keys())
     X = df[x]
+    ax1 = None
     if colors is None: colors = color_grad(len(columns))
     for i, k in enumerate(columns):
         if axes is None:
             plt.plot(X, df[k], label=k, color=colors[i])
         else:
-            plt.subplot(nrows, ncols, ncols * (i % nrows) + axes[i])
-            plt.plot(X, df[k], label=k, color=colors[i])
+            ax = plt.subplot(nrows, ncols, ncols * (i % nrows) + axes[i], sharex=ax1)
+            ax.plot(X, df[k], label=k, color=colors[i])
             plt.ylabel(k)
+            if ax1 is None: ax1 = ax
+        plt.minorticks_on()
+        plt.grid(b=False, which='major', axis='x', color='b', linestyle='-')
+        plt.grid(b=False, which='minor', axis='x', color='0.15', linestyle='--')
+        plt.grid(b=False, which='major', axis='y', color='b', linestyle='-')
         #     plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.0)
     plt_show_maxed()
 
@@ -104,6 +110,7 @@ def analyzeCSV(filename, header, cols=None, x=None, axes=(), region=None):
         if 'L' in cols: cols.remove('L')
         if x in cols: cols.remove(x)
     drawDF(df, 'L' if x is None else x, cols, axes=[1] * len(cols) if axes is () else axes)
+    return df
 
 
 gamedir = u'/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
