@@ -369,7 +369,7 @@ namespace ThrottleControlledAvionics
 				else activate_cluster_by_request();
 			}
 			//unflameout engines
-			if(VSL.vessel.ctrlState.mainThrottle > 0)
+            if(VSL.PreUpdateControls.mainThrottle > 0)
 			{
 				for(int i = 0; i < num_engines; i++)
 				{ 
@@ -582,7 +582,7 @@ namespace ThrottleControlledAvionics
 			update_MaxThrust();
 			update_RCS();
 			//update engines' current torque
-			var throttle = VSL.vessel.ctrlState.mainThrottle;
+            var throttle = VSL.PreUpdateControls.mainThrottle;
 			var vsc_throttle = (VSL.OnPlanet && CFG.VSCIsActive)? throttle*VSL.OnPlanetParams.GeeVSF : throttle;
 			for(int i = 0; i < NumActive; i++) 
 			{
@@ -621,12 +621,12 @@ namespace ThrottleControlledAvionics
 					if(e.isVSC)
 					{
 						if(e.VSF.Equals(1)) e.VSF = VSL.OnPlanetParams.VSF;
-						e.UpdateCurrentTorque(e.VSF * vessel.ctrlState.mainThrottle);
+                        e.UpdateCurrentTorque(e.VSF * VSL.PostUpdateControls.mainThrottle);
 					}
 					else 
 					{
 						e.VSF = 1f;
-						e.UpdateCurrentTorque(vessel.ctrlState.mainThrottle);
+                        e.UpdateCurrentTorque(VSL.PostUpdateControls.mainThrottle);
 					}
 				}
 			}
@@ -636,7 +636,7 @@ namespace ThrottleControlledAvionics
 				{
 					var e = Active[i];
 					e.VSF = 1f;
-					e.UpdateCurrentTorque(vessel.ctrlState.mainThrottle);
+                    e.UpdateCurrentTorque(VSL.PostUpdateControls.mainThrottle);
 				}
 			}
 		}
@@ -972,7 +972,7 @@ namespace ThrottleControlledAvionics
             for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
             {
                 var c = clusters[j];
-                var time = VSL.Torque.NoEngines.RotationTime2Phase(Vector3.Angle(loc_dV, c.Dir), 1);
+                var time = VSL.Torque.NoEngines.RotationTime2Phase(Utils.Angle2(loc_dV, c.Dir), 1);
                 if(VSL.Info.Countdown > 0 && time > VSL.Info.Countdown) continue;
                 time += VSL.Engines.TTB(dVm, c.MaxThrust.magnitude, (float)c.MaxMassFlow, 1);
                 if(time < min_time)
@@ -993,7 +993,7 @@ namespace ThrottleControlledAvionics
             for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
             {
                 var c = clusters[j];
-                var score = VSL.Torque.NoEngines.RotationTime2Phase(Vector3.Angle(loc_dV, c.Dir), 1);
+                var score = VSL.Torque.NoEngines.RotationTime2Phase(Utils.Angle2(loc_dV, c.Dir), 1);
                 var thrust = c.MaxThrust.magnitude;
                 var ttb = VSL.Engines.TTB(dVm, thrust, (float)c.MaxMassFlow, 1);
                 if(VSL.Info.Countdown > 0 && score+ttb/2 > VSL.Info.Countdown) continue;

@@ -27,7 +27,6 @@ namespace ThrottleControlledAvionics
 			[Persistent] public float OnPathMinDistance    = 10;
 			[Persistent] public float MinSpeed             = 0;
 			[Persistent] public float MaxSpeed             = 500;
-			[Persistent] public float DistanceFactor       = 0.1f;
 			[Persistent] public float AngularAccelFactor   = 0.2f;
 
 			[Persistent] public float DirectNavThreshold   = 1;
@@ -199,7 +198,7 @@ namespace ThrottleControlledAvionics
 			{ 
 				if(!CFG.Target.IsVessel)
 					LND.StartFromTarget();
-				VSL.PauseWhenStopped = CFG.Target.Pause;
+                VSL.Controls.PauseWhenStopped = CFG.Target.Pause;
 				CFG.Target.Pause = false;
 				CFG.AP1.XOn(Autopilot1.Land);
 				return true; 
@@ -208,7 +207,7 @@ namespace ThrottleControlledAvionics
 			{ 
 				CFG.Target.Pause = false; 
 				CFG.HF.XOn(HFlight.Stop); 
-				VSL.PauseWhenStopped = true;
+                VSL.Controls.PauseWhenStopped = true;
 				return true;
 			}
 			return false;
@@ -322,7 +321,7 @@ namespace ThrottleControlledAvionics
 			}
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.Physics.wCoM, VSL.Physics.Up);
-			var hdistance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
+            var hdistance = Utils.ClampL(vdir.magnitude-VSL.Geometry.R, 0);
 			var bearing_threshold = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(VSL.Engines.CurrentDefThrustDir), 
 			                                    PN.BearingCutoffCos, 0.98480775f); //10deg yaw error
 			//update destination
@@ -499,7 +498,7 @@ namespace ThrottleControlledAvionics
 					{
 						next_wp.Update(VSL);
 						var next_dist = Vector3.ProjectOnPlane(next_wp.GetTransform().position-CFG.Target.GetTransform().position, VSL.Physics.Up);
-						var angle2next = Vector3.Angle(vdir, next_dist);
+						var angle2next = Utils.Angle2(vdir, next_dist);
 						var minD = Utils.ClampL(min_dist*(1-angle2next/180/VSL.Torque.MaxPitchRoll.AA_rad*PN.PitchRollAAf), CFG.Target.AbsRadius);
 						if(minD > hdistance) hdistance = minD;
 					}
@@ -525,7 +524,7 @@ namespace ThrottleControlledAvionics
 						var prep_time = 0f;
 						if(manual_thrust < 0) 
 						{
-							var brake_angle = Vector3.Angle(VSL.Engines.CurrentDefThrustDir, vdir)-45;
+							var brake_angle = Utils.Angle2(VSL.Engines.CurrentDefThrustDir, vdir)-45;
 							if(brake_angle > 0)
 							{
                                 //count rotation of the vessel to braking position
@@ -560,6 +559,7 @@ namespace ThrottleControlledAvionics
                     if(max_speed < CFG.MaxNavSpeed)
                         DistancePID.Max = Mathf.Max(DistancePID.Min, max_speed);
 				}
+                AddDebugMessage("Distance PID: {}", DistancePID);//debug
 				//take into account vertical distance and obstacle
 				var rel_ahead = VSL.Altitude.Ahead-VSL.Altitude.Absolute;
 //				Log("vdist {}, rel.ahead {}, vF {}, aF {}", vdistance, rel_ahead,
@@ -567,11 +567,11 @@ namespace ThrottleControlledAvionics
 //				    Utils.ClampL(1 - rel_ahead/RAD.DistanceAhead, 0));//debug
 				vdistance = Mathf.Max(vdistance, rel_ahead);
 				if(vdistance > 0)
-					hdistance *= (float)Utils.ClampL(1 - Mathf.Atan(vdistance/hdistance)/Utils.HalfPI, 0);
+                    hdistance *= Utils.ClampL(1 - Mathf.Atan(vdistance/hdistance)/(float)Utils.HalfPI, 0);
 				if(RAD != null && rel_ahead > 0 && RAD.DistanceAhead > 0)
-					hdistance *= (float)Utils.ClampL(1 - rel_ahead/RAD.DistanceAhead, 0);
+					hdistance *= Utils.ClampL(1 - rel_ahead/RAD.DistanceAhead, 0);
 				//update the needed velocity
-				DistancePID.Update(hdistance*PN.DistanceFactor);
+				DistancePID.Update(hdistance);
 				var nV = vdir*DistancePID.Action;
 				//correcto for Follow Target program
 				if(CFG.Nav[Navigation.FollowTarget] && Vector3d.Dot(tvel, vdir) > 0) nV += tvel;

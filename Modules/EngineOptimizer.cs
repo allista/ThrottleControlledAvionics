@@ -110,7 +110,7 @@ namespace ThrottleControlledAvionics
 				cur_imbalance = start_imbalance;
 				for(int j = 0; j < num_engines; j++) 
                 { var e = engines[j]; cur_imbalance += e.Torque(e.throttle * e.limit, useDefTorque); }
-				angle  = zero_torque? 0f : Vector3.Angle(cur_imbalance, needed_torque);
+				angle  = zero_torque? 0f : Utils.Angle2(cur_imbalance, needed_torque);
 				target = needed_torque-cur_imbalance;
 				error  = TorqueProps.AngularAcceleration(target, MoI).magnitude;
 //				Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision);//debug
@@ -247,7 +247,7 @@ namespace ThrottleControlledAvionics
 				SetState(TCAState.Unoptimized);
 			}
 			if(VSL.Engines.HaveMainEngines && 
-			   max_limit < VSL.vessel.ctrlState.mainThrottle*0.05f && 
+               max_limit < VSL.PostUpdateControls.mainThrottle*0.05f && 
 			   !engines.Any(e => e.preset_limit >= 0)) 
 				Status(0.1, "red", "Thrust is disabled because engines cannot be balanced.");
 		}
@@ -258,13 +258,13 @@ namespace ThrottleControlledAvionics
 			if(CFG.AT) CFG.SteeringModifier = Vector3.one;
 			else
 			{
-				CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.x)/100f);
-				CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.y)/100f);
-				CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.z)/100f);
+                CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.x)/100f);
+                CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.y)/100f);
+                CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.z)/100f);
 			}
 			//tune PI coefficients
-			CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.MaxCurrent.AA_rad);
-			CFG.Engines.I = CFG.Engines.P/2f;
+            CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.Engines.AA_rad);
+    		CFG.Engines.I = CFG.Engines.P/2f;
 		}
 
 		#if DEBUG

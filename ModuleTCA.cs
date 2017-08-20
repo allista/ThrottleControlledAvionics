@@ -375,6 +375,8 @@ namespace ThrottleControlledAvionics
 			VSL.Init();
 			TCAModulesDatabase.InitModules(this);
 			VSL.ConnectAutopilotOutput();//should follow module initialization
+            vessel.OnPreAutopilotUpdate += OnPreAutopilotUpdate;
+            vessel.OnPostAutopilotUpdate += OnPostAutopilotUpdate;
 			TCAGui.Reinitialize(this);
 			StartCoroutine(updateUnpackDistance());
 			Actions["onActionUpdate"].active = true;
@@ -386,6 +388,8 @@ namespace ThrottleControlledAvionics
 		{
 			if(VSL != null)
 			{
+                vessel.OnPreAutopilotUpdate -= OnPreAutopilotUpdate;
+                vessel.OnPostAutopilotUpdate -= OnPostAutopilotUpdate;
 				VSL.Reset();
 				AllModules.ForEach(m => m.Reset());
 				CFG.ClearCallbacks();
@@ -439,8 +443,9 @@ namespace ThrottleControlledAvionics
 
 		void ClearFrameState()
 		{ 
-			VSL.ClearFrameState();
-			AllModules.ForEach(m => m.ClearFrameState());
+            VSL.ClearFrameState();
+            AllModules.ForEach(m => m.ClearFrameState());
+            if(VSL.IsActiveVessel) TCAGui.ClearDebugMessage();
 		}
 
 		void Update() //works both in Editor and in flight
@@ -458,72 +463,80 @@ namespace ThrottleControlledAvionics
 			if(CFG.Enabled)
 			{
 				//update heavy to compute parameters
-//				VSL.Physics.UpdateCoM();
-//				VSL.Physics.UpdateMoI();
 				VSL.Geometry.Update();
 				var ATC = GetModule<AttitudeControl>();
 				if(ATC != null) ATC.UpdateCues();
-//				Utils.Log("{}: MoI {}, Srf {}, MaxPossibleTorque {}, M {}, MaxThrust {}\n" +
-//				           "atmDensity {}, Torq.Ang.DragRes {}, NoEng.Torq.Ang.DragRes {}, Max.Pos.Ang.DragRes {}\n",
-//				           this.Title(), VSL.Physics.MoI, VSL.Geometry.BoundsSideAreas, VSL.Torque.MaxTorquePossible,
-//				           VSL.Physics.M, VSL.Engines.MaxThrustM, VSL.Body.atmDensityASL,
-//				           VSL.Torque.MaxAngularDragResistance, VSL.Torque.NoEnginesAngularDragResistance, VSL.Torque.MaxPossibleAngularDragResistance
-//				          );//debug
 			}
             Profiler.EndSample();//debug
 		}
 
-		public void FixedUpdate() 
+        public void OnPreAutopilotUpdate(FlightCtrlState s) 
 		{
 			if(VSL == null) return;
-            Profiler.BeginSample("TCA-fixed-update");//debug
+            Profiler.BeginSample("TCA-pre-autopilot");//debug
 			//initialize systems
-			VSL.UpdateState();
+			VSL.PreUpdateState(s);
 			State = TCAState.Disabled;
-			if(!CFG.Enabled) 
+			if(CFG.Enabled) 
             {
-                Profiler.EndSample();//debug
-                return;
+    			State = TCAState.Enabled;
+    			localControlState = VesselControlState.None;
+    			if(!VSL.Info.ElectricChargeAvailible) 
+    			{
+    				if(VSL.Controls.WarpToTime > 0)
+                        VSL.Controls.AbortWarp();
+    				return;
+    			}
+    			localControlState = VesselControlState.ProbePartial;
+    			SetState(TCAState.HaveEC);
+    			ClearFrameState();
+    			//update VSL
+    			VSL.UpdatePhysics();
+    			if(VSL.Engines.Check()) SetState(TCAState.HaveActiveEngines);
+    			Actions["onActionUpdate"].actionGroup = VSL.Engines.ActionGroups;
+    			VSL.UpdateCommons();
+    			VSL.UpdateOnPlanetStats();
+    			//update modules
+    			ModulePipeline.ForEach(m => m.OnFixedUpdate());
+    			VSL.OnModulesUpdated();
             }
-			State = TCAState.Enabled;
-			localControlState = VesselControlState.None;
-			if(!VSL.Info.ElectricChargeAvailible) 
-			{
-				if(VSL.Controls.WarpToTime > 0)
-                    VSL.Controls.AbortWarp();
-				return;
-			}
-			localControlState = VesselControlState.ProbePartial;
-			SetState(TCAState.HaveEC);
-			ClearFrameState();
-			//update VSL
-			VSL.UpdatePhysics();
-			if(VSL.Engines.Check()) SetState(TCAState.HaveActiveEngines);
-			Actions["onActionUpdate"].actionGroup = VSL.Engines.ActionGroups;
-			VSL.UpdateCommons();
-			VSL.UpdateOnPlanetStats();
-			//update modules
-			ModulePipeline.ForEach(m => m.OnFixedUpdate());
-			VSL.OnModulesUpdated();
-			//handle engines
-			VSL.Engines.Tune();
-			if(VSL.Engines.NumActive > 0)
-			{
-				//:preset manual limits for translation if needed
-				if(VSL.Controls.ManualTranslationSwitch.On)
-				{
-					ENG.PresetLimitsForTranslation(VSL.Engines.Active.Manual, VSL.Controls.ManualTranslation);
-					if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.Engines.Active.Manual, VSL.Physics.UpL);
-				}
-				//:optimize limits for steering
-				ENG.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, VSL.Controls.Translation);
-				ENG.Steer();
-			}
-			RCS.Steer();
-			VSL.Engines.SetControls();
-			VSL.FinalUpdate();
             Profiler.EndSample();//debug
 		}
+
+        public void OnPostAutopilotUpdate(FlightCtrlState s)
+        {
+            if(VSL == null || !CFG.Enabled) return;
+            //handle engines
+            Profiler.BeginSample("TCA-post-autopilot");//debug
+            VSL.PostUpdateState(s);
+            VSL.Engines.Tune();
+            if(VSL.Engines.NumActive > 0)
+            {
+                //:preset manual limits for translation if needed
+                if(VSL.Controls.ManualTranslationSwitch.On)
+                {
+                    ENG.PresetLimitsForTranslation(VSL.Engines.Active.Manual, VSL.Controls.ManualTranslation);
+                    if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.Engines.Active.Manual, VSL.Physics.UpL);
+                }
+                //:optimize limits for steering
+                ENG.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, VSL.Controls.Translation);
+                ENG.Steer();
+            }
+            RCS.Steer();
+            VSL.Engines.SetControls();
+            VSL.FinalUpdate();
+            Profiler.EndSample();//debug
+        }
+
+        void FixedUpdate()
+        {
+            if(TimeWarp.CurrentRate > 1 &&
+                TimeWarp.WarpMode == TimeWarp.Modes.HIGH)
+            {
+                OnPreAutopilotUpdate(vessel.ctrlState);
+                OnPostAutopilotUpdate(vessel.ctrlState);
+            }
+        }
 	}
 }
 

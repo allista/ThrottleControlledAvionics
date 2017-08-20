@@ -8,8 +8,6 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
-using System.Linq;
-using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
@@ -30,6 +28,7 @@ namespace ThrottleControlledAvionics
 		public bool    HaveControlAuthority = true;
 		public double  WarpToTime = -1;
         public bool    NoDewarpOffset;
+        public bool    PauseWhenStopped;
 
 		public bool  Aligned = true;
 		public bool  CanWarp = true;
@@ -37,6 +36,12 @@ namespace ThrottleControlledAvionics
 		public float MinAlignmentTime { get; private set; }
 		public float AlignmentFactor { get; private set; }
 		public float InvAlignmentFactor { get; private set; }
+
+        public override void ClearFrameState()
+        {
+            AutopilotSteering = Vector3.zero;
+            GimbalLimit = 100;
+        }
 
 		public float OffsetAlignmentFactor(float offset = 1)
 		{
@@ -69,12 +74,16 @@ namespace ThrottleControlledAvionics
             CFG.WarpToNode = false;
         }
 
-		public override void Update()
+        public void Update(FlightCtrlState s)
 		{
-			Steering = new Vector3(vessel.ctrlState.pitch, vessel.ctrlState.roll, vessel.ctrlState.yaw);
-			Translation = new Vector3(vessel.ctrlState.X, vessel.ctrlState.Z, vessel.ctrlState.Y);
+			Steering = new Vector3(s.pitch, s.roll, s.yaw);
+			Translation = new Vector3(s.X, s.Z, s.Y);
 			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
+            if(VSL.IsActiveVessel)
+                TCAGui.AddDebugMessage("Steering {}\nTranslation {}", 
+                                       Utils.formatComponents(Steering), 
+                                       Utils.formatComponents(Translation));//debug
 		}
 
 		public bool RCSAvailableInDirection(Vector3 wDir)
