@@ -100,12 +100,16 @@ namespace ThrottleControlledAvionics
 		{
 			var flow = 0f;
 			var thrust = 0f;
-			Active.ForEach(e => 
-			{ 
-				float mFlow;
-				thrust += e.ThrustAtAlt(vel, alt, out mFlow); 
-				flow += mFlow; 
-			});
+            for(int i = 0; i < NumActive; i++) 
+            {
+                var e = Active[i];
+                if(e.isVSC)
+                {
+    				float mFlow;
+    				thrust += e.ThrustAtAlt(vel, alt, out mFlow); 
+    				flow += mFlow; 
+                }
+			}
 			mflow = flow;
 			return thrust;
 		}
