@@ -98,6 +98,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float avPID_Clamp = 1000;
             [Persistent] public float avAction_Filter = 3; //n * TimeWarp.FixedDeltaTime
             [Persistent] public float AxisCorrection = 2f;
+            [Persistent] public float AALowPassF = 1f;
 
             [Persistent] public float FastThreshold = 0.7f; //% of the AA is instant
             [Persistent] public float MixedThreshold = 0.3f; //% of the AA is instant
@@ -280,6 +281,7 @@ namespace ThrottleControlledAvionics
 
 		protected readonly Timer AuthorityTimer = new Timer();
 		protected readonly DifferentialF ErrorDif = new DifferentialF();
+        protected readonly LowPassFilterV MaxAA_Filter = new LowPassFilterV();
 
 		public override void Init() 
 		{ 
@@ -296,6 +298,9 @@ namespace ThrottleControlledAvionics
             pid_pitch.Reset();
             pid_roll.Reset();
             pid_yaw.Reset();
+            MaxAA_Filter.Reset();
+            MaxAA_Filter.Set(VSL.Torque.MaxCurrent.AA);
+            MaxAA_Filter.Tau = 0;
 			VSL.Controls.HaveControlAuthority = true;
 			VSL.Controls.SetAttitudeError(180);
             rotation_axis = Vector3.zero;
@@ -349,7 +354,7 @@ namespace ThrottleControlledAvionics
             VSL.Controls.SetAttitudeError(Utils.Angle2(needed, current));
             if(VSL.Controls.AttitudeError > 0.001)
             {
-                if(VSL.Controls.AttitudeError > 185)
+                if(VSL.Controls.AttitudeError > 175)
                     rotation_axis = -MaxComponentV(VSL.Torque.MaxCurrent.AA.Exclude(current.MaxI()), 0.01f);
                 else
                     rotation_axis = Vector3.Cross(current, needed);
@@ -372,9 +377,9 @@ namespace ThrottleControlledAvionics
 
         Vector3 compute_av_error(Vector3 AV, float Err)
         {
-            var avErr = AV-new Vector3(pid_pitch.atPID.Action * Mathf.Sign(rotation_axis.x),
-                                       pid_roll.atPID.Action * Mathf.Sign(rotation_axis.y),
-                                       pid_yaw.atPID.Action * Mathf.Sign(rotation_axis.z));
+            var avErr = AV-new Vector3(pid_pitch.atPID.Action * rotation_axis.x,
+                                       pid_roll.atPID.Action * rotation_axis.y,
+                                       pid_yaw.atPID.Action * rotation_axis.z);
             var axis_correction = Vector3.ProjectOnPlane(AV, rotation_axis);
             if(axis_correction.IsInvalid() || axis_correction.IsZero())
             {
@@ -401,16 +406,19 @@ namespace ThrottleControlledAvionics
             var MaxAA = VSL.Torque.Slow? 
                 VSL.Torque.Instant.AA + VSL.Torque.SlowMaxPossible.AA*Mathf.Min(VSL.PreUpdateControls.mainThrottle, VSL.OnPlanetParams.GeeVSF) :
                 VSL.Torque.MaxCurrent.AA;
+            MaxAA_Filter.Tau = (1-Mathf.Sqrt(Err))*ATCB.AALowPassF;
+            MaxAA = MaxAA_Filter.Update(MaxAA);
             var iMaxAA = MaxAA.Inverse(0);
-            AddDebugMessage("\nMoI: {}\nInstAA: {}\nSlowAA: {} * min({}, {})\nAV {}\nAM {}", 
+            AddDebugMessage("\nMoI: {}\nInstAA: {}\nSlowAA: {} * min({}, {})\nMaxAA {}\nAV {}\nAM {}", 
                             VSL.Physics.MoI, 
                             VSL.Torque.Instant.AA, 
                             VSL.Torque.SlowMaxPossible.AA, 
                             VSL.PreUpdateControls.mainThrottle, VSL.OnPlanetParams.GeeVSF,
+                            MaxAA,
                             AV, VSL.vessel.angularMomentum);//debug
             if(VSL.Torque.Slow)
             {
-                AddDebugMessage("Slow: ITR {}", VSL.Torque.Instant.AA.ScaleChain(MaxAA.Inverse(0)));
+                AddDebugMessage("ITR {}", VSL.Torque.Instant.AA.ScaleChain(MaxAA.Inverse(0)));
                 pid_pitch.Tune(AV.x, AM.x, MaxAA.x, iMaxAA.x, ErrV.x, iErr.x,
                                MaxAA.x > 0? VSL.Torque.Instant.AA.x/MaxAA.x : 1, 
                                VSL.Torque.EnginesResponseTime.x, 
@@ -426,7 +434,6 @@ namespace ThrottleControlledAvionics
             }
             else
             {
-                AddDebugMessage("Fast.");
                 pid_pitch.TuneFast(AV.x, AM.x, MaxAA.x, iMaxAA.x, iErr.x);
                 pid_roll.TuneFast(AV.y, AM.y, MaxAA.y, iMaxAA.y, iErr.y);
                 pid_yaw.TuneFast(AV.z, AM.z, MaxAA.z, iMaxAA.z, iErr.z);
@@ -438,17 +445,15 @@ namespace ThrottleControlledAvionics
             steering = new Vector3(pid_pitch.UpdateAV(avErr.x), pid_roll.UpdateAV(avErr.y), pid_yaw.UpdateAV(avErr.z));
             correct_steering();
 //            AddDebugMessage("\nPID.P: {}\n" +
-//                                   "PID.R: {}\n" +
-//                                   "PID.Y: {}\n" +
-//                                   "steering: {}",
-//                                   pid_pitch, pid_roll, pid_yaw,
-//                                   Utils.formatComponents(steering));//debug
-            CSV(-Err*rotation_axis*180, 
-                pid_pitch.atPID.Action, pid_roll.atPID.Action, pid_yaw.atPID.Action,
-                avErr*Mathf.Rad2Deg, 
-                VSL.vessel.angularVelocity*Mathf.Rad2Deg, 
-                VSL.Torque.TotalTorque.ScaleChain(VSL.Physics.MoI.Inverse(0))*Mathf.Rad2Deg,
-                steering);//debug
+//                            "PID.R: {}\n" +
+//                            "PID.Y: {}",
+//                            pid_pitch, pid_roll, pid_yaw);//debug
+//            CSV(-Err*rotation_axis*180, 
+//                pid_pitch.atPID.Action, pid_roll.atPID.Action, pid_yaw.atPID.Action,
+//                avErr*Mathf.Rad2Deg, 
+//                VSL.vessel.angularVelocity*Mathf.Rad2Deg, 
+//                VSL.Torque.TotalTorque.ScaleChain(VSL.Physics.MoI.Inverse(0))*Mathf.Rad2Deg,
+//                steering);//debug
         }
 
 		protected void set_authority_flag()
@@ -588,6 +593,10 @@ namespace ThrottleControlledAvionics
 				}
 				break;
 			}
+            #if DEBUG
+            if(FollowMouse)
+                needed_lthrust = VSL.LocalDir(FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition).direction);
+            #endif
 		}
 
 		protected void compute_rotation()
@@ -832,9 +841,9 @@ namespace ThrottleControlledAvionics
 			Utils.GLVec(VSL.refT.position, VSL.WorldDir(lthrust.normalized)*20, Color.yellow);
 			Utils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized)*20, Color.red);
             Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity*20), Color.cyan);
-            Utils.GLVec(VSL.refT.position, VSL.WorldDir(new Vector3(pid_pitch.atPID.Action * Mathf.Sign(rotation_axis.x),
-                                                                    pid_roll.atPID.Action * Mathf.Sign(rotation_axis.y),
-                                                                    pid_yaw.atPID.Action * Mathf.Sign(rotation_axis.z))*20), Color.green);
+            Utils.GLVec(VSL.refT.position, VSL.WorldDir(new Vector3(pid_pitch.atPID.Action * rotation_axis.x,
+                                                                    pid_roll.atPID.Action * rotation_axis.y,
+                                                                    pid_yaw.atPID.Action * rotation_axis.z)*20), Color.green);
 //			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
 //			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering_pid.Action*20), Color.magenta);
 
