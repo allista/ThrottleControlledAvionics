@@ -233,8 +233,6 @@ class PID(object):
         return self.update2(err, (err - self.perror) / dt)
 
     def update2(self, err, spd):
-        if self.perror == 0:
-            self.perror = err
         if self.ierror * err < 0:
             self.ierror = 0
         old_ierror = self.ierror
@@ -276,8 +274,6 @@ class PID2(PID):
         return self.update2(err, (err - self.perror) / dt)
 
     def update2(self, err, spd):
-        if self.perror == 0:
-            self.perror = err
         if self.ierror * err < 0:
             self.ierror = 0
         d = self.D * spd
@@ -288,10 +284,39 @@ class PID2(PID):
         return self.action
 
 
+class PID3(PID):
+    def __init__(self, p,i,d, min_a, max_a, filter_tau):
+        super(PID3, self).__init__(p,i,d, min_a, max_a)
+        self.filter = Filter(1)
+        self.filter.setTau(filter_tau)
+
+    def update(self, err):
+        if self.perror == 0:
+            self.perror = err
+        return self.update2(err, (err - self.perror) / dt)
+
+    def update2(self, err, spd):
+        if self.ierror * err < 0:
+            self.ierror = 0
+        old_ierror = self.ierror
+        self.ierror += err * dt
+        d = self.D * self.filter.EWA(spd)
+        act = self.P * err + self.I * self.ierror + d
+        clamped = clamp(act, self.min, self.max)
+        if clamped != act:
+            self.ierror = old_ierror
+        self.action = clamped
+        self.perror = err
+        return self.action
+
+
 class Filter(object):
     def __init__(self, ratio):
         self.ratio = ratio
         self.cur = 0
+
+    def setTau(self, tau):
+        self.ratio = dt/(tau+dt)
 
     def Gauss(self, new, poles=2):
         for _i in range(poles):
