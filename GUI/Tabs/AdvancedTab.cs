@@ -105,6 +105,9 @@ namespace ThrottleControlledAvionics
 			                   "Automatically activate next stage when previous falmeouted", GUILayout.ExpandWidth(true));
 			Utils.ButtonSwitch("AutoChute", ref CFG.AutoParachutes, 
 			                   "Automatically activate parachutes when needed", GUILayout.ExpandWidth(true));
+            if(GUILayout.Button(new GUIContent("Modules", "Show TCA modules installed on this ship"), 
+                                Styles.active_button, GUILayout.ExpandWidth(true)))
+                UI.ModulesGraph.Toggle();
 			GUILayout.EndHorizontal();
 		}
 
@@ -188,7 +191,7 @@ namespace ThrottleControlledAvionics
                               "Press BACKSPACE to remove TCA hotkey.\n" +
                               "Press ESCAPE to cancel."); 
             }
-			Utils.ButtonSwitch("Autosave", ref Globals.Instance.AutosaveBeforeLanding, 
+			Utils.ButtonSwitch("AutoSave", ref Globals.Instance.AutosaveBeforeLanding, 
 			                   "Automatically save the game before executing complex autopilot programs", 
 			                   GUILayout.ExpandWidth(true));
 			if(Utils.ButtonSwitch(Globals.Instance.UseStockAppLauncher? "Launcher" : "Toolbar", 
@@ -196,6 +199,8 @@ namespace ThrottleControlledAvionics
 			                      "Use stock AppLauncher or Toolbar plugin?",
 			                      GUILayout.ExpandWidth(true)))
 				TCAToolbarManager.Init();
+            Utils.ButtonSwitch("AutoShow", ref TCAGui.Instance.ShowOnHover, 
+                               "Show collapsed TCA window when mouse hovers over it", GUILayout.ExpandWidth(true));
 			if(GUILayout.Button(new GUIContent("Reload", "Reload TCA settings from file"), 
 			                    Styles.active_button, GUILayout.ExpandWidth(true)))
 			{
@@ -203,9 +208,6 @@ namespace ThrottleControlledAvionics
 				Styles.ConfigureButtons();
 				TCA.OnReloadGlobals();
 			}
-            if(GUILayout.Button(new GUIContent("Modules", "Show TCA modules installed on this ship"), 
-                                Styles.active_button, GUILayout.ExpandWidth(true)))
-                UI.ModulesGraph.Toggle();
 			GUILayout.EndHorizontal();
 			Toggles();
 			if(THR != null)

@@ -32,8 +32,16 @@ namespace ThrottleControlledAvionics
 		[ConfigOption] 
 		public KeyCode TCA_Key = KeyCode.Y;
 
-        public bool Collapsed { get; private set; }
+        [ConfigOption]
+        public bool Collapsed;
+
+        [ConfigOption]
         Rect collapsed_rect = new Rect();
+
+        [ConfigOption]
+        public bool ShowOnHover = true;
+
+        bool draw_main_window;
 
 		public static string StatusMessage;
 		public static DateTime StatusEndTime;
@@ -214,53 +222,65 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
-		void StatusString()
+		string StatusString()
 		{
-			var state = "Disabled";
-			var style = Styles.grey;
 			if(TCA.IsStateSet(TCAState.Enabled))
 			{
 				if(TCA.IsStateSet(TCAState.ObstacleAhead))
-				{ state = "Obstacle On Course"; style = Styles.red; }
+                    return "<color=red>Obstacle On Course</color>";
 				else if(TCA.IsStateSet(TCAState.GroundCollision))
-				{ state = "Ground Collision Possible"; style = Styles.red; }
+                    return "<color=red>Ground Collision Possible</color>";
 				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
-				{ state = "Loosing Altitude"; style = Styles.red; }
+                    return "<color=red>Loosing Altitude</color>";
 				else if(!VSL.Controls.HaveControlAuthority)
-				{ state = "Low Control Authority"; style = Styles.red; }
+                    return "<color=red>Low Control Authority</color>";
                 else if(TCA.IsStateSet(TCAState.Unoptimized))
-				{ state = "Engines Unoptimized"; style = Styles.yellow; }
+                    return "<color=yellow>Engines Unoptimized</color>";
 				else if(TCA.IsStateSet(TCAState.Ascending))
-				{ state = "Ascending"; style = Styles.yellow; }
+                    return "<color=yellow>Ascending</color>";
 				else if(TCA.IsStateSet(TCAState.VTOLAssist))
-				{ state = "VTOL Assist On"; style = Styles.yellow; }
+                    return "<color=yellow>VTOL Assist On</color>";
 				else if(TCA.IsStateSet(TCAState.StabilizeFlight))
-				{ state = "Stabilizing Flight"; style = Styles.yellow; }
+                    return "<color=yellow>Stabilizing Flight</color>";
 				else if(TCA.IsStateSet(TCAState.AltitudeControl))
-				{ state = "Altitude Control"; style = Styles.green; }
+                    return "<color=lime>Altitude Control</color>";
 				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
-				{ state = "Vertical Speed Control"; style = Styles.green; }
+                    return "<color=lime>Vertical Speed Control</color>";
 				else if(TCA.State == TCAState.Nominal)
-				{ state = "Systems Nominal"; style = Styles.green; }
+                    return "<color=lime>Systems Nominal</color>";
 				else if(TCA.State == TCAState.NoActiveEngines)
-				{ state = "No Active Engines"; style = Styles.yellow; }
+                    return "<color=yellow>No Active Engines</color>";
 				else if(TCA.State == TCAState.NoEC)
-				{ state = "No Electric Charge"; style = Styles.red; }
+                    return "<color=red>No Electric Charge</color>";
 				else //this should never happen
-				{ state = "Unknown State"; style = Styles.magenta; }
+                    return "<color=magenta>Unknown State</color>";
 			}
-			GUILayout.Label(state, style, GUILayout.ExpandWidth(false));
+            return "<color=grey>Disabled</color>";
 		}
+
+        void StatusLabel()
+        {
+            GUILayout.Label(StatusString(), Styles.boxed_label, GUILayout.ExpandWidth(false));
+        }
 		#endregion
 
+        void update_collapsed_rect()
+        {
+            if(Collapsed)
+                collapsed_rect = new Rect(WindowPos.x, WindowPos.y, 
+                                          ShowOnHover? WindowPos.width : 40, 23);
+        }
+
+        static GUIContent collapse_button = new GUIContent("▲", "Collapse Main Window");
+        static GUIContent uncollapse_button = new GUIContent("▼", "Restore Main Window");
 		void DrawMainWindow(int windowID)
 		{
 			//help button
             if(GUI.Button(new Rect(0, 0f, 20f, 18f), 
-                          new GUIContent("^", "Collapse Main Window"), Styles.label)) 
+                          Collapsed? uncollapse_button : collapse_button, Styles.label)) 
             {
-                Collapsed = true;
-                collapsed_rect = new Rect(WindowPos.x, WindowPos.y, 40, 23);
+                Collapsed = !Collapsed;
+                update_collapsed_rect();
             }
 			if(GUI.Button(new Rect(WindowPos.width - 23f, 0f, 20f, 18f), 
 			              new GUIContent("?", "Help"), Styles.label)) 
@@ -290,7 +310,7 @@ namespace ThrottleControlledAvionics
 				//squad mode switch
 				if(SQD != null) SQD.Draw();
 				GUILayout.FlexibleSpace();
-				StatusString();
+                StatusLabel();
 				GUILayout.EndHorizontal();
 				GUILayout.BeginHorizontal();
 				GUILayout.BeginVertical(Styles.white, GUILayout.MinHeight(ControlsHeight), GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(true));
@@ -317,7 +337,7 @@ namespace ThrottleControlledAvionics
 				GUILayout.BeginHorizontal();
 				VSL.Info.Draw();
                 GUILayout.FlexibleSpace();
-				StatusString();
+                StatusLabel();
 				GUILayout.EndHorizontal();
 				GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
 				DrawStatusMessage();
@@ -334,18 +354,36 @@ namespace ThrottleControlledAvionics
 		#endif
 		protected override void draw_gui()
 		{
+            //handle collapsed state
             if(Collapsed)
             {
-                UnlockControls();
-                GUI.Label(collapsed_rect, new GUIContent("TCA", "Push to show Main Window"), 
+                if(ShowOnHover)
+                {
+                    if(Event.current.type == EventType.Repaint) 
+                        draw_main_window = WindowPos.Contains(Event.current.mousePosition);
+                    if(!draw_main_window)
+                    {
+                        UnlockControls();
+                        var prefix = CFG.Enabled? 
+                            "<b><color=lime>TCA: </color></b>" : 
+                            (VSL.LandedOrSplashed? "<b>TCA: </b>" : "<b><color=red>TCA: </color></b>");
+                        GUI.Label(collapsed_rect, prefix+StatusString(), Styles.boxed_label);
+                    }
+                }
+                else
+                {
+                    UnlockControls();
+                    GUI.Label(collapsed_rect, new GUIContent("TCA", "Push to show Main Window"), 
                           CFG.Enabled? Styles.green : (VSL.LandedOrSplashed? Styles.white : Styles.red));
-                if(Input.GetMouseButton(0) && collapsed_rect.Contains(Event.current.mousePosition))
-                    Collapsed = false;
-                TooltipManager.GetTooltip();
+                    if(Input.GetMouseButton(0) && collapsed_rect.Contains(Event.current.mousePosition))
+                        Collapsed = false;
+                    TooltipManager.GetTooltip();
+                }
             }
-            else
+            else draw_main_window = true;
+            //draw main window if allowed
+            if(draw_main_window)
             {
-//    			Utils.LockIfMouseOver(LockName, WindowPos, !MapView.MapIsEnabled);
                 LockControls();
     			WindowPos = 
     				GUILayout.Window(TCA.GetInstanceID(), 
@@ -354,10 +392,13 @@ namespace ThrottleControlledAvionics
     				                 vessel.vesselName,
     				                 GUILayout.Width(ControlsWidth),
     				                 GUILayout.Height(50)).clampToScreen();
+                update_collapsed_rect();
             }
+            //draw waypoints and all subwindows
 			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());
             ModulesGraph.Draw();
+
 			#if DEBUG
 			GUI.Label(debug_rect, 
 			          string.Format("[{0}] {1:HH:mm:ss.fff}", 
@@ -391,8 +432,16 @@ namespace ThrottleControlledAvionics
 
 
         #if DEBUG
-        public static string DebugMessage;
+        static string DebugMessage;
+        #pragma warning disable 169
         DebugMessageWindow debug_window;
+        #pragma warning restore 169
+
+        public static void AddDebugMessage(string msg, params object[] args)
+        { DebugMessage += Utils.Format(msg, args)+"\n"; }
+
+        public static void ClearDebugMessage()
+        { DebugMessage = ""; }
 
         static Vector2 eInfoScroll;
         void EnginesInfo()
@@ -451,7 +500,7 @@ namespace ThrottleControlledAvionics
             public DebugMessageWindow()
             {
                 width = 600;
-                height = 800;
+                height = 25;
             }
 
             protected override void DrawContent()
