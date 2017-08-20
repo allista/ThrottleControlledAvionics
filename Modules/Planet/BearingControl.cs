@@ -94,24 +94,24 @@ namespace ThrottleControlledAvionics
 			ForwardDirection = VSL.Physics.Direction(Bearing);
 		}
 
-		protected override void OnAutopilotUpdate(FlightCtrlState s)
+		protected override void OnAutopilotUpdate()
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && IsActive && VSL.refT != null)) goto end;
 			//allow user to intervene
 			if(VSL.HasUserInput)
 			{
-				if(!s.yaw.Equals(0))
+				if(!CS.yaw.Equals(0))
 				{
-					UpdateBearing(Bearing.Value + s.yaw*BRC.YawFactor*CFG.ControlSensitivity);
+					UpdateBearing(Bearing.Value + CS.yaw*BRC.YawFactor*CFG.ControlSensitivity);
 					if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
 						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
 					draw_forward_direction = BRC.DrawForwardDirection;
-					VSL.HasUserInput = !(s.pitch.Equals(0) && s.roll.Equals(0));
+					VSL.HasUserInput = !(CS.pitch.Equals(0) && CS.roll.Equals(0));
 					VSL.AutopilotDisabled = VSL.HasUserInput;
 					DirectionLineTimer.Reset();
 					bearing_pid.Reset();
-					s.yaw = 0;
+					CS.yaw = 0;
 				}
 			}
 			if(VSL.AutopilotDisabled) goto end;
@@ -121,7 +121,7 @@ namespace ThrottleControlledAvionics
 			var axis  = VSL.Engines.refT_thrust_axis;
 			var laxis = VSL.LocalDir(axis);
 			var cDir  = VSL.OnPlanetParams.Heading;
-			var angle = Vector3.Angle(cDir, nDir) *
+			var angle = Utils.Angle2(cDir, nDir) *
                 //choose right turning direction
                 Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis)) *
                 //lower the error when the nose is up or down

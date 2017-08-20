@@ -63,6 +63,9 @@ namespace ThrottleControlledAvionics
 		protected void Log(string msg, params object[] args) { Utils.Log(LogTemplate(msg), args); }
 
 		#if DEBUG
+        protected void AddDebugMessage(string msg, params object[] args)
+        { if(VSL.IsActiveVessel) TCAGui.AddDebugMessage(msg, args); }
+
 		protected void LogFST(string msg, params object[] args) { DebugUtils.Log(LogTemplate(msg), args); }
 
 		protected void CSV(params object[] args)
@@ -184,6 +187,8 @@ namespace ThrottleControlledAvionics
 	{
 		protected AutopilotModule(ModuleTCA tca) : base(tca) {}
 
+        protected FlightCtrlState CS;
+
 		public override void Init() 
 		{ 
 			base.Init(); 
@@ -198,12 +203,13 @@ namespace ThrottleControlledAvionics
         { 
             if(CFG.Enabled)
             {
+                CS = s;
                 UpdateState(); 
-                OnAutopilotUpdate(s); 
+                OnAutopilotUpdate(); 
             }
         }
 
-		protected abstract void OnAutopilotUpdate(FlightCtrlState s);
+		protected abstract void OnAutopilotUpdate();
 	}
 
 	public abstract class TCAService : TCAModule

@@ -52,6 +52,7 @@ namespace ThrottleControlledAvionics
 			{
                 #if DEBUG
 				HSC.DrawDebugLines();
+                Utils.ButtonSwitch("OldPID", ref HSC.UseOldPid, "Use old implicit PID", GUILayout.ExpandWidth(true));
                 #endif
 				if(Utils.ButtonSwitch("Stop", CFG.HF[HFlight.Stop], 
 				                      "Kill horizontal velocity", GUILayout.ExpandWidth(true)))
@@ -158,7 +159,6 @@ namespace ThrottleControlledAvionics
 					                    Styles.active_button, GUILayout.Width(120)))
 					{
 						var t = VSL.TargetAsWP;
-						VSL.SetTarget(null, t);
 						CFG.Path.Enqueue(t);
 						CFG.ShowPath = true;
 					}
@@ -785,12 +785,17 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			if(!VSL.OnPlanet) 
+            {
+                GUILayout.BeginVertical();
 				GUILayout.Label("Controls unavailable in orbit", Styles.yellow, GUILayout.ExpandWidth(true));
+                WaypointList();
+                GUILayout.EndVertical();
+            }
 			else
 			{
 				HFlightControls();
 				NavigationControls();
-				WaypointList();
+                WaypointList();
 			}
 		}
 	}

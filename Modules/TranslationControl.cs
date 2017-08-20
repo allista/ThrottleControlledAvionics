@@ -50,7 +50,7 @@ namespace ThrottleControlledAvionics
 			Off();
 		}
 
-		protected override void OnAutopilotUpdate(FlightCtrlState s)
+		protected override void OnAutopilotUpdate()
 		{
 			if(!IsActive) return;
 			var dVm = DeltaV.magnitude;
@@ -61,7 +61,7 @@ namespace ThrottleControlledAvionics
 			}
 			else pid.Reset();
 			if(!Translation.IsZero())
-			{ s.X = Translation.x; s.Z = Translation.y; s.Y = Translation.z; }
+			{ CS.X = Translation.x; CS.Z = Translation.y; CS.Y = Translation.z; }
 			Translation = Vector3.zero;
 			DeltaV = Vector3.zero;
 		}

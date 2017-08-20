@@ -65,13 +65,21 @@ namespace ThrottleControlledAvionics
 			else e.preset_limit = Mathf.Lerp(errorF, max_lim, e.torqueRatio);
 		}
 
-		protected override void OnAutopilotUpdate(FlightCtrlState s)
+        void set_throttle(float t)
+        {
+            CS.mainThrottle = t; 
+            VSL.vessel.ctrlState.mainThrottle = CS.mainThrottle;
+            if(VSL.IsActiveVessel) 
+                FlightInputHandler.state.mainThrottle = CS.mainThrottle;
+        }
+
+		protected override void OnAutopilotUpdate()
 		{
 			if(!CFG.Enabled) return;
 			if(DeltaV >= 0)
 			{
 				throttle = DeltaV < THR.MinDeltaV? throttle = 0 :
-					NextThrottle(DeltaV, VSL.vessel.ctrlState.mainThrottle);
+					NextThrottle(DeltaV, CS.mainThrottle);
 				if(CorrectThrottle)
 				{
 					var errorF = VSL.Controls.OffsetAlignmentFactor(THR.AttitudeDeadzone);
@@ -83,13 +91,9 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			if(Throttle >= 0) 
-			{ 
-				s.mainThrottle = throttle; 
-				VSL.vessel.ctrlState.mainThrottle = throttle; 
-				if(VSL.IsActiveVessel) FlightInputHandler.state.mainThrottle = throttle;
-			}
+                set_throttle(throttle);
 			else if(CFG.BlockThrottle && VSL.OnPlanet)
-				s.mainThrottle = VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0f : 1f;
+                set_throttle(VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0 : 1);
 			reset();
 		}
 

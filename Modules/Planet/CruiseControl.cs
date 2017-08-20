@@ -106,20 +106,20 @@ namespace ThrottleControlledAvionics
 			else VSL.HorizontalSpeed.SetNeeded(BRC.ForwardDirection*CFG.MaxNavSpeed);
 		}
 
-		protected override void OnAutopilotUpdate(FlightCtrlState s)
+		protected override void OnAutopilotUpdate()
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
 			if(!(CFG.Enabled && VSL.OnPlanet && VSL.refT != null &&
 			     CFG.HF[HFlight.CruiseControl])) return;
 			if(VSL.HasUserInput) 
 			{ 
-				if(!s.pitch.Equals(0))
+				if(!CS.pitch.Equals(0))
 				{
-					CFG.MaxNavSpeed = Utils.Clamp(CFG.MaxNavSpeed-s.pitch*CC.PitchFactor, CC.MaxRevSpeed, GLB.PN.MaxSpeed);
+					CFG.MaxNavSpeed = Utils.Clamp(CFG.MaxNavSpeed-CS.pitch*CC.PitchFactor, CC.MaxRevSpeed, GLB.PN.MaxSpeed);
 					SetNeededVelocity(VSL.HorizontalSpeed.NeededVector);
-					VSL.HasUserInput = !(s.yaw.Equals(0) && s.roll.Equals(0));
+					VSL.HasUserInput = !(CS.yaw.Equals(0) && CS.roll.Equals(0));
 					VSL.AutopilotDisabled = VSL.HasUserInput;
-					s.pitch = 0;
+					CS.pitch = 0;
 				}
 			}
 			else if(!needed_velocity.Equals(CFG.MaxNavSpeed))

@@ -62,6 +62,9 @@ namespace ThrottleControlledAvionics
 
             [Persistent] public ManualTranslationConfig ManualTranslation = new ManualTranslationConfig();
 
+            [Persistent] public PIDf_Controller3 NeededThrustPID = new PIDf_Controller3(1, 0, 0, -1, 1, 1);
+            [Persistent] public float TurnTime_Curve = 1.1f;
+
             public float TranslationMaxCos;
             public float RotationMaxCos;
 
@@ -82,7 +85,8 @@ namespace ThrottleControlledAvionics
 		TranslationControl TRA;
 
 		readonly PIDf_Controller translation_pid = new PIDf_Controller();
-		readonly LowPassFilterVd filter = new LowPassFilterVd();
+        readonly PIDf_Controller3 needed_thrust_pid = new PIDf_Controller3();
+        readonly LowPassFilterVd output_filter = new LowPassFilterVd();
 		Vector3d needed_thrust_dir;
 
 		readonly List<Vector3d> CourseCorrections = new List<Vector3d>();
@@ -91,8 +95,9 @@ namespace ThrottleControlledAvionics
 		public override void Init() 
 		{ 
 			base.Init(); 
-			filter.Tau = HSC.LowPassF;
+			output_filter.Tau = HSC.LowPassF;
 			translation_pid.setPID(HSC.ManualTranslation.PID);
+            needed_thrust_pid.setPID(HSC.NeededThrustPID);
 			CFG.HF.AddSingleCallback(ControlCallback);
 		}
 
@@ -108,6 +113,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
+        public bool UseOldPid = true;
 		public void DrawDebugLines()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
@@ -131,6 +137,7 @@ namespace ThrottleControlledAvionics
 		public void ControlCallback(Multiplexer.Command cmd)
 		{
 			translation_pid.Reset();
+            needed_thrust_pid.Reset();
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
@@ -179,15 +186,20 @@ namespace ThrottleControlledAvionics
 				CFG.ActiveProfile.Update(VSL.Engines.Active);
 		}
 
-		protected override void OnAutopilotUpdate(FlightCtrlState s)
+		protected override void OnAutopilotUpdate()
 		{
 			if(!IsActive) return;
-			if(VSL.AutopilotDisabled) { filter.Reset(); return; }
+			if(VSL.AutopilotDisabled) { output_filter.Reset(); return; }
 			CFG.AT.OnIfNot(Attitude.Custom);
 			//calculate prerequisites
             var thrust = VSL.Engines.DefThrust;
 			needed_thrust_dir = -VSL.Physics.Up;
-			if(!CFG.HF[HFlight.Level])
+			if(CFG.HF[HFlight.Level])
+            {
+                thrust = VSL.Engines.CurrentDefThrustDir;
+                VSL.Controls.ManualTranslationSwitch.Set(false);
+            }
+            else 
 			{
 				//set forward direction
 				if(CFG.HF[HFlight.NoseOnCourse] && !VSL.HorizontalSpeed.NeededVector.IsZero())
@@ -216,7 +228,9 @@ namespace ThrottleControlledAvionics
 				   Vector3.Dot(manual_thrust, hV) > 0)
 				{
 					thrust -= manual_thrust;
-					rV = Vector3.ProjectOnPlane(hV, manual_thrust);
+                    var axis = VSL.HorizontalSpeed.NeededVector.IsZero()?
+                        manual_thrust : (Vector3)VSL.HorizontalSpeed.NeededVector;
+                    rV = Vector3.ProjectOnPlane(hV, axis);
 					fV = hV-rV;
 				}
 				var rVm = rV.magnitude;
@@ -226,12 +240,43 @@ namespace ThrottleControlledAvionics
 				     VSL.HorizontalSpeed.Absolute <= HSC.TranslationLowerThreshold) &&
 				   rVm > HSC.RotationLowerThreshold && Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)
 				{
-					var GeeF  = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
-					var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-					var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / VSL.OnPlanetParams.TWRf;
-//					if(rVm > HSC.TranslationLowerThreshold) upF /= Utils.Clamp(VSL.Torque.MaxPitchRoll.AA_rad, 0.1f, 1);
-					needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
+                    if(UseOldPid)
+                    {
+                        var GeeF  = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
+                        var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
+                        var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / VSL.OnPlanetParams.TWRf;
+                        needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
+                    }
+                    else
+                    {
+                        //tune pid
+                        var GeeF = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
+                        var fwdF = (float)Utils.ClampL(fVm/rVm, 1);
+                        var turnTime = VSL.Torque.MaxCurrent.RotationTime2Phase(45, 
+                                                                                Vector3.Cross(rV, VSL.Physics.Up).normalized,
+                                                                                VSL.OnPlanetParams.GeeVSF);
+                        needed_thrust_pid.setClamp(VSL.OnPlanetParams.TWRf/GeeF);
+                        needed_thrust_pid.P = HSC.NeededThrustPID.P 
+                            * (float)Utils.Clamp(2-nVm, 1, 2)
+                            / turnTime 
+                            / fwdF
+                            / GeeF;
+                        needed_thrust_pid.D = HSC.NeededThrustPID.D 
+                            * Utils.ClampH(VSL.HorizontalSpeed.Absolute, 1)
+                            * Mathf.Pow(turnTime, HSC.TurnTime_Curve) 
+                            / fwdF;
+                        //update OP and set needed thrust direction
+                        var dV = Vector3d.Dot(rV, nV) < 0? -rVm : rVm;
+                        needed_thrust_pid.Update((float)dV);
+                        needed_thrust_dir = rV/dV*needed_thrust_pid.Action - VSL.Physics.Up;
+
+                        TCAGui.AddDebugMessage("TWRf {}, TurnTime {}, fwdF {}\nNV PID: {}", 
+                                               VSL.OnPlanetParams.TWRf, turnTime, fwdF, needed_thrust_pid);//debug
+                    }
 				}
+                else
+                    TCAGui.AddDebugMessage("TWRf {}\nNV PID: {}", 
+                                           VSL.OnPlanetParams.TWRf, needed_thrust_pid);//debug
 				//try to use translation controls (maneuver engines and RCS)
 				if(hVm > HSC.TranslationLowerThreshold && TRA != null && CFG.CorrectWithTranslation)
 				{
@@ -258,7 +303,7 @@ namespace ThrottleControlledAvionics
 						if(!max_MT.IsZero())
 						{
                             var axis = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL);
-                            var angle = Vector3.Angle(max_MT, axis);
+                            var angle = Utils.Angle2(max_MT, axis);
                             var rot = Quaternion.AngleAxis(angle, VSL.Physics.Up * Mathf.Sign(Vector3.Dot(max_MT, Vector3.right)));
 							BRC.DirectionOverride = rot*pure_hV;
 							transF = Utils.ClampL(Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized), 0);
@@ -274,25 +319,18 @@ namespace ThrottleControlledAvionics
                     translation_pid.D = D;
 					translation_pid.Update((float)fVm);
 					VSL.Controls.ManualTranslation = translation_pid.Action*hVl.CubeNorm()*transF;
-                    Log("D {}, ManualThrustSpeed {}\ntranslation PID {}\ntranslation {}", 
-                        D, VSL.Engines.ManualThrustSpeed, translation_pid, VSL.Controls.ManualTranslation);//debug
 					EnableManualTranslation(translation_pid.Action > 0);
 				}
 				else EnableManualTranslation(false);
 				if(thrust.IsZero()) thrust = VSL.Engines.CurrentDefThrustDir;
 				if(CFG.HF[HFlight.Stop]) VSL.Altitude.DontCorrectIfSlow();
 			}
-			else 
-			{
-				thrust = VSL.Engines.CurrentDefThrustDir;
-				VSL.Controls.ManualTranslationSwitch.Set(false);
-			}
 			needed_thrust_dir.Normalize();
 			//tune filter
-            filter.Tau = VSL.Torque.Slow ? 
+            output_filter.Tau = VSL.Torque.Slow ? 
 				HSC.LowPassF / (1 + VSL.Torque.EnginesResponseTimeM * HSC.SlowTorqueF) : 
 				HSC.LowPassF;
-			ATC.SetCustomRotationW(thrust, filter.Update(needed_thrust_dir).normalized);
+			ATC.SetCustomRotationW(thrust, output_filter.Update(needed_thrust_dir).normalized);
 
 			#if DEBUG
 //			LogF("\nthrust {}\nneeded {}\nfilterred {}\nAttitudeError {}", 

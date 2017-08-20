@@ -66,7 +66,7 @@ namespace ThrottleControlledAvionics
                 steering = Vector3.ProjectOnPlane(steering, VSL.LocalDir(VSL.Engines.refT_thrust_axis));
 		}
 
-		protected override void OnAutopilotUpdate(FlightCtrlState s)
+		protected override void OnAutopilotUpdate()
 		{
 			if(!IsActive) return;
             needed_thrust = -VSL.Physics.Up;
@@ -74,22 +74,22 @@ namespace ThrottleControlledAvionics
 			if(VSL.HasUserInput) 
 			{ 
 				var angle = VTOL.MaxAngle*VSL.OnPlanetParams.TWRf;
-				var pitch_roll = Mathf.Abs(s.pitch)+Mathf.Abs(s.roll);
-                if(!s.pitch.Equals(0)) 
-                    needed_thrust = Quaternion.AngleAxis(-Mathf.Abs(s.pitch)/pitch_roll*s.pitch*angle, VSL.refT.right) * needed_thrust;
-				if(!s.roll.Equals(0)) 
-                    needed_thrust = Quaternion.AngleAxis(-Mathf.Abs(s.roll)/pitch_roll*s.roll*angle, VSL.Engines.refT_forward_axis) * needed_thrust;
+				var pitch_roll = Mathf.Abs(CS.pitch)+Mathf.Abs(CS.roll);
+                if(!CS.pitch.Equals(0)) 
+                    needed_thrust = Quaternion.AngleAxis(-Mathf.Abs(CS.pitch)/pitch_roll*CS.pitch*angle, VSL.refT.right) * needed_thrust;
+				if(!CS.roll.Equals(0)) 
+                    needed_thrust = Quaternion.AngleAxis(-Mathf.Abs(CS.roll)/pitch_roll*CS.roll*angle, VSL.Engines.refT_forward_axis) * needed_thrust;
                 compute_rotation(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL));
-				if(!s.yaw.Equals(0))
+				if(!CS.yaw.Equals(0))
                 {
-                    rotation_axis = (rotation_axis*VSL.Controls.AttitudeError/angle-VSL.LocalDir(needed_thrust.normalized*s.yaw*Mathf.PI/3)).normalized;
-                    VSL.Controls.SetAttitudeError(Mathf.Min(VSL.Controls.AttitudeError+Math.Abs(s.yaw)*30, 180));
+                    rotation_axis = (rotation_axis*VSL.Controls.AttitudeError/angle-VSL.LocalDir(needed_thrust.normalized*CS.yaw*Mathf.PI/3)).normalized;
+                    VSL.Controls.SetAttitudeError(Mathf.Min(VSL.Controls.AttitudeError+Math.Abs(CS.yaw)*30, 180));
                 }
 				compute_steering();
 				VSL.Controls.AddSteering(steering);
 				VSL.HasUserInput = false;
 				VSL.AutopilotDisabled = true;
-				s.yaw = s.pitch = s.roll = 0;
+				CS.yaw = CS.pitch = CS.roll = 0;
 			}
 			else if(!(VSL.LandedOrSplashed || CFG.AT))
 			{ 
