@@ -106,6 +106,7 @@ namespace ThrottleControlledAvionics
 				for(int i = 0; i < VSL.Engines.NumActiveRCS; i++)
 				{ needed_torque += VSL.Engines.ActiveRCS[i].currentTorque; }
 				needed_torque = Vector3.Project(needed_torque, VSL.Controls.Steering);
+                needed_torque = VSL.Torque.RCSLimits.Clamp(needed_torque);
 			}
 			//optimize engines; if failed, set the flag and kill torque if requested
 			if(!Optimize(VSL.Engines.ActiveRCS, needed_torque) && !needed_torque.IsZero())
