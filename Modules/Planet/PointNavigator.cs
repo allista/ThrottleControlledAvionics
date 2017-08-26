@@ -87,10 +87,12 @@ namespace ThrottleControlledAvionics
 		Timer FormationUpdateTimer = new Timer();
 		bool keep_formation;
 
+        #pragma warning disable 169
 		HorizontalSpeedControl HSC;
 		AltitudeControl ALT;
 		AutoLander LND;
 		Radar RAD;
+        #pragma warning restore 169
 
 		public override void Init()
 		{
@@ -217,7 +219,9 @@ namespace ThrottleControlledAvionics
 		{
 			Maneuvering = false;
 			Formation = null;
-			fnode = null;			
+			fnode = null;	
+            tVSL = null;
+            tPN = null;
 		}
 
 		public void UpdateFormation(List<FormationNode> formation)
@@ -229,11 +233,16 @@ namespace ThrottleControlledAvionics
 		void update_formation_info()
 		{
 			tVSL = CFG.Target.GetVessel();
-			if(tVSL == null) { reset_formation(); CanManeuver = false; return; }
-			if(tPN == null || !tPN.TCA.Valid || tPN.VSL.vessel != tVSL)
+			if(tVSL == null) 
+            { 
+                reset_formation(); 
+                CanManeuver = false; 
+                return; 
+            }
+			if(tPN == null || !tPN.Valid)
 			{
 				tTCA = ModuleTCA.EnabledTCA(tVSL);
-				if(tTCA != null) tPN = tTCA.GetModule<PointNavigator>();
+				tPN = tTCA != null? tTCA.GetModule<PointNavigator>() : null;
 			}
 			var only_count = false;
 			if(tVSL.srf_velocity.sqrMagnitude < PN.FormationSpeedSqr)
@@ -317,7 +326,8 @@ namespace ThrottleControlledAvionics
 				VSL.Altitude.LowerThreshold = (float)CFG.Target.Pos.Alt;
 				if(ALT != null && CFG.VF[VFlight.AltitudeControl] && CFG.AltitudeAboveTerrain)
 					vdistance = VSL.Altitude.LowerThreshold+CFG.DesiredAltitude-VSL.Altitude.Absolute;
-				tVSL = null; tPN = null; 
+				tVSL = null; 
+                tPN = null; 
 			}
 			//calculate direct distance
 			var vdir = Vector3.ProjectOnPlane(CFG.Target.GetTransform().position+formation_offset-VSL.Physics.wCoM, VSL.Physics.Up);
@@ -325,7 +335,7 @@ namespace ThrottleControlledAvionics
 			var bearing_threshold = Utils.Clamp(1/VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(VSL.Engines.CurrentDefThrustDir), 
 			                                    PN.BearingCutoffCos, 0.98480775f); //10deg yaw error
 			//update destination
-			if(tPN != null && !tPN.VSL.Info.Destination.IsZero()) 
+            if(tPN != null && tPN.Valid && !tPN.VSL.Info.Destination.IsZero()) 
 				VSL.Info.Destination = tPN.VSL.Info.Destination;
 			else VSL.Info.Destination = vdir;
 			//handle flying in formation
@@ -456,7 +466,11 @@ namespace ThrottleControlledAvionics
 				//if we need to make a sharp turn, stop and turn, then go on
 				var heading_dir = Vector3.Dot(VSL.OnPlanetParams.Heading, vdir);
 				var hvel_dir = Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir);
-				if(heading_dir < bearing_threshold && hvel_dir < bearing_threshold)
+				if(heading_dir < bearing_threshold && 
+                   hvel_dir < bearing_threshold)
+//                   &&
+//                   (!CFG.Nav[Navigation.FollowTarget] ||
+//                    hdistance < end_distance*Utils.ClampL(all_followers.Count/2, 2)))
 					SharpTurnTimer.Start();
 				if(SharpTurnTimer.Started)
 				{
