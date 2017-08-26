@@ -32,6 +32,8 @@ namespace ThrottleControlledAvionics
 		public void SetState(TCAState state) { VSL.State |= state; }
 		public bool IsStateSet(TCAState state) { return VSL.IsStateSet(state); }
 
+        public bool Valid { get { return TCA != null && TCA.Valid; } }
+
 		protected SquadControl SQD;
 
 		protected TCAComponent(ModuleTCA tca) { TCA = tca; }
