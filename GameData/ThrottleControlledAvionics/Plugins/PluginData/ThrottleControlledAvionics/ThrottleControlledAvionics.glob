@@ -246,6 +246,13 @@ ATC
 	RollFilter = 0.5
 }
 
+BRC
+{
+
+	YawFactor = 60
+	DrawForwardDirection = true
+}
+
 TDC
 {
 	TWRf = 3
@@ -300,31 +307,6 @@ VTOL
 	MaxAngle = 45
 }
 
-BRC
-{
-	AAf_a = 1.701136
-	AAf_b = 0.027771
-	AAf_c = 0.733734
-
-	YawFactor = 60
-	DrawForwardDirection = true
-	
-	DirectionPID
-	{
-		P = 3.14159
-		I = 0.001
-		D = 1
-		Min = -3.14159
-		Max = 3.14159
-	}
-	
-	AV_PID
-	{
-		P = 1
-		I = 0.05
-		D = 0
-	}
-}
 
 CC
 {

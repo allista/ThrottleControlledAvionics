@@ -22,19 +22,10 @@ namespace ThrottleControlledAvionics
 		{
 			[Persistent] public bool  DrawForwardDirection = true;
 			[Persistent] public float YawFactor = 60f;
-
-			[Persistent] public float AAf_a = 1f;
-			[Persistent] public float AAf_b = 0.01f;
-			[Persistent] public float AAf_c = 0.5f;
-
-			[Persistent] public PIDf_Controller DirectionPID = new PIDf_Controller(Mathf.PI, 0.001f, 1, -Mathf.PI, Mathf.PI);
-			[Persistent] public PIDf_Controller AV_PID = new PIDf_Controller(1, 0.05f, 0, -1, 1);
 		}
 		static Config BRC { get { return Globals.Instance.BRC; } }
 
 		readonly Timer DirectionLineTimer = new Timer();
-		readonly PIDf_Controller bearing_pid = new PIDf_Controller();
-        readonly PIDf_Controller bearing_av_pid = new PIDf_Controller();
 		public readonly FloatField Bearing = new FloatField("F1", min:0, max:360, circle:true);
 
 		#if DEBUG
@@ -59,17 +50,12 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			bearing_pid.setPID(BRC.DirectionPID);
-			bearing_pid.Reset();
-			bearing_av_pid.setPID(BRC.AV_PID);
-			bearing_av_pid.Reset();
 			CFG.BR.AddSingleCallback(ControlCallback);
 		}
 
 		public void ControlCallback(Multiplexer.Command cmd)
 		{
-			bearing_pid.Reset();
-			bearing_av_pid.Reset();
+            reset();
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
@@ -97,66 +83,49 @@ namespace ThrottleControlledAvionics
 		protected override void OnAutopilotUpdate()
 		{
 			//need to check all the prerequisites, because the callback is called asynchroniously
-			if(!(CFG.Enabled && IsActive && VSL.refT != null)) goto end;
-			//allow user to intervene
-			if(VSL.HasUserInput)
-			{
-				if(!CS.yaw.Equals(0))
-				{
-					UpdateBearing(Bearing.Value + CS.yaw*BRC.YawFactor*CFG.ControlSensitivity);
-					if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
-						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
-					draw_forward_direction = BRC.DrawForwardDirection;
-					VSL.HasUserInput = !(CS.pitch.Equals(0) && CS.roll.Equals(0));
-					VSL.AutopilotDisabled = VSL.HasUserInput;
-					DirectionLineTimer.Reset();
-					bearing_pid.Reset();
-					CS.yaw = 0;
-				}
-			}
-			if(VSL.AutopilotDisabled) goto end;
-			//turn ship's nose in the direction of needed velocity
-			var nDir  = DirectionOverride.IsZero()? H(ForwardDirection) : H(DirectionOverride);
-			if(nDir.IsZero()) goto end;
-			var axis  = VSL.Engines.refT_thrust_axis;
-			var laxis = VSL.LocalDir(axis);
-			var cDir  = VSL.OnPlanetParams.Heading;
-			var angle = Utils.Angle2(cDir, nDir) *
-                //choose right turning direction
-                Mathf.Sign(Vector3.Dot(Vector3.Cross(nDir, cDir), axis)) *
-                //lower the error when the nose is up or down
-                (1- Mathf.Abs(Vector3.Dot(VSL.OnPlanetParams.Fwd, VSL.Physics.Up)));
-			var maxAA = VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(laxis);
-			var AAf = BRC.AAf_a/(BRC.AAf_b+Mathf.Pow(maxAA, BRC.AAf_c));
-			bearing_pid.D = AAf;
-			bearing_pid.Update(angle/180);
-			bearing_av_pid.Update(bearing_pid.Action+Vector3.Dot(VSL.vessel.angularVelocity, laxis));
-			steering = laxis*bearing_av_pid.Action*Mathf.PI;
-			VSL.Controls.AddSteering(steering);
-//			if(VSL.IsActiveVessel)
-//				TCAGui.DebugMessage = 
-//					Utils.Format("BearingControl: {}\n"+
-//					             "angle {}deg\n" +
-//					             "action {}rad/s\n" +
-//					             "maxAA: {}\n"+
-//					             "AAf {}\n" +
-//					             "br PID: {}\n" +
-//					             "av PID: {}", 
-//					             CFG.BR.state,
-//					             angle, 
-//					             bearing_pid.Action, 
-//					             maxAA,
-//					             AAf, 
-//					             bearing_pid, av_pid);//debug
-			end: 
+			if(CFG.Enabled && IsActive && VSL.refT != null)
+            {
+    			//allow user to intervene
+    			if(VSL.HasUserInput)
+    			{
+    				if(!CS.yaw.Equals(0))
+    				{
+    					UpdateBearing(Bearing.Value + CS.yaw*BRC.YawFactor*CFG.ControlSensitivity);
+    					if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
+    						VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
+    					draw_forward_direction = BRC.DrawForwardDirection;
+    					VSL.HasUserInput = !(CS.pitch.Equals(0) && CS.roll.Equals(0));
+    					VSL.AutopilotDisabled = VSL.HasUserInput;
+    					DirectionLineTimer.Reset();
+                        reset();
+    					CS.yaw = 0;
+    				}
+    			}
+    			if(!VSL.AutopilotDisabled)
+                {
+        			//turn ship's nose in the direction of needed velocity
+        			var nDir  = DirectionOverride.IsZero()? H(ForwardDirection) : H(DirectionOverride);
+        			if(!nDir.IsZero())
+                    {
+                        var cDir = VSL.OnPlanetParams.Heading;
+                        var w_axis = VSL.Engines.refT_thrust_axis;
+                        var error_sign = Mathf.Sign(Vector3.Dot(Vector3.Cross(cDir, nDir), w_axis));
+                        rotation_axis = VSL.LocalDir(w_axis)*error_sign;
+                        angular_error = Utils.Angle2(cDir, nDir)/180;
+                        var AV = Vector3.Dot(VSL.vessel.angularVelocity, rotation_axis);
+                        var AM = AV*Vector3.Dot(VSL.Physics.MoI, rotation_axis.AbsComponents());
+                        var MaxAA = VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(rotation_axis);
+                        var iMaxAA = 1/MaxAA;
+                        pid_yaw.TuneFast(AV, AM, MaxAA, iMaxAA, 1-angular_error);
+                        pid_yaw.atPID.Update(angular_error*Mathf.PI, -AV);
+                        steering = rotation_axis*pid_yaw.UpdateAV(AV-pid_yaw.atPID.Action) * 
+                            //lower the error when the nose is up or down
+                            (1- Mathf.Abs(Vector3.Dot(VSL.OnPlanetParams.Fwd, VSL.Physics.Up)));
+                        VSL.Controls.AddSteering(steering);
+                    }
+                }
+            }
             DirectionOverride = Vector3d.zero;
-//			if(VSL.IsActiveVessel && string.IsNullOrEmpty(TCAGui.DebugMessage))
-//				TCAGui.DebugMessage = 
-//					Utils.Format("forward {}\noverribearing_av_pidnnDir {}\n" +
-//					             "AutopilotDisabled {}, IsActive {}",
-//					             ForwardDirection, DirectionOverride, 
-//					             DirectionOverride.IsZero()? H(ForwardDirection) : H(DirectionOverride),
-//					             VSL.AutopilotDisabled, IsActive);//debug
 		}
 
 		bool draw_forward_direction;
@@ -165,13 +134,13 @@ namespace ThrottleControlledAvionics
 		static Color dir_color = new Color(0, 1, 0, 0.5f);
 		public override void Draw ()
 		{
-//			#if DEBUG
+			#if DEBUG
 //			var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
 //			Utils.GLVec(VSL.refT.position, dir.normalized*2500, dir_color);
-//			Utils.GLVec(VSL.refT.position, refT_thrust_axis*5, Color.red);
+//            Utils.GLVec(VSL.refT.position, rotation_axis*5, Color.red);
 //			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Fwd*5, Color.yellow);
 //			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading*5, Color.magenta);
-//			#endif
+			#endif
 			if(CFG.BR[BearingMode.Auto] || !DirectionOverride.IsZero())
 			{
 				GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(true));
