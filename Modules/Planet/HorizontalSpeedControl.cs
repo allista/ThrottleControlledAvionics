@@ -113,7 +113,6 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
-        public bool UseOldPid = true;
 		public void DrawDebugLines()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
@@ -240,43 +239,11 @@ namespace ThrottleControlledAvionics
 				     VSL.HorizontalSpeed.Absolute <= HSC.TranslationLowerThreshold) &&
 				   rVm > HSC.RotationLowerThreshold && Utils.ClampL(rVm/fVm, 0) > HSC.RotationLowerThreshold)
 				{
-                    if(UseOldPid)
-                    {
-                        var GeeF  = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
-                        var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
-                        var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / VSL.OnPlanetParams.TWRf;
-                        needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
-                    }
-                    else
-                    {
-                        //tune pid
-                        var GeeF = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
-                        var fwdF = (float)Utils.ClampL(fVm/rVm, 1);
-                        var turnTime = VSL.Torque.MaxCurrent.RotationTime2Phase(45, 
-                                                                                Vector3.Cross(rV, VSL.Physics.Up).normalized,
-                                                                                VSL.OnPlanetParams.GeeVSF);
-                        needed_thrust_pid.setClamp(VSL.OnPlanetParams.TWRf/GeeF);
-                        needed_thrust_pid.P = HSC.NeededThrustPID.P 
-                            * (float)Utils.Clamp(2-nVm, 1, 2)
-                            / turnTime 
-                            / fwdF
-                            / GeeF;
-                        needed_thrust_pid.D = HSC.NeededThrustPID.D 
-                            * Utils.ClampH(VSL.HorizontalSpeed.Absolute, 1)
-                            * Mathf.Pow(turnTime, HSC.TurnTime_Curve) 
-                            / fwdF;
-                        //update OP and set needed thrust direction
-                        var dV = Vector3d.Dot(rV, nV) < 0? -rVm : rVm;
-                        needed_thrust_pid.Update((float)dV);
-                        needed_thrust_dir = rV/dV*needed_thrust_pid.Action - VSL.Physics.Up;
-
-                        TCAGui.AddDebugMessage("TWRf {}, TurnTime {}, fwdF {}\nNV PID: {}", 
-                                               VSL.OnPlanetParams.TWRf, turnTime, fwdF, needed_thrust_pid);//debug
-                    }
+                    var GeeF  = Mathf.Sqrt(VSL.Physics.G/Utils.G0);
+                    var MaxHv = Utils.ClampL(Vector3d.Project(VSL.vessel.acceleration, rV).magnitude*HSC.AccelerationFactor, HSC.MinHvThreshold);
+                    var upF   = Utils.ClampL(Math.Pow(MaxHv/rVm, Utils.ClampL(HSC.HVCurve*GeeF, HSC.MinHVCurve)), GeeF) * Utils.ClampL(fVm/rVm, 1) / VSL.OnPlanetParams.TWRf;
+                    needed_thrust_dir = rV.normalized - VSL.Physics.Up*upF;
 				}
-                else
-                    TCAGui.AddDebugMessage("TWRf {}\nNV PID: {}", 
-                                           VSL.OnPlanetParams.TWRf, needed_thrust_pid);//debug
 				//try to use translation controls (maneuver engines and RCS)
 				if(hVm > HSC.TranslationLowerThreshold && TRA != null && CFG.CorrectWithTranslation)
 				{

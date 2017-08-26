@@ -387,12 +387,8 @@ namespace ThrottleControlledAvionics
                                        pid_yaw.atPID.Action * rotation_axis.z);
             var axis_correction = Vector3.ProjectOnPlane(AV, rotation_axis);
             if(axis_correction.IsInvalid() || axis_correction.IsZero())
-            {
-                AddDebugMessage("Axis Correction: 0\naxis: {}\navErr: {}", axis_correction, avErr);//debug
                 return avErr;
-            }
             var ACf = axis_correction.sqrMagnitude/AV.sqrMagnitude*Utils.ClampH(Err*ATCB.AxisCorrection, 1);
-            AddDebugMessage("Axis Correction: {}\naxis: {}\navErr: {}", ACf, axis_correction, avErr);//debug
             return Vector3.Lerp(avErr, axis_correction, ACf);
         }
 
@@ -411,16 +407,8 @@ namespace ThrottleControlledAvionics
             MaxAA_Filter.Tau = (1-Mathf.Sqrt(angular_error))*ATCB.AALowPassF;
             MaxAA = MaxAA_Filter.Update(MaxAA);
             var iMaxAA = MaxAA.Inverse(0);
-            AddDebugMessage("\nMoI: {}\nInstAA: {}\nSlowAA: {} * min({}, {})\nMaxAA {}\nAV {}\nAM {}", 
-                            VSL.Physics.MoI, 
-                            VSL.Torque.Instant.AA, 
-                            VSL.Torque.SlowMaxPossible.AA, 
-                            VSL.PreUpdateControls.mainThrottle, VSL.OnPlanetParams.GeeVSF,
-                            MaxAA,
-                            AV, VSL.vessel.angularMomentum);//debug
             if(VSL.Torque.Slow)
             {
-                AddDebugMessage("ITR {}", VSL.Torque.Instant.AA.ScaleChain(MaxAA.Inverse(0)));
                 pid_pitch.Tune(AV.x, AM.x, MaxAA.x, iMaxAA.x, ErrV.x, iErr.x,
                                MaxAA.x > 0? VSL.Torque.Instant.AA.x/MaxAA.x : 1, 
                                VSL.Torque.EnginesResponseTime.x, 
@@ -446,16 +434,6 @@ namespace ThrottleControlledAvionics
             var avErr = compute_av_error(AV, angular_error);
             steering = new Vector3(pid_pitch.UpdateAV(avErr.x), pid_roll.UpdateAV(avErr.y), pid_yaw.UpdateAV(avErr.z));
             correct_steering();
-//            AddDebugMessage("\nPID.P: {}\n" +
-//                            "PID.R: {}\n" +
-//                            "PID.Y: {}",
-//                            pid_pitch, pid_roll, pid_yaw);//debug
-//            CSV(-Err*rotation_axis*180, 
-//                pid_pitch.atPID.Action, pid_roll.atPID.Action, pid_yaw.atPID.Action,
-//                avErr*Mathf.Rad2Deg, 
-//                VSL.vessel.angularVelocity*Mathf.Rad2Deg, 
-//                VSL.Torque.TotalTorque.ScaleChain(VSL.Physics.MoI.Inverse(0))*Mathf.Rad2Deg,
-//                steering);//debug
         }
 
 		protected void set_authority_flag()

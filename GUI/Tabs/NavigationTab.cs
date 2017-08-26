@@ -52,7 +52,6 @@ namespace ThrottleControlledAvionics
 			{
                 #if DEBUG
 				HSC.DrawDebugLines();
-                Utils.ButtonSwitch("OldPID", ref HSC.UseOldPid, "Use old implicit PID", GUILayout.ExpandWidth(true));
                 #endif
 				if(Utils.ButtonSwitch("Stop", CFG.HF[HFlight.Stop], 
 				                      "Kill horizontal velocity", GUILayout.ExpandWidth(true)))

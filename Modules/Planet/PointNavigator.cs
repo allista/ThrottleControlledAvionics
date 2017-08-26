@@ -573,7 +573,6 @@ namespace ThrottleControlledAvionics
                     if(max_speed < CFG.MaxNavSpeed)
                         DistancePID.Max = Mathf.Max(DistancePID.Min, max_speed);
 				}
-                AddDebugMessage("Distance PID: {}", DistancePID);//debug
 				//take into account vertical distance and obstacle
 				var rel_ahead = VSL.Altitude.Ahead-VSL.Altitude.Absolute;
 //				Log("vdist {}, rel.ahead {}, vF {}, aF {}", vdistance, rel_ahead,
