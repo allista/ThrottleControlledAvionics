@@ -119,11 +119,10 @@ namespace ThrottleControlledAvionics
 			SetState(TCAState.AltitudeControl);
 			//calculate current altitude or apoapsis, if the vessel is moving upwards
 			var alt = VSL.Altitude.Absolute;
-			var ttAp = 0f;
 			if(VSL.VerticalSpeed.Absolute > 0 && !VSL.LandedOrSplashed)
 			{
+                var ttAp = VSL.VerticalSpeed.Absolute/VSL.Physics.G;
 				if(RAD != null && RAD.TimeAhead > 0 && RAD.TimeAhead < ttAp) ttAp = RAD.TimeAhead;
-				else ttAp = VSL.VerticalSpeed.Absolute/VSL.Physics.G;
 				alt = VSL.Altitude.Absolute+ttAp*(VSL.VerticalSpeed.Absolute - ttAp*VSL.Physics.G/2);
 //				CSV(CFG.DesiredAltitude, alt-VSL.Altitude.TerrainAltitude, VSL.Altitude.Relative, RAD.AltitudeAhead-VSL.Altitude.Absolute,
 //				    VSL.VSF, -VSL.Physics.G, ttAp, RAD.TimeAhead);//debug
