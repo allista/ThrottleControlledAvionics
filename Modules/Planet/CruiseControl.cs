@@ -67,13 +67,13 @@ namespace ThrottleControlledAvionics
 				VSL.UpdateOnPlanetStats();
 				var nV = VSL.HorizontalSpeed.Absolute;
 				if(nV > GLB.PN.MaxSpeed) nV = GLB.PN.MaxSpeed;
-                if(nV > CC.MaxIdleSpeed)
-                    VSL.HorizontalSpeed.SetNeeded(VSL.HorizontalSpeed.Vector.normalized*nV);
-                else
-                    VSL.HorizontalSpeed.SetNeeded(VSL.OnPlanetParams.Fwd*nV);
-				CFG.MaxNavSpeed = needed_velocity = nV;
+                var nVdir = nV > CC.MaxIdleSpeed?
+                    (Vector3)VSL.HorizontalSpeed.Vector.normalized :
+                    VSL.OnPlanetParams.Fwd;
 				CFG.BR.OnIfNot(BearingMode.User);
-				BRC.UpdateBearing((float)VSL.Physics.Bearing(VSL.HorizontalSpeed.Vector));
+                BRC.UpdateBearing((float)VSL.Physics.Bearing(nVdir));
+                VSL.HorizontalSpeed.SetNeeded(nVdir*nV);
+                CFG.MaxNavSpeed = needed_velocity = nV;
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
