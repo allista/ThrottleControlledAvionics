@@ -18,15 +18,13 @@ namespace ThrottleControlledAvionics
 	[RequireModules(typeof(SASBlocker))]
 	[OverrideModules(typeof(BearingControl),
 	                 typeof(CruiseControl))]
-	public class VTOLControl : AttitudeControlBase
+    public class VTOLControl : GeneralAttitudeControl
 	{
 		public new class Config : ModuleConfig
 		{
 			[Persistent] public float MaxAngle = 45f;
 		}
 		static Config VTOL { get { return Globals.Instance.VTOL; } }
-
-		BearingControl BRC;
 
 		public VTOLControl(ModuleTCA tca) : base(tca) {}
 

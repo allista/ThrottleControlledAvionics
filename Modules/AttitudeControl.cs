@@ -274,6 +274,7 @@ namespace ThrottleControlledAvionics
 
 		protected Vector3 steering;
         protected Vector3 rotation_axis;
+        protected float angular_error;
 
         protected readonly PidCascade pid_pitch = new PidCascade();
         protected readonly PidCascade pid_roll = new PidCascade();
@@ -352,6 +353,7 @@ namespace ThrottleControlledAvionics
             needed.Normalize();
             current.Normalize();
             VSL.Controls.SetAttitudeError(Utils.Angle2(needed, current));
+            angular_error = VSL.Controls.AttitudeError/180;
             if(VSL.Controls.AttitudeError > 0.001)
             {
                 if(VSL.Controls.AttitudeError > 175)
@@ -375,6 +377,9 @@ namespace ThrottleControlledAvionics
 
 		protected virtual void correct_steering() {}
 
+        protected virtual Vector3 get_angular_velocity() 
+        { return VSL.vessel.angularVelocity; }
+
         Vector3 compute_av_error(Vector3 AV, float Err)
         {
             var avErr = AV-new Vector3(pid_pitch.atPID.Action * rotation_axis.x,
@@ -395,18 +400,15 @@ namespace ThrottleControlledAvionics
         {
             VSL.Controls.GimbalLimit = UseGimball && VSL.PreUpdateControls.mainThrottle > 0? 100 : 0;
             if(rotation_axis.IsZero()) return;
-            var AV = CFG.BR? 
-                Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.LocalDir(VSL.Engines.refT_thrust_axis)) : 
-                VSL.vessel.angularVelocity;
-            var AM = VSL.vessel.angularMomentum;
+            var AV = get_angular_velocity();
+            var AM = Vector3.Scale(AV, VSL.Physics.MoI);
             var abs_rotation_axis = rotation_axis.AbsComponents();
-            var Err = VSL.Controls.AttitudeError/180;
-            var ErrV = Err*abs_rotation_axis;
+            var ErrV = angular_error*abs_rotation_axis;
             var iErr = Vector3.one-ErrV;
             var MaxAA = VSL.Torque.Slow? 
                 VSL.Torque.Instant.AA + VSL.Torque.SlowMaxPossible.AA*Mathf.Min(VSL.PreUpdateControls.mainThrottle, VSL.OnPlanetParams.GeeVSF) :
                 VSL.Torque.MaxCurrent.AA;
-            MaxAA_Filter.Tau = (1-Mathf.Sqrt(Err))*ATCB.AALowPassF;
+            MaxAA_Filter.Tau = (1-Mathf.Sqrt(angular_error))*ATCB.AALowPassF;
             MaxAA = MaxAA_Filter.Update(MaxAA);
             var iMaxAA = MaxAA.Inverse(0);
             AddDebugMessage("\nMoI: {}\nInstAA: {}\nSlowAA: {} * min({}, {})\nMaxAA {}\nAV {}\nAM {}", 
@@ -438,10 +440,10 @@ namespace ThrottleControlledAvionics
                 pid_roll.TuneFast(AV.y, AM.y, MaxAA.y, iMaxAA.y, iErr.y);
                 pid_yaw.TuneFast(AV.z, AM.z, MaxAA.z, iMaxAA.z, iErr.z);
             }
-            pid_pitch.atPID.Update(ErrV.x*Mathf.PI, -AV.x*rotation_axis.x);
-            pid_roll.atPID.Update(ErrV.y*Mathf.PI, -AV.y*rotation_axis.y);
-            pid_yaw.atPID.Update(ErrV.z*Mathf.PI, -AV.z*rotation_axis.z);
-            var avErr = compute_av_error(AV, Err);
+            pid_pitch.atPID.Update(ErrV.x*Mathf.PI, -AV.x*Mathf.Sign(rotation_axis.x));
+            pid_roll.atPID.Update(ErrV.y*Mathf.PI, -AV.y*Mathf.Sign(rotation_axis.y));
+            pid_yaw.atPID.Update(ErrV.z*Mathf.PI, -AV.z*Mathf.Sign(rotation_axis.z));
+            var avErr = compute_av_error(AV, angular_error);
             steering = new Vector3(pid_pitch.UpdateAV(avErr.x), pid_roll.UpdateAV(avErr.y), pid_yaw.UpdateAV(avErr.z));
             correct_steering();
 //            AddDebugMessage("\nPID.P: {}\n" +
@@ -480,10 +482,24 @@ namespace ThrottleControlledAvionics
         #endif
 	}
 
+    public abstract class GeneralAttitudeControl: AttitudeControlBase
+    {
+        protected GeneralAttitudeControl(ModuleTCA tca) : base(tca) {}
+
+        protected BearingControl BRC;
+
+        protected override Vector3 get_angular_velocity()
+        {
+            return CFG.BR? 
+                Vector3.ProjectOnPlane(VSL.vessel.angularVelocity, VSL.LocalDir(VSL.Engines.refT_thrust_axis)) : 
+                VSL.vessel.angularVelocity;
+        }
+    }
+
 	[CareerPart]
 	[RequireModules(typeof(SASBlocker))]
 	[OptionalModules(typeof(TimeWarpControl))]
-	public class AttitudeControl : AttitudeControlBase
+    public class AttitudeControl : GeneralAttitudeControl
 	{
 		public new class Config : ModuleConfig
 		{
@@ -496,7 +512,6 @@ namespace ThrottleControlledAvionics
 		Quaternion locked_attitude;
 		bool attitude_locked;
 
-		BearingControl BRC;
 		Vector3 lthrust, needed_lthrust;
 
 		public AttitudeControl(ModuleTCA tca) : base(tca) {}
