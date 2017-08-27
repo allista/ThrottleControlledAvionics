@@ -342,7 +342,7 @@ namespace ThrottleControlledAvionics
                        VelocityHit.Altitude-VSL.Altitude.TerrainAltitude > 1 &&
 					   Vector3.Dot(VSL.Info.Destination, rel_pos-VSL.Info.Destination) < 0)
 					{
-						var dV = rel_pos.normalized*GLB.HSC.TranslationUpperThreshold;
+						var dV = rel_pos.normalized*GLB.HSC.TranslationMaxDeltaV;
 					    if(Vector3.Dot(rel_pos, VSL.Info.Destination) > 0)
 							HSC.AddRawCorrection(Vector3.Project(dV, VSL.Info.Destination)*2-dV);
 						else HSC.AddRawCorrection(-dV);

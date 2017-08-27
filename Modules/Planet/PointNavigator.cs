@@ -467,10 +467,10 @@ namespace ThrottleControlledAvionics
 				var heading_dir = Vector3.Dot(VSL.OnPlanetParams.Heading, vdir);
 				var hvel_dir = Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir);
 				if(heading_dir < bearing_threshold && 
-                   hvel_dir < bearing_threshold)
-//                   &&
-//                   (!CFG.Nav[Navigation.FollowTarget] ||
-//                    hdistance < end_distance*Utils.ClampL(all_followers.Count/2, 2)))
+                   hvel_dir < bearing_threshold
+                   &&
+                   (!CFG.Nav[Navigation.FollowTarget] ||
+                    hdistance < end_distance*Utils.ClampL(all_followers.Count/2, 2)))
 					SharpTurnTimer.Start();
 				if(SharpTurnTimer.Started)
 				{
@@ -522,7 +522,7 @@ namespace ThrottleControlledAvionics
 					hdistance = Utils.ClampL(hdistance-end_distance+VSL.Geometry.D, 0);
 				//tune maximum speed and PID
 				if(CFG.MaxNavSpeed < 10) CFG.MaxNavSpeed = 10;
-                DistancePID.Min = GLB.HSC.TranslationLowerThreshold+0.1f;
+                DistancePID.Min = GLB.HSC.TranslationMinDeltaV+0.1f;
 				DistancePID.Max = CFG.MaxNavSpeed;
                 if(cur_vel > 0)
 				{

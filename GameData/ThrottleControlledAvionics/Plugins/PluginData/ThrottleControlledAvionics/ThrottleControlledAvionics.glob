@@ -271,18 +271,20 @@ HSC
 	
 	TurnTime_Curve = 1.8
 
-	TranslationUpperThreshold  = 5
-	TranslationLowerThreshold  = 0.5
-	RotationLowerThreshold     = 0.05
-	RotationUpperThreshold     = 30
-	TranslationMaxAngle        = 80
-	RotationMaxAngle           = 15
+	TranslationMaxDeltaV = 5
+	TranslationMinDeltaV = 0.5
+	TranslationMaxAngle = 80
+	
+	RotationMinDeltaV = 0.05
 	
 	ManualTranslation
 	{
 		ThrustF = 6
 		I_MinSpeed = 20
 		D_Max = 0.3
+		
+		Turn_MinLateralDeltaV = 10
+                Turn_MinDeltaV = 30
 		
 		PID
 		{
