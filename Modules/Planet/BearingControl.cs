@@ -26,7 +26,9 @@ namespace ThrottleControlledAvionics
 		static Config BRC { get { return Globals.Instance.BRC; } }
 
 		readonly Timer DirectionLineTimer = new Timer();
-		public readonly FloatField Bearing = new FloatField("F1", min:0, max:360, circle:true);
+
+        [Persistent]
+		public FloatField Bearing = new FloatField("F1", min:0, max:360, circle:true);
 
 		#if DEBUG
 //		Vector3d DO;
