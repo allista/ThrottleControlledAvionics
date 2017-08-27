@@ -36,8 +36,6 @@ namespace ThrottleControlledAvionics
 
 		public void SetNeeded(Vector3d nV)
 		{
-			CFG.SavedUp = VSL.Physics.Up;
-			CFG.NeededHorVelocity = nV;
 			NeededVector = nV;
 		}
 	}

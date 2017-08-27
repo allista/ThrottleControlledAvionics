@@ -80,8 +80,6 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool     SASWasEnabled;
 		[Persistent] public WayPoint Anchor;
 		//cruise control
-		[Persistent] public Vector3  SavedUp;
-		[Persistent] public Vector3  NeededHorVelocity;
 		[Persistent] public Multiplexer<BearingMode> BR = new Multiplexer<BearingMode>();
 		//waypoint navigation
 		[Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();

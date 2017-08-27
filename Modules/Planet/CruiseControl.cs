@@ -87,9 +87,9 @@ namespace ThrottleControlledAvionics
 
 		public void UpdateNeededVelocity()
 		{
-			SetNeededVelocity(CFG.NeededHorVelocity.IsZero()? 
-			                  Vector3.zero : 
-			                  Quaternion.FromToRotation(CFG.SavedUp, VSL.Physics.Up)*CFG.NeededHorVelocity);
+            SetNeededVelocity(CFG.MaxNavSpeed.Equals(0)? 
+			                  Vector3d.zero : 
+                              VSL.Physics.Direction(BRC.Bearing));
 		}
 
 		void SetNeededVelocity(Vector3d nV)
