@@ -76,7 +76,7 @@ namespace ThrottleControlledAvionics
 
 		public bool Enabled { get; protected set; }
 
-		public virtual bool Valid { get { return ThisModules.Count > 0; } }
+        public override bool Valid { get { return base.Valid && ThisModules.Count > 0; } }
 
 		protected ControlTab(ModuleTCA tca) : base(tca) {}
 
