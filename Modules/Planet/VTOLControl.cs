@@ -67,7 +67,7 @@ namespace ThrottleControlledAvionics
 		protected override void OnAutopilotUpdate()
 		{
 			if(!IsActive) return;
-            needed_thrust = -VSL.Physics.Up;
+            var needed_thrust = -VSL.Physics.Up;
             rotation_axis = Vector3.zero;
 			if(VSL.HasUserInput) 
 			{ 

@@ -445,7 +445,7 @@ namespace ThrottleControlledAvionics
 		{ 
             VSL.ClearFrameState();
             AllModules.ForEach(m => m.ClearFrameState());
-            if(VSL.IsActiveVessel) TCAGui.ClearDebugMessage();
+//            if(VSL.IsActiveVessel) TCAGui.ClearDebugMessage();//debug
 		}
 
 		void Update() //works both in Editor and in flight

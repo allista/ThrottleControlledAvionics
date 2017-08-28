@@ -80,10 +80,10 @@ namespace ThrottleControlledAvionics
 			Translation = new Vector3(s.X, s.Z, s.Y);
 			if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
 			if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
-            if(VSL.IsActiveVessel)
-                TCAGui.AddDebugMessage("Steering {}\nTranslation {}", 
-                                       Utils.formatComponents(Steering), 
-                                       Utils.formatComponents(Translation));//debug
+//            if(VSL.IsActiveVessel)
+//                TCAGui.AddDebugMessage("Steering {}\nTranslation {}", 
+//                                       Utils.formatComponents(Steering), 
+//                                       Utils.formatComponents(Translation));//debug
 		}
 
 		public bool RCSAvailableInDirection(Vector3 wDir)

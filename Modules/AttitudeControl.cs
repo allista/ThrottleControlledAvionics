@@ -197,7 +197,7 @@ namespace ThrottleControlledAvionics
             void tune_av_pid_mixed(float AV, float AM, float MaxAA, float InstantTorqueRatio, float Err)
             {
                 var noise_scale = noise_scale_factor(ATCB.MixedConfig, AV, Err);
-                TCAGui.AddDebugMessage("noise scale: {}", noise_scale);//debug
+//                TCAGui.AddDebugMessage("noise scale: {}", noise_scale);//debug
                 avPID.P = ((ATCB.MixedConfig.avP_A / (Mathf.Pow(InstantTorqueRatio, ATCB.MixedConfig.avP_D) + ATCB.MixedConfig.avP_B) +
                             ATCB.MixedConfig.avP_C) / Utils.ClampL(Mathf.Abs(AM), 1) / MaxAA) * noise_scale;
                 avPID.D = ((ATCB.MixedConfig.avD_A / (Mathf.Pow(InstantTorqueRatio, ATCB.MixedConfig.avD_D) + ATCB.MixedConfig.avD_B) +
@@ -209,7 +209,7 @@ namespace ThrottleControlledAvionics
             {
                 var slowF = (1 + ATCB.SlowConfig.SlowTorqueF*EnginesResponseTime*SpecificTorque);
                 var noise_scale = noise_scale_factor(ATCB.SlowConfig, AV, Err);
-                TCAGui.AddDebugMessage("SlowF: {}\nnoise scale: {}", slowF, noise_scale);//debug
+//                TCAGui.AddDebugMessage("SlowF: {}\nnoise scale: {}", slowF, noise_scale);//debug
                 if(MaxAA >= 1)
                 {
                     avPID.P = ATCB.SlowConfig.avP_HighAA_Scale/slowF * noise_scale;
@@ -394,7 +394,11 @@ namespace ThrottleControlledAvionics
 
         protected void compute_steering()
         {
+            #if DEBUG
             VSL.Controls.GimbalLimit = UseGimball && VSL.PreUpdateControls.mainThrottle > 0? 100 : 0;
+            #else
+            VSL.Controls.GimbalLimit = VSL.PreUpdateControls.mainThrottle > 0? 100 : 0;
+            #endif
             if(rotation_axis.IsZero()) return;
             var AV = get_angular_velocity();
             var AM = Vector3.Scale(AV, VSL.Physics.MoI);
