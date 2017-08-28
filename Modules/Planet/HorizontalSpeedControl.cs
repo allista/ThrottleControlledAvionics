@@ -88,6 +88,7 @@ namespace ThrottleControlledAvionics
 
 		readonly List<Vector3d> CourseCorrections = new List<Vector3d>();
 		Vector3d CourseCorrection;
+        Vector3 manual_thrust;
 
 		public override void Init() 
 		{ 
@@ -110,7 +111,7 @@ namespace ThrottleControlledAvionics
 		}
 
 		#if DEBUG
-        Vector3 manual_thrust;
+
 		public void DrawDebugLines()
 		{
 			if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
@@ -223,10 +224,9 @@ namespace ThrottleControlledAvionics
                     (needed_abs >= HSC.TranslationMaxDeltaV ||
                      error_abs >= HSC.TranslationMaxDeltaV ||
                      CourseCorrection.magnitude >= HSC.TranslationMaxDeltaV);
-                manual_thrust = Vector3.zero;//debug
+                manual_thrust = Vector3.zero;
                 if(with_manual_thrust)
                 {
-//                    Vector3 manual_thrust;
                     var forward_dir = VSL.HorizontalSpeed.NeededVector.IsZero()? 
                         VSL.OnPlanetParams.Fwd : (Vector3)VSL.HorizontalSpeed.NeededVector;
                     //first, see if we need to turn the nose so that the maximum manual thrust points the right way
@@ -245,13 +245,16 @@ namespace ThrottleControlledAvionics
                             var angle = Utils.Angle2(manual_thrust, fwdH);
                             var rot = Quaternion.AngleAxis(angle, VSL.Physics.Up * Mathf.Sign(Vector3.Dot(manual_thrust, Vector3.right)));
                             BRC.DirectionOverride = rot*pure_error_vector;
-                            translation_factor = Utils.ClampL(Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized), 0);
+                            translation_factor = Utils.ClampL((Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized)-0.5f), 0)*2;
                             forward_dir = BRC.DirectionOverride;
                         }
                     }
                     //simply use manual thrust currently available in the forward direction
                     else if(Vector3.Dot(forward_dir, error_vector) < 0)  
-                        manual_thrust = VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(-forward_dir));
+                    {
+                        manual_thrust = VSL.Engines.ManualThrustLimits.Slice(VSL.LocalDir(-forward_dir));
+                        translation_factor = Utils.ClampL((Vector3.Dot(VSL.WorldDir(manual_thrust.normalized), forward_dir.normalized)-0.5f), 0)*2;
+                    }
                     with_manual_thrust = !manual_thrust.IsZero();
     				if(with_manual_thrust)
     				{
