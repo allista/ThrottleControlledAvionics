@@ -343,8 +343,9 @@ namespace ThrottleControlledAvionics
 
 		void wide_check(float delta_alt = 0)
 		{
-            if(WideCheckAlt < LND.WideCheckAltitude)
-                WideCheckAlt = LND.WideCheckAltitude;
+            //test this
+//            if(WideCheckAlt < LND.WideCheckAltitude)
+//                WideCheckAlt = LND.WideCheckAltitude;
             WideCheckAlt += delta_alt;
             if(VSL.Altitude.Relative > WideCheckAlt)
                 WideCheckAlt = VSL.Altitude.Relative;
