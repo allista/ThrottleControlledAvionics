@@ -172,8 +172,11 @@ namespace ThrottleControlledAvionics
 		{
 			if(Working) return true;
 			var ttb = VSL.Engines.TTB_Precise(dV);
-//            Log("dV {}, TTB {}", dV, ttb);//debug
-			if(float.IsNaN(ttb)) return false;
+			if(float.IsNaN(ttb)) 
+            {
+                Log("WARNING: TTB is NaN: dV {}", dV);
+                return false;
+            }
 			VSL.Info.TTB = ttb;
 			var burn = Node.UT-VSL.Info.TTB/2f;
 			if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
