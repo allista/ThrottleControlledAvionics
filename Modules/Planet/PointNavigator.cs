@@ -320,7 +320,8 @@ namespace ThrottleControlledAvionics
 			if(!IsActive || CFG.Target == null || CFG.Nav.Paused) return;
 			//differentiate between flying in formation and going to the target
 			var vdistance = 0f; //vertical distance to the target
-			if(CFG.Nav[Navigation.FollowTarget]) update_formation_info();
+			if(CFG.Nav[Navigation.FollowTarget]) 
+                update_formation_info();
 			else 
 			{ 
 				VSL.Altitude.LowerThreshold = (float)CFG.Target.Pos.Alt;
@@ -466,18 +467,18 @@ namespace ThrottleControlledAvionics
 				//if we need to make a sharp turn, stop and turn, then go on
 				var heading_dir = Vector3.Dot(VSL.OnPlanetParams.Heading, vdir);
 				var hvel_dir = Vector3d.Dot(VSL.HorizontalSpeed.normalized, vdir);
+                var sharp_turn_allowed = !CFG.Nav[Navigation.FollowTarget] ||
+                    hdistance < end_distance*Utils.ClampL(all_followers.Count/2, 2);
 				if(heading_dir < bearing_threshold && 
-                   hvel_dir < bearing_threshold
-                   &&
-                   (!CFG.Nav[Navigation.FollowTarget] ||
-                    hdistance < end_distance*Utils.ClampL(all_followers.Count/2, 2)))
+                   hvel_dir < bearing_threshold &&
+                   sharp_turn_allowed)
 					SharpTurnTimer.Start();
 				if(SharpTurnTimer.Started)
 				{
 					VSL.HorizontalSpeed.SetNeeded(vdir);
 					Maneuvering = false;
 					vel_is_set = true;
-					if(heading_dir < bearing_threshold ||
+                    if(heading_dir < bearing_threshold || sharp_turn_allowed &&
 					   VSL.HorizontalSpeed.Absolute > 1 && Math.Abs(hvel_dir) < PN.BearingCutoffCos)
 						SharpTurnTimer.Restart();
 					else if(SharpTurnTimer.TimePassed) 
@@ -524,6 +525,16 @@ namespace ThrottleControlledAvionics
 				if(CFG.MaxNavSpeed < 10) CFG.MaxNavSpeed = 10;
                 DistancePID.Min = GLB.HSC.TranslationMinDeltaV+0.1f;
 				DistancePID.Max = CFG.MaxNavSpeed;
+                if(CFG.Nav[Navigation.FollowTarget])
+                {
+                    DistancePID.P = PN.DistancePID.P/2;
+                    DistancePID.D = DistancePID.P/2;
+                }
+                else
+                {
+                    DistancePID.P = PN.DistancePID.P;
+                    DistancePID.D = PN.DistancePID.D;
+                }
                 if(cur_vel > 0)
 				{
                     var mg2 = VSL.Physics.mg*VSL.Physics.mg;
