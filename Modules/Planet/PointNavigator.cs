@@ -609,7 +609,7 @@ namespace ThrottleControlledAvionics
 			LateralPID.D = PN.LateralPID.D*latF;
 			LateralPID.Update(latV);
 			HSC.AddWeightedCorrection(LateralPID.Action);
-//			LogF("\ndir v {}\nlat v {}\nact v {}\nlatPID {}", 
+//			Log("\ndir v {}\nlat v {}\nact v {}\nlatPID {}", 
 //			     VSL.HorizontalSpeed.NeededVector, latV,
 //			     LateralPID.Action, LateralPID);//debug
 		}
