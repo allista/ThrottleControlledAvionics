@@ -253,7 +253,7 @@ namespace ThrottleControlledAvionics
                     else if(Vector3.Dot(forward_dir, error_vector) < 0)  
                     {
                         manual_thrust = VSL.Engines.ManualThrustLimits.Slice(VSL.LocalDir(-forward_dir));
-                        translation_factor = Utils.ClampL((Vector3.Dot(VSL.WorldDir(manual_thrust.normalized), forward_dir.normalized)-0.5f), 0)*2;
+                        translation_factor = Utils.ClampL((Vector3.Dot(VSL.WorldDir(manual_thrust.normalized), -forward_dir.normalized)-0.5f), 0)*2;
                     }
                     with_manual_thrust = !manual_thrust.IsZero();
     				if(with_manual_thrust)
