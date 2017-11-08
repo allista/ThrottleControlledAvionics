@@ -302,7 +302,7 @@ namespace ThrottleControlledAvionics
 			switch(CFG.SmartEngines.state)
 			{
 			case SmartEnginesMode.Closest:
-				local_dir_cluster_request = VSL.LocalDir(dV);
+				local_dir_cluster_request = -VSL.LocalDir(dV);
 				break;
 			case SmartEnginesMode.Fastest:
 			case SmartEnginesMode.Best:
@@ -970,13 +970,13 @@ namespace ThrottleControlledAvionics
         public EngineCluster Fastest(Vector3 dV)
         {
             var dVm = dV.magnitude;
-            var loc_dV = VSL.LocalDir(dV);
+            var loc_dir = -VSL.LocalDir(dV);
             var min_time = float.MaxValue;
             EngineCluster fastest = null;
             for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
             {
                 var c = clusters[j];
-                var time = VSL.Torque.NoEngines.RotationTime2Phase(Utils.Angle2(loc_dV, c.Dir), 1);
+                var time = VSL.Torque.NoEngines.RotationTime2Phase(Utils.Angle2(loc_dir, c.Dir), 1);
                 if(VSL.Info.Countdown > 0 && time > VSL.Info.Countdown) continue;
                 time += VSL.Engines.TTB(dVm, c.MaxThrust.magnitude, (float)c.MaxMassFlow, 1);
                 if(time < min_time)
@@ -985,13 +985,13 @@ namespace ThrottleControlledAvionics
                     fastest = c;
                 }
             }
-            return fastest ?? Closest(loc_dV);
+            return fastest ?? Closest(loc_dir);
         }
 
         public EngineCluster BestForManeuver(Vector3 dV)
         {
             var dVm = dV.magnitude;
-            var loc_dV = VSL.LocalDir(dV);
+            var loc_dV = -VSL.LocalDir(dV);
             var min_score = float.MaxValue;
             EngineCluster best = null;
             for(int j = 0, clustersCount = clusters.Count; j < clustersCount; j++)
