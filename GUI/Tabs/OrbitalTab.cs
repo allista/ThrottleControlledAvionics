@@ -22,6 +22,12 @@ namespace ThrottleControlledAvionics
 		[InternalModule]
 		PointNavigator PN;
 
+        public override void OnRenderObject()
+        {
+            if(DEO != null)
+                DEO.DrawTrajectory();
+        }
+
 		public override void Draw()
 		{
 			GUILayout.BeginHorizontal();

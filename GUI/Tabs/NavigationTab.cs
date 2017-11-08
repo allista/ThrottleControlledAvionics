@@ -149,7 +149,8 @@ namespace ThrottleControlledAvionics
 			{
 				if(SelectingTarget)
 					SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.Width(120));
-				else if(VSL.HasTarget && 
+                else if(!UI.RemoteControl &&
+                        VSL.HasTarget && 
 				        (VSL.TargetIsNavPoint ||
 				         !VSL.TargetIsWayPoint && 
 				         (CFG.Path.Count == 0 || VSL.Target != CFG.Path.Peek().GetTarget())))
@@ -206,7 +207,7 @@ namespace ThrottleControlledAvionics
 		{
 			if(SelectingTarget)
 				SelectingTarget &= !GUILayout.Button("Cancel", Styles.close_button, GUILayout.ExpandWidth(true));
-			else if(CFG.Target != null)
+            else if(CFG.Target)
 			{
                 GUILayout.BeginHorizontal();
                 if(GUILayout.Button(new GUIContent("Edit Target", "Edit target point"), 
@@ -374,7 +375,7 @@ namespace ThrottleControlledAvionics
 					GUILayout.BeginHorizontal();
 					if(GUILayout.Button(new GUIContent(label, string.Format("{0}\nPush to target this waypoint", wp.SurfaceDescription(vessel))), 
 					                    GUILayout.ExpandWidth(true)))
-						FlightGlobals.fetch.SetVesselTarget(wp.GetTarget());
+                        VSL.SetTarget(null, wp);
 					GUI.contentColor = col;
 					GUILayout.FlexibleSpace();
 					if(GUILayout.Button("Edit", Styles.normal_button))
@@ -529,7 +530,7 @@ namespace ThrottleControlledAvionics
 
 		#region Waypoints Overlay
 		readonly ActionDamper AddTargetDamper = new ActionDamper();
-		static Texture2D WayPointMarker, PathNodeMarker;
+		public static Texture2D WayPointMarker, PathNodeMarker;
 
 		WayPoint selected_waypoint;
 		Coordinates orig_coordinates;
@@ -673,12 +674,12 @@ namespace ThrottleControlledAvionics
 				}
 			}
 			//current target and anchor
-			if(CFG.Anchor != null) 
+            if(CFG.Anchor != null) 
 			{
 				DrawWayPoint(CFG.Anchor, Color.cyan, "Anchor");
 				current_target_drawn |= CFG.Anchor.Equals(CFG.Target);
 			}
-			if(CFG.Target != null && !current_target_drawn && 
+            if(CFG.Target && !current_target_drawn && 
 			   (!CFG.Target.IsVessel || CFG.Target.GetVessel().LandedOrSplashed))
 				DrawWayPoint(CFG.Target, Color.magenta, "Target");
 			//custom markers

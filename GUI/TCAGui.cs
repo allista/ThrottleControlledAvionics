@@ -20,10 +20,13 @@ namespace ThrottleControlledAvionics
 	public class TCAGui : AddonWindowBase<TCAGui>
 	{
 		Vessel vessel;
+        public ModuleTCA ActiveVesselTCA { get; private set; }
 		public ModuleTCA TCA { get; private set; }
 		public VesselWrapper VSL { get { return TCA.VSL; } }
 		internal static Globals GLB { get { return Globals.Instance; } }
 		public VesselConfig CFG { get { return TCA.CFG; } }
+        public bool HaveRemoteControl { get; private set; }
+        public bool RemoteControl { get; private set; }
 
 		#region GUI Parameters
 		public const int ControlsWidth = 450, ControlsHeight = 180, LineHeight = 35;
@@ -101,6 +104,7 @@ namespace ThrottleControlledAvionics
 			AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
 			GameEvents.onGameStateSave.Add(save_config);
 			GameEvents.onVesselChange.Add(onVesselChange);
+            GameEvents.onVesselDestroy.Add(onVesselDestroy);
 			NavigationTab.OnAwake();
 		}
 
@@ -111,7 +115,14 @@ namespace ThrottleControlledAvionics
 			TCAToolbarManager.AttachTCA(null);
 			GameEvents.onGameStateSave.Remove(save_config);
 			GameEvents.onVesselChange.Remove(onVesselChange);
+            GameEvents.onVesselDestroy.Remove(onVesselDestroy);
 		}
+
+        void onVesselDestroy(Vessel vsl)
+        {
+            if(vsl == vessel && vsl != FlightGlobals.ActiveVessel)
+                onVesselChange(FlightGlobals.ActiveVessel);
+        }
 
 		void onVesselChange(Vessel vsl)
 		{
@@ -123,6 +134,24 @@ namespace ThrottleControlledAvionics
             else clear_fields();
 		}
 
+        void switch_vessel(Func<Vessel,Vessel> get_next)
+        {
+            if(ActiveVesselTCA == null) return;
+            var next_vessel = vessel;
+            ModuleTCA next = null;
+            while(next == null || 
+                  !SquadControl.IsCommReachable(ActiveVesselTCA, next))
+            {
+                next_vessel = get_next(next_vessel);
+                if(next_vessel.loaded)
+                    next = ModuleTCA.AvailableTCA(next_vessel);
+            }
+            if(next != TCA)
+            {
+                SquadControl.UnpackVessel(ActiveVesselTCA.vessel, next_vessel);
+                onVesselChange(next_vessel);
+            }
+        }
 
 		public override void Show(bool show)
 		{
@@ -175,15 +204,20 @@ namespace ThrottleControlledAvionics
 			AllTabFields.ForEach(fi => fi.SetValue(this, null));
 			ModuleTCA.ResetModuleFields(this);
 			AllTabs.Clear();
-			TCA = null;
+            ActiveVesselTCA = null;
+            TCA = null;
 		}
 
 		bool init()
 		{
             clear_fields();
+            ClearStatus();
 			TCAToolbarManager.AttachTCA(null);
 			TCA = ModuleTCA.AvailableTCA(vessel);
 			if(TCA == null || CFG == null) return false;
+            ActiveVesselTCA = ModuleTCA.AvailableTCA(FlightGlobals.ActiveVessel);
+            HaveRemoteControl = ActiveVesselTCA != null && ActiveVesselTCA.GetModule<SquadControl>() != null;
+            RemoteControl = ActiveVesselTCA != TCA;
             ShowInstance(CFG.GUIVisible);
             ModulesGraph.SetCFG(CFG);
 			TCAToolbarManager.AttachTCA(TCA);
@@ -273,6 +307,9 @@ namespace ThrottleControlledAvionics
 
         static GUIContent collapse_button = new GUIContent("▲", "Collapse Main Window");
         static GUIContent uncollapse_button = new GUIContent("▼", "Restore Main Window");
+        static GUIContent prev_vessel_button = new GUIContent("◀", "Switch to previous vessel");
+        static GUIContent next_vessel_button = new GUIContent("▶", "Switch to next vessel");
+        static GUIContent active_vessel_button = new GUIContent("◉", "Switch to active vessel");
 		void DrawMainWindow(int windowID)
 		{
 			//help button
@@ -282,9 +319,22 @@ namespace ThrottleControlledAvionics
                 Collapsed = !Collapsed;
                 update_collapsed_rect();
             }
-			if(GUI.Button(new Rect(WindowPos.width - 23f, 0f, 20f, 18f), 
+			if(GUI.Button(new Rect(WindowPos.width - 20f, 0f, 20f, 18f), 
 			              new GUIContent("?", "Help"), Styles.label)) 
-                TCAManual.ToggleInstance();            
+                TCAManual.ToggleInstance();
+            //vessel switching
+            if(HaveRemoteControl)
+            {
+                if(GUI.Button(new Rect(22, 0f, 20f, 18f), prev_vessel_button, Styles.label)) 
+                    switch_vessel(FlightGlobals.Vessels.Next);
+                if(GUI.Button(new Rect(44, 0f, 20f, 18f), active_vessel_button, Styles.label)) 
+                {
+                    if(TCA != ActiveVesselTCA)
+                        onVesselChange(ActiveVesselTCA.vessel);
+                }
+                if(GUI.Button(new Rect(WindowPos.width - 42f, 0f, 20f, 18f), next_vessel_button, Styles.label))
+                    switch_vessel(FlightGlobals.Vessels.Prev);
+            }
 			if(TCA.IsControllable)
 			{
 				GUILayout.BeginVertical();
@@ -389,12 +439,15 @@ namespace ThrottleControlledAvionics
     				GUILayout.Window(TCA.GetInstanceID(), 
     				                 WindowPos, 
     				                 DrawMainWindow, 
-    				                 vessel.vesselName,
+                                     RemoteControl? "RC: "+vessel.vesselName : vessel.vesselName,
     				                 GUILayout.Width(ControlsWidth),
     				                 GUILayout.Height(50)).clampToScreen();
                 update_collapsed_rect();
             }
             //draw waypoints and all subwindows
+            if(RemoteControl && Event.current.type == EventType.Repaint)
+                Markers.DrawWorldMarker(TCA.vessel.transform.position, Color.green, 
+                                        "Remotely Controlled Vessel", NavigationTab.PathNodeMarker);
 			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());
             ModulesGraph.Draw();
@@ -429,6 +482,11 @@ namespace ThrottleControlledAvionics
 				}
 			}
 		}
+
+        public void OnRenderObject()
+        {
+            AllTabs.ForEach(t => t.OnRenderObject());
+        }
 
 
         #if DEBUG
