@@ -38,8 +38,6 @@ namespace ThrottleControlledAvionics
 		ThrottleControl THR;
 
 		ManeuverNode Node;
-		double InitialDeltaV;
-		double ThresholdDeltaV;
 		PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
 
 		public double NodeUT { get { return Node != null? Node.UT : -1; } }
@@ -50,8 +48,6 @@ namespace ThrottleControlledAvionics
 
 		ManeuverExecutor Executor;
 		public float MinDeltaV = 1;
-		bool within_threshold;
-		double min_deltaV = double.MaxValue;
 
         public void AddCourseCorrection(Vector3d dV)
         { Executor.AddCourseCorrection(dV); }
@@ -65,12 +61,10 @@ namespace ThrottleControlledAvionics
         void update_maneuver_node()
         {
             Node = Solver.maneuverNodes[0];
-            InitialDeltaV = Node.DeltaV.magnitude;
-            ThresholdDeltaV = Math.Min(InitialDeltaV, 10);
             NodeDeltaV = Node.GetBurnVector(VSL.orbit);
             NodeCB = Node.patch.referenceBody;
             TargetOrbit = Node.nextPatch;
-            if(VSL.Engines.MaxDeltaV < InitialDeltaV)
+            if(VSL.Engines.MaxDeltaV < Node.DeltaV.magnitude)
                 Status("yellow", "WARNING: there may be not enough propellant for the maneuver");
         }
 
@@ -80,6 +74,13 @@ namespace ThrottleControlledAvionics
             MinDeltaV = GLB.THR.MinDeltaV;
 			CFG.AP1.AddHandler(this, Autopilot1.Maneuver);
 			Executor = new ManeuverExecutor(TCA);
+            Executor.ThrustWhenAligned = true;
+            Executor.StopAtMinimum = true;
+        }
+
+        public override void Disable()
+        {
+            CFG.AP1.OffIfOn(Autopilot1.Maneuver);
         }
 
 		protected override void UpdateState()
@@ -107,8 +108,6 @@ namespace ThrottleControlledAvionics
 				VSL.Controls.StopWarp();
 				CFG.AT.On(Attitude.ManeuverNode);
                 update_maneuver_node();
-				min_deltaV = double.MaxValue;
-				within_threshold = false;
 				THR.Throttle = 0;
 				CFG.DisableVSC();
 				break;
@@ -118,24 +117,21 @@ namespace ThrottleControlledAvionics
                 if(!CFG.WarpToNode && TimeWarp.CurrentRateIndex > 0)
                     TimeWarp.SetRate(0, false);
 				CFG.AT.On(Attitude.KillRotation);
-				reset();
+				Reset();
 				break;
 			}
 		}
 
-		protected override void reset()
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			if(Working) THR.Throttle = 0;
 			if(CFG.AT[Attitude.ManeuverNode])
 				CFG.AT.On(Attitude.KillRotation);
-			CFG.AP1.OffIfOn(Autopilot1.Maneuver);
 			Executor.Reset();
 			NodeDeltaV = Vector3d.zero;
             NodeCB = null;
             MinDeltaV = GLB.THR.MinDeltaV;
-			min_deltaV = double.MaxValue;
-			within_threshold = false;
 			VSL.Info.Countdown = 0;
 			VSL.Info.TTB = 0;
 			Working = false;
@@ -193,7 +189,7 @@ namespace ThrottleControlledAvionics
 			VSL.Info.Countdown = burn-VSL.Physics.UT;
             //emergency dewarping
             if(!CFG.WarpToNode && TimeWarp.CurrentRate > 1 && VSL.Info.Countdown < GLB.WRP.DewarpTime)
-                TimeWarp.SetRate(0, true);
+                VSL.Controls.AbortWarp(true);
 			if(VSL.Info.Countdown > 0) return false;
 //            Log("burn {}, countdown {}", burn, VSL.Info.Countdown);//debug
 			VSL.Info.Countdown = 0;
@@ -204,38 +200,26 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
 			if(!VSL.HasManeuverNode || 
                Node != Solver.maneuverNodes[0] ||
                NodeCB != Node.patch.referenceBody) 
             { 
                 Message("Maneuver has been interrupted.");
-                reset(); 
+                Disable();
                 return; 
             }
             if(!VSL.Engines.HaveThrusters && !VSL.Engines.HaveNextStageEngines)
             {
                 Message("Out of fuel");
-                reset();
+                Disable();
                 return;
             }
             //update the node
             NodeDeltaV = (TargetOrbit.GetFrameVelAtUT(NodeUT)-VSL.orbit.GetFrameVelAtUT(NodeUT)).xzy;
-            if(Executor.Execute(NodeDeltaV, MinDeltaV, StartCondition)) 
-			{
-				within_threshold |= Executor.RemainingDeltaV < ThresholdDeltaV;
-				if(within_threshold)
-				{
-					VSL.Controls.GimbalLimit = 0;
-					var dV = Executor.RemainingDeltaV;
-					if(dV < min_deltaV) { min_deltaV = dV; return; }
-					if(dV-min_deltaV < MinDeltaV) return;
-				}
-				else return;
-			}
+            if(Executor.Execute(NodeDeltaV, MinDeltaV, StartCondition)) return;
             ManeuverStage = Stage.FINISHED;
 			Node.RemoveSelf();
-			reset();
+            Disable();
 		}
 
 		public override void Draw()
