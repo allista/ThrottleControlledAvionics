@@ -27,33 +27,53 @@ namespace ThrottleControlledAvionics
 
 		public bool SquadMode;
 
+        public override void Disable() {}
+
+        public static bool IsCommReachable(ModuleTCA A, ModuleTCA B)
+        {
+            if(A == B) return true;
+            //if KerbNet is not enabled, always reachable
+            if(!CommNetScenario.CommNetEnabled) return true;
+            //null checks
+            if(A.vessel.Connection == null) return false;
+            if(B == null || B.vessel == null || B.vessel.Connection == null) return false;
+            //if it is locally controllable, it is also remotely controllable
+            if(A.IsControllable) return true;
+            //check KerbNet path
+            var start = A.vessel.Connection.Comm;
+            var end = B.vessel.Connection.Comm;
+            var path = new CommPath();
+            if(A.vessel.Connection.Comm.Net.FindPath(start, path, end)) return true;
+            //check direct ship2ship connection
+            var sqrDist = (start.precisePosition-end.precisePosition).sqrMagnitude;
+            var offset = start.distanceOffset + end.distanceOffset;
+            if(!offset.Equals(0))
+            {
+                offset = Math.Sqrt(sqrDist) + offset;
+                sqrDist = offset > 0 ? offset * offset : 0;
+            }
+            return CommNetScenario.RangeModel
+                .InRange(Math.Max(start.antennaTransmit.power, start.antennaRelay.power),
+                         Math.Max(end.antennaTransmit.power, end.antennaRelay.power), 
+                         sqrDist);
+        }
+
+        public static void UnpackVessel(Vessel from_vessel, Vessel vessel)
+        {
+            if(vessel.packed) 
+            {
+                var dist = (vessel.transform.position-from_vessel.transform.position).magnitude;
+                var sit = vessel.vesselRanges.GetSituationRanges(vessel.situation);
+                sit.pack = dist*1.5f;
+                sit.unpack = dist*1.2f;
+                vessel.GoOffRails();
+            }
+        }
+
 		bool is_comm_reachable(ModuleTCA tca)
 		{
-			//if KerbNet is not enabled, always reachable
-			if(!CommNetScenario.CommNetEnabled) return true;
-			//if it is locally controllable, it is also remotely controllable
-			if(tca.IsControllable) return true;
-			//null checks
-			if(TCA.vessel.Connection == null) return false;
-			if(tca == null || tca.vessel == null || tca.vessel.Connection == null) return false;
-			//check KerbNet path
-			var start = TCA.vessel.Connection.Comm;
-			var end = tca.vessel.Connection.Comm;
-			var path = new CommPath();
-			if(TCA.vessel.Connection.Comm.Net.FindPath(start, path, end)) return true;
-			//check direct ship2ship connection
-			var sqrDist = (start.precisePosition-end.precisePosition).sqrMagnitude;
-			var offset = start.distanceOffset + end.distanceOffset;
-			if(!offset.Equals(0))
-			{
-				offset = Math.Sqrt(sqrDist) + offset;
-				sqrDist = offset > 0 ? offset * offset : 0;
-			}
-			return CommNetScenario.RangeModel
-				.InRange(Math.Max(start.antennaTransmit.power, start.antennaRelay.power),
-				         Math.Max(end.antennaTransmit.power, end.antennaRelay.power), 
-				         sqrDist);
-		}
+            return IsCommReachable(TCA, tca);
+        }
 
 		void apply_to_others(Action<ModuleTCA> action)
 		{
@@ -68,14 +88,7 @@ namespace ThrottleControlledAvionics
 				if(tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
 				if(!is_comm_reachable(tca)) continue;
 				//try to reach packed vessels
-				if(v.packed) 
-				{
-					var dist = (v.transform.position-VSL.vessel.transform.position).magnitude;
-					var sit = v.vesselRanges.GetSituationRanges(v.situation);
-					sit.pack = dist*1.5f;
-					sit.unpack = dist*1.2f;
-					v.GoOffRails();
-				}
+                UnpackVessel(TCA.vessel, v);
 				action(tca);
 				executed = true;
 			}
