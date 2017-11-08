@@ -165,7 +165,9 @@ namespace ThrottleControlledAvionics
 
 		public override void Update()
 		{
-			CurrentThrustAccelerationTime = 0f; CurrentThrustDecelerationTime = 0f; TWRf = 1;
+            TWRf = 1;
+			CurrentThrustAccelerationTime = 0f; 
+            CurrentThrustDecelerationTime = 0f;
             update_aero_forces();
 			//calculate total downward thrust and slow engines' corrections
             AeroForce = Lift+Drag;
