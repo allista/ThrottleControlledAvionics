@@ -40,21 +40,23 @@ namespace ThrottleControlledAvionics
 
 		public void InitModuleFields() { TCA.InitModuleFields(this); }
 
+        public bool UI_Control { get { return TCA == TCAGui.Instance.TCA; } }
+
 		protected void Message(float duration, string msg, params object[] args)
-		{ if(VSL.IsActiveVessel) Utils.Message(duration, msg, args); }
+        { if(UI_Control) Utils.Message(duration, msg, args); }
 
 		protected void Message(string msg, params object[] args) { Message(5, msg, args); }
 
-		protected void ClearStatus() { if(VSL.IsActiveVessel) TCAGui.ClearStatus(); }
+        protected void ClearStatus() { if(UI_Control) TCAGui.ClearStatus(); }
 
 		protected void Status(double seconds, string msg, params object[] args)
-		{ if(VSL.IsActiveVessel) TCAGui.Status(seconds, msg, args); }
+        { if(UI_Control) TCAGui.Status(seconds, msg, args); }
 
 		protected void Status(string msg, params object[] args) 
 		{ Status(-1, msg, args); }
 
 		protected void Status(double seconds, string color, string msg, params object[] args)
-		{ if(VSL.IsActiveVessel) TCAGui.Status(seconds, color, msg, args); }
+        { if(UI_Control) TCAGui.Status(seconds, color, msg, args); }
 
 		protected void Status(string color, string msg, params object[] args) 
 		{ Status(-1, color, msg, args); }
@@ -72,7 +74,7 @@ namespace ThrottleControlledAvionics
 
 		#if DEBUG
         protected void AddDebugMessage(string msg, params object[] args)
-        { if(VSL.IsActiveVessel) TCAGui.AddDebugMessage(msg, args); }
+        { if(UI_Control) TCAGui.AddDebugMessage(msg, args); }
 
 		protected void LogFST(string msg, params object[] args) { DebugUtils.Log(LogTemplate(msg), args); }
 
