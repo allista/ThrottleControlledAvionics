@@ -37,7 +37,7 @@ namespace ThrottleControlledAvionics
 			//update physical bounds
 			var b = vessel.Bounds(refT);
 			C = refT.TransformPoint(b.center);
-            RelC = C-VSL.Physics.wCoM;
+            RelC = C-VSL.vessel.CoM;
 			H = Mathf.Abs(Vector3.Dot(refT.TransformDirection(b.extents), VSL.Physics.Up)) -
                 Vector3.Dot(RelC, VSL.Physics.Up);
 			R = b.extents.magnitude;
