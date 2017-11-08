@@ -309,7 +309,8 @@ namespace ThrottleControlledAvionics
         static GUIContent uncollapse_button = new GUIContent("▼", "Restore Main Window");
         static GUIContent prev_vessel_button = new GUIContent("◀", "Switch to previous vessel");
         static GUIContent next_vessel_button = new GUIContent("▶", "Switch to next vessel");
-        static GUIContent active_vessel_button = new GUIContent("◉", "Switch to active vessel");
+        static GUIContent active_vessel_button = new GUIContent("◇", "Back to active vessel");
+        static GUIContent switch_vessel_button = new GUIContent("◆", "Switch to current vessel");
 		void DrawMainWindow(int windowID)
 		{
 			//help button
@@ -327,11 +328,12 @@ namespace ThrottleControlledAvionics
             {
                 if(GUI.Button(new Rect(22, 0f, 20f, 18f), prev_vessel_button, Styles.label)) 
                     switch_vessel(FlightGlobals.Vessels.Next);
-                if(GUI.Button(new Rect(44, 0f, 20f, 18f), active_vessel_button, Styles.label)) 
-                {
-                    if(TCA != ActiveVesselTCA)
-                        onVesselChange(ActiveVesselTCA.vessel);
-                }
+                if(RemoteControl && 
+                   GUI.Button(new Rect(44, 0f, 20f, 18f), active_vessel_button, Styles.label)) 
+                    onVesselChange(ActiveVesselTCA.vessel);
+                if(RemoteControl &&
+                   GUI.Button(new Rect(WindowPos.width - 64f, 0f, 20f, 18f), switch_vessel_button, Styles.label))
+                    FlightGlobals.SetActiveVessel(vessel);
                 if(GUI.Button(new Rect(WindowPos.width - 42f, 0f, 20f, 18f), next_vessel_button, Styles.label))
                     switch_vessel(FlightGlobals.Vessels.Prev);
             }
