@@ -30,9 +30,9 @@ using AT_Utils;
 #if NIGHTBUILD
 [assembly: AssemblyVersion("3.4.*")]
 #else
-[assembly: AssemblyVersion("3.4.2.0")]
+[assembly: AssemblyVersion("3.5.0.0")]
 #endif
-[assembly: KSPAssembly("ThrottleControlledAvionics", 3, 4)]
+[assembly: KSPAssembly("ThrottleControlledAvionics", 3, 5)]
 
 // The following attributes are used to specify the signing key for the assembly, 
 // if desired. See the Mono documentation for more information about signing.
@@ -46,8 +46,8 @@ namespace ThrottleControlledAvionics
 	{
 		public ModInfo()
 		{
-			MinKSPVersion = new Version(1,3,0);
-			MaxKSPVersion = new Version(1,3,0);
+			MinKSPVersion = new Version(1,3,1);
+			MaxKSPVersion = new Version(1,3,1);
 
 			VersionURL   = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
 			UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
