@@ -8,9 +8,6 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 using System;
-using System.Linq;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 
@@ -30,6 +27,7 @@ namespace ThrottleControlledAvionics
 		[Persistent] public bool Movable;
 		[Persistent] public bool Pause;
 		[Persistent] public bool Land;
+        [Persistent] public bool Valid = true;
 		//target proxy
 		[Persistent] public ProtoTargetInfo TargetInfo = new ProtoTargetInfo();
 		ITargetable target;
@@ -73,7 +71,7 @@ namespace ThrottleControlledAvionics
 
         public Vector3  VectorTo(Vessel vsl) { return vsl.transform.position-GetTransform().position; }
         public Vector3  VectorTo(VesselWrapper VSL) { return VSL.Physics.wCoM-WorldPos(VSL.Body); }
-        public Vector3d VectorTo(WayPoint wp, CelestialBody body) { return wp.RelSurfPos(body)-RelSurfPos(body); }
+        public Vector3d VectorTo(WayPoint wp, CelestialBody body) { return wp.WorldPos(body)-WorldPos(body); }
 
 		public double DistanceTo(WayPoint wp, CelestialBody body) { return AngleTo(wp)*body.Radius; }
 		public double DistanceTo(Vessel vsl) { return AngleTo(vsl)*vsl.mainBody.Radius; }
@@ -84,8 +82,8 @@ namespace ThrottleControlledAvionics
 		public bool   CloseEnough(VesselWrapper VSL) { return RelDistanceTo(VSL)-1 < Radius; }
 
 		public double SurfaceAlt(CelestialBody body) { return Pos.SurfaceAlt(body); }
-        public Vector3d RelSurfPos(CelestialBody body) { return Pos.RelSurfPos(body); }
-        public Vector3d RelOrbPos(CelestialBody body) { return Pos.RelOrbPos(body); }
+        public Vector3d SurfPos(CelestialBody body) { return Pos.SurfPos(body); }
+        public Vector3d OrbPos(CelestialBody body) { return Pos.OrbPos(body); }
         public Vector3d WorldPos(CelestialBody body) { return Pos.WorldPos(body); }
 
 		public static double BearingTo(double lat1, double lat2, double dlon)
@@ -130,13 +128,13 @@ namespace ThrottleControlledAvionics
 		{ 
 			if(target != null) UpdateCoordinates(VSL.Body);
 			else if(TargetInfo.targetType != ProtoTargetInfo.Type.Null && 
-			   HighLogic.LoadedSceneIsFlight)
+                    HighLogic.LoadedSceneIsFlight)
 			{
 				target = TargetInfo.FindTarget();
 				if(target == null) 
 				{
-					TargetInfo.targetType = ProtoTargetInfo.Type.Null;
-					Name += " last location";
+                    TargetInfo.targetType = ProtoTargetInfo.Type.Null;
+                    Valid = false;
 				}
 				else UpdateCoordinates(VSL.Body);
 			}
@@ -178,8 +176,8 @@ namespace ThrottleControlledAvionics
 				return;
 			}
 			TargetInfo.targetType = ProtoTargetInfo.Type.Null;
-			Name += " last location";
 			target = null;
+            Valid = false;
 		}
 
 		public string GetName() { return Name; }
@@ -219,6 +217,9 @@ namespace ThrottleControlledAvionics
 				((wp.IsProxy && IsProxy && wp.target == target) ||
 				 Pos.Equals(wp.Pos));
 		}
+
+        public static implicit operator bool(WayPoint wp)
+        { return wp != null && wp.Valid; }
 	}
 }
 

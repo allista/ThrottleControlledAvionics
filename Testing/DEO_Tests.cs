@@ -190,7 +190,7 @@ namespace ThrottleControlledAvionics
                         delay.Restart();
                         MapView.ExitMapView();
                     }
-                    if(delay.TimePassed && CFG.Target != null)
+                    if(delay.TimePassed && CFG.Target)
                     {
                         var target = CFG.Target.GetTransform();
                         if(target != null)

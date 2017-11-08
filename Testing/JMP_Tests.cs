@@ -28,7 +28,7 @@ namespace ThrottleControlledAvionics
                     TCAGui.ClearStatus();
                 if(delay.TimePassed && MapView.MapIsEnabled)
                     MapView.ExitMapView();
-                if(CFG.Target != null)
+                if(CFG.Target)
                 {
                     var target = CFG.Target.GetTransform();
                     FlightCameraOverride.Target(FlightCameraOverride.Mode.LookFromTo, 

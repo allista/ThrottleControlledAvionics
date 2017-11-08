@@ -103,7 +103,7 @@ namespace ThrottleControlledAvionics
                     vessel.targetObject != null && 
                     !(vessel.targetObject is CelestialBody) || 
                     NavWaypoint.fetch != null && NavWaypoint.fetch.IsActive ||
-                    CFG.Target != null || 
+                    CFG.Target || 
                     CFG.Path.Count > 0;
             } 
         }
@@ -132,7 +132,7 @@ namespace ThrottleControlledAvionics
 
         public void UpdateTarget(WayPoint wp)
         {
-            if(wp != null && CFG.Target != null && wp != CFG.Target)
+            if(wp != null && CFG.Target && wp != CFG.Target)
             {
                 var t = wp.GetTarget();
                 if(IsActiveVessel)
@@ -323,8 +323,15 @@ namespace ThrottleControlledAvionics
 		{
 			Physics.Update();
 			Altitude.Update();
-			if(CFG.Target != null) 
+			if(CFG.Target)
+            {
 				CFG.Target.Update(this);
+                if(!CFG.Target.Valid)
+                {
+                    CFG.Target = null;
+                    TargetUsers.Clear();
+                }
+            }
 		}
 
 		public void UpdateCommons()
