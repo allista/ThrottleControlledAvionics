@@ -273,21 +273,21 @@ namespace ThrottleControlledAvionics
 			CFG.AltitudeAboveTerrain = true;
 			VSL.Altitude.Update();
             WideCheckAlt = Utils.Clamp(VSL.Altitude.Relative+VSL.VerticalSpeed.Absolute*3, 
-                                       VSL.Geometry.H*2, LND.MaxStartAltitude);
+                                       VSL.Geometry.D*2, LND.MaxStartAltitude);
 		}
 
 		bool altitude_changed
 		{
 			get
 			{
-                var err = Mathf.Abs(VSL.Altitude.Relative-WideCheckAlt);
-				if(err > 10)
+                var err = Mathf.Abs(VSL.Altitude.Relative-WideCheckAlt)/WideCheckAlt;
+                if(err > 0.1f)
 				{
 					CFG.VF.OnIfNot(VFlight.AltitudeControl);
                     CFG.DesiredAltitude = WideCheckAlt;
 					return false;
 				}
-				if(err < 5)
+				if(err < 0.05f)
 				{
 					CFG.VF.OffIfOn(VFlight.AltitudeControl);
                     CFG.VerticalCutoff = 0;
@@ -348,9 +348,8 @@ namespace ThrottleControlledAvionics
 
 		void wide_check(float delta_alt = 0)
 		{
-            //test this
-//            if(WideCheckAlt < LND.WideCheckAltitude)
-//                WideCheckAlt = LND.WideCheckAltitude;
+            if(WideCheckAlt < VSL.Geometry.D*2)
+                WideCheckAlt = VSL.Geometry.D*2;
             WideCheckAlt += delta_alt;
             if(VSL.Altitude.Relative > WideCheckAlt)
                 WideCheckAlt = VSL.Altitude.Relative;
@@ -445,9 +444,16 @@ namespace ThrottleControlledAvionics
 				break;
 			case Stage.WideCheck:
 				//FIXME: the first wide check sometimes causes uncontrolled ascent
-				if(!fully_stopped) { Status("Prepearing for surface scanning..."); break; }
-                Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", Progress);
-				if(scan(LND.WideCheckLevel)) break;
+				if(!fully_stopped) 
+                { 
+                    Status("Prepearing for surface scanning..."); 
+                    break; 
+                }
+				if(scan(LND.WideCheckLevel)) 
+                {
+                    Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", Progress);
+                    break;
+                }
                 FlattestNode = flattest_node;
 				if(FlatNodes.Count > 0) 
                     stage = Stage.FlatCheck;
