@@ -447,7 +447,7 @@ namespace ThrottleControlledAvionics
             //draw waypoints and all subwindows
             if(RemoteControl && Event.current.type == EventType.Repaint)
                 Markers.DrawWorldMarker(TCA.vessel.transform.position, Color.green, 
-                                        "Remotely Controlled Vessel", NavigationTab.PathNodeMarker);
+                                        "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
 			if(NAV != null) NAV.DrawWaypoints();
 			AllWindows.ForEach(w => w.Draw());
             ModulesGraph.Draw();
