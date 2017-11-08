@@ -38,8 +38,6 @@ namespace ThrottleControlledAvionics
 		public Vector3  EnginesResponseTime { get; private set; }
 		public float    EnginesResponseTimeM { get; private set; }
 
-        public Vector3 TotalTorque;//debug
-
 		public float MaxAAMod { get; private set; }
 
 		public TorqueProps(VesselWrapper vsl) : base(vsl) 
@@ -78,12 +76,10 @@ namespace ThrottleControlledAvionics
 			var TorqueResponseSpeed = Vector6.zero;
 			var TotalSlowTorque = Vector6.zero;
             var TotalSlowSpecificTorque = Vector6.zero;
-            TotalTorque = Vector3.zero;//debug
 			for(int i = 0, count = VSL.Engines.Active.Steering.Count; i < count; i++)
 			{
 				var e = VSL.Engines.Active.Steering[i];
                 var max_torque = e.defSpecificTorque*e.nominalFullThrust;
-                TotalTorque += e.specificTorque*e.finalThrust;//debug
                 EnginesLimits.Add(e.defCurrentTorque);
                 EnginesSpecificTorque.Add(e.defSpecificTorque);
                 MaxEnginesLimits.Add(max_torque);
