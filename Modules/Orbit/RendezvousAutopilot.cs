@@ -42,6 +42,7 @@ namespace ThrottleControlledAvionics
 		public RendezvousAutopilot(ModuleTCA tca) : base(tca) {}
 
 		ThrottleControl THR;
+        MatchVelocityAutopilot MVA;
 
 		protected override RendezvousTrajectory CurrentTrajectory
 		{ get { return new RendezvousTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target); } }
@@ -75,7 +76,6 @@ namespace ThrottleControlledAvionics
 		Vector3d ToOrbitIniApV;
 
 		double CurrentDistance = -1;
-        double DirectDistance = -1;
         bool CorrectingManeuver;
 
 		public override void Init()
@@ -106,7 +106,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Resume:
 				if(!check_patched_conics()) 
 				{
-					CFG.AP2.Off();
+					Disable();
 					break;
 				}
                 ShowOptions = true;
@@ -131,10 +131,10 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.On:
-				reset();
+				Reset();
 				if(setup()) 
 					goto case Multiplexer.Command.Resume;
-				CFG.AP2.Off();
+				Disable();
 				break;
 
 			case Multiplexer.Command.Off:
@@ -142,7 +142,7 @@ namespace ThrottleControlledAvionics
                 ReleaseCPS();
                 StopUsingTarget();
                 ShowOptions = false;
-				reset();
+				Reset();
 				break;
 			}
 		}
@@ -239,10 +239,14 @@ namespace ThrottleControlledAvionics
 		{
             update_trajectory();
             var startUT = VSL.Physics.UT+CorrectionOffset+TimeWarp.fixedDeltaTime*TRJ.PerFrameIterations*10;
-            ComputeTrajectory(new StartTimeOptimizer(this,
-                                                     startUT,
-                                                     trajectory.AtTargetUT-startUT,
-                                                     trajectory.TransferTime/10));
+            var transfer = trajectory.AtTargetUT-startUT;
+            var dT = trajectory.TransferTime/10;
+            if(transfer <= 0)
+            {
+                transfer = trajectory.OrigOrbit.GetEndUT()-startUT;
+                dT = transfer/10;
+            }
+            ComputeTrajectory(new StartTimeOptimizer(this, startUT, transfer, dT));
             stage = Stage.ComputeCorrection;
             trajectory = null;
 		}
@@ -548,7 +552,8 @@ namespace ThrottleControlledAvionics
 
         void approach_or_brake()
         {
-            if(DirectDistance > REN.Dtol) 
+            var D = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.MinDistance, 0);
+            if(D > REN.Dtol) 
                 approach();
             else 
                 brake();
@@ -568,44 +573,44 @@ namespace ThrottleControlledAvionics
 			else CFG.AP1.On(Autopilot1.MatchVel);
 		}
 
-        void next_stage(bool direct_distance = false)
+        void next_stage()
         {
             if(TargetLoaded) 
                 approach_or_brake();
             else
             {
-                var D = (direct_distance? DirectDistance : CurrentDistance);
-                var relD = D/VesselOrbit.semiMajorAxis;
-                if(relD > REN.CorrectionStart) 
-                    compute_rendezvou_trajectory();
-                else if(D > REN.Dtol) //if(relD > REN.CorrectionStart/4) 
-                    fine_tune_approach();
-                else if(direct_distance)
+                update_trajectory();
+                var direct_approach = new RendezvousTrajectory(VSL, 
+                                                               TargetOrbit.vel-VesselOrbit.vel + 
+                                                               (TargetOrbit.pos-VesselOrbit.pos).normalized*REN.MaxApproachV,
+                                                               VSL.Physics.UT, CFG.Target);
+//                Log("dDist {}, cDist {}, direct approach {}", direct_approach.DistanceToTarget, CurrentDistance, direct_approach);//debug
+                if(mode != Mode.DeltaV &&
+                   direct_approach.FullBrake &&
+                   direct_approach.DistanceToTarget < REN.Dtol && 
+                   direct_approach.ManeuverDeltaV.magnitude < REN.MaxApproachV*2)
                     approach_or_brake();
+                else if(CurrentDistance/VesselOrbit.semiMajorAxis > REN.CorrectionStart) 
+                    compute_rendezvou_trajectory();
+                else if(CurrentDistance > REN.Dtol)//if(relD > REN.CorrectionStart/4) 
+                    fine_tune_approach();
                 else 
                     match_orbits();
             }
-        }
-
-        void update_direct_distance()
-        {
-            DirectDistance = Utils.ClampL((TargetOrbit.pos-VesselOrbit.pos).magnitude-VSL.Geometry.MinDistance, 0);
         }
 
 		protected override void update_trajectory()
 		{
 			base.update_trajectory();
 			CurrentDistance = trajectory.DistanceToTarget;
-//            Log("CurrentDistance {}", CurrentDistance);//debug
 		}
 
-		protected override void reset()
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			stage = Stage.None;
             CorrectingManeuver = false;
 			CurrentDistance = -1;
-            DirectDistance = -1;
             optimizer = null;
 			CFG.AP1.Off();
 		}
@@ -652,7 +657,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) { CFG.AP2.OffIfOn(Autopilot2.Rendezvous); return; }
 			switch(stage)
 			{
 			case Stage.Start:
@@ -675,7 +679,7 @@ namespace ThrottleControlledAvionics
 			case Stage.Launch:
 				if(ToOrbit.LaunchUT > VSL.Physics.UT) 
 				{
-					Status("Waiting for launch window...");
+                    TmpStatus("Waiting for launch window...");
                     ToOrbit.UpdateTargetPosition();
 					VSL.Info.Countdown = ToOrbit.LaunchUT-VSL.Physics.UT;
 					VSL.Controls.WarpToTime = ToOrbit.LaunchUT;
@@ -698,9 +702,8 @@ namespace ThrottleControlledAvionics
                 else start_orbit();
 				break;
 			case Stage.StartOrbit:
-				Status("Achiving orbit...");
+                TmpStatus("Achiving orbit...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				update_trajectory();
                 next_stage();
 				break;
             case Stage.ComputeSuborbitRendezvous:
@@ -732,13 +735,13 @@ namespace ThrottleControlledAvionics
                 else
                 {
     				Status("red", "Failed to compute rendezvou trajectory.\nPlease, try again.");
-    				CFG.AP2.Off();
+    				Disable();
                 }
 				break;
             case Stage.ComputeCorrection:
                 if(TimeWarp.CurrentRateIndex == 0 && TimeWarp.CurrentRate > 1) 
                 {
-                    Status("Waiting for Time Warp to end...");
+                    TmpStatus("Waiting for Time Warp to end...");
                     break;
                 }
                 if(!trajectory_computed()) break;
@@ -778,13 +781,12 @@ namespace ThrottleControlledAvionics
                     compute_rendezvou_trajectory();
                 break;
 			case Stage.Rendezvou:
-				Status("Executing rendezvous maneuver...");
+                TmpStatus("Executing rendezvous maneuver...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-                update_trajectory();
                 next_stage();
 				break;
 			case Stage.Coast:
-				Status("Coasting...");
+                TmpStatus("Coasting...");
 				if(!CorrectionTimer.TimePassed)
 				{
 					if(VSL.Controls.CanWarp)
@@ -796,7 +798,7 @@ namespace ThrottleControlledAvionics
 				fine_tune_approach();
 				break;
 			case Stage.MatchOrbits:
-				Status("Matching orbits at nearest approach...");
+                TmpStatus("Matching orbits at nearest approach...");
                 update_trajectory();
 				if(CFG.AP1[Autopilot1.Maneuver]) 
                 {
@@ -816,11 +818,12 @@ namespace ThrottleControlledAvionics
                         CorrectingManeuver = threshold > 0;
                         if(CorrectingManeuver)
                         {
+                            VSL.Controls.StopWarp();
                             var correction = Vector3d.Exclude(TargetOrbit.pos-VesselOrbit.pos, trajectory.AtTargetRelPos).normalized *
                                 threshold/Utils.Clamp(trajectory.TimeToTarget/2, 0.1, 10);
-                            Status("Matching orbits at nearest approach...\n" +
-                                   "<color=yellow><b>PROXIMITY ALERT!</b></color> Clearence {0:F1} m", 
-                                   trajectory.DistanceToTarget);
+                            TmpStatus("Matching orbits at nearest approach...\n" +
+                                      "<color=yellow><b>PROXIMITY ALERT!</b></color> Clearence {0:F1} m", 
+                                      trajectory.DistanceToTarget);
                             if(MAN.ManeuverStage == ManeuverAutopilot.Stage.WAITING)
                                 correction -= MAN.NodeDeltaV/2;
                             MAN.AddCourseCorrection(correction);
@@ -841,15 +844,10 @@ namespace ThrottleControlledAvionics
                     add_node_abs(TargetOrbit.vel-VesselOrbit.vel, VSL.Physics.UT);
                     CFG.AP1.On(Autopilot1.Maneuver);
                 }
-                else if(MAN.ManeuverStage == ManeuverAutopilot.Stage.FINISHED)
-                {
-                    update_direct_distance();
-                    next_stage(true);
-                }
-                else next_stage();
+                next_stage();
 				break;
 			case Stage.Approach:
-				Status("Approaching...");
+                TmpStatus("Approaching...");
                 THR.DeltaV = 0;
 				var dP = TargetOrbit.pos-VesselOrbit.pos;
 				var dPm = dP.magnitude;
@@ -859,15 +857,19 @@ namespace ThrottleControlledAvionics
                 if(throttle.Equals(0)) break;
                 var dVr = Vector3d.Dot(VesselOrbit.vel-TargetOrbit.vel, dP/dPm);
 				var nVm = Utils.Clamp(dPm*REN.ApproachVelF, 1, REN.MaxApproachV);
-				if(dVr+GLB.THR.MinDeltaV < nVm) 
+				if(dVr < nVm) 
 				{
 					VSL.Engines.ActivateEngines();
-                    THR.DeltaV = (float)(nVm-dVr)*throttle;
+                    THR.DeltaV = (float)Math.Max(nVm-dVr, 1)*throttle;
 				}
-				else brake();
+				else 
+                {
+                    MVA.MinDeltaV = 0.5f;
+                    brake();
+                }
 				break;
 			case Stage.Brake:
-				Status("Braking near target...");
+                TmpStatus("Braking near target...");
 				if(CFG.AP1[Autopilot1.MatchVelNear]) break;
 				if(CFG.AP1[Autopilot1.MatchVel])
 				{
@@ -877,7 +879,7 @@ namespace ThrottleControlledAvionics
 				}
                 if((VSL.Physics.wCoM-TargetVessel.CurrentCoM).magnitude-VSL.Geometry.MinDistance > REN.Dtol)
 				{ approach(); break; }
-				CFG.AP2.Off();
+				Disable();
 				CFG.AT.OnIfNot(Attitude.KillRotation);
 				ClearStatus();
 				break;
@@ -888,7 +890,7 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			#if DEBUG
-			if(CFG.Target != null && Body != null && TargetOrbit != null)
+			if(CFG.Target && Body != null && TargetOrbit != null)
 			{
 				if(ToOrbit != null)
 				{

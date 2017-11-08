@@ -66,7 +66,10 @@ namespace ThrottleControlledAvionics
             DirectHit = DistanceToTarget < 1;
             DistanceToTarget = Utils.ClampL(DistanceToTarget, 0);
             BrakeDeltaV = t_orbit.GetFrameVelAtUT(AtTargetUT)-obt.GetFrameVelAtUT(AtTargetUT);
-			BrakeDuration = VSL.Engines.TTB_Precise((float)BrakeDeltaV.magnitude);
+            var brake_dV = (float)BrakeDeltaV.magnitude;
+            BrakeDuration = VSL.Engines.TTB_Precise(brake_dV);
+            BrakeFuel = VSL.Engines.FuelNeeded(brake_dV);
+            FullBrake = GetTotalFuel() < VSL.Engines.AvailableFuelMass;
             //check if this trajectory is too close to any of celestial bodies it passes by
             KillerOrbit = TransferTime < BrakeDuration+ManeuverDuration;
             update_killer(OrigOrbit, StartUT);
