@@ -37,15 +37,26 @@ namespace ThrottleControlledAvionics
 
 		public CollisionPreventionSystem(ModuleTCA tca) : base(tca) {}
 
+        #pragma warning disable 169
 		HorizontalSpeedControl HSC;
-		VerticalSpeedControl VSC;
+        VerticalSpeedControl VSC;
+        #pragma warning restore 169
+
+        public override void Disable() 
+        { 
+            Correction = Vector3.zero; 
+        }
+
+        protected override void Resume()
+        {
+            base.Resume();
+            Correction = Vector3.zero;
+        }
 
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
-            IsActive &= CFG.UseCPS && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null && HasActiveClients; 
-			if(IsActive) return;
-			Correction = Vector3.zero;
+            IsActive &= CFG.UseCPS && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null && HasActiveClients;
 		}
 
 		static int RadarMask = (1 | 1 << LayerMask.NameToLayer("Parts"));
@@ -285,7 +296,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
 			if(scan())
 			{
 				var correction = Vector3d.zero;

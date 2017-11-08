@@ -61,11 +61,12 @@ namespace ThrottleControlledAvionics
             get { return "'Jump To' Autopilot"; }
         }
 
-		protected override void reset()
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			stage = Stage.None;
 			StartAltitude = BJ.StartAltitude;
+            Executor.Reset();
 			CFG.AP1.Off();
 		}
 
@@ -108,19 +109,19 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.On:
-				reset();
+				Reset();
 				if(setup())
 				{
 					SaveGame("before_jump");
 					goto case Multiplexer.Command.Resume;
 				}
-				CFG.AP2.Off();
+                Disable();
 				return;
 
 			case Multiplexer.Command.Off:
                 ReleaseCPS();
 				SetTarget();
-				reset();
+				Reset();
 				break;
 			}
 		}
@@ -242,7 +243,7 @@ namespace ThrottleControlledAvionics
 
         Vector3d compute_intial_jump_velocity()
         {
-            var tPos = CFG.Target.RelOrbPos(Body);
+            var tPos = CFG.Target.OrbPos(Body);
             var solver = new LambertSolver(VesselOrbit, tPos+tPos.normalized*LTRJ.FlyOverAlt, VSL.Physics.UT);
             var vel = VesselOrbit.vel +
                 solver.dV4TransferME()
@@ -283,9 +284,9 @@ namespace ThrottleControlledAvionics
             trajectory = null;
 		}
 
-        void VSC_ON(HFlight program)
+        void VSC_ON(HFlight HF_program)
         {
-            CFG.HF.OnIfNot(program);
+            CFG.HF.OnIfNot(HF_program);
             CFG.BlockThrottle = true;
             CFG.AltitudeAboveTerrain = true;
             CFG.VF.OnIfNot(VFlight.AltitudeControl);
@@ -295,13 +296,11 @@ namespace ThrottleControlledAvionics
 		{
 			base.UpdateState();
 			IsActive &= CFG.AP2[Autopilot2.BallisticJump];
-			ControlsActive &= IsActive || 
-                VSL.HasTarget || CFG.Target != null;
+			ControlsActive &= IsActive || VSL.HasTarget;
 		}
 
 		protected override void Update()
 		{
-			if(!IsActive) { CFG.AP2.OffIfOn(Autopilot2.BallisticJump); return; }
 			if(landing) { do_land(); return; }
 			switch(stage)
 			{
@@ -396,7 +395,6 @@ namespace ThrottleControlledAvionics
 		public override void Draw()
 		{
 			#if DEBUG
-			DrawDebugLines();
 //			if(current != null)//debug
 //			{
 //				Utils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);

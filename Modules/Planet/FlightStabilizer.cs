@@ -34,6 +34,8 @@ namespace ThrottleControlledAvionics
 			OffTimer.Period = STB.Timer;
 		}
 
+        public override void Disable() {}
+
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
@@ -52,7 +54,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
 			if(Working) 
 			{
 				SetState(TCAState.StabilizeFlight);

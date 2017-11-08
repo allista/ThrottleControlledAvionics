@@ -42,10 +42,15 @@ namespace ThrottleControlledAvionics
 			CFG.HF.AddHandler(this, HFlight.CruiseControl);
 		}
 
+        public override void Disable()
+        {
+            CFG.HF.OffIfOn(HFlight.CruiseControl);
+        }
+
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
-			IsActive &= VSL.OnPlanet && CFG.HF[HFlight.CruiseControl]; 
+            IsActive &= VSL.refT != null && VSL.OnPlanet && CFG.HF[HFlight.CruiseControl]; 
 			if(!inited && IsActive && !VSL.Physics.Up.IsZero())
 			{
 				UpdateNeededVelocity();
@@ -108,9 +113,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void OnAutopilotUpdate()
 		{
-			//need to check all the prerequisites, because the callback is called asynchroniously
-			if(!(CFG.Enabled && VSL.OnPlanet && VSL.refT != null &&
-			     CFG.HF[HFlight.CruiseControl])) return;
 			if(VSL.HasUserInput) 
 			{ 
 				if(!CS.pitch.Equals(0))

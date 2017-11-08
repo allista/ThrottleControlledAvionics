@@ -68,27 +68,38 @@ namespace ThrottleControlledAvionics
 		public override void Init()
 		{
 			base.Init();
-			was_landed = VSL.LandedOrSplashed;
-			stage = was_landed ? Stage.Landed : Stage.Flying;
 			GearTimer.Period = TLA.GearTimer;
 			LandedTimer.Period = TLA.LandedTimer;
 			StopAction.action = () => CFG.HF.OnIfNot(HFlight.Stop);
-			working(false);
+            Reset();
 		}
+
+        public override void Disable()
+        {
+            Reset();
+        }
+
+        protected override void Resume()
+        {
+            base.Resume();
+            Reset();
+        }
 
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
-			IsActive &= VSL.OnPlanet && CFG.VTOLAssistON; 
-			if(IsActive) return;
-			was_landed = VSL.LandedOrSplashed;
-			stage = was_landed ? Stage.Landed : Stage.Flying;
-			working(false);
+			IsActive &= VSL.OnPlanet && CFG.VTOLAssistON;
 		}
+
+        protected override void Reset()
+        {
+            was_landed = VSL.LandedOrSplashed;
+            stage = was_landed ? Stage.Landed : Stage.Flying;
+            working(false);
+        }
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
 			//update state
 			if(was_landed && !VSL.LandedOrSplashed) 
 			{ stage = Stage.JustTookoff; GearTimer.Reset(); StopAction.Reset(); }

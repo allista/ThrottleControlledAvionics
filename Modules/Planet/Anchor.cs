@@ -43,10 +43,15 @@ namespace ThrottleControlledAvionics
 			CFG.Nav.AddHandler(this, Navigation.Anchor, Navigation.AnchorHere);
 		}
 
+        public override void Disable()
+        {
+            CFG.Nav.OffIfOn(Navigation.Anchor, Navigation.AnchorHere);
+        }
+
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
-			IsActive &= VSL.OnPlanet && !VSL.LandedOrSplashed && CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere); 
+            IsActive &= CFG.Anchor != null && VSL.OnPlanet && !VSL.LandedOrSplashed && CFG.Nav.Any(Navigation.Anchor, Navigation.AnchorHere); 
 		}
 
 		public void AnchorCallback(Multiplexer.Command cmd)
@@ -81,7 +86,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive || CFG.Anchor == null) return;
 			if(VSL.HorizontalSpeed > ANC.MaxSpeed)
 				CFG.HF.OnIfNot(HFlight.NoseOnCourse);
 			else CFG.HF.OnIfNot(HFlight.Move);

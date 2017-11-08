@@ -52,6 +52,8 @@ namespace ThrottleControlledAvionics
 			}
 		}
 
+        public override void Disable() {}
+
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
@@ -66,7 +68,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void OnAutopilotUpdate()
 		{
-			if(!IsActive) return;
             var needed_thrust = -VSL.Physics.Up;
             rotation_axis = Vector3.zero;
 			if(VSL.HasUserInput) 

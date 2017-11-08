@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.On:
-				reset();
+				Reset();
 				if(!check_patched_conics()) return;
 				Vector3d hVdir;
 				if(TargetOrbit.Inclination.Range > 1e-5f)
@@ -97,7 +97,7 @@ namespace ThrottleControlledAvionics
 				goto case Multiplexer.Command.Resume;
 
 			case Multiplexer.Command.Off:
-				reset();
+				Reset();
 				break;
 			}
 		}
@@ -119,9 +119,9 @@ namespace ThrottleControlledAvionics
 			TargetOrbit.Inclination.ClampValue();
 		}
 
-		protected override void reset()
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			update_limits();
 			ToOrbit = null;
 			Target = Vector3d.zero;
@@ -168,7 +168,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
 			switch(stage)
 			{
 			case Stage.Start:
@@ -213,15 +212,15 @@ namespace ThrottleControlledAvionics
 				else circularize(ApAUT);
 				break;
 			case Stage.ChangeApA:
-				Status("Achieving target apoapsis...");
+                TmpStatus("Achieving target apoapsis...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
 				circularize(VSL.Physics.UT+VesselOrbit.timeToAp);
 				stage = Stage.Circularize;
 				break;
 			case Stage.Circularize:
-				Status("Circularization...");
+                TmpStatus("Circularization...");
 				if(CFG.AP1[Autopilot1.Maneuver]) break;
-				CFG.AP2.Off();
+                Disable();
 				ClearStatus();
 				break;
 			}

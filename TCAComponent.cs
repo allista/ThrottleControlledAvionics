@@ -59,6 +59,12 @@ namespace ThrottleControlledAvionics
 		protected void Status(string color, string msg, params object[] args) 
 		{ Status(-1, color, msg, args); }
 
+        protected void TmpStatus(string color, string msg, params object[] args)
+        { Status(1, color, msg, args); }
+
+        protected void TmpStatus(string msg, params object[] args)
+        { Status(1, msg, args); }
+
 		protected string LogTemplate(string msg)
 		{ return string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg); }
 
@@ -83,9 +89,10 @@ namespace ThrottleControlledAvionics
         protected TCAGui UI { get { return TCAGui.Instance; } }
 		protected DrawableComponent(ModuleTCA tca) : base(tca) {}
 		public abstract void Draw();
+        public virtual void OnRenderObject() {}
 	}
 
-	public class TCAModule : DrawableComponent
+	public abstract class TCAModule : DrawableComponent
 	{
 		public class ModuleConfig : ConfigNodeObject
 		{
@@ -105,30 +112,44 @@ namespace ThrottleControlledAvionics
 		protected TCAModule(ModuleTCA tca) : base(tca) {}
 
 		public virtual void Init() { InitModuleFields(); LoadFromConfig(); }
-		public void OnFixedUpdate() 
-        { 
-            if(CFG.Enabled)
-            {
-                UpdateState(); 
-                Update(); 
-            }
-        }
-		public virtual void Reset() {}
+		public virtual void Cleanup() {}
 		public virtual void ClearFrameState() {}
-		public virtual void OnEnable(bool enabled) {}
+		public virtual void OnEnableTCA(bool enabled) {}
 		public virtual void ProcessKeys() {}
 		public override void Draw() {}
+        public abstract void Disable();
+        protected virtual void Resume() {}
+
+        protected void _Update(Action update_action)
+        {
+            var was_active = IsActive;
+            UpdateState();
+            if(IsActive)
+            {
+                if(!was_active)
+                    Resume();
+                update_action();
+            }
+            else if(was_active)
+                Disable();
+        }
+
+        public void OnFixedUpdate() 
+        { 
+            if(CFG.Enabled)
+                _Update(Update);
+        }
 
 		protected virtual void UpdateState() 
         { 
-            IsActive = VSL != null && CFG.Enabled; 
+            IsActive = VSL != null;
             ControlsActive = true; 
         }
 		protected virtual void Update() {}
-		protected virtual void reset() {}
+		protected virtual void Reset() {}
 
 		protected void SetTarget(WayPoint wp = null) { VSL.SetTarget(this, wp); }
-		protected void SetTarget(Vessel vsl) { SetTarget(new WayPoint(vsl)); }
+        protected void SetTarget(ITargetable t) { SetTarget(new WayPoint(t)); }
 		protected void UseTarget() { VSL.TargetUsers.Add(this); }
 		protected void StopUsingTarget() { VSL.TargetUsers.Remove(this); }
 
@@ -199,15 +220,14 @@ namespace ThrottleControlledAvionics
 		
 		}
 
-		public override void Reset() { VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; }
+		public override void Cleanup() { VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; }
 
 		public void UpdateCtrlState(FlightCtrlState s) 
         { 
             if(CFG.Enabled)
             {
                 CS = s;
-                UpdateState(); 
-                OnAutopilotUpdate(); 
+                _Update(OnAutopilotUpdate);
             }
         }
 

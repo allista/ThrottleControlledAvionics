@@ -31,12 +31,17 @@ namespace ThrottleControlledAvionics
 		void AbortWarp(bool instant = false)
 		{
             VSL.Controls.AbortWarp(instant);
-			reset();
+			Reset();
 		}
 
-		protected override void reset()
+        public override void Disable()
+        {
+            AbortWarp();
+        }
+
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			last_warp_index = TimeWarp.CurrentRateIndex;
             VSL.Controls.NoDewarpOffset = false;
             frames_to_skip = -1;
@@ -126,7 +131,7 @@ namespace ThrottleControlledAvionics
                     (VSL.LandedOrSplashed || can_increase_rate) &&
 			        TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
                 TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false, false);
-			end: reset();
+			end: Reset();
 		}
 
 		public override void Draw()

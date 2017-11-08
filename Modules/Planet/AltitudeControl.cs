@@ -72,6 +72,11 @@ namespace ThrottleControlledAvionics
 			sim = new AtmoSim(VSL);
 		}
 
+        public override void Disable()
+        {
+            CFG.VF.OffIfOn(VFlight.AltitudeControl);
+        }
+
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
@@ -115,7 +120,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
 			SetState(TCAState.AltitudeControl);
 			//calculate current altitude or apoapsis, if the vessel is moving upwards
 			var alt = VSL.Altitude.Absolute;

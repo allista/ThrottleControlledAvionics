@@ -77,9 +77,11 @@ namespace ThrottleControlledAvionics
 		public HorizontalSpeedControl(ModuleTCA tca) : base(tca) {}
 
 		//modules
+        #pragma warning disable 169
 		BearingControl BRC;
 		AttitudeControl ATC;
 		TranslationControl TRA;
+        #pragma warning restore 169
 
 		readonly PIDf_Controller translation_pid = new PIDf_Controller();
         readonly PIDf_Controller3 needed_thrust_pid = new PIDf_Controller3();
@@ -124,13 +126,17 @@ namespace ThrottleControlledAvionics
 
 		public override void ClearFrameState() { CourseCorrections.Clear(); }
 
+        public override void Disable()
+        {
+            CFG.HF.Off();
+            if(VSL.Controls.ManualTranslationSwitch.On)
+                EnableManualThrust(false);
+        }
+
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
 			IsActive &= VSL.OnPlanet && CFG.HF && VSL.refT != null; 
-			if(IsActive) return;
-			if(VSL.Controls.ManualTranslationSwitch.On)
-				EnableManualThrust(false);
 		}
 
 		public void ControlCallback(Multiplexer.Command cmd)
@@ -187,7 +193,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void OnAutopilotUpdate()
 		{
-			if(!IsActive) return;
 			if(VSL.AutopilotDisabled) { output_filter.Reset(); return; }
 			CFG.AT.OnIfNot(Attitude.Custom);
 			//calculate prerequisites

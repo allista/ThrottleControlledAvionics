@@ -15,6 +15,13 @@ namespace ThrottleControlledAvionics
 	{
 		public MacroProcessor(ModuleTCA tca) : base(tca) {}
 
+        public override void Disable()
+        {
+            CFG.MacroIsActive = false;
+            if(CFG.SelectedMacro != null)
+                CFG.SelectedMacro.Rewind();
+        }
+
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
@@ -23,7 +30,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
 			CFG.MacroIsActive &= CFG.SelectedMacro.Execute(VSL);
 			if(!CFG.MacroIsActive) CFG.SelectedMacro.Rewind();
 		}

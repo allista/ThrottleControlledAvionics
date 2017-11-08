@@ -51,9 +51,11 @@ namespace ThrottleControlledAvionics
 				CFG.VerticalCutoff = 0;
 		}
 
-		protected override void reset()
+        public override void Disable() {}
+
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			Throttle = -1;
 			CorrectThrottle = true;
 		}
@@ -75,7 +77,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void OnAutopilotUpdate()
 		{
-			if(!CFG.Enabled) return;
 			if(DeltaV >= 0)
 			{
 				throttle = DeltaV < THR.MinDeltaV? throttle = 0 :
@@ -94,7 +95,7 @@ namespace ThrottleControlledAvionics
                 set_throttle(throttle);
 			else if(CFG.BlockThrottle && VSL.OnPlanet)
                 set_throttle(VSL.LandedOrSplashed && CFG.VerticalCutoff <= 0? 0 : 1);
-			reset();
+			Reset();
 		}
 
 		public override void Draw()

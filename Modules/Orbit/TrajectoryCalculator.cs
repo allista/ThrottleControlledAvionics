@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
 				if(VSL.Engines.NumActive > 0 && VSL.OnPlanet && VSL.OnPlanetParams.MaxTWR <= 1)
 				{
 					Status("red", "TWR < 1, impossible to achive orbit");
-					CFG.AP2.Off();
+                    Disable();
 					return false;
 				}
 				return true;
@@ -649,11 +649,16 @@ namespace ThrottleControlledAvionics
 			if(!TCAScenario.HavePatchedConics)
 			{
 				Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
-				CFG.AP2.Off(); 
+                Disable();
 				return false;
 			}
 			return true;
 		}
+
+        public override void Disable()
+        {
+            CFG.AP2.Off();
+        }
 
 		protected override void UpdateState()
 		{
@@ -684,6 +689,7 @@ namespace ThrottleControlledAvionics
             T t = null;
             var frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
             var ioptimizer = optimizer.GetEnumerator();
+            Status("white", "{0}\nPush to continue", optimizer.Status);
             while(true)
             {
                 current_landing_trajectory = t as LandingTrajectory;
@@ -756,11 +762,14 @@ namespace ThrottleControlledAvionics
         protected void add_trajectory_node_abs()
         { ManeuverAutopilot.AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT); }
 
-		protected override void reset()
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			trajectory = null;
 			trajectory_calculator = null;
+            #if DEBUG
+            current_landing_trajectory = null;
+            #endif
 		}
 
 		protected T trajectory;
@@ -812,14 +821,14 @@ namespace ThrottleControlledAvionics
 
 		protected virtual bool check_target()
 		{
-            return CFG.Target != null;
+            return CFG.Target;
 		}
 
 		protected virtual void setup_target()
 		{
             if(VSL.HasTarget)
                 SetTarget(VSL.TargetAsWP);
-            else if(CFG.Target != null)
+            else if(CFG.Target)
             {
                 CFG.Target.UpdateCoordinates(Body);
                 VSL.Target = CFG.Target.GetTarget();
@@ -854,7 +863,7 @@ namespace ThrottleControlledAvionics
 		protected override void UpdateState()
 		{
 			base.UpdateState();
-			IsActive &= CFG.Target != null && VSL.orbit != null && VSL.orbit.referenceBody != null;
+            IsActive &= CFG.Target && VSL.orbit != null && VSL.orbit.referenceBody != null;
 		}
 	}
 }

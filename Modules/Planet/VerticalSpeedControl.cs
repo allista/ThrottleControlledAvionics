@@ -56,10 +56,16 @@ namespace ThrottleControlledAvionics
 			});
 		}
 
+        public override void Disable()
+        {
+            CFG.DisableVSC();
+        }
+
 		protected override void UpdateState()
 		{ 
 			base.UpdateState();
-			IsActive &= VSL.OnPlanet && CFG.VSCIsActive; 
+            VSL.OnPlanetParams.VSF = 1f;
+			IsActive &= VSL.OnPlanet && CFG.VSCIsActive;
 		}
 
 		public override void Init()
@@ -75,8 +81,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			VSL.OnPlanetParams.VSF = 1f;
-			if(!IsActive) return;
 			var raw_setpoint = overriden? SetpointOverride : CFG.VerticalCutoff;
 			var setpoint = raw_setpoint;
 			SetState(TCAState.VerticalSpeedControl);

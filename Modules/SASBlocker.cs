@@ -14,6 +14,8 @@ namespace ThrottleControlledAvionics
 	{
 		public SASBlocker(ModuleTCA tca) : base(tca) {}
 
+        public override void Disable() {}
+
 		protected override void UpdateState()
 		{
 			if(HasActiveClients)
@@ -33,7 +35,7 @@ namespace ThrottleControlledAvionics
 			else RestoreSAS();
 		}
 
-		public override void OnEnable(bool enabled) { if(!enabled) RestoreSAS(); }
+		public override void OnEnableTCA(bool enabled) { if(!enabled) RestoreSAS(); }
 
 		public void RestoreSAS()
 		{

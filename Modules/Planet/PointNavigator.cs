@@ -113,10 +113,16 @@ namespace ThrottleControlledAvionics
             max_speed.Set(CFG.MaxNavSpeed);
 		}
 
+        public override void Disable()
+        {
+            CFG.Nav.OffIfOn(Navigation.GoToTarget, Navigation.FollowPath, Navigation.FollowTarget);
+        }
+
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
-			IsActive &= CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath, Navigation.FollowTarget) && VSL.OnPlanet; 
+            IsActive &= CFG.Target  && VSL.OnPlanet &&
+                CFG.Nav.Any(Navigation.GoToTarget, Navigation.FollowPath, Navigation.FollowTarget);
 		}
 
 		public void GoToTargetCallback(Multiplexer.Command cmd)
@@ -124,7 +130,7 @@ namespace ThrottleControlledAvionics
 			switch(cmd)
 			{
 			case Multiplexer.Command.Resume:
-				if(CFG.Target != null) 
+                if(CFG.Target) 
 					start_to(CFG.Target);
 				else finish();
 				break;
@@ -195,7 +201,7 @@ namespace ThrottleControlledAvionics
 
 		bool on_arrival()
 		{
-			if(CFG.Target == null) return false;
+            if(CFG.Target == null || !CFG.Target.Valid) return false;
 			if(CFG.Target.Land && LND != null)	
 			{ 
 				if(!CFG.Target.IsVessel)
@@ -317,7 +323,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive || CFG.Target == null || CFG.Nav.Paused) return;
+            if(CFG.Nav.Paused) return;
 			//differentiate between flying in formation and going to the target
 			var vdistance = 0f; //vertical distance to the target
 			if(CFG.Nav[Navigation.FollowTarget]) 
@@ -618,7 +624,7 @@ namespace ThrottleControlledAvionics
 		public void RadarBeam()
 		{
 			if(VSL == null || VSL.vessel == null) return;
-			if(CFG.Target != null && CFG.Target.GetTransform() != null && CFG.Nav[Navigation.FollowTarget])
+			if(CFG.Target && CFG.Target.GetTransform() != null && CFG.Nav[Navigation.FollowTarget])
 				Utils.GLLine(VSL.Physics.wCoM, CFG.Target.GetTransform().position+formation_offset,
 				               Maneuvering? Color.yellow : Color.cyan);
 		}

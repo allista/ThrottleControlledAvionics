@@ -86,6 +86,11 @@ namespace ThrottleControlledAvionics
 			IsActive &= VSL.OnPlanet && CFG.AP1[Autopilot1.Land]; 
 		}
 
+        public override void Disable()
+        {
+            CFG.AP1.OffIfOn(Autopilot1.Land);
+        }
+
 		public void LandCallback(Multiplexer.Command cmd)
 		{
 			stage = Stage.None;
@@ -404,7 +409,7 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive || CFG.AP1.Paused) return;
+			if(CFG.AP1.Paused) return;
             CFG.DesiredAltitude = WideCheckAlt;
             CFG.AltitudeAboveTerrain = true;
 			CFG.BlockThrottle = true;

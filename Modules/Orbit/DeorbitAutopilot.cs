@@ -310,7 +310,7 @@ namespace ThrottleControlledAvionics
             public IEnumerator<LandingTrajectory> GetEnumerator()
             {
 //                m.Log("Calculating initial orbit eccentricity...");//debug
-                var tPos = m.CFG.Target.RelOrbPos(m.Body);
+                var tPos = m.CFG.Target.OrbPos(m.Body);
                 var UT = m.VSL.Physics.UT +
                     TrajectoryCalculator.AngleDelta(m.VesselOrbit, tPos, m.VSL.Physics.UT)/360*m.VesselOrbit.period;
                 if(UT < m.VSL.Physics.UT) UT += m.VesselOrbit.period;
@@ -335,7 +335,8 @@ namespace ThrottleControlledAvionics
                     while(Math.Abs(dV) > TRJ.dVtol)
                     {
                         var cur = new LandingTrajectory(m.VSL, start.ManeuverDeltaV+dir*V, start.StartUT, m.CFG.Target, start.TargetAltitude);
-//                        m.Log("V {}, dV {}, is better {}", V, dV, comparer.isBetter(cur, Best));//debug
+//                        m.Log("V {}, dV {}, is better {}\ncur {}\nbest {}", 
+//                              V, dV, comparer.isBetter(cur, Best), cur, Best);//debug
                         if(comparer.isBetter(cur, Best))
                         {
                             Best = cur;
@@ -384,9 +385,9 @@ namespace ThrottleControlledAvionics
             trajectory = null;
 		}
 
-		protected override void reset()
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			stage = Stage.None;
             initialEcc = 0;
 			CFG.AP1.Off();
@@ -408,9 +409,9 @@ namespace ThrottleControlledAvionics
 				break;
 
 			case Multiplexer.Command.On:
-				reset();
+				Reset();
 				if(!check_patched_conics()) return;
-				if(!setup()) { CFG.AP2.Off(); return; }
+                if(!setup()) { Disable(); return; }
                 UseTarget();
                 NeedCPSWhenMooving();
 				if(VesselOrbit.PeR < Body.Radius)
@@ -425,7 +426,7 @@ namespace ThrottleControlledAvionics
 			case Multiplexer.Command.Off:
 				ReleaseCPS();
                 StopUsingTarget();
-				reset();
+				Reset();
 				break;
 			}
 		}
@@ -445,12 +446,11 @@ namespace ThrottleControlledAvionics
 			IsActive &= CFG.AP2[Autopilot2.Deorbit];
 			ControlsActive &= IsActive || 
 				!VSL.LandedOrSplashed && 
-                (VSL.HasTarget || CFG.Target != null);
+                (VSL.HasTarget || CFG.Target);
 		}
 
 		protected override void Update()
 		{
-			if(!IsActive) { CFG.AP2.OffIfOn(Autopilot2.Deorbit); return; }
 			if(landing) { do_land(); return; }
 			switch(stage)
 			{
@@ -494,9 +494,6 @@ namespace ThrottleControlledAvionics
         static readonly GUIContent button_content = new GUIContent("Land", "Compute and perform a deorbit maneuver, then land near the target.");
 		public override void Draw()
 		{
-			#if DEBUG
-			DrawDebugLines();
-			#endif
             if(ControlsActive)
             {
                 if(CFG.AP2[program])

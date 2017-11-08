@@ -104,7 +104,7 @@ namespace ThrottleControlledAvionics
 		{
 			base.Init();
 			ManeuverTimer.Period = RAD.ManeuverTimer;
-			reset();
+			Reset();
 		}
 
 		#if DEBUG
@@ -120,6 +120,11 @@ namespace ThrottleControlledAvionics
 		}
 		#endif
 
+        public override void Disable()
+        {
+            Reset();
+        }
+
 		protected override void UpdateState() 
 		{ 
 			base.UpdateState();
@@ -133,13 +138,11 @@ namespace ThrottleControlledAvionics
 					mode |= Mode.Vertical;
 				IsActive = CollisionSpeed > 0 || mode != Mode.Off && HasActiveClients;
 			}
-			if(IsActive) return;
-			reset();
 		}
 
-		protected override void reset()
+		protected override void Reset()
 		{
-			base.reset();
+			base.Reset();
 			rewind();
 			DetectedHit.Reset();
 			Altimeter.Reset();
@@ -166,7 +169,6 @@ namespace ThrottleControlledAvionics
 
 		protected override void Update()
 		{
-			if(!IsActive) return;
 			NeededHorVelocity = HSC == null? Vector3d.zero : VSL.HorizontalSpeed.NeededVector;
 			var zero_needed = NeededHorVelocity.sqrMagnitude <= 0.01;
 			//check boundary conditions
@@ -177,7 +179,7 @@ namespace ThrottleControlledAvionics
 					DetectedHit.Copy(BestHit); 
 					rewind(); 
 				}
-				else reset(); 
+				else Reset(); 
 			}
 			else if(AngleDelta < RAD.MinAngleDelta || LittleSteps > RAD.MaxLittleSteps) 
 			{

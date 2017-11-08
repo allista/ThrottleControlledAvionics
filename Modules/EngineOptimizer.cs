@@ -51,6 +51,8 @@ namespace ThrottleControlledAvionics
 
 		public EngineOptimizer(ModuleTCA tca) : base(tca) {}
 
+        public override void Disable() {}
+
 		Vector3 Steering;
 
 		static bool optimization_for_torque_pass(IList<EngineWrapper> engines, int num_engines, Vector3 target, float target_m, float eps, bool useDefTorque)

@@ -129,7 +129,7 @@ namespace ThrottleControlledAvionics
 		#region Initialization
 		public void OnReloadGlobals() 
 		{ 
-			AllModules.ForEach(m => m.Reset()); 
+			AllModules.ForEach(m => m.Cleanup()); 
 			VSL.Reset();
 			VSL.Init();
 			AllModules.ForEach(m => m.Init()); 
@@ -391,7 +391,7 @@ namespace ThrottleControlledAvionics
                 vessel.OnPreAutopilotUpdate -= OnPreAutopilotUpdate;
                 vessel.OnPostAutopilotUpdate -= OnPostAutopilotUpdate;
 				VSL.Reset();
-				AllModules.ForEach(m => m.Reset());
+				AllModules.ForEach(m => m.Cleanup());
 				CFG.ClearCallbacks();
 			}
 			DeleteModules();
@@ -408,11 +408,11 @@ namespace ThrottleControlledAvionics
 			{
 				CFG.ActiveProfile.Update(VSL.Engines.All, true);
 				VSL.SetUnpackDistance(GLB.UnpackDistance);
-				AllModules.ForEach(m => m.OnEnable(true));
+				AllModules.ForEach(m => m.OnEnableTCA(true));
 			}
 			else
 			{
-				AllModules.ForEach(m => m.OnEnable(false));
+				AllModules.ForEach(m => m.OnEnableTCA(false));
                 VSL.Engines.All.ForEach(e => e.forceThrustPercentage(100));
                 VSL.RestoreUnpackDistance();
 			}
@@ -457,7 +457,6 @@ namespace ThrottleControlledAvionics
 		public override void OnUpdate()
 		{
 			if(VSL == null) return;
-            Profiler.BeginSample("TCA-update");//debug
 			//update vessel config if needed
 			if(CFG != null && vessel != null && CFG.VesselID == Guid.Empty) updateCFG();
 			if(CFG.Enabled)
@@ -467,13 +466,11 @@ namespace ThrottleControlledAvionics
 				var ATC = GetModule<AttitudeControl>();
 				if(ATC != null) ATC.UpdateCues();
 			}
-            Profiler.EndSample();//debug
 		}
 
         public void OnPreAutopilotUpdate(FlightCtrlState s) 
 		{
 			if(VSL == null) return;
-            Profiler.BeginSample("TCA-pre-autopilot");//debug
 			//initialize systems
 			VSL.PreUpdateState(s);
 			State = TCAState.Disabled;
@@ -500,14 +497,12 @@ namespace ThrottleControlledAvionics
     			ModulePipeline.ForEach(m => m.OnFixedUpdate());
     			VSL.OnModulesUpdated();
             }
-            Profiler.EndSample();//debug
 		}
 
         public void OnPostAutopilotUpdate(FlightCtrlState s)
         {
             if(VSL == null || !CFG.Enabled) return;
             //handle engines
-            Profiler.BeginSample("TCA-post-autopilot");//debug
             VSL.PostUpdateState(s);
             VSL.Engines.Tune();
             if(VSL.Engines.NumActive > 0)
@@ -525,13 +520,12 @@ namespace ThrottleControlledAvionics
             RCS.Steer();
             VSL.Engines.SetControls();
             VSL.FinalUpdate();
-            Profiler.EndSample();//debug
         }
 
         void FixedUpdate()
         {
             if(TimeWarp.CurrentRate > 1 &&
-                TimeWarp.WarpMode == TimeWarp.Modes.HIGH)
+               TimeWarp.WarpMode == TimeWarp.Modes.HIGH)
             {
                 OnPreAutopilotUpdate(vessel.ctrlState);
                 OnPostAutopilotUpdate(vessel.ctrlState);

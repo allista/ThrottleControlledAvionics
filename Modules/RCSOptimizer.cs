@@ -19,6 +19,8 @@ namespace ThrottleControlledAvionics
 		static RCSOptimizer.Config RCS { get { return Globals.Instance.RCS; } }
 		public RCSOptimizer(ModuleTCA tca) : base(tca) {}
 
+        public override void Disable() {}
+
 		static bool optimization_pass(IList<RCSWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
 		{
 			var compensation = Vector3.zero;
