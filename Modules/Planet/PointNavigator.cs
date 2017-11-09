@@ -429,7 +429,7 @@ namespace ThrottleControlledAvionics
                     VSL.Altitude.DontCorrectIfSlow();
                     VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);
                     vel_is_set = true;
-					if(vdistance <= 0 && vdistance > -end_distance)
+                    if(vdistance <= 0 && vdistance > -VSL.Geometry.R)
 					{
 						if(CFG.Nav[Navigation.FollowPath] && CFG.Path.Count > 0)
 						{
