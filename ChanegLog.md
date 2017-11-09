@@ -2,9 +2,35 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.4.2**
+* **v3.5.0**
+	* **Major overhaul of orbital autopilots**:
+		* **Deorbit** autopilot performs **simulation of atmospheric flight and main deceleration** to determine approximate landing trajectory. Achieves much more precise landings using chutes/brakes alone; and saves fuel in powered landing.
+    		* Atmospheric trajectory is drawn in magenta in Map View
+    		* Deceleration trajectory is drawn in green in Map View
+		* **Rendezvous** autopilot employs 2D gradient-descent minimization to search for optimal rendezvous trajectory in several modes:
+            * **Min.DeltaV** - always prioritize the lowest total dV of the rendezvous (including deceleration)
+            * **Fast Transfer** - prefers smaller total transfer times (including time before maneuver), if it does not cost too much dV
+            * **Manual** - you can choose between calculated transfers yourself
+	* **Full reimplementation of attitude control**:
+    	* Attitude control uses three separate PID cascades with gain scheduling to independently control the three rotational axes. This allows for much better control over a wider range of different engines, faster and more accurate action, and eliminates some long-standing auto-oscillation bugs.
+	* **Remote control** of TCA-equipped vessels:
+    	* Now you can control nearby vessels equipped with TCA without actually switching to them. The control is not full, i.e. keyboard and mouse still belong to the active vessel; but TCA interface in this mode sends commands directly to the selected vessel. This, of course, only works on loaded vessels in comm-range, and only if you have Squadron Control Module installed.
+	* **Default vessel configs**:
+    	* Now in VAB and SPH, *separately*, you can save TCA configuration of a vessel to be the default for newly created vessels. This includes state of TCA Modules and functions, so **!do not forget to activate newly bought modules!** or you'll miss it in flight. *I'm working on automation of that process.*
+	* **Numerous fixes and improvements** in:
+		* Navigation/Land
+		* Navigation/Jump To
+		* Orbital/To Orbit
+		* Orbital/Match Velocity,Brake Near
+		* Smart Engines
+	* **Interface** changes:
+    	* **Removed "Set" buttons** of numerical entry fields. To set entered value push Enter or Keypad/Enter.
+    	* Rendezvous, Deorbit, Jump To, Orbital/Land autopilots use the Setup-then-Execute approach, so pressing, sya, "Land" button does not start landing immediately. All setup controls are now located inside appropriate tabs and are opened when you press the autopilot's main button.
+	* *Much, much more in commit messages...*
+
+* v3.4.2
     * Improved navigation autopilot (Go To, Follow Path, etc.), especially for low TWR, slow-engine VTOLs and H/VTOL-planes.
-    * Improved usage of Manual engines for translation/horizonal propulsion.
+    * Improved usage of Manual engines for translation/horizontal propulsion.
     * Cruise Control, when engaged, now uses forward direction instead of _low_ current velocity. That is, ships slowly drifting backward will not try to rotate 180deg on the spot.
     * Added a button to collapse main window.
     * Fixed ATC+PersistentRotation.
@@ -20,7 +46,7 @@ _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files 
     	* Improved trajectory optimization by using the closest elliptic transfer when a para/hyperbolic transfer time is given and by adding additional maneuver start time prescan.
         * Improved fine-tuning by selecting initial transfer time to be equal to the current nearest approach time.
         * Additional fine-tuning of the approach after Match Orbits is used only when the target is out of loading range (i.e. not yet visible).
-        * Coast stage is only used when distance to target is grater then the tolerance threshold to avoid unnesessary fine-tuning.
+        * Coast stage is only used when distance to target is grater then the tolerance threshold to avoid unnecessary fine-tuning.
     * **Deorbit Autopilot**:
     	* Landing Trajectory corrects brake time to get the proper fly-over altitude. This fixes the inability to land on a very-low-gravity worlds like Minmus.
         * Improved trajectory calculation for extremly high-lat targes (i.e. poles) + improved trajectory optimization times.
