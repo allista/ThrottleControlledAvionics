@@ -729,9 +729,10 @@ namespace ThrottleControlledAvionics
 			rel_dP = VSL.vessel.dynamicPressurekPa/dP_threshold;
 			last_Err = VSL.Controls.AttitudeError;
 			float rel_Ve;
-			Vector3d brake_pos, brake_vel;
+            Vector3d brake_pos, brake_vel, vector_from_target;
+            vector_from_target = CFG.Target.VectorTo(VSL.vessel);
 			vessel_within_range = CFG.Target.DistanceTo(VSL.vessel) < LTRJ.Dtol;
-			vessel_after_target = Vector3.Dot(VSL.HorizontalSpeed.Vector, CFG.Target.VectorTo(VSL.vessel)) >= 0;
+            vessel_after_target = Vector3.Dot(VSL.HorizontalSpeed.Vector, vector_from_target) >= 0;
 			target_within_range = trajectory.DistanceToTarget < LTRJ.Dtol;
 			landing_before_target = trajectory.DeltaR > 0;
 			compute_terminal_velocity();
@@ -750,18 +751,12 @@ namespace ThrottleControlledAvionics
                 CFG.AT.OnIfNot(Attitude.Custom);
 				ATC.SetThrustDirW(brake_vel);
                 lateral_angle.Value = lateral_angle.Upper+lateral_angle.Lower -
-                    Vector3d.Angle(Vector3d.Exclude(brake_pos, brake_vel), 
-                                   Vector3d.Exclude(brake_pos, obt_vel.xzy));
+                    Utils.Angle2(Vector3d.Exclude(brake_pos, brake_vel), 
+                                 Vector3d.Exclude(brake_pos, -vector_from_target));
                 if(lateral_angle)
-                    THR.Throttle = (float)Math.Max(lateral_angle/90, 1);
+                    THR.Throttle = (float)Math.Min((lateral_angle.Upper+lateral_angle.Lower-lateral_angle)/90, 1);
                 VSL.Info.TTB = landing_trajectory.BrakeDuration;
                 VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT-VSL.Physics.UT-1;
-//                var offset = Mathf.Lerp(VSL.Info.TTB, landing_trajectory.BrakeOffset, Utils.Clamp(VSL.Engines.TMR-0.1f, 0, 1));
-//                VSL.Info.Countdown = Math.Min(landing_trajectory.BrakeStartPoint.UT,
-//                                              landing_trajectory.BrakeEndPoint.UT -
-//                                              Math.Max(offset, LTRJ.MinBrakeOffset*(1-Utils.ClampH(Body.atmDensityASL, 1)))) -
-//                    VSL.Physics.UT-1;
-//                if(landing_trajectory.DeltaR < 0)
                 VSL.Info.Countdown += landing_trajectory.DeltaR*Body.Radius*Mathf.Deg2Rad/VSL.HorizontalSpeed;
                 correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
                 if(obstacle_ahead(0) > 0) 
