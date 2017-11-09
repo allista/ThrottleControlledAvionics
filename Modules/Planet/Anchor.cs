@@ -79,6 +79,7 @@ namespace ThrottleControlledAvionics
 			if(cmd == Multiplexer.Command.On)
 			{
 				CFG.Anchor = new WayPoint(VSL.Physics.wCoM, VSL.Body);
+                CFG.Anchor.Pos.SetAlt2Surface(VSL.Body);
 				CFG.Anchor.Movable = true;
 			}
 			AnchorCallback(cmd);
