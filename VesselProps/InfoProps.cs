@@ -18,25 +18,13 @@ namespace ThrottleControlledAvionics
 	{
 		public InfoProps(VesselWrapper vsl) : base(vsl) {}
 
-		const string ElectricChargeName = "ElectricCharge";
-		static PartResourceDefinition _electric_charge;
-		public static PartResourceDefinition ElectricCharge
-		{ 
-			get
-			{ 
-				if(_electric_charge == null)
-					_electric_charge = PartResourceLibrary.Instance.GetDefinition(ElectricChargeName);
-				return _electric_charge;
-			} 
-		}
-
 		public bool ElectricChargeAvailible
 		{
 			get
 			{
                 if(CheatOptions.InfiniteElectricity) return true;
 				double amount, max_amount;
-				vessel.GetConnectedResourceTotals(ElectricCharge.id, out amount, out max_amount);
+				vessel.GetConnectedResourceTotals(Utils.ElectricCharge.id, out amount, out max_amount);
 				return amount > 0;
 			}
 		}
