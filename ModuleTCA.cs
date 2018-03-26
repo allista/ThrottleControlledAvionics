@@ -414,6 +414,7 @@ namespace ThrottleControlledAvionics
 			{
 				AllModules.ForEach(m => m.OnEnableTCA(false));
                 VSL.Engines.All.ForEach(e => e.forceThrustPercentage(100));
+                VSL.Engines.RCS.ForEach(e => e.forceThrustPercentage(100));
                 VSL.RestoreUnpackDistance();
 			}
 		}

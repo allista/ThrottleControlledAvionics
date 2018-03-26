@@ -43,6 +43,7 @@ namespace ThrottleControlledAvionics
 		public abstract Vector3 wThrustPos { get; }
 		public abstract Vector3 wThrustDir { get; }
 
+        public abstract void forceThrustPercentage(float value);
         public abstract float ThrustM(float throttle);
 		
         public Vector3 Thrust(float throttle)
@@ -136,6 +137,11 @@ namespace ThrottleControlledAvionics
 			get { return rcs.thrustPercentage*0.01f; }
 			set { rcs.thrustPercentage = Mathf.Clamp(Utils.EWA(rcs.thrustPercentage, value*100), 0, 100); }
 		}
+
+        public override void forceThrustPercentage(float value) 
+        { 
+            rcs.thrustPercentage = Mathf.Clamp(value, 0, 100); 
+        }
 
 		public override bool isOperational 
 		{ get { return rcs.rcsEnabled && rcs.thrusterTransforms.Count > 0 && rcs.thrusterTransforms.Count == rcs.thrustForces.Length; } }
@@ -468,7 +474,7 @@ namespace ThrottleControlledAvionics
 				engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage+thrustController.Action, 0, 100);
 			}
 		}
-		public void forceThrustPercentage(float value) 
+		public override void forceThrustPercentage(float value) 
 		{ 
             if(!engine.throttleLocked) 
                 engine.thrustPercentage = Mathf.Clamp(value, 0, 100); 
