@@ -34,18 +34,7 @@ namespace ThrottleControlledAvionics
 		{
 			Texture2D Image = null;
 			if(!string.IsNullOrEmpty(Icon))
-			{
-				//using direct texture loading instead of GameDatabase,
-				//because the latter resamples textures with huge qualit loss
-				//Image = GameDatabase.Instance.GetTexture(Icon, false);
-				var path = CustomConfig.GameDataFolder(Icon.Replace('/', Path.DirectorySeparatorChar));
-				if(File.Exists(path))
-				{
-					Image = new Texture2D(32, 32, TextureFormat.RGBA32, false);
-					Image.LoadImage(File.ReadAllBytes(path));
-				}
-				else Utils.Log("No such file: {}", path);
-			}
+                Image = TextureCache.GetTexture(Icon);
 			return Image != null? new GUIContent(Image, Title) :
 				new GUIContent(Title);
 		}

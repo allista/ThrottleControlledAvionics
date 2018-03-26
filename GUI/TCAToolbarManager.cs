@@ -93,10 +93,10 @@ namespace ThrottleControlledAvionics
 		{
 			if(!ApplicationLauncher.Ready || TCAButton != null) return;
 			Utils.Log("Adding AppLauncher button");
-			textureOn       = GameDatabase.Instance.GetTexture(AL_ICON_ON,  false);
-            textureOff      = GameDatabase.Instance.GetTexture(AL_ICON_OFF, false);
-            textureNoCharge = GameDatabase.Instance.GetTexture(AL_ICON_NC,  false);
-            textureMan      = GameDatabase.Instance.GetTexture(AL_ICON_MAN, false);
+			textureOn       = TextureCache.GetTexture(AL_ICON_ON);
+            textureOff      = TextureCache.GetTexture(AL_ICON_OFF);
+            textureNoCharge = TextureCache.GetTexture(AL_ICON_NC);
+            textureMan      = TextureCache.GetTexture(AL_ICON_MAN);
 			TCAButton = ApplicationLauncher.Instance.AddModApplication(
 				onAppLaunchToggleOn,
 				onAppLaunchToggleOff,

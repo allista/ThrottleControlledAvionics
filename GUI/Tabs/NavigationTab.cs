@@ -94,8 +94,8 @@ namespace ThrottleControlledAvionics
 
 		public static void OnAwake()
 		{
-			WayPointMarker = GameDatabase.Instance.GetTexture(Globals.RADIATION_ICON, false);
-			PathNodeMarker = GameDatabase.Instance.GetTexture(Globals.CIRCLE_ICON, false);
+			WayPointMarker = TextureCache.GetTexture(Globals.RADIATION_ICON);
+			PathNodeMarker = TextureCache.GetTexture(Globals.CIRCLE_ICON);
 		}
 
 		void NavigationControls()

@@ -1,4 +1,4 @@
-//  Author:
+﻿//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2015 Allis Tauri
@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
 			show_imbalance = false;
 			use_wet_mass = true;
 			//icons
-			CoM_Icon = GameDatabase.Instance.GetTexture(Globals.RADIATION_ICON, false);
+			CoM_Icon = TextureCache.GetTexture(Globals.RADIATION_ICON);
 			//highlighters
 			TCA_highlight = new HighlightSwitcher(highlight_TCA, reset_TCA_highlighting);
 			Engines_highlight = new HighlightSwitcher(highlight_engines, reset_engines_highlightig);
