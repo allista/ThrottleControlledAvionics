@@ -33,6 +33,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float DragK          = 0.0008f;
             [Persistent] public float MaxDynPressure = 10f;
             [Persistent] public float AtmDensityOffset = 10f;
+            [Persistent] public PIDf_Controller3 ThrottlePID = new PIDf_Controller3();
         }
         static Config ORB { get { return Globals.Instance.ORB; } }
 
@@ -174,7 +175,8 @@ namespace ThrottleControlledAvionics
             switch(stage)
             {
             case Stage.Start:
-                if(VSL.LandedOrSplashed)
+                Log("Landed: {}", VSL.LandedOrSplashed);//debug
+                if(VSL.LandedOrSplashed || VSL.VerticalSpeed.Absolute < 5)
                     stage = Stage.Liftoff;
                 else
                 {

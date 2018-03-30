@@ -568,16 +568,25 @@ BJ
 ORB
 {
 	Dtol           = 100   //m
-	GTurnCurve     = 1.1
+	GTurnCurve     = 10
 	GTurnOffset    = 1000
 	Dist2VelF      = 0.01	
 	RadiusOffset   = 10000 //m
 	LaunchSlope    = 30 //deg
-	MinSlope       = 10 //deg
+	MinSlope       = 5  //deg
 	MaxSlope       = 70 //deg
 	DragK          = 2.0
 	MaxDynPressure = 35 //kPa
 	AtmDensityOffset = 1
+	ThrottlePID
+	{
+		P = 0.1
+		I = 0.01
+		D = 0.0
+		Min = -0.5
+		Max = 0.5
+		Tau = 1
+	}
 }
 
 REN
