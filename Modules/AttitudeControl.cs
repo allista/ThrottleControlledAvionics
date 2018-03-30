@@ -718,8 +718,8 @@ namespace ThrottleControlledAvionics
                     break;
                 }
                 v = VSL.InOrbit ? 
-					VSL.Target.GetObtVelocity() - VSL.vessel.obt_velocity : 
-					VSL.Target.GetSrfVelocity() - VSL.vessel.srf_velocity;
+                    VSL.Target.GetObtVelocity() - VSL.vessel.obt_velocity : 
+                    VSL.Target.GetSrfVelocity() - VSL.vessel.srf_velocity;
                 if(v.magnitude < GLB.THR.MinDeltaV)
                 {
                     CFG.AT.On(Attitude.KillRotation);
@@ -906,28 +906,28 @@ namespace ThrottleControlledAvionics
         public void DrawDebugLines()
         {
             if(!CFG.AT || VSL == null || VSL.vessel == null || VSL.refT == null) return;
-//			Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
+//            Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
             Utils.GLVec(VSL.refT.position, VSL.WorldDir(lthrust.normalized) * 20, Color.yellow);
             Utils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized) * 20, Color.red);
             Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity * 20), Color.cyan);
             Utils.GLVec(VSL.refT.position, VSL.WorldDir(new Vector3(pid_pitch.atPID.Action * rotation_axis.x,
                                                                     pid_roll.atPID.Action * rotation_axis.y,
                                                                     pid_yaw.atPID.Action * rotation_axis.z) * 20), Color.green);
-//			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
-//			Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering_pid.Action*20), Color.magenta);
+//            Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
+//            Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering_pid.Action*20), Color.magenta);
 
-//			Utils.GLVec(VSL.refT.position, VSL.refT.right*2, Color.red);
-//			Utils.GLVec(VSL.refT.position, VSL.refT.forward*2, Color.blue);
-//			Utils.GLVec(VSL.refT.position, VSL.refT.up*2, Color.green);
+//            Utils.GLVec(VSL.refT.position, VSL.refT.right*2, Color.red);
+//            Utils.GLVec(VSL.refT.position, VSL.refT.forward*2, Color.blue);
+//            Utils.GLVec(VSL.refT.position, VSL.refT.up*2, Color.green);
 
-//			if(VSL.Target != null)
-//				Utils.GLDrawPoint(VSL.Target.GetTransform().position, Color.red, 5);
+//            if(VSL.Target != null)
+//                Utils.GLDrawPoint(VSL.Target.GetTransform().position, Color.red, 5);
 //
-//			VSL.Engines.All.ForEach(e => 
-//			{
-//				Utils.GLVec(e.wThrustPos, e.wThrustDir*2, Color.red);
-//				Utils.GLVec(e.wThrustPos, e.defThrustDir*2, Color.yellow);
-//			});
+//            VSL.Engines.All.ForEach(e => 
+//            {
+//                Utils.GLVec(e.wThrustPos, e.wThrustDir*2, Color.red);
+//                Utils.GLVec(e.wThrustPos, e.defThrustDir*2, Color.yellow);
+//            });
         }
         #endif
     }

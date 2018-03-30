@@ -150,7 +150,7 @@ namespace ThrottleControlledAvionics
                 else
                 {
                     BrakeFuel = VSL.Engines
-						.FuelNeededAtAlt((float)dVm, (float)(BrakeEndPointDeltaAlt + TargetAltitude));
+                        .FuelNeededAtAlt((float)dVm, (float)(BrakeEndPointDeltaAlt + TargetAltitude));
                     if(BrakeFuel > fuel)
                     {
                         BrakeDeltaV = BrakeDeltaV * VSL.Engines.DeltaV((float)fuel) / dVm;
@@ -216,7 +216,7 @@ namespace ThrottleControlledAvionics
                 //estimate time needed to rotate the ship downwards
                 var rotation_time = VSL.Torque.NoEngines ? 
                     VSL.Torque.NoEngines.RotationTime2Phase(90) :
-					VSL.Torque.MaxPossible.RotationTime2Phase(90, 0.1f);
+                    VSL.Torque.MaxPossible.RotationTime2Phase(90, 0.1f);
                 //estimate amount of fuel needed for the maneuver
                 var vertical_vel = Vector3d.Project(AtTargetVel, AtTargetPos);
                 SetBrakeEndUT(Math.Max(AtTargetUT - GLB.LTRJ.CorrectionOffset + rotation_time, StartUT));

@@ -14,42 +14,42 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart]
-	[RequireModules(typeof(AttitudeControl),
-	                typeof(BearingControl), 
-	                typeof(ThrottleControl), 
-	                typeof(ManeuverAutopilot), 
-	                typeof(AutoLander))]
-	public class BallisticJump : LandingTrajectoryAutopilot
-	{
-		public new class Config : TCAModule.ModuleConfig
-		{
-			[Persistent] public float StartOffset      = 30f;  //s
-			[Persistent] public float StartAltitude    = 100f; //m
-			[Persistent] public float InclinationF     = 2f;
-			[Persistent] public float ObstacleOffset   = 50f;
+    [CareerPart]
+    [RequireModules(typeof(AttitudeControl),
+                    typeof(BearingControl), 
+                    typeof(ThrottleControl), 
+                    typeof(ManeuverAutopilot), 
+                    typeof(AutoLander))]
+    public class BallisticJump : LandingTrajectoryAutopilot
+    {
+        public new class Config : TCAModule.ModuleConfig
+        {
+            [Persistent] public float StartOffset      = 30f;  //s
+            [Persistent] public float StartAltitude    = 100f; //m
+            [Persistent] public float InclinationF     = 2f;
+            [Persistent] public float ObstacleOffset   = 50f;
             [Persistent] public float MinStartAngle    = 10f;
 
             [Persistent] public PIDf_Controller FallCorrectionPID = new PIDf_Controller(1, 0.5f, 0, 0, float.PositiveInfinity);
-		}
-		static Config BJ { get { return Globals.Instance.BJ; } }
+        }
+        static Config BJ { get { return Globals.Instance.BJ; } }
 
-		public BallisticJump(ModuleTCA tca) : base(tca) {}
+        public BallisticJump(ModuleTCA tca) : base(tca) {}
 
         Radar RAD;
 
-		public enum Stage { None, Start, GainAltitude, Compute, Accelerate, CorrectAltitude, CorrectTrajectory, Coast, Wait }
-		[Persistent] public Stage stage;
-		float StartAltitude;
+        public enum Stage { None, Start, GainAltitude, Compute, Accelerate, CorrectAltitude, CorrectTrajectory, Coast, Wait }
+        [Persistent] public Stage stage;
+        float StartAltitude;
 
         PIDf_Controller fall_correction = new PIDf_Controller(1, 0.5f, 0, 0, float.PositiveInfinity);
 
-		public override void Init()
-		{
-			base.Init();
+        public override void Init()
+        {
+            base.Init();
             fall_correction.setPID(BJ.FallCorrectionPID);
-			CFG.AP2.AddHandler(this, Autopilot2.BallisticJump);
-		}
+            CFG.AP2.AddHandler(this, Autopilot2.BallisticJump);
+        }
 
         protected override Autopilot2 program
         {
@@ -61,70 +61,70 @@ namespace ThrottleControlledAvionics
             get { return "'Jump To' Autopilot"; }
         }
 
-		protected override void Reset()
-		{
-			base.Reset();
-			stage = Stage.None;
-			StartAltitude = BJ.StartAltitude;
+        protected override void Reset()
+        {
+            base.Reset();
+            stage = Stage.None;
+            StartAltitude = BJ.StartAltitude;
             Executor.Reset();
-			CFG.AP1.Off();
-		}
+            CFG.AP1.Off();
+        }
 
-		protected override bool check_target()
-		{
-			if(!base.check_target()) return false;
-			if(VesselOrbit.PeR > Body.Radius)
-			{
-				Status("yellow", "Cannot perform <b>Ballistic Jump</b> from orbit.\n" +
-				       "Use <b>Land at Target</b> instead.");
-				return false;
-			}
-			//compute initial orbit estimation using LambertSolver
+        protected override bool check_target()
+        {
+            if(!base.check_target()) return false;
+            if(VesselOrbit.PeR > Body.Radius)
+            {
+                Status("yellow", "Cannot perform <b>Ballistic Jump</b> from orbit.\n" +
+                       "Use <b>Land at Target</b> instead.");
+                return false;
+            }
+            //compute initial orbit estimation using LambertSolver
             var dV = compute_intial_jump_velocity()-VesselOrbit.vel;
             var trj = new LandingTrajectory(VSL, dV, VSL.Physics.UT, CFG.Target, TargetAltitude, false);
             if(trj.TransferTime < ManeuverOffset)
-			{
+            {
                 #if DEBUG
                 Log("Too close jump trajectory: {}", trj);
                 #endif
-				Status("yellow", "The target is too close for the jump.\n" +
-				       "Use <b>Go To</b> instead.");
-				return false;
-			}
-			return true;
-		}
+                Status("yellow", "The target is too close for the jump.\n" +
+                       "Use <b>Go To</b> instead.");
+                return false;
+            }
+            return true;
+        }
 
-		public void BallisticJumpCallback(Multiplexer.Command cmd)
-		{
-			switch(cmd)
-			{
-			case Multiplexer.Command.Resume:
-				if(!check_patched_conics()) return;
-				UseTarget();
-				NeedCPSWhenMooving();
-				if(VSL.HasManeuverNode) 
-					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
-				if(stage == Stage.None && !landing) 
-					stage = Stage.Start;
-				break;
+        public void BallisticJumpCallback(Multiplexer.Command cmd)
+        {
+            switch(cmd)
+            {
+            case Multiplexer.Command.Resume:
+                if(!check_patched_conics()) return;
+                UseTarget();
+                NeedCPSWhenMooving();
+                if(VSL.HasManeuverNode) 
+                    CFG.AP1.OnIfNot(Autopilot1.Maneuver);
+                if(stage == Stage.None && !landing) 
+                    stage = Stage.Start;
+                break;
 
-			case Multiplexer.Command.On:
-				Reset();
-				if(setup())
-				{
-					SaveGame("before_jump");
-					goto case Multiplexer.Command.Resume;
-				}
+            case Multiplexer.Command.On:
+                Reset();
+                if(setup())
+                {
+                    SaveGame("before_jump");
+                    goto case Multiplexer.Command.Resume;
+                }
                 Disable();
-				return;
+                return;
 
-			case Multiplexer.Command.Off:
+            case Multiplexer.Command.Off:
                 ReleaseCPS();
-				SetTarget();
-				Reset();
-				break;
-			}
-		}
+                SetTarget();
+                Reset();
+                break;
+            }
+        }
 
         class LandingSiteOptimizer : LandingSiteOptimizerBase
         {
@@ -256,33 +256,33 @@ namespace ThrottleControlledAvionics
             return vel;
         }
 
-		void compute_initial_trajectory()
-		{
-			MAN.MinDeltaV = 1f;
+        void compute_initial_trajectory()
+        {
+            MAN.MinDeltaV = 1f;
             var vel = compute_intial_jump_velocity();
             var dir = vel.normalized;
             var V = vel.magnitude;
             ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LTRJ.Dtol));
             stage = Stage.Compute;
             trajectory = null;
-		}
+        }
 
-		void accelerate()
-		{
-			CFG.HF.Off();
-			clear_nodes();
+        void accelerate()
+        {
+            CFG.HF.Off();
+            clear_nodes();
             fall_correction.Reset();
-			stage = Stage.Accelerate;
-		}
+            stage = Stage.Accelerate;
+        }
 
-		protected override void fine_tune_approach()
-		{
+        protected override void fine_tune_approach()
+        {
             update_landing_trajecotry();
-			var V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
+            var V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
             ComputeTrajectory(new LandingSiteCorrector(this, V, LTRJ.Dtol/2));
             stage = Stage.CorrectTrajectory;
             trajectory = null;
-		}
+        }
 
         void VSC_ON(HFlight HF_program)
         {
@@ -292,58 +292,58 @@ namespace ThrottleControlledAvionics
             CFG.VF.OnIfNot(VFlight.AltitudeControl);
         }
 
-		protected override void UpdateState()
-		{
-			base.UpdateState();
-			IsActive &= CFG.AP2[Autopilot2.BallisticJump];
-			ControlsActive &= IsActive || VSL.HasTarget;
-		}
+        protected override void UpdateState()
+        {
+            base.UpdateState();
+            IsActive &= CFG.AP2[Autopilot2.BallisticJump];
+            ControlsActive &= IsActive || VSL.HasTarget;
+        }
 
-		protected override void Update()
-		{
-			if(landing) { do_land(); return; }
-			switch(stage)
-			{
-			case Stage.Start:
+        protected override void Update()
+        {
+            if(landing) { do_land(); return; }
+            switch(stage)
+            {
+            case Stage.Start:
                 VSC_ON(HFlight.Stop);
-				if(VSL.LandedOrSplashed || VSL.Altitude.Relative < StartAltitude) 
+                if(VSL.LandedOrSplashed || VSL.Altitude.Relative < StartAltitude) 
                     CFG.DesiredAltitude = StartAltitude;
                 else CFG.DesiredAltitude = VSL.Altitude.Relative;
                 if(!VSL.LandedOrSplashed)
                     compute_initial_trajectory();
-				break;
+                break;
             case Stage.GainAltitude:
                 Status("Gaining altitude...");
                 VSC_ON(HFlight.Level);
                 if(VSL.Altitude.Relative > CFG.DesiredAltitude-10)
                     compute_initial_trajectory();
                 break;
-			case Stage.Compute:
+            case Stage.Compute:
                 double obstacle;
                 if(!trajectory_computed()) break;
                 if(find_biggest_obstacle_ahead(BJ.StartAltitude, out obstacle)) break;
                 if(obstacle > 0)
-				{
+                {
                     StartAltitude += (float)obstacle+BJ.ObstacleOffset;
                     CFG.DesiredAltitude = StartAltitude;
                     stage = Stage.GainAltitude;
-				}
+                }
                 else if(VSL.Altitude.Relative < BJ.StartAltitude-10)
                     stage = Stage.GainAltitude;
-				else if(check_initial_trajectory()) accelerate();
-				else stage = Stage.Wait;
-				break;
-			case Stage.Wait:
-				if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
-				accelerate();
-				break;
-			case Stage.Accelerate:
+                else if(check_initial_trajectory()) accelerate();
+                else stage = Stage.Wait;
+                break;
+            case Stage.Wait:
+                if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
+                accelerate();
+                break;
+            case Stage.Accelerate:
                 CFG.AT.OnIfNot(Attitude.Custom);
                 var dV = (trajectory.Orbit.GetFrameVelAtUT(trajectory.StartUT)-
                           VSL.orbit.GetFrameVelAtUT(trajectory.StartUT)).xzy;
-				if(VSL.Controls.AlignmentFactor > 0.9 || !CFG.VSCIsActive)
-				{
-					CFG.DisableVSC();
+                if(VSL.Controls.AlignmentFactor > 0.9 || !CFG.VSCIsActive)
+                {
+                    CFG.DisableVSC();
                     var dVv = -VSL.Altitude.Absolute;//Vector3d.Dot(dV, VSL.Physics.Up);
                     if(RAD != null)
                     {
@@ -366,53 +366,53 @@ namespace ThrottleControlledAvionics
                                "Accelerating: <color=yellow><b>{0}</b> m/s</color>", 
                                (dV.magnitude-10).ToString("F1"));
                     else fine_tune_approach();
-				}
+                }
                 else ATC.SetThrustDirW(-dV);
-				break;
-			case Stage.CorrectTrajectory:
+                break;
+            case Stage.CorrectTrajectory:
                 VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT-VSL.Physics.UT-ManeuverOffset;
                 if(VSL.Info.Countdown > 0)
                 {
                     warp_to_coundown();
-    				if(!trajectory_computed()) break;
-    				add_correction_node_if_needed();
-    				stage = Stage.Coast;
+                    if(!trajectory_computed()) break;
+                    add_correction_node_if_needed();
+                    stage = Stage.Coast;
                 }
                 else
                 {
                     stage = Stage.None;
                     start_landing();
                 }
-				break;
-			case Stage.Coast:
+                break;
+            case Stage.Coast:
                 if(!coast_to_start())
                     stage = Stage.None;
-				break;
-			}
-		}
+                break;
+            }
+        }
 
         static readonly GUIContent button_content = new GUIContent("Jump To", "Fly to the target using ballistic trajectory.");
-		public override void Draw()
-		{
-			#if DEBUG
-//			if(current != null)//debug
-//			{
-//				Utils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);
-//				Utils.GLLine(Body.position, current.SurfacePoint.WorldPos(Body), Color.yellow);
-//				var brake = current.NewOrbit.getPositionAtUT(current.BrakeStartPoint.UT);
-//				Utils.GLVec(brake, current.BrakeDeltaV.xzy.normalized*2000, Color.red);
-//				Utils.GLVec(brake, (current.NewOrbit.getOrbitalVelocityAtUT(current.BrakeNodeUT)+
-//				                      current.BrakeDeltaV).xzy.normalized*2000, 
-//				              Color.magenta);
-//			}
-			#endif
-			if(ControlsActive) 
-			{	
+        public override void Draw()
+        {
+            #if DEBUG
+//            if(current != null)//debug
+//            {
+//                Utils.GLVec(Body.position, current.AtTargetPos.xzy, Color.green);
+//                Utils.GLLine(Body.position, current.SurfacePoint.WorldPos(Body), Color.yellow);
+//                var brake = current.NewOrbit.getPositionAtUT(current.BrakeStartPoint.UT);
+//                Utils.GLVec(brake, current.BrakeDeltaV.xzy.normalized*2000, Color.red);
+//                Utils.GLVec(brake, (current.NewOrbit.getOrbitalVelocityAtUT(current.BrakeNodeUT)+
+//                                      current.BrakeDeltaV).xzy.normalized*2000, 
+//                              Color.magenta);
+//            }
+            #endif
+            if(ControlsActive) 
+            {    
                 if(CFG.AP2[program])
                     GUILayout.Label(button_content, Styles.enabled_button, GUILayout.ExpandWidth(true));
                 else if(GUILayout.Button(button_content, Styles.active_button, GUILayout.ExpandWidth(true)))
                     ShowOptions = !ShowOptions;
-			}
+            }
             else if(UI.NAV != null)
             {
                 if(GUILayout.Button(new GUIContent("Jump To", "Select target point to jump to"),
@@ -420,7 +420,7 @@ namespace ThrottleControlledAvionics
                     UI.NAV.SetSurfaceTarget();
             }
             else GUILayout.Label(button_content, Styles.inactive_button, GUILayout.ExpandWidth(true));
-		}
-	}
+        }
+    }
 }
 

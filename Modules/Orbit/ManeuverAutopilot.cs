@@ -13,41 +13,41 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart]
-	[RequireModules(typeof(AttitudeControl),
-	                typeof(ThrottleControl),
-	                typeof(TranslationControl),
-	                typeof(TimeWarpControl))]
-	public class ManeuverAutopilot : TCAModule
-	{
-		public class Config : TCAModule.ModuleConfig
-		{
-			[Persistent] public float WrapThreshold = 600f; //s
+    [CareerPart]
+    [RequireModules(typeof(AttitudeControl),
+                    typeof(ThrottleControl),
+                    typeof(TranslationControl),
+                    typeof(TimeWarpControl))]
+    public class ManeuverAutopilot : TCAModule
+    {
+        public class Config : TCAModule.ModuleConfig
+        {
+            [Persistent] public float WrapThreshold = 600f; //s
 
-			//controls best engine cluster calculation
-			[Persistent] public float ClosestCluster   = 5f;   //s
-			[Persistent] public float EfficientCluster = 0.1f; //fraction of vessel mass
-			[Persistent] public float EfficiencyWeight = 10;   //how much the fuel mass will affect cluster selection
-		}
-		static Config MAN { get { return Globals.Instance.MAN; } }
+            //controls best engine cluster calculation
+            [Persistent] public float ClosestCluster   = 5f;   //s
+            [Persistent] public float EfficientCluster = 0.1f; //fraction of vessel mass
+            [Persistent] public float EfficiencyWeight = 10;   //how much the fuel mass will affect cluster selection
+        }
+        static Config MAN { get { return Globals.Instance.MAN; } }
 
         public enum Stage { WAITING, IN_PROGRESS, FINISHED }
 
-		public ManeuverAutopilot(ModuleTCA tca) : base(tca) {}
+        public ManeuverAutopilot(ModuleTCA tca) : base(tca) {}
 
-		ThrottleControl THR;
+        ThrottleControl THR;
 
-		ManeuverNode Node;
-		PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
+        ManeuverNode Node;
+        PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
 
-		public double NodeUT { get { return Node != null? Node.UT : -1; } }
-		public Vector3d NodeDeltaV { get; private set; }
+        public double NodeUT { get { return Node != null? Node.UT : -1; } }
+        public Vector3d NodeDeltaV { get; private set; }
         public CelestialBody NodeCB { get; private set; }
         public Orbit TargetOrbit { get; private set; }
         public Stage ManeuverStage { get; private set; }
 
-		ManeuverExecutor Executor;
-		public float MinDeltaV = 1;
+        ManeuverExecutor Executor;
+        public float MinDeltaV = 1;
 
         public void AddCourseCorrection(Vector3d dV)
         { Executor.AddCourseCorrection(dV); }
@@ -69,11 +69,11 @@ namespace ThrottleControlledAvionics
         }
 
         public override void Init()
-		{
-			base.Init();
+        {
+            base.Init();
             MinDeltaV = GLB.THR.MinDeltaV;
-			CFG.AP1.AddHandler(this, Autopilot1.Maneuver);
-			Executor = new ManeuverExecutor(TCA);
+            CFG.AP1.AddHandler(this, Autopilot1.Maneuver);
+            Executor = new ManeuverExecutor(TCA);
             Executor.ThrustWhenAligned = true;
             Executor.StopAtMinimum = true;
         }
@@ -83,60 +83,60 @@ namespace ThrottleControlledAvionics
             CFG.AP1.OffIfOn(Autopilot1.Maneuver);
         }
 
-		protected override void UpdateState()
-		{ 
-			base.UpdateState();
+        protected override void UpdateState()
+        { 
+            base.UpdateState();
             IsActive &= Node != null;
-			ControlsActive &= IsActive || TCAScenario.HavePatchedConics && VSL.Engines.HaveThrusters && VSL.HasManeuverNode;
-		}
+            ControlsActive &= IsActive || TCAScenario.HavePatchedConics && VSL.Engines.HaveThrusters && VSL.HasManeuverNode;
+        }
 
-		public void ManeuverCallback(Multiplexer.Command cmd)
-		{
-			switch(cmd)
-			{
-			case Multiplexer.Command.Resume:
-			case Multiplexer.Command.On:
+        public void ManeuverCallback(Multiplexer.Command cmd)
+        {
+            switch(cmd)
+            {
+            case Multiplexer.Command.Resume:
+            case Multiplexer.Command.On:
                 ManeuverStage = Stage.WAITING;
-				if(!TCAScenario.HavePatchedConics)
-				{
-					Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
-					CFG.AP1.Off(); 
-					return;
-				}
-				if(!VSL.HasManeuverNode) 
-				{ CFG.AP1.Off(); return; }
-				VSL.Controls.StopWarp();
-				CFG.AT.On(Attitude.ManeuverNode);
+                if(!TCAScenario.HavePatchedConics)
+                {
+                    Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
+                    CFG.AP1.Off(); 
+                    return;
+                }
+                if(!VSL.HasManeuverNode) 
+                { CFG.AP1.Off(); return; }
+                VSL.Controls.StopWarp();
+                CFG.AT.On(Attitude.ManeuverNode);
                 update_maneuver_node();
-				THR.Throttle = 0;
-				CFG.DisableVSC();
-				break;
+                THR.Throttle = 0;
+                CFG.DisableVSC();
+                break;
 
-			case Multiplexer.Command.Off:
+            case Multiplexer.Command.Off:
                 VSL.Controls.StopWarp();
                 if(!CFG.WarpToNode && TimeWarp.CurrentRateIndex > 0)
                     TimeWarp.SetRate(0, false);
-				CFG.AT.On(Attitude.KillRotation);
-				Reset();
-				break;
-			}
-		}
+                CFG.AT.On(Attitude.KillRotation);
+                Reset();
+                break;
+            }
+        }
 
-		protected override void Reset()
-		{
-			base.Reset();
-			if(Working) THR.Throttle = 0;
-			if(CFG.AT[Attitude.ManeuverNode])
-				CFG.AT.On(Attitude.KillRotation);
-			Executor.Reset();
-			NodeDeltaV = Vector3d.zero;
+        protected override void Reset()
+        {
+            base.Reset();
+            if(Working) THR.Throttle = 0;
+            if(CFG.AT[Attitude.ManeuverNode])
+                CFG.AT.On(Attitude.KillRotation);
+            Executor.Reset();
+            NodeDeltaV = Vector3d.zero;
             NodeCB = null;
             MinDeltaV = GLB.THR.MinDeltaV;
-			VSL.Info.Countdown = 0;
-			VSL.Info.TTB = 0;
-			Working = false;
-			Node = null;
-		}
+            VSL.Info.Countdown = 0;
+            VSL.Info.TTB = 0;
+            Working = false;
+            Node = null;
+        }
 
         public static Vector3d Orbital2NodeDeltaV(Orbit o, Vector3d orbitalDeltaV, double UT)
         {
@@ -148,13 +148,13 @@ namespace ThrottleControlledAvionics
                                 Vector3d.Dot(orbitalDeltaV, prograde));
         }
 
-		public static void AddNode(VesselWrapper VSL, Vector3d dV, double UT)
-		{
-			var node = VSL.vessel.patchedConicSolver.AddManeuverNode(UT);
+        public static void AddNode(VesselWrapper VSL, Vector3d dV, double UT)
+        {
+            var node = VSL.vessel.patchedConicSolver.AddManeuverNode(UT);
             node.DeltaV = Orbital2NodeDeltaV(node.patch, dV, UT);
-			VSL.vessel.patchedConicSolver.UpdateFlightPlan();
+            VSL.vessel.patchedConicSolver.UpdateFlightPlan();
 //            VSL.Log("AddNode: {} : {}", UT, node.DeltaV);//debug
-		}
+        }
 
         public static void AddNodeRaw(VesselWrapper VSL, Vector3d NodeV, double UT)
         {
@@ -164,43 +164,43 @@ namespace ThrottleControlledAvionics
 //            VSL.Log("AddNodeRaw: {} : {}", UT, node.DeltaV);//debug
         }
 
-		bool StartCondition(float dV)
-		{
-			if(Working) return true;
-			var ttb = VSL.Engines.TTB_Precise(dV);
-			if(float.IsNaN(ttb)) 
+        bool StartCondition(float dV)
+        {
+            if(Working) return true;
+            var ttb = VSL.Engines.TTB_Precise(dV);
+            if(float.IsNaN(ttb)) 
             {
                 Log("WARNING: TTB is NaN: dV {}", dV);
                 return false;
             }
-			VSL.Info.TTB = ttb;
-			var burn = Node.UT-VSL.Info.TTB/2f;
-			if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
-			{
-				if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold ||
-				   TCAScenario.HavePersistentRotation && burn-VSL.Physics.UT > 180+GLB.WRP.DewarpTime)
+            VSL.Info.TTB = ttb;
+            var burn = Node.UT-VSL.Info.TTB/2f;
+            if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
+            {
+                if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold ||
+                   TCAScenario.HavePersistentRotation && burn-VSL.Physics.UT > 180+GLB.WRP.DewarpTime)
                 {
                     VSL.Controls.NoDewarpOffset = true;
-					VSL.Controls.WarpToTime = burn-180;
+                    VSL.Controls.WarpToTime = burn-180;
                 }
-				else if(VSL.Controls.CanWarp) 
-					VSL.Controls.WarpToTime = burn-VSL.Controls.MinAlignmentTime;
-			}
-			VSL.Info.Countdown = burn-VSL.Physics.UT;
+                else if(VSL.Controls.CanWarp) 
+                    VSL.Controls.WarpToTime = burn-VSL.Controls.MinAlignmentTime;
+            }
+            VSL.Info.Countdown = burn-VSL.Physics.UT;
             //emergency dewarping
             if(!CFG.WarpToNode && TimeWarp.CurrentRate > 1 && VSL.Info.Countdown < GLB.WRP.DewarpTime)
                 VSL.Controls.AbortWarp(true);
-			if(VSL.Info.Countdown > 0) return false;
+            if(VSL.Info.Countdown > 0) return false;
 //            Log("burn {}, countdown {}", burn, VSL.Info.Countdown);//debug
-			VSL.Info.Countdown = 0;
+            VSL.Info.Countdown = 0;
             ManeuverStage = Stage.IN_PROGRESS;
-			Working = true;
-			return true;
-		}
+            Working = true;
+            return true;
+        }
 
-		protected override void Update()
-		{
-			if(!VSL.HasManeuverNode || 
+        protected override void Update()
+        {
+            if(!VSL.HasManeuverNode || 
                Node != Solver.maneuverNodes[0] ||
                NodeCB != Node.patch.referenceBody) 
             { 
@@ -218,20 +218,20 @@ namespace ThrottleControlledAvionics
             NodeDeltaV = (TargetOrbit.GetFrameVelAtUT(NodeUT)-VSL.orbit.GetFrameVelAtUT(NodeUT)).xzy;
             if(Executor.Execute(NodeDeltaV, MinDeltaV, StartCondition)) return;
             ManeuverStage = Stage.FINISHED;
-			Node.RemoveSelf();
+            Node.RemoveSelf();
             Disable();
-		}
+        }
 
-		public override void Draw()
-		{
-			if(ControlsActive)
-			{
-				if(GUILayout.Button(CFG.AP1[Autopilot1.Maneuver]? "Abort Maneuver" : "Execute Node", 
-				                    CFG.AP1[Autopilot1.Maneuver]? Styles.danger_button : Styles.active_button, 
-				                    GUILayout.ExpandWidth(false)))
-					CFG.AP1.XToggle(Autopilot1.Maneuver);
-			}
-			else GUILayout.Label("Execute Node", Styles.inactive_button, GUILayout.ExpandWidth(false));
-		}
-	}
+        public override void Draw()
+        {
+            if(ControlsActive)
+            {
+                if(GUILayout.Button(CFG.AP1[Autopilot1.Maneuver]? "Abort Maneuver" : "Execute Node", 
+                                    CFG.AP1[Autopilot1.Maneuver]? Styles.danger_button : Styles.active_button, 
+                                    GUILayout.ExpandWidth(false)))
+                    CFG.AP1.XToggle(Autopilot1.Maneuver);
+            }
+            else GUILayout.Label("Execute Node", Styles.inactive_button, GUILayout.ExpandWidth(false));
+        }
+    }
 }

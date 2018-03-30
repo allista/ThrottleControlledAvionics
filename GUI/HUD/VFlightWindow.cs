@@ -13,20 +13,20 @@ using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
-	public class VFlightWindow : ControlWindow
-	{
-		VerticalSpeedControl VSC;
-		AltitudeControl ALT;
-		ThrottleControl THR;
-		Radar RAD;
+    public class VFlightWindow : ControlWindow
+    {
+        VerticalSpeedControl VSC;
+        AltitudeControl ALT;
+        ThrottleControl THR;
+        Radar RAD;
 
-		public VFlightWindow() { Anchor = AnchorPosition.TopLeft; }
+        public VFlightWindow() { Anchor = AnchorPosition.TopLeft; }
 
-		protected override bool can_draw() { return base.can_draw() && VSL.OnPlanet && AllModules.Count > 0; }
+        protected override bool can_draw() { return base.can_draw() && VSL.OnPlanet && AllModules.Count > 0; }
 
-		protected override void DrawContent()
-		{
-			GUILayout.BeginVertical();
+        protected override void DrawContent()
+        {
+            GUILayout.BeginVertical();
             GUILayout.Label(CFG.Enabled?
                             new GUIContent(
                                 string.Format("{0} {1} ►{2}", 
@@ -34,31 +34,31 @@ namespace ThrottleControlledAvionics
                                               Utils.formatBigValue(VSL.VerticalSpeed.Display, "m/s", "▲ 0.0;▼ 0.0;▲ 0.0"), 
                                               Utils.formatBigValue(VSL.HorizontalSpeed.Absolute, "m/s")), 
                                 "Altitude, Vertical speed, Horizontal speed.") : new GUIContent(""),
-			                Styles.boxed_label, GUILayout.MinWidth(240), GUILayout.ExpandWidth(true));
-			GUILayout.BeginHorizontal();
-			if(ALT != null && CFG.VF[VFlight.AltitudeControl]) ALT.Draw();
-			else if(VSC != null) VSC.Draw();
-			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			if(ALT != null)
-			{
-				if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Maintain altitude", GUILayout.ExpandWidth(true)))
-					TCA.SquadConfigAction(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
-				if(RAD != null)
-				{
-					if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
-						"Keep altitude above the ground", GUILayout.ExpandWidth(true)))
-						TCA.SquadAction(tca => 
-							{
-								var alt = tca.GetModule<AltitudeControl>();
-								if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
-							});
-//					RAD.DrawDebugLines();//debug
-				}
-			}
-			if(THR != null) THR.Draw();
-			GUILayout.EndHorizontal();
-			GUILayout.EndVertical();
-		}
-	}
+                            Styles.boxed_label, GUILayout.MinWidth(240), GUILayout.ExpandWidth(true));
+            GUILayout.BeginHorizontal();
+            if(ALT != null && CFG.VF[VFlight.AltitudeControl]) ALT.Draw();
+            else if(VSC != null) VSC.Draw();
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            if(ALT != null)
+            {
+                if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], "Maintain altitude", GUILayout.ExpandWidth(true)))
+                    TCA.SquadConfigAction(cfg => cfg.VF.XToggle(VFlight.AltitudeControl));
+                if(RAD != null)
+                {
+                    if(Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
+                        "Keep altitude above the ground", GUILayout.ExpandWidth(true)))
+                        TCA.SquadAction(tca => 
+                            {
+                                var alt = tca.GetModule<AltitudeControl>();
+                                if(alt != null) alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
+                            });
+//                    RAD.DrawDebugLines();//debug
+                }
+            }
+            if(THR != null) THR.Draw();
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+        }
+    }
 }

@@ -16,34 +16,34 @@ using LTComparer = AT_Utils.HierarchicalComparer<ThrottleControlledAvionics.Land
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart]
-	[RequireModules(typeof(AttitudeControl),
-	                typeof(BearingControl), 
-	                typeof(ThrottleControl),
-	                typeof(ManeuverAutopilot), 
-	                typeof(AutoLander))]
-	public class DeorbitAutopilot : LandingTrajectoryAutopilot
-	{
-		public new class Config : TCAModule.ModuleConfig
-		{
-			[Persistent] public float MinLandingAngle    = 20f;
+    [CareerPart]
+    [RequireModules(typeof(AttitudeControl),
+                    typeof(BearingControl), 
+                    typeof(ThrottleControl),
+                    typeof(ManeuverAutopilot), 
+                    typeof(AutoLander))]
+    public class DeorbitAutopilot : LandingTrajectoryAutopilot
+    {
+        public new class Config : TCAModule.ModuleConfig
+        {
+            [Persistent] public float MinLandingAngle    = 20f;
             [Persistent] public float MaxLandingAngle    = 50f;
-			[Persistent] public float MaxDynPressure     = 7f;
-			[Persistent] public int   EccSteps           = 10;
-		}
-		static Config DEO { get { return Globals.Instance.DEO; } }
+            [Persistent] public float MaxDynPressure     = 7f;
+            [Persistent] public int   EccSteps           = 10;
+        }
+        static Config DEO { get { return Globals.Instance.DEO; } }
 
-		public DeorbitAutopilot(ModuleTCA tca) : base(tca) {}
+        public DeorbitAutopilot(ModuleTCA tca) : base(tca) {}
 
         public enum Stage { None, Precalculate, Compute, Deorbit, Correct, Coast, Wait }
         [Persistent] public Stage stage;
         double initialEcc;
 
-		public override void Init()
-		{
-			base.Init();
-			CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
-		}
+        public override void Init()
+        {
+            base.Init();
+            CFG.AP2.AddHandler(this, Autopilot2.Deorbit);
+        }
 
         protected override Autopilot2 program
         {
@@ -55,14 +55,14 @@ namespace ThrottleControlledAvionics
             get { return "Landing Autopilot"; }
         }
 
-		Vector3d PlaneCorrection(TargetedTrajectoryBase old)
-		{
-			var angle = old.DeltaFi;
-			angle *= Math.Sin(old.TransferTime/old.Orbit.period*2*Math.PI);
+        Vector3d PlaneCorrection(TargetedTrajectoryBase old)
+        {
+            var angle = old.DeltaFi;
+            angle *= Math.Sin(old.TransferTime/old.Orbit.period*2*Math.PI);
             angle *= Math.Sign(Utils.ProjectionAngle(old.StartPos, old.AtTargetPos, old.AfterStartVel));
-			var rot = QuaternionD.AngleAxis(angle, old.StartPos);
+            var rot = QuaternionD.AngleAxis(angle, old.StartPos);
             return ManeuverAutopilot.Orbital2NodeDeltaV(VesselOrbit, (rot*old.AfterStartVel)-old.AfterStartVel, old.StartUT);
-		}
+        }
 
         double ProgradeCorrection(LandingTrajectory old)
         {
@@ -369,131 +369,131 @@ namespace ThrottleControlledAvionics
             trajectory = null;
         }
 
-		void compute_landing_trajectory()
-		{
-			MAN.MinDeltaV = 1;
+        void compute_landing_trajectory()
+        {
+            MAN.MinDeltaV = 1;
             ComputeTrajectory(new DeorbitTrajectoryOptimizer(this, LTRJ.Dtol));
-			stage = Stage.Compute;
+            stage = Stage.Compute;
             trajectory = null;
-		}
+        }
 
-		protected override void fine_tune_approach()
-		{
-			CorrectionTimer.Reset();
+        protected override void fine_tune_approach()
+        {
+            CorrectionTimer.Reset();
             ComputeTrajectory(new DeorbitTrajectoryCorrector(this, LTRJ.Dtol/2));
-			stage = Stage.Correct;
+            stage = Stage.Correct;
             trajectory = null;
-		}
+        }
 
-		protected override void Reset()
-		{
-			base.Reset();
-			stage = Stage.None;
+        protected override void Reset()
+        {
+            base.Reset();
+            stage = Stage.None;
             initialEcc = 0;
-			CFG.AP1.Off();
-		}
+            CFG.AP1.Off();
+        }
 
-		public void DeorbitCallback(Multiplexer.Command cmd)
-		{
-			switch(cmd)
-			{
-			case Multiplexer.Command.Resume:
+        public void DeorbitCallback(Multiplexer.Command cmd)
+        {
+            switch(cmd)
+            {
+            case Multiplexer.Command.Resume:
                 if(stage == Stage.None && !landing) 
                     goto case Multiplexer.Command.On;
                 if(!check_patched_conics()) return;
-				UseTarget();
-				NeedCPSWhenMooving();
-				if(trajectory == null) update_trajectory();
-				if(VSL.HasManeuverNode)
-					CFG.AP1.OnIfNot(Autopilot1.Maneuver);
-				break;
+                UseTarget();
+                NeedCPSWhenMooving();
+                if(trajectory == null) update_trajectory();
+                if(VSL.HasManeuverNode)
+                    CFG.AP1.OnIfNot(Autopilot1.Maneuver);
+                break;
 
-			case Multiplexer.Command.On:
-				Reset();
-				if(!check_patched_conics()) return;
+            case Multiplexer.Command.On:
+                Reset();
+                if(!check_patched_conics()) return;
                 if(!setup()) { Disable(); return; }
                 UseTarget();
                 NeedCPSWhenMooving();
-				if(VesselOrbit.PeR < Body.Radius)
-				{
-					Status("red", "Already deorbiting. Trying to correct course and land.");
-					fine_tune_approach();
-				}
-				else 
+                if(VesselOrbit.PeR < Body.Radius)
+                {
+                    Status("red", "Already deorbiting. Trying to correct course and land.");
+                    fine_tune_approach();
+                }
+                else 
                     compute_initial_eccentricity();
                 break;
 
-			case Multiplexer.Command.Off:
-				ReleaseCPS();
+            case Multiplexer.Command.Off:
+                ReleaseCPS();
                 StopUsingTarget();
-				Reset();
-				break;
-			}
-		}
+                Reset();
+                break;
+            }
+        }
 
-		void deorbit()
-		{
+        void deorbit()
+        {
             SaveGame("before_landing");
-			CorrectionTimer.Reset();
-			clear_nodes(); add_trajectory_node_rel();
-			CFG.AP1.On(Autopilot1.Maneuver); 
-			stage = Stage.Deorbit; 
-		}
+            CorrectionTimer.Reset();
+            clear_nodes(); add_trajectory_node_rel();
+            CFG.AP1.On(Autopilot1.Maneuver); 
+            stage = Stage.Deorbit; 
+        }
 
-		protected override void UpdateState()
-		{
-			base.UpdateState();
-			IsActive &= CFG.AP2[Autopilot2.Deorbit];
-			ControlsActive &= IsActive || 
-				!VSL.LandedOrSplashed && 
+        protected override void UpdateState()
+        {
+            base.UpdateState();
+            IsActive &= CFG.AP2[Autopilot2.Deorbit];
+            ControlsActive &= IsActive || 
+                !VSL.LandedOrSplashed && 
                 (VSL.HasTarget || CFG.Target);
-		}
+        }
 
-		protected override void Update()
-		{
-			if(landing) { do_land(); return; }
-			switch(stage)
-			{
-			case Stage.Precalculate:
+        protected override void Update()
+        {
+            if(landing) { do_land(); return; }
+            switch(stage)
+            {
+            case Stage.Precalculate:
                 if(trajectory_computed())
                     compute_landing_trajectory();
-				break;
-			case Stage.Compute:
-				if(!trajectory_computed()) break;
+                break;
+            case Stage.Compute:
+                if(!trajectory_computed()) break;
                 if(check_initial_trajectory()) deorbit();
                 else stage = Stage.Wait;
-				break;
-			case Stage.Wait:
-				VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
-				if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
-				deorbit();
-				break;
-			case Stage.Deorbit:
-				Status("Executing deorbit burn...");
-				VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
-				if(CFG.AP1[Autopilot1.Maneuver]) break;
+                break;
+            case Stage.Wait:
+                VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
+                if(!string.IsNullOrEmpty(TCAGui.StatusMessage)) break;
+                deorbit();
+                break;
+            case Stage.Deorbit:
+                Status("Executing deorbit burn...");
+                VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
+                if(CFG.AP1[Autopilot1.Maneuver]) break;
 //                update_trajectory();//debug
 //                Log("Trajectory after deorbit: {}", trajectory);//debug
-				fine_tune_approach();
-				break;
-			case Stage.Correct:
-				if(!trajectory_computed()) break;
+                fine_tune_approach();
+                break;
+            case Stage.Correct:
+                if(!trajectory_computed()) break;
                 if(!trajectory.WillOverheat)
-					add_correction_node_if_needed();
+                    add_correction_node_if_needed();
                 else 
                     update_landing_trajecotry();
-				stage = Stage.Coast; 
-				break;
-			case Stage.Coast:
+                stage = Stage.Coast; 
+                break;
+            case Stage.Coast:
                 if(!coast_to_start())
                     stage = Stage.None;
-				break;
-			}
-		}
+                break;
+            }
+        }
 
         static readonly GUIContent button_content = new GUIContent("Land", "Compute and perform a deorbit maneuver, then land near the target.");
-		public override void Draw()
-		{
+        public override void Draw()
+        {
             if(ControlsActive)
             {
                 if(CFG.AP2[program])
@@ -502,7 +502,7 @@ namespace ThrottleControlledAvionics
                     ShowOptions = !ShowOptions;
             }
             else GUILayout.Label(button_content, Styles.inactive_button, GUILayout.ExpandWidth(true));
-		}
-	}
+        }
+    }
 }
 

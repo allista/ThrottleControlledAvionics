@@ -16,24 +16,24 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	[KSPAddon(KSPAddon.Startup.Flight, false)]
-	public class TCAGui : AddonWindowBase<TCAGui>
-	{
-		Vessel vessel;
+    [KSPAddon(KSPAddon.Startup.Flight, false)]
+    public class TCAGui : AddonWindowBase<TCAGui>
+    {
+        Vessel vessel;
         public ModuleTCA ActiveVesselTCA { get; private set; }
-		public ModuleTCA TCA { get; private set; }
-		public VesselWrapper VSL { get { return TCA.VSL; } }
-		internal static Globals GLB { get { return Globals.Instance; } }
-		public VesselConfig CFG { get { return TCA.CFG; } }
+        public ModuleTCA TCA { get; private set; }
+        public VesselWrapper VSL { get { return TCA.VSL; } }
+        internal static Globals GLB { get { return Globals.Instance; } }
+        public VesselConfig CFG { get { return TCA.CFG; } }
         public bool HaveRemoteControl { get; private set; }
         public bool RemoteControl { get; private set; }
 
-		#region GUI Parameters
-		public const int ControlsWidth = 450, ControlsHeight = 180, LineHeight = 35;
-		public const int ControlsHeightHalf = ControlsHeight/2;
+        #region GUI Parameters
+        public const int ControlsWidth = 450, ControlsHeight = 180, LineHeight = 35;
+        public const int ControlsHeightHalf = ControlsHeight/2;
 
-		[ConfigOption] 
-		public KeyCode TCA_Key = KeyCode.Y;
+        [ConfigOption] 
+        public KeyCode TCA_Key = KeyCode.Y;
 
         [ConfigOption]
         public bool Collapsed;
@@ -46,77 +46,77 @@ namespace ThrottleControlledAvionics
 
         bool draw_main_window;
 
-		public static string StatusMessage;
-		public static DateTime StatusEndTime;
+        public static string StatusMessage;
+        public static DateTime StatusEndTime;
 
-		public static Blinker EnabledBlinker = new Blinker(0.5);
-		#endregion
+        public static Blinker EnabledBlinker = new Blinker(0.5);
+        #endregion
 
-		#pragma warning disable 169
-		#region modules
-		TimeWarpControl WRP;
-		AltitudeControl ALT;
-		VerticalSpeedControl VSC;
-		ThrottleControl THR;
-		SquadControl SQD;
-		#endregion
+        #pragma warning disable 169
+        #region modules
+        TimeWarpControl WRP;
+        AltitudeControl ALT;
+        VerticalSpeedControl VSC;
+        ThrottleControl THR;
+        SquadControl SQD;
+        #endregion
 
-		#region ControlWindows
-		VFlightWindow VFlight_Window;
-		ManeuverWindow Maneuver_Window;
-		AttitudeControlWindow Attitude_Window;
-		List<ControlWindow> AllWindows = new List<ControlWindow>();
-		#endregion
+        #region ControlWindows
+        VFlightWindow VFlight_Window;
+        ManeuverWindow Maneuver_Window;
+        AttitudeControlWindow Attitude_Window;
+        List<ControlWindow> AllWindows = new List<ControlWindow>();
+        #endregion
 
-		#region ControlTabs
-		[TabInfo("Navigation", 1, Icon = "ThrottleControlledAvionics/Icons/NavigationTab.png")]
-		public NavigationTab NAV;
+        #region ControlTabs
+        [TabInfo("Navigation", 1, Icon = "ThrottleControlledAvionics/Icons/NavigationTab.png")]
+        public NavigationTab NAV;
 
-		[TabInfo("Orbital Autopilots", 2, Icon = "ThrottleControlledAvionics/Icons/OrbitalTab.png")]
-		public OrbitalTab ORB;
+        [TabInfo("Orbital Autopilots", 2, Icon = "ThrottleControlledAvionics/Icons/OrbitalTab.png")]
+        public OrbitalTab ORB;
 
-		[TabInfo("Engines Control", 3, Icon = "ThrottleControlledAvionics/Icons/EnginesTab.png")]
-		public EnginesTab ENG;
+        [TabInfo("Engines Control", 3, Icon = "ThrottleControlledAvionics/Icons/EnginesTab.png")]
+        public EnginesTab ENG;
 
-		[TabInfo("Advanced Settings", 4, Icon = "ThrottleControlledAvionics/Icons/AdvancedTab.png")]
-		public AdvancedTab ADV;
+        [TabInfo("Advanced Settings", 4, Icon = "ThrottleControlledAvionics/Icons/AdvancedTab.png")]
+        public AdvancedTab ADV;
 
-		[TabInfo("Macros", 5, Icon = "ThrottleControlledAvionics/Icons/MacrosTab.png")]
-		public MacrosTab MCR;
+        [TabInfo("Macros", 5, Icon = "ThrottleControlledAvionics/Icons/MacrosTab.png")]
+        public MacrosTab MCR;
 
-		public ControlTab ActiveTab = null;
-		List<ControlTab> AllTabs = new List<ControlTab>();
-		List<FieldInfo> AllTabFields = new List<FieldInfo>();
-		Vector2 tabs_scroll = Vector2.zero;
-		#endregion
+        public ControlTab ActiveTab = null;
+        List<ControlTab> AllTabs = new List<ControlTab>();
+        List<FieldInfo> AllTabFields = new List<FieldInfo>();
+        Vector2 tabs_scroll = Vector2.zero;
+        #endregion
 
         //other subwindows
         public TCAPartsEditor ModulesGraph;
-		#pragma warning restore 169
+        #pragma warning restore 169
 
-		#region Initialization
-		void save_config(ConfigNode node) { SaveConfig(); }
+        #region Initialization
+        void save_config(ConfigNode node) { SaveConfig(); }
 
-		public override void Awake()
-		{
-			base.Awake();
-			AllTabFields = ControlTab.GetTabFields(GetType());
-			AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
-			GameEvents.onGameStateSave.Add(save_config);
-			GameEvents.onVesselChange.Add(onVesselChange);
+        public override void Awake()
+        {
+            base.Awake();
+            AllTabFields = ControlTab.GetTabFields(GetType());
+            AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
+            GameEvents.onGameStateSave.Add(save_config);
+            GameEvents.onVesselChange.Add(onVesselChange);
             GameEvents.onVesselDestroy.Add(onVesselDestroy);
-			NavigationTab.OnAwake();
-		}
+            NavigationTab.OnAwake();
+        }
 
-		public override void OnDestroy()
-		{
-			base.OnDestroy();
-			clear_fields();
-			TCAToolbarManager.AttachTCA(null);
-			GameEvents.onGameStateSave.Remove(save_config);
-			GameEvents.onVesselChange.Remove(onVesselChange);
+        public override void OnDestroy()
+        {
+            base.OnDestroy();
+            clear_fields();
+            TCAToolbarManager.AttachTCA(null);
+            GameEvents.onGameStateSave.Remove(save_config);
+            GameEvents.onVesselChange.Remove(onVesselChange);
             GameEvents.onVesselDestroy.Remove(onVesselDestroy);
-		}
+        }
 
         void onVesselDestroy(Vessel vsl)
         {
@@ -124,15 +124,15 @@ namespace ThrottleControlledAvionics
                 onVesselChange(FlightGlobals.ActiveVessel);
         }
 
-		void onVesselChange(Vessel vsl)
-		{
+        void onVesselChange(Vessel vsl)
+        {
             vessel = vsl;
             StatusMessage = "";
             StatusEndTime = DateTime.MinValue;
             if(vsl != null && vsl.parts != null) 
                 StartCoroutine(init_on_load());
             else clear_fields();
-		}
+        }
 
         void switch_vessel(Func<Vessel,Vessel> get_next)
         {
@@ -153,150 +153,150 @@ namespace ThrottleControlledAvionics
             }
         }
 
-		public override void Show(bool show)
-		{
-			if(TCA == null || CFG == null) return;
-			CFG.GUIVisible = show;
-			base.Show(show);
-		}
+        public override void Show(bool show)
+        {
+            if(TCA == null || CFG == null) return;
+            CFG.GUIVisible = show;
+            base.Show(show);
+        }
 
-		public static void Reinitialize(ModuleTCA tca) 
-		{ 
-			if(Instance == null || tca.vessel != Instance.vessel) return;
-			Instance.StartCoroutine(Instance.init_on_load()); 
-		}
+        public static void Reinitialize(ModuleTCA tca) 
+        { 
+            if(Instance == null || tca.vessel != Instance.vessel) return;
+            Instance.StartCoroutine(Instance.init_on_load()); 
+        }
 
-		IEnumerator<YieldInstruction> init_on_load()
-		{
-			do {
-				yield return null;
-				if(vessel == null) yield break;
-			} while(!vessel.loaded || TimeWarp.CurrentRateIndex == 0 && vessel.packed);	
-			init();
-		}
+        IEnumerator<YieldInstruction> init_on_load()
+        {
+            do {
+                yield return null;
+                if(vessel == null) yield break;
+            } while(!vessel.loaded || TimeWarp.CurrentRateIndex == 0 && vessel.packed);    
+            init();
+        }
 
-		void create_fields()
-		{
-			TCA.InitModuleFields(this);
-			AllWindows.ForEach(w => w.Init(TCA));
-			foreach(var fi in AllTabFields)
-			{
-				var tab = TCA.CreateComponent(fi.FieldType) as ControlTab;
-				if(tab == null) continue;
-				tab.Init();
-				if(!tab.Valid) continue;
-				var info = fi.GetCustomAttributes(typeof(TabInfo), false).FirstOrDefault() as TabInfo;
-				if(info != null) tab.SetupTab(info);
-				fi.SetValue(this, tab);
-				AllTabs.Add(tab);
-			}
-			AllTabs.Sort((a,b) => a.Index.CompareTo(b.Index));
-			if(CFG != null && CFG.ActiveTab < AllTabs.Count-1)
-				ActiveTab = AllTabs[CFG.ActiveTab];
-			else ActiveTab = AllTabs[0];
-		}
+        void create_fields()
+        {
+            TCA.InitModuleFields(this);
+            AllWindows.ForEach(w => w.Init(TCA));
+            foreach(var fi in AllTabFields)
+            {
+                var tab = TCA.CreateComponent(fi.FieldType) as ControlTab;
+                if(tab == null) continue;
+                tab.Init();
+                if(!tab.Valid) continue;
+                var info = fi.GetCustomAttributes(typeof(TabInfo), false).FirstOrDefault() as TabInfo;
+                if(info != null) tab.SetupTab(info);
+                fi.SetValue(this, tab);
+                AllTabs.Add(tab);
+            }
+            AllTabs.Sort((a,b) => a.Index.CompareTo(b.Index));
+            if(CFG != null && CFG.ActiveTab < AllTabs.Count-1)
+                ActiveTab = AllTabs[CFG.ActiveTab];
+            else ActiveTab = AllTabs[0];
+        }
 
-		void clear_fields()
-		{
+        void clear_fields()
+        {
             ModulesGraph.Show(false);
-			AllTabs.ForEach(t => t.Reset());
-			AllWindows.ForEach(w => w.Reset());
-			AllTabFields.ForEach(fi => fi.SetValue(this, null));
-			ModuleTCA.ResetModuleFields(this);
-			AllTabs.Clear();
+            AllTabs.ForEach(t => t.Reset());
+            AllWindows.ForEach(w => w.Reset());
+            AllTabFields.ForEach(fi => fi.SetValue(this, null));
+            ModuleTCA.ResetModuleFields(this);
+            AllTabs.Clear();
             ActiveVesselTCA = null;
             TCA = null;
-		}
+        }
 
-		bool init()
-		{
+        bool init()
+        {
             clear_fields();
             ClearStatus();
-			TCAToolbarManager.AttachTCA(null);
-			TCA = ModuleTCA.AvailableTCA(vessel);
-			if(TCA == null || CFG == null) return false;
+            TCAToolbarManager.AttachTCA(null);
+            TCA = ModuleTCA.AvailableTCA(vessel);
+            if(TCA == null || CFG == null) return false;
             ActiveVesselTCA = ModuleTCA.AvailableTCA(FlightGlobals.ActiveVessel);
             HaveRemoteControl = ActiveVesselTCA != null && ActiveVesselTCA.GetModule<SquadControl>() != null;
             RemoteControl = ActiveVesselTCA != TCA;
             ShowInstance(CFG.GUIVisible);
             ModulesGraph.SetCFG(CFG);
-			TCAToolbarManager.AttachTCA(TCA);
-			create_fields();
-			if(ADV != null)
-				ADV.UpdateNamedConfigs();
-			return true;
-		}
-		#endregion
+            TCAToolbarManager.AttachTCA(TCA);
+            create_fields();
+            if(ADV != null)
+                ADV.UpdateNamedConfigs();
+            return true;
+        }
+        #endregion
 
-		#region Status
-		public static void ClearStatus() { TCAGui.StatusMessage = ""; StatusEndTime = DateTime.MinValue; }
+        #region Status
+        public static void ClearStatus() { TCAGui.StatusMessage = ""; StatusEndTime = DateTime.MinValue; }
 
-		public static void Status(double seconds, string msg, params object[] args)
-		{
-			TCAGui.StatusMessage = string.Format(msg, args);
-			TCAGui.StatusEndTime = seconds > 0? DateTime.Now.AddSeconds(seconds) : DateTime.MinValue;
-		}
+        public static void Status(double seconds, string msg, params object[] args)
+        {
+            TCAGui.StatusMessage = string.Format(msg, args);
+            TCAGui.StatusEndTime = seconds > 0? DateTime.Now.AddSeconds(seconds) : DateTime.MinValue;
+        }
 
-		public static void Status(string msg, params object[] args) { Status(-1, msg, args); }
+        public static void Status(string msg, params object[] args) { Status(-1, msg, args); }
 
-		public static void Status(double seconds, string color, string msg, params object[] args)
-		{ Status(seconds, string.Format("<color={0}>{1}</color>", color, msg), args); }
+        public static void Status(double seconds, string color, string msg, params object[] args)
+        { Status(seconds, string.Format("<color={0}>{1}</color>", color, msg), args); }
 
-		public static void Status(string color, string msg, params object[] args) 
-		{ Status(-1, color, msg, args); }
+        public static void Status(string color, string msg, params object[] args) 
+        { Status(-1, color, msg, args); }
 
-		void DrawStatusMessage()
-		{
-			if(!string.IsNullOrEmpty(StatusMessage))
-			{ 
-				if(GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
-				                       Styles.boxed_label, GUILayout.ExpandWidth(true)) ||
-				      StatusEndTime > DateTime.MinValue && DateTime.Now > StatusEndTime)
-					StatusMessage = "";
-			}
-		}
+        void DrawStatusMessage()
+        {
+            if(!string.IsNullOrEmpty(StatusMessage))
+            { 
+                if(GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
+                                       Styles.boxed_label, GUILayout.ExpandWidth(true)) ||
+                      StatusEndTime > DateTime.MinValue && DateTime.Now > StatusEndTime)
+                    StatusMessage = "";
+            }
+        }
 
-		string StatusString()
-		{
-			if(TCA.IsStateSet(TCAState.Enabled))
-			{
-				if(TCA.IsStateSet(TCAState.ObstacleAhead))
+        string StatusString()
+        {
+            if(TCA.IsStateSet(TCAState.Enabled))
+            {
+                if(TCA.IsStateSet(TCAState.ObstacleAhead))
                     return "<color=red>Obstacle On Course</color>";
-				else if(TCA.IsStateSet(TCAState.GroundCollision))
+                else if(TCA.IsStateSet(TCAState.GroundCollision))
                     return "<color=red>Ground Collision Possible</color>";
-				else if(TCA.IsStateSet(TCAState.LoosingAltitude))
+                else if(TCA.IsStateSet(TCAState.LoosingAltitude))
                     return "<color=red>Loosing Altitude</color>";
-				else if(!VSL.Controls.HaveControlAuthority)
+                else if(!VSL.Controls.HaveControlAuthority)
                     return "<color=red>Low Control Authority</color>";
                 else if(TCA.IsStateSet(TCAState.Unoptimized))
                     return "<color=yellow>Engines Unoptimized</color>";
-				else if(TCA.IsStateSet(TCAState.Ascending))
+                else if(TCA.IsStateSet(TCAState.Ascending))
                     return "<color=yellow>Ascending</color>";
-				else if(TCA.IsStateSet(TCAState.VTOLAssist))
+                else if(TCA.IsStateSet(TCAState.VTOLAssist))
                     return "<color=yellow>VTOL Assist On</color>";
-				else if(TCA.IsStateSet(TCAState.StabilizeFlight))
+                else if(TCA.IsStateSet(TCAState.StabilizeFlight))
                     return "<color=yellow>Stabilizing Flight</color>";
-				else if(TCA.IsStateSet(TCAState.AltitudeControl))
+                else if(TCA.IsStateSet(TCAState.AltitudeControl))
                     return "<color=lime>Altitude Control</color>";
-				else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
+                else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
                     return "<color=lime>Vertical Speed Control</color>";
-				else if(TCA.State == TCAState.Nominal)
+                else if(TCA.State == TCAState.Nominal)
                     return "<color=lime>Systems Nominal</color>";
-				else if(TCA.State == TCAState.NoActiveEngines)
+                else if(TCA.State == TCAState.NoActiveEngines)
                     return "<color=yellow>No Active Engines</color>";
-				else if(TCA.State == TCAState.NoEC)
+                else if(TCA.State == TCAState.NoEC)
                     return "<color=red>No Electric Charge</color>";
-				else //this should never happen
+                else //this should never happen
                     return "<color=magenta>Unknown State</color>";
-			}
+            }
             return "<color=grey>Disabled</color>";
-		}
+        }
 
         void StatusLabel()
         {
             GUILayout.Label(StatusString(), Styles.boxed_label, GUILayout.ExpandWidth(false));
         }
-		#endregion
+        #endregion
 
         void update_collapsed_rect()
         {
@@ -311,17 +311,17 @@ namespace ThrottleControlledAvionics
         static GUIContent next_vessel_button = new GUIContent("▶", "Switch to next vessel");
         static GUIContent active_vessel_button = new GUIContent("◇", "Back to active vessel");
         static GUIContent switch_vessel_button = new GUIContent("◆", "Switch to current vessel");
-		void DrawMainWindow(int windowID)
-		{
-			//help button
+        void DrawMainWindow(int windowID)
+        {
+            //help button
             if(GUI.Button(new Rect(0, 0f, 20f, 18f), 
                           Collapsed? uncollapse_button : collapse_button, Styles.label)) 
             {
                 Collapsed = !Collapsed;
                 update_collapsed_rect();
             }
-			if(GUI.Button(new Rect(WindowPos.width - 20f, 0f, 20f, 18f), 
-			              new GUIContent("?", "Help"), Styles.label)) 
+            if(GUI.Button(new Rect(WindowPos.width - 20f, 0f, 20f, 18f), 
+                          new GUIContent("?", "Help"), Styles.label)) 
                 TCAManual.ToggleInstance();
             //vessel switching
             if(HaveRemoteControl)
@@ -337,75 +337,75 @@ namespace ThrottleControlledAvionics
                 if(GUI.Button(new Rect(WindowPos.width - 42f, 0f, 20f, 18f), next_vessel_button, Styles.label))
                     switch_vessel(FlightGlobals.Vessels.Prev);
             }
-			if(TCA.IsControllable)
-			{
-				GUILayout.BeginVertical();
-				GUILayout.BeginHorizontal();
-				//tca toggle
-				var enabled_style = Styles.inactive_button;
-				if(CFG.Enabled) enabled_style = Styles.enabled_button;
-				else if(!VSL.LandedOrSplashed) 
-				{
-					if(EnabledBlinker.On) enabled_style = Styles.danger_button;
-					Status(0.1, "red", "<b>TCA is disabled</b>");
-				}
-				if(GUILayout.Button("Enabled", enabled_style, GUILayout.Width(70)))
-					TCA.ToggleTCA();
-				#if DEBUG
-				if(GUILayout.Button("ReGlobals", Styles.active_button, GUILayout.ExpandWidth(false))) 
-				{
-					Globals.Load();
-					Styles.ConfigureButtons();
-					TCA.OnReloadGlobals();
-				}
-				#endif
-				//squad mode switch
-				if(SQD != null) SQD.Draw();
-				GUILayout.FlexibleSpace();
-                StatusLabel();
-				GUILayout.EndHorizontal();
-				GUILayout.BeginHorizontal();
-				GUILayout.BeginVertical(Styles.white, GUILayout.MinHeight(ControlsHeight), GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(true));
-				if(ActiveTab != null) ActiveTab.Draw();
-				GUILayout.EndVertical();
-				tabs_scroll = GUILayout.BeginScrollView(tabs_scroll, Styles.white, GUILayout.ExpandHeight(true), GUILayout.Width(55));
-				for(int i = 0, AllTabsCount = AllTabs.Count; i < AllTabsCount; i++)
-				{
-					var t = AllTabs[i];
-					if(t.DrawTabButton(t == ActiveTab))
-					{
-						ActiveTab = t;
-						CFG.ActiveTab = i;
-					}
-				}
-				GUILayout.EndScrollView();
-				GUILayout.EndHorizontal();
-				DrawStatusMessage();
-				GUILayout.EndVertical();
-			}
-			else 
-			{
-				GUILayout.BeginVertical();
-				GUILayout.BeginHorizontal();
-				VSL.Info.Draw();
+            if(TCA.IsControllable)
+            {
+                GUILayout.BeginVertical();
+                GUILayout.BeginHorizontal();
+                //tca toggle
+                var enabled_style = Styles.inactive_button;
+                if(CFG.Enabled) enabled_style = Styles.enabled_button;
+                else if(!VSL.LandedOrSplashed) 
+                {
+                    if(EnabledBlinker.On) enabled_style = Styles.danger_button;
+                    Status(0.1, "red", "<b>TCA is disabled</b>");
+                }
+                if(GUILayout.Button("Enabled", enabled_style, GUILayout.Width(70)))
+                    TCA.ToggleTCA();
+                #if DEBUG
+                if(GUILayout.Button("ReGlobals", Styles.active_button, GUILayout.ExpandWidth(false))) 
+                {
+                    Globals.Load();
+                    Styles.ConfigureButtons();
+                    TCA.OnReloadGlobals();
+                }
+                #endif
+                //squad mode switch
+                if(SQD != null) SQD.Draw();
                 GUILayout.FlexibleSpace();
                 StatusLabel();
-				GUILayout.EndHorizontal();
-				GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-				DrawStatusMessage();
-				GUILayout.EndVertical();
-			}
-			TooltipsAndDragWindow();
-		}
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                GUILayout.BeginVertical(Styles.white, GUILayout.MinHeight(ControlsHeight), GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(true));
+                if(ActiveTab != null) ActiveTab.Draw();
+                GUILayout.EndVertical();
+                tabs_scroll = GUILayout.BeginScrollView(tabs_scroll, Styles.white, GUILayout.ExpandHeight(true), GUILayout.Width(55));
+                for(int i = 0, AllTabsCount = AllTabs.Count; i < AllTabsCount; i++)
+                {
+                    var t = AllTabs[i];
+                    if(t.DrawTabButton(t == ActiveTab))
+                    {
+                        ActiveTab = t;
+                        CFG.ActiveTab = i;
+                    }
+                }
+                GUILayout.EndScrollView();
+                GUILayout.EndHorizontal();
+                DrawStatusMessage();
+                GUILayout.EndVertical();
+            }
+            else 
+            {
+                GUILayout.BeginVertical();
+                GUILayout.BeginHorizontal();
+                VSL.Info.Draw();
+                GUILayout.FlexibleSpace();
+                StatusLabel();
+                GUILayout.EndHorizontal();
+                GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+                DrawStatusMessage();
+                GUILayout.EndVertical();
+            }
+            TooltipsAndDragWindow();
+        }
 
-		protected override bool can_draw()
-		{ return TCA != null && VSL != null && vessel != null && CFG.GUIVisible && AllTabs.Count > 0; }
+        protected override bool can_draw()
+        { return TCA != null && VSL != null && vessel != null && CFG.GUIVisible && AllTabs.Count > 0; }
 
-		#if DEBUG
-		static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 200, 25).clampToScreen();
-		#endif
-		protected override void draw_gui()
-		{
+        #if DEBUG
+        static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 200, 25).clampToScreen();
+        #endif
+        protected override void draw_gui()
+        {
             //handle collapsed state
             if(Collapsed)
             {
@@ -438,53 +438,53 @@ namespace ThrottleControlledAvionics
             if(draw_main_window)
             {
                 LockControls();
-    			WindowPos = 
-    				GUILayout.Window(TCA.GetInstanceID(), 
-    				                 WindowPos, 
-    				                 DrawMainWindow, 
+                WindowPos = 
+                    GUILayout.Window(TCA.GetInstanceID(), 
+                                     WindowPos, 
+                                     DrawMainWindow, 
                                      RemoteControl? "RC: "+vessel.vesselName : vessel.vesselName,
-    				                 GUILayout.Width(ControlsWidth),
-    				                 GUILayout.Height(50)).clampToScreen();
+                                     GUILayout.Width(ControlsWidth),
+                                     GUILayout.Height(50)).clampToScreen();
                 update_collapsed_rect();
             }
             //draw waypoints and all subwindows
             if(RemoteControl && Event.current.type == EventType.Repaint)
                 Markers.DrawWorldMarker(TCA.vessel.transform.position, Color.green, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
-			if(NAV != null) NAV.DrawWaypoints();
-			AllWindows.ForEach(w => w.Draw());
+            if(NAV != null) NAV.DrawWaypoints();
+            AllWindows.ForEach(w => w.Draw());
             ModulesGraph.Draw();
 
-			#if DEBUG
-			GUI.Label(debug_rect, 
-			          string.Format("[{0}] {1:HH:mm:ss.fff}", 
-			                        TCA != null && vessel != null? vessel.situation.ToString() : "", 
-			                        DateTime.Now), 
-			          Styles.boxed_label);
-			#endif
-		}
+            #if DEBUG
+            GUI.Label(debug_rect, 
+                      string.Format("[{0}] {1:HH:mm:ss.fff}", 
+                                    TCA != null && vessel != null? vessel.situation.ToString() : "", 
+                                    DateTime.Now), 
+                      Styles.boxed_label);
+            #endif
+        }
 
-		public void Update()
-		{
-			if(TCA == null) return;
-			if(!TCA.Available && !init()) return;
-			if(!TCA.IsControllable) return;
-			if(ADV != null && ADV.SelectingKey) ADV.Update();
-			else if(!FlightDriver.Pause)
-			{
-				if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
-				if(CFG.Enabled)
-				{
-					if(CFG.BlockThrottle && THR != null)
-					{
-						if(CFG.VF[VFlight.AltitudeControl]) 
-						{ if(ALT != null) ALT.ProcessKeys(); }
-						else if(VSC != null) VSC.ProcessKeys();
-					}
+        public void Update()
+        {
+            if(TCA == null) return;
+            if(!TCA.Available && !init()) return;
+            if(!TCA.IsControllable) return;
+            if(ADV != null && ADV.SelectingKey) ADV.Update();
+            else if(!FlightDriver.Pause)
+            {
+                if(Input.GetKeyDown(TCA_Key)) TCA.ToggleTCA();
+                if(CFG.Enabled)
+                {
+                    if(CFG.BlockThrottle && THR != null)
+                    {
+                        if(CFG.VF[VFlight.AltitudeControl]) 
+                        { if(ALT != null) ALT.ProcessKeys(); }
+                        else if(VSC != null) VSC.ProcessKeys();
+                    }
                     if(WRP != null) WRP.ProcessKeys();
-				}
-			}
-		}
+                }
+            }
+        }
 
         public void OnRenderObject()
         {

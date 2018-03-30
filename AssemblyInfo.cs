@@ -42,16 +42,16 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	public class ModInfo : KSP_AVC_Info
-	{
-		public ModInfo()
-		{
-			MinKSPVersion = new Version(1,4,1);
-			MaxKSPVersion = new Version(1,4,1);
+    public class ModInfo : KSP_AVC_Info
+    {
+        public ModInfo()
+        {
+            MinKSPVersion = new Version(1,4,1);
+            MaxKSPVersion = new Version(1,4,1);
 
-			VersionURL   = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
-			UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
-			ChangeLogURL = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/ChanegLog.md";
-		}
-	}
+            VersionURL   = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
+            UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
+            ChangeLogURL = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/ChanegLog.md";
+        }
+    }
 }

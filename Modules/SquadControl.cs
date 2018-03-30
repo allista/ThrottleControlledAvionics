@@ -14,18 +14,18 @@ using CommNet;
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart]
-	public class SquadControl : TCAModule
-	{
-//		public class Config : ModuleConfig
-//		{
-//			new public const string NODE_NAME = "SQD";
-//		}
-//		static Config SQD { get { return Globals.Instance.SQD; } }
+    [CareerPart]
+    public class SquadControl : TCAModule
+    {
+//        public class Config : ModuleConfig
+//        {
+//            new public const string NODE_NAME = "SQD";
+//        }
+//        static Config SQD { get { return Globals.Instance.SQD; } }
 
-		public SquadControl(ModuleTCA tca) : base(tca) {}
+        public SquadControl(ModuleTCA tca) : base(tca) {}
 
-		public bool SquadMode;
+        public bool SquadMode;
 
         public override void Disable() {}
 
@@ -70,69 +70,69 @@ namespace ThrottleControlledAvionics
             }
         }
 
-		bool is_comm_reachable(ModuleTCA tca)
-		{
+        bool is_comm_reachable(ModuleTCA tca)
+        {
             return IsCommReachable(TCA, tca);
         }
 
-		void apply_to_others(Action<ModuleTCA> action)
-		{
-			if(TCA.CFG.Squad == 0 || !SquadMode) return;
-			bool executed = false;
-			for(int i = 0, num_vessels = FlightGlobals.Vessels.Count; i < num_vessels; i++)
-			{
-				var v = FlightGlobals.Vessels[i];
-				if(v == null || v == VSL.vessel || !v.loaded) continue;
-				var tca = ModuleTCA.EnabledTCA(v);
-				if(tca == null || !tca.Available) continue;
-				if(tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
-				if(!is_comm_reachable(tca)) continue;
-				//try to reach packed vessels
+        void apply_to_others(Action<ModuleTCA> action)
+        {
+            if(TCA.CFG.Squad == 0 || !SquadMode) return;
+            bool executed = false;
+            for(int i = 0, num_vessels = FlightGlobals.Vessels.Count; i < num_vessels; i++)
+            {
+                var v = FlightGlobals.Vessels[i];
+                if(v == null || v == VSL.vessel || !v.loaded) continue;
+                var tca = ModuleTCA.EnabledTCA(v);
+                if(tca == null || !tca.Available) continue;
+                if(tca.CFG.Squad == 0 || tca.CFG.Squad != TCA.CFG.Squad) continue;
+                if(!is_comm_reachable(tca)) continue;
+                //try to reach packed vessels
                 UnpackVessel(TCA.vessel, v);
-				action(tca);
-				executed = true;
-			}
-			if(executed) Message("Squad Action Executed");
-		}
+                action(tca);
+                executed = true;
+            }
+            if(executed) Message("Squad Action Executed");
+        }
 
-		public void Apply(Action<ModuleTCA> action)
-		{
-			if(TCA == null || action == null) return;
-			action(TCA);
-			apply_to_others(action);
-		}
+        public void Apply(Action<ModuleTCA> action)
+        {
+            if(TCA == null || action == null) return;
+            action(TCA);
+            apply_to_others(action);
+        }
 
-		public void ApplyCFG(Action<VesselConfig> action)
-		{
-			if(TCA == null || action == null) return;
-			action(TCA.CFG);
-			apply_to_others(tca => action(tca.CFG));
-		}
+        public void ApplyCFG(Action<VesselConfig> action)
+        {
+            if(TCA == null || action == null) return;
+            action(TCA.CFG);
+            apply_to_others(tca => action(tca.CFG));
+        }
 
-		public void SyncCFG(Action<VesselConfig> action)
-		{
-			if(TCA == null || action == null) return;
-			apply_to_others(tca => action(tca.CFG));
-		}
+        public void SyncCFG(Action<VesselConfig> action)
+        {
+            if(TCA == null || action == null) return;
+            apply_to_others(tca => action(tca.CFG));
+        }
 
-		public void FollowMe()
-		{
-			Apply(tca => 
-			{
-				if(tca == TCA) return;
-				tca.CFG.Nav.XOff();
-				tca.vessel.targetObject = TCA.vessel;
-				tca.CFG.Nav.On(Navigation.FollowTarget);
-			});
-		}
+        public void FollowMe()
+        {
+            Apply(tca => 
+            {
+                if(tca == TCA) return;
+                tca.CFG.Nav.XOff();
+                tca.vessel.targetObject = TCA.vessel;
+                tca.CFG.Nav.On(Navigation.FollowTarget);
+            });
+        }
 
-		public override void Draw()
-		{
-			Utils.ButtonSwitch("Squadron Mode", ref SquadMode, 
-			                   "Control autopilot on all squadron vessels", 
-			                   GUILayout.ExpandWidth(false));
-			if(SquadMode) CFG.Squad = Utils.IntSelector(CFG.Squad, 1, tooltip: "Squad ID");
-		}
-	}
+        public override void Draw()
+        {
+            Utils.ButtonSwitch("Squadron Mode", ref SquadMode, 
+                               "Control autopilot on all squadron vessels", 
+                               GUILayout.ExpandWidth(false));
+            if(SquadMode) CFG.Squad = Utils.IntSelector(CFG.Squad, 1, tooltip: "Squad ID");
+        }
+    }
 }
 

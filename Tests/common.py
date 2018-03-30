@@ -148,8 +148,8 @@ class vec(object):
 
     def angle(self, other):
         """
-		:rtype float: radians
-		"""
+        :rtype float: radians
+        """
         return np.arccos(self * other / (abs(self) * abs(other)))
 
     def cube_norm(self):
