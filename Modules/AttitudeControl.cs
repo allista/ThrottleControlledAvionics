@@ -293,7 +293,6 @@ namespace ThrottleControlledAvionics
 
         protected Vector3 steering;
         protected Vector3 rotation_axis;
-        protected float angular_error;
 
         protected readonly PidCascade pid_pitch = new PidCascade();
         protected readonly PidCascade pid_roll = new PidCascade();
@@ -377,7 +376,6 @@ namespace ThrottleControlledAvionics
             needed.Normalize();
             current.Normalize();
             VSL.Controls.SetAttitudeError(Utils.Angle2(needed, current));
-            angular_error = VSL.Controls.AttitudeError / 180;
             if(VSL.Controls.AttitudeError > 0.001)
             {
                 if(VSL.Controls.AttitudeError > 175)
@@ -434,6 +432,7 @@ namespace ThrottleControlledAvionics
             if(rotation_axis.IsZero()) return;
             var AV = get_angular_velocity();
             var AM = Vector3.Scale(AV, VSL.Physics.MoI);
+            var angular_error = VSL.Controls.AttitudeError / 180;
             var abs_rotation_axis = rotation_axis.AbsComponents();
             var ErrV = angular_error * abs_rotation_axis;
             var iErr = Vector3.one - ErrV;

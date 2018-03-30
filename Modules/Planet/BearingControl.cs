@@ -116,7 +116,7 @@ namespace ThrottleControlledAvionics
                     var w_axis = VSL.Engines.refT_thrust_axis;
                     var error_sign = Mathf.Sign(Vector3.Dot(Vector3.Cross(cDir, nDir), w_axis));
                     rotation_axis = VSL.LocalDir(w_axis)*error_sign;
-                    angular_error = Utils.Angle2(cDir, nDir)/180;
+                    var angular_error = Utils.Angle2(cDir, nDir)/180;
                     var AV = Vector3.Dot(VSL.vessel.angularVelocity, rotation_axis);
                     var AM = AV*Vector3.Dot(VSL.Physics.MoI, rotation_axis.AbsComponents());
                     var MaxAA = VSL.Torque.MaxCurrent.AngularAccelerationAroundAxis(rotation_axis);
