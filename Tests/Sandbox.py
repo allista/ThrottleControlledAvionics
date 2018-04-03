@@ -35,8 +35,8 @@ class Sandbox(object):
         for i, result in enumerate(results):
             name, time, error, action, addons, zero_stats = result
             if zero_stats:
-                print '\n%s\n' % str(zero_stats)
-            print '=' * 80
+                print('\n%s\n' % str(zero_stats))
+            print('=' * 80)
             nplots = 2+len(addons)
             ax = plt.subplot(nplots, cols, col)
             plt.plot(time, error, label=name, color=colors[i])
