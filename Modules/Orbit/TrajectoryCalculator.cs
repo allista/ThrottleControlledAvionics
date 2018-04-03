@@ -277,6 +277,24 @@ namespace ThrottleControlledAvionics
             return (max_dV+min_dV)/2*dir;
         }
 
+        public static Vector3d dV4ApV(Orbit old, Vector3d ApV, double UT)
+        {
+            var slv = new LambertSolver(old, ApV, UT);
+            var ApR = ApV.magnitude;
+            var minT = slv.ParabolicTime;
+            var maxT = slv.MinEnergyTime;
+            var dV = slv.dV4TransferME();
+            while(maxT-minT > 0.1)
+            {
+                var T = (maxT+minT)/2;
+                dV = slv.dV4Transfer(T);
+                var obt = NewOrbit(old, dV, UT);
+                if(obt.timeToAp > T) minT = T;
+                else maxT = T;
+            }
+            return dV;
+        }
+
         protected double slope2rad(double slope, double ApR)
         {
             var body_rot = Body.angularV*Body.Radius*Math.Sqrt(2/VSL.Physics.StG/(ApR-Body.Radius));
