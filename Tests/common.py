@@ -5,8 +5,8 @@ from scipy.optimize import curve_fit
 
 dt = 0.02
 
-gamedir = u'/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
-game = u'KSP_test_1.3'
+gamedir = '/home/storage/Games/KSP_linux/PluginsArchives/Development/AT_KSP_Plugins/KSP-test/'
+game = 'KSP_test_1.4.1'
 
 
 def gamefile(filename): return os.path.join(gamedir, game, filename)
