@@ -568,7 +568,7 @@ BJ
 ORB
 {
 	Dtol           = 100   //m
-	GTurnCurve     = 0.9
+	GTurnCurve     = 0.3
 	GTurnOffset    = 1000
 	Dist2VelF      = 0.01	
 	RadiusOffset   = 10000 //m
@@ -581,10 +581,17 @@ ORB
 	ThrottlePID
 	{
 		P = 0.1
-		I = 0.001
+		I = 0.01
 		D = 0.0
-		Min = -1
-		Max = 0
+		Min = -0.5
+		Max = 0.5
+		Tau = 1
+	}
+	NormCorrectionPID
+	{
+		P = 20
+		I = 0.01
+		D = 20
 		Tau = 1
 	}
 }

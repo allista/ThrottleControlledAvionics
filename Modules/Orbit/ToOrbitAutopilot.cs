@@ -22,18 +22,19 @@ namespace ThrottleControlledAvionics
     {
         public new class Config : ModuleConfig
         {
-            [Persistent] public float Dtol           = 100f;
-            [Persistent] public float RadiusOffset   = 10000f;
-            [Persistent] public float GTurnCurve     = 0.9f;
-            [Persistent] public float GTurnOffset    = 1000f;
-            [Persistent] public float LaunchSlope    = 50f;
-            [Persistent] public float MinSlope       = 30f;
-            [Persistent] public float MaxSlope       = 70f;
-            [Persistent] public float Dist2VelF      = 0.1f;
-            [Persistent] public float DragK          = 0.0008f;
+            [Persistent] public float Dtol = 100f;
+            [Persistent] public float RadiusOffset = 10000f;
+            [Persistent] public float GTurnCurve = 0.9f;
+            [Persistent] public float GTurnOffset = 1000f;
+            [Persistent] public float LaunchSlope = 50f;
+            [Persistent] public float MinSlope = 30f;
+            [Persistent] public float MaxSlope = 70f;
+            [Persistent] public float Dist2VelF = 0.1f;
+            [Persistent] public float DragK = 0.0008f;
             [Persistent] public float MaxDynPressure = 10f;
             [Persistent] public float AtmDensityOffset = 10f;
             [Persistent] public PIDf_Controller3 ThrottlePID = new PIDf_Controller3();
+            [Persistent] public PIDf_Controller3 NormCorrectionPID = new PIDf_Controller3();
         }
         static Config ORB { get { return Globals.Instance.ORB; } }
 
@@ -43,12 +44,12 @@ namespace ThrottleControlledAvionics
         [Persistent] public Vector3 Target;
         [Persistent] public Stage stage;
 
-        public bool ShowOptions { get; private set; }
+        public bool ShowOptions;
 
-        double ApR { get { return TargetOrbit.ApA*1000+Body.Radius; } }
+        double ApR { get { return TargetOrbit.ApA * 1000 + Body.Radius; } }
         ToOrbitExecutor ToOrbit;
 
-        public ToOrbitAutopilot(ModuleTCA tca) : base(tca) {}
+        public ToOrbitAutopilot(ModuleTCA tca) : base(tca) { }
 
         public override void Save(ConfigNode node)
         {
@@ -61,7 +62,9 @@ namespace ThrottleControlledAvionics
         {
             base.Init();
             CFG.AP2.AddHandler(this, Autopilot2.ToOrbit);
-            TargetOrbit.Slope.Value = Mathf.InverseLerp(ORB.MinSlope, ORB.MaxSlope, ORB.LaunchSlope)*100;
+            TargetOrbit.TimeToApA.Value = (float)ManeuverOffset;
+            TargetOrbit.MinThrottle.Value = 10;
+            TargetOrbit.MaxG.Value = 3;
         }
 
         protected override void UpdateState()
@@ -88,15 +91,17 @@ namespace ThrottleControlledAvionics
                 Vector3d hVdir;
                 if(TargetOrbit.Inclination.Range > 1e-5f)
                 {
-                    var angle = Utils.Clamp((TargetOrbit.Inclination.Value-TargetOrbit.Inclination.Min)/TargetOrbit.Inclination.Range*180, 0, 180);
+                    var angle = Utils.Clamp((TargetOrbit.Inclination.Value - TargetOrbit.Inclination.Min) / TargetOrbit.Inclination.Range * 180, 0, 180);
                     if(TargetOrbit.DescendingNode) angle = -angle;
-                    hVdir = QuaternionD.AngleAxis(angle, VesselOrbit.pos) * Vector3d.Cross(Vector3d.forward, VesselOrbit.pos).normalized;
+                    hVdir = QuaternionD.AngleAxis(angle, VesselOrbit.pos) * Vector3d.Cross(VesselOrbit.pos, Body.zUpAngularVelocity).normalized;
                 }
                 else hVdir = Vector3d.Cross(VesselOrbit.pos, Body.orbit.vel).normalized;
                 if(TargetOrbit.RetrogradeOrbit) hVdir *= -1;
-                var ApR0 = Utils.ClampH(ApR, MinPeR+ORB.RadiusOffset);
-                var ascO = AscendingOrbit(ApR0, hVdir, Mathf.Lerp(ORB.MinSlope, ORB.MaxSlope, TargetOrbit.Slope.Value/100));
-                Target = ascO.getRelativePositionAtUT(VSL.Physics.UT+ascO.timeToAp);
+                //var ApR0 = ApR;
+                //if(ApR0 > MinPeR + ORB.RadiusOffset) ApR0 = MinPeR;
+                var ApR0 = Utils.ClampH(ApR, MinPeR + ORB.RadiusOffset);
+                var ascO = AscendingOrbit(ApR0, hVdir, ORB.LaunchSlope);
+                Target = ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
                 stage = Stage.Start;
                 goto case Multiplexer.Command.Resume;
 
@@ -108,8 +113,8 @@ namespace ThrottleControlledAvionics
 
         void update_limits()
         {
-            TargetOrbit.ApA.Min = (float)(MinPeR-Body.Radius)/1000;
-            TargetOrbit.ApA.Max = (float)(Body.sphereOfInfluence-Body.Radius)/1000;
+            TargetOrbit.ApA.Min = (float)(MinPeR - Body.Radius) / 1000;
+            TargetOrbit.ApA.Max = (float)(Body.sphereOfInfluence - Body.Radius) / 1000;
             TargetOrbit.ApA.Value = Utils.Clamp(TargetOrbit.ApA.Value, TargetOrbit.ApA.Min, TargetOrbit.ApA.Max);
             update_inclination_limits();
         }
@@ -117,9 +122,9 @@ namespace ThrottleControlledAvionics
         void update_inclination_limits()
         {
             //pos x [fwd x pos] = fwd(pos*pos) - pos(fwd*pos)
-            var h = Vector3d.forward*VesselOrbit.pos.sqrMagnitude - VesselOrbit.pos * VesselOrbit.pos.z; 
-            TargetOrbit.Inclination.Min = (float)Math.Acos(h.z/h.magnitude)*Mathf.Rad2Deg;
-            TargetOrbit.Inclination.Max = 180-TargetOrbit.Inclination.Min;
+            var h = Vector3d.forward * VesselOrbit.pos.sqrMagnitude - VesselOrbit.pos * VesselOrbit.pos.z;
+            TargetOrbit.Inclination.Min = (float)Math.Acos(h.z / h.magnitude) * Mathf.Rad2Deg;
+            TargetOrbit.Inclination.Max = 180 - TargetOrbit.Inclination.Min;
             TargetOrbit.Inclination.ClampValue();
         }
 
@@ -134,23 +139,23 @@ namespace ThrottleControlledAvionics
 
         double inclination_error(double inclination)
         {
-            var error = TargetOrbit.RetrogradeOrbit? 
-                180-inclination-TargetOrbit.Inclination.Value : 
-                inclination-TargetOrbit.Inclination.Value;
-            return TargetOrbit.DescendingNode? -error : error;
+            var error = TargetOrbit.RetrogradeOrbit ?
+                                   TargetOrbit.TargetInclination - inclination :
+                                   inclination - TargetOrbit.TargetInclination;
+            return TargetOrbit.DescendingNode ? -error : error;
         }
 
         double inclination_correction(double inclination, double chord)
-        { 
-            return Utils.Clamp(chord*Math.Tan(inclination_error(inclination)*Mathf.Deg2Rad)
-                               /VesselOrbit.radius*Mathf.Rad2Deg, -10, 10);
+        {
+            return Utils.Clamp(chord * Math.Tan(inclination_error(inclination) * Mathf.Deg2Rad)
+                               / VesselOrbit.radius * Mathf.Rad2Deg, -10, 10);
         }
 
         Vector3d correct_dV(Vector3d dV, double UT)
         {
-            var v  = VesselOrbit.getOrbitalVelocityAtUT(UT);
+            var v = VesselOrbit.getOrbitalVelocityAtUT(UT);
             var nV = dV + v;
-            return QuaternionD.AngleAxis(-inclination_error(VesselOrbit.inclination), 
+            return QuaternionD.AngleAxis(-inclination_error(VesselOrbit.inclination),
                                          VesselOrbit.getRelativePositionAtUT(UT)) * nV - v;
         }
 
@@ -175,7 +180,6 @@ namespace ThrottleControlledAvionics
             switch(stage)
             {
             case Stage.Start:
-                Log("Landed: {}", VSL.LandedOrSplashed);//debug
                 if(VSL.LandedOrSplashed || VSL.VerticalSpeed.Absolute < 5)
                     stage = Stage.Liftoff;
                 else
@@ -185,34 +189,52 @@ namespace ThrottleControlledAvionics
                 }
                 break;
             case Stage.Liftoff:
-                if(ToOrbit.Liftoff()) break;
+                if(ToOrbit.Liftoff(TargetOrbit.MinThrottle / 100, TargetOrbit.MaxG)) break;
                 stage = Stage.GravityTurn;
                 break;
             case Stage.GravityTurn:
                 update_inclination_limits();
                 var norm = VesselOrbit.GetOrbitNormal();
-                var ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp);
-                var arcT = AngleDelta(VesselOrbit, ToOrbit.Target);
-                if(arcT > 0 && arcT < AngleDelta(VesselOrbit, ApV))
+                var needed_norm = Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target.normalized);
+                var norm2norm = Math.Abs(Utils.Angle2(norm, needed_norm) - 90);
+                if(norm2norm > 60)
                 {
-                    ApV.Normalize();
-                    var chord = ApV*VesselOrbit.radius - VesselOrbit.pos;
-                    var alpha = inclination_correction(VesselOrbit.inclination, chord.magnitude);
-                    ToOrbit.Target = QuaternionD.AngleAxis(alpha, Vector3d.Cross(norm, ApV))
-                        *ApV*ToOrbit.TargetR;
+                    var ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp);
+                    var arcApA = AngleDelta(VesselOrbit, ApV);
+                    var arcT = AngleDelta(VesselOrbit, ToOrbit.Target);
+                    if(arcT > 0 && arcT < arcApA)
+                    {
+                        ApV.Normalize();
+                        var chord = ApV * VesselOrbit.radius - VesselOrbit.pos;
+                        var alpha = inclination_correction(VesselOrbit.inclination, chord.magnitude);
+                        var axis = Vector3d.Cross(norm, ApV);
+                        ToOrbit.Target = QuaternionD.AngleAxis(alpha, axis) * ApV * ToOrbit.TargetR;
+                    }
+                    else
+                    {
+
+                        var inclination = Math.Acos(needed_norm.z / needed_norm.magnitude) * Mathf.Rad2Deg;
+                        var chord = Vector3d.Exclude(norm, ToOrbit.Target).normalized * VesselOrbit.radius - VesselOrbit.pos;
+                        var alpha = inclination_correction(inclination, chord.magnitude);
+                        var axis = Vector3d.Cross(norm, VesselOrbit.pos.normalized);
+                        if(arcT < 0) alpha = -alpha;
+                        ToOrbit.Target = QuaternionD.AngleAxis(alpha, axis) * ToOrbit.Target;
+                    }
                 }
-                else
+                if(TargetOrbit.AutoTimeToApA)
                 {
-                    var n = Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target.normalized);
-                    var inclination = Math.Acos(n.z/n.magnitude)*Mathf.Rad2Deg;
-                    var chord = Vector3d.Exclude(norm, ToOrbit.Target).normalized*VesselOrbit.radius - VesselOrbit.pos;
-                    var alpha = inclination_correction(inclination, chord.magnitude);
-                    ToOrbit.Target = QuaternionD.AngleAxis(alpha, Vector3d.Cross(norm, VesselOrbit.pos))
-                        *ToOrbit.Target;
+                    var dEcc = ORB.GTurnCurve - (float)VesselOrbit.eccentricity;
+                    var dApA = (float)((ToOrbit.TargetR - VesselOrbit.ApR) / (ToOrbit.TargetR - Body.Radius) - 0.1);
+                    TargetOrbit.TimeToApA.Value = TRJ.ManeuverOffset * (1 + dEcc + dApA);
+                    TargetOrbit.TimeToApA.ClampValue();
                 }
-                if(ToOrbit.GravityTurn(ManeuverOffset, ORB.GTurnCurve, ORB.Dist2VelF, ORB.Dtol)) break;
+                if(ToOrbit.GravityTurn(Math.Max(TargetOrbit.TimeToApA, VSL.Torque.MaxCurrent.TurnTime),
+                                       TargetOrbit.MinThrottle / 100,
+                                       TargetOrbit.MaxG,
+                                       ORB.Dtol))
+                    break;
                 CFG.BR.OffIfOn(BearingMode.Auto);
-                var ApAUT = VSL.Physics.UT+VesselOrbit.timeToAp;
+                var ApAUT = VSL.Physics.UT + VesselOrbit.timeToAp;
                 if(ApR > MinPeR + ORB.RadiusOffset) change_ApR(ApAUT);
                 else circularize(ApAUT);
                 CSV("gravity turn end", VSL.Engines.AvailableFuelMass);//debug
@@ -220,7 +242,7 @@ namespace ThrottleControlledAvionics
             case Stage.ChangeApA:
                 TmpStatus("Achieving target apoapsis...");
                 if(CFG.AP1[Autopilot1.Maneuver]) break;
-                circularize(VSL.Physics.UT+VesselOrbit.timeToAp);
+                circularize(VSL.Physics.UT + VesselOrbit.timeToAp);
                 stage = Stage.Circularize;
                 break;
             case Stage.Circularize:
@@ -241,23 +263,23 @@ namespace ThrottleControlledAvionics
 
         public override void Draw()
         {
-            #if DEBUG
+#if DEBUG
             if(ToOrbit != null)
             {
                 Utils.GLVec(Body.position, ToOrbit.Target.xzy, Color.green);
-                Utils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT+VesselOrbit.timeToAp).xzy, Color.magenta);
-                Utils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy*Body.Radius*1.1, Color.cyan);
-                Utils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy*Body.Radius*1.1, Color.red);
+                Utils.GLVec(Body.position, VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp).xzy, Color.magenta);
+                Utils.GLVec(Body.position, VesselOrbit.GetOrbitNormal().normalized.xzy * Body.Radius * 1.1, Color.cyan);
+                Utils.GLVec(Body.position, Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target).normalized.xzy * Body.Radius * 1.1, Color.red);
             }
-            #endif
+#endif
             if(stage == Stage.None)
             {
-                if(Utils.ButtonSwitch("ToOrbit", ShowOptions, 
-                                         "Achieve a circular orbit with desired radius and inclination", 
+                if(Utils.ButtonSwitch("ToOrbit", ShowOptions,
+                                         "Achieve a circular orbit with desired radius and inclination",
                                       GUILayout.ExpandWidth(true)))
                     toggle_orbit_editor();
             }
-            else if(GUILayout.Button(new GUIContent("ToOrbit", "Change target orbit or abort"), 
+            else if(GUILayout.Button(new GUIContent("ToOrbit", "Change target orbit or abort"),
                                      Styles.danger_button, GUILayout.ExpandWidth(true)))
                 toggle_orbit_editor();
         }
@@ -266,18 +288,36 @@ namespace ThrottleControlledAvionics
         {
             GUILayout.BeginVertical();
             TargetOrbit.Draw();
+            if(stage == Stage.GravityTurn)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.BeginVertical();
+                GUILayout.Label("Inclination:");
+                GUILayout.Label("Apoapsis:");
+                GUILayout.Label("Time to Apoapsis:");
+                GUILayout.EndVertical();
+                GUILayout.BeginVertical();
+                GUILayout.Label(string.Format("{0:F3}° ► {1:F3}°",
+                                              VesselOrbit.inclination,
+                                              TargetOrbit.TargetInclination));
+                GUILayout.Label(string.Format("{0} ► {1}",
+                                              Utils.formatBigValue((float)VesselOrbit.ApA, "m", "F3"),
+                                              Utils.formatBigValue((float)(ToOrbit.TargetR - Body.Radius), "m", "F3")));
+                GUILayout.Label(KSPUtil.PrintDateDeltaCompact(VesselOrbit.timeToAp, true, true));
+                GUILayout.EndVertical();
+                GUILayout.EndHorizontal();
+            }
             GUILayout.BeginHorizontal();
             ShowOptions = !GUILayout.Button("Cancel", Styles.active_button, GUILayout.ExpandWidth(true));
-            if(stage != Stage.None && 
+            if(stage != Stage.None &&
                GUILayout.Button("Abort", Styles.danger_button, GUILayout.ExpandWidth(true)))
             {
                 ShowOptions = false;
                 CFG.AP2.XOff();
             }
-            if(GUILayout.Button(stage == Stage.None? "Launch" : "Change", 
+            if(GUILayout.Button(stage == Stage.None ? "Launch" : "Change",
                                 Styles.confirm_button, GUILayout.ExpandWidth(true)))
             {
-                ShowOptions = false;
                 TargetOrbit.UpdateValues();
                 VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(Autopilot2.ToOrbit));
             }
@@ -290,46 +330,90 @@ namespace ThrottleControlledAvionics
     {
         [Persistent] public FloatField ApA = new FloatField();
         [Persistent] public FloatField Inclination = new FloatField(format: "F3", min: 0, max: 180);
-        [Persistent] public FloatField Slope = new FloatField(format: "F1", min: 0, max: 100);
+        [Persistent] public FloatField TimeToApA = new FloatField(format: "F1", min: 5, max: 300);
+        [Persistent] public FloatField MaxG = new FloatField(format: "F1", min: 0.1f, max: 100);
+        [Persistent] public FloatField MinThrottle = new FloatField(format: "F1", min: 1, max: 100);
         [Persistent] public bool DescendingNode;
         [Persistent] public bool RetrogradeOrbit;
+        [Persistent] public bool AutoTimeToApA = true;
+
+        public double TargetInclination => RetrogradeOrbit ? 180 - Inclination.Value : Inclination.Value;
 
         public void UpdateValues()
         {
             ApA.UpdateValue();
             Inclination.UpdateValue();
+            TimeToApA.UpdateValue();
         }
 
         public void Draw()
         {
             GUILayout.BeginHorizontal();
-            GUILayout.BeginVertical();
-            GUILayout.Label("Radius:", GUILayout.ExpandWidth(true));
-            GUILayout.Label("Inclination:", GUILayout.ExpandWidth(true));
-            GUILayout.Label("Steepness:", GUILayout.ExpandWidth(true));
-            GUILayout.EndVertical();
-            GUILayout.BeginVertical();
-            GUILayout.FlexibleSpace();
-            GUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-            if(GUILayout.Button(new GUIContent(DescendingNode? "DN" : "AN", "Launch from Ascending or Descending Node?"), 
-                                DescendingNode? Styles.danger_button : Styles.enabled_button,
-                                GUILayout.ExpandWidth(false)))
-                DescendingNode = !DescendingNode;
-            if(GUILayout.Button(new GUIContent(RetrogradeOrbit? "RG" : "PG", "Prograde or retrograde orbit?"), 
-                                RetrogradeOrbit? Styles.danger_button : Styles.enabled_button,
-                                GUILayout.ExpandWidth(false)))
-                RetrogradeOrbit = !RetrogradeOrbit;
-            GUILayout.EndHorizontal();
-            GUILayout.FlexibleSpace();
-            GUILayout.EndVertical();
-            GUILayout.BeginVertical();
-            ApA.Draw("km", 5, suffix_width: 25);
-            Inclination.Draw("°", 5, suffix_width: 25);
-            Slope.Draw("%", 5, suffix_width: 25);
-            GUILayout.EndVertical();
+            {
+                GUILayout.BeginVertical();
+                {
+                    GUILayout.Label(new GUIContent("Apoapsis:",
+                                                   "Apoapsis of the target circular orbit"), 
+                                    GUILayout.ExpandWidth(true));
+                    GUILayout.Label(new GUIContent("Inclination:",
+                                                   "Inclination of the prograde varian of a target orbit. " +
+                                                   "In case of retrograde orbits the actual target inclination is " +
+                                                   "180-prograde_inclination."), 
+                                    GUILayout.ExpandWidth(true));
+                    GUILayout.Label(new GUIContent("Time to Apoapsis:",
+                                                   "More time to apoapsis means steeper trajectory " +
+                                                   "and greater acceleration. Low values can " +
+                                                   "save a lot of fuel."),
+                                    GUILayout.ExpandWidth(true));
+                    GUILayout.Label(new GUIContent("Min. Throttle:",
+                                                   "Minimum throttle value. " +
+                                                   "Increasing it will shorten the last stage of the ascent."),
+                                    GUILayout.ExpandWidth(true));
+                    GUILayout.Label(new GUIContent("Max. Acceleration:",
+                                                   "Maximum allowed acceleration (in gees of the current planet). " +
+                                                   "Smooths gravity turn on low-gravity worlds. Saves fuel."),
+                                    GUILayout.ExpandWidth(true));
+                }
+                GUILayout.EndVertical();
+                GUILayout.BeginVertical();
+                {
+                    GUILayout.FlexibleSpace();
+                    GUILayout.BeginHorizontal();
+                    {
+                        GUILayout.FlexibleSpace();
+                        if(GUILayout.Button(new GUIContent(DescendingNode ? "DN" : "AN", "Launch from Ascending or Descending Node?"),
+                                            DescendingNode ? Styles.danger_button : Styles.enabled_button,
+                                            GUILayout.ExpandWidth(false)))
+                            DescendingNode = !DescendingNode;
+                        if(GUILayout.Button(new GUIContent(RetrogradeOrbit ? "RG" : "PG", "Prograde or retrograde orbit?"),
+                                            RetrogradeOrbit ? Styles.danger_button : Styles.enabled_button,
+                                            GUILayout.ExpandWidth(false)))
+                            RetrogradeOrbit = !RetrogradeOrbit;
+                    }
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    {
+                        GUILayout.FlexibleSpace();
+                        Utils.ButtonSwitch("Auto", ref AutoTimeToApA,
+                                           "Tune time to apoapsis automatically",
+                                           GUILayout.ExpandWidth(false));
+                    }
+                    GUILayout.EndHorizontal();
+                    GUILayout.FlexibleSpace();
+                    GUILayout.FlexibleSpace();
+                }
+                GUILayout.EndVertical();
+                GUILayout.BeginVertical();
+                {
+                    ApA.Draw("km", 5, "F1", suffix_width: 25);
+                    Inclination.Draw("°", 5, "F1", suffix_width: 25);
+                    TimeToApA.Draw("s", 5, "F1", suffix_width: 25);
+                    MinThrottle.Draw("%", 5, "F1", suffix_width: 25);
+                    MaxG.Draw("g", 0.5f, "F1", suffix_width: 25);
+                }
+                GUILayout.EndVertical();
+            }
             GUILayout.EndHorizontal();
         }
     }
 }
-

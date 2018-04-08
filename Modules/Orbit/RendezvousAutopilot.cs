@@ -685,12 +685,12 @@ namespace ThrottleControlledAvionics
                     VSL.Controls.WarpToTime = ToOrbit.LaunchUT;
                     break;
                 }
-                if(ToOrbit.Liftoff()) break;
+                if(ToOrbit.Liftoff(0.1f, 3)) break; //TODO: replace with tunable parameters
                 stage = Stage.ToOrbit;
                 MinDist.Reset();
                 break;
             case Stage.ToOrbit:
-                if(ToOrbit.GravityTurn(ManeuverOffset, GTurnCurve.Value, GLB.ORB.Dist2VelF, REN.Dtol))
+                if(ToOrbit.TargetedGravityTurn(ManeuverOffset, GTurnCurve.Value, GLB.ORB.Dist2VelF, REN.Dtol))
                 {
                     if(ToOrbit.dApA < REN.Dtol)
                     {
@@ -921,7 +921,7 @@ namespace ThrottleControlledAvionics
             GUILayout.BeginVertical();
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Gravity Turn:", "Sharpness of the gravity turn"), GUILayout.ExpandWidth(false));
-            GTurnCurve.Draw("", 0.1f);
+            GTurnCurve.Draw("", 0.1f, "F1");
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             if(computing)
