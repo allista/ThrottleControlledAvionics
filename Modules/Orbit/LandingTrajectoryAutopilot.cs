@@ -1101,7 +1101,7 @@ namespace ThrottleControlledAvionics
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Max. Correction:", 
                                            "Maximum distance of a corrected landing site from the original one"));
-            CorrectionMaxDist.Draw("km", 1f, suffix_width: 25);
+            CorrectionMaxDist.Draw("km", 1f, "F1", suffix_width: 25);
             GUILayout.FlexibleSpace();
             if(CFG.AP2[program])
             {
