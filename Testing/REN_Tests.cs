@@ -180,7 +180,7 @@ namespace ThrottleControlledAvionics
             {
             case Stage.LOAD:
                 level_loaded = false;
-                ScenarioTester.LoadGame("REN ToOrbit");
+                ScenarioTester.LoadGame("ToOrbitTest");
                 stage = Stage.WAIT_FOR_LEVEL;
                 delay.Reset();
                 break;
@@ -236,6 +236,7 @@ namespace ThrottleControlledAvionics
                         {
                             if(!MapView.MapIsEnabled)
                                 MapView.EnterMapView();
+                            RotateMapView();
                         }
                         else if(MapView.MapIsEnabled)
                             MapView.ExitMapView();
