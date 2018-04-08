@@ -177,6 +177,7 @@
     <Compile Include="VesselProps\StagingModel.cs" />
     <Compile Include="Testing\DEO_Tests.cs" />
     <Compile Include="Testing\JMP_Tests.cs" />
+    <Compile Include="Testing\ORB_Tests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

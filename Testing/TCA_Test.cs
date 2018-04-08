@@ -5,6 +5,7 @@
 //
 //  Copyright (c) 2017 Allis Tauri
 using System;
+using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -45,6 +46,15 @@ namespace ThrottleControlledAvionics
                                  string.Join("\n", FlightLogger.eventLog.ToArray()),
                                  FlightLogger.getMissionStats());
             Log(msg, args);
+        }
+
+        protected void RotateMapView()
+        {
+            PlanetariumCamera.fetch.camHdg = (PlanetariumCamera.fetch.camHdg-0.001f)%(float)Utils.TwoPI;
+            var pitch = Utils.CenterAngle(VSL.orbit.inclination+90);
+            if(pitch > 90) pitch = 180-pitch;
+            else if(pitch < -90) pitch = -180-pitch;
+            PlanetariumCamera.fetch.camPitch = (float)pitch*Mathf.Deg2Rad;
         }
 
         #region ITestScenario implementation
