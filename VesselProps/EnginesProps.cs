@@ -78,23 +78,23 @@ namespace ThrottleControlledAvionics
             return true;
         }
 
-        public Vector3 refT_forward_axis
-        { get { return VSL.OnPlanetParams.NoseUp? VSL.refT.forward : VSL.refT.up; } }
+        public Vector3 refT_forward_axis 
+        => VSL.OnPlanetParams.NoseUp ? VSL.refT.forward : VSL.refT.up;
 
-        public Vector3 refT_thrust_axis
-        { get { return VSL.OnPlanetParams.NoseUp? VSL.refT.up : VSL.refT.forward; } }
+        public Vector3 refT_thrust_axis 
+        => VSL.OnPlanetParams.NoseUp ? VSL.refT.up : VSL.refT.forward;
 
-        public Vector3 FallbackThrustDir(Vector3 fallback)
-        { return fallback.IsZero()? -refT_thrust_axis : fallback.normalized; }
+        public Vector3 FallbackThrustDir(Vector3 fallback) 
+        => fallback.IsZero() ? -refT_thrust_axis : fallback.normalized;
 
         public Vector3 CurrentDefThrustDir 
-        { get { return MaxDefThrust.IsZero()? FallbackThrustDir(NearestEnginedStageMaxDefThrust) : MaxDefThrust.normalized; } }
+        => MaxDefThrust.IsZero() ? FallbackThrustDir(NearestEnginedStageMaxDefThrust) : MaxDefThrust.normalized;
 
         public Vector3 CurrentMaxThrustDir 
-        { get { return MaxThrust.IsZero()? FallbackThrustDir(NearestEnginedStageMaxThrust) : MaxThrust.normalized; } }
+        => MaxThrust.IsZero() ? FallbackThrustDir(NearestEnginedStageMaxThrust) : MaxThrust.normalized;
 
         public Vector3 CurrentThrustDir 
-        { get { return Thrust.IsZero()? CurrentMaxThrustDir : Thrust.normalized; } }
+        => Thrust.IsZero() ? CurrentMaxThrustDir : Thrust.normalized;
 
         public float ThrustAtAlt(float vel, float alt, out float mflow)
         {
@@ -195,9 +195,9 @@ namespace ThrottleControlledAvionics
             return T;
         }
 
-        public static float FuelNeeded(float dV, float Ve, float mass) { return mass*(1-Mathf.Exp(-dV/Ve)); }
-        public float FuelNeeded(float dV, float Ve) { return FuelNeeded(dV, Ve, VSL.Physics.M); }
-        public float FuelNeeded(float dV) { return FuelNeeded(dV, MaxVe); }
+        public static float FuelNeeded(float dV, float Ve, float mass) => mass * (1 - Mathf.Exp(-dV / Ve));
+        public float FuelNeeded(float dV, float Ve) => FuelNeeded(dV, Ve, VSL.Physics.M);
+        public float FuelNeeded(float dV) => FuelNeeded(dV, MaxVe);
         public float FuelNeededAtAlt(float dV, float alt) 
         { 
             float mflow;
@@ -205,8 +205,8 @@ namespace ThrottleControlledAvionics
             return FuelNeeded(dV, thrust/mflow); 
         }
 
-        public float DeltaV(float Ve, float fuel_mass) { return Ve*Mathf.Log(VSL.Physics.M/(VSL.Physics.M-fuel_mass)); }
-        public float DeltaV(float fuel_mass) { return DeltaV(MaxVe, fuel_mass); }
+        public float DeltaV(float Ve, float fuel_mass) => Ve * Mathf.Log(VSL.Physics.M / (VSL.Physics.M - fuel_mass));
+        public float DeltaV(float fuel_mass) => DeltaV(MaxVe, fuel_mass);
 
         public float MaxHoverTimeASL(float fuel_mass)
         { 
@@ -222,8 +222,7 @@ namespace ThrottleControlledAvionics
             return DeltaV(thrust/mflow, AvailableFuelMass); 
         }
 
-        public float MaxDeltaV { get { return DeltaV(MaxVe, AvailableFuelMass); } }
-
+        public float MaxDeltaV => DeltaV(MaxVe, AvailableFuelMass);
         public float RelVeASL 
         { 
             get 
@@ -234,45 +233,16 @@ namespace ThrottleControlledAvionics
             } 
         }
 
-        public Vector3 NearestEnginedStageMaxDefThrust
-        { get { return GetNearestEnginedStageStats().MaxDefThrust; } }
+        public Vector3 NearestEnginedStageMaxDefThrust => GetNearestEnginedStageStats().MaxDefThrust;
+        public Vector3 NearestEnginedStageMaxThrust => GetNearestEnginedStageStats().MaxThrust;
+        public EnginesStats GetNearestEnginedStageStats() => GetStageStats(NearestEnginedStage);
+        public EnginesStats GetCurrentStageStats() => GetStageStats(VSL.vessel.currentStage);
 
-        public Vector3 NearestEnginedStageMaxThrust
-        { get { return GetNearestEnginedStageStats().MaxThrust; } }
+        public EnginesStats GetStageStats(int stage) 
+        => GetEnginesStats(All.Where(e => e.part.inverseStage >= stage));
 
-        public EnginesStats GetNearestEnginedStageStats()
-        { return GetStageStats(NearestEnginedStage); }
-
-        public EnginesStats GetCurrentStageStats()
-        { return GetStageStats(VSL.vessel.currentStage); }
-
-        public EnginesStats GetStageStats(int stage)
-        { return GetEnginesStats(All.Where(e => e.part.inverseStage >= stage).ToList()); }
-
-        public EnginesStats GetEnginesStats(IList<EngineWrapper> engines)
-        {
-            var stats = new EnginesStats(VSL);
-            for(int i = 0, count = engines.Count; i < count; i++)
-            {
-                var e = engines[i];
-                e.InitState();
-                e.InitTorque(VSL, GLB.ENG.TorqueRatioFactor);
-                var throttle = e.Role == TCARole.MANUAL ? e.thrustLimit : 1;
-                if(throttle > 0)
-                {
-                    var thrust = e.nominalCurrentThrust(throttle);
-                    if(e.Role != TCARole.MANEUVER)
-                    {
-                        stats.MaxThrust += e.wThrustDir * thrust;
-                        stats.MaxDefThrust += e.defThrustDir * thrust;
-                        stats.MaxMassFlow += e.MaxFuelFlow * throttle;
-                    }
-                    if(e.isSteering) stats.TorqueLimits.Add(e.specificTorque*thrust);
-                }
-            }
-            stats.Update();
-            return stats;
-        }
+        public EnginesStats GetEnginesStats(IEnumerable<EngineWrapper> engines) 
+        => new EnginesStats(new EnginesDB(engines), VSL);
 
         #region Clusters
         public ClustersDB Clusters;
@@ -428,8 +398,8 @@ namespace ThrottleControlledAvionics
             {
                 var e = Active[0];
                   if(e.Role != TCARole.UNBALANCE &&
-                      e.Role != TCARole.MANUAL &&
-                   e.defTorqueRatio < GLB.ENG.UnBalancedThreshold)
+                     e.Role != TCARole.MANUAL &&
+                     e.defTorqueRatio < GLB.ENG.UnBalancedThreshold)
                 {
                     Utils.Message("{0} was switched to UnBalanced mode.", e.name);
                     e.SetRole(TCARole.UNBALANCE);
@@ -443,9 +413,9 @@ namespace ThrottleControlledAvionics
         public void Sort() 
         { 
             Active.SortByRole(); 
-            HaveMainEngines = Active.Main.Count > 0;
-            HaveThrusters = HaveMainEngines || Active.Balanced.Count > 0 || Active.UnBalanced.Count > 0;
-            VSL.Controls.TranslationAvailable = VSL.Engines.Active.Maneuver.Count > 0 || VSL.Engines.NumActiveRCS > 0;
+            HaveMainEngines = Active.HaveMainEngines;
+            HaveThrusters = Active.HaveThrusters;
+            VSL.Controls.TranslationAvailable = Active.Maneuver.Count > 0 || NumActiveRCS > 0;
         }
 
         void update_MaxThrust()
@@ -745,9 +715,6 @@ namespace ThrottleControlledAvionics
 
     public class EnginesStats : VesselProps
     {
-        public EnginesStats(VesselWrapper vsl) : base(vsl) 
-        { TorqueInfo = new TorqueInfo(vsl); }
-
         public Vector3 MaxThrust;
         public Vector3 MaxDefThrust;
         public double  MaxMassFlow;
@@ -757,8 +724,37 @@ namespace ThrottleControlledAvionics
         public Vector6 TorqueLimits = new Vector6();
         public readonly TorqueInfo TorqueInfo;
 
-        public override void Update()
-        { TorqueInfo.Update(TorqueLimits.Max); }
+        public EnginesStats(EnginesDB engines, VesselWrapper vsl) 
+            : base(vsl) 
+        { 
+            TorqueInfo = new TorqueInfo(VSL); 
+            for(int i = 0, count = engines.Count; i < count; i++)
+            {
+                var e = engines[i];
+                e.InitState();
+                e.InitTorque(VSL, GLB.ENG.TorqueRatioFactor);
+                e.UpdateCurrentTorque(1);
+            }
+            engines.OptimizeForZeroTorque(VSL.Physics.MoI);
+            for(int i = 0, count = engines.Count; i < count; i++)
+            {
+                var e = engines[i];
+                var throttle = e.Role == TCARole.MANUAL ? e.limit : e.thrustLimit;
+                if(throttle > 0)
+                {
+                    if(e.Role != TCARole.MANEUVER)
+                    {
+						var thrust = e.nominalCurrentThrust(throttle);
+                        MaxThrust += e.wThrustDir * thrust;
+                        MaxDefThrust += e.defThrustDir * thrust;
+                        MaxMassFlow += e.MaxFuelFlow * throttle;
+                    }
+                    if(e.isSteering) 
+                        TorqueLimits.Add(e.specificTorque*e.nominalCurrentThrust(throttle));
+                }
+            }
+            TorqueInfo.Update(TorqueLimits.Max);
+        }
     }
 
     public class EnginesDB : List<EngineWrapper>
@@ -769,6 +765,13 @@ namespace ThrottleControlledAvionics
         public List<EngineWrapper> Maneuver   = new List<EngineWrapper>();
         public List<EngineWrapper> Steering   = new List<EngineWrapper>();
         public List<EngineWrapper> Manual     = new List<EngineWrapper>();
+
+        public bool HaveMainEngines => Main.Count > 0;
+        public bool HaveThrusters => HaveMainEngines || Balanced.Count > 0 || UnBalanced.Count > 0;
+
+        public EnginesDB() : base() {}
+        public EnginesDB(int capacity) : base(capacity) {}
+        public EnginesDB(IEnumerable<EngineWrapper> engines) : base(engines) { SortByRole(); }
 
         public void SortByRole()
         {
@@ -803,6 +806,25 @@ namespace ThrottleControlledAvionics
                     break;
                 }
             }
+        }
+
+        public bool OptimizeForZeroTorque(Vector3 MoI)
+        {
+            var torque = Vector3.zero;
+            float torque_error, angle_error, max_limit;
+            if(Balanced.Count > 0)
+            {
+				torque = TorqueProps.CalculateImbalance(true, Manual, UnBalanced);
+                EngineOptimizer.OptimizeLimitsForTorque(Balanced, Vector3.zero, torque, MoI, true, 
+                                                        out max_limit, out torque_error, out angle_error);
+            }
+            if(Steering.Count > 0)
+            {
+				torque = TorqueProps.CalculateImbalance(true, Manual, UnBalanced, Balanced);
+                return EngineOptimizer.OptimizeLimitsForTorque(Steering, Vector3.zero, torque, MoI, true, 
+                                                               out max_limit, out torque_error, out angle_error);
+            }
+            return true;
         }
     }
 

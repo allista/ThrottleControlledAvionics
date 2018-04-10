@@ -266,22 +266,10 @@ namespace ThrottleControlledAvionics
                     compute_inertia_tensor();
                     selected_parts.ForEach(update_inertia_tensor);
                     ActiveEngines.SortByRole();
-                    float max_limit, torque_error, angle_error;
-                    var imbalance = TorqueProps.CalculateImbalance(true, ActiveEngines.Manual, ActiveEngines.UnBalanced);
-                    if(ActiveEngines.Balanced.Count > 0)
+                    if(!ActiveEngines.OptimizeForZeroTorque(MoI))
                     {
-                        EngineOptimizer.OptimizeLimitsForTorque(ActiveEngines.Balanced, Vector3.zero, imbalance, MoI, true, 
-                                                                out max_limit, out torque_error, out angle_error);
-                        imbalance = TorqueProps.CalculateImbalance(true, ActiveEngines.Manual, ActiveEngines.UnBalanced, ActiveEngines.Balanced);
-                    }
-                    if(ActiveEngines.Steering.Count > 0)
-                    {
-                        if(!EngineOptimizer.OptimizeLimitsForTorque(ActiveEngines.Steering, Vector3.zero, imbalance, MoI, true, 
-                                                                    out max_limit, out torque_error, out angle_error))
-                        {
-                            ActiveEngines.Steering.ForEach(e => e.limit = 0);
-                            ActiveEngines.Balanced.ForEach(e => e.limit = 0);
-                        }
+                        ActiveEngines.Steering.ForEach(e => e.limit = 0);
+                        ActiveEngines.Balanced.ForEach(e => e.limit = 0);
                     }
                     MinLimit = 1;
                     for(int i = 0, ActiveEnginesCount = ActiveEngines.Count; i < ActiveEnginesCount; i++)
