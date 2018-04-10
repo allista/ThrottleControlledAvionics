@@ -225,7 +225,24 @@ namespace ThrottleControlledAvionics
             return true;
         }
 
-        protected bool landing { get { return landing_stage != LandingStage.None; } }
+		protected override bool setup()
+		{
+            if(VSL.Engines.NoActiveEngines)
+            {
+                Status("yellow", "No engines are active, unable to calculate trajectory.\n" +
+                       "Please, activate ship's engines and try again.");
+                return false;
+            }
+            if(!VSL.Engines.HaveThrusters)
+            {
+                Status("yellow", "There are only Maneuver/Manual engines in current profile.\n" +
+                       "Please, change engines profile.");
+                return false;
+            }
+            return base.setup();
+		}
+
+		protected bool landing { get { return landing_stage != LandingStage.None; } }
 
         protected bool check_initial_trajectory()
         {

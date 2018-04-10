@@ -30,8 +30,8 @@ namespace ThrottleControlledAvionics
         public Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
         public CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
         public Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
-        public double ManeuverOffset { get { return Math.Max(TRJ.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime); } }
-        public double CorrectionOffset { get { return Math.Max(TRJ.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime); } }
+        public float ManeuverOffset { get { return Math.Max(TRJ.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime); } }
+        public float CorrectionOffset { get { return Math.Max(TRJ.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime); } }
         public double MinPeR { get { return VesselOrbit.MinPeR(); } }
 
         public static Orbit NextOrbit(Orbit orb, double UT)
@@ -853,20 +853,8 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        protected bool setup()
+        protected virtual bool setup()
         {
-            if(VSL.Engines.NoActiveEngines)
-            {
-                Status("yellow", "No engines are active, unable to calculate trajectory.\n" +
-                       "Please, activate ship's engines and try again.");
-                return false;
-            }
-            if(!VSL.Engines.HaveThrusters)
-            {
-                Status("yellow", "There are only Maneuver/Manual engines in current profile.\n" +
-                       "Please, change engines profile.");
-                return false;
-            }
             setup_target();
             if(check_target())
             {

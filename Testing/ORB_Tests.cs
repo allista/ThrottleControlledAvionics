@@ -74,12 +74,9 @@ namespace ThrottleControlledAvionics
             case Stage.SETUP:
                 if(!orbit_set_up)
                 {
+                    ResetFlightCamera();
                     TCAGui.ShowInstance(true);
                     TCAGui.Instance.ActiveTab = TCAGui.Instance.ORB;
-                    FlightCamera.fetch.camHdg = 0;
-                    FlightCamera.fetch.camPitch = 0;
-                    FlightCamera.fetch.SetDistanceImmediate(VSL.Geometry.D*2);
-                    FlightCamera.SetModeImmediate(FlightCamera.Modes.AUTO);
                     ORB.TargetOrbit.RetrogradeOrbit = RND.NextDouble() > 0.5? true : false;
                     ORB.TargetOrbit.DescendingNode = RND.NextDouble() > 0.5? true : false;
                     ORB.TargetOrbit.UpdateValues();
@@ -92,7 +89,7 @@ namespace ThrottleControlledAvionics
                     ApA = ORB.TargetOrbit.ApA*1000;
                     ORB.ShowOptions = true;
                     VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.RCS, true);
-                    VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(Autopilot2.ToOrbit));
+                    CFG.AP2.XOn(Autopilot2.ToOrbit);
                     orbit_set_up = true;
                     Log("TargetOrbit: {}", ORB.TargetOrbit);
                     Log("TargetInclination: {}", ORB.TargetOrbit.TargetInclination);
@@ -168,6 +165,14 @@ namespace ThrottleControlledAvionics
         public ORB_Test_Duna()
         {
             Save = "ToOrbitDuna";
+        }
+    }
+
+    public class ORB_Test_Mun : ORB_Test_Base
+    {
+        public ORB_Test_Mun()
+        {
+            Save = "ToOrbitMun";
         }
     }
 }

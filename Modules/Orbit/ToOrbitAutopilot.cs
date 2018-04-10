@@ -319,7 +319,7 @@ namespace ThrottleControlledAvionics
                                 Styles.confirm_button, GUILayout.ExpandWidth(true)))
             {
                 TargetOrbit.UpdateValues();
-                VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(Autopilot2.ToOrbit));
+                CFG.AP2.XOn(Autopilot2.ToOrbit);
             }
             GUILayout.EndHorizontal();
             GUILayout.EndVertical();
