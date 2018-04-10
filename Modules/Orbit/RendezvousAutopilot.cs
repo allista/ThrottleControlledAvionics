@@ -412,8 +412,7 @@ namespace ThrottleControlledAvionics
             var dT = Math.Min((endUT-startUT)/10, Body.rotationPeriod/10);
             var minPeR = MinPeR;
             var maxPeR = minPeR+GLB.ORB.RadiusOffset;
-            var ApAArc = Mathf.Lerp((float)((MinPeR-Body.Radius)/Body.Radius/2), 
-                                    (float)((MinPeR-Body.Radius)/Body.Radius*3), 
+            var ApAArc = Mathf.Lerp((float)((MinPeR-Body.Radius)/Body.Radius), 1, 
                                     Utils.ClampH((2-GTurnCurve)/2, 1));
             //search for the nearest approach start UT
             //first scan startUT for possible minima
@@ -685,7 +684,7 @@ namespace ThrottleControlledAvionics
                     VSL.Controls.WarpToTime = ToOrbit.LaunchUT;
                     break;
                 }
-                if(ToOrbit.Liftoff(0.1f, 3)) break; //TODO: replace with tunable parameters
+                if(ToOrbit.Liftoff(3)) break; //TODO: replace with tunable parameters
                 stage = Stage.ToOrbit;
                 MinDist.Reset();
                 break;
@@ -716,6 +715,11 @@ namespace ThrottleControlledAvionics
                 {
                     clear_nodes();
                     add_trajectory_node_rel();
+                    if(VesselOrbit.radius < Body.Radius+Body.atmosphereDepth)
+                    {
+                        CFG.AT.OnIfNot(Attitude.Prograde);
+                        break;
+                    }
                     CFG.AP1.On(Autopilot1.Maneuver);
                     stage = Stage.Rendezvou;
                 }
@@ -947,7 +951,7 @@ namespace ThrottleControlledAvionics
             {
                 if(GUILayout.Button(new GUIContent("Start", "Start Rendezvous Autopilot"), 
                                     Styles.enabled_button, GUILayout.Width(60)))
-                    VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(Autopilot2.Rendezvous));
+                    CFG.AP2.XOn(Autopilot2.Rendezvous);
             }
             GUILayout.EndHorizontal();
         }

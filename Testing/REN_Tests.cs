@@ -197,6 +197,7 @@ namespace ThrottleControlledAvionics
                         Utils.Message("No Rendezvous Autopilot installed on the active vessel");
                         return false;
                     }
+                    ResetFlightCamera();
                 }
                 break;
             case Stage.CREATE_TARGET:
@@ -205,7 +206,7 @@ namespace ThrottleControlledAvionics
                     if(!CreateAsteriod(RND)) return false;
                     CheatOptions.InfinitePropellant = false;
                     CheatOptions.InfiniteElectricity = true;
-                    VSL.Engines.ActivateEnginesAndRun(() => CFG.AP2.XOn(Autopilot2.Rendezvous));
+                    CFG.AP2.XOn(Autopilot2.Rendezvous);
                     break;
                 }
                 if(CFG.AP2[Autopilot2.Rendezvous])
@@ -238,8 +239,15 @@ namespace ThrottleControlledAvionics
                                 MapView.EnterMapView();
                             RotateMapView();
                         }
-                        else if(MapView.MapIsEnabled)
-                            MapView.ExitMapView();
+                        else
+                        {
+                            //if(MapView.MapIsEnabled)
+                            //{
+                            //    MapView.ExitMapView();
+                            //    ResetFlightCamera();
+                            //}
+                            FlightCameraOverride.AnchorForSeconds(FlightCameraOverride.Mode.OrbitAround, VSL.vessel.transform, 1);
+                        }
                     }
                     if(target.vesselRef != null && target.vesselRef.loaded)
                         FlightCameraOverride.Target(FlightCameraOverride.Mode.LookFromTo, VSL.vessel.transform, target.vesselRef.transform, 10);

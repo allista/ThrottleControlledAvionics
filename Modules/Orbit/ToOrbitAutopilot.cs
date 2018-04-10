@@ -189,7 +189,7 @@ namespace ThrottleControlledAvionics
                 }
                 break;
             case Stage.Liftoff:
-                if(ToOrbit.Liftoff(TargetOrbit.MinThrottle / 100, TargetOrbit.MaxG)) break;
+                if(ToOrbit.Liftoff(TargetOrbit.MaxG)) break;
                 stage = Stage.GravityTurn;
                 break;
             case Stage.GravityTurn:
