@@ -57,9 +57,20 @@ namespace ThrottleControlledAvionics
             PlanetariumCamera.fetch.camPitch = (float)pitch*Mathf.Deg2Rad;
         }
 
+        protected void ResetFlightCamera()
+        {
+            if(VSL != null)
+            {
+                FlightCamera.fetch.camHdg = 0;
+                FlightCamera.fetch.camPitch = 0;
+                FlightCamera.fetch.SetDistanceImmediate(VSL.Geometry.D*2);
+                FlightCamera.SetModeImmediate(FlightCamera.Modes.AUTO);
+            }
+        }
+
         #region ITestScenario implementation
         public abstract string Setup();
-        public abstract bool Update(Random RND);
+        public abstract bool Update(System.Random RND);
         public abstract void Cleanup();
 
         public virtual string Status { get; protected set; } = "";
