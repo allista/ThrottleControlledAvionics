@@ -15,7 +15,7 @@ namespace ThrottleControlledAvionics
 {
     public abstract class AttitudeControlBase : ThrustDirectionControl
     {
-        public new class Config : ModuleConfig
+        public new class Config : ComponentConfig
         {
             [Persistent] public PIDv_Controller2 PID = new PIDv_Controller2(
                                                   Vector3.one * 10f, Vector3.one * 0.02f, Vector3.one * 0.5f, -Vector3.one, Vector3.one
@@ -516,7 +516,7 @@ namespace ThrottleControlledAvionics
     [OptionalModules(typeof(TimeWarpControl))]
     public class AttitudeControl : GeneralAttitudeControl
     {
-        public new class Config : ModuleConfig
+        public new class Config : ComponentConfig
         {
             [Persistent] public float KillRotThreshold = 1e-5f;
         }

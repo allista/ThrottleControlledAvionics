@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
                   typeof(PointNavigator))]
     public class Radar : TCAService
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float UpViewAngle       = 15;
             [Persistent] public float DownViewAngle     = 15;

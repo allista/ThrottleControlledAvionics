@@ -23,7 +23,7 @@ namespace ThrottleControlledAvionics
                     typeof(PointNavigator))]
     public class AutoLander : TCAModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float MaxUnevenness        = 0.1f;
             [Persistent] public float MaxHorizontalTime    = 5f;

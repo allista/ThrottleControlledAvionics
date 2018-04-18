@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
                     typeof(TimeWarpControl))]
     public class RendezvousAutopilot : TargetedTrajectoryCalculator<RendezvousTrajectory>
     {
-        public new class Config : ModuleConfig
+        public new class Config : ComponentConfig
         {
             [Persistent] public float Dtol = 100f;   //m
             [Persistent] public float MaxTTR = 3f;     //VesselOrbit.periods
@@ -330,9 +330,8 @@ namespace ThrottleControlledAvionics
                 var startPos = BodyRotationAtdT(ren.Body, startUT - ren.VSL.Physics.UT) * ren.VesselOrbit.pos;
                 var hVdir = Vector3d.Cross(startPos, tN).normalized;
                 ApR = Utils.Clamp(ren.TargetOrbit.getRelativePositionAtUT(ApAUT).magnitude, minPeR, maxPeR);
-                Transfer = AtmoSim.FromSurfaceTTA(ren.VSL, ApR - ren.Body.Radius,
-                                                  ApAArc, ren.GTurnCurve,
-                                                  Vector3d.Dot(ren.SurfaceVel, hVdir));
+                Transfer = AtmoSim.FromSurfaceTTA(ren.VSL, ren.ManeuverOffset, ApR - ren.Body.Radius,
+                                                  ApAArc, Vector3d.Dot(ren.SurfaceVel, hVdir), 3);
                 UT = startUT;
                 ApV = QuaternionD.AngleAxis(ApAArc * Mathf.Rad2Deg, Vector3d.Cross(hVdir, startPos)) * startPos.normalized * ApR;
                 Dist = (ApV - ren.TargetOrbit.getRelativePositionAtUT(UT + Transfer)).magnitude;
@@ -522,9 +521,9 @@ namespace ThrottleControlledAvionics
             if(allow_wait && ToOrbit.LaunchUT - VSL.Physics.UT <= 0)
                 ToOrbit.LaunchUT += TargetOrbit.period;
             ToOrbit.ApAUT = ToOrbit.LaunchUT +
-                AtmoSim.FromSurfaceTTA(VSL, ToOrbit.TargetR - Body.Radius,
-                                       ToOrbit.ArcDistance, REN.GTurnCurve,
-                                       Vector3d.Dot(SurfaceVel, Vector3d.Exclude(VesselOrbit.pos, ToOrbit.Target - VesselOrbit.pos).normalized));
+                AtmoSim.FromSurfaceTTA(VSL, ManeuverOffset, ToOrbit.TargetR - Body.Radius,
+                                       ToOrbit.ArcDistance, 
+                                       Vector3d.Dot(SurfaceVel, Vector3d.Exclude(VesselOrbit.pos, ToOrbit.Target - VesselOrbit.pos).normalized), 3);
             var maxPeR = MinPeR + GLB.ORB.RadiusOffset;
             var targetR = TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT);
             ToOrbit.Target = QuaternionD.AngleAxis((VSL.Physics.UT - ToOrbit.LaunchUT) / Body.rotationPeriod * 360, Body.angularVelocity.xzy) *
@@ -908,6 +907,7 @@ namespace ThrottleControlledAvionics
                 }
                 else Utils.GLVec(Body.position, TargetOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp).xzy, Color.yellow);
                 //                Utils.GLVec(Body.position+VesselOrbit.pos.xzy, Vector3d.Cross(TargetOrbit.GetOrbitNormal().normalized, VesselOrbit.pos.normalized).normalized.xzy*50000, new Color(0.3f, 1, 0));
+                Utils.GLVec(VSL.vessel.transform.position, SurfaceVel.xzy, new Color(0, 0.3f, 1));
             }
 #endif
             if(ControlsActive)

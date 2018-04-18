@@ -16,7 +16,7 @@ namespace ThrottleControlledAvionics
     [RequireModules(typeof(HorizontalSpeedControl))]
     public class FlightStabilizer : TCAModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float Timer = 2;
             [Persistent] public float MinAngularVelocity = 0.001f; //(rad/s)^2 ~= 1.8deg/s

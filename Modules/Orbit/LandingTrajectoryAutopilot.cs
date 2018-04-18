@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
 {
     public abstract class LandingTrajectoryAutopilot : TargetedTrajectoryCalculator<LandingTrajectory>
     {
-        public new class Config : TCAModule.ModuleConfig
+        public new class Config : TCAModule.ComponentConfig
         {
             [Persistent] public float Dtol               = 1000f; //m
             [Persistent] public float FlyOverAlt         = 1000;  //m

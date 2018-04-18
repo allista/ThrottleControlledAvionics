@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
                      typeof(VTOLAssist))]
     public class CollisionPreventionSystem : TCAService
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float MinDistance       = 5f;
             [Persistent] public float SafeDistance      = 30f;

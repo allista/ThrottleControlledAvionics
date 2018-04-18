@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
                  typeof(TimeWarpControl))]
     public class MatchVelocityAutopilot : TCAModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float TranslationThreshold = 5f; //m/s
             [Persistent] public float MaxApproachDistance = 10000f; //m

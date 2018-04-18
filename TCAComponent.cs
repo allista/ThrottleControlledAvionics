@@ -24,6 +24,17 @@ namespace ThrottleControlledAvionics
 
     public abstract class TCAComponent : ConfigNodeObject, ITCAComponent
     {
+        public class ComponentConfig : ConfigNodeObject
+        {
+            public class MinMax : ConfigNodeObject
+            {
+                [Persistent] public float Min;
+                [Persistent] public float Max;
+                public MinMax(float min, float max) { Min = min; Max = max; }
+            }
+            public virtual void Init() {}
+        }
+
         public readonly ModuleTCA TCA;
         public VesselWrapper VSL { get { return TCA.VSL; } }
         internal static Globals GLB { get { return Globals.Instance; } }
@@ -96,17 +107,6 @@ namespace ThrottleControlledAvionics
 
     public abstract class TCAModule : DrawableComponent
     {
-        public class ModuleConfig : ConfigNodeObject
-        {
-            public class MinMax : ConfigNodeObject
-            {
-                [Persistent] public float Min;
-                [Persistent] public float Max;
-                public MinMax(float min, float max) { Min = min; Max = max; }
-            }
-            public virtual void Init() {}
-        }
-
         public bool ControlsActive { get; protected set; } = true;
         public bool IsActive { get; protected set; }
         public bool Working { get; protected set; }

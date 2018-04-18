@@ -15,7 +15,7 @@ namespace ThrottleControlledAvionics
     [CareerPart(typeof(ManeuverAutopilot))]
     public class TimeWarpControl : TCAModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float DewarpTime   = 20f;  //sec
             [Persistent] public float MaxWarp      = 10000f;

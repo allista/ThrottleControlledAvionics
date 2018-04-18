@@ -24,7 +24,7 @@ namespace ThrottleControlledAvionics
                     typeof(AutoLander))]
     public class DeorbitAutopilot : LandingTrajectoryAutopilot
     {
-        public new class Config : TCAModule.ModuleConfig
+        public new class Config : TCAModule.ComponentConfig
         {
             [Persistent] public float MinLandingAngle    = 20f;
             [Persistent] public float MaxLandingAngle    = 50f;

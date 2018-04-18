@@ -90,7 +90,7 @@ namespace ThrottleControlledAvionics
             catch(Exception ex) { Utils.Log("Error loading {} file:\n{}", PluginFolder(INSTRUCTIONS), ex); }
             InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
             //init all module configs
-            var mt = typeof(TCAModule.ModuleConfig);
+            var mt = typeof(TCAModule.ComponentConfig);
             foreach(var fi in GetType().GetFields())
             {
                 if(!fi.FieldType.IsSubclassOf(mt)) continue;

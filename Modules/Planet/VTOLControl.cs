@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
                      typeof(CruiseControl))]
     public class VTOLControl : GeneralAttitudeControl
     {
-        public new class Config : ModuleConfig
+        public new class Config : ComponentConfig
         {
             [Persistent] public float MaxAngle = 45f;
         }

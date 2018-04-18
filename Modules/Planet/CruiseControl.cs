@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
                      typeof(SASBlocker))]
     public class CruiseControl : AutopilotModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float PitchFactor = 0.2f;
             [Persistent] public float MaxRevSpeed = -4f;

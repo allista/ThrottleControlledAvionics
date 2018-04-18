@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
     [ModuleInputs(typeof(Radar))]
     public class AltitudeControl : TCAModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float MaxSpeedErrorF = 100f;
             [Persistent] public float MaxSpeedLow    = 10f; 

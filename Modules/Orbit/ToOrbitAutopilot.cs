@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
                     typeof(ManeuverAutopilot))]
     public class ToOrbitAutopilot : TrajectoryCalculator
     {
-        public new class Config : ModuleConfig
+        public new class Config : ComponentConfig
         {
             [Persistent] public float Dtol = 100f;
             [Persistent] public float RadiusOffset = 10000f;

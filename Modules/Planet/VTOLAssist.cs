@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
                      typeof(AttitudeControl))]
     public class VTOLAssist : TCAModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float MinHSpeed   = 0.1f;
             [Persistent] public float MaxHSpeed   = 10;

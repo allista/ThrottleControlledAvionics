@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
     [OptionalModules(typeof(AltitudeControl))]
     public class PointNavigator : TCAModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float MinDistance          = 3;
             [Persistent] public float MinTime              = 10;

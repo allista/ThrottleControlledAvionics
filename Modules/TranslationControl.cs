@@ -16,7 +16,7 @@ namespace ThrottleControlledAvionics
     [CareerPart(typeof(ThrottleControl))]
     public class TranslationControl : AutopilotModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float MinDeltaV         = 0.01f; //m/s
             [Persistent] public PIDf_Controller TransPID = new PIDf_Controller(0.5f, 0.01f, 0.5f, 0, 1);

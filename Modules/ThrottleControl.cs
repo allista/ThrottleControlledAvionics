@@ -17,7 +17,7 @@ namespace ThrottleControlledAvionics
     [ModuleInputs(typeof(AttitudeControl))]
     public class ThrottleControl : AutopilotModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float MinDeltaV        = 0.1f; //m/s
             [Persistent] public float DeltaVThreshold  = 10f;  //sec

@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
                     typeof(TimeWarpControl))]
     public class ManeuverAutopilot : TCAModule
     {
-        public class Config : TCAModule.ModuleConfig
+        public class Config : TCAModule.ComponentConfig
         {
             [Persistent] public float WrapThreshold = 600f; //s
 

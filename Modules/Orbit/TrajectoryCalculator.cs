@@ -16,7 +16,7 @@ namespace ThrottleControlledAvionics
 {
     public abstract class TrajectoryCalculator : TCAModule
     {
-        public class Config : TCAModule.ModuleConfig
+        public class Config : TCAModule.ComponentConfig
         {
             [Persistent] public float dVtol              = 0.01f; //m/s
             [Persistent] public int   PerFrameIterations = 10;

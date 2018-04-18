@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
     [OverrideModules(typeof(AttitudeControl))]
     public class BearingControl : AttitudeControlBase
     {
-        public new class Config : ModuleConfig
+        public new class Config : ComponentConfig
         {
             [Persistent] public bool  DrawForwardDirection = true;
             [Persistent] public float YawFactor = 60f;

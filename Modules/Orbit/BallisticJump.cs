@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
                     typeof(AutoLander))]
     public class BallisticJump : LandingTrajectoryAutopilot
     {
-        public new class Config : TCAModule.ModuleConfig
+        public new class Config : TCAModule.ComponentConfig
         {
             [Persistent] public float StartOffset      = 30f;  //s
             [Persistent] public float StartAltitude    = 100f; //m

@@ -16,7 +16,7 @@ namespace ThrottleControlledAvionics
 {
     public abstract class ThrustDirectionControl : AutopilotModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float TWRf  = 3;
             [Persistent] public float VSf   = 3;
@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
     [OptionalModules(typeof(TranslationControl))]
     public class HorizontalSpeedControl : ThrustDirectionControl
     {
-        public new class Config : ModuleConfig
+        public new class Config : ComponentConfig
         {
             public class ManualThrustConfig : ConfigNodeObject
             {

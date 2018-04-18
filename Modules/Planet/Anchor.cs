@@ -17,7 +17,7 @@ namespace ThrottleControlledAvionics
     [RequireModules(typeof(HorizontalSpeedControl))]
     public class Anchor : TCAModule
     {
-        public class Config : ModuleConfig
+        public class Config : ComponentConfig
         {
             [Persistent] public float MaxSpeed      = 10;
             [Persistent] public float DistanceF     = 50;
