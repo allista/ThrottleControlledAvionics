@@ -178,6 +178,8 @@
     <Compile Include="Testing\DEO_Tests.cs" />
     <Compile Include="Testing\JMP_Tests.cs" />
     <Compile Include="Testing\ORB_Tests.cs" />
+    <Compile Include="Modules\Orbit\Components\TargetedToOrbitExecutor.cs" />
+    <Compile Include="Utils\LambertSolver2D.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

@@ -24,7 +24,6 @@ namespace ThrottleControlledAvionics
         {
             [Persistent] public float Dtol = 100f;
             [Persistent] public float RadiusOffset = 10000f;
-            [Persistent] public float GTurnCurve = 0.9f;
             [Persistent] public float GTurnOffset = 1000f;
             [Persistent] public float LaunchSlope = 50f;
             [Persistent] public float MinSlope = 30f;
@@ -33,8 +32,12 @@ namespace ThrottleControlledAvionics
             [Persistent] public float DragK = 0.0008f;
             [Persistent] public float MaxDynPressure = 10f;
             [Persistent] public float AtmDensityOffset = 10f;
+            [Persistent] public float AscentEccentricity = 0.3f;
+            [Persistent] public PIDf_Controller3 PitchPID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 ThrottlePID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 NormCorrectionPID = new PIDf_Controller3();
+            [Persistent] public PIDf_Controller3 TargetPitchPID = new PIDf_Controller3();
+            [Persistent] public PIDf_Controller3 ThrottleCorrectionPID = new PIDf_Controller3();
         }
         static Config ORB { get { return Globals.Instance.ORB; } }
 
@@ -97,8 +100,6 @@ namespace ThrottleControlledAvionics
                 }
                 else hVdir = Vector3d.Cross(VesselOrbit.pos, Body.orbit.vel).normalized;
                 if(TargetOrbit.RetrogradeOrbit) hVdir *= -1;
-                //var ApR0 = ApR;
-                //if(ApR0 > MinPeR + ORB.RadiusOffset) ApR0 = MinPeR;
                 var ApR0 = Utils.ClampH(ApR, MinPeR + ORB.RadiusOffset);
                 var ascO = AscendingOrbit(ApR0, hVdir, ORB.LaunchSlope);
                 Target = ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
@@ -223,7 +224,7 @@ namespace ThrottleControlledAvionics
                 }
                 if(TargetOrbit.AutoTimeToApA)
                 {
-                    var dEcc = ORB.GTurnCurve - (float)VesselOrbit.eccentricity;
+                    var dEcc = ORB.AscentEccentricity - (float)VesselOrbit.eccentricity;
                     var dApA = (float)((ToOrbit.TargetR - VesselOrbit.ApR) / (ToOrbit.TargetR - Body.Radius) - 0.1);
                     TargetOrbit.TimeToApA.Value = TRJ.ManeuverOffset * (1 + dEcc + dApA);
                     TargetOrbit.TimeToApA.ClampValue();
@@ -289,24 +290,7 @@ namespace ThrottleControlledAvionics
             GUILayout.BeginVertical();
             TargetOrbit.Draw();
             if(stage == Stage.GravityTurn)
-            {
-                GUILayout.BeginHorizontal();
-                GUILayout.BeginVertical();
-                GUILayout.Label("Inclination:");
-                GUILayout.Label("Apoapsis:");
-                GUILayout.Label("Time to Apoapsis:");
-                GUILayout.EndVertical();
-                GUILayout.BeginVertical();
-                GUILayout.Label(string.Format("{0:F3}° ► {1:F3}°",
-                                              VesselOrbit.inclination,
-                                              TargetOrbit.TargetInclination));
-                GUILayout.Label(string.Format("{0} ► {1}",
-                                              Utils.formatBigValue((float)VesselOrbit.ApA, "m", "F3"),
-                                              Utils.formatBigValue((float)(ToOrbit.TargetR - Body.Radius), "m", "F3")));
-                GUILayout.Label(KSPUtil.PrintDateDeltaCompact(VesselOrbit.timeToAp, true, true));
-                GUILayout.EndVertical();
-                GUILayout.EndHorizontal();
-            }
+                ToOrbit.Draw(TargetOrbit.TargetInclination);
             GUILayout.BeginHorizontal();
             ShowOptions = !GUILayout.Button("Cancel", Styles.active_button, GUILayout.ExpandWidth(true));
             if(stage != Stage.None &&

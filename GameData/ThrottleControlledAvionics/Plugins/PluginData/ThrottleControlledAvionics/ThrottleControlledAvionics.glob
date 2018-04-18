@@ -568,7 +568,7 @@ BJ
 ORB
 {
 	Dtol           = 100   //m
-	GTurnCurve     = 0.3
+	GTurnCurve     = 0.6
 	GTurnOffset    = 1000
 	Dist2VelF      = 0.01	
 	RadiusOffset   = 10000 //m
@@ -577,14 +577,20 @@ ORB
 	MaxSlope       = 70 //deg
 	DragK          = 2.0
 	MaxDynPressure = 35 //kPa
+	AscentEccentricity = 0.3
 	AtmDensityOffset = 1
+	PitchPID
+	{
+		P = 1
+		I = 0.1
+		D = 0.1
+		Tau = 1
+	}
 	ThrottlePID
 	{
 		P = 0.1
 		I = 0.01
 		D = 0.0
-		Min = -0.5
-		Max = 0.5
 		Tau = 1
 	}
 	NormCorrectionPID
@@ -592,6 +598,22 @@ ORB
 		P = 20
 		I = 0.01
 		D = 20
+		Tau = 1
+	}
+	ThrottleCorrectionPID
+	{
+		P = 1
+		I = 0.1
+		D = 0.0
+		Tau = 1
+		Min = -60
+		Max = 60
+	}
+	TargetPitchPID
+	{
+		P = 1
+		I = 0.1
+		D = 0.1
 		Tau = 1
 	}
 }

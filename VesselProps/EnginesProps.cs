@@ -207,6 +207,12 @@ namespace ThrottleControlledAvionics
 
         public float DeltaV(float Ve, float fuel_mass) => Ve * Mathf.Log(VSL.Physics.M / (VSL.Physics.M - fuel_mass));
         public float DeltaV(float fuel_mass) => DeltaV(MaxVe, fuel_mass);
+        public float DeltaVAtAlt(float alt, float fuel_mass) 
+        { 
+            float mflow;
+            float thrust = ThrustAtAlt(0, alt, out mflow);
+            return DeltaV(thrust/mflow, fuel_mass); 
+        }
 
         public float MaxHoverTimeASL(float fuel_mass)
         { 
