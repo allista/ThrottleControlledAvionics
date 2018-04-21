@@ -21,17 +21,14 @@ namespace ThrottleControlledAvionics
                  typeof(TimeWarpControl))]
     public class MatchVelocityAutopilot : TCAModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float TranslationThreshold = 5f; //m/s
             [Persistent] public float MaxApproachDistance = 10000f; //m
         }
+        public static Config C => Config.INST;
 
-        static Config MVA { get { return Globals.Instance.MVA; } }
-
-        public MatchVelocityAutopilot(ModuleTCA tca) : base(tca)
-        {
-        }
+        public MatchVelocityAutopilot(ModuleTCA tca) : base(tca) {}
 
         #pragma warning disable 169
         ThrottleControl THR;
@@ -57,7 +54,7 @@ namespace ThrottleControlledAvionics
             Executor = new ManeuverExecutor(TCA);
             Executor.ThrustWhenAligned = true;
             Executor.StopAtMinimum = true;
-            MinDeltaV = GLB.THR.MinDeltaV;
+            MinDeltaV = ThrottleControl.C.MinDeltaV;
         }
 
         public override void Disable()
@@ -107,7 +104,7 @@ namespace ThrottleControlledAvionics
             }
             CFG.AP1.OffIfOn(Autopilot1.MatchVel);
             CFG.AP1.OffIfOn(Autopilot1.MatchVelNear);
-            MinDeltaV = GLB.THR.MinDeltaV;
+            MinDeltaV = ThrottleControl.C.MinDeltaV;
             stage = Stage.Start;
             Executor.Reset();
             Working = false;
@@ -200,7 +197,7 @@ namespace ThrottleControlledAvionics
             {
                 Working = true;
                 dV = CFG.Target.GetObtVelocity() - VSL.vessel.obt_velocity;
-                if(!Executor.Execute(dV, GLB.THR.MinDeltaV))
+                if(!Executor.Execute(dV, ThrottleControl.C.MinDeltaV))
                     Executor.Reset();
             }
             else
@@ -212,7 +209,7 @@ namespace ThrottleControlledAvionics
                 switch(stage)
                 {
                 case Stage.Start:
-                    if(dist > MVA.MaxApproachDistance)
+                    if(dist > C.MaxApproachDistance)
                     {
                         Status(string.Format("<color=yellow>WARNING:</color> Nearest approach distance is <color=magenta><b>{0}</b></color>\n" +
                         "<color=red><b>Push to proceed. At your own risk.</b></color>", 
@@ -228,7 +225,7 @@ namespace ThrottleControlledAvionics
                     goto case Stage.Brake;
                 case Stage.Brake:
                     dV = (TrajectoryCalculator.NextOrbit(tOrb, ApprUT).GetFrameVelAtUT(ApprUT) - VSL.orbit.GetFrameVelAtUT(ApprUT)).xzy;
-                    if(!Executor.Execute(dV, GLB.THR.MinDeltaV, StartCondition)) Reset();
+                    if(!Executor.Execute(dV, ThrottleControl.C.MinDeltaV, StartCondition)) Reset();
                     break;
                 }
             }

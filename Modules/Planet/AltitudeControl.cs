@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
     [ModuleInputs(typeof(Radar))]
     public class AltitudeControl : TCAModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float MaxSpeedErrorF = 100f;
             [Persistent] public float MaxSpeedLow    = 10f; 
@@ -43,7 +43,7 @@ namespace ThrottleControlledAvionics
                 RocketPID.Min = JetsPID.Min = -MaxSpeedLow;
             }
         }
-        static Config ALT { get { return Globals.Instance.ALT; } }
+        public static Config C => Config.INST;
 
         static readonly ActionDamper UpDamper = new ActionDamper();
         static readonly ActionDamper DownDamper = new ActionDamper();
@@ -64,9 +64,9 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
-            rocket_pid.setPID(ALT.RocketPID);
-            jets_pid.setPID(ALT.JetsPID);
-            Falling.Period = ALT.FallingTime;
+            rocket_pid.setPID(C.RocketPID);
+            jets_pid.setPID(C.JetsPID);
+            Falling.Period = C.FallingTime;
             CFG.VF.AddHandler(this, VFlight.AltitudeControl);
             if(VSL.LandedOrSplashed) CFG.DesiredAltitude = -10;
             sim = new AtmoSim(VSL);
@@ -140,14 +140,14 @@ namespace ThrottleControlledAvionics
                     var dAlt = VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute;
                     SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
                     if(VSL.Altitude.CorrectionAllowed && RAD != null && 
-                       RAD.TimeAhead > 0 && dAlt/RAD.TimeAhead > GLB.VSC.MaxSpeed)
+                       RAD.TimeAhead > 0 && dAlt/RAD.TimeAhead > VerticalSpeedControl.C.MaxSpeed)
                     {
                         
 //                        var G_A  = Utils.ClampL(VSL.Physics.G*(1-VSL.OnPlanetParams.DTWR), 1e-5f);
 //                        CFG.VerticalCutoff = Mathf.Sqrt(2*Utils.ClampL(dAlt * G_A, 0));
 //                        ttAp = CFG.VerticalCutoff/G_A;
 //                        if(ttAp > RAD.TimeAhead)
-                        CFG.VerticalCutoff = dAlt/Utils.ClampL(RAD.TimeAhead-GLB.CPS.LookAheadTime, 1e-5f);
+                        CFG.VerticalCutoff = dAlt/Utils.ClampL(RAD.TimeAhead-CollisionPreventionSystem.C.LookAheadTime, 1e-5f);
                         if(VSL.Engines.Slow)
                         {
                             var dV = CFG.VerticalCutoff - VSL.VerticalSpeed.Absolute;
@@ -170,15 +170,15 @@ namespace ThrottleControlledAvionics
             if(VSL.LandedOrSplashed && error < 0 && VSL.Altitude.Relative <= VSL.Geometry.R)
             {
 //                Log("nAlt {}, alt {}, error {}, VSF {}", CFG.DesiredAltitude, alt, error, CFG.VerticalCutoff);//debug
-                CFG.VerticalCutoff = -GLB.VSC.MaxSpeed;
+                CFG.VerticalCutoff = -VerticalSpeedControl.C.MaxSpeed;
                 return;
             }
             //calculate min/max speed
-            var min_speed = -ALT.MaxSpeedLow;
-            var max_speed =  ALT.MaxSpeedLow;
+            var min_speed = -C.MaxSpeedLow;
+            var max_speed =  C.MaxSpeedLow;
             if(error < 0)
             {
-                min_speed = Utils.Clamp(ALT.MaxSpeedLow*(error+ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, -ALT.MaxSpeedHigh, -ALT.MaxSpeedLow);
+                min_speed = Utils.Clamp(C.MaxSpeedLow*(error+C.MaxSpeedErrorF)/C.MaxSpeedErrorF, -C.MaxSpeedHigh, -C.MaxSpeedLow);
                 if(VSL.VerticalSpeed.Absolute < 0)
                 {
                     double terminal_velocity;
@@ -188,28 +188,28 @@ namespace ThrottleControlledAvionics
                     var brake_time = -VSL.VerticalSpeed.Absolute/(VSL.OnPlanetParams.MaxTWR-1)/VSL.Physics.G;
                     if(brake_time < 0) min_speed = 0;
                     else if(brake_time > free_fall/100) 
-                        min_speed = Utils.Clamp(-ALT.MaxSpeedHigh*(1-brake_time/free_fall), min_speed, 
-                                                Utils.ClampL(free_fall*VSL.Physics.G*(1-VSL.OnPlanetParams.MaxTWR), -ALT.MaxSpeedLow));
+                        min_speed = Utils.Clamp(-C.MaxSpeedHigh*(1-brake_time/free_fall), min_speed, 
+                                                Utils.ClampL(free_fall*VSL.Physics.G*(1-VSL.OnPlanetParams.MaxTWR), -C.MaxSpeedLow));
 //                    Log("error {}, vV {}, free_fall {}, brake_time {}, min_speed {}", 
 //                        -error, -VSL.VerticalSpeed.Absolute, free_fall, brake_time, min_speed);//debug
                 }
             }
-            else if(error > 0) max_speed = alt <= VSL.Geometry.H? ALT.MaxSpeedHigh :
-                Utils.Clamp(ALT.MaxSpeedLow*(error-ALT.MaxSpeedErrorF)/ALT.MaxSpeedErrorF, ALT.MaxSpeedLow, ALT.MaxSpeedHigh);
+            else if(error > 0) max_speed = alt <= VSL.Geometry.H? C.MaxSpeedHigh :
+                Utils.Clamp(C.MaxSpeedLow*(error-C.MaxSpeedErrorF)/C.MaxSpeedErrorF, C.MaxSpeedLow, C.MaxSpeedHigh);
             //update pid parameters and vertical speed setpoint
             if(VSL.Engines.Slow)
             {
                 jets_pid.Min = min_speed;
                 jets_pid.Max = max_speed; 
-                jets_pid.P = Utils.ClampH(ALT.JetsPID.P/VSL.OnPlanetParams.MaxTWR/ALT.TWRd*
-                                          Mathf.Clamp(Mathf.Abs(1/VSL.VerticalSpeed.Absolute)*ALT.ErrF, 1, VSL.OnPlanetParams.MaxTWR*ALT.TWRd), 
-                                          ALT.JetsPID.P);
-                jets_pid.D = ALT.JetsPID.D;
+                jets_pid.P = Utils.ClampH(C.JetsPID.P/VSL.OnPlanetParams.MaxTWR/C.TWRd*
+                                          Mathf.Clamp(Mathf.Abs(1/VSL.VerticalSpeed.Absolute)*C.ErrF, 1, VSL.OnPlanetParams.MaxTWR*C.TWRd), 
+                                          C.JetsPID.P);
+                jets_pid.D = C.JetsPID.D;
                 if(CFG.AltitudeAboveTerrain)
                     jets_pid.D /= Utils.ClampL(VSL.HorizontalSpeed, 1);
                 jets_pid.D *= error < 0? 
-                    1+VSL.Engines.AccelerationTime90*ALT.SlowCorrectionF : 
-                    1+VSL.Engines.DecelerationTime10*ALT.SlowCorrectionF;
+                    1+VSL.Engines.AccelerationTime90*C.SlowCorrectionF : 
+                    1+VSL.Engines.DecelerationTime10*C.SlowCorrectionF;
                 jets_pid.Update(error);
                 CFG.VerticalCutoff = jets_pid.Action;
 //                Log("nAlt {}, alt {}, error {}, hV {}, VSF {}\njPID: {}", 
@@ -219,7 +219,7 @@ namespace ThrottleControlledAvionics
             {
                 rocket_pid.Min = min_speed;
                 rocket_pid.Max = max_speed;
-                rocket_pid.D = ALT.RocketPID.D;
+                rocket_pid.D = C.RocketPID.D;
                 if(CFG.AltitudeAboveTerrain)
                     rocket_pid.D /= Utils.ClampL(VSL.HorizontalSpeed, 1);
                 rocket_pid.Update(error);
@@ -234,13 +234,13 @@ namespace ThrottleControlledAvionics
                 var dV = 0f;
                 if(error > 0) 
                     dV = Utils.ClampL((VSL.VerticalSpeed.Absolute-VSL.VerticalSpeed.Relative)/
-                                      Utils.ClampL(alt/ALT.RelAltitudeFactor, 1), 0);
+                                      Utils.ClampL(alt/C.RelAltitudeFactor, 1), 0);
                 CFG.VerticalCutoff += dV;
                 //Loosing Altitude alert
                 Falling.RunIf(() => SetState(TCAState.LoosingAltitude),
                               VSL.VerticalSpeed.Relative < 0 && 
                               VSL.CFG.VerticalCutoff-VSL.VerticalSpeed.Absolute > 0 && 
-                              VSL.Altitude < CFG.DesiredAltitude-VSL.VerticalSpeed.Relative*ALT.TimeAhead);
+                              VSL.Altitude < CFG.DesiredAltitude-VSL.VerticalSpeed.Relative*C.TimeAhead);
 //                Log("error {0}, dV: {1}, VSP: {2}, min speed {3}, max speed {4}", 
 //                    error, dV, CFG.VerticalCutoff, min_speed, max_speed);//debug
 //                CSV(alt, VSL.vessel.altitude, VSL.Altitude.TerrainAltitude, VSL.Altitude, RAD.AltitudeAhead, error, 

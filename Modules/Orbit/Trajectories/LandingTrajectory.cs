@@ -98,7 +98,7 @@ namespace ThrottleControlledAvionics
         {
             SetBrakeDeltaV(-LandingTrajectoryAutopilot
                            .CorrectedBrakeVelocity(VSL, BrakeEndPoint.vel, BrakeEndPoint.pos, 
-                                                   BrakeEndPoint.DynamicPressure / 1000 / GLB.LTRJ.MinDPressure,
+                                                   BrakeEndPoint.DynamicPressure / 1000 / LandingTrajectoryAutopilot.C.MinDPressure,
                                                    AtTargetUT - BrakeEndPoint.UT));
             BrakeStartPoint = Path.PointAtUT(Math.Max(BrakeEndPoint.UT - MatchVelocityAutopilot
                                                       .BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration), StartUT));
@@ -126,7 +126,7 @@ namespace ThrottleControlledAvionics
             var end_alt = Math.Max(Orbit.PeA + 10, TargetAltitude);
             Path = new LandingPath(VSL, Orbit, end_alt, 
                                    AtTargetUT,
-                                   Math.Min(GLB.LTRJ.AtmoTrajectoryResolution,
+                                   Math.Min(LandingTrajectoryAutopilot.C.AtmoTrajectoryResolution,
                                             Utils.ClampL((VSL.Altitude.Absolute - TargetAltitude) / Math.Abs(VSL.VerticalSpeed.Absolute) / 20, 0.1)),
                                    VSL.Physics.M - ManeuverFuel);
             update_overheat_info(Path, VSL.TCA.part.temperature);
@@ -144,7 +144,7 @@ namespace ThrottleControlledAvionics
             var dVm = BrakeDeltaV.magnitude;
             if(dVm > 0)
             {
-                var fuel = VSL.Engines.AvailableFuelMass - ManeuverFuel - VSL.Engines.MaxMassFlow * GLB.LTRJ.LandingThrustTime;
+                var fuel = VSL.Engines.AvailableFuelMass - ManeuverFuel - VSL.Engines.MaxMassFlow * LandingTrajectoryAutopilot.C.LandingThrustTime;
                 if(fuel <= 0)
                     BrakeDeltaV = Vector3d.zero;
                 else
@@ -219,7 +219,7 @@ namespace ThrottleControlledAvionics
                     VSL.Torque.MaxPossible.RotationTime2Phase(90, 0.1f);
                 //estimate amount of fuel needed for the maneuver
                 var vertical_vel = Vector3d.Project(AtTargetVel, AtTargetPos);
-                SetBrakeEndUT(Math.Max(AtTargetUT - GLB.LTRJ.CorrectionOffset + rotation_time, StartUT));
+                SetBrakeEndUT(Math.Max(AtTargetUT - LandingTrajectoryAutopilot.C.CorrectionOffset + rotation_time, StartUT));
                 SetBrakeDeltaV(vertical_vel);
                 if(BrakeFuel > 0)
                 {
@@ -241,8 +241,8 @@ namespace ThrottleControlledAvionics
                         else
                         {
                             //find appropriate point to perform the maneuver
-                            var brake_end_UT = Math.Max(AtTargetUT - Mathf.Max(GLB.LTRJ.CorrectionOffset, BrakeDuration * 1.1f), StartUT);
-                            var fly_over_alt = TargetAltitude + GLB.LTRJ.FlyOverAlt;
+                            var brake_end_UT = Math.Max(AtTargetUT - Mathf.Max(LandingTrajectoryAutopilot.C.CorrectionOffset, BrakeDuration * 1.1f), StartUT);
+                            var fly_over_alt = TargetAltitude + LandingTrajectoryAutopilot.C.FlyOverAlt;
                             if(WillOverheat)
                                 SetBrakeEndPoint(Path.PointAtShipTemp(VSL.Physics.MinMaxTemperature - 100));
                             else if(Path.UT2Altitude(brake_end_UT) < fly_over_alt)
@@ -451,7 +451,7 @@ namespace ThrottleControlledAvionics
                 {
                     var K = VSL.Physics.MMT_ThermalMass > ConvectiveCoefficient ? 
                             -ConvectiveCoefficient / VSL.Physics.MMT_ThermalMass : -1;
-                    ShipTemperature = ShockTemperature + (startT - ShockTemperature) * Math.Exp(K * Globals.Instance.LTRJ.HeatingCoefficient * Duration);
+                    ShipTemperature = ShockTemperature + (startT - ShockTemperature) * Math.Exp(K * LandingTrajectoryAutopilot.C.HeatingCoefficient * Duration);
                 }
                 return ShipTemperature;
             }
@@ -560,7 +560,7 @@ namespace ThrottleControlledAvionics
                             //compute thrust direction
                             var vV = Utils.ClampL(Vector3d.Dot(p.vel, p.pos / r), 1e-5);
                             var b_dir = LandingTrajectoryAutopilot.CorrectedBrakeVelocity(VSL, p.vel, p.pos, 
-                                                                                          p.DynamicPressure / 1000 / Globals.Instance.LTRJ.MinDPressure, 
+                                                                                          p.DynamicPressure / 1000 / LandingTrajectoryAutopilot.C.MinDPressure, 
                                                                                           (p.Altitude - TargetAltitude) / vV).normalized;
                             //compute thrust and mass flow
                             float mflow;

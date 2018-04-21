@@ -18,14 +18,14 @@ namespace ThrottleControlledAvionics
                      typeof(SASBlocker))]
     public class CruiseControl : AutopilotModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float PitchFactor = 0.2f;
             [Persistent] public float MaxRevSpeed = -4f;
             [Persistent] public float MaxIdleSpeed = 4f;
             [Persistent] public float UpdateDelay = 1;
         }
-        static Config CC { get { return Globals.Instance.CC; } }
+        public static Config C => Config.INST;
 
         BearingControl BRC;
 
@@ -38,7 +38,7 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
-            UpdateTimer.Period = CC.UpdateDelay;
+            UpdateTimer.Period = C.UpdateDelay;
             CFG.HF.AddHandler(this, HFlight.CruiseControl);
         }
 
@@ -71,8 +71,8 @@ namespace ThrottleControlledAvionics
             case Multiplexer.Command.On:
                 VSL.UpdateOnPlanetStats();
                 var nV = VSL.HorizontalSpeed.Absolute;
-                if(nV > GLB.PN.MaxSpeed) nV = GLB.PN.MaxSpeed;
-                var nVdir = nV > CC.MaxIdleSpeed?
+                if(nV > PointNavigator.C.MaxSpeed) nV = PointNavigator.C.MaxSpeed;
+                var nVdir = nV > C.MaxIdleSpeed?
                     (Vector3)VSL.HorizontalSpeed.Vector.normalized :
                     VSL.OnPlanetParams.Fwd;
                 CFG.BR.OnIfNot(BearingMode.User);
@@ -117,7 +117,7 @@ namespace ThrottleControlledAvionics
             { 
                 if(!CS.pitch.Equals(0))
                 {
-                    CFG.MaxNavSpeed = Utils.Clamp(CFG.MaxNavSpeed-CS.pitch*CC.PitchFactor, CC.MaxRevSpeed, GLB.PN.MaxSpeed);
+                    CFG.MaxNavSpeed = Utils.Clamp(CFG.MaxNavSpeed-CS.pitch*C.PitchFactor, C.MaxRevSpeed, PointNavigator.C.MaxSpeed);
                     SetNeededVelocity(VSL.HorizontalSpeed.NeededVector);
                     VSL.HasUserInput = !(CS.yaw.Equals(0) && CS.roll.Equals(0));
                     VSL.AutopilotDisabled = VSL.HasUserInput;

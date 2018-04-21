@@ -23,7 +23,7 @@ namespace ThrottleControlledAvionics
                     typeof(PointNavigator))]
     public class AutoLander : TCAModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float MaxUnevenness        = 0.1f;
             [Persistent] public float MaxHorizontalTime    = 5f;
@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
                 MaxStartAltitude = MaxWideCheckAltitude/2;
             }
         }
-        static Config LND { get { return Globals.Instance.LND; } }
+        public static Config C => Config.INST;
 
         static int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery") | 1 << LayerMask.NameToLayer("Parts") | 1);
         enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, Land }
@@ -74,8 +74,8 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
-            StopTimer.Period = LND.StopTimer;
-            CutoffTimer.Period = LND.CutoffTimer;
+            StopTimer.Period = C.StopTimer;
+            CutoffTimer.Period = C.CutoffTimer;
             CFG.AP1.AddHandler(this, Autopilot1.Land);
             TriedNodes = new HashSet<SurfaceNode>(new SurfaceNode.Comparer(VSL.Geometry.R));
         }
@@ -169,7 +169,7 @@ namespace ThrottleControlledAvionics
                     Nodes[i,j] = get_surface_node(delta/2);
                     done_rays++;
                     frame_rays++;
-                    if(frame_rays >= LND.RaysPerFrame)
+                    if(frame_rays >= C.RaysPerFrame)
                     {
                         frame_rays = 0;
                         yield return null;
@@ -196,7 +196,7 @@ namespace ThrottleControlledAvionics
                     n.complete = complete;
                     done_rays++;
                     frame_rays++;
-                    if(frame_rays >= LND.RaysPerFrame)
+                    if(frame_rays >= C.RaysPerFrame)
                     {
                         frame_rays = 0;
                         yield return null;
@@ -273,7 +273,7 @@ namespace ThrottleControlledAvionics
             CFG.AltitudeAboveTerrain = true;
             VSL.Altitude.Update();
             WideCheckAlt = Utils.Clamp(VSL.Altitude.Relative+VSL.VerticalSpeed.Absolute*3, 
-                                       VSL.Geometry.D*2, LND.MaxStartAltitude);
+                                       VSL.Geometry.D*2, C.MaxStartAltitude);
         }
 
         bool altitude_changed
@@ -292,7 +292,7 @@ namespace ThrottleControlledAvionics
                     CFG.VF.OffIfOn(VFlight.AltitudeControl);
                     CFG.VerticalCutoff = 0;
                 }
-                return Mathf.Abs(VSL.VerticalSpeed.Absolute) < LND.MinVerticalSpeed;
+                return Mathf.Abs(VSL.VerticalSpeed.Absolute) < C.MinVerticalSpeed;
             }
         }
 
@@ -301,7 +301,7 @@ namespace ThrottleControlledAvionics
             get
             {
                 if(!CFG.Nav[Navigation.Anchor]) CFG.HF.OnIfNot(HFlight.Stop);
-                if(VSL.Geometry.R/Utils.ClampL(VSL.HorizontalSpeed, 1e-5f) > LND.MaxHorizontalTime)
+                if(VSL.Geometry.R/Utils.ClampL(VSL.HorizontalSpeed, 1e-5f) > C.MaxHorizontalTime)
                     return StopTimer.TimePassed;
                 StopTimer.Reset();
                 return false;
@@ -353,7 +353,7 @@ namespace ThrottleControlledAvionics
             WideCheckAlt += delta_alt;
             if(VSL.Altitude.Relative > WideCheckAlt)
                 WideCheckAlt = VSL.Altitude.Relative;
-            if(WideCheckAlt > LND.MaxWideCheckAltitude)
+            if(WideCheckAlt > C.MaxWideCheckAltitude)
             {
                 CFG.AP1.Off();
                 Status("red", "Unable to find suitale place for landing.");
@@ -368,21 +368,21 @@ namespace ThrottleControlledAvionics
             if(FlattestNode != null &&
                (FlattestNodeTired == null || 
                 FlattestNodeTired.unevenness > NextNode.unevenness &&
-                NextNode.DistanceTo(VSL)/VSL.Geometry.R > LND.NodeTargetRange*2))
+                NextNode.DistanceTo(VSL)/VSL.Geometry.R > C.NodeTargetRange*2))
             {
                 FlattestNodeTired = NextNode;
-                WideCheckAlt += LND.WideCheckAltitude *
-                    (float)(NextNode.unevenness/LND.MaxUnevenness);
+                WideCheckAlt += C.WideCheckAltitude *
+                    (float)(NextNode.unevenness/C.MaxUnevenness);
                 move_next();
             }
             else 
-                wide_check(LND.WideCheckAltitude);
+                wide_check(C.WideCheckAltitude);
         }
 
         void move_next()
         {
             CFG.Anchor = NextNode.ToWayPoint();
-            CFG.Anchor.Radius = LND.NodeTargetRange;
+            CFG.Anchor.Radius = C.NodeTargetRange;
             SetTarget(CFG.Anchor);
             stage = Stage.MoveNext;
         }
@@ -390,10 +390,10 @@ namespace ThrottleControlledAvionics
         void land(SurfaceNode n)
         {
             CFG.Anchor = n.ToWayPoint();
-            CFG.Anchor.Radius = LND.NodeTargetRange;
+            CFG.Anchor.Radius = C.NodeTargetRange;
             SetTarget(CFG.Anchor);
             CFG.Nav.OnIfNot(Navigation.Anchor);
-            WideCheckAlt = VSL.Geometry.H*(LND.StopAtH+1);
+            WideCheckAlt = VSL.Geometry.H*(C.StopAtH+1);
             TCA.SquadConfigAction(cfg => cfg.AP1.XOnIfNot(Autopilot1.Land));
             stage = Stage.Land;
         }
@@ -449,7 +449,7 @@ namespace ThrottleControlledAvionics
                     Status("Prepearing for surface scanning..."); 
                     break; 
                 }
-                if(scan(LND.WideCheckLevel)) 
+                if(scan(C.WideCheckLevel)) 
                 {
                     Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", Progress);
                     break;
@@ -494,7 +494,7 @@ namespace ThrottleControlledAvionics
                 }
                 else
                 {
-                    if(VSL.Altitude.Relative > LND.StopAtH*VSL.Geometry.H)
+                    if(VSL.Altitude.Relative > C.StopAtH*VSL.Geometry.H)
                         CFG.Nav.OnIfNot(Navigation.Anchor);
                     else CFG.HF.OnIfNot(HFlight.Stop);
                     CFG.SmoothSetVSC((VSL.Engines.Slow? -0.5f : -1f)*Utils.ClampL(1-VSL.HorizontalSpeed, 0.1f), -1, 0);
@@ -585,7 +585,7 @@ namespace ThrottleControlledAvionics
                 n.unevenness += unev;
                 neighbours.Add(n);
                 n.neighbours.Add(this);
-                flat = unevenness < LND.MaxUnevenness;
+                flat = unevenness < C.MaxUnevenness;
             }
 
             public override string ToString()

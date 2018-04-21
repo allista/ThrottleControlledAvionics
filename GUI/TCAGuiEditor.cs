@@ -213,7 +213,7 @@ namespace ThrottleControlledAvionics
             e.UpdateThrustInfo();
             e.InitLimits();
             e.InitTorque(EditorLogic.RootPart.transform, CoM,
-                         Globals.Instance.ENG.TorqueRatioFactor);
+                         EngineOptimizer.C.TorqueRatioFactor);
             e.UpdateCurrentTorque(1);
         }
 
@@ -307,7 +307,7 @@ namespace ThrottleControlledAvionics
                 }
                 e.UpdateThrustInfo();
                 e.InitTorque(EditorLogic.fetch.ship[0].transform, CoM, 1);
-                if(e.torqueRatio < Globals.Instance.ENG.UnBalancedThreshold) e.SetRole(TCARole.UNBALANCE);
+                if(e.torqueRatio < EngineOptimizer.C.UnBalancedThreshold) e.SetRole(TCARole.UNBALANCE);
             }
             //group symmetry-clones
             var group = 1;

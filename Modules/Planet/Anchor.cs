@@ -17,7 +17,7 @@ namespace ThrottleControlledAvionics
     [RequireModules(typeof(HorizontalSpeedControl))]
     public class Anchor : TCAModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float MaxSpeed      = 10;
             [Persistent] public float DistanceF     = 50;
@@ -27,7 +27,8 @@ namespace ThrottleControlledAvionics
             [Persistent] public float DistanceCurve = 2f;
             [Persistent] public PIDf_Controller DistancePID = new PIDf_Controller(0.5f, 0f, 0.5f, 0, 100);
         }
-        static Config ANC { get { return Globals.Instance.ANC; } }
+        public static Config C => Config.INST;
+
         public Anchor(ModuleTCA tca) : base(tca) {}
 
         readonly PIDf_Controller pid = new PIDf_Controller();
@@ -36,9 +37,9 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
-            pid.setPID(ANC.DistancePID);
+            pid.setPID(C.DistancePID);
             pid.Min = 0;
-            pid.Max = ANC.MaxSpeed;
+            pid.Max = C.MaxSpeed;
             pid.Reset();
             CFG.Nav.AddHandler(this, Navigation.Anchor, Navigation.AnchorHere);
         }
@@ -87,21 +88,21 @@ namespace ThrottleControlledAvionics
 
         protected override void Update()
         {
-            if(VSL.HorizontalSpeed > ANC.MaxSpeed)
+            if(VSL.HorizontalSpeed > C.MaxSpeed)
                 CFG.HF.OnIfNot(HFlight.NoseOnCourse);
             else CFG.HF.OnIfNot(HFlight.Move);
             CFG.Anchor.Update(VSL);
             //calculate direct distance
             var apos = CFG.Anchor.GetTransform().position;
-            var vdir = Vector3.ProjectOnPlane(apos - (VSL.Physics.wCoM+VSL.HorizontalSpeed.Vector*ANC.LookAheadTime), VSL.Physics.Up);
+            var vdir = Vector3.ProjectOnPlane(apos - (VSL.Physics.wCoM+VSL.HorizontalSpeed.Vector*C.LookAheadTime), VSL.Physics.Up);
             var distance = Mathf.Sqrt(vdir.magnitude);
             vdir.Normalize();
             VSL.Info.Destination = apos-VSL.Physics.wCoM;
             var real_dist = Vector3.ProjectOnPlane(VSL.Info.Destination, VSL.Physics.Up).magnitude;
             //tune the pid and update needed velocity
-            AccelCorrection.Update(Mathf.Clamp(VSL.Torque.MaxPossible.AA_rad/ANC.AngularAccelF, 0.01f, 1), 0.01f);
-            pid.P = ANC.DistancePID.P*AccelCorrection;
-            pid.D = ANC.DistancePID.D*(2-AccelCorrection);
+            AccelCorrection.Update(Mathf.Clamp(VSL.Torque.MaxPossible.AA_rad/C.AngularAccelF, 0.01f, 1), 0.01f);
+            pid.P = C.DistancePID.P*AccelCorrection;
+            pid.D = C.DistancePID.D*(2-AccelCorrection);
             if(real_dist <= Mathf.Max(CFG.Anchor.AbsRadius-VSL.Geometry.R, VSL.Geometry.R/4, 1)) 
             {
                 VSL.Altitude.DontCorrectIfSlow();
@@ -109,7 +110,7 @@ namespace ThrottleControlledAvionics
                 pid.D = 0;
             }
             // CFG.Anchor.AbsRadius*Mathf.Pow(real_dist/CFG.Anchor.AbsRadius, ANC.DistanceCurve);
-            pid.Update(distance*ANC.DistanceF/(VSL.Torque.Slow? 1+VSL.Torque.EnginesResponseTimeM*ANC.SlowTorqueF : 1f));
+            pid.Update(distance*C.DistanceF/(VSL.Torque.Slow? 1+VSL.Torque.EnginesResponseTimeM*C.SlowTorqueF : 1f));
             VSL.HorizontalSpeed.SetNeeded(vdir*pid.Action);
 //            CSV(pid.P, pid.D, distance, real_dist, pid.Action);//debug
         }

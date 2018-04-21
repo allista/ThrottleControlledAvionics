@@ -173,7 +173,7 @@ namespace ThrottleControlledAvionics
             CFG.SteeringModifier.y = Utils.FloatSlider("Roll", CFG.SteeringModifier.y, 0, 1, "P1");
             GUILayout.EndHorizontal();
             //engines
-            CFG.Engines.DrawControls("Engines Controller", GLB.ENG.MaxP, GLB.ENG.MaxI);
+            CFG.Engines.DrawControls("Engines Controller", EngineOptimizer.C.MaxP, EngineOptimizer.C.MaxI);
         }
 
         public override void Draw()

@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
                     typeof(AutoLander))]
     public class BallisticJump : LandingTrajectoryAutopilot
     {
-        public new class Config : TCAModule.ComponentConfig
+        public new class Config : ComponentConfig<Config>
         {
             [Persistent] public float StartOffset      = 30f;  //s
             [Persistent] public float StartAltitude    = 100f; //m
@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
 
             [Persistent] public PIDf_Controller FallCorrectionPID = new PIDf_Controller(1, 0.5f, 0, 0, float.PositiveInfinity);
         }
-        static Config BJ { get { return Globals.Instance.BJ; } }
+        public static new Config C => Config.INST;
 
         public BallisticJump(ModuleTCA tca) : base(tca) {}
 
@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
-            fall_correction.setPID(BJ.FallCorrectionPID);
+            fall_correction.setPID(C.FallCorrectionPID);
             CFG.AP2.AddHandler(this, Autopilot2.BallisticJump);
         }
 
@@ -65,7 +65,7 @@ namespace ThrottleControlledAvionics
         {
             base.Reset();
             stage = Stage.None;
-            StartAltitude = BJ.StartAltitude;
+            StartAltitude = C.StartAltitude;
             Executor.Reset();
             CFG.AP1.Off();
         }
@@ -143,7 +143,7 @@ namespace ThrottleControlledAvionics
 //                Utils.Log("BJ: V {}, dir {}", velocity, direction);
             }
 
-            protected virtual double start_offset() { return BJ.StartOffset; }
+            protected virtual double start_offset() { return C.StartOffset; }
             protected double startUT { get { return m.VSL.Physics.UT + start_offset(); } }
             protected virtual Vector3d dir { get { return direction; } }
             protected virtual bool ScanDeltaFi { get { return Best.DistanceToTarget > 1000; } }
@@ -244,15 +244,15 @@ namespace ThrottleControlledAvionics
         Vector3d compute_intial_jump_velocity()
         {
             var tPos = CFG.Target.OrbPos(Body);
-            var solver = new LambertSolver(VesselOrbit, tPos+tPos.normalized*LTRJ.FlyOverAlt, VSL.Physics.UT);
+            var solver = new LambertSolver(VesselOrbit, tPos+ tPos.normalized * LandingTrajectoryAutopilot.C.FlyOverAlt, VSL.Physics.UT);
             var vel = VesselOrbit.vel +
                 solver.dV4TransferME()
                 .ClampMagnitudeH(Math.Sqrt(Body.gMagnitudeAtCenter/VesselOrbit.radius));
             if(Vector3d.Dot(vel, VesselOrbit.pos) < 0) vel = -vel;
             //correcto for low trajectories
             var ascention_angle = 90-Utils.Angle2(vel, VesselOrbit.pos);
-            if(ascention_angle < BJ.MinStartAngle)
-                vel = QuaternionD.AngleAxis(BJ.MinStartAngle-ascention_angle, Vector3d.Cross(vel, VesselOrbit.pos)) * vel;
+            if(ascention_angle < C.MinStartAngle)
+                vel = QuaternionD.AngleAxis(C.MinStartAngle-ascention_angle, Vector3d.Cross(vel, VesselOrbit.pos)) * vel;
             return vel;
         }
 
@@ -262,7 +262,7 @@ namespace ThrottleControlledAvionics
             var vel = compute_intial_jump_velocity();
             var dir = vel.normalized;
             var V = vel.magnitude;
-            ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LTRJ.Dtol));
+			ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LandingTrajectoryAutopilot.C.Dtol));
             stage = Stage.Compute;
             trajectory = null;
         }
@@ -279,7 +279,7 @@ namespace ThrottleControlledAvionics
         {
             update_landing_trajecotry();
             var V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
-            ComputeTrajectory(new LandingSiteCorrector(this, V, LTRJ.Dtol/2));
+			ComputeTrajectory(new LandingSiteCorrector(this, V, LandingTrajectoryAutopilot.C.Dtol/2));
             stage = Stage.CorrectTrajectory;
             trajectory = null;
         }
@@ -321,14 +321,14 @@ namespace ThrottleControlledAvionics
             case Stage.Compute:
                 double obstacle;
                 if(!trajectory_computed()) break;
-                if(find_biggest_obstacle_ahead(BJ.StartAltitude, out obstacle)) break;
+                if(find_biggest_obstacle_ahead(C.StartAltitude, out obstacle)) break;
                 if(obstacle > 0)
                 {
-                    StartAltitude += (float)obstacle+BJ.ObstacleOffset;
+                    StartAltitude += (float)obstacle+C.ObstacleOffset;
                     CFG.DesiredAltitude = StartAltitude;
                     stage = Stage.GainAltitude;
                 }
-                else if(VSL.Altitude.Relative < BJ.StartAltitude-10)
+                else if(VSL.Altitude.Relative < C.StartAltitude-10)
                     stage = Stage.GainAltitude;
                 else if(check_initial_trajectory()) accelerate();
                 else stage = Stage.Wait;
@@ -352,7 +352,7 @@ namespace ThrottleControlledAvionics
                     }
                     if(dVv > 0)
                     {
-                        fall_correction.I = BJ.FallCorrectionPID.I * Utils.ClampL(100/VSL.Altitude.Relative, 1);
+                        fall_correction.I = C.FallCorrectionPID.I * Utils.ClampL(100/VSL.Altitude.Relative, 1);
                         fall_correction.Update(-VSL.Altitude.Absolute);
                     }
                     else

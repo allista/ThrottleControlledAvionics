@@ -16,7 +16,7 @@ namespace ThrottleControlledAvionics
     [CareerPart]
     public class VerticalSpeedControl : TCAModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float K0 = 2f, K1 = 10f, L1 = 1f;    //vertical speed limit control coefficients
             [Persistent] public float MaxSpeed          = 10f;   //max. positive vertical speed m/s (configuration limit)
@@ -31,7 +31,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float AccelThreshold    = 0.1f;
             [Persistent] public float MaxVSFtwr         = 0.9f;
         }
-        static Config VSC { get { return Globals.Instance.VSC; } }
+        public static Config C => Config.INST;
 
         public VerticalSpeedControl(ModuleTCA tca) : base(tca) {}
 
@@ -72,10 +72,10 @@ namespace ThrottleControlledAvionics
         {
             base.Init();
             overriden = false;
-            Falling.Period = VSC.FallingTime;
+            Falling.Period = C.FallingTime;
             if(VSL.LandedOrSplashed && 
                CFG.VerticalCutoff >= 0 && 
-               CFG.VerticalCutoff < VSC.MaxSpeed)
+               CFG.VerticalCutoff < C.MaxSpeed)
                 CFG.VerticalCutoff = -10;
         }
 
@@ -84,12 +84,12 @@ namespace ThrottleControlledAvionics
             var raw_setpoint = overriden? SetpointOverride : CFG.VerticalCutoff;
             var setpoint = raw_setpoint;
             SetState(TCAState.VerticalSpeedControl);
-            var upAF = -VSL.VerticalSpeed.Derivative * VSC.UpAf *
+            var upAF = -VSL.VerticalSpeed.Derivative * C.UpAf *
                 (VSL.VerticalSpeed.Derivative < 0? 
                  VSL.OnPlanetParams.CurrentThrustAccelerationTime : 
                  VSL.OnPlanetParams.CurrentThrustDecelerationTime);
             if(VSL.OnPlanetParams.MaxDTWR > 0)
-                setpoint += (VSC.TWRf+upAF)/VSL.OnPlanetParams.MaxDTWR;
+                setpoint += (C.TWRf+upAF)/VSL.OnPlanetParams.MaxDTWR;
             //calculate new VSF
             if(!VSL.LandedOrSplashed)
             {
@@ -97,13 +97,13 @@ namespace ThrottleControlledAvionics
                 old_accel = VSL.VerticalSpeed.Derivative;
                 var missed = VSL.VerticalSpeed.Absolute > raw_setpoint && VSL.VerticalSpeed.Absolute < raw_setpoint+setpoint_correction && VSL.VerticalSpeed.Derivative > 0 ||
                     VSL.VerticalSpeed.Absolute < raw_setpoint && VSL.VerticalSpeed.Absolute > raw_setpoint+setpoint_correction && VSL.VerticalSpeed.Derivative < 0;
-                if(missed || Mathf.Abs(VSL.VerticalSpeed.Derivative) < VSC.AccelThreshold && Mathf.Abs(accelV) < VSC.AccelThreshold)
+                if(missed || Mathf.Abs(VSL.VerticalSpeed.Derivative) < C.AccelThreshold && Mathf.Abs(accelV) < C.AccelThreshold)
                     setpoint_correction.Update(Utils.ClampL(raw_setpoint-VSL.VerticalSpeed.Absolute+setpoint_correction, 0));
             }
             var err = setpoint-VSL.VerticalSpeed.Absolute+setpoint_correction;
             var K = Mathf.Clamp01(err
-                                  /VSC.K0
-                                  /Mathf.Pow(Utils.ClampL(VSL.VerticalSpeed.Derivative/VSC.K1+1, VSC.L1), 2f)
+                                  /C.K0
+                                  /Mathf.Pow(Utils.ClampL(VSL.VerticalSpeed.Derivative/C.K1+1, C.L1), 2f)
                                   +upAF);
             VSL.OnPlanetParams.VSF = VSL.LandedOrSplashed? K : Utils.ClampL(K, VSL.OnPlanetParams.MinVSF);
 //            Log("VSP {0}, setpoint {1}, setpoint correction {2}, err {3}, K {4}, VSF {5}, DTWR {6}, MinVSF {7}, G {8}",
@@ -112,7 +112,7 @@ namespace ThrottleControlledAvionics
             if(VSL.LandedOrSplashed) return;
             //loosing altitude alert
             if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
-                                      VSL.VerticalSpeed.Absolute < 0 && raw_setpoint-VSL.VerticalSpeed.Absolute > VSC.MaxDeltaV);
+                                      VSL.VerticalSpeed.Absolute < 0 && raw_setpoint-VSL.VerticalSpeed.Absolute > C.MaxDeltaV);
 //            CSV(VSL.Altitude, VSL.Altitude.TerrainAltitude, VSL.VerticalSpeed.Relative,
 //                           VSL.VerticalSpeed, raw_setpoint, setpoint, setpoint_correction, 
 //                           VSL.VerticalSpeed.Derivative, upAF, K, VSL.VSF);//debug
@@ -123,25 +123,25 @@ namespace ThrottleControlledAvionics
             var cutoff = CFG.VerticalCutoff;
             if(GameSettings.THROTTLE_UP.GetKey())
                 cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-                                        GLB.VSC.MaxSpeed, 
+                                        VerticalSpeedControl.C.MaxSpeed, 
                                         CFG.ControlSensitivity);
             else if(GameSettings.THROTTLE_DOWN.GetKey())
                 cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-                                        -GLB.VSC.MaxSpeed, 
+                                        -VerticalSpeedControl.C.MaxSpeed, 
                                         CFG.ControlSensitivity);
             else if(GameSettings.THROTTLE_FULL.GetKeyDown())
-                cutoff = GLB.VSC.MaxSpeed;
+                cutoff = VerticalSpeedControl.C.MaxSpeed;
             else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
-                cutoff = -GLB.VSC.MaxSpeed;
+                cutoff = -VerticalSpeedControl.C.MaxSpeed;
             if(!cutoff.Equals(CFG.VerticalCutoff)) set_vspeed(cutoff);
         }
 
         public override void Draw()
         {
-            var speed = string.Format("V.Spd. {0}", (CFG.VerticalCutoff < GLB.VSC.MaxSpeed? 
+            var speed = string.Format("V.Spd. {0}", (CFG.VerticalCutoff < VerticalSpeedControl.C.MaxSpeed? 
                                                      Utils.formatBigValue(CFG.VerticalCutoff, "m/s", "+0.0;-0.0;+0.0") : "OFF"));
             GUILayout.Label(new GUIContent(speed, "Desired vertical speed"), Styles.boxed_label, GUILayout.ExpandWidth(false));
-            var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, -GLB.VSC.MaxSpeed, GLB.VSC.MaxSpeed);
+            var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, -VerticalSpeedControl.C.MaxSpeed, VerticalSpeedControl.C.MaxSpeed);
             if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5) set_vspeed(VSP);
         }
     }

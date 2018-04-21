@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
                     typeof(TimeWarpControl))]
     public class ManeuverAutopilot : TCAModule
     {
-        public class Config : TCAModule.ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float WrapThreshold = 600f; //s
 
@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float EfficientCluster = 0.1f; //fraction of vessel mass
             [Persistent] public float EfficiencyWeight = 10;   //how much the fuel mass will affect cluster selection
         }
-        static Config MAN { get { return Globals.Instance.MAN; } }
+        public static Config C => Config.INST;
 
         public enum Stage { WAITING, IN_PROGRESS, FINISHED }
 
@@ -71,7 +71,7 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
-            MinDeltaV = GLB.THR.MinDeltaV;
+            MinDeltaV = ThrottleControl.C.MinDeltaV;
             CFG.AP1.AddHandler(this, Autopilot1.Maneuver);
             Executor = new ManeuverExecutor(TCA);
             Executor.ThrustWhenAligned = true;
@@ -131,7 +131,7 @@ namespace ThrottleControlledAvionics
             Executor.Reset();
             NodeDeltaV = Vector3d.zero;
             NodeCB = null;
-            MinDeltaV = GLB.THR.MinDeltaV;
+            MinDeltaV = ThrottleControl.C.MinDeltaV;
             VSL.Info.Countdown = 0;
             VSL.Info.TTB = 0;
             Working = false;
@@ -177,8 +177,8 @@ namespace ThrottleControlledAvionics
             var burn = Node.UT-VSL.Info.TTB/2f;
             if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
             {
-                if((burn-VSL.Physics.UT)/dV > MAN.WrapThreshold ||
-                   TCAScenario.HavePersistentRotation && burn-VSL.Physics.UT > 180+GLB.WRP.DewarpTime)
+                if((burn-VSL.Physics.UT)/dV > C.WrapThreshold ||
+                   TCAScenario.HavePersistentRotation && burn-VSL.Physics.UT > 180+TimeWarpControl.C.DewarpTime)
                 {
                     VSL.Controls.NoDewarpOffset = true;
                     VSL.Controls.WarpToTime = burn-180;
@@ -188,7 +188,7 @@ namespace ThrottleControlledAvionics
             }
             VSL.Info.Countdown = burn-VSL.Physics.UT;
             //emergency dewarping
-            if(!CFG.WarpToNode && TimeWarp.CurrentRate > 1 && VSL.Info.Countdown < GLB.WRP.DewarpTime)
+            if(!CFG.WarpToNode && TimeWarp.CurrentRate > 1 && VSL.Info.Countdown < TimeWarpControl.C.DewarpTime)
                 VSL.Controls.AbortWarp(true);
             if(VSL.Info.Countdown > 0) return false;
 //            Log("burn {}, countdown {}", burn, VSL.Info.Countdown);//debug

@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
                     typeof(ManeuverAutopilot))]
     public class ToOrbitAutopilot : TrajectoryCalculator
     {
-        public new class Config : ComponentConfig
+        public new class Config : ComponentConfig<Config>
         {
             [Persistent] public float Dtol = 100f;
             [Persistent] public float RadiusOffset = 10000f;
@@ -39,7 +39,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public PIDf_Controller3 TargetPitchPID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 ThrottleCorrectionPID = new PIDf_Controller3();
         }
-        static Config ORB { get { return Globals.Instance.ORB; } }
+        public static new Config C => Config.INST;
 
         public enum Stage { None, Start, Liftoff, GravityTurn, ChangeApA, Circularize }
 
@@ -100,8 +100,8 @@ namespace ThrottleControlledAvionics
                 }
                 else hVdir = Vector3d.Cross(VesselOrbit.pos, Body.orbit.vel).normalized;
                 if(TargetOrbit.RetrogradeOrbit) hVdir *= -1;
-                var ApR0 = Utils.ClampH(ApR, MinPeR + ORB.RadiusOffset);
-                var ascO = AscendingOrbit(ApR0, hVdir, ORB.LaunchSlope);
+                var ApR0 = Utils.ClampH(ApR, MinPeR + C.RadiusOffset);
+                var ascO = AscendingOrbit(ApR0, hVdir, C.LaunchSlope);
                 Target = ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
                 stage = Stage.Start;
                 goto case Multiplexer.Command.Resume;
@@ -224,19 +224,19 @@ namespace ThrottleControlledAvionics
                 }
                 if(TargetOrbit.AutoTimeToApA)
                 {
-                    var dEcc = ORB.AscentEccentricity - (float)VesselOrbit.eccentricity;
+                    var dEcc = C.AscentEccentricity - (float)VesselOrbit.eccentricity;
                     var dApA = (float)((ToOrbit.TargetR - VesselOrbit.ApR) / (ToOrbit.TargetR - Body.Radius) - 0.1);
-                    TargetOrbit.TimeToApA.Value = TRJ.ManeuverOffset * (1 + dEcc + dApA);
+					TargetOrbit.TimeToApA.Value = TrajectoryCalculator.C.ManeuverOffset * (1 + dEcc + dApA);
                     TargetOrbit.TimeToApA.ClampValue();
                 }
                 if(ToOrbit.GravityTurn(Math.Max(TargetOrbit.TimeToApA, VSL.Torque.MaxCurrent.TurnTime),
                                        TargetOrbit.MinThrottle / 100,
                                        TargetOrbit.MaxG,
-                                       ORB.Dtol))
+                                       C.Dtol))
                     break;
                 CFG.BR.OffIfOn(BearingMode.Auto);
                 var ApAUT = VSL.Physics.UT + VesselOrbit.timeToAp;
-                if(ApR > MinPeR + ORB.RadiusOffset) change_ApR(ApAUT);
+                if(ApR > MinPeR + C.RadiusOffset) change_ApR(ApAUT);
                 else circularize(ApAUT);
                 CSV("gravity turn end", VSL.Engines.AvailableFuelMass);//debug
                 break;

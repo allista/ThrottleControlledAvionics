@@ -19,10 +19,10 @@ namespace ThrottleControlledAvionics
 
         public TargetedToOrbitExecutor(ModuleTCA tca) : base(tca)
         {
-            pitch.setPID(GLB.ORB.TargetPitchPID);
-            pitch.Min = -GLB.ATCB.MaxAttitudeError;
+            pitch.setPID(ToOrbitAutopilot.C.TargetPitchPID);
+            pitch.Min = -AttitudeControlBase.C.MaxAttitudeError;
             pitch.Max = 0;
-            throttle_correction.setPID(GLB.ORB.ThrottleCorrectionPID);
+            throttle_correction.setPID(ToOrbitAutopilot.C.ThrottleCorrectionPID);
             throttle_fileter.Tau = 1;
         }
 
@@ -50,7 +50,7 @@ namespace ThrottleControlledAvionics
                 pitch.Max = AoA < neededAoA ? 0 : (float)AoA;
                 pitch.Update((float)angle2Hor);
                 if(AoA < neededAoA && pitch.Action.Equals(pitch.Max))
-                    pitch.Action = (float)Utils.ClampL(AoA - neededAoA, -GLB.ATCB.MaxAttitudeError);
+                    pitch.Action = (float)Utils.ClampL(AoA - neededAoA, -AttitudeControlBase.C.MaxAttitudeError);
                 vel = QuaternionD.AngleAxis(pitch.Action * startF,
                                             Vector3d.Cross(target, VesselOrbit.pos))
                                  * pg_vel;
@@ -114,7 +114,7 @@ namespace ThrottleControlledAvionics
                                            Vector3d.Lerp(pg_vel.normalized,
                                                          -VSL.Engines.DefManualThrust.xzy(),
                                                          ApV.magnitude / TargetR),
-                                           (double)GLB.ATCB.MaxAttitudeError);
+                                           (double)AttitudeControlBase.C.MaxAttitudeError);
                 //Log("vel {}, dVm {}, dVorb {}, pgV {}, pg_velF {}, THR {}, throttle {}",
                 //vel.magnitude, dVm, dVorb.magnitude, pg_vel.magnitude,
                 //VSL.Physics.G / VSL.Physics.StG,
@@ -157,7 +157,7 @@ namespace ThrottleControlledAvionics
                         vel = QuaternionD.AngleAxis(pitch * startF, Vector3d.Cross(target, VesselOrbit.pos)) * pg_vel;
                     }
                     vel = tune_needed_vel(vel, pg_vel, startF);
-                    vel = Utils.ClampDirection(vel, pg_vel, (double)GLB.ATCB.MaxAttitudeError);
+                    vel = Utils.ClampDirection(vel, pg_vel, (double)AttitudeControlBase.C.MaxAttitudeError);
                     throttle.Update(ApA_offset - (float)VesselOrbit.timeToAp + ApA_offset / 2 * (float)ApAerr);
                     THR.Throttle = Utils.Clamp(0.5f + throttle.Action, min_throttle, max_G_throttle(maxG));
                     Log("ApAerr {}, dV {}, pgV {}, pg_velF {}, THR {}, pitch {}, throttle {}",

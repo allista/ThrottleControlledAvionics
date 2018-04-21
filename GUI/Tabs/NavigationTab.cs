@@ -188,7 +188,7 @@ namespace ThrottleControlledAvionics
             if(PN != null || CC != null)
             {
                 var max_nav_speed = Utils.FloatSlider("", CFG.MaxNavSpeed, 
-                                                      CFG.HF[HFlight.CruiseControl]? GLB.CC.MaxRevSpeed : GLB.PN.MinSpeed, GLB.PN.MaxSpeed, 
+                                                      CFG.HF[HFlight.CruiseControl]? CruiseControl.C.MaxRevSpeed : PointNavigator.C.MinSpeed, PointNavigator.C.MaxSpeed, 
                                                       "0.0 m/s", 60, "Maximum horizontal speed on autopilot");
                 if(Mathf.Abs(max_nav_speed-CFG.MaxNavSpeed) > 1e-5)
                     TCA.SquadConfigAction(cfg => cfg.MaxNavSpeed = max_nav_speed);

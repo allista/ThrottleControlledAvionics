@@ -46,22 +46,22 @@ namespace ThrottleControlledAvionics
         public float OffsetAlignmentFactor(float offset = 1)
         {
             var err = Utils.ClampL(AttitudeError-offset, 0);
-            var max = Utils.ClampL(GLB.ATCB.MaxAttitudeError-offset, 1e-5f);
+            var max = Utils.ClampL(AttitudeControlBase.C.MaxAttitudeError-offset, 1e-5f);
             return Utils.ClampL(1-err/max, 0);
         }
 
         public void SetAttitudeError(float error)
         {
             AttitudeError = error;
-            Aligned &= AttitudeError < GLB.ATCB.MaxAttitudeError;
-            Aligned |= AttitudeError < GLB.ATCB.AttitudeErrorThreshold;
+            Aligned &= AttitudeError < AttitudeControlBase.C.MaxAttitudeError;
+            Aligned |= AttitudeError < AttitudeControlBase.C.AttitudeErrorThreshold;
             CanWarp = CFG.WarpToNode && TimeWarp.WarpMode == TimeWarp.Modes.HIGH &&
                 (WarpToTime > VSL.Physics.UT || 
                  VSL.Controls.Aligned && 
                  (VSL.Physics.NoRotation || VSL.Physics.ConstantRotation));
             MinAlignmentTime = VSL.Torque.MaxCurrent.RotationTime2Phase(AttitudeError);
-            AlignmentFactor = Utils.ClampL(1-AttitudeError/GLB.ATCB.MaxAttitudeError, 0);
-            InvAlignmentFactor = Utils.ClampH(AttitudeError/GLB.ATCB.MaxAttitudeError, 1);
+            AlignmentFactor = Utils.ClampL(1-AttitudeError/AttitudeControlBase.C.MaxAttitudeError, 0);
+            InvAlignmentFactor = Utils.ClampH(AttitudeError/AttitudeControlBase.C.MaxAttitudeError, 1);
         }
 
         public void StopWarp() { if(WarpToTime > 0) WarpToTime = 0; }
@@ -93,7 +93,7 @@ namespace ThrottleControlledAvionics
             var thrust = VSL.Engines.MaxThrustRCS.Project(lDir);
 //            Utils.Log("\nMaxThrustRCS:\n{}\nRCS dir: {}\nRCS thrust: {}\nRCS accel: {}\nActive RCS: {}\n",
 //                       VSL.Engines.MaxThrustRCS, lDir, thrust, thrust.magnitude/VSL.Physics.M, VSL.Engines.NumActiveRCS);//debug
-            return thrust.magnitude/VSL.Physics.M > GLB.TRA.MinDeltaV/2;
+            return thrust.magnitude/VSL.Physics.M > TranslationControl.TRA.MinDeltaV/2;
         }
 
 //        void select_retT()

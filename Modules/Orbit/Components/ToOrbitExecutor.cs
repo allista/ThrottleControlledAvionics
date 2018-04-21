@@ -15,7 +15,10 @@ namespace ThrottleControlledAvionics
 {
     public class ToOrbitExecutor : OrbitalComponent
     {
-        public const double MinClimbTime = 5;
+        public class Config : ComponentConfig<Config>
+        {
+            [Persistent] public float MinClimbTime = 5;
+        }
 
         protected ThrottleControl THR;
         protected AttitudeControl ATC;
@@ -55,14 +58,14 @@ namespace ThrottleControlledAvionics
         {
             InitModuleFields();
             GearAction.action = () => VSL.GearOn(false);
-            ErrorThreshold.Lower = GLB.ORB.Dtol / 10;
-            ErrorThreshold.Upper = GLB.ORB.Dtol;
-            pitch.setPID(GLB.ORB.PitchPID);
-            pitch.setClamp(GLB.ATCB.MaxAttitudeError);
-            throttle.setPID(GLB.ORB.ThrottlePID);
+            ErrorThreshold.Lower = ToOrbitAutopilot.C.Dtol / 10;
+            ErrorThreshold.Upper = ToOrbitAutopilot.C.Dtol;
+            pitch.setPID(ToOrbitAutopilot.C.PitchPID);
+            pitch.setClamp(AttitudeControlBase.C.MaxAttitudeError);
+            throttle.setPID(ToOrbitAutopilot.C.ThrottlePID);
             throttle.setClamp(0.5f);
-            norm_correction.setPID(GLB.ORB.NormCorrectionPID);
-            norm_correction.setClamp(GLB.ATCB.MaxAttitudeError);
+            norm_correction.setPID(ToOrbitAutopilot.C.NormCorrectionPID);
+            norm_correction.setClamp(AttitudeControlBase.C.MaxAttitudeError);
             GravityTurnStart = 0;
         }
 
@@ -88,15 +91,15 @@ namespace ThrottleControlledAvionics
         protected void tune_THR()
         {
             THR.CorrectThrottle = ApoapsisReached;
-            if(VSL.vessel.dynamicPressurekPa > GLB.ORB.MaxDynPressure)
-                THR.MaxThrottle = Mathf.Max(1 - ((float)VSL.vessel.dynamicPressurekPa - GLB.ORB.MaxDynPressure) / 5, 0);
+            if(VSL.vessel.dynamicPressurekPa > ToOrbitAutopilot.C.MaxDynPressure)
+                THR.MaxThrottle = Mathf.Max(1 - ((float)VSL.vessel.dynamicPressurekPa - ToOrbitAutopilot.C.MaxDynPressure) / 5, 0);
         }
 
         protected double getStartF()
         {
-            if(Body.atmosphere && VSL.vessel.atmDensity > GLB.ORB.AtmDensityOffset)
+            if(Body.atmosphere && VSL.vessel.atmDensity > ToOrbitAutopilot.C.AtmDensityOffset)
                 GravityTurnStart = VSL.Altitude.Absolute;
-            return Utils.Clamp((VSL.Altitude.Absolute - GravityTurnStart) / GLB.ORB.GTurnOffset, 0, 1);
+            return Utils.Clamp((VSL.Altitude.Absolute - GravityTurnStart) / ToOrbitAutopilot.C.GTurnOffset, 0, 1);
         }
 
         protected Vector3d tune_needed_vel(Vector3d needed_vel, Vector3d pg_vel, double startF)
@@ -148,7 +151,7 @@ namespace ThrottleControlledAvionics
             UpdateTargetPosition();
             VSL.Engines.ActivateEngines();
             VSL.OnPlanetParams.ActivateLaunchClamps();
-            if(VSL.VerticalSpeed.Absolute / VSL.Physics.G < MinClimbTime)
+            if(VSL.VerticalSpeed.Absolute / VSL.Physics.G < Config.INST.MinClimbTime)
             {
                 Status("Liftoff...");
                 CFG.DisableVSC();
@@ -200,7 +203,7 @@ namespace ThrottleControlledAvionics
                     vel = QuaternionD.AngleAxis(pitch * startF, Vector3d.Cross(target, VesselOrbit.pos)) * pg_vel;
                 }
                 vel = tune_needed_vel(vel, pg_vel, startF);
-                vel = Utils.ClampDirection(vel, pg_vel, (double)GLB.ATCB.MaxAttitudeError);
+                vel = Utils.ClampDirection(vel, pg_vel, (double)AttitudeControlBase.C.MaxAttitudeError);
                 throttle.Update(ApA_offset - (float)VesselOrbit.timeToAp);
                 THR.Throttle = Utils.Clamp(0.5f + throttle, min_throttle, max_G_throttle(maxG)) *
                     (float)Utils.ClampH(dApA / Dtol / 10, 1);

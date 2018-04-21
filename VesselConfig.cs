@@ -1,4 +1,4 @@
-//  Author:
+﻿//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2015 Allis Tauri
@@ -63,8 +63,8 @@ namespace ThrottleControlledAvionics
         [Persistent] public bool    BlockThrottle;
         [Persistent] public float   ControlSensitivity = 0.01f;
 
-        public bool VSCIsActive { get { return VF || VerticalCutoff < Globals.Instance.VSC.MaxSpeed; } }
-        public void DisableVSC() { VF.Off(); VerticalCutoff = Globals.Instance.VSC.MaxSpeed; BlockThrottle = false; }
+        public bool VSCIsActive { get { return VF || VerticalCutoff < VerticalSpeedControl.C.MaxSpeed; } }
+        public void DisableVSC() { VF.Off(); VerticalCutoff = VerticalSpeedControl.C.MaxSpeed; BlockThrottle = false; }
         public void SmoothSetVSC(float spd) { VerticalCutoff = Mathf.Lerp(VerticalCutoff, spd, TimeWarp.fixedDeltaTime); }
         public void SmoothSetVSC(float spd, float min, float max) { VerticalCutoff = Utils.Clamp(Mathf.Lerp(VerticalCutoff, spd, TimeWarp.fixedDeltaTime), min, max); }
         //steering
@@ -130,8 +130,8 @@ namespace ThrottleControlledAvionics
         public VesselConfig()
         {
             //set defaults
-            VerticalCutoff = Globals.Instance.VSC.MaxSpeed;
-            Engines.setPI(Globals.Instance.ENG.EnginesPI);
+            VerticalCutoff = VerticalSpeedControl.C.MaxSpeed;
+            Engines.setPI(EngineOptimizer.C.EnginesPI);
             //explicitly set multiplexer conflicts
             AT.AddConflicts(HF, Nav, AP1, AP2);
             HF.AddConflicts(AT, Nav, AP1, AP2);

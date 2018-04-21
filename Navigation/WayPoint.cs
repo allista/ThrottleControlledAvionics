@@ -48,7 +48,7 @@ namespace ThrottleControlledAvionics
         public string SurfaceDescription(Vessel vsl) { return Pos.FullDescription(vsl); }
         public string FullInfo(Vessel vsl) { return GetName()+"\n"+Pos.FullDescription(vsl); }
 
-        public WayPoint() { AbsRadius = Radius = Globals.Instance.PN.MinDistance; }
+        public WayPoint() { AbsRadius = Radius = PointNavigator.C.MinDistance; }
         public WayPoint(Coordinates c) : this() { Pos = c; Name = "Waypoint"; go = new GameObject(); }
         public WayPoint(ITargetable t) : this() { target = t; TargetInfo = new ProtoTargetInfo(t); Name = t.GetName(); }
         public WayPoint(double lat, double lon, double alt) : this(new Coordinates(lat,lon,alt)) {}

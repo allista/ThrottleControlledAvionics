@@ -18,7 +18,7 @@ PersistentRotationName = PersistentRotation
 PersistentRotationThreshold = 1e-7
 NoPersistentRotationThreshold = 5e-6
 
-RCS
+RCSOptimizer
 {
 	MaxIterations = 50
 	OptimizationPrecision = 0.01
@@ -27,7 +27,7 @@ RCS
 	TorqueRatioFactor = 0.1
 }
 
-ENG
+EngineOptimizer
 {
 	MaxIterations = 50
 	OptimizationPrecision = 0.01
@@ -68,7 +68,7 @@ ENG
 	}
 }
 
-VSC
+VerticalSpeedControl
 {
 	K0 = 2
 	K1 = 100
@@ -86,7 +86,7 @@ VSC
 	MaxVSFtwr         = 0.9
 }
 
-ALT
+AltitudeControl
 {
 	MaxSpeedErrorF = 100
 	MaxSpeedLow    = 10
@@ -116,7 +116,7 @@ ALT
 	}
 }
 
-ATCB
+AttitudeControlBase
 {
 	AngleThreshold = 50
 	MaxAttitudeError = 10
@@ -241,25 +241,20 @@ ATCB
 	OD_memory              = 10  //s
 }
 
-ATC
-{
-	RollFilter = 0.5
-}
-
-BRC
+BearingControl
 {
 
 	YawFactor = 60
 	DrawForwardDirection = true
 }
 
-TDC
+ThrustDirectionControl
 {
 	TWRf = 3
 	VSf  = 3
 }
 
-HSC
+HorizontalSpeedControl
 {
 	NeededThrustPID
 	{
@@ -304,13 +299,13 @@ HSC
 	
 }
 
-VTOL
+VTOLControl
 {
 	MaxAngle = 45
 }
 
 
-CC
+CruiseControl
 {
 	PitchFactor  = 0.2
 	MaxRevSpeed  = -4
@@ -318,7 +313,7 @@ CC
 	UpdateDelay  = 10
 }
 
-PN
+PointNavigator
 {
 	TakeoffAltitude      = 100
 	
@@ -372,7 +367,7 @@ PN
 	}
 }
 
-LND
+AutoLander
 {
 	MaxUnevenness        = 0.4
 	MaxHorizontalTime    = 2
@@ -388,7 +383,7 @@ LND
 	RaysPerFrame         = 5
 }
 
-RAD
+Radar
 {
 	UpViewAngle       = 60
 	DownViewAngle     = 40
@@ -405,7 +400,7 @@ RAD
 	ManeuverTimer     = 1
 }
 
-ANC
+Anchor
 {
 	DistanceF     = 0.5
 	MaxSpeed      = 10
@@ -423,7 +418,7 @@ ANC
 	}
 }
 
-TLA
+VTOLAssist
 {
 	MinHSpeed = 0.1
 	MaxHSpeed = 10
@@ -439,7 +434,7 @@ TLA
 	GearOnTime      = 5
 }
 
-CPS
+CollisionPreventionSystem
 {
 	MinDistance       = 5
 	SafeDistance      = 30
@@ -451,20 +446,20 @@ CPS
 	LowPassF          = 0.5
 }
 
-STB
+FlightStabilizer
 {
 	Timer = 2;
 	MinAngularVelocity = 0.001
 }
 
-THR
+ThrottleControl
 {
 	MinDeltaV        = 0.1 //m/s
 	DeltaVThreshold  = 10  //sec
 	AttitudeDeadzone = 1  //deg
 }
 
-TRA
+TranslationControl
 {
 	MinDeltaV = 0.01 //m/s
 	TransPID
@@ -475,14 +470,14 @@ TRA
 	}
 }
 
-WRP
+TimeWarpControl
 {
 	DewarpTime = 10 //sec
 	MaxWarp    = 10000
 	FramesToSkip = 3
 }
 
-MAN
+ManeuverAutopilot
 {
 	WrapThreshold = 600 //s
 
@@ -492,13 +487,13 @@ MAN
 	EfficiencyWeight = 10  //how much the fuel mass will affect cluster selection
 }
 
-MVA
+MatchVelocityAutopilot
 {
 	TranslationThreshold  = 5     //m/s
 	MaxApproachDistance   = 10000 //m
 }
 
-TRJ
+TrajectoryCalculator
 {
 	dVtol              = 0.01  //m/s
 	PerFrameIterations = 5
@@ -506,7 +501,7 @@ TRJ
 	CorrectionOffset   = 20   //s
 }
 
-LTRJ
+LandingTrajectoryAutopilot
 {
 	Dtol               = 100  //m
 	FlyOverAlt         = 2000 //m
@@ -541,7 +536,7 @@ LTRJ
 	HeatingCoefficient = 0.02
 }
 
-DEO
+DeorbitAutopilot
 {
 	MinLandingAngle    = 20
 	MaxLandingAngle    = 50
@@ -549,7 +544,7 @@ DEO
 	EccSteps           = 10
 }
 
-BJ
+BallisticJump
 {
 	StartOffset      = 15  //s
 	StartAltitude    = 50  //m
@@ -565,7 +560,12 @@ BJ
 	}
 }
 
-ORB
+ToOrbitExecutor
+{
+    MinClimbTime = 5
+}
+
+ToOrbitAutopilot
 {
 	Dtol           = 100   //m
 	GTurnCurve     = 0.6
@@ -618,7 +618,7 @@ ORB
 	}
 }
 
-REN
+RendezvousAutopilot
 {
 	Dtol                = 100   //m
 	StartOffset         = 60    //s

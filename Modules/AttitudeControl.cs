@@ -15,11 +15,13 @@ namespace ThrottleControlledAvionics
 {
     public abstract class AttitudeControlBase : ThrustDirectionControl
     {
-        public new class Config : ComponentConfig
+        public new class Config : ComponentConfig<Config>
         {
-            [Persistent] public PIDv_Controller2 PID = new PIDv_Controller2(
-                                                  Vector3.one * 10f, Vector3.one * 0.02f, Vector3.one * 0.5f, -Vector3.one, Vector3.one
-                                              );
+            [Persistent] public PIDv_Controller2 PID = new PIDv_Controller2(Vector3.one * 10f, 
+                                                                            Vector3.one * 0.02f, 
+                                                                            Vector3.one * 0.5f, 
+                                                                            -Vector3.one, 
+                                                                            Vector3.one);
 
             //new 2xPID tuning parameters
             public class PIDCascadeConfig : ConfigNodeObject
@@ -119,7 +121,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float DragResistanceF = 10f;
         }
 
-        protected static Config ATCB { get { return Globals.Instance.ATCB; } }
+        public static new Config C => Config.INST;
 
         public struct Rotation
         {
@@ -131,15 +133,17 @@ namespace ThrottleControlledAvionics
                 this.needed = needed;
             }
 
-            public static Rotation Local(Vector3 current, Vector3 needed, VesselWrapper VSL)
-            {
-                return new Rotation(VSL.LocalDir(current), VSL.LocalDir(needed));
-            }
+            public static Rotation Local(Vector3 current, Vector3 needed, VesselWrapper VSL) => 
+            new Rotation(VSL.LocalDir(current), VSL.LocalDir(needed));
 
-            public override string ToString()
-            {
-                return Utils.Format("[Rotation]: current {}, needed {}", current, needed);
-            }
+            public bool Equals(Rotation other) => 
+            current.Equals(other.current) && needed.Equals(other.needed);
+
+            public static implicit operator bool(Rotation rot) => 
+            rot.current.IsZero() || rot.needed.IsZero() || rot.current.IsInvalid() || rot.needed.IsInvalid();
+
+			public override string ToString() => 
+            Utils.Format("[Rotation]: current {}, needed {}", current, needed);
         }
 
         public class PidCascade
@@ -177,7 +181,7 @@ namespace ThrottleControlledAvionics
                     + atP_iErr);
                     atPID.D = cfg.atD_LowAA_Scale * Mathf.Pow(iMaxAA, cfg.atD_LowAA_Curve) * Utils.ClampH(iErr + Mathf.Abs(AM), 1.2f);
                 }
-                var atI_iErr = Utils.ClampL(iErr - ATCB.FastConfig.atI_ErrThreshold, 0);
+                var atI_iErr = Utils.ClampL(iErr - C.FastConfig.atI_ErrThreshold, 0);
                 if(atI_iErr <= 0 || AV < 0)
                 {
                     atPID.I = 0;
@@ -213,29 +217,29 @@ namespace ThrottleControlledAvionics
 
             void tune_av_pid_mixed(float AV, float AM, float MaxAA, float InstantTorqueRatio, float Err)
             {
-                var noise_scale = noise_scale_factor(ATCB.MixedConfig, AV, Err);
+                var noise_scale = noise_scale_factor(C.MixedConfig, AV, Err);
 //                TCAGui.AddDebugMessage("noise scale: {}", noise_scale);//debug
-                avPID.P = ((ATCB.MixedConfig.avP_A / (Mathf.Pow(InstantTorqueRatio, ATCB.MixedConfig.avP_D) + ATCB.MixedConfig.avP_B) +
-                ATCB.MixedConfig.avP_C) / Utils.ClampL(Mathf.Abs(AM), 1) / MaxAA) * noise_scale;
-                avPID.D = ((ATCB.MixedConfig.avD_A / (Mathf.Pow(InstantTorqueRatio, ATCB.MixedConfig.avD_D) + ATCB.MixedConfig.avD_B) +
-                ATCB.MixedConfig.avD_C) / Mathf.Pow(MaxAA, ATCB.MixedConfig.avD_MaxAA_Curve)) * noise_scale;
-                avPID.I = ATCB.MixedConfig.avI_Scale * Utils.ClampH(MaxAA, 1);
+                avPID.P = ((C.MixedConfig.avP_A / (Mathf.Pow(InstantTorqueRatio, C.MixedConfig.avP_D) + C.MixedConfig.avP_B) +
+                C.MixedConfig.avP_C) / Utils.ClampL(Mathf.Abs(AM), 1) / MaxAA) * noise_scale;
+                avPID.D = ((C.MixedConfig.avD_A / (Mathf.Pow(InstantTorqueRatio, C.MixedConfig.avD_D) + C.MixedConfig.avD_B) +
+                C.MixedConfig.avD_C) / Mathf.Pow(MaxAA, C.MixedConfig.avD_MaxAA_Curve)) * noise_scale;
+                avPID.I = C.MixedConfig.avI_Scale * Utils.ClampH(MaxAA, 1);
             }
 
             void tune_av_pid_slow(float AV, float MaxAA, float EnginesResponseTime, float SpecificTorque, float Err)
             {
-                var slowF = (1 + ATCB.SlowConfig.SlowTorqueF * EnginesResponseTime * SpecificTorque);
-                var noise_scale = noise_scale_factor(ATCB.SlowConfig, AV, Err);
+                var slowF = (1 + C.SlowConfig.SlowTorqueF * EnginesResponseTime * SpecificTorque);
+                var noise_scale = noise_scale_factor(C.SlowConfig, AV, Err);
 //                TCAGui.AddDebugMessage("SlowF: {}\nnoise scale: {}", slowF, noise_scale);//debug
                 if(MaxAA >= 1)
                 {
-                    avPID.P = ATCB.SlowConfig.avP_HighAA_Scale / slowF * noise_scale;
-                    avPID.D = Utils.ClampL(ATCB.SlowConfig.avD_HighAA_Intersect - ATCB.SlowConfig.avD_HighAA_Inclination * MaxAA, ATCB.SlowConfig.avD_HighAA_Max) * noise_scale;
+                    avPID.P = C.SlowConfig.avP_HighAA_Scale / slowF * noise_scale;
+                    avPID.D = Utils.ClampL(C.SlowConfig.avD_HighAA_Intersect - C.SlowConfig.avD_HighAA_Inclination * MaxAA, C.SlowConfig.avD_HighAA_Max) * noise_scale;
                 }
                 else
                 {
-                    avPID.P = ATCB.SlowConfig.avP_LowAA_Scale / slowF * noise_scale;
-                    avPID.D = ATCB.SlowConfig.avD_LowAA_Intersect - ATCB.SlowConfig.avD_LowAA_Inclination * MaxAA * noise_scale;
+                    avPID.P = C.SlowConfig.avP_LowAA_Scale / slowF * noise_scale;
+                    avPID.D = C.SlowConfig.avD_LowAA_Intersect - C.SlowConfig.avD_LowAA_Inclination * MaxAA * noise_scale;
                 }
                 avPID.I = 0;
             }
@@ -243,17 +247,17 @@ namespace ThrottleControlledAvionics
             public void Tune(float AV, float AM, float MaxAA, float iMaxAA, float Err, float iErr,
                              float InstantTorqueRatio, float EnginesResponseTime, float SpecificTorque)
             {
-                if(InstantTorqueRatio > ATCB.FastThreshold)
+                if(InstantTorqueRatio > C.FastThreshold)
                 {
-                    tune_at_pid_fast(ATCB.FastConfig, AV, AM, MaxAA, iMaxAA, iErr);
-                    tune_av_pid_fast(ATCB.FastConfig, MaxAA);
+                    tune_at_pid_fast(C.FastConfig, AV, AM, MaxAA, iMaxAA, iErr);
+                    tune_av_pid_fast(C.FastConfig, MaxAA);
                 }
-                else if(InstantTorqueRatio > ATCB.MixedThreshold)
+                else if(InstantTorqueRatio > C.MixedThreshold)
                 {
-                    tune_at_pid_fast(ATCB.MixedConfig, AV, AM, MaxAA, iMaxAA, iErr);
-                    tune_av_pid_fast(ATCB.MixedConfig, MaxAA);
+                    tune_at_pid_fast(C.MixedConfig, AV, AM, MaxAA, iMaxAA, iErr);
+                    tune_av_pid_fast(C.MixedConfig, MaxAA);
                 }
-                else if(InstantTorqueRatio > ATCB.SlowThreshold)
+                else if(InstantTorqueRatio > C.SlowThreshold)
                 {
                     tune_at_pid_slow();
                     tune_av_pid_mixed(AV, AM, MaxAA, InstantTorqueRatio, Err);
@@ -267,13 +271,13 @@ namespace ThrottleControlledAvionics
 
             public void TuneFast(float AV, float AM, float MaxAA, float iMaxAA, float iErr)
             {
-                tune_at_pid_fast(ATCB.FastConfig, AV, AM, MaxAA, iMaxAA, iErr);
-                tune_av_pid_fast(ATCB.FastConfig, MaxAA);
+                tune_at_pid_fast(C.FastConfig, AV, AM, MaxAA, iMaxAA, iErr);
+                tune_av_pid_fast(C.FastConfig, MaxAA);
             }
 
             public float UpdateAV(float avError)
             {
-                var tau = ATCB.avAction_Filter * TimeWarp.fixedDeltaTime;
+                var tau = C.avAction_Filter * TimeWarp.fixedDeltaTime;
                 avFilter.Tau = tau;
                 avPID.setTau(tau);
                 avPID.Update(avError);
@@ -305,9 +309,9 @@ namespace ThrottleControlledAvionics
         public override void Init()
         { 
             base.Init();
-            pid_pitch.SetParams(ATCB.atPID_Clamp, ATCB.avPID_Clamp);
-            pid_roll.SetParams(ATCB.atPID_Clamp, ATCB.avPID_Clamp);
-            pid_yaw.SetParams(ATCB.atPID_Clamp, ATCB.avPID_Clamp);
+            pid_pitch.SetParams(C.atPID_Clamp, C.avPID_Clamp);
+            pid_roll.SetParams(C.atPID_Clamp, C.avPID_Clamp);
+            pid_yaw.SetParams(C.atPID_Clamp, C.avPID_Clamp);
             Reset();
         }
 
@@ -418,7 +422,7 @@ namespace ThrottleControlledAvionics
             var axis_correction = Vector3.ProjectOnPlane(AV, rotation_axis);
             if(axis_correction.IsInvalid() || axis_correction.IsZero())
                 return avErr;
-            var ACf = axis_correction.sqrMagnitude / AV.sqrMagnitude * Utils.ClampH(Err * ATCB.AxisCorrection, 1);
+            var ACf = axis_correction.sqrMagnitude / AV.sqrMagnitude * Utils.ClampH(Err * C.AxisCorrection, 1);
             return Vector3.Lerp(avErr, axis_correction, ACf);
         }
 
@@ -439,7 +443,7 @@ namespace ThrottleControlledAvionics
             var MaxAA = VSL.Torque.Slow ? 
                 VSL.Torque.Instant.AA + VSL.Torque.SlowMaxPossible.AA * Mathf.Min(VSL.PreUpdateControls.mainThrottle, VSL.OnPlanetParams.GeeVSF) :
                 VSL.Torque.MaxCurrent.AA;
-            MaxAA_Filter.Tau = (1 - Mathf.Sqrt(angular_error)) * ATCB.AALowPassF;
+            MaxAA_Filter.Tau = (1 - Mathf.Sqrt(angular_error)) * C.AALowPassF;
             MaxAA = MaxAA_Filter.Update(MaxAA);
             var iMaxAA = MaxAA.Inverse(0);
             if(VSL.Torque.Slow)
@@ -475,16 +479,16 @@ namespace ThrottleControlledAvionics
         {
             ErrorDif.Update(VSL.Controls.AttitudeError);
             if(ErrorDif.MaxOrder < 1) return;
-            var max_alignment_time = VSL.Info.Countdown > 0 ? VSL.Info.Countdown : ATCB.MaxTimeToAlignment;
+            var max_alignment_time = VSL.Info.Countdown > 0 ? VSL.Info.Countdown : C.MaxTimeToAlignment;
             var omega = Mathf.Abs(ErrorDif[1] / TimeWarp.fixedDeltaTime);
             var turn_time = VSL.Controls.MinAlignmentTime - omega / VSL.Torque.MaxCurrent.AA_rad / Mathf.Rad2Deg;
             if(VSL.Controls.HaveControlAuthority &&
-            VSL.Controls.AttitudeError > ATCB.MaxAttitudeError &&
+            VSL.Controls.AttitudeError > C.MaxAttitudeError &&
             (ErrorDif[1] >= 0 || turn_time > max_alignment_time))
                 VSL.Controls.HaveControlAuthority = !AuthorityTimer.TimePassed;
             else if(!VSL.Controls.HaveControlAuthority &&
-            (VSL.Controls.AttitudeError < ATCB.AttitudeErrorThreshold ||
-            VSL.Controls.AttitudeError < ATCB.MaxAttitudeError * 2 && ErrorDif[1] < 0 &&
+            (VSL.Controls.AttitudeError < C.AttitudeErrorThreshold ||
+            VSL.Controls.AttitudeError < C.MaxAttitudeError * 2 && ErrorDif[1] < 0 &&
             turn_time < max_alignment_time))
                 VSL.Controls.HaveControlAuthority = AuthorityTimer.TimePassed;
             else AuthorityTimer.Reset();
@@ -516,13 +520,6 @@ namespace ThrottleControlledAvionics
     [OptionalModules(typeof(TimeWarpControl))]
     public class AttitudeControl : GeneralAttitudeControl
     {
-        public new class Config : ComponentConfig
-        {
-            [Persistent] public float KillRotThreshold = 1e-5f;
-        }
-
-        static Config ATC { get { return Globals.Instance.ATC; } }
-
         readonly MinimumF momentum_min = new MinimumF();
         Transform refT;
         Quaternion locked_attitude;
@@ -665,7 +662,7 @@ namespace ThrottleControlledAvionics
             switch(CFG.AT.state)
             {
             case Attitude.Custom:
-                if(CustomRotation.Equals(default(Rotation)))
+                if(!CustomRotation)
                     goto case Attitude.KillRotation;
                 lthrust = CustomRotation.current;
                 needed_lthrust = CustomRotation.needed;
@@ -699,7 +696,7 @@ namespace ThrottleControlledAvionics
             case Attitude.Prograde:
             case Attitude.Retrograde:
                 v = VSL.InOrbit ? VSL.vessel.obt_velocity : VSL.vessel.srf_velocity;
-                if(v.magnitude < GLB.THR.MinDeltaV)
+                if(v.magnitude < ThrottleControl.C.MinDeltaV)
                 {
                     CFG.AT.On(Attitude.KillRotation);
                     break;
@@ -719,7 +716,7 @@ namespace ThrottleControlledAvionics
                 v = VSL.InOrbit ? 
                     VSL.Target.GetObtVelocity() - VSL.vessel.obt_velocity : 
                     VSL.Target.GetSrfVelocity() - VSL.vessel.srf_velocity;
-                if(v.magnitude < GLB.THR.MinDeltaV)
+                if(v.magnitude < ThrottleControl.C.MinDeltaV)
                 {
                     CFG.AT.On(Attitude.KillRotation);
                     break;

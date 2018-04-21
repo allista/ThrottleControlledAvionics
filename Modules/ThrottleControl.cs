@@ -17,13 +17,14 @@ namespace ThrottleControlledAvionics
     [ModuleInputs(typeof(AttitudeControl))]
     public class ThrottleControl : AutopilotModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float MinDeltaV        = 0.1f; //m/s
             [Persistent] public float DeltaVThreshold  = 10f;  //sec
             [Persistent] public float AttitudeDeadzone = 1f;   //deg
         }
-        static Config THR { get { return Globals.Instance.THR; } }
+        public static Config C => Config.INST;
+
         public ThrottleControl(ModuleTCA tca) : base(tca) {}
 
         float throttle = -1;
@@ -40,7 +41,7 @@ namespace ThrottleControlledAvionics
 
         public static float NextThrottle(float dV, float throttle, float mass, float thrust, float deceleration_time)
         {
-            var dt = Utils.Clamp(dV/THR.DeltaVThreshold, 0.5f, 2f);
+            var dt = Utils.Clamp(dV/C.DeltaVThreshold, 0.5f, 2f);
             return Utils.Clamp((dV/thrust*mass-throttle*deceleration_time)/dt, 0f, 1f); 
         }
 
@@ -48,7 +49,7 @@ namespace ThrottleControlledAvionics
         {
             if(state == CFG.BlockThrottle) return;
             CFG.BlockThrottle = state;
-            if(CFG.BlockThrottle && CFG.VerticalCutoff >= GLB.VSC.MaxSpeed)
+            if(CFG.BlockThrottle && CFG.VerticalCutoff >= VerticalSpeedControl.C.MaxSpeed)
                 CFG.VerticalCutoff = 0;
         }
 
@@ -81,11 +82,11 @@ namespace ThrottleControlledAvionics
         {
             if(DeltaV >= 0)
             {
-                throttle = DeltaV < THR.MinDeltaV? throttle = 0 :
+                throttle = DeltaV < C.MinDeltaV? throttle = 0 :
                     NextThrottle(DeltaV, CS.mainThrottle);
                 if(CorrectThrottle)
                 {
-                    var errorF = VSL.Controls.OffsetAlignmentFactor(THR.AttitudeDeadzone);
+                    var errorF = VSL.Controls.OffsetAlignmentFactor(C.AttitudeDeadzone);
                      if(errorF < 1) 
                     {
                         var max_lim = Utils.Clamp(Mathf.Abs(VSL.Controls.Steering.MaxComponentF()), errorF, 1);

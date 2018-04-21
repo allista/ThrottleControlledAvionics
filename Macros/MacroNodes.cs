@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
         { Name = "Set Vertical Speed to"; Suffix = "m/s"; }
 
         protected override void OnValueChanged ()
-        { Value.Value = Utils.Clamp(Value, -GLB.VSC.MaxSpeed, GLB.VSC.MaxSpeed); }
+        { Value.Value = Utils.Clamp(Value, -VerticalSpeedControl.C.MaxSpeed, VerticalSpeedControl.C.MaxSpeed); }
 
         protected override bool Action(VesselWrapper VSL)
         { 

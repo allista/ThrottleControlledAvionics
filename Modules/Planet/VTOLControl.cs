@@ -20,11 +20,11 @@ namespace ThrottleControlledAvionics
                      typeof(CruiseControl))]
     public class VTOLControl : GeneralAttitudeControl
     {
-        public new class Config : ComponentConfig
+        public new class Config : ComponentConfig<Config>
         {
             [Persistent] public float MaxAngle = 45f;
         }
-        static Config VTOL { get { return Globals.Instance.VTOL; } }
+        public static Config VTOL => Config.INST;
 
         public VTOLControl(ModuleTCA tca) : base(tca) {}
 

@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
             {
                 if(_Cd < 0)
                     //0.0005 converts dynamic pressure to kPa and divides area by 2: Drag = dP * Cd * S/2.
-                    _Cd = 0.0005 * Globals.Instance.ORB.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
+                    _Cd = 0.0005 * ToOrbitAutopilot.C.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
                 return _Cd;
             }
         }
@@ -172,11 +172,11 @@ namespace ThrottleControlledAvionics
             var pitch = new PIDf_Controller3();
             var throttle = new PIDf_Controller3();
             var throttle_correction = new PIDf_Controller3();
-            pitch.setPID(GLB.ORB.TargetPitchPID);
-            pitch.Min = -GLB.ATCB.MaxAttitudeError;
-            throttle.setPID(GLB.ORB.ThrottlePID);
+            pitch.setPID(ToOrbitAutopilot.C.TargetPitchPID);
+            pitch.Min = -AttitudeControlBase.C.MaxAttitudeError;
+            throttle.setPID(ToOrbitAutopilot.C.ThrottlePID);
             throttle.setClamp(0.5f);
-            throttle_correction.setPID(GLB.ORB.ThrottleCorrectionPID);
+            throttle_correction.setPID(ToOrbitAutopilot.C.ThrottleCorrectionPID);
             var thrust = true;
 			var R = r.magnitude;
             var prev_r = r;
@@ -194,7 +194,7 @@ namespace ThrottleControlledAvionics
                 var thr = thrust? max_G_throttle(mTm, m, maxG) : 0;
                 var nV = v;
                 if(thrust && 
-                   Vector2d.Dot(r.normalized, v) / VSL.Physics.StG > ToOrbitExecutor.MinClimbTime)
+                   Vector2d.Dot(r.normalized, v) / VSL.Physics.StG > ToOrbitExecutor.Config.INST.MinClimbTime)
                 {
                     var rr1 = r1-r;
                     var slv = new LambertSolver2D(Body, r, v, r1);
@@ -216,8 +216,8 @@ namespace ThrottleControlledAvionics
                     pitch.Max = AoA < neededAoA ? 0 : (float)AoA;
                     pitch.Update((float)angle2Hor);
                     if(AoA < neededAoA && pitch.Action.Equals(pitch.Max))
-                        pitch.Action = (float)Utils.ClampL(AoA - neededAoA, -GLB.ATCB.MaxAttitudeError);
-                    var startF = Utils.Clamp((h - VSL.Altitude.Absolute) / GLB.ORB.GTurnOffset, 0, 1);
+                        pitch.Action = (float)Utils.ClampL(AoA - neededAoA, -AttitudeControlBase.C.MaxAttitudeError);
+                    var startF = Utils.Clamp((h - VSL.Altitude.Absolute) / ToOrbitAutopilot.C.GTurnOffset, 0, 1);
                     T = rel_v.Rotate(pitch.Action * startF).normalized;
                     if(Vector2d.Dot(T, r) < 0)
                         T = srf_dir;
@@ -244,7 +244,7 @@ namespace ThrottleControlledAvionics
                 }
                 r += v*DeltaTime;
                 t += DeltaTime;
-                DebugUtils.CSV("ToOrbitSim.csv", t, r, v, rel_v, T*mTm/m*thr, h, m, thr, r1, nV);//debug
+                //DebugUtils.CSV("ToOrbitSim.csv", t, r, v, rel_v, T*mTm/m*thr, h, m, thr, r1, nV);//debug
             }
             return t-DeltaTime/2;
         }
@@ -283,7 +283,7 @@ namespace ThrottleControlledAvionics
         //            var dapa = (ApA-apa)*gturn_curve;
         //            var arc = (alpha-v.y*apaT/(R+(h+apa)/2))*(R+apa);
         //            var vv = Utils.ClampL(dapa, 0);
-        //            var hv = Utils.ClampL(arc-dapa, 0)*Utils.Clamp((h-VSL.Altitude.Absolute)/GLB.ORB.GTurnOffset, 0, 1);
+        //            var hv = Utils.ClampL(arc-dapa, 0)*Utils.Clamp((h-VSL.Altitude.Absolute)/ToOrbitAutopilot.ORB.GTurnOffset, 0, 1);
         //            if(h < Body.atmosphereDepth) hv *= Math.Sqrt(atmF);
         //            var angle = Math.Atan2(vv, hv);
         //            throttle = ThrottleControl.NextThrottle((float)(Math.Sqrt(vv*vv+hv*hv)*Globals.Instance.ORB.Dist2VelF*VSL.Physics.StG/Utils.G0), 
@@ -296,7 +296,7 @@ namespace ThrottleControlledAvionics
         //                h_throttle = Math.Cos(angle) ;
         //                v.y += (mTm*h_throttle*throttle/m)*DeltaTime;
         //            }
-        //            thrust = ApA-apa > GLB.ORB.Dtol && arc > GLB.ORB.Dtol;
+        //            thrust = ApA-apa > ToOrbitAutopilot.ORB.Dtol && arc > ToOrbitAutopilot.ORB.Dtol;
         //            if(!CheatOptions.InfinitePropellant)
         //            {
         //                var dm = mflow*(h_throttle+v_throttle)*throttle*DeltaTime;

@@ -182,7 +182,7 @@ namespace ThrottleControlledAvionics
             DTWR_filter.Update(DTWR);
             GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
             var mVSFtor = (VSL.Torque.MaxPitchRoll.AA_rad > 0)? 
-                Utils.ClampH(GLB.VSC.MinVSFf/VSL.Torque.MaxPitchRoll.AA_rad, GLB.VSC.MaxVSFtwr*GeeVSF) : 0;
+                Utils.ClampH(VerticalSpeedControl.C.MinVSFf/VSL.Torque.MaxPitchRoll.AA_rad, VerticalSpeedControl.C.MaxVSFtwr*GeeVSF) : 0;
             MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
             var down_thrust = Mathf.Max(vLift, 0);
             var slow_thrust = 0f;
@@ -223,15 +223,15 @@ namespace ThrottleControlledAvionics
                 //correct setpoint for current TWR and slow engines
                 var rel_slow_thrust = slow_thrust*slow_thrust/controllable_thrust;
                 if(CurrentThrustAccelerationTime > 0) 
-                    CurrentThrustAccelerationTime = rel_slow_thrust/CurrentThrustAccelerationTime*GLB.VSC.ASf;
+                    CurrentThrustAccelerationTime = rel_slow_thrust/CurrentThrustAccelerationTime*VerticalSpeedControl.C.ASf;
                 if(CurrentThrustDecelerationTime > 0) 
-                    CurrentThrustDecelerationTime = rel_slow_thrust/CurrentThrustDecelerationTime*GLB.VSC.DSf;
+                    CurrentThrustDecelerationTime = rel_slow_thrust/CurrentThrustDecelerationTime*VerticalSpeedControl.C.DSf;
                 //TWR factor
                 var vsf = 1f;
                 if(VSL.VerticalSpeed.Absolute < 0)
-                    vsf = Utils.Clamp(1 -(Utils.ClampH(CFG.VerticalCutoff, 0)-VSL.VerticalSpeed.Absolute)/GLB.TDC.VSf, 1e-9f, 1);
+                    vsf = Utils.Clamp(1 -(Utils.ClampH(CFG.VerticalCutoff, 0)-VSL.VerticalSpeed.Absolute)/ThrustDirectionControl.C.VSf, 1e-9f, 1);
                 var twr = VSL.Engines.Slow? DTWR_filter.Value : MaxTWR*Utils.Sin45; //MaxTWR at 45deg
-                TWRf = Utils.Clamp(twr/GLB.TDC.TWRf, 1e-9f, 1)*vsf;
+                TWRf = Utils.Clamp(twr/ThrustDirectionControl.C.TWRf, 1e-9f, 1)*vsf;
             }
             //parachutes
             UnusedParachutes.Clear();

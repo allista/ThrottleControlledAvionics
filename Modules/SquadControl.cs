@@ -17,12 +17,6 @@ namespace ThrottleControlledAvionics
     [CareerPart]
     public class SquadControl : TCAModule
     {
-//        public class Config : ModuleConfig
-//        {
-//            new public const string NODE_NAME = "SQD";
-//        }
-//        static Config SQD { get { return Globals.Instance.SQD; } }
-
         public SquadControl(ModuleTCA tca) : base(tca) {}
 
         public bool SquadMode;

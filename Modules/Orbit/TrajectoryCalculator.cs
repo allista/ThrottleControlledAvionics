@@ -16,22 +16,22 @@ namespace ThrottleControlledAvionics
 {
     public abstract class TrajectoryCalculator : TCAModule
     {
-        public class Config : TCAModule.ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float dVtol              = 0.01f; //m/s
             [Persistent] public int   PerFrameIterations = 10;
             [Persistent] public float ManeuverOffset     = 60f;    //s
             [Persistent] public float CorrectionOffset   = 20f;    //s
         }
-        protected static Config TRJ { get { return Globals.Instance.TRJ; } }
+        public static Config C => Config.INST;
 
         protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
         //multiple inheritance or some sort of mixins or property extensions would be great here =/
         public Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
         public CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
         public Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
-        public float ManeuverOffset { get { return Math.Max(TRJ.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime); } }
-        public float CorrectionOffset { get { return Math.Max(TRJ.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime); } }
+        public float ManeuverOffset { get { return Math.Max(C.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime); } }
+        public float CorrectionOffset { get { return Math.Max(C.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime); } }
         public double MinPeR { get { return VesselOrbit.MinPeR(); } }
 
         public static Orbit NextOrbit(Orbit orb, double UT)
@@ -175,7 +175,7 @@ namespace ThrottleControlledAvionics
                 }
             }
             else max_dV = hvel.magnitude+add_dV.magnitude;
-            while(max_dV-min_dV > TRJ.dVtol)
+            while(max_dV-min_dV > C.dVtol)
             {
                 var dV = (max_dV+min_dV)/2;
                 var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT);
@@ -212,7 +212,7 @@ namespace ThrottleControlledAvionics
                 if(R < min_ApR) R = min_ApR;
                 max_dV = hvel.magnitude+add_dV.magnitude;
             }
-            while(max_dV-min_dV > TRJ.dVtol)
+            while(max_dV-min_dV > C.dVtol)
             {
                 var dV = (max_dV+min_dV)/2;
                 var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT);
@@ -243,7 +243,7 @@ namespace ThrottleControlledAvionics
                 { max_dV *= 2; if(max_dV > 100000) break; }
             }
             else max_dV = old.getOrbitalVelocityAtUT(UT).magnitude+add_dV.magnitude;
-            while(max_dV-min_dV > TRJ.dVtol)
+            while(max_dV-min_dV > C.dVtol)
             {
                 var dV = (max_dV+min_dV)/2;
                 var nR = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT)
@@ -265,7 +265,7 @@ namespace ThrottleControlledAvionics
             var max_dV = up? dV4C(old, dir, UT).magnitude : dir.magnitude;
             if(!up) dir = -dir;
             dir.Normalize();
-            while(max_dV-min_dV > TRJ.dVtol)
+            while(max_dV-min_dV > C.dVtol)
             {
                 var dV = (max_dV+min_dV)/2;
                 var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV, UT);
@@ -307,7 +307,7 @@ namespace ThrottleControlledAvionics
             var velN = (Math.Sin(LaunchRad)*VesselOrbit.pos.normalized + Math.Cos(LaunchRad)*hVdir).normalized;
             var vel = Math.Sqrt(2*VSL.Physics.StG*(ApR-Body.Radius)) / Math.Sin(LaunchRad);
             var v   = 0.0;
-            while(vel-v > TRJ.dVtol)
+            while(vel-v > C.dVtol)
             {
                 var V = (v+vel)/2;
                 var o = NewOrbit(VesselOrbit, velN*V-VesselOrbit.vel, VSL.Physics.UT);
@@ -410,7 +410,7 @@ namespace ThrottleControlledAvionics
                     t = NewOrbit(old, dir*maxV, UT).period;
                 }
             }
-            while(maxV-minV > TRJ.dVtol)
+            while(maxV-minV > C.dVtol)
             {
                 var v = (maxV+minV)/2;
                 var t = NewOrbit(old, dir*v, UT).period;
@@ -452,7 +452,7 @@ namespace ThrottleControlledAvionics
             var maxV = 0.0;
             var lowTTR = double.MaxValue;
             double lowV;
-            while(maxV-minV > TRJ.dVtol)
+            while(maxV-minV > C.dVtol)
             {
                 lowV = (maxV+minV)/2;
                 var o = NewOrbit(old, dir*lowV, UT);
@@ -466,7 +466,7 @@ namespace ThrottleControlledAvionics
             maxV = max_dV;
             var highTTR = double.MaxValue;
             double highV;
-            while(maxV-minV > TRJ.dVtol)
+            while(maxV-minV > C.dVtol)
             {
                 highV = (maxV+minV)/2;
                 var o = NewOrbit(old, dir*highV, UT);
@@ -642,7 +642,7 @@ namespace ThrottleControlledAvionics
             Vector3d dV;
             double TTB;
             double TimeToStart = 0;
-            int maxI = TRJ.PerFrameIterations;
+            int maxI = C.PerFrameIterations;
             do {
                 if(TimeToStart > 0 && TimeToStart < offset)
                     StartUT += offset-TimeToStart+1;
@@ -705,7 +705,7 @@ namespace ThrottleControlledAvionics
             yield return null;
             var I = 0;
             T t = null;
-            var frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
+            var frameI = setp_by_step_computation? 1 : C.PerFrameIterations;
             var ioptimizer = optimizer.GetEnumerator();
             Status("white", "{0}\nPush to continue", optimizer.Status);
             while(true)
@@ -736,7 +736,7 @@ namespace ThrottleControlledAvionics
                     }
                     else Status(optimizer.Status);
                     yield return t;
-                    frameI = setp_by_step_computation? 1 : TRJ.PerFrameIterations;
+                    frameI = setp_by_step_computation? 1 : C.PerFrameIterations;
                 }
             }
             clear_nodes();

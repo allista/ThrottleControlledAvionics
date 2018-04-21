@@ -114,7 +114,7 @@ namespace ThrottleControlledAvionics
             //use translation controls
             if(VSL.Controls.TranslationAvailable)
             {
-                if(dVrem || VSL.Controls.AttitudeError > GLB.ATCB.AttitudeErrorThreshold)
+                if(dVrem || VSL.Controls.AttitudeError > AttitudeControlBase.C.AttitudeErrorThreshold)
                     TRA.AddDeltaV(-VSL.LocalDir(dV));
                 if(dVrem && CFG.AT[Attitude.KillRotation])
                 {

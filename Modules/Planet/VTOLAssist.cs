@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
                      typeof(AttitudeControl))]
     public class VTOLAssist : TCAModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float MinHSpeed   = 0.1f;
             [Persistent] public float MaxHSpeed   = 10;
@@ -35,7 +35,8 @@ namespace ThrottleControlledAvionics
             [Persistent] public float GearOnAtH       = 5f;
             [Persistent] public float GearOnTime      = 5f;
         }
-        static Config TLA { get { return Globals.Instance.TLA; } }
+        public static Config C => Config.INST;
+
         public VTOLAssist(ModuleTCA tca) : base(tca) {}
 
         VerticalSpeedControl VSC;
@@ -68,8 +69,8 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
-            GearTimer.Period = TLA.GearTimer;
-            LandedTimer.Period = TLA.LandedTimer;
+            GearTimer.Period = C.GearTimer;
+            LandedTimer.Period = C.LandedTimer;
             StopAction.action = () => CFG.HF.OnIfNot(HFlight.Stop);
             Reset();
         }
@@ -113,7 +114,7 @@ namespace ThrottleControlledAvionics
                 CFG.HF.OnIfNot(HFlight.Level);
                 VSL.BrakesOn();
                 LandedTimer.RunIf(() => stage = Stage.JustLanded2,
-                                  VSL.HorizontalSpeed < TLA.MinHSpeed);
+                                  VSL.HorizontalSpeed < C.MinHSpeed);
                 break;
             case Stage.JustLanded2:
                 if(ATC != null)
@@ -157,13 +158,13 @@ namespace ThrottleControlledAvionics
                 else
                 {
                     var avSqr = VSL.vessel.angularVelocity.sqrMagnitude;
-                    if(VSL.HorizontalSpeed < TLA.MaxHSpeed &&
-                       avSqr > TLA.MinAngularVelocity)
+                    if(VSL.HorizontalSpeed < C.MaxHSpeed &&
+                       avSqr > C.MinAngularVelocity)
                     {
                         working();
                         CFG.HF.OnIfNot(HFlight.Level);
-                        if(avSqr > TLA.GearOffAngularVelocity && 
-                           VSL.OnPlanetParams.DTWR > TLA.MinDTWR)
+                        if(avSqr > C.GearOffAngularVelocity && 
+                           VSL.OnPlanetParams.DTWR > C.MinDTWR)
                             VSL.GearOn(false);
                     }
                     else working(false);
@@ -174,11 +175,11 @@ namespace ThrottleControlledAvionics
                 if(!VSL.vessel.ActionGroups[KSPActionGroup.Gear])
                 {
                     if(VSL.VerticalSpeed.Relative < 0 &&
-                       VSL.HorizontalSpeed < TLA.GearOnMaxHSpeed &&
+                       VSL.HorizontalSpeed < C.GearOnMaxHSpeed &&
                        (!CFG.AT || !VSL.Altitude.AboveGround || VSL.Engines.Thrust.IsZero()) &&
                        VSL.Altitude.Relative+
-                       VSL.VerticalSpeed.Relative*(VSL.OnPlanetParams.GearDeployTime+TLA.GearOnTime) 
-                       < TLA.GearOnAtH*VSL.Geometry.H)
+                       VSL.VerticalSpeed.Relative*(VSL.OnPlanetParams.GearDeployTime+C.GearOnTime) 
+                       < C.GearOnAtH*VSL.Geometry.H)
                     {
                         VSL.GearOn(); 
                         VSL.BrakesOn();
@@ -187,8 +188,8 @@ namespace ThrottleControlledAvionics
                 else if(VSL.OnPlanetParams.GearDeploying)
                 {
                     if(VSC != null) 
-                        VSC.SetpointOverride = Utils.ClampH((TLA.GearOnAtH*VSL.Geometry.H-VSL.Altitude.Relative)/
-                                                            (VSL.OnPlanetParams.GearDeployTime+TLA.GearOnTime), 0);
+                        VSC.SetpointOverride = Utils.ClampH((C.GearOnAtH*VSL.Geometry.H-VSL.Altitude.Relative)/
+                                                            (VSL.OnPlanetParams.GearDeployTime+C.GearOnTime), 0);
                 }
                 else GearTimer.RunIf(() => 
                 {
@@ -196,7 +197,7 @@ namespace ThrottleControlledAvionics
                     VSL.BrakesOn(false);
                 },
                                      VSL.VerticalSpeed.Relative > 5 ||
-                                     VSL.HorizontalSpeed > TLA.GearOnMaxHSpeed || 
+                                     VSL.HorizontalSpeed > C.GearOnMaxHSpeed || 
                                      VSL.VerticalSpeed.Relative > 0 && VSL.Altitude.Relative > VSL.Geometry.H*5);
                 break;
             }

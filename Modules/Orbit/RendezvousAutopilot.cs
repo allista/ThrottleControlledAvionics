@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
                     typeof(TimeWarpControl))]
     public class RendezvousAutopilot : TargetedTrajectoryCalculator<RendezvousTrajectory>
     {
-        public new class Config : ComponentConfig
+        public new class Config : ComponentConfig<Config>
         {
             [Persistent] public float Dtol = 100f;   //m
             [Persistent] public float MaxTTR = 3f;     //VesselOrbit.periods
@@ -38,7 +38,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float ApproachVelF = 0.01f;  //parts
             [Persistent] public float MaxInclinationDelta = 30;     //deg
         }
-        static Config REN { get { return Globals.Instance.REN; } }
+        public static Config REN => Config.INST;
 
         public RendezvousAutopilot(ModuleTCA tca) : base(tca) { }
 
@@ -200,7 +200,7 @@ namespace ThrottleControlledAvionics
         void compute_rendezvou_trajectory()
         {
             VSL.Controls.StopWarp();
-            var minStartUT = VSL.Physics.UT + ManeuverOffset + TRJ.CorrectionOffset;
+            var minStartUT = VSL.Physics.UT + ManeuverOffset + C.CorrectionOffset;
             var transfer = (TargetOrbit.period + VesselOrbit.period) / 4;
             var softMaxStart = true;
             double maxStartUT, maxEndUT = -1;
@@ -239,7 +239,7 @@ namespace ThrottleControlledAvionics
         protected override void fine_tune_approach()
         {
             update_trajectory();
-            var startUT = VSL.Physics.UT + CorrectionOffset + TimeWarp.fixedDeltaTime * TRJ.PerFrameIterations * 10;
+            var startUT = VSL.Physics.UT + CorrectionOffset + TimeWarp.fixedDeltaTime * C.PerFrameIterations * 10;
             var transfer = trajectory.AtTargetUT - startUT;
             var dT = trajectory.TransferTime / 10;
             if(transfer <= 0)
@@ -411,7 +411,7 @@ namespace ThrottleControlledAvionics
                 endUT = Math.Max(endUT, tEndUT);
             var dT = Math.Min((endUT - startUT) / 10, Body.rotationPeriod / 10);
             var minPeR = MinPeR;
-            var maxPeR = minPeR + GLB.ORB.RadiusOffset;
+            var maxPeR = minPeR + ToOrbitAutopilot.C.RadiusOffset;
             var ApAArc = Mathf.Lerp((float)((MinPeR - Body.Radius) / Body.Radius), 1,
                                     Utils.ClampH((2 - GTurnCurve) / 2, 1));
             //search for the nearest approach start UT
@@ -501,9 +501,9 @@ namespace ThrottleControlledAvionics
             else
             {
                 //calculate target vector
-                var ApR = Utils.Clamp((TargetOrbit.PeR + TargetOrbit.ApR) / 2, MinPeR, MinPeR + GLB.ORB.RadiusOffset);
+                var ApR = Utils.Clamp((TargetOrbit.PeR + TargetOrbit.ApR) / 2, MinPeR, MinPeR + ToOrbitAutopilot.C.RadiusOffset);
                 var hVdir = Vector3d.Cross(VesselOrbit.pos, TargetOrbit.GetOrbitNormal()).normalized;
-                var ascO = AscendingOrbit(ApR, hVdir, GLB.ORB.LaunchSlope);
+                var ascO = AscendingOrbit(ApR, hVdir, ToOrbitAutopilot.C.LaunchSlope);
                 ToOrbit = new TargetedToOrbitExecutor(TCA);
                 ToOrbit.LaunchUT = VSL.Physics.UT;
                 ToOrbit.ApAUT = VSL.Physics.UT + ascO.timeToAp;
@@ -524,7 +524,7 @@ namespace ThrottleControlledAvionics
                 AtmoSim.FromSurfaceTTA(VSL, ManeuverOffset, ToOrbit.TargetR - Body.Radius,
                                        ToOrbit.ArcDistance, 
                                        Vector3d.Dot(SurfaceVel, Vector3d.Exclude(VesselOrbit.pos, ToOrbit.Target - VesselOrbit.pos).normalized), 3);
-            var maxPeR = MinPeR + GLB.ORB.RadiusOffset;
+            var maxPeR = MinPeR + ToOrbitAutopilot.C.RadiusOffset;
             var targetR = TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT);
             ToOrbit.Target = QuaternionD.AngleAxis((VSL.Physics.UT - ToOrbit.LaunchUT) / Body.rotationPeriod * 360, Body.angularVelocity.xzy) *
                 (targetR.magnitude < maxPeR ? ToOrbitIniApV.normalized * TargetOrbit.getRelativePositionAtUT(ToOrbit.ApAUT).magnitude : ToOrbitIniApV);
@@ -566,7 +566,7 @@ namespace ThrottleControlledAvionics
             var dVm = dV.magnitude;
             var dist = TargetVessel.CurrentCoM - VSL.Physics.wCoM;
             var distm = dist.magnitude - VSL.Geometry.MinDistance;
-            if(distm < REN.Dtol && dVm < GLB.THR.MinDeltaV * 2) return;
+            if(distm < REN.Dtol && dVm < ThrottleControl.C.MinDeltaV * 2) return;
             if(distm > REN.Dtol && Vector3.Dot(dist, dV.xzy) > 0)
                 CFG.AP1.On(Autopilot1.MatchVelNear);
             else CFG.AP1.On(Autopilot1.MatchVel);
@@ -668,7 +668,7 @@ namespace ThrottleControlledAvionics
             case Stage.PreLaunch:
                 if(launch_window_calculator != null)
                 {
-                    var i = TRJ.PerFrameIterations;
+                    var i = C.PerFrameIterations;
                     while(i-- > 0) { if(!launch_window_calculator.MoveNext()) break; }
                     if(i < 0) break;
                     launch_window_calculator = null;
@@ -877,7 +877,7 @@ namespace ThrottleControlledAvionics
                 if(CFG.AP1[Autopilot1.MatchVelNear]) break;
                 if(CFG.AP1[Autopilot1.MatchVel])
                 {
-                    if((TargetOrbit.vel - VesselOrbit.vel).magnitude > GLB.THR.MinDeltaV) break;
+                    if((TargetOrbit.vel - VesselOrbit.vel).magnitude > ThrottleControl.C.MinDeltaV) break;
                     CFG.AP1.Off();
                     THR.Throttle = 0;
                 }
@@ -1091,7 +1091,7 @@ namespace ThrottleControlledAvionics
                     if(is_better) Best = t;
                     minStartUT = ren.VSL.Physics.UT + ren.CorrectionOffset;
                     if(start - minStartUT < t.ManeuverDuration / 2)
-                        start = minStartUT + t.ManeuverDuration / 2 + TimeWarp.fixedDeltaTime * TRJ.PerFrameIterations * 10;
+                        start = minStartUT + t.ManeuverDuration / 2 + TimeWarp.fixedDeltaTime * C.PerFrameIterations * 10;
                     transfer = Math.Max(t.TransferTime + dt, 0);
                     if(scanned && (start + transfer > maxEndUT || transfer < 1 || t.KillerOrbit ||
                                    !t.KillerOrbit && !Best.KillerOrbit && !is_better) ||

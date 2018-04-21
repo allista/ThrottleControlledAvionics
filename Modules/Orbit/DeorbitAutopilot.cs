@@ -24,14 +24,14 @@ namespace ThrottleControlledAvionics
                     typeof(AutoLander))]
     public class DeorbitAutopilot : LandingTrajectoryAutopilot
     {
-        public new class Config : TCAModule.ComponentConfig
+        public new class Config : ComponentConfig<Config>
         {
             [Persistent] public float MinLandingAngle    = 20f;
             [Persistent] public float MaxLandingAngle    = 50f;
             [Persistent] public float MaxDynPressure     = 7f;
             [Persistent] public int   EccSteps           = 10;
         }
-        static Config DEO { get { return Globals.Instance.DEO; } }
+        public static new Config C => Config.INST;
 
         public DeorbitAutopilot(ModuleTCA tca) : base(tca) {}
 
@@ -127,7 +127,7 @@ namespace ThrottleControlledAvionics
                 : base(module, dtol) 
             {
                 Ecc = m.initialEcc;
-                dEcc = Math.Max(Ecc/DEO.EccSteps, 0.05);
+                dEcc = Math.Max(Ecc/C.EccSteps, 0.05);
             }
 
             Vector3d deorbit(double startUT)
@@ -178,21 +178,21 @@ namespace ThrottleControlledAvionics
                 dir /= dVm;
                 var bestDeltaV = dVm;
                 dVm = Math.Max(dVm+ddV, 0);
-                while(Math.Abs(ddV) > TRJ.dVtol)
+                while(Math.Abs(ddV) > TrajectoryCalculator.C.dVtol)
                 {
-                    var cur = newT(startUT, inclination, dir*dVm);
+                    var cur = newT(startUT, inclination, dir* dVm);
 //                    m.Log("startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, dVm, ddV, cur.DistanceToTarget);//debug
                     if(cur.FullManeuver &&
                        cur.DistanceToTarget < Best.DistanceToTarget) 
                     {
-                        Best = cur;
+						Best = cur;
                         bestDeltaV = dVm;
                     }
                     dVm += ddV;
                     if(dVm <= 0 || Best != cur)
                     {
                         ddV /= -2.1;
-                        dVm = Math.Max(bestDeltaV+ddV, 0);
+                        dVm = Math.Max(bestDeltaV + ddV, 0);
                     }
                     yield return cur;
                 }
@@ -241,20 +241,20 @@ namespace ThrottleControlledAvionics
                 var startUT = Best.StartUT;
                 var dir = m.hV(startUT).normalized;
                 var pg = prograde_dV+ddV;
-                while(Math.Abs(ddV) > TRJ.dVtol)
+                while(Math.Abs(ddV) > TrajectoryCalculator.C.dVtol)
                 {
-                    var cur = newT(startUT, inclination, dir*pg);
+                    var cur = newT(startUT, inclination, dir* pg);
 //                    m.Log("startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, pg, ddV, cur.DistanceToTarget);//debug
                     if(cur.DistanceToTarget < Best.DistanceToTarget) 
                     {
-                        Best = cur;
-                        prograde_dV = pg;
+						Best = cur;
+						prograde_dV = pg;
                     }
                     pg += ddV;
                     if(Best != cur)
                     {
                         ddV /= -2.1;
-                        pg = prograde_dV+ddV;
+                        pg = prograde_dV + ddV;
                     }
                     yield return cur;
                 }
@@ -289,7 +289,7 @@ namespace ThrottleControlledAvionics
                 maneuver = LTComparer.MakeCondition(x => x.FullManeuver, (x, y) => x.ManeuverFuel < y.ManeuverFuel);
                 dR = LTComparer.MakeCondition(x => x.DeltaR < -1, (x, y) => x.DeltaR < y.DeltaR);
                 overheat = LTComparer.MakeCondition(x => !x.WillOverheat, (x, y) => x.MaxShipTemperature < y.MaxShipTemperature);
-                steepness = LTComparer.MakeCondition(x => x.LandingSteepness > DEO.MinLandingAngle, (x, y) => x.LandingSteepness > y.LandingSteepness);
+                steepness = LTComparer.MakeCondition(x => x.LandingSteepness > C.MinLandingAngle, (x, y) => x.LandingSteepness > y.LandingSteepness);
             }
 
             public EccentricityOptimizer(DeorbitAutopilot module)
@@ -298,7 +298,7 @@ namespace ThrottleControlledAvionics
                 comparer = new LTComparer(maneuver, dR);
                 if(m.Body.atmosphere)
                 {
-                    var maxDynP = DEO.MaxDynPressure*m.VSL.Torque.MaxPossible.AngularDragResistance;
+                    var maxDynP = C.MaxDynPressure*m.VSL.Torque.MaxPossible.AngularDragResistance;
                     comparer.AddConditions(overheat, steepness);
                     comparer.AddCondition(x => x.MaxDynamicPressure < maxDynP, (x, y) => x.MaxDynamicPressure < y.MaxDynamicPressure);
                 }
@@ -332,14 +332,14 @@ namespace ThrottleControlledAvionics
                     var bestV = 0.0;
                     var dV = maxV/10;
                     var V = dV;
-                    while(Math.Abs(dV) > TRJ.dVtol)
+                    while(Math.Abs(dV) > TrajectoryCalculator.C.dVtol)
                     {
-                        var cur = new LandingTrajectory(m.VSL, start.ManeuverDeltaV+dir*V, start.StartUT, m.CFG.Target, start.TargetAltitude);
+                        var cur = new LandingTrajectory(m.VSL, start.ManeuverDeltaV+ dir * V, start.StartUT, m.CFG.Target, start.TargetAltitude);
 //                        m.Log("V {}, dV {}, is better {}\ncur {}\nbest {}", 
 //                              V, dV, comparer.isBetter(cur, Best), cur, Best);//debug
                         if(comparer.isBetter(cur, Best))
                         {
-                            Best = cur;
+							Best = cur;
                             bestV = V;
                         }
                         V += dV;
@@ -372,7 +372,7 @@ namespace ThrottleControlledAvionics
         void compute_landing_trajectory()
         {
             MAN.MinDeltaV = 1;
-            ComputeTrajectory(new DeorbitTrajectoryOptimizer(this, LTRJ.Dtol));
+			ComputeTrajectory(new DeorbitTrajectoryOptimizer(this, LandingTrajectoryAutopilot.C.Dtol));
             stage = Stage.Compute;
             trajectory = null;
         }
@@ -380,7 +380,7 @@ namespace ThrottleControlledAvionics
         protected override void fine_tune_approach()
         {
             CorrectionTimer.Reset();
-            ComputeTrajectory(new DeorbitTrajectoryCorrector(this, LTRJ.Dtol/2));
+			ComputeTrajectory(new DeorbitTrajectoryCorrector(this, LandingTrajectoryAutopilot.C.Dtol/2));
             stage = Stage.Correct;
             trajectory = null;
         }

@@ -16,7 +16,9 @@ namespace ThrottleControlledAvionics
 {
     public class RCSOptimizer : TorqueOptimizer
     {
-        static RCSOptimizer.Config RCS { get { return Globals.Instance.RCS; } }
+        public class Config : Config<Config> {}
+        public static Config C => Config.INST;
+
         public RCSOptimizer(ModuleTCA tca) : base(tca) {}
 
         public override void Disable() {}
@@ -50,7 +52,7 @@ namespace ThrottleControlledAvionics
             float error, angle;
             var last_error = -1f;
             Vector3 cur_imbalance, target;
-            for(int i = 0; i < RCS.MaxIterations; i++)
+            for(int i = 0; i < C.MaxIterations; i++)
             {
                 //calculate current errors and target
                 cur_imbalance = Vector3.zero;
@@ -68,8 +70,8 @@ namespace ThrottleControlledAvionics
                     TorqueError = error;
                 }
                 //check convergence conditions
-                if(error < RCS.OptimizationTorqueCutoff*RCS.OptimizationPrecision || 
-                   last_error > 0 && Mathf.Abs(error-last_error) < RCS.OptimizationPrecision*last_error)
+                if(error < C.OptimizationTorqueCutoff*C.OptimizationPrecision || 
+                   last_error > 0 && Mathf.Abs(error-last_error) < C.OptimizationPrecision*last_error)
                     break;
                 last_error = error;
                 //normalize limits before optimization
@@ -84,11 +86,11 @@ namespace ThrottleControlledAvionics
                     for(int j = 0; j < num_engines; j++) 
                     { var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
                 }
-                if(!optimization_pass(engines, num_engines, target, error, RCS.OptimizationPrecision)) 
+                if(!optimization_pass(engines, num_engines, target, error, C.OptimizationPrecision)) 
                     break;
             }
-            var optimized = TorqueError < RCS.OptimizationTorqueCutoff || 
-                (!zero_torque && TorqueAngle < RCS.OptimizationAngleCutoff);
+            var optimized = TorqueError < C.OptimizationTorqueCutoff || 
+                (!zero_torque && TorqueAngle < C.OptimizationAngleCutoff);
             //treat single-engine crafts specially
             if(num_engines == 1) 
                 engines[0].limit = optimized? 1f : 0f;

@@ -15,13 +15,13 @@ namespace ThrottleControlledAvionics
     [CareerPart(typeof(ManeuverAutopilot))]
     public class TimeWarpControl : TCAModule
     {
-        public class Config : ComponentConfig
+        public class Config : ComponentConfig<Config>
         {
             [Persistent] public float DewarpTime   = 20f;  //sec
             [Persistent] public float MaxWarp      = 10000f;
             [Persistent] public int   FramesToSkip = 3;
         }
-        static Config WRP { get { return Globals.Instance.WRP; } }
+        public static Config C => Config.INST;
 
         public TimeWarpControl(ModuleTCA tca) : base(tca) {}
 
@@ -69,7 +69,7 @@ namespace ThrottleControlledAvionics
         //but due to deltaTime steps it is safer to offset the dewarp time with F+1
         double TimeToDewarp(int rate_index)
         { 
-            var offset = VSL.Controls.NoDewarpOffset? 0 : WRP.DewarpTime/(VSL.LandedOrSplashed? 2 : 1);
+            var offset = VSL.Controls.NoDewarpOffset? 0 : C.DewarpTime/(VSL.LandedOrSplashed? 2 : 1);
             return VSL.Controls.WarpToTime-(offset+TimeWarp.fetch.warpRates[rate_index]-1)-VSL.Physics.UT;
         }
 
@@ -98,7 +98,7 @@ namespace ThrottleControlledAvionics
             if(TimeWarp.CurrentRateIndex < last_warp_index && can_increase_rate)
             { 
                 if(frames_to_skip < 0)
-                    frames_to_skip = TimeWarp.CurrentRateIndex * WRP.FramesToSkip;
+                    frames_to_skip = TimeWarp.CurrentRateIndex * C.FramesToSkip;
 //                Log("current index {}, max index at alt {}, frames_to_skip {}",
 //                    TimeWarp.CurrentRateIndex, 
 //                    TimeWarp.fetch.GetMaxRateForAltitude(VSL.vessel.altitude, VSL.Body),
@@ -127,7 +127,7 @@ namespace ThrottleControlledAvionics
                     VSL.Controls.WarpToTime = 0;
             }
             else if(TimeWarp.CurrentRateIndex < TimeWarp.fetch.warpRates.Length-1 && 
-                    TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= WRP.MaxWarp &&
+                    TimeWarp.fetch.warpRates[TimeWarp.CurrentRateIndex+1] <= C.MaxWarp &&
                     (VSL.LandedOrSplashed || can_increase_rate) &&
                     TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
                 TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false, false);

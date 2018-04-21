@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
             { 
                 var max_res = MaxPossible.AngularDragResistance;
                 return max_res > 1.1*MaxCurrent.AngularDragResistance &&
-                    max_res > VSL.Body.atmDensityASL*GLB.ATCB.DragResistanceF; 
+                    max_res > VSL.Body.atmDensityASL*AttitudeControlBase.C.DragResistanceF; 
             } 
         }
 

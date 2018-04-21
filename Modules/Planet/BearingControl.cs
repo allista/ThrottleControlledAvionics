@@ -18,12 +18,12 @@ namespace ThrottleControlledAvionics
     [OverrideModules(typeof(AttitudeControl))]
     public class BearingControl : AttitudeControlBase
     {
-        public new class Config : ComponentConfig
+        public new class Config : ComponentConfig<Config>
         {
             [Persistent] public bool  DrawForwardDirection = true;
             [Persistent] public float YawFactor = 60f;
         }
-        static Config BRC { get { return Globals.Instance.BRC; } }
+        public static new Config C => Config.INST;
 
         readonly Timer DirectionLineTimer = new Timer();
 
@@ -95,10 +95,10 @@ namespace ThrottleControlledAvionics
             {
                 if(!CS.yaw.Equals(0))
                 {
-                    UpdateBearing(Bearing.Value + CS.yaw*BRC.YawFactor*CFG.ControlSensitivity);
+                    UpdateBearing(Bearing.Value + CS.yaw*C.YawFactor*CFG.ControlSensitivity);
                     if(CFG.HF[HFlight.CruiseControl] && !VSL.HorizontalSpeed.NeededVector.IsZero()) 
                         VSL.HorizontalSpeed.SetNeeded(ForwardDirection * CFG.MaxNavSpeed);
-                    draw_forward_direction = BRC.DrawForwardDirection;
+                    draw_forward_direction = C.DrawForwardDirection;
                     VSL.HasUserInput = !(CS.pitch.Equals(0) && CS.roll.Equals(0));
                     VSL.AutopilotDisabled = VSL.HasUserInput;
                     DirectionLineTimer.Reset();

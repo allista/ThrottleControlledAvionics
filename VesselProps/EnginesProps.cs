@@ -405,7 +405,7 @@ namespace ThrottleControlledAvionics
                 var e = Active[0];
                   if(e.Role != TCARole.UNBALANCE &&
                      e.Role != TCARole.MANUAL &&
-                     e.defTorqueRatio < GLB.ENG.UnBalancedThreshold)
+                     e.defTorqueRatio < EngineOptimizer.C.UnBalancedThreshold)
                 {
                     Utils.Message("{0} was switched to UnBalanced mode.", e.name);
                     e.SetRole(TCARole.UNBALANCE);
@@ -511,7 +511,7 @@ namespace ThrottleControlledAvionics
                     }
                 }
                 if(NoActiveRCS) continue;
-                t.InitTorque(VSL, GLB.RCS.TorqueRatioFactor);
+                t.InitTorque(VSL, RCSOptimizer.C.TorqueRatioFactor);
                 t.UpdateCurrentTorque(1);
                 t.ApplyPreset();
             }
@@ -539,7 +539,7 @@ namespace ThrottleControlledAvionics
             {
                 var e = Active[i];
                 e.InitState();
-                e.InitTorque(VSL, GLB.ENG.TorqueRatioFactor);
+                e.InitTorque(VSL, EngineOptimizer.C.TorqueRatioFactor);
                 e.UpdateCurrentTorque(1);
                 //do not include maneuver engines' thrust into the total to break the feedback loop with HSC
                 if(e.Role != TCARole.MANEUVER) 
@@ -593,7 +593,7 @@ namespace ThrottleControlledAvionics
                     }
                     anti_min_imbalance = Vector3.Project(anti_min_imbalance, min_imbalance);
                     VSL.OnPlanetParams.VSF = Mathf.Clamp(VSL.OnPlanetParams.VSF, Mathf.Clamp01(min_imbalance.magnitude/anti_min_imbalance.magnitude
-                                                         *GLB.VSC.BalanceCorrection), 1f);
+                                                         *VerticalSpeedControl.C.BalanceCorrection), 1f);
                 }
                 for(int i = 0; i < NumActive; i++)
                 {
@@ -738,7 +738,7 @@ namespace ThrottleControlledAvionics
             {
                 var e = engines[i];
                 e.InitState();
-                e.InitTorque(VSL, GLB.ENG.TorqueRatioFactor);
+                e.InitTorque(VSL, EngineOptimizer.C.TorqueRatioFactor);
                 e.UpdateCurrentTorque(1);
             }
             engines.OptimizeForZeroTorque(VSL.Physics.MoI);
@@ -1029,10 +1029,10 @@ namespace ThrottleControlledAvionics
                 var thrust = c.MaxThrust.magnitude;
                 var ttb = VSL.Engines.TTB(dVm, thrust, (float)c.MaxMassFlow, 1);
                 if(VSL.Info.Countdown > 0 && score+ttb/2 > VSL.Info.Countdown) continue;
-                if(ttb < GLB.MAN.ClosestCluster) ttb = 0;
+                if(ttb < ManeuverAutopilot.C.ClosestCluster) ttb = 0;
                 score += ttb;
                 var fuel = VSL.Engines.FuelNeeded(dVm, (float)(thrust/c.MaxMassFlow));
-                if(fuel/VSL.Physics.M > GLB.MAN.EfficientCluster) score += fuel*GLB.MAN.EfficiencyWeight;
+                if(fuel/VSL.Physics.M > ManeuverAutopilot.C.EfficientCluster) score += fuel*ManeuverAutopilot.C.EfficiencyWeight;
                 if(score < min_score)
                 {
                     min_score = score;

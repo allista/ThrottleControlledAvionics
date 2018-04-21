@@ -17,7 +17,7 @@ namespace ThrottleControlledAvionics
 {
     public abstract class TorqueOptimizer : TCAModule
     {
-        public class Config : ComponentConfig
+        public class Config<T> : ComponentConfig<T> where T : ComponentConfig, new()
         {
             [Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
             [Persistent] public float OptimizationPrecision    = 0.01f;  //optimize engines limits until torque error or delta torque error is less than this
@@ -35,7 +35,7 @@ namespace ThrottleControlledAvionics
 
     public class EngineOptimizer : TorqueOptimizer
     {
-        public new class Config : TorqueOptimizer.Config
+        public class Config : Config<Config>
         {
             [Persistent] public float ThrustOptimizationPrecision = 0.001f;
             [Persistent] public float ThrustOptimizationCutoff    = 1f;
@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public FloatCurve EnginesCurve  = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
             [Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
         }
-        static Config ENG { get { return Globals.Instance.ENG; } }
+        public static Config C => Config.INST;
 
         public EngineOptimizer(ModuleTCA tca) : base(tca) {}
 
@@ -106,7 +106,7 @@ namespace ThrottleControlledAvionics
 //                      "MoI {}\n" +
 //                      "engines:\n{}", 
 //                      needed_torque, start_imbalance, MoI, engines);//debug
-            for(int i = 0; i < ENG.MaxIterations; i++)
+            for(int i = 0; i < C.MaxIterations; i++)
             {
                 //calculate current errors and target
                 cur_imbalance = start_imbalance;
@@ -125,8 +125,8 @@ namespace ThrottleControlledAvionics
                     torque_error = error;
                 }
                 //check convergence conditions
-                if(error < ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision || 
-                   last_error > 0 && Mathf.Abs(error-last_error) < ENG.OptimizationPrecision*last_error)
+                if(error < C.OptimizationTorqueCutoff*C.OptimizationPrecision || 
+                   last_error > 0 && Mathf.Abs(error-last_error) < C.OptimizationPrecision*last_error)
                     break;
                 last_error = error;
                 //normalize limits of main and balanced engines before optimization
@@ -150,11 +150,11 @@ namespace ThrottleControlledAvionics
                     }
                 }
                 //optimize limits
-                if(!optimization_for_torque_pass(engines, num_engines, target, target.magnitude, ENG.OptimizationPrecision, useDefTorque)) 
+                if(!optimization_for_torque_pass(engines, num_engines, target, target.magnitude, C.OptimizationPrecision, useDefTorque)) 
                     break;
             }
-            var optimized = torque_error < ENG.OptimizationTorqueCutoff || 
-                (!zero_torque && angle_error < ENG.OptimizationAngleCutoff);
+            var optimized = torque_error < C.OptimizationTorqueCutoff || 
+                (!zero_torque && angle_error < C.OptimizationAngleCutoff);
 //            Utils.Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}\nlimits:\n{}\n" +
 //                "-------------------------------------------------------------------------------------------------", 
 //                num_engines, optimized, torque_error, angle_error, needed_torque, cur_imbalance,
@@ -260,12 +260,12 @@ namespace ThrottleControlledAvionics
             if(CFG.AT) CFG.SteeringModifier = Vector3.one;
             else
             {
-                CFG.SteeringModifier.x = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.x)/100f);
-                CFG.SteeringModifier.y = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.y)/100f);
-                CFG.SteeringModifier.z = Mathf.Clamp01(ENG.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.z)/100f);
+                CFG.SteeringModifier.x = Mathf.Clamp01(C.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.x)/100f);
+                CFG.SteeringModifier.y = Mathf.Clamp01(C.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.y)/100f);
+                CFG.SteeringModifier.z = Mathf.Clamp01(C.SteeringCurve.Evaluate(VSL.Torque.MaxCurrent.AA.z)/100f);
             }
             //tune PI coefficients
-            CFG.Engines.P = ENG.EnginesCurve.Evaluate(VSL.Torque.Engines.AA_rad);
+            CFG.Engines.P = C.EnginesCurve.Evaluate(VSL.Torque.Engines.AA_rad);
             CFG.Engines.I = CFG.Engines.P/2f;
         }
 

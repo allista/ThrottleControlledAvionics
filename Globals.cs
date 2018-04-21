@@ -8,6 +8,8 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Linq;
+using System.Collections.Generic;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
@@ -40,44 +42,65 @@ namespace ThrottleControlledAvionics
         [Persistent] public float PersistentRotationThreshold = 5e-7f;
         [Persistent] public float NoPersistentRotationThreshold = 5e-7f;
 
-        [Persistent] public EngineOptimizer.Config           ENG = new EngineOptimizer.Config();
-        [Persistent] public VerticalSpeedControl.Config      VSC = new VerticalSpeedControl.Config();
-        [Persistent] public AltitudeControl.Config           ALT = new AltitudeControl.Config();
-        [Persistent] public AttitudeControlBase.Config       ATCB = new AttitudeControlBase.Config();
-        [Persistent] public AttitudeControl.Config           ATC = new AttitudeControl.Config();
-        [Persistent] public BearingControl.Config            BRC = new BearingControl.Config();
-        [Persistent] public ThrustDirectionControl.Config    TDC = new ThrustDirectionControl.Config();
-        [Persistent] public HorizontalSpeedControl.Config    HSC = new HorizontalSpeedControl.Config();
-        [Persistent] public RCSOptimizer.Config              RCS = new RCSOptimizer.Config();
-        [Persistent] public CruiseControl.Config             CC  = new CruiseControl.Config();
-        [Persistent] public Anchor.Config                    ANC = new Anchor.Config();
-        [Persistent] public PointNavigator.Config            PN  = new PointNavigator.Config();
-        [Persistent] public Radar.Config                     RAD = new Radar.Config();
-        [Persistent] public AutoLander.Config                LND = new AutoLander.Config();
-        [Persistent] public VTOLAssist.Config                TLA = new VTOLAssist.Config();
-        [Persistent] public VTOLControl.Config               VTOL = new VTOLControl.Config();
-        [Persistent] public CollisionPreventionSystem.Config CPS = new CollisionPreventionSystem.Config();
-        [Persistent] public FlightStabilizer.Config          STB = new FlightStabilizer.Config();
-        [Persistent] public ThrottleControl.Config           THR = new ThrottleControl.Config();
-        [Persistent] public TranslationControl.Config        TRA = new TranslationControl.Config();
-        [Persistent] public TimeWarpControl.Config           WRP = new TimeWarpControl.Config();
-        [Persistent] public ManeuverAutopilot.Config         MAN = new ManeuverAutopilot.Config();
-        [Persistent] public MatchVelocityAutopilot.Config    MVA = new MatchVelocityAutopilot.Config();
-
-        [Persistent] public TrajectoryCalculator.Config      TRJ = new TrajectoryCalculator.Config();
-        [Persistent] public LandingTrajectoryAutopilot.Config LTRJ = new LandingTrajectoryAutopilot.Config();
-        [Persistent] public DeorbitAutopilot.Config          DEO = new DeorbitAutopilot.Config();
-        [Persistent] public BallisticJump.Config             BJ  = new BallisticJump.Config();
-        [Persistent] public RendezvousAutopilot.Config       REN = new RendezvousAutopilot.Config();
-        [Persistent] public ToOrbitAutopilot.Config          ORB = new ToOrbitAutopilot.Config();
-
         public MDSection Manual;
+        public static readonly SortedDictionary<string, Type> AllConfigs;
 
         #if DEBUG
         public ConfigNodeObjectGUI UI;
         #endif
 
-        public override void Init()
+        static Globals()
+        {
+            AllConfigs = new SortedDictionary<string, Type>();
+            foreach(var cmp in Assembly.GetExecutingAssembly().GetTypes()
+                    .Where(t => t.IsSubclassOf(typeof(TCAComponent))))
+            {
+                foreach(var cfg in cmp.GetNestedTypes()
+                        .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(TCAComponent.ComponentConfig))))
+                    AllConfigs.Add(cmp.Name, cfg);
+            }
+        }
+
+        static FieldInfo get_INST(Type t) => 
+        t.GetField("INST", BindingFlags.Static|BindingFlags.FlattenHierarchy|BindingFlags.Public);
+
+		public override void Load(ConfigNode node)
+		{
+            base.Load(node);
+            foreach(var config in AllConfigs)
+            {
+                var config_node = node.GetNode(config.Key);
+                if(config_node != null)
+                {
+                    var INSTf = get_INST(config.Value);
+                    if(INSTf != null)
+                    {
+                        var INST = INSTf.GetValue(null) as TCAComponent.ComponentConfig;
+                        if(INST != null)
+                            INST.Load(config_node);
+                    }
+                    else
+                        Utils.Log("WARNING: {} has not public static INST field", config.Value.FullName);
+                }
+            }
+		}
+
+		public override void Save(ConfigNode node)
+		{
+            base.Save(node);
+            foreach(var config in AllConfigs)
+            {
+                var INSTf = get_INST(config.Value);
+                if(INSTf != null)
+                {
+                    var INST = INSTf.GetValue(null) as TCAComponent.ComponentConfig;
+                    if(INST != null)
+                        INST.Save(node.AddNode(config.Key));
+                }
+            }
+		}
+
+		public override void Init()
         { 
             try
             {
@@ -89,15 +112,6 @@ namespace ThrottleControlledAvionics
             }
             catch(Exception ex) { Utils.Log("Error loading {} file:\n{}", PluginFolder(INSTRUCTIONS), ex); }
             InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
-            //init all module configs
-            var mt = typeof(TCAModule.ComponentConfig);
-            foreach(var fi in GetType().GetFields())
-            {
-                if(!fi.FieldType.IsSubclassOf(mt)) continue;
-                var method = fi.FieldType.GetMethod("Init");
-                if(method == null) continue;
-                method.Invoke(fi.GetValue(this), null);
-            }
             #if DEBUG
             UI = ConfigNodeObjectGUI.FromObject(this);
             #endif
