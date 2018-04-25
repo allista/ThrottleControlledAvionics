@@ -733,6 +733,7 @@ namespace ThrottleControlledAvionics
         public EnginesStats(EnginesDB engines, VesselWrapper vsl) 
             : base(vsl) 
         { 
+            engines.SortByRole();
             TorqueInfo = new TorqueInfo(VSL); 
             for(int i = 0, count = engines.Count; i < count; i++)
             {
@@ -759,7 +760,7 @@ namespace ThrottleControlledAvionics
                         TorqueLimits.Add(e.specificTorque*e.nominalCurrentThrust(throttle));
                 }
             }
-            TorqueInfo.Update(TorqueLimits.Max);
+            TorqueInfo.Update(TorqueLimits.Max+VSL.Torque.NoEngines.Torque);
         }
     }
 
