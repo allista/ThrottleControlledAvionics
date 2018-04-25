@@ -250,11 +250,9 @@ namespace ThrottleControlledAvionics
         {
             GUILayout.BeginVertical();
             TargetOrbit.Draw();
+            ToOrbit.DrawOptions();
             if(stage == Stage.GravityTurn)
-            {
-                ToOrbit.DrawOptions();
                 ToOrbit.DrawInfo(TargetOrbit.TargetInclination);
-            }
             GUILayout.BeginHorizontal();
             ShowOptions = !GUILayout.Button("Cancel", Styles.active_button, GUILayout.ExpandWidth(true));
             if(stage != Stage.None &&
