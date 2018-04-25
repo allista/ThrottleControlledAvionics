@@ -17,7 +17,7 @@ namespace ThrottleControlledAvionics
 {
     public abstract class TorqueOptimizer : TCAModule
     {
-        public class Config<T> : ComponentConfig<T> where T : ComponentConfig, new()
+        public abstract class Config<T> : ComponentConfig<T> where T : ComponentConfig, new()
         {
             [Persistent] public int   MaxIterations            = 50;    //maximum number of optimizations per fixed frame
             [Persistent] public float OptimizationPrecision    = 0.01f;  //optimize engines limits until torque error or delta torque error is less than this
