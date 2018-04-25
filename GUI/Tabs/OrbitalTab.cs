@@ -40,14 +40,14 @@ namespace ThrottleControlledAvionics
             if(REN != null) REN.Draw();
             if(DEO != null) DEO.Draw();
             GUILayout.EndHorizontal();
-            if(ORB != null && ORB.ShowOptions)
+            if(ORB != null && ORB.ShowOptions && ORB.ControlsActive)
                 ORB.DrawOptions();
-            if(REN != null && REN.ShowOptions)
+            if(REN != null && REN.ShowOptions && REN.ControlsActive)
             {
                 REN.DrawOptions();
                 REN.DrawBestTrajectories();
             }
-            if(DEO != null && DEO.ShowOptions)
+            if(DEO != null && DEO.ShowOptions && DEO.ControlsActive)
                 DEO.DrawOptions();
             #if DEBUG
             if(Utils.ButtonSwitch("DBG", ref TrajectoryCalculator.setp_by_step_computation, 
