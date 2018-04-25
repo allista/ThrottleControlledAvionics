@@ -19,20 +19,21 @@ namespace ThrottleControlledAvionics
         public class Config : ComponentConfig<Config>
         {
             [Persistent] public float dVtol              = 0.01f; //m/s
-            [Persistent] public int   PerFrameIterations = 10;
-            [Persistent] public float ManeuverOffset     = 60f;    //s
-            [Persistent] public float CorrectionOffset   = 20f;    //s
+            [Persistent] public float MaxComputationTime = 0.2f;  // ratio of fixedDeltaTime
+            [Persistent] public float ManeuverOffset     = 60f;   //s
+            [Persistent] public float CorrectionOffset   = 20f;   //s
         }
         public static Config C => Config.INST;
 
         protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
         //multiple inheritance or some sort of mixins or property extensions would be great here =/
         public Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
-        public CelestialBody Body { get { return VSL.vessel.orbitDriver.orbit.referenceBody; } }
-        public Vector3d SurfaceVel {get { return Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos); } }
-        public float ManeuverOffset { get { return Math.Max(C.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime); } }
-        public float CorrectionOffset { get { return Math.Max(C.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime); } }
-        public double MinPeR { get { return VesselOrbit.MinPeR(); } }
+        public CelestialBody Body => VSL.vessel.orbitDriver.orbit.referenceBody;
+        public Vector3d SurfaceVel => Vector3d.Cross(-Body.zUpAngularVelocity, VesselOrbit.pos);
+        public float ManeuverOffset => Math.Max(C.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime);
+        public float CorrectionOffset => Math.Max(C.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime);
+        public double MaxCalcTime => TimeWarp.fixedDeltaTime*C.MaxComputationTime;
+        public double MinPeR => VesselOrbit.MinPeR();
 
         public static Orbit NextOrbit(Orbit orb, double UT)
         {
@@ -636,23 +637,6 @@ namespace ThrottleControlledAvionics
         protected double AngleDelta2StartUT(BaseTrajectory old, double angle, double offset, double forward_step, double period)
         { return NextStartUT(old, angle/360*period, offset, forward_step); }
 
-        //deprecated
-        protected Vector3d OptimizeManeuver(Func<double, Vector3d> next_dV, ref double StartUT, double offset)
-        {
-            Vector3d dV;
-            double TTB;
-            double TimeToStart = 0;
-            int maxI = C.PerFrameIterations;
-            do {
-                if(TimeToStart > 0 && TimeToStart < offset)
-                    StartUT += offset-TimeToStart+1;
-                dV = next_dV(StartUT);
-                TTB = VSL.Engines.TTB((float)dV.magnitude);
-                TimeToStart = StartUT-VSL.Physics.UT-TTB/2;
-            } while(maxI-- > 0 && TimeToStart < offset);
-            return dV;
-        }
-
         protected void clear_nodes()
         {
             if(VSL.vessel.patchedConicSolver == null) return;
@@ -685,6 +669,52 @@ namespace ThrottleControlledAvionics
             ControlsActive &= TCAScenario.HavePatchedConics;
         }
 
+        public class CalculationBalancer<T>
+        {
+            IEnumerator<T> iter;
+            LowPassFilterD duration = new LowPassFilterD();
+            double last_duration = -1;
+            DateTime last_ts = DateTime.MinValue;
+
+            public T Current => iter.Current;
+
+            public CalculationBalancer(IEnumerator<T> enumerator)
+            { 
+                iter = enumerator; 
+                duration.Set(TimeWarp.fixedDeltaTime/100);
+                duration.Tau = 1;
+            }
+
+            public CalculationBalancer(IEnumerable<T> enumerable)
+                : this(enumerable.GetEnumerator()) {}
+
+            public bool step()
+            {
+                var now = DateTime.Now;
+                if(!last_ts.Equals(DateTime.MinValue))
+                {
+                    last_duration = (now-last_ts).TotalSeconds;
+                    if(last_duration > TimeWarp.fixedDeltaTime)
+                        duration.Update(Utils.ClampL(duration+TimeWarp.fixedDeltaTime-last_duration, 0.0001f));
+                    else
+                        duration.Update(duration+(TimeWarp.fixedDeltaTime-last_duration)/2);
+                    //Utils.Log("last_duration {}:{}, duration: {}", 
+                              //last_duration, last_duration/TimeWarp.fixedDeltaTime, duration.Value);//debug
+                }
+                last_ts = now;
+                var next = now.AddSeconds(duration);
+                while(now < next)
+                {
+                    if(!iter.MoveNext())
+                        return false;
+                    now = DateTime.Now;
+                }
+                return true;
+            }
+
+            public bool single_step() => iter.MoveNext();
+        }
+
         #if DEBUG
         public static bool setp_by_step_computation;
         #endif
@@ -705,8 +735,8 @@ namespace ThrottleControlledAvionics
             yield return null;
             var I = 0;
             T t = null;
-            var frameI = setp_by_step_computation? 1 : C.PerFrameIterations;
-            var ioptimizer = optimizer.GetEnumerator();
+
+            var ioptimizer = new CalculationBalancer<T>(optimizer.GetEnumerator());
             Status("white", "{0}\nPush to continue", optimizer.Status);
             while(true)
             {
@@ -715,9 +745,18 @@ namespace ThrottleControlledAvionics
                     VSL.Info.CustomMarkersWP.Add(current_landing_trajectory.SurfacePoint);
                 if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))
                 { yield return t; continue; }
-                if(!ioptimizer.MoveNext()) break;
-                t = ioptimizer.Current;
-                frameI--; I++;
+                if(setp_by_step_computation)
+                {
+                    if(!ioptimizer.single_step()) break;
+                    t = ioptimizer.Current;
+                    I++;
+                }
+                else
+                {
+                    if(!ioptimizer.step()) break;
+                    t = ioptimizer.Current;
+                    I++;
+                }
                 if(t == null) 
                 {
                     Status("white", "{0}\nPush to continue", optimizer.Status);
@@ -725,19 +764,14 @@ namespace ThrottleControlledAvionics
                     continue;
                 }
                 clear_nodes();
-                if(frameI <= 0)
+                ManeuverAutopilot.AddNodeRaw(VSL, t.NodeDeltaV, t.StartUT);
+                if(setp_by_step_computation) 
                 {
-                    
-                    ManeuverAutopilot.AddNodeRaw(VSL, t.NodeDeltaV, t.StartUT);
-                    if(setp_by_step_computation) 
-                    {
-                        Log("Trajectory #{}\n{}", I, t);
-                        Status("white", "{0}\nPush to continue", optimizer.Status);
-                    }
-                    else Status(optimizer.Status);
-                    yield return t;
-                    frameI = setp_by_step_computation? 1 : C.PerFrameIterations;
+                    Log("Trajectory #{}\n{}", I, t);
+                    Status("white", "{0}\nPush to continue", optimizer.Status);
                 }
+                else Status(optimizer.Status);
+                yield return t;
             }
             clear_nodes();
             trajectory = optimizer.Best;
@@ -748,16 +782,16 @@ namespace ThrottleControlledAvionics
         IEnumerator<T> create_trajecory_calculator(TrajectoryOptimizer optimizer)
         {
             yield return null;
-            var frameI = TRJ.PerFrameIterations;
-            foreach(var t in optimizer)
+            var ioptimizer = new CalculationBalancer<T>(optimizer.GetEnumerator());
+            while(true)
             {
-                frameI--;
-                if(frameI <= 0)
+                if(ioptimizer.step())
                 {
                     Status(optimizer.Status);
-                    frameI = TRJ.PerFrameIterations;
-                    yield return t;
+                    yield return ioptimizer.Current;
+                    continue;
                 }
+                break;
             }
             trajectory = optimizer.Best;
         }

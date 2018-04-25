@@ -496,7 +496,7 @@ MatchVelocityAutopilot
 TrajectoryCalculator
 {
 	dVtol              = 0.01  //m/s
-	PerFrameIterations = 5
+    MaxComputationTime = 0.1f;  // ratio of fixedDeltaTime
 	ManeuverOffset     = 60   //s
 	CorrectionOffset   = 20   //s
 }
@@ -560,25 +560,19 @@ BallisticJump
 	}
 }
 
-ToOrbitExecutor
+AtmoSim
 {
-    MinClimbTime = 5
+    DeltaTime = 0.5 //s
+    DragK = 0.0008
 }
 
-ToOrbitAutopilot
+ToOrbitExecutor
 {
-	Dtol           = 100   //m
-	GTurnCurve     = 0.6
-	GTurnOffset    = 1000
-	Dist2VelF      = 0.01	
-	RadiusOffset   = 10000 //m
-	LaunchSlope    = 30 //deg
-	MinSlope       = 5  //deg
-	MaxSlope       = 70 //deg
-	DragK          = 2.0
+    MinClimbTime = 5 //s
 	MaxDynPressure = 35 //kPa
 	AscentEccentricity = 0.3
 	AtmDensityOffset = 1
+	GTurnOffset = 1000
 	PitchPID
 	{
 		P = 1
@@ -600,6 +594,10 @@ ToOrbitAutopilot
 		D = 20
 		Tau = 1
 	}
+}
+
+TargetedToOrbitExecutor
+{
 	ThrottleCorrectionPID
 	{
 		P = 1
@@ -618,6 +616,13 @@ ToOrbitAutopilot
 	}
 }
 
+ToOrbitAutopilot
+{
+	Dtol           = 100   //m
+	RadiusOffset   = 10000 //m
+	LaunchSlope    = 30 //deg
+}
+
 RendezvousAutopilot
 {
 	Dtol                = 100   //m
@@ -631,5 +636,12 @@ RendezvousAutopilot
 	MaxApproachV        = 20    //parts
 	ApproachVelF        = 0.01  //parts
 	MaxInclinationDelta = 30    //deg
+	MaxInclinationDeltaToOrbit = 5 //deg
+	TargetArc
+	{
+	    Min = 15
+	    Max = 90
+	    Val = 45
+	}
 }
 //:mode=c#:

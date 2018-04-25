@@ -69,7 +69,7 @@ namespace ThrottleControlledAvionics
             Falling.Period = C.FallingTime;
             CFG.VF.AddHandler(this, VFlight.AltitudeControl);
             if(VSL.LandedOrSplashed) CFG.DesiredAltitude = -10;
-            sim = new AtmoSim(VSL);
+            sim = new AtmoSim(TCA);
         }
 
         public override void Disable()

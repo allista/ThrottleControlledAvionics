@@ -27,14 +27,23 @@ namespace ThrottleControlledAvionics
         public abstract class ComponentConfig : ConfigNodeObject 
         {
             /// <summary>
-            /// Just a config node with float Min and Max values.
+            /// Just a config node with float Min, Max and Val.
             /// </summary>
             public class MinMax : ConfigNodeObject
             {
                 [Persistent] public float Min;
                 [Persistent] public float Max;
-                public MinMax(float min, float max) { Min = min; Max = max; }
-            }
+                [Persistent] public float Val;
+
+                public MinMax(float min, float max, float val) 
+                { Min = min; Max = max; Val = Utils.Clamp(val, Min, Max); }
+
+				public override void Load(ConfigNode node)
+				{
+                    base.Load(node);
+                    Val = Utils.Clamp(Val, Min, Max);
+				}
+			}
 
             public override void Load(ConfigNode node)
             {
@@ -53,7 +62,7 @@ namespace ThrottleControlledAvionics
             public static T INST = new T();
 		}
 
-        public readonly ModuleTCA TCA;
+        public ModuleTCA TCA { get; protected set; }
         public VesselWrapper VSL { get { return TCA.VSL; } }
         internal static Globals GLB { get { return Globals.Instance; } }
         public VesselConfig CFG { get { return TCA.VSL.CFG; } }
