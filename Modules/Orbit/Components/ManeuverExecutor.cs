@@ -45,10 +45,10 @@ namespace ThrottleControlledAvionics
 
         public void Reset()
         { 
-            dVrem.Value = dVrem.Upper + 1; 
             dVmin = -1; 
             working = false; 
             ddV.Reset();
+			dVrem.Reset();
         }
 
         public void AddCourseCorrection(Vector3d dV)
