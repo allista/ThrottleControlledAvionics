@@ -82,6 +82,8 @@ namespace ThrottleControlledAvionics
                     else
                         Utils.Log("WARNING: {} has not public static INST field", config.Value.FullName);
                 }
+                else
+                    Utils.Log("WARNING: no configuration for {}", config.Key);
             }
 		}
 
