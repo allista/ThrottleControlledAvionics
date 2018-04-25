@@ -21,11 +21,11 @@ namespace ThrottleControlledAvionics
     {
         public ModuleTCA    TCA { get; private set; }
         public VesselConfig CFG { get; private set; }
-        internal Globals    GLB { get { return Globals.Instance; } }
+        internal Globals GLB => Globals.Instance;
 
         public TCAState State;
-        public void     SetState(TCAState state) { State |= state; }
-        public bool     IsStateSet(TCAState state) { return (State & state) == state; }
+        public void SetState(TCAState state) => State |= state;
+        public bool IsStateSet(TCAState state) => (State & state) == state;
 
         public Vessel vessel { get; private set; }
         public Transform refT; //transform of the controller-part
@@ -47,15 +47,16 @@ namespace ThrottleControlledAvionics
         static List<FieldInfo> AllPropFields = typeof(VesselWrapper)
             .GetFields(BindingFlags.Instance|BindingFlags.Public)
             .Where(fi => fi.FieldType.IsSubclassOf(typeof(VesselProps))).ToList();
-        
+
         //state
-        public CelestialBody Body { get { return vessel.mainBody; } }
-        public Orbit orbit { get { return vessel.orbit; } }
+        public CelestialBody Body => vessel.mainBody;
+        public Orbit orbit => vessel.orbit;
         public bool OnPlanet { get; private set; }
         public bool InOrbit { get; private set; }
         public bool IsActiveVessel { get; private set; }
-        public bool LandedOrSplashed { get { return vessel.LandedOrSplashed; } }
-        public Vessel.Situations Situation { get { return vessel.situation; } }
+        public bool LandedOrSplashed => 
+        vessel.LandedOrSplashed || vessel.situation == Vessel.Situations.PRELAUNCH;
+        public Vessel.Situations Situation => vessel.situation;
 
         public bool AutopilotDisabled;
         public bool HasUserInput;
@@ -69,9 +70,8 @@ namespace ThrottleControlledAvionics
                     vessel.patchedConicSolver.maneuverNodes[0] != null; 
             } 
         }
-        public ManeuverNode FirstManeuverNode 
-        { get { return vessel.patchedConicSolver.maneuverNodes[0]; } }
-        
+        public ManeuverNode FirstManeuverNode => vessel.patchedConicSolver.maneuverNodes[0];
+
 
         #region Target
         public HashSet<TCAModule> TargetUsers = new HashSet<TCAModule>();
@@ -192,10 +192,10 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region Utils
-        public void Log(string msg, params object[] args) { vessel.Log(msg, args); }
-        public Vector3 LocalDir(Vector3 worldV) { return refT.InverseTransformDirection(worldV); }
-        public Vector3 WorldDir(Vector3 localV) { return refT.TransformDirection(localV); }
-        public Vector3d PredictedSrfVelocity(float time) { return vessel.srf_velocity+vessel.acceleration*time; }
+        public void Log(string msg, params object[] args) => vessel.Log(msg, args);
+        public Vector3 LocalDir(Vector3 worldV) => refT.InverseTransformDirection(worldV);
+        public Vector3 WorldDir(Vector3 localV) => refT.TransformDirection(localV);
+        public Vector3d PredictedSrfVelocity(float time) => vessel.srf_velocity + vessel.acceleration * time;
         #endregion
 
         #region VesselRanges
@@ -423,8 +423,8 @@ namespace ThrottleControlledAvionics
             while(next_stage >= 0 && stage_is_empty(next_stage)) next_stage--;
             if(next_stage == vessel.currentStage) next_stage--;
             if(next_stage < 0) return;
-//            Log(vessel.parts.Aggregate("\n", (s, p) => s+Utils.Format("{}: {}, stage {}\n", p.Title(), p.State, p.inverseStage)));//debug
-//            Log("current stage {}, next stage {}, next engines {}", vessel.currentStage, next_stage, Engines.NearestEnginedStage);//debug
+            Log(vessel.parts.Aggregate("\n", (s, p) => s+Utils.Format("{}: {}, stage {}\n", p.Title(), p.State, p.inverseStage)));//debug
+            Log("current stage {}, next stage {}, next engines {}", vessel.currentStage, next_stage, Engines.NearestEnginedStage);//debug
             if(IsActiveVessel)
             {
                 StageManager.ActivateStage(next_stage);

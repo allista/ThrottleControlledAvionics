@@ -802,17 +802,17 @@ namespace ThrottleControlledAvionics
 
         protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
-        protected void add_node_abs(Vector3d dV, double UT) 
-        { ManeuverAutopilot.AddNode(VSL, dV, UT); }
+        protected void add_node_abs(Vector3d dV, double UT) => 
+        ManeuverAutopilot.AddNode(VSL, dV, UT);
 
-        protected void add_node_rel(Vector3d dV, double UT) 
-        { ManeuverAutopilot.AddNodeRaw(VSL, dV, UT); }
+        protected void add_node_rel(Vector3d dV, double UT) => 
+        ManeuverAutopilot.AddNodeRaw(VSL, dV, UT);
 
-        protected void add_trajectory_node_rel()
-        { ManeuverAutopilot.AddNodeRaw(VSL, trajectory.NodeDeltaV, trajectory.StartUT); }
+        protected void add_trajectory_node_rel() => 
+        ManeuverAutopilot.AddNodeRaw(VSL, trajectory.NodeDeltaV, trajectory.StartUT);
 
-        protected void add_trajectory_node_abs()
-        { ManeuverAutopilot.AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT); }
+        protected void add_trajectory_node_abs() => 
+        ManeuverAutopilot.AddNode(VSL, trajectory.ManeuverDeltaV, trajectory.StartUT);
 
         protected override void Reset()
         {
@@ -826,7 +826,7 @@ namespace ThrottleControlledAvionics
 
         protected T trajectory;
         IEnumerator<T> trajectory_calculator;
-        protected bool computing { get { return trajectory_calculator != null; } }
+        protected bool computing => trajectory_calculator != null;
         protected virtual bool trajectory_computed()
         {
             if(trajectory != null) return true;
