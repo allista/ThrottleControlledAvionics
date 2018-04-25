@@ -446,7 +446,6 @@ namespace ThrottleControlledAvionics
                     cur = new Launch(this, startUT, cur == null ? -1 : cur.Transfer, minPeR, maxPeR, ApAArc);
                     foreach(var t in cur.CalculateTransfer()) yield return null;
                     minDis.Update(cur.Dist);
-                    Log("dist {}, transfer {}", cur.Dist, cur.Transfer);//debug
                     if(minDis) minima.Add(startUT);
                     startUT += dT;
 #if DEBUG
@@ -475,7 +474,6 @@ namespace ThrottleControlledAvionics
 #endif
                         cur = new Launch(this, startUT, cur == null ? -1 : cur.Transfer, minPeR, maxPeR, ApAArc);
                         foreach(var t in cur.CalculateTransfer()) yield return null;
-                        Log("dist {}, transfer {}", cur.Dist, cur.Transfer);//debug
                         if(min == null || cur < min) min = cur;
                         startUT += dT;
                         if(startUT < VSL.Physics.UT || startUT > endUT || cur != min)
@@ -496,19 +494,16 @@ namespace ThrottleControlledAvionics
                        inclinationDelta(min.UT) < IncDelta && (best == null || min < best))
                         best = min;
                 }
-                //check if direct rendezvous is actually faster than in-plane launch
-                if(best != null)
-                {
-                    var direct2target = best.UT-VSL.Physics.UT + best.Transfer;
-                    var in_plane2target = findInPlaneUT(VSL.Physics.UT, Body.rotationPeriod / 10);
-                }
             }
             //if the closest approach is too far away or too out of plane with the target,
             //start when in plane
             if(best == null)
+            {
                 best = new Launch(this,
                                   findInPlaneUT(VSL.Physics.UT, Body.rotationPeriod / 10),
                                   -1, minPeR, maxPeR, ApAArc);
+                ToOrbit.InPlane = true;
+            }
             else
                 ToOrbit.ApAUT = best.UT + best.Transfer;
             ToOrbit.LaunchUT = best.UT;
@@ -706,11 +701,11 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.ToOrbit:
                 log_flight();//debug
-                if(ToOrbit.ApAUT > 0 ?
-                   ToOrbit.TargetedGravityTurn(C.Dtol) :
-                   ToOrbit.GravityTurn(C.Dtol))
+                if(ToOrbit.InPlane ?
+                   ToOrbit.GravityTurn(C.Dtol) :
+                   ToOrbit.TargetedGravityTurn(C.Dtol))
                 {
-                    if(VesselOrbit.ApR > MinPeR)
+                    if(!ToOrbit.InPlane && VesselOrbit.ApR > MinPeR)
                     {
                         update_trajectory();
                         MinDist.Update(CurrentDistance);
@@ -939,13 +934,19 @@ namespace ThrottleControlledAvionics
         {
             GUILayout.BeginHorizontal();
             GUILayout.BeginVertical();
-            if(VSL.LandedOrSplashed && CFG.AP2.Not(Autopilot2.Rendezvous))
+            if(VSL.LandedOrSplashed && !CFG.AP2)
             {
                 var in_plane = StartInPlane;
+                GUILayout.BeginHorizontal();
                 Utils.ButtonSwitch("Start In Plane", ref in_plane,
-                                   "Just launch in plane with the target, then rendezvous from orbit. " +
-                                   "Otherwise try to find a launch window to rendezvous directly from " +
-                                   "the ground.", GUILayout.ExpandWidth(true));
+                                   "Launch in plane with the target, then rendezvous from orbit.",
+                                   GUILayout.ExpandWidth(true));
+                if(Utils.ButtonSwitch("Attempt direct rendezvous", !in_plane,
+                                      "Try to find a launch window to rendezvous with the target " +
+                                      "directly.",
+                                      GUILayout.ExpandWidth(true)))
+                    in_plane = !in_plane;
+                GUILayout.EndHorizontal();
                 if(StartInPlane)
                 {
                     GUILayout.BeginHorizontal();

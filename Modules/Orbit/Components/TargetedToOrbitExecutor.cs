@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
         }
         public static new Config C => Config.INST;
 
+        [Persistent] public bool InPlane;
         protected PIDf_Controller3 throttle_correction = new PIDf_Controller3();
         protected LowPassFilterF throttle_fileter = new LowPassFilterF();
 
