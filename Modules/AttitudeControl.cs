@@ -151,6 +151,7 @@ namespace ThrottleControlledAvionics
             public PIDf_Controller2 atPID = new PIDf_Controller2();
             public PIDf_Controller3 avPID = new PIDf_Controller3();
             public LowPassFilterF avFilter = new LowPassFilterF();
+            public OscillationDetectorF OD = new OscillationDetectorF(0.5f, 3, 100, 500, 5);
 
             public void SetParams(float at_clamp, float av_clamp)
             {
@@ -282,6 +283,7 @@ namespace ThrottleControlledAvionics
                 avPID.setTau(tau);
                 avPID.Update(avError);
                 avPID.Action = avFilter.Update(avPID.Action);
+                avPID.Action *= 1-OD.Update(avPID.Action, TimeWarp.fixedDeltaTime);
                 return avPID.Action;
             }
 
