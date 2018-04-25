@@ -20,6 +20,7 @@ namespace ThrottleControlledAvionics
         {
             [Persistent] public float DeltaTime = 0.5f;
             [Persistent] public float DragK = 0.0008f;
+            [Persistent] public float RotMiddlePhase = 0.6f;
         }
         public static Config C => Config.INST;
 
@@ -177,8 +178,9 @@ namespace ThrottleControlledAvionics
             var thrust = true;
             var R = r.magnitude;
             var prev_r = r;
+            var maxR = ApR*2;
             double turn_start = VSL.Altitude.Absolute;
-            while(R > BR &&
+            while(R > BR && R < maxR &&
                   Vector2d.Dot(r / R - r1n, r1n - prev_r / R) < 0)
             {
                 yield return -1;
@@ -225,7 +227,7 @@ namespace ThrottleControlledAvionics
                     var atErr = Utils.Angle2Rad(r, T) - Utils.Angle2Rad(r, nT);
                     T = T.RotateRad(atErr /
                                     Math.Max(C.DeltaTime, 
-                                             eStats.TorqueInfo.RotationTime3Phase((float)Math.Abs(atErr*Mathf.Rad2Deg), 0.5f)) *
+                                             eStats.TorqueInfo.RotationTime3Phase((float)Math.Abs(atErr*Mathf.Rad2Deg), C.RotMiddlePhase)) *
                                     C.DeltaTime)
                          .normalized;
                     if(Vector2d.Dot(T, r) < 0)

@@ -564,6 +564,7 @@ AtmoSim
 {
     DeltaTime = 0.5 //s
     DragK = 0.0008
+    RotMiddlePhase = 0.6
 }
 
 ToOrbitExecutor
