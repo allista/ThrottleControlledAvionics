@@ -101,7 +101,7 @@ namespace ThrottleControlledAvionics
 
         protected double TargetAltitude { get { return CFG.Target.SurfaceAlt(Body); } }
 
-        protected override LandingTrajectory CurrentTrajectory
+        public override LandingTrajectory CurrentTrajectory
         { get { return new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, false); } }
 
 

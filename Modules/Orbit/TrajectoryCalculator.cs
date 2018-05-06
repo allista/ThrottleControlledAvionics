@@ -33,7 +33,7 @@ namespace ThrottleControlledAvionics
         public float ManeuverOffset => Math.Max(C.ManeuverOffset, VSL.Torque.MaxCurrent.TurnTime);
         public float CorrectionOffset => Math.Max(C.CorrectionOffset, VSL.Torque.MaxCurrent.TurnTime);
         public double MaxCalcTime => TimeWarp.fixedDeltaTime*C.MaxComputationTime;
-        public double MinPeR => VesselOrbit.MinPeR();
+        public double MinR => VesselOrbit.MinPeR();
 
         public static Orbit NextOrbit(Orbit orb, double UT)
         {
@@ -843,7 +843,7 @@ namespace ThrottleControlledAvionics
             return true;
         }
 
-        protected abstract T CurrentTrajectory { get; }
+        public abstract T CurrentTrajectory { get; }
         protected virtual void update_trajectory()
         {
             if(trajectory == null) trajectory = CurrentTrajectory;
@@ -855,9 +855,11 @@ namespace ThrottleControlledAvionics
     {
         protected TargetedTrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
-        protected Orbit TargetOrbit { get { return CFG.Target.GetOrbit(); } }
-        protected Vessel TargetVessel { get { return CFG.Target.GetVessel(); } }
-        protected bool TargetLoaded { get { return TargetVessel != null && TargetVessel.loaded; } }
+        public Orbit TargetOrbit => CFG.Target.GetOrbit();
+        public Vessel TargetVessel => CFG.Target.GetVessel();
+        public bool TargetLoaded => TargetVessel != null && TargetVessel.loaded;
+        public Vector3d RelVel => TargetOrbit.vel - VesselOrbit.vel;
+        public Vector3d RelPos => TargetOrbit.pos - VesselOrbit.pos;
 
         protected ManeuverAutopilot MAN;
 
@@ -907,4 +909,3 @@ namespace ThrottleControlledAvionics
         }
     }
 }
-
