@@ -21,9 +21,12 @@ namespace ThrottleControlledAvionics
         }
         public static new Config C => Config.INST;
 
+        public double TimeToTargetError { get; protected set; }
         [Persistent] public bool InPlane;
+        [Persistent] Ratchet correction_started = new Ratchet();
         protected PIDf_Controller3 throttle_correction = new PIDf_Controller3();
         protected LowPassFilterF throttle_fileter = new LowPassFilterF();
+        protected LowPassFilterD angle2hor_filter = new LowPassFilterD();
 
         public TargetedToOrbitExecutor()
         {
@@ -33,6 +36,7 @@ namespace ThrottleControlledAvionics
             throttle_correction.setPID(C.ThrottleCorrectionPID);
             norm_correction.setClamp(AttitudeControlBase.C.MaxAttitudeError);
             throttle_fileter.Tau = 1;
+            angle2hor_filter.Tau = 1;
         }
 
 		public override void Reset()
@@ -40,6 +44,8 @@ namespace ThrottleControlledAvionics
             base.Reset();
             throttle_correction.Reset();
             throttle_fileter.Reset();
+            angle2hor_filter.Reset();
+            correction_started.Reset();
 		}
 
 		public override void StartGravityTurn()
@@ -62,23 +68,34 @@ namespace ThrottleControlledAvionics
                 var vel = TrajectoryCalculator.dV4ApV(VesselOrbit, target, VSL.Physics.UT);
                 var AoA = Utils.Angle2(pg_vel, VesselOrbit.pos);
                 var neededAoA = Utils.ClampH(Utils.Angle2(target - VesselOrbit.pos, VesselOrbit.pos) / 2, 45);
-                var angle2Hor = 90 - Utils.Angle2(vel, VesselOrbit.pos);
+                var angle2Hor = angle2hor_filter.Update(90 - Utils.Angle2(vel, VesselOrbit.pos));
+                var time2target = VSL.Engines.TTB((float)vel.magnitude) 
+                                  + (float)TrajectoryCalculator.NewOrbit(VesselOrbit, vel, VSL.Physics.UT).timeToAp;
+                TimeToTargetError = time2target - (ApAUT-VSL.Physics.UT);
+                Log("angle2Hor {}, time2target {}, err {}, dV2ApV {}", angle2Hor, time2target, TimeToTargetError, vel.magnitude);//debug
                 pitch.Max = AoA < neededAoA ? 0 : (float)AoA;
                 pitch.Update((float)angle2Hor);
-                if(AoA < neededAoA && pitch.Action.Equals(pitch.Max))
-                    pitch.Action = (float)Utils.ClampL(AoA - neededAoA, -AttitudeControlBase.C.MaxAttitudeError);
+                correction_started.Update(angle2Hor >= 0);
+                if(AoA < neededAoA && !correction_started)
+                    pitch.Action = (float)Utils.Clamp(AoA - neededAoA + angle2Hor, 
+                                                      -AttitudeControlBase.C.MaxAttitudeError, 
+                                                      AoA);
                 vel = QuaternionD.AngleAxis(pitch.Action * startF,
                                             Vector3d.Cross(target, VesselOrbit.pos))
                                  * pg_vel;
                 if(Vector3d.Dot(vel, VesselOrbit.pos) < 0)
                     vel = Vector3d.Exclude(VesselOrbit.pos, vel);
                 vel = tune_needed_vel(vel, pg_vel, startF);
+                throttle_correction.setClamp(Utils.ClampL(TimeToApA-10, 1));
                 throttle_correction.Update((float)angle2Hor);
-                throttle.Update(TimeToApA + throttle_correction - (float)VesselOrbit.timeToAp);
+                throttle.Update(TimeToApA + throttle_correction - (float)TimeToClosestApA);
                 throttle_fileter.Update(Utils.Clamp(0.5f + throttle, 0, max_G_throttle()));
                 THR.Throttle = throttle_fileter * (float)Utils.ClampH(ErrorThreshold.Value / Dtol / 10, 1);
-                //Log("angle2Hor {}, AoA {} < {}, THR {}\nthr.correction {}\nthrottle {}\npitch {}",
-                    //angle2Hor, AoA, neededAoA, THR.Throttle, throttle_correction, throttle, pitch);//debug
+                Log("alt {}, ApA {}, dApA {}, dArc {}, Err {}, angle2Hor {}, AoA {} < {}, startF {}, THR {}\n" +
+                    "thr.correction {}\nthrottle {}\npitch {}",
+                    VSL.Altitude.Absolute, VesselOrbit.ApA, dApA, dArc, ErrorThreshold,
+                    angle2Hor, AoA, neededAoA, startF, THR.Throttle, 
+                    throttle_correction, throttle, pitch);//debug
                 CFG.AT.OnIfNot(Attitude.Custom);
                 ATC.SetThrustDirW(-vel.xzy);
                 if(CFG.AT.Not(Attitude.KillRotation))
@@ -86,7 +103,7 @@ namespace ThrottleControlledAvionics
                     if(AoA < 85)
                     {
                         CFG.BR.OnIfNot(BearingMode.Auto);
-                        BRC.ForwardDirection = hv.xzy;
+                        BRC.ForwardDirection = htdir.xzy;
                     }
                     else
                         CFG.BR.OffIfOn(BearingMode.Auto);
