@@ -239,6 +239,12 @@ namespace ThrottleControlledAvionics
             } 
         }
 
+        public float MaxThrottleForDeltaV(Vector3d dV) => 
+        (float)Utils.Clamp(2 * Vector3d.Dot(dV, -CurrentDefThrustDir) / MaxAccel / TimeWarp.fixedDeltaTime, 0, 1);
+
+        public float MaxThrottleForDeltaV(float dV) => 
+        Utils.Clamp(2 * dV / MaxAccel / TimeWarp.fixedDeltaTime, 0, 1);
+
         public Vector3 NearestEnginedStageMaxDefThrust => GetNearestEnginedStageStats().MaxDefThrust;
         public Vector3 NearestEnginedStageMaxThrust => GetNearestEnginedStageStats().MaxThrust;
         public EnginesStats GetNearestEnginedStageStats() => GetStageStats(NearestEnginedStage);
