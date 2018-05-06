@@ -19,7 +19,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float MaxDynPressure = 10f;
             [Persistent] public float AtmDensityOffset = 10f;
             [Persistent] public float AscentEccentricity = 0.3f;
-            [Persistent] public float GTurnOffset = 1000f;
+            [Persistent] public float GTurnOffset = 0.1f;
 
             [Persistent] public PIDf_Controller3 PitchPID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 ThrottlePID = new PIDf_Controller3();
@@ -54,17 +54,27 @@ namespace ThrottleControlledAvionics
         /// <summary>
         /// The arc distance in radians between current vessel position and the Target.
         /// </summary>
-        public double ArcDistance
-        { get { return Utils.ProjectionAngle(VesselOrbit.pos, target, target - VesselOrbit.pos) * Mathf.Deg2Rad; } }
+        public double ArcDistance => 
+        Utils.ProjectionAngle(VesselOrbit.pos, target, target - VesselOrbit.pos) * Mathf.Deg2Rad;
+
+        public double MinApR => 
+        VesselOrbit.MinPeR()+1000;
+
+        public double MaxApR => 
+        VesselOrbit.MinPeR()+ToOrbitAutopilot.C.RadiusOffset;
+
+        public double TimeToClosestApA => 
+        VesselOrbit.ApAhead()? VesselOrbit.timeToAp : VesselOrbit.timeToAp-VesselOrbit.period;
 
         public double dApA { get; protected set; } = -1;
         public double dArc { get; protected set; } = -1;
-		protected Vector3d hv, ApV;
+		protected Vector3d htdir, hvdir, ApV;
         protected PIDf_Controller3 pitch = new PIDf_Controller3();
         protected PIDf_Controller3 norm_correction = new PIDf_Controller3();
         protected PIDf_Controller3 throttle = new PIDf_Controller3();
         protected double CircularizationOffset = -1;
         protected bool ApoapsisReached;
+        protected bool CourseOnTarget;
 
 		public override void Save(ConfigNode node)
 		{
@@ -131,12 +141,14 @@ namespace ThrottleControlledAvionics
 
         protected void update_state(float Dtol)
         {
-            hv = Vector3d.Exclude(VesselOrbit.pos, target - VesselOrbit.pos).normalized;
+            hvdir = Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel).normalized;
+            htdir = Vector3d.Exclude(VesselOrbit.pos, target - VesselOrbit.pos).normalized;
             ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp);
-            dApA = TargetR - VesselOrbit.ApR;
-            dArc = Utils.ProjectionAngle(ApV, target, hv) * Mathf.Deg2Rad * ApV.magnitude;
+            dApA = Utils.ClampL(TargetR - VesselOrbit.ApR, 0);
+            dArc = Utils.ClampL(Utils.ProjectionAngle(ApV, target, htdir) * ToOrbitAutopilot.C.Dtol, 0);
             ErrorThreshold.Value = CorrectOnlyAltitude ? dApA : dApA + dArc;
             ApoapsisReached |= dApA < Dtol;
+            CourseOnTarget = Vector3d.Dot(htdir, hvdir) > 0.1;
         }
 
 
@@ -151,12 +163,12 @@ namespace ThrottleControlledAvionics
         {
             if(Body.atmosphere && VSL.vessel.atmDensity > C.AtmDensityOffset)
                 GravityTurnStart = VSL.Altitude.Absolute;
-            return Utils.Clamp((VSL.Altitude.Absolute - GravityTurnStart) / C.GTurnOffset, 0, 1);
+            return Utils.Clamp((VSL.Altitude.Absolute - GravityTurnStart) / (TargetR-Body.Radius)/C.GTurnOffset, 0, 1);
         }
 
         protected Vector3d tune_needed_vel(Vector3d needed_vel, Vector3d pg_vel, double startF)
         {
-            if(Vector3d.Dot(hv, Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel).normalized) > 0.1)
+            if(CourseOnTarget)
             {
                 norm_correction.Update((float)(90 - Utils.Angle2(VesselOrbit.GetOrbitNormal(), target)));
                 needed_vel = QuaternionD.AngleAxis(norm_correction.Action, VesselOrbit.pos) * needed_vel;
@@ -186,8 +198,12 @@ namespace ThrottleControlledAvionics
                               Body.atmosphere && VesselOrbit.radius < Body.Radius + Body.atmosphereDepth;
         }
 
-        protected float max_G_throttle() =>
-        MaxG / Utils.ClampL((VSL.Engines.MaxThrustM / VSL.Physics.M - VSL.Physics.G) / VSL.Physics.StG, MaxG);
+        protected float max_G_throttle()
+        {
+            var MaxThrust = Vector3.Dot(VSL.Physics.Up, -VSL.Engines.MaxThrust);
+            if(MaxThrust <= 0) return 1;
+            return MaxG / Utils.ClampL((MaxThrust / VSL.Physics.M - VSL.Physics.G) / VSL.Physics.StG, MaxG);
+        }
 
         protected Vector3d get_pg_vel()
         => Vector3d.Lerp(VesselOrbit.vel, VSL.vessel.srf_velocity.xzy, VSL.Physics.G / VSL.Physics.StG);
@@ -219,17 +235,27 @@ namespace ThrottleControlledAvionics
             {
                 Status("Liftoff...");
                 CFG.DisableVSC();
-                CFG.HF.OnIfNot(HFlight.Stop);
                 CFG.VTOLAssistON = true;
                 THR.Throttle = max_G_throttle();
-                if(VSL.vessel.srfSpeed > 1)
-                {
-                    var upErr = Utils.Angle2(-(Vector3)VSL.Physics.Up, VSL.Engines.CurrentDefThrustDir);
-                    var velErr = Utils.Angle2(VSL.Physics.Up, VSL.vessel.srf_velocity) / VSL.vessel.srfSpeed;
-                    //Log("velErr {}, upErr {}, F {}", velErr, upErr, 1 - velErr - upErr);//debug
-                    THR.Throttle = Utils.Clamp(THR.Throttle * (1 - (float)velErr - upErr),
-                                               VSL.OnPlanetParams.GeeVSF * 1.1f, 1);
-                }
+                //if(CourseOnTarget)
+                //{
+                    CFG.AT.OnIfNot(Attitude.Custom);
+                    var vel = VSL.Physics.Up;
+                    vel = tune_needed_vel(vel, vel, 1);
+                    ATC.SetThrustDirW(vel);
+                //}
+                //else
+                //{
+                //    CFG.HF.OnIfNot(HFlight.Stop);
+                //    if(VSL.vessel.srfSpeed > 1)
+                //    {
+                //        var upErr = Utils.Angle2(-(Vector3)VSL.Physics.Up, VSL.Engines.CurrentDefThrustDir);
+                //        var velErr = Utils.Angle2(VSL.Physics.Up, VSL.vessel.srf_velocity) / VSL.vessel.srfSpeed;
+                //        //Log("velErr {}, upErr {}, F {}", velErr, upErr, 1 - velErr - upErr);//debug
+                //        THR.Throttle = Utils.Clamp(THR.Throttle * (1 - (float)velErr - upErr),
+                //                                   VSL.OnPlanetParams.GeeVSF * 1.1f, 1);
+                //    }
+                //}
                 return true;
             }
             StartGravityTurn();
@@ -264,21 +290,21 @@ namespace ThrottleControlledAvionics
                 var AoA = Utils.Angle2(pg_vel, VesselOrbit.pos);
                 if(AoA < 45)
                 {
-                    pitch.Update((float)AoA - 45);
+                    pitch.Update((float)AoA - Mathf.Lerp(45, 15, (float)(VSL.vessel.atmDensity-0.1)));
                     vel = QuaternionD.AngleAxis(pitch * startF, Vector3d.Cross(target, VesselOrbit.pos)) * pg_vel;
                 }
                 vel = tune_needed_vel(vel, pg_vel, startF);
                 vel = Utils.ClampDirection(vel, pg_vel, (double)AttitudeControlBase.C.MaxAttitudeError);
                 throttle.Update(TimeToApA - (float)VesselOrbit.timeToAp);
                 THR.Throttle = Utils.Clamp(0.5f + throttle, MinThrottle/100, max_G_throttle()) *
-                    (float)Utils.ClampH(dApA / Dtol / 10, 1);
+                    (float)Utils.ClampH(dApA / Dtol / VSL.Engines.TMR, 1);
                 ATC.SetThrustDirW(-vel.xzy);
                 if(CFG.AT.Not(Attitude.KillRotation))
                 {
                     if(AoA < 85)
                     {
                         CFG.BR.OnIfNot(BearingMode.Auto);
-                        BRC.ForwardDirection = hv.xzy;
+                        BRC.ForwardDirection = htdir.xzy;
                     }
                     else
                         CFG.BR.OffIfOn(BearingMode.Auto);
@@ -360,7 +386,9 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label(string.Format("{0} ► {1}",
                                                   Utils.formatBigValue((float)VesselOrbit.ApA, "m", "F3"),
                                                   Utils.formatBigValue((float)(TargetR - Body.Radius), "m", "F3")));
-                    GUILayout.Label(KSPUtil.PrintDateDeltaCompact(VesselOrbit.timeToAp, true, true));
+                    GUILayout.Label(string.Format("{0} ► {1}",
+                                                  KSPUtil.PrintDateDeltaCompact(TimeToClosestApA, true, true),
+                                                  KSPUtil.PrintDateDeltaCompact(TimeToApA, true, true)));
                 }
                 GUILayout.EndVertical();
             }

@@ -36,7 +36,7 @@ namespace ThrottleControlledAvionics
 
         public bool ShowOptions;
 
-        double ApR { get { return TargetOrbit.ApA * 1000 + Body.Radius; } }
+        double ApR => TargetOrbit.ApA * 1000 + Body.Radius;
 
         public ToOrbitAutopilot(ModuleTCA tca) : base(tca) { }
 
@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
                 }
                 else hVdir = Vector3d.Cross(VesselOrbit.pos, Body.orbit.vel).normalized;
                 if(TargetOrbit.RetrogradeOrbit) hVdir *= -1;
-                var ApR0 = Utils.ClampH(ApR, MinPeR + C.RadiusOffset);
+                var ApR0 = Utils.ClampH(ApR, ToOrbit.MaxApR);
                 var ascO = AscendingOrbit(ApR0, hVdir, C.LaunchSlope);
                 ToOrbit.Target = ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
                 stage = Stage.Start;
@@ -88,9 +88,9 @@ namespace ThrottleControlledAvionics
 
         void update_limits()
         {
-            TargetOrbit.ApA.Min = (float)(MinPeR - Body.Radius) / 1000;
+            TargetOrbit.ApA.Min = (float)(ToOrbit.MaxApR - Body.Radius) / 1000;
             TargetOrbit.ApA.Max = (float)(Body.sphereOfInfluence - Body.Radius) / 1000;
-            TargetOrbit.ApA.Value = Utils.Clamp(TargetOrbit.ApA.Value, TargetOrbit.ApA.Min, TargetOrbit.ApA.Max);
+            TargetOrbit.ApA.ClampValue();
             update_inclination_limits();
         }
 
@@ -199,7 +199,7 @@ namespace ThrottleControlledAvionics
                     break;
                 CFG.BR.OffIfOn(BearingMode.Auto);
                 var ApAUT = VSL.Physics.UT + VesselOrbit.timeToAp;
-                if(ApR > MinPeR + C.RadiusOffset) change_ApR(ApAUT);
+                if(ApR > ToOrbit.MaxApR) change_ApR(ApAUT);
                 else circularize(ApAUT);
                 break;
             case Stage.ChangeApA:
