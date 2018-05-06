@@ -26,9 +26,21 @@ namespace ThrottleControlledAvionics
         public Switch  ManualTranslationSwitch = new Switch();
         public float   GimbalLimit = 100;
         public bool    HaveControlAuthority = true;
-        public double  WarpToTime = -1;
         public bool    NoDewarpOffset;
         public bool    PauseWhenStopped;
+
+        bool dewarp;
+        double warp_to_time = -1;//debug
+        public double WarpToTime 
+        {
+            get { return dewarp? 0: warp_to_time; }
+            set 
+            {
+                //if(!warp_to_time.Equals(value))//debug
+                    //Log("WarpToTime.set: {} -> {}, dewarped {}", warp_to_time, value, dewarp);//debug
+                warp_to_time = value;
+            }
+        }
 
         public bool  Aligned = true;
         public bool  CanWarp = true;
@@ -41,6 +53,7 @@ namespace ThrottleControlledAvionics
         {
             AutopilotSteering = Vector3.zero;
             GimbalLimit = 100;
+            dewarp = false;
         }
 
         public float OffsetAlignmentFactor(float offset = 1)
@@ -64,13 +77,13 @@ namespace ThrottleControlledAvionics
             InvAlignmentFactor = Utils.ClampH(AttitudeError/AttitudeControlBase.C.MaxAttitudeError, 1);
         }
 
-        public void StopWarp() { if(WarpToTime > 0) WarpToTime = 0; }
+        public void StopWarp() => dewarp = true;
 
         public void AbortWarp(bool instant = false)
         {
             if(TimeWarp.CurrentRateIndex > 0)
                 TimeWarp.SetRate(0, instant);
-            VSL.Controls.WarpToTime = -1;
+            warp_to_time = -1;
             CFG.WarpToNode = false;
         }
 
@@ -86,14 +99,15 @@ namespace ThrottleControlledAvionics
 //                                       Utils.formatComponents(Translation));//debug
         }
 
-        public bool RCSAvailableInDirection(Vector3 wDir)
+        public bool RCSAvailableInDirection(Vector3 wDir, float MinDeltaV = -1)
         {
             if(VSL.Engines.NumActiveRCS.Equals(0)) return false;
             var lDir = VSL.LocalDir(wDir).normalized;
             var thrust = VSL.Engines.MaxThrustRCS.Project(lDir);
 //            Utils.Log("\nMaxThrustRCS:\n{}\nRCS dir: {}\nRCS thrust: {}\nRCS accel: {}\nActive RCS: {}\n",
 //                       VSL.Engines.MaxThrustRCS, lDir, thrust, thrust.magnitude/VSL.Physics.M, VSL.Engines.NumActiveRCS);//debug
-            return thrust.magnitude/VSL.Physics.M > TranslationControl.TRA.MinDeltaV/2;
+            if(MinDeltaV < 0) MinDeltaV = TranslationControl.C.MinDeltaV;
+            return thrust.magnitude/VSL.Physics.M > MinDeltaV/2;
         }
 
 //        void select_retT()
