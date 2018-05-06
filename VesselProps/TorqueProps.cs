@@ -18,9 +18,10 @@ namespace ThrottleControlledAvionics
         readonly LowPassFilterF MaxAAFilter = new LowPassFilterF();
 
         public List<ModuleReactionWheel> Wheels = new List<ModuleReactionWheel>();
+        public List<ModuleControlSurface> ControlSurfaces = new List<ModuleControlSurface>();
 
         public Vector6  EnginesLimits { get; private set; } = Vector6.zero; //torque limits of engines
-        public Vector6  WheelsLimits { get; private set; } = Vector6.zero; //torque limits of reaction wheels
+        public Vector6  OtherLimits { get; private set; } = Vector6.zero; //torque limits of reaction wheels
         public Vector6  RCSLimits { get; private set; } = Vector6.zero; //torque limits of rcs
 
         public TorqueInfo Imbalance; //current torque imbalance, set by UpdateImbalance
@@ -64,6 +65,33 @@ namespace ThrottleControlledAvionics
             } 
         }
 
+		public override void Clear()
+		{
+            base.Clear();
+            Wheels.Clear();
+            ControlSurfaces.Clear();
+		}
+
+		public bool AddTorqueProvider(PartModule m)
+        {
+            if(!(m is ModuleRCS || m is ModuleGimbal))
+            {
+                var w = m as ModuleReactionWheel;
+                if(w != null)
+                {
+                    Wheels.Add(w);
+                    return true;
+                }
+                var s = m as ModuleControlSurface;
+                if(s != null)
+                {
+                    ControlSurfaces.Add(s);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public override void Update()
         {
             //engines
@@ -91,16 +119,6 @@ namespace ThrottleControlledAvionics
                 }
                 Gimball |= e.gimbal != null && e.gimbal.gimbalActive && !e.gimbal.gimbalLock;
             }
-            //wheels
-            WheelsLimits = Vector6.zero;
-            for(int i = 0, count = Wheels.Count; i < count; i++)
-            {
-                var w = Wheels[i];
-                if(w.State != ModuleReactionWheel.WheelState.Active) continue;
-                var torque = new Vector3(w.PitchTorque, w.RollTorque, w.YawTorque)*w.authorityLimiter/100;
-                WheelsLimits.Add(torque);
-                WheelsLimits.Add(-torque);
-            }
             //RCS
             RCSLimits = Vector6.zero;
             var RCSSpecificTorque = Vector6.zero;
@@ -116,9 +134,29 @@ namespace ThrottleControlledAvionics
                     RCSSpecificTorque.Add(specificTorque);
                 }
             }
+            //wheels and control surfaces
+            OtherLimits = Vector6.zero;
+            for(int i = 0, count = Wheels.Count; i < count; i++)
+            {
+                var w = Wheels[i];
+                var limit = w.authorityLimiter/100;
+                Vector3 pos, neg;
+                w.GetPotentialTorque(out pos, out neg);
+                OtherLimits.Add(pos*limit);
+                OtherLimits.Add(-neg*limit);
+            }
+            for(int i = 0, count = ControlSurfaces.Count; i < count; i++)
+            {
+                var s = ControlSurfaces[i];
+                var limit = s.authorityLimiter/100;
+                Vector3 pos, neg;
+                s.GetPotentialTorque(out pos, out neg);
+                OtherLimits.Add(pos*limit);
+                OtherLimits.Add(-neg*limit);
+            }
             //torque and angular acceleration
             Engines.Update(EnginesLimits.Max);
-            NoEngines.Update(RCSLimits.Max+WheelsLimits.Max);
+            NoEngines.Update(RCSLimits.Max+OtherLimits.Max);
             MaxEngines.Update(MaxEnginesLimits.Max);
             MaxCurrent.Update(NoEngines.Torque+Engines.Torque);
             MaxPossible.Update(NoEngines.Torque+MaxEngines.Torque);

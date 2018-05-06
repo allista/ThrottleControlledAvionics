@@ -381,7 +381,7 @@ namespace ThrottleControlledAvionics
         {
             EngineWrapper.ThrustPI.setMaster(CFG.Engines);
             Engines.Clear(); 
-            Torque.Wheels.Clear();
+            Torque.Clear();
             Physics.Clear();
             OnPlanetParams.Clear();
             var drag_parts = 0;
@@ -402,7 +402,7 @@ namespace ThrottleControlledAvionics
                     if(OnPlanetParams.AddLaunchClamp(module)) continue;
                     if(OnPlanetParams.AddParachute(module)) continue;
                     if(OnPlanetParams.AddGear(module)) continue;
-                    if(AddModule(module, Torque.Wheels)) continue;
+                    if(Torque.AddTorqueProvider(module)) continue;
                 }
             }
             Physics.AngularDrag /= drag_parts;
