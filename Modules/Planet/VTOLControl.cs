@@ -81,12 +81,10 @@ namespace ThrottleControlledAvionics
                 compute_rotation(Rotation.Local(VSL.Engines.CurrentDefThrustDir, needed_thrust, VSL));
                 if(!CS.yaw.Equals(0))
                 {
-                    Log("rot-axis {}, new axis {}",  rotation_axis, (rotation_axis*VSL.Controls.AttitudeError/angle-VSL.LocalDir(needed_thrust.normalized*CS.yaw*Mathf.PI/3)).normalized);//debug
                     rotation_axis = (rotation_axis*VSL.Controls.AttitudeError/angle-VSL.LocalDir(needed_thrust.normalized*CS.yaw*Mathf.PI/3)).normalized;
                     VSL.Controls.SetAttitudeError(Mathf.Min(VSL.Controls.AttitudeError+Math.Abs(CS.yaw)*30, 180));
                 }
                 compute_steering();
-                Log("att.err {}, steering {}, Instant.AA", VSL.Controls.AttitudeError, steering, VSL.Torque.Instant.AA);//debug
                 VSL.Controls.AddSteering(steering);
                 VSL.HasUserInput = false;
                 VSL.AutopilotDisabled = true;
