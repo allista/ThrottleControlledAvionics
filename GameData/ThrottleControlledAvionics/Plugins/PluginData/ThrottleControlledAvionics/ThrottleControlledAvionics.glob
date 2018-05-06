@@ -16,7 +16,7 @@ MaxAAFilter          = 1
 
 PersistentRotationName = PersistentRotation
 PersistentRotationThreshold = 1e-7
-NoPersistentRotationThreshold = 5e-6
+NoPersistentRotationThreshold = 1e-7
 
 RCSOptimizer
 {
@@ -564,7 +564,7 @@ AtmoSim
 {
     DeltaTime = 0.5 //s
     DragK = 0.0008
-    RotMiddlePhase = 0.6
+    RotAccelPhase = 0.01
 }
 
 ToOrbitExecutor
@@ -573,7 +573,7 @@ ToOrbitExecutor
 	MaxDynPressure = 35 //kPa
 	AscentEccentricity = 0.3
 	AtmDensityOffset = 1
-	GTurnOffset = 1000
+	GTurnOffset = 0.014
 	PitchPID
 	{
 		P = 1
@@ -611,7 +611,7 @@ TargetedToOrbitExecutor
 	TargetPitchPID
 	{
 		P = 1
-		I = 0.1
+		I = 0.01
 		D = 0.1
 		Tau = 1
 	}
@@ -634,10 +634,10 @@ RendezvousAutopilot
 	CorrectionStart     = 0.015 //fraction of SMA
 	CorrectionTimer     = 10    //s
 	ApproachThreshold   = 500   //m
-	MaxApproachV        = 20    //parts
-	ApproachVelF        = 0.01  //parts
+	MaxApproachV        = 10    //m/s
 	MaxInclinationDelta = 30    //deg
 	MaxInclinationDeltaToOrbit = 5 //deg
+	MaxDaysToLaunch     = 5 //celectial body rotations
 	TargetArc
 	{
 	    Min = 15

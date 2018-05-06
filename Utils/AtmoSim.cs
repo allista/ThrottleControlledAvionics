@@ -20,7 +20,7 @@ namespace ThrottleControlledAvionics
         {
             [Persistent] public float DeltaTime = 0.5f;
             [Persistent] public float DragK = 0.0008f;
-            [Persistent] public float RotMiddlePhase = 0.6f;
+            [Persistent] public float RotAccelPhase = 0.6f;
         }
         public static Config C => Config.INST;
 
@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
         }
 
         float max_G_throttle(float T, double m, float maxG) =>
-        maxG / Utils.ClampL(T / (float)m / VSL.Physics.StG - 1, maxG);
+        T > 0? maxG / Utils.ClampL(T / (float)m / VSL.Physics.StG - 1, maxG) : 1;
 
         public struct PV
         {
@@ -149,12 +149,15 @@ namespace ThrottleControlledAvionics
         public double FreeFallTime(out double terminal_velocity)
         { return FreeFallTime(VSL.Geometry.H, out terminal_velocity); }
 
-        public IEnumerable<double> FromSurfaceTTA(float ApA_offset, double ApA, double alpha, float maxG)
+        public IEnumerable<double> FromSurfaceTTA(float ApA_offset, double ApA, double alpha, float maxG, float angularV)
         {
+            Log("FromSurfaceTTA: ApA_offset {}, ApA {}, alpha {}, maxG {}, angularV {}",
+                ApA_offset, ApA, alpha*Mathf.Rad2Deg, maxG, angularV*Mathf.Rad2Deg);//debug
             var t = 0.0;
             var BR = Body.Radius;
             var ApR = BR + ApA;
             var v = new Vector2d(1e-3, 1e-3);
+            var r0n = new Vector2d(0, 1);
             var r = new Vector2d(0, VSL.orbit.radius);
             var r1n = new Vector2d(Math.Sin(alpha), Math.Cos(alpha));
             var r1 = r1n * ApR;
@@ -170,6 +173,7 @@ namespace ThrottleControlledAvionics
             var pitch = new PIDf_Controller3();
             var throttle = new PIDf_Controller3();
             var throttle_correction = new PIDf_Controller3();
+			var correction_started = new Ratchet();
             pitch.setPID(TargetedToOrbitExecutor.C.TargetPitchPID);
             pitch.Min = -AttitudeControlBase.C.MaxAttitudeError;
             throttle.setPID(ToOrbitExecutor.C.ThrottlePID);
@@ -181,7 +185,7 @@ namespace ThrottleControlledAvionics
             var maxR = ApR*2;
             double turn_start = VSL.Altitude.Absolute;
             while(R > BR && R < maxR &&
-                  Vector2d.Dot(r / R - r1n, r1n - prev_r / R) < 0)
+                  Utils.Angle2(r0n, r1n) > Utils.Angle2(r0n, r))
             {
                 yield return -1;
                 prev_r = r;
@@ -191,7 +195,7 @@ namespace ThrottleControlledAvionics
                 var ApV = getApV(m, s, r, v, C.DeltaTime * 4, out time2ApA);
                 thrust &= Vector2d.Dot(ApV - r1, r1 - r) < 0;
                 var srf_dir = -r.Rotate90().normalized;
-                var thr = thrust ? max_G_throttle(mTm, m, maxG) : 0;
+                var thr = thrust ? max_G_throttle((float)Vector2d.Dot(T, r.normalized), m, maxG) : 0;
                 var nV = v;
                 if(thrust &&
                    Vector2d.Dot(r.normalized, v) / VSL.Physics.StG > ToOrbitExecutor.Config.INST.MinClimbTime)
@@ -214,20 +218,23 @@ namespace ThrottleControlledAvionics
                     var AoA = Utils.Angle2(r, v);
                     pitch.Max = AoA < neededAoA ? 0 : (float)AoA;
                     pitch.Update((float)angle2Hor);
-                    if(AoA < neededAoA && pitch.Action.Equals(pitch.Max))
-                        pitch.Action = (float)Utils.ClampL(AoA - neededAoA, -AttitudeControlBase.C.MaxAttitudeError);
+                    correction_started.Update(angle2Hor >= 0);
+                    if(AoA < neededAoA && !correction_started)
+                        pitch.Action = (float)Utils.Clamp(AoA - neededAoA + angle2Hor, 
+                                                          -AttitudeControlBase.C.MaxAttitudeError, 
+                                                          AoA);
                     if(h < Body.atmosphereDepth) 
                     {
                         var atm = Body.AtmoParamsAtAltitude(h);
                         if(atm.Rho > ToOrbitExecutor.C.AtmDensityOffset)
                             turn_start = h;
                     }
-                    var startF = Utils.Clamp((h - turn_start) / ToOrbitExecutor.C.GTurnOffset, 0, 1);
+                    var startF = Utils.Clamp((h - turn_start) / ApA/ToOrbitExecutor.C.GTurnOffset, 0, 1);
                     var nT = v.Rotate(pitch.Action * startF);
                     var atErr = Utils.Angle2Rad(r, T) - Utils.Angle2Rad(r, nT);
                     T = T.RotateRad(atErr /
                                     Math.Max(C.DeltaTime, 
-                                             eStats.TorqueInfo.RotationTime3Phase((float)Math.Abs(atErr*Mathf.Rad2Deg), C.RotMiddlePhase)) *
+                                             eStats.TorqueInfo.RotationTime3Phase((float)Math.Abs(atErr*Mathf.Rad2Deg), C.RotAccelPhase)) *
                                     C.DeltaTime)
                          .normalized;
                     if(Vector2d.Dot(T, r) < 0)
@@ -255,17 +262,20 @@ namespace ThrottleControlledAvionics
                         v -= v / vm * drag(s, h, vm) / m * C.DeltaTime;
                 }
                 r += v * C.DeltaTime;
-                t += C.DeltaTime;
-                DebugUtils.CSV("ToOrbitSim.csv", t, r, r1);//debug
+                r1n = r1n.RotateRad(angularV*C.DeltaTime).normalized;
+                r1 = r1n*ApR;
+				t += C.DeltaTime;
+                DebugUtils.CSV("ToOrbitSim.csv", t, r);//debug
                 //DebugUtils.CSV("ToOrbitSim.csv", t, r, v, rel_v, T*mTm/m*thr, h, m, thr, r1, nV);//debug
             }
-            yield return t - C.DeltaTime / 2;
+            //Log("TimeToApA: {}", t);//debug
+            yield return t;
         }
 
-        public static IEnumerable<double> FromSurfaceTTA(ModuleTCA tca, float ApA_offset, double ApA, double alpha, float maxG)
+        public static IEnumerable<double> FromSurfaceTTA(ModuleTCA tca, float ApA_offset, double ApA, double alpha, float maxG, float angularV)
         {
             var sim = new AtmoSim(tca);
-            return sim.FromSurfaceTTA(ApA_offset, ApA, alpha, maxG);
+            return sim.FromSurfaceTTA(ApA_offset, ApA, alpha, maxG, angularV);
         }
     }
 }
