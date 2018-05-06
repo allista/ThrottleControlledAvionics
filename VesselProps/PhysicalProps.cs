@@ -47,9 +47,7 @@ namespace ThrottleControlledAvionics
         LowPassFilterV angular_vel_filter = new LowPassFilterV();
         float av_threshold = 1e-6f;
 
-//        public void UpdateCoM() { wCoM = vessel.CoM; }
-
-        public double GeeAt(double sqrRadius) { return vessel.mainBody.gMagnitudeAtCenter/sqrRadius; }
+        public double GeeAt(double sqrRadius) => vessel.mainBody.gMagnitudeAtCenter / sqrRadius;
 
         public double GetSoundSpeed(double alt)
         {
