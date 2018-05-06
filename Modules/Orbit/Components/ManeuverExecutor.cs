@@ -24,7 +24,7 @@ namespace ThrottleControlledAvionics
         public delegate bool ManeuverCondition(float dV);
 
         readonly FuzzyThreshold<double> dVrem = new FuzzyThreshold<double>(1, 0.5);
-        readonly LowPassFilterD ddV = new LowPassFilterD();
+        readonly StallDetectorMultiD stalled = new StallDetectorMultiD(5, 0.1, 1);
         double dVmin = -1;
         bool working = false;
         Vector3d course_correction = Vector3d.zero;
@@ -40,15 +40,14 @@ namespace ThrottleControlledAvionics
             : base(tca)
         { 
             InitModuleFields(); 
-            ddV.Tau = 1;
         }
 
         public void Reset()
         { 
             dVmin = -1; 
             working = false; 
-            ddV.Reset();
 			dVrem.Reset();
+            stalled.Reset();
         }
 
         public void AddCourseCorrection(Vector3d dV)
@@ -68,66 +67,58 @@ namespace ThrottleControlledAvionics
             dVrem.Lower = MinDeltaV * 5;
             dVrem.Upper = dVrem.Lower + 1;
             dVrem.Value = dV.magnitude;
-            //end if below the minimum dV
-            if(dVrem < MinDeltaV)
-                return false;
+            //check if need to be working
+            if(!working)
+            {
+                VSL.Engines.RequestClusterActivationForManeuver(dV);
+                working |= condition == null || condition((float)dVrem);
+            }
+            //end conditions for working execution
+            if(working && !has_correction) 
+            {
+                //end if below the minimum dV
+                if(dVrem < MinDeltaV) return false;
+                //end if stalled
+                stalled.Update(dVrem, VSL.Controls.AttitudeError);
+                if(stalled) return false;
+                //prevent infinite dV tuning with inaccurate thrust-attitude systems
+                if(StopAtMinimum)
+                {
+                    if(dVrem)
+                        VSL.Controls.GimbalLimit = 0;
+                    if(dVmin < 0)
+                        dVmin = dVrem;
+                    else if(!ThrustWhenAligned || VSL.Controls.Aligned)
+                    {
+                        if(dVrem < dVmin)
+                            dVmin = dVrem;
+                        else if(dVrem - dVmin > MinDeltaV)
+                            return false;
+                    }
+                }
+            }
+            //prepare for the burn
             VSL.Engines.ActivateEngines();
             //orient along the burning vector
-            if(dVrem && VSL.Controls.RCSAvailableInDirection(-dV))
+            if(dVrem && VSL.Controls.RCSAvailableInDirection(-dV, (float)dVrem))
                 CFG.AT.OnIfNot(Attitude.KillRotation);
             else
             {
                 CFG.AT.OnIfNot(Attitude.Custom);
                 ATC.SetThrustDirW(-dV);
             }
-            if(!working)
-            {
-                VSL.Engines.RequestClusterActivationForManeuver(dV);
-                if(!has_correction && condition != null && !condition((float)dVrem))
-                    return true;
-                working = true;
-            }
-            //prevent infinite dV tuning with inaccurate thrust-attitude systems
-            if(StopAtMinimum)
-            {
-                if(dVrem)
-                    VSL.Controls.GimbalLimit = 0;
-                if(dVmin < 0)
-                {
-                    dVmin = dVrem;
-                    ddV.Set(dVmin);
-                }
-                else if(!ThrustWhenAligned || VSL.Controls.Aligned)
-                {
-                    ddV.Update(Math.Max(dVmin - dVrem, 0) / TimeWarp.fixedDeltaTime);
-//                    Log("dVrem {}, dVmin {}, ddV {}, aliF {}, aliE {}", 
-//                        dVrem.Value, dVmin, 
-//                        ddV, VSL.Controls.AlignmentFactor, VSL.Controls.AttitudeError);//debug
-                    if(ddV < MinDeltaV)
-                        return false;
-                    if(dVrem < dVmin)
-                        dVmin = dVrem;
-                    else if(dVrem - dVmin > MinDeltaV)
-                        return false;
-                }
-            }
+            //if not working and no correction, nothing left to do
+            if(!working && !has_correction)
+                return true;
             //use translation controls
-            if(VSL.Controls.TranslationAvailable)
-            {
-                if(dVrem || VSL.Controls.AttitudeError > AttitudeControlBase.C.AttitudeErrorThreshold)
-                    TRA.AddDeltaV(-VSL.LocalDir(dV));
-                if(dVrem && CFG.AT[Attitude.KillRotation])
-                {
-                    var errorF = Utils.ClampL(Vector3.Dot(VSL.Engines.Thrust.normalized, -dV.normalized), 0);
-                    THR.DeltaV = (float)dVrem * errorF * errorF;
-                    return true;
-                }
-            }
+            if(VSL.Controls.TranslationAvailable &&
+               (dVrem || VSL.Controls.AttitudeError > AttitudeControlBase.C.AttitudeErrorThreshold))
+                TRA.AddDeltaV(-VSL.LocalDir(dV));
             //use main throttle
             if(ThrustWhenAligned)
-                THR.DeltaV = VSL.Controls.Aligned ? (float)dVrem * VSL.Controls.AlignmentFactor : 0;
-            else
-                THR.DeltaV = (float)dVrem;
+                THR.MaxThrottle = VSL.Controls.Aligned ? VSL.Engines.MaxThrottleForDeltaV(dV) : 0;
+            THR.CorrectThrottle = ThrustWhenAligned;
+            THR.DeltaV = (float)dVrem;
             return true;
         }
     }
