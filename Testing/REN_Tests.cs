@@ -16,6 +16,7 @@ namespace ThrottleControlledAvionics
         protected RendezvousAutopilot REN;
         protected ProtoVessel target;
         protected RealTimer delay = new RealTimer(5);
+        protected RendezvousAutopilot.Stage last_stage;
 
         protected abstract Orbit CreateRandomOrbit(Orbit baseOrbit);
 
@@ -31,6 +32,7 @@ namespace ThrottleControlledAvionics
             }
             target.vesselRef.DiscoveryInfo.SetLevel(DiscoveryLevels.Owned);
             VSL.SetTarget(REN, new WayPoint(target.vesselRef));
+            REN.MaxDist.Value = (float)(obt.semiMajorAxis-obt.referenceBody.Radius)/10;
             return true;
         }
 
@@ -55,6 +57,33 @@ namespace ThrottleControlledAvionics
         {
             CleanupTarget();
             if(TCA != null) CFG.AP2.XOff();
+        }
+
+        protected void LogStageChange()
+        {
+            if(REN != null && last_stage != REN.stage)
+            {
+                Log("Stage changed: {} -> {}", last_stage, REN.stage);
+                if(REN.Valid && CFG.Target != null && REN.TargetOrbit != null)
+                {
+                    var ApA_UT = REN.VSL.Physics.UT+REN.VesselOrbit.timeToAp;
+                    Log("Distance to target: {}\n" +
+                        "Arc to target: {}\n" +
+                        "Arc@ApA: {}\n" +
+                        "Rel.vel: {}\n" +
+                        "Trajectory: {}",
+                        REN.RelPos.magnitude,
+                        -Utils.ProjectionAngle(REN.TargetOrbit.pos, 
+                                               REN.VesselOrbit.pos, 
+                                               REN.TargetOrbit.vel),
+                        -Utils.ProjectionAngle(REN.TargetOrbit.getRelativePositionAtUT(ApA_UT), 
+                                               REN.VesselOrbit.getRelativePositionAtUT(ApA_UT), 
+                                               REN.TargetOrbit.getOrbitalVelocityAtUT(ApA_UT)),
+                        REN.RelVel.magnitude,
+                        REN.CurrentTrajectory);
+                }
+                last_stage = REN.stage;
+            }
         }
     }
 
@@ -84,12 +113,14 @@ namespace ThrottleControlledAvionics
         { 
             if(!GetREN()) return "No Rendezvous Autopilot installed on active vessel"; 
             if(!VSL.InOrbit) return "Vessel should be in orbit for this test";
+            last_stage = REN.stage;
             return null;
         }
 
         public override bool Update(System.Random RND)
         {
             CFG.WarpToNode = true;
+            LogStageChange();
             if(target == null)
             {
                 Status = "New Target";
@@ -140,6 +171,8 @@ namespace ThrottleControlledAvionics
 
     public class REN_Test_ToOrbit : REN_Test_Base
     {
+        protected string Save;
+
         protected override Orbit CreateRandomOrbit(Orbit baseOrbit)
         {
             Orbit orbit = null;
@@ -176,11 +209,12 @@ namespace ThrottleControlledAvionics
         public override bool Update(System.Random RND)
         {
             Status = stage.ToString().Replace("_", " ");
+            LogStageChange();
             switch(stage)
             {
             case Stage.LOAD:
                 level_loaded = false;
-                ScenarioTester.LoadGame("ToOrbitTest");
+                ScenarioTester.LoadGame(Save);
                 stage = Stage.WAIT_FOR_LEVEL;
                 delay.Reset();
                 break;
@@ -197,6 +231,8 @@ namespace ThrottleControlledAvionics
                         Utils.Message("No Rendezvous Autopilot installed on the active vessel");
                         return false;
                     }
+                    TCAGui.ShowInstance(true);
+                    TCAGui.Instance.ActiveTab = TCAGui.Instance.ORB;
                     ResetFlightCamera();
                 }
                 break;
@@ -229,28 +265,30 @@ namespace ThrottleControlledAvionics
                         delay.Reset();
                         break;
                     }
-                    if(!TrajectoryCalculator.setp_by_step_computation)
+                    if(target.vesselRef != null && target.vesselRef.loaded)
+                        FlightCameraOverride.Target(FlightCameraOverride.Mode.LookFromTo, VSL.vessel.transform, target.vesselRef.transform, 10);
+                    else if(VSL.LandedOrSplashed && VSL.Info.Countdown > 5 ||
+                            REN.stage == RendezvousAutopilot.Stage.ToOrbit &&
+                            REN.VesselOrbit.ApR > REN.VesselOrbit.MinPeR() ||
+                            REN.stage >= RendezvousAutopilot.Stage.ComputeRendezvou &&
+                            REN.stage < RendezvousAutopilot.Stage.MatchOrbits)
                     {
-                        if(VSL.LandedOrSplashed && VSL.Info.Countdown > 5 ||
-                           REN.stage >= RendezvousAutopilot.Stage.ComputeRendezvou &&
-                           REN.stage < RendezvousAutopilot.Stage.MatchOrbits)
+                        if(!TrajectoryCalculator.setp_by_step_computation)
                         {
                             if(!MapView.MapIsEnabled)
                                 MapView.EnterMapView();
                             RotateMapView();
                         }
-                        else
-                        {
-                            //if(MapView.MapIsEnabled)
-                            //{
-                            //    MapView.ExitMapView();
-                            //    ResetFlightCamera();
-                            //}
-                            FlightCameraOverride.AnchorForSeconds(FlightCameraOverride.Mode.OrbitAround, VSL.vessel.transform, 1);
-                        }
                     }
-                    if(target.vesselRef != null && target.vesselRef.loaded)
-                        FlightCameraOverride.Target(FlightCameraOverride.Mode.LookFromTo, VSL.vessel.transform, target.vesselRef.transform, 10);
+                    else
+                    {
+                        if(MapView.MapIsEnabled)
+                        {
+                            MapView.ExitMapView();
+                            ResetFlightCamera();
+                        }
+                        FlightCameraOverride.AnchorForSeconds(FlightCameraOverride.Mode.OrbitAround, VSL.vessel.transform, 1);
+                    }
                     break;
                 }
                 CFG.AP2.XOff();
@@ -273,6 +311,16 @@ namespace ThrottleControlledAvionics
             GameEvents.onLevelWasLoadedGUIReady.Remove(onLevelWasLoaded);
         }
 
+        public override void Draw()
+        {
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label("Savegame:");
+                Save = GUILayout.TextField(Save, GUILayout.ExpandWidth(true));
+            }
+            GUILayout.EndHorizontal();
+        }
+
         public override bool NeedsFixedUpdate  { get { return false; } }
         public override bool NeedsUpdate { get { return true; } }
     }
@@ -287,8 +335,8 @@ namespace ThrottleControlledAvionics
             {
                 orbit = new Orbit();
                 orbit.eccentricity = (double)UnityEngine.Random.Range(0.001f, 0.1f);
-                orbit.semiMajorAxis = UnityEngine.Random.Range((float)minR+1000, (float)minR*1.1f);
-                orbit.inclination = (double)UnityEngine.Random.Range(5f, 15f);
+                orbit.semiMajorAxis = UnityEngine.Random.Range((float)minR+1000, (float)minR+ToOrbitAutopilot.C.RadiusOffset);
+                orbit.inclination = (double)UnityEngine.Random.Range(1f, 5f);
                 orbit.LAN = (double)UnityEngine.Random.Range(0f, 360);
                 orbit.argumentOfPeriapsis = (double)UnityEngine.Random.Range(0f, 2*Mathf.PI);
                 orbit.meanAnomalyAtEpoch = (double)UnityEngine.Random.Range(0f, 2*Mathf.PI);

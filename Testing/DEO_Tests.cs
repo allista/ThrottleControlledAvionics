@@ -14,7 +14,7 @@ namespace ThrottleControlledAvionics
     public abstract class LND_Test_Base<T> : TCA_Test where T : LandingTrajectoryAutopilot
     {
         protected string Save = "";
-        protected double latSpread;
+        protected FloatField latSpread = new FloatField(min: 0, max: 190);
 
         protected Autopilot2 program = Autopilot2.None;
         protected RealTimer delay = new RealTimer(5);
@@ -148,13 +148,33 @@ namespace ThrottleControlledAvionics
             GameEvents.onLevelWasLoadedGUIReady.Remove(onLevelWasLoaded);
         }
 
-        public override bool NeedsFixedUpdate { get { return false; } }
+		public override void Draw()
+		{
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.BeginVertical();
+                {
+                    GUILayout.Label("Savegame:");
+                    GUILayout.Label("Latitude spread:");
+                }
+                GUILayout.EndVertical();
+                GUILayout.BeginVertical();
+                {
+                    Save = GUILayout.TextField(Save, GUILayout.ExpandWidth(true));
+                    latSpread.Draw("°", 5);
+                }
+                GUILayout.EndVertical();
+            }
+            GUILayout.EndHorizontal();
+		}
+
+		public override bool NeedsFixedUpdate { get { return false; } }
         public override bool NeedsUpdate { get { return true; } }
     }
 
-    public abstract class DEO_Test_Base : LND_Test_Base<DeorbitAutopilot>
+    public abstract class DEO_Test : LND_Test_Base<DeorbitAutopilot>
     {
-        protected DEO_Test_Base()
+        protected DEO_Test()
         {
             program = Autopilot2.Deorbit;
         }
@@ -200,52 +220,6 @@ namespace ThrottleControlledAvionics
                     }
                 }
             }
-        }
-    }
-
-    public class DEO_Test_Eve : DEO_Test_Base
-    {
-        public DEO_Test_Eve()
-        {
-            Save = "DEO Eve";
-            latSpread = 2;
-        }
-    }
-
-    public class DEO_Test_Duna : DEO_Test_Base
-    {
-        public DEO_Test_Duna()
-        {
-            Save = "Duna Chute Landing";
-            latSpread = 60;
-        }
-    }
-
-
-    public class DEO_Test_Kerbin : DEO_Test_Base
-    {
-        public DEO_Test_Kerbin()
-        {
-            Save = "Kerbin Chute Landing";
-            latSpread = 30;
-        }
-    }
-
-    public class DEO_Test_Kerbin_Tardegrade : DEO_Test_Base
-    {
-        public DEO_Test_Kerbin_Tardegrade()
-        {
-            Save = "DEO Kerbin Tardegrade";
-            latSpread = 10;
-        }
-    }
-
-    public class DEO_Test_Mun : DEO_Test_Base
-    {
-        public DEO_Test_Mun()
-        {
-            Save = "DEO Mun";
-            latSpread = 180;
         }
     }
 }

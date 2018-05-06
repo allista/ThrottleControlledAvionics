@@ -73,6 +73,8 @@ namespace ThrottleControlledAvionics
         public abstract bool Update(System.Random RND);
         public abstract void Cleanup();
 
+        public virtual void Draw() {}
+
         public virtual string Status { get; protected set; } = "";
         public abstract bool NeedsFixedUpdate { get; }
         public abstract bool NeedsUpdate { get; }

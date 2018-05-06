@@ -10,7 +10,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-    public abstract class ORB_Test_Base : TCA_Test
+    public abstract class ORB_Test : TCA_Test
     {
         protected string Save = "";
         protected ToOrbitAutopilot ORB;
@@ -84,7 +84,7 @@ namespace ThrottleControlledAvionics
                     ORB.TargetOrbit.Inclination.ClampValue();
                     inclination = ORB.TargetOrbit.Inclination;
                     abs_inclination = (float)ORB.TargetOrbit.TargetInclination;
-                    ORB.TargetOrbit.ApA.Value = (float)(ORB.MinPeR+1000+RND.NextDouble() * 500000 - VSL.Body.Radius)/1000;
+                    ORB.TargetOrbit.ApA.Value = (float)(ORB.MinR+1000+RND.NextDouble() * 500000 - VSL.Body.Radius)/1000;
                     ORB.TargetOrbit.ApA.ClampValue();
                     ApA = ORB.TargetOrbit.ApA*1000;
                     ORB.ShowOptions = true;
@@ -148,32 +148,18 @@ namespace ThrottleControlledAvionics
             GameEvents.onLevelWasLoadedGUIReady.Remove(onLevelWasLoaded);
         }
 
+        public override void Draw()
+        {
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label("Savegame:");
+                Save = GUILayout.TextField(Save, GUILayout.ExpandWidth(true));
+            }
+            GUILayout.EndHorizontal();
+        }
+
         public override bool NeedsFixedUpdate { get { return false; } }
         public override bool NeedsUpdate { get { return true; } }
-    }
-
-    public class ORB_Test_Kerbin : ORB_Test_Base
-    {
-        public ORB_Test_Kerbin()
-        {
-            Save = "ToOrbitTest";
-        }
-    }
-
-    public class ORB_Test_Duna : ORB_Test_Base
-    {
-        public ORB_Test_Duna()
-        {
-            Save = "ToOrbitDuna";
-        }
-    }
-
-    public class ORB_Test_Mun : ORB_Test_Base
-    {
-        public ORB_Test_Mun()
-        {
-            Save = "ToOrbitMun";
-        }
     }
 }
 #endif
