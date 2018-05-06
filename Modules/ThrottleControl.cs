@@ -82,12 +82,11 @@ namespace ThrottleControlledAvionics
         {
             if(DeltaV >= 0)
             {
-                throttle = DeltaV < C.MinDeltaV? throttle = 0 :
-                    NextThrottle(DeltaV, CS.mainThrottle);
+                throttle = DeltaV < C.MinDeltaV?  0 : NextThrottle(DeltaV, CS.mainThrottle);
                 if(CorrectThrottle)
                 {
                     var errorF = VSL.Controls.OffsetAlignmentFactor(C.AttitudeDeadzone);
-                     if(errorF < 1) 
+                    if(errorF < 1) 
                     {
                         var max_lim = Utils.Clamp(Mathf.Abs(VSL.Controls.Steering.MaxComponentF()), errorF, 1);
                         VSL.Engines.Active.ForEach(e => set_engine_limit(e, errorF, max_lim));

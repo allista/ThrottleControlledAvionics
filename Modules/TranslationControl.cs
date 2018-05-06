@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float MinDeltaV         = 0.01f; //m/s
             [Persistent] public PIDf_Controller TransPID = new PIDf_Controller(0.5f, 0.01f, 0.5f, 0, 1);
         }
-        public static Config TRA => Config.INST;
+        public static Config C => Config.INST;
 
         public TranslationControl(ModuleTCA tca) : base(tca) {}
 
@@ -44,7 +44,7 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
-            pid.setPID(TRA.TransPID);
+            pid.setPID(C.TransPID);
         }
 
         protected override void UpdateState()
@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
         protected override void OnAutopilotUpdate()
         {
             var dVm = DeltaV.magnitude;
-            if(dVm >= TRA.MinDeltaV)
+            if(dVm >= C.MinDeltaV)
             {
                 pid.Update(dVm);
                 Translation = pid.Action*DeltaV.CubeNorm();
