@@ -36,6 +36,7 @@ namespace ThrottleControlledAvionics
 
         public float MinDeltaV = 1;
         ManeuverExecutor Executor;
+        double ApprUT = -1;
         float TTA = -1;
 
         public enum Stage
@@ -108,6 +109,8 @@ namespace ThrottleControlledAvionics
             stage = Stage.Start;
             Executor.Reset();
             Working = false;
+            ApprUT = -1;
+            TTA = -1; 
         }
 
         public static float BrakeDistance(float V0, VesselWrapper VSL, out float ttb)
@@ -197,14 +200,14 @@ namespace ThrottleControlledAvionics
             {
                 Working = true;
                 dV = CFG.Target.GetObtVelocity() - VSL.vessel.obt_velocity;
-                if(!Executor.Execute(dV, ThrottleControl.C.MinDeltaV))
+                if(!Executor.Execute(dV, MinDeltaV))
                     Executor.Reset();
             }
             else
             {
-                double ApprUT;
                 var tOrb = CFG.Target.GetOrbit();
-                var dist = TrajectoryCalculator.NearestApproach(VSL.orbit, tOrb, VSL.Physics.UT, VSL.Geometry.MinDistance+10, out ApprUT);
+                var dist = Working? 0 : 
+                    TrajectoryCalculator.NearestApproach(VSL.orbit, tOrb, VSL.Physics.UT, VSL.Geometry.MinDistance+10, out ApprUT);
                 TTA = (float)(ApprUT - VSL.Physics.UT);
                 switch(stage)
                 {
@@ -225,7 +228,7 @@ namespace ThrottleControlledAvionics
                     goto case Stage.Brake;
                 case Stage.Brake:
                     dV = (TrajectoryCalculator.NextOrbit(tOrb, ApprUT).GetFrameVelAtUT(ApprUT) - VSL.orbit.GetFrameVelAtUT(ApprUT)).xzy;
-                    if(!Executor.Execute(dV, ThrottleControl.C.MinDeltaV, StartCondition)) Reset();
+                    if(!Executor.Execute(dV, MinDeltaV, StartCondition)) Reset();
                     break;
                 }
             }
