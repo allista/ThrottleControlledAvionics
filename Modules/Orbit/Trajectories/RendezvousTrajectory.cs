@@ -36,13 +36,15 @@ namespace ThrottleControlledAvionics
             update();
         }
 
-        void update_killer(Orbit obt, double endUT)
+        void update_killer(Orbit obt, double startUT, double endUT)
         {
-            while(!KillerOrbit && obt != null && obt.referenceBody != null)
+            while(!KillerOrbit && obt != null && obt.referenceBody != null && obt.StartUT < endUT)
             {
                 var PeR_UT = obt.StartUT+obt.timeToPe;
                 var MinPeR = obt.MinPeR();
-                KillerOrbit |= obt.PeR < MinPeR && PeR_UT < obt.EndUT && PeR_UT < endUT;
+                KillerOrbit |= PeR_UT <= obt.EndUT && startUT <= PeR_UT && PeR_UT <= endUT && obt.PeR <= MinPeR;
+                KillerOrbit |= obt.Contains(startUT) && obt.getRelativePositionAtUT(startUT).magnitude <= MinPeR;
+                KillerOrbit |= obt.Contains(endUT) && obt.getRelativePositionAtUT(endUT).magnitude <= MinPeR;
                 if(obt.patchEndTransition == Orbit.PatchTransitionType.FINAL) break;
                 obt = obt.nextPatch;
             }
@@ -72,8 +74,8 @@ namespace ThrottleControlledAvionics
             FullBrake = GetTotalFuel() < VSL.Engines.AvailableFuelMass;
             //check if this trajectory is too close to any of celestial bodies it passes by
             KillerOrbit = TransferTime < BrakeDuration+ManeuverDuration;
-            update_killer(OrigOrbit, StartUT);
-            update_killer(Orbit, AtTargetUT);
+            update_killer(OrigOrbit, VSL.Physics.UT, StartUT+1);
+            update_killer(Orbit, StartUT, AtTargetUT);
 //            Utils.Log("{}", this);//debug
         }
 
