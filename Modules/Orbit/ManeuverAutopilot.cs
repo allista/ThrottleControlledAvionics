@@ -38,9 +38,9 @@ namespace ThrottleControlledAvionics
         ThrottleControl THR;
 
         ManeuverNode Node;
-        PatchedConicSolver Solver { get { return VSL.vessel.patchedConicSolver; } }
+        PatchedConicSolver Solver => VSL.vessel.patchedConicSolver;
 
-        public double NodeUT { get { return Node != null? Node.UT : -1; } }
+        public double NodeUT => Node != null ? Node.UT : -1;
         public Vector3d NodeDeltaV { get; private set; }
         public CelestialBody NodeCB { get; private set; }
         public Orbit TargetOrbit { get; private set; }
@@ -49,8 +49,8 @@ namespace ThrottleControlledAvionics
         ManeuverExecutor Executor;
         public float MinDeltaV = 1;
 
-        public void AddCourseCorrection(Vector3d dV)
-        { Executor.AddCourseCorrection(dV); }
+        public void AddCourseCorrection(Vector3d dV) => Executor.AddCourseCorrection(dV);
+        public bool ThrustWhenAligned = true;
 
         public void UpdateNode()
         {
@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
             MinDeltaV = ThrottleControl.C.MinDeltaV;
             CFG.AP1.AddHandler(this, Autopilot1.Maneuver);
             Executor = new ManeuverExecutor(TCA);
-            Executor.ThrustWhenAligned = true;
+            Executor.ThrustWhenAligned = ThrustWhenAligned;
             Executor.StopAtMinimum = true;
         }
 
@@ -178,7 +178,7 @@ namespace ThrottleControlledAvionics
             if(CFG.WarpToNode && VSL.Controls.WarpToTime < 0) 
             {
                 if((burn-VSL.Physics.UT)/dV > C.WrapThreshold ||
-                   TCAScenario.HavePersistentRotation && burn-VSL.Physics.UT > 180+TimeWarpControl.C.DewarpTime)
+                   burn-VSL.Physics.UT > 180+TimeWarpControl.C.DewarpTime)
                 {
                     VSL.Controls.NoDewarpOffset = true;
                     VSL.Controls.WarpToTime = burn-180;
@@ -188,7 +188,8 @@ namespace ThrottleControlledAvionics
             }
             VSL.Info.Countdown = burn-VSL.Physics.UT;
             //emergency dewarping
-            if(!CFG.WarpToNode && TimeWarp.CurrentRate > 1 && VSL.Info.Countdown < TimeWarpControl.C.DewarpTime)
+            if(!CFG.WarpToNode && TimeWarp.CurrentRate > 1 && 
+               VSL.Info.Countdown < TimeWarpControl.C.DewarpTime)
                 VSL.Controls.AbortWarp(true);
             if(VSL.Info.Countdown > 0) return false;
 //            Log("burn {}, countdown {}", burn, VSL.Info.Countdown);//debug
@@ -216,6 +217,8 @@ namespace ThrottleControlledAvionics
             }
             //update the node
             NodeDeltaV = (TargetOrbit.GetFrameVelAtUT(NodeUT)-VSL.orbit.GetFrameVelAtUT(NodeUT)).xzy;
+            Executor.ThrustWhenAligned = ThrustWhenAligned;
+            ThrustWhenAligned = true;
             if(Executor.Execute(NodeDeltaV, MinDeltaV, StartCondition)) return;
             ManeuverStage = Stage.FINISHED;
             Node.RemoveSelf();
