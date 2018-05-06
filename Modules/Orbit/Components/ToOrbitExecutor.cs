@@ -237,25 +237,10 @@ namespace ThrottleControlledAvionics
                 CFG.DisableVSC();
                 CFG.VTOLAssistON = true;
                 THR.Throttle = max_G_throttle();
-                //if(CourseOnTarget)
-                //{
-                    CFG.AT.OnIfNot(Attitude.Custom);
-                    var vel = VSL.Physics.Up;
-                    vel = tune_needed_vel(vel, vel, 1);
-                    ATC.SetThrustDirW(vel);
-                //}
-                //else
-                //{
-                //    CFG.HF.OnIfNot(HFlight.Stop);
-                //    if(VSL.vessel.srfSpeed > 1)
-                //    {
-                //        var upErr = Utils.Angle2(-(Vector3)VSL.Physics.Up, VSL.Engines.CurrentDefThrustDir);
-                //        var velErr = Utils.Angle2(VSL.Physics.Up, VSL.vessel.srf_velocity) / VSL.vessel.srfSpeed;
-                //        //Log("velErr {}, upErr {}, F {}", velErr, upErr, 1 - velErr - upErr);//debug
-                //        THR.Throttle = Utils.Clamp(THR.Throttle * (1 - (float)velErr - upErr),
-                //                                   VSL.OnPlanetParams.GeeVSF * 1.1f, 1);
-                //    }
-                //}
+                CFG.AT.OnIfNot(Attitude.Custom);
+                var vel = VSL.Physics.Up;
+                vel = tune_needed_vel(vel, vel, 1);
+                ATC.SetThrustDirW(vel);
                 return true;
             }
             StartGravityTurn();

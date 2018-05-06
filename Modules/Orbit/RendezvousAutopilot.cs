@@ -185,9 +185,9 @@ namespace ThrottleControlledAvionics
             if(solver.NotElliptic(transfer_time))
                 transfer_time = solver.ParabolicTime + 1;
             var dV = solver.dV4Transfer(transfer_time);
-            //            Log("transfer time {}\ncV {}\ndV {}\norbit {}\ntOrbit {}", 
-            //                transfer_time, VesselOrbit.getOrbitalVelocityAtUT(StartUT), dV, 
-            //                NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
+//            Log("transfer time {}\ncV {}\ndV {}\norbit {}\ntOrbit {}", 
+//                transfer_time, VesselOrbit.getOrbitalVelocityAtUT(StartUT), dV, 
+//                NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
             return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, transfer_time);
         }
 
@@ -282,14 +282,6 @@ namespace ThrottleControlledAvionics
                    StartUT.Equals(trajectory.AtTargetUT))
                     match_orbits();
                 else compute_approach_orbit(StartUT);
-//                var transfer_time = Utils.ClampL(TargetOrbit.period*(0.25-AngleDelta(VesselOrbit, TargetOrbit, StartUT)/360), 1);
-//                var solver = new LambertSolver(VesselOrbit, TargetOrbit.getRelativePositionAtUT(StartUT+transfer_time), StartUT);
-//                var dV = solver.dV4Transfer(transfer_time);
-//                var trj = new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, transfer_time);
-//                //if direct rendezvous orbit is possible
-//                if(!dV.IsZero() && !trj.KillerOrbit)
-//                    compute_approach_orbit(StartUT);
-//                else circularize();
             }
             else next_stage();
         }
