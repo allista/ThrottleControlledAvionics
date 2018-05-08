@@ -67,6 +67,16 @@ namespace ThrottleControlledAvionics
             dVrem.Lower = MinDeltaV * 5;
             dVrem.Upper = dVrem.Lower + 1;
             dVrem.Value = dV.magnitude;
+            //prepare for the burn
+            VSL.Engines.ActivateEngines();
+            //orient along the burning vector
+            if(dVrem && VSL.Controls.RCSAvailableInDirection(-dV, (float)dVrem))
+                CFG.AT.OnIfNot(Attitude.KillRotation);
+            else
+            {
+                CFG.AT.OnIfNot(Attitude.Custom);
+                ATC.SetThrustDirW(-dV);
+            }
             //check if need to be working
             if(!working)
             {
@@ -88,7 +98,7 @@ namespace ThrottleControlledAvionics
                         VSL.Controls.GimbalLimit = 0;
                     if(dVmin < 0)
                         dVmin = dVrem;
-                    else if(!ThrustWhenAligned || VSL.Controls.Aligned)
+                    else if(dVrem || !ThrustWhenAligned || VSL.Controls.Aligned)
                     {
                         if(dVrem < dVmin)
                             dVmin = dVrem;
@@ -96,16 +106,6 @@ namespace ThrottleControlledAvionics
                             return false;
                     }
                 }
-            }
-            //prepare for the burn
-            VSL.Engines.ActivateEngines();
-            //orient along the burning vector
-            if(dVrem && VSL.Controls.RCSAvailableInDirection(-dV, (float)dVrem))
-                CFG.AT.OnIfNot(Attitude.KillRotation);
-            else
-            {
-                CFG.AT.OnIfNot(Attitude.Custom);
-                ATC.SetThrustDirW(-dV);
             }
             //if not working and no correction, nothing left to do
             if(!working && !has_correction)
