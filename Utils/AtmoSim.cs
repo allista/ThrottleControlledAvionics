@@ -151,8 +151,8 @@ namespace ThrottleControlledAvionics
 
         public IEnumerable<double> FromSurfaceTTA(float ApA_offset, double ApA, double alpha, float maxG, float angularV)
         {
-            Log("FromSurfaceTTA: ApA_offset {}, ApA {}, alpha {}, maxG {}, angularV {}",
-                ApA_offset, ApA, alpha*Mathf.Rad2Deg, maxG, angularV*Mathf.Rad2Deg);//debug
+            //Log("FromSurfaceTTA: ApA_offset {}, ApA {}, alpha {}, maxG {}, angularV {}",
+                //ApA_offset, ApA, alpha*Mathf.Rad2Deg, maxG, angularV*Mathf.Rad2Deg);//debug
             var t = 0.0;
             var BR = Body.Radius;
             var ApR = BR + ApA;
@@ -163,12 +163,14 @@ namespace ThrottleControlledAvionics
             var r1 = r1n * ApR;
             var T = new Vector2d(0, 1);
             var m = (double)VSL.Physics.M;
+            var m0 = m;
             var eStats = VSL.Engines.NoActiveEngines ?
                 VSL.Engines.GetNearestEnginedStageStats() :
                 VSL.Engines.GetEnginesStats(VSL.Engines.Active);
             var mT = eStats.MaxThrust;
             var mTm = mT.magnitude;
             var mflow = eStats.MaxMassFlow;
+            var AA = eStats.TorqueInfo.AA_rad;
             var s = VSL.Geometry.AreaInDirection(mT);
             var pitch = new PIDf_Controller3();
             var throttle = new PIDf_Controller3();
@@ -234,7 +236,10 @@ namespace ThrottleControlledAvionics
                     var atErr = Utils.Angle2Rad(r, T) - Utils.Angle2Rad(r, nT);
                     T = T.RotateRad(atErr /
                                     Math.Max(C.DeltaTime, 
-                                             eStats.TorqueInfo.RotationTime3Phase((float)Math.Abs(atErr*Mathf.Rad2Deg), C.RotAccelPhase)) *
+                                             eStats.TorqueInfo.RotationTime3Phase((float)Math.Abs(atErr*Mathf.Rad2Deg), 
+                                                                                  (float)(AA*m0/m),
+                                                                                  C.RotAccelPhase,
+                                                                                  1)) *
                                     C.DeltaTime)
                          .normalized;
                     if(Vector2d.Dot(T, r) < 0)
@@ -265,7 +270,7 @@ namespace ThrottleControlledAvionics
                 r1n = r1n.RotateRad(angularV*C.DeltaTime).normalized;
                 r1 = r1n*ApR;
 				t += C.DeltaTime;
-                DebugUtils.CSV("ToOrbitSim.csv", t, r);//debug
+                //DebugUtils.CSV("ToOrbitSim.csv", t, r);//debug
                 //DebugUtils.CSV("ToOrbitSim.csv", t, r, v, rel_v, T*mTm/m*thr, h, m, thr, r1, nV);//debug
             }
             //Log("TimeToApA: {}", t);//debug
