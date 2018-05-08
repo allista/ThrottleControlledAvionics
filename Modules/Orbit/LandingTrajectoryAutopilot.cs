@@ -333,7 +333,7 @@ namespace ThrottleControlledAvionics
             clear_nodes();
             update_trajectory();
             VSL.Controls.StopWarp();
-            VSL.Controls.Aligned = false;
+            VSL.Controls.SetAttitudeError(180);
             CFG.AltitudeAboveTerrain = false;
             update_landing_trajecotry();
             landing_stage = LandingStage.Wait;
