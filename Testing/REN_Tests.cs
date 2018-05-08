@@ -171,7 +171,10 @@ namespace ThrottleControlledAvionics
 
     public class REN_Test_ToOrbit : REN_Test_Base
     {
-        protected string Save;
+        protected string Saves;
+        string[] saves;
+        string save;
+        int save_i;
 
         protected override Orbit CreateRandomOrbit(Orbit baseOrbit)
         {
@@ -203,18 +206,27 @@ namespace ThrottleControlledAvionics
         { 
             stage = Stage.LOAD;
             GameEvents.onLevelWasLoadedGUIReady.Add(onLevelWasLoaded);
-            return null;
+            saves = Saves.Split(Utils.Delimiters, StringSplitOptions.RemoveEmptyEntries);
+            save_i = 0;
+            save = saves[save_i];
+            return saves.Length == 0 ? "Savegames cannot be empty" : null;
         }
 
         public override bool Update(System.Random RND)
         {
-            Status = stage.ToString().Replace("_", " ");
+            Status = string.Format("{0}: {1}", save, stage.ToString().Replace("_", " "));
             LogStageChange();
             switch(stage)
             {
             case Stage.LOAD:
                 level_loaded = false;
-                ScenarioTester.LoadGame(Save);
+                save = saves[save_i];
+                if(!ScenarioTester.LoadGame(save))
+                {
+                    Utils.Message("Unable to load savegame: {0}", save);
+                    return false;
+                }
+                save_i = (save_i+1) % saves.Length;
                 stage = Stage.WAIT_FOR_LEVEL;
                 delay.Reset();
                 break;
@@ -315,8 +327,9 @@ namespace ThrottleControlledAvionics
         {
             GUILayout.BeginHorizontal();
             {
-                GUILayout.Label("Savegame:");
-                Save = GUILayout.TextField(Save, GUILayout.ExpandWidth(true));
+                GUILayout.Label(new GUIContent("Savegames:", "Delimited by commas or spaces"),
+                                GUILayout.MinWidth(100));
+                Saves = GUILayout.TextArea(Saves, GUILayout.ExpandWidth(true));
             }
             GUILayout.EndHorizontal();
         }
