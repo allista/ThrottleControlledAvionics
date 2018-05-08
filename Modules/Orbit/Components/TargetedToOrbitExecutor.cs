@@ -21,7 +21,6 @@ namespace ThrottleControlledAvionics
         }
         public static new Config C => Config.INST;
 
-        public double TimeToTargetError { get; protected set; }
         [Persistent] public bool InPlane;
         [Persistent] Ratchet correction_started = new Ratchet();
         protected PIDf_Controller3 throttle_correction = new PIDf_Controller3();
@@ -69,10 +68,6 @@ namespace ThrottleControlledAvionics
                 var AoA = Utils.Angle2(pg_vel, VesselOrbit.pos);
                 var neededAoA = Utils.ClampH(Utils.Angle2(target - VesselOrbit.pos, VesselOrbit.pos) / 2, 45);
                 var angle2Hor = angle2hor_filter.Update(90 - Utils.Angle2(vel, VesselOrbit.pos));
-                var time2target = VSL.Engines.TTB((float)vel.magnitude) 
-                                  + (float)TrajectoryCalculator.NewOrbit(VesselOrbit, vel, VSL.Physics.UT).timeToAp;
-                TimeToTargetError = time2target - (ApAUT-VSL.Physics.UT);
-                Log("angle2Hor {}, time2target {}, err {}, dV2ApV {}", angle2Hor, time2target, TimeToTargetError, vel.magnitude);//debug
                 pitch.Max = AoA < neededAoA ? 0 : (float)AoA;
                 pitch.Update((float)angle2Hor);
                 correction_started.Update(angle2Hor >= 0);
@@ -91,11 +86,11 @@ namespace ThrottleControlledAvionics
                 throttle.Update(TimeToApA + throttle_correction - (float)TimeToClosestApA);
                 throttle_fileter.Update(Utils.Clamp(0.5f + throttle, 0, max_G_throttle()));
                 THR.Throttle = throttle_fileter * (float)Utils.ClampH(ErrorThreshold.Value / Dtol / 10, 1);
-                Log("alt {}, ApA {}, dApA {}, dArc {}, Err {}, angle2Hor {}, AoA {} < {}, startF {}, THR {}\n" +
-                    "thr.correction {}\nthrottle {}\npitch {}",
-                    VSL.Altitude.Absolute, VesselOrbit.ApA, dApA, dArc, ErrorThreshold,
-                    angle2Hor, AoA, neededAoA, startF, THR.Throttle, 
-                    throttle_correction, throttle, pitch);//debug
+                //Log("alt {}, ApA {}, dApA {}, dArc {}, Err {}, angle2Hor {}, AoA {} < {}, startF {}, THR {}\n" +
+                    //"thr.correction {}\nthrottle {}\npitch {}",
+                    //VSL.Altitude.Absolute, VesselOrbit.ApA, dApA, dArc, ErrorThreshold,
+                    //angle2Hor, AoA, neededAoA, startF, THR.Throttle, 
+                    //throttle_correction, throttle, pitch);//debug
                 CFG.AT.OnIfNot(Attitude.Custom);
                 ATC.SetThrustDirW(-vel.xzy);
                 if(CFG.AT.Not(Attitude.KillRotation))
