@@ -48,11 +48,17 @@ namespace ThrottleControlledAvionics
         /// <param name="r1">Start position</param>
         /// <param name="v1">Start velocity</param>
         /// <param name="r2">End position</param>
-        public LambertSolver2D(CelestialBody body, Vector2d r1, Vector2d v1, Vector2d r2)
-            : this(r1, v1, r2, body.gravParameter)
-        { }
+        public void Init(CelestialBody body, Vector2d r1, Vector2d v1, Vector2d r2) =>
+        Init(r1, v1, r2, body.gravParameter);
 
-        protected LambertSolver2D(Vector2d r1, Vector2d v1, Vector2d r2, double mu)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:ThrottleControlledAvionics.LambertSolver"/> class.
+        /// </summary>
+        /// <param name="r1">Start position</param>
+        /// <param name="v1">Start velocity</param>
+        /// <param name="r2">End position</param>
+        /// <param name="mu">Gravitational constant of the central body</param>
+        public void Init(Vector2d r1, Vector2d v1, Vector2d r2, double mu)
         {
             this.mu = mu;
 
