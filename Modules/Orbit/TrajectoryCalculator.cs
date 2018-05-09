@@ -35,6 +35,9 @@ namespace ThrottleControlledAvionics
         public double MaxCalcTime => TimeWarp.fixedDeltaTime*C.MaxComputationTime;
         public double MinR => VesselOrbit.MinPeR();
 
+        protected static LambertSolver solver_s = new LambertSolver();
+        protected LambertSolver solver = new LambertSolver();
+
         public static Orbit NextOrbit(Orbit orb, double UT)
         {
             while(orb != null && 
@@ -82,9 +85,9 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        public static Orbit NewOrbit(CelestialBody body, Vector3d pos, Vector3d vel, double UT)
+        public static Orbit NewOrbit(CelestialBody body, Vector3d pos, Vector3d vel, double UT, Orbit obt = null)
         {
-            var obt = new Orbit();
+            if(obt == null) obt = new Orbit();
             obt.UpdateFromStateVectors(pos, vel, body, UT);
             obt.Init();
             if(obt.eccentricity < 0.01)
@@ -124,11 +127,11 @@ namespace ThrottleControlledAvionics
             return obt;
         }
 
-        public static Orbit NewOrbit(Orbit old, Vector3d dV, double UT)
+        public static Orbit NewOrbit(Orbit old, Vector3d dV, double UT, Orbit obt = null)
         {
             var pos = old.getRelativePositionAtUT(UT);
             var vel = old.getOrbitalVelocityAtUT(UT)+dV;
-            return NewOrbit(old.referenceBody, pos, vel, UT);
+            return NewOrbit(old.referenceBody, pos, vel, UT, obt);
         }
 
         public static Orbit CopyOrbit(Orbit o)
@@ -143,15 +146,16 @@ namespace ThrottleControlledAvionics
             return dir.normalized*V-old.getOrbitalVelocityAtUT(UT);
         }
 
-        protected Orbit CircularOrbit(Vector3d dir, double UT)
-        { return NewOrbit(VesselOrbit, dV4C(VesselOrbit, dir, UT), UT); }
+        protected Orbit CircularOrbit(Vector3d dir, double UT, Orbit obt = null) => 
+        NewOrbit(VesselOrbit, dV4C(VesselOrbit, dir, UT), UT, obt);
 
-        protected Orbit CircularOrbit(double UT) { return CircularOrbit(hV(UT), UT); }
+        protected Orbit CircularOrbit(double UT, Orbit obt = null) => 
+        CircularOrbit(hV(UT), UT, obt);
 
-        public static Orbit CircularOrbit(CelestialBody body, Vector3d pos, Vector3d dir, double UT)
+        public static Orbit CircularOrbit(CelestialBody body, Vector3d pos, Vector3d dir, double UT, Orbit obt = null)
         {
             var vel = dir.normalized*Math.Sqrt(body.gMagnitudeAtCenter/pos.magnitude);
-            return NewOrbit(body, pos, vel, UT);
+            return NewOrbit(body, pos, vel, UT, obt);
         }
 
         public static Vector3d dV4Pe(Orbit old, double R, double UT, Vector3d add_dV = default(Vector3d))
@@ -163,6 +167,7 @@ namespace ThrottleControlledAvionics
             var dir = up? hvel.normalized : -hvel.normalized;
             var min_dV = 0.0;
             var max_dV = 0.0;
+            Orbit orb = null;
             if(up)
             {
                 max_dV = 10;
@@ -170,7 +175,7 @@ namespace ThrottleControlledAvionics
                 if(R > max_PeR) R = max_PeR;
                 while(max_dV < 100000)
                 { 
-                    var orb = NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT);
+                    orb = NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT, orb);
                     if(orb.eccentricity >= 1 || orb.PeR > R) break;
                     max_dV *= 2;
                 }
@@ -179,7 +184,7 @@ namespace ThrottleControlledAvionics
             while(max_dV-min_dV > C.dVtol)
             {
                 var dV = (max_dV+min_dV)/2;
-                var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT);
+                orb = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT, orb);
                 if(up && (orb.eccentricity >= 1 || orb.PeR > R) || 
                    !up && orb.PeR < R) 
                     max_dV = dV;
@@ -197,12 +202,13 @@ namespace ThrottleControlledAvionics
             var dir = up? hvel.normalized : -hvel.normalized;
             var min_dV = 0.0;
             var max_dV = 0.0;
+            Orbit orb = null;
             if(up)
             {
                 max_dV = 10;
                 while(max_dV < 100000)
                 { 
-                    var orb = NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT);
+                    orb = NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT, orb);
                     if(orb.eccentricity >= 1 || orb.ApR > R) break;
                     max_dV *= 2;
                 }
@@ -216,7 +222,7 @@ namespace ThrottleControlledAvionics
             while(max_dV-min_dV > C.dVtol)
             {
                 var dV = (max_dV+min_dV)/2;
-                var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT);
+                orb = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT, orb);
                 if(up && (orb.eccentricity >= 1 || orb.ApR > R) ||
                    !up && orb.ApR < R) 
                     max_dV = dV;
@@ -235,10 +241,11 @@ namespace ThrottleControlledAvionics
             if(!up) dir = -dir;
             var min_dV = 0.0;
             var max_dV = 0.0;
+            Orbit orb = new Orbit();
             if(up)
             {
                 max_dV = 1;
-                while(NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT)
+                while(NewOrbit(old.referenceBody, pos, vel+dir*max_dV, UT, orb)
                       .getRelativePositionAtUT(TargetUT)
                       .magnitude < R)
                 { max_dV *= 2; if(max_dV > 100000) break; }
@@ -247,7 +254,7 @@ namespace ThrottleControlledAvionics
             while(max_dV-min_dV > C.dVtol)
             {
                 var dV = (max_dV+min_dV)/2;
-                var nR = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT)
+                var nR = NewOrbit(old.referenceBody, pos, vel+dir*dV+add_dV, UT, orb)
                     .getRelativePositionAtUT(TargetUT)
                     .magnitude;
                 if(up && nR > R || !up && nR < R) max_dV = dV;
@@ -266,10 +273,11 @@ namespace ThrottleControlledAvionics
             var max_dV = up? dV4C(old, dir, UT).magnitude : dir.magnitude;
             if(!up) dir = -dir;
             dir.Normalize();
+            Orbit orb = new Orbit();
             while(max_dV-min_dV > C.dVtol)
             {
                 var dV = (max_dV+min_dV)/2;
-                var orb = NewOrbit(old.referenceBody, pos, vel+dir*dV, UT);
+                orb = NewOrbit(old.referenceBody, pos, vel+dir*dV, UT, orb);
                 if( up && (orb.eccentricity < ecc || maxR > 0 && orb.PeR > maxR) || 
                    !up && orb.eccentricity > ecc) 
                     max_dV = dV;
@@ -280,17 +288,18 @@ namespace ThrottleControlledAvionics
 
         public static Vector3d dV4ApV(Orbit old, Vector3d ApV, double UT)
         {
-            var slv = new LambertSolver(old, ApV, UT);
+            solver_s.Init(old, ApV, UT);
             var ApR = ApV.magnitude;
-            var minT = slv.ParabolicTime;
-            var maxT = slv.MinEnergyTime;
-            var dV = slv.dV4TransferME();
+            var minT = solver_s.ParabolicTime;
+            var maxT = solver_s.MinEnergyTime;
+            var dV = solver_s.dV4TransferME();
+            Orbit orb = null;
             while(maxT-minT > 0.1)
             {
                 var T = (maxT+minT)/2;
-                dV = slv.dV4Transfer(T);
-                var obt = NewOrbit(old, dV, UT);
-                if(obt.timeToAp > T) minT = T;
+                dV = solver_s.dV4Transfer(T);
+                orb = NewOrbit(old, dV, UT, orb);
+                if(orb.timeToAp > T) minT = T;
                 else maxT = T;
             }
             return dV;
@@ -308,14 +317,15 @@ namespace ThrottleControlledAvionics
             var velN = (Math.Sin(LaunchRad)*VesselOrbit.pos.normalized + Math.Cos(LaunchRad)*hVdir).normalized;
             var vel = Math.Sqrt(2*VSL.Physics.StG*(ApR-Body.Radius)) / Math.Sin(LaunchRad);
             var v   = 0.0;
+            Orbit orb = null;
             while(vel-v > C.dVtol)
             {
                 var V = (v+vel)/2;
-                var o = NewOrbit(VesselOrbit, velN*V-VesselOrbit.vel, VSL.Physics.UT);
-                if(o.ApR > ApR) vel = V;
+                orb = NewOrbit(VesselOrbit, velN*V-VesselOrbit.vel, VSL.Physics.UT, orb);
+                if(orb.ApR > ApR) vel = V;
                 else v = V;
             } vel = (v+vel)/2;
-            return NewOrbit(VesselOrbit, velN*vel-VesselOrbit.vel, VSL.Physics.UT);
+            return NewOrbit(VesselOrbit, velN*vel-VesselOrbit.vel, VSL.Physics.UT, orb);
         }
 
         /// <summary>
@@ -402,19 +412,20 @@ namespace ThrottleControlledAvionics
             var dir = vel/velM;
             var maxV = up? 1.0 :  0.0;
             var minV = up? 0.0 : -velM;
+            Orbit orb = new Orbit();
             if(up)
             {
                 var t = old.period;
                 while(t < T)
                 {
                     maxV *= 2;
-                    t = NewOrbit(old, dir*maxV, UT).period;
+                    t = NewOrbit(old, dir*maxV, UT, orb).period;
                 }
             }
             while(maxV-minV > C.dVtol)
             {
                 var v = (maxV+minV)/2;
-                var t = NewOrbit(old, dir*v, UT).period;
+                var t = NewOrbit(old, dir*v, UT, orb).period;
 //                Utils.Log("{} : {} : {} = {}/{}", minV, v, maxV, t, T);//debug
                 if(t > T) maxV = v;
                 else minV = v;
@@ -453,12 +464,13 @@ namespace ThrottleControlledAvionics
             var maxV = 0.0;
             var lowTTR = double.MaxValue;
             double lowV;
+            Orbit orb = null;
             while(maxV-minV > C.dVtol)
             {
                 lowV = (maxV+minV)/2;
-                var o = NewOrbit(old, dir*lowV, UT);
-                lowTTR = TimeToResonance(o, target, UT, out resonance, out alpha);
-                if(lowTTR > TTR && o.PeR > min_PeR) maxV = lowV;
+                orb = NewOrbit(old, dir*lowV, UT, orb);
+                lowTTR = TimeToResonance(orb, target, UT, out resonance, out alpha);
+                if(lowTTR > TTR && orb.PeR > min_PeR) maxV = lowV;
                 else minV = lowV;
             }
             lowV = (maxV+minV)/2;
@@ -470,8 +482,8 @@ namespace ThrottleControlledAvionics
             while(maxV-minV > C.dVtol)
             {
                 highV = (maxV+minV)/2;
-                var o = NewOrbit(old, dir*highV, UT);
-                highTTR = TimeToResonance(o, target, UT, out resonance, out alpha);
+                orb = NewOrbit(old, dir*highV, UT, orb);
+                highTTR = TimeToResonance(orb, target, UT, out resonance, out alpha);
                 if(highTTR > TTR) minV = highV;
                 else maxV = highV;
             }
@@ -669,52 +681,6 @@ namespace ThrottleControlledAvionics
             ControlsActive &= TCAScenario.HavePatchedConics;
         }
 
-        public class CalculationBalancer<T>
-        {
-            IEnumerator<T> iter;
-            LowPassFilterD duration = new LowPassFilterD();
-            double last_duration = -1;
-            DateTime last_ts = DateTime.MinValue;
-
-            public T Current => iter.Current;
-
-            public CalculationBalancer(IEnumerator<T> enumerator)
-            { 
-                iter = enumerator; 
-                duration.Set(TimeWarp.fixedDeltaTime/100);
-                duration.Tau = 1;
-            }
-
-            public CalculationBalancer(IEnumerable<T> enumerable)
-                : this(enumerable.GetEnumerator()) {}
-
-            public bool step()
-            {
-                var now = DateTime.Now;
-                if(!last_ts.Equals(DateTime.MinValue))
-                {
-                    last_duration = (now-last_ts).TotalSeconds;
-                    if(last_duration > TimeWarp.fixedDeltaTime)
-                        duration.Update(Utils.ClampL(duration+TimeWarp.fixedDeltaTime-last_duration, 0.0001f));
-                    else
-                        duration.Update(duration+(TimeWarp.fixedDeltaTime-last_duration)/2);
-                    //Utils.Log("last_duration {}:{}, duration: {}", 
-                              //last_duration, last_duration/TimeWarp.fixedDeltaTime, duration.Value);//debug
-                }
-                last_ts = now;
-                var next = now.AddSeconds(duration);
-                while(now < next)
-                {
-                    if(!iter.MoveNext())
-                        return false;
-                    now = DateTime.Now;
-                }
-                return true;
-            }
-
-            public bool single_step() => iter.MoveNext();
-        }
-
         #if DEBUG
         public static bool setp_by_step_computation;
         #endif
@@ -736,7 +702,7 @@ namespace ThrottleControlledAvionics
             var I = 0;
             T t = null;
 
-            var ioptimizer = new CalculationBalancer<T>(optimizer.GetEnumerator());
+            var ioptimizer = optimizer.GetEnumerator();
             Status("white", "{0}\nPush to continue", optimizer.Status);
             while(true)
             {
@@ -745,18 +711,9 @@ namespace ThrottleControlledAvionics
                     VSL.Info.CustomMarkersWP.Add(current_landing_trajectory.SurfacePoint);
                 if(setp_by_step_computation && !string.IsNullOrEmpty(TCAGui.StatusMessage))
                 { yield return t; continue; }
-                if(setp_by_step_computation)
-                {
-                    if(!ioptimizer.single_step()) break;
-                    t = ioptimizer.Current;
-                    I++;
-                }
-                else
-                {
-                    if(!ioptimizer.step()) break;
-                    t = ioptimizer.Current;
-                    I++;
-                }
+                if(!ioptimizer.MoveNext()) break;
+                t = ioptimizer.Current;
+                I++;
                 if(t == null) 
                 {
                     Status("white", "{0}\nPush to continue", optimizer.Status);
@@ -782,23 +739,17 @@ namespace ThrottleControlledAvionics
         IEnumerator<T> create_trajecory_calculator(TrajectoryOptimizer optimizer)
         {
             yield return null;
-            var ioptimizer = new CalculationBalancer<T>(optimizer.GetEnumerator());
-            while(true)
+            foreach(var t in optimizer)
             {
-                if(ioptimizer.step())
-                {
-                    Status(optimizer.Status);
-                    yield return ioptimizer.Current;
-                    continue;
-                }
-                break;
+                Status(optimizer.Status);
+                yield return ioptimizer.Current;
             }
             trajectory = optimizer.Best;
         }
         #endif
 
         protected void ComputeTrajectory(TrajectoryOptimizer optimizer)
-        { trajectory_calculator = create_trajecory_calculator(optimizer); }
+        { trajectory_task = ComputationBalancer.AddTask(create_trajecory_calculator(optimizer)); }
 
         protected TrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
@@ -818,25 +769,25 @@ namespace ThrottleControlledAvionics
         {
             base.Reset();
             trajectory = null;
-            trajectory_calculator = null;
+            trajectory_task = null;
             #if DEBUG
             current_landing_trajectory = null;
             #endif
         }
 
         protected T trajectory;
-        IEnumerator<T> trajectory_calculator;
-        protected bool computing => trajectory_calculator != null;
+        ComputationBalancer.Task trajectory_task;
+        protected bool computing => trajectory_task != null;
         protected virtual bool trajectory_computed()
         {
             if(trajectory != null) return true;
-            if(trajectory_calculator == null)
+            if(trajectory_task == null)
             {
                 Log("ERROR: trajectory_computed is called while trajectory_calculator is null. This should never happen.");
                 return false;
             }
-            if(trajectory_calculator.MoveNext()) return false;
-            trajectory_calculator = null;
+            if(!trajectory_task.finished) return false;
+            trajectory_task = null;
             if(trajectory == null) 
                 update_trajectory();
             ClearStatus();

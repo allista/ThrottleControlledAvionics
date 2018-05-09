@@ -244,7 +244,7 @@ namespace ThrottleControlledAvionics
         Vector3d compute_intial_jump_velocity()
         {
             var tPos = CFG.Target.OrbPos(Body);
-            var solver = new LambertSolver(VesselOrbit, tPos+ tPos.normalized * LandingTrajectoryAutopilot.C.FlyOverAlt, VSL.Physics.UT);
+            solver.Init(VesselOrbit, tPos+ tPos.normalized * LandingTrajectoryAutopilot.C.FlyOverAlt, VSL.Physics.UT);
             var vel = VesselOrbit.vel +
                 solver.dV4TransferME()
                 .ClampMagnitudeH(Math.Sqrt(Body.gMagnitudeAtCenter/VesselOrbit.radius));

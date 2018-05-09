@@ -82,6 +82,7 @@ namespace ThrottleControlledAvionics
         double CurrentDistance = -1;
         bool CorrectingManeuver;
         LowPassFilterVd Correction = new LowPassFilterVd();
+        AtmoSim sim;
 
         public override void Init()
         {
@@ -94,6 +95,7 @@ namespace ThrottleControlledAvionics
             MaxDist.Value = 5;
             MaxDays.Value = C.MaxDaysToLaunch;
             Correction.Tau = 0.5f;
+            sim = new AtmoSim(TCA);
         }
 
         public void RendezvousCallback(Multiplexer.Command cmd)
@@ -181,7 +183,7 @@ namespace ThrottleControlledAvionics
         {
             var endUT = StartUT + transfer_time;
             var obt = NextOrbit(StartUT);
-            var solver = new LambertSolver(obt, RelativePosAtUT(obt.referenceBody, TargetOrbit, endUT), StartUT);
+            solver.Init(obt, RelativePosAtUT(obt.referenceBody, TargetOrbit, endUT), StartUT);
             if(solver.NotElliptic(transfer_time))
                 transfer_time = solver.ParabolicTime + 1;
             var dV = solver.dV4Transfer(transfer_time);
@@ -309,7 +311,7 @@ namespace ThrottleControlledAvionics
             public double ApR;
             public double ApAArc;
             public Vector3d ApV, StartPos;
-            public double Dist = -1;
+            public double Dist;
             public Vector3d hVdir, Norm;
             readonly RendezvousAutopilot REN;
 
@@ -325,11 +327,13 @@ namespace ThrottleControlledAvionics
                 UT = startUT;
                 ApR = Utils.Clamp(ren.TargetOrbit.getRelativePositionAtUT(ApAUT).magnitude, minApR, maxApR);
                 ApV = QuaternionD.AngleAxis(ApAArc * Mathf.Rad2Deg, Norm) * StartPos.normalized * ApR;
+                Transfer = -1;
+                Dist = double.MaxValue;
             }
 
             public IEnumerable<double> CalculateTransfer()
             {
-                var sim = AtmoSim.FromSurfaceTTA(REN.TCA, REN.ManeuverOffset, ApR - REN.Body.Radius,
+                var sim = REN.sim.FromSurfaceTTA(REN.ManeuverOffset, ApR - REN.Body.Radius,
                                                  ApAArc, REN.ToOrbit.MaxG, 
                                                  -(float)Vector3d.Dot(REN.Body.zUpAngularVelocity, Norm));
                 foreach(var t in sim)
@@ -346,8 +350,10 @@ namespace ThrottleControlledAvionics
                 yield return Transfer;
             }
 
-            public static bool operator <(Launch a, Launch b) { return a.Dist < b.Dist; }
-            public static bool operator >(Launch a, Launch b) { return a.Dist > b.Dist; }
+            public static bool operator <(Launch a, Launch b) => a.Dist < b.Dist;
+            public static bool operator >(Launch a, Launch b) => a.Dist > b.Dist;
+            public static implicit operator bool(Launch l) => l.Transfer < 0;
+
             public override string ToString()
             {
                 return Utils.Format("StartT {}, Transfer {}, Dist {}, ApR {}",
@@ -408,12 +414,12 @@ namespace ThrottleControlledAvionics
                 findInPlaneUT(inPlaneUT + Body.rotationPeriod / 2, 60);
         }
 
-        CalculationBalancer<object> launch_window_calculator;
-        IEnumerator<object> calculate_launch_window()
+        ComputationBalancer.Task launch_window_calculator;
+        IEnumerator<int> calculate_launch_window()
         {
             ToOrbit.Reset();
+            sim.Init();
             Launch best = null;
-            var time2orbit = -1.0;//debug
             var minApR = ToOrbit.MinApR;
             var maxApR = ToOrbit.MaxApR;
             var maxT = 3600*MaxDays*(GameSettings.KERBIN_TIME? 6 : 24);
@@ -435,19 +441,18 @@ namespace ThrottleControlledAvionics
                 Launch cur = null;
                 while(startUT < endUT)
                 {
-                    Status(ProgressIndicator.Get + " searching for possible launch windows:{0:F0}", (endUT - startUT) / dT);
+                    Status("{0} searching for possible launch windows:{1:F0}", 
+                           ProgressIndicator.Get, (endUT - startUT) / dT);
 #if DEBUG
                     if(setp_by_step_computation &&
                        !string.IsNullOrEmpty(TCAGui.StatusMessage))
                     {
-                        yield return null;
+                        yield return 0;
                         continue;
                     }
 #endif
                     cur = new Launch(this, startUT, cur == null ? -1 : cur.Transfer, minApR, maxApR, ApAArc);
-                    foreach(var t in cur.CalculateTransfer()) yield return null;
-                    if(time2orbit < 0) time2orbit = cur.Transfer;//debug
-                    else time2orbit = (time2orbit+cur.Transfer)/2;//debug
+                    foreach(var t in cur.CalculateTransfer()) yield return 0;
                     minDis.Update(cur.Dist);
                     if(minDis) minima.Add(startUT);
                     startUT += dT;
@@ -455,30 +460,29 @@ namespace ThrottleControlledAvionics
                     if(setp_by_step_computation)
                         Status("Push to proceed");
 #endif
-                    yield return null;
+                    yield return 0;
                 }
                 //then find each of the minima exactly and choose the best
                 for(int i = 0, minimaCount = minima.Count; i < minimaCount; i++)
                 {
+					Launch min = null;
                     var m = minima[i];
-                    dT = 100;
                     startUT = m;
-                    Launch min = null;
+					dT = 100;
                     while(Math.Abs(dT) > 0.01)
                     {
-                        Status(ProgressIndicator.Get + 
-                               " checking possible launch windows: {0}/{1}", 
-                               i+1, minimaCount);
+                        Status("{0} checking possible launch windows: {1}/{2}", 
+                               ProgressIndicator.Get, i+1, minimaCount);
 #if DEBUG
                         if(setp_by_step_computation &&
                            !string.IsNullOrEmpty(TCAGui.StatusMessage))
                         {
-                            yield return null;
+                            yield return 0;
                             continue;
                         }
 #endif
                         cur = new Launch(this, startUT, cur == null ? -1 : cur.Transfer, minApR, maxApR, ApAArc);
-                        foreach(var t in cur.CalculateTransfer()) yield return null;
+                        foreach(var t in cur.CalculateTransfer()) yield return 0;
                         if(min == null || cur < min) min = cur;
                         startUT += dT;
                         if(startUT < VSL.Physics.UT || startUT > endUT || cur != min)
@@ -490,7 +494,7 @@ namespace ThrottleControlledAvionics
                         if(setp_by_step_computation)
                             Status("Push to proceed");
 #endif
-                        yield return null;
+                        yield return 0;
                     }
                     Log("Min.launch: {}\nBest.launch: {}\nincl.delta: {} < {}, max dist: {}\nmin better: {} && {} && {}", 
                         min, best, inclinationDelta(min.UT), IncDelta.Value, MaxDist.Value,
@@ -518,12 +522,11 @@ namespace ThrottleControlledAvionics
                 );
                 while(Math.Abs(proj_anlgle) > 30 && in_plane_UT-VSL.Physics.UT < maxT)
                 {
-                    Log("proj_angle {}, time2launch {}, time2orbit {}", 
-                        proj_anlgle, in_plane_UT-VSL.Physics.UT,  time2orbit);//debug
-                    Status(ProgressIndicator.Get + 
-                           " choosing optimal in-plane launch window: {0:P0}", 
-                           (in_plane_UT-VSL.Physics.UT) / maxT);
-                    yield return null;
+                    Log("proj_angle {}, time2launch {}", 
+                        proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
+                    Status("{0} choosing optimal in-plane launch window: {1:P0}", 
+                           ProgressIndicator.Get, (in_plane_UT-VSL.Physics.UT) / maxT);
+                    yield return 0;
                     in_plane_UT = findInPlaneUT(in_plane_UT+Body.rotationPeriod/2, Body.rotationPeriod / 10);
                     proj_anlgle = -Utils.ProjectionAngle(
                         TargetOrbit.getRelativePositionAtUT(in_plane_UT),
@@ -531,8 +534,8 @@ namespace ThrottleControlledAvionics
                         TargetOrbit.getOrbitalVelocityAtUT(in_plane_UT)
                     );
                 }
-                Log("proj_angle {}, time2launch {}, time2orbit {}", 
-                    proj_anlgle, in_plane_UT-VSL.Physics.UT,  time2orbit);//debug
+                Log("proj_angle {}, time2launch {}", 
+                    proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
                 var ApR = minApR;
                 if(proj_anlgle < 0)
                 {
@@ -558,7 +561,7 @@ namespace ThrottleControlledAvionics
             CFG.DisableVSC();
             if(VSL.LandedOrSplashed)
             {
-                launch_window_calculator = new CalculationBalancer<object>(calculate_launch_window());
+                launch_window_calculator = ComputationBalancer.AddTask(calculate_launch_window());
                 stage = Stage.PreLaunch;
             }
             else
@@ -741,7 +744,7 @@ namespace ThrottleControlledAvionics
             case Stage.PreLaunch:
                 if(launch_window_calculator != null)
                 {
-                    if(launch_window_calculator.step()) break;
+                    if(!launch_window_calculator.finished) break;
                     launch_window_calculator = null;
                 }
                 stage = Stage.Launch;

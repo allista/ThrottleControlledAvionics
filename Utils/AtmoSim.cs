@@ -36,9 +36,32 @@ namespace ThrottleControlledAvionics
             }
         }
 
+        LambertSolver2D solver = new LambertSolver2D();
+        PIDf_Controller3 pitch = new PIDf_Controller3();
+        PIDf_Controller3 throttle = new PIDf_Controller3();
+        PIDf_Controller3 throttle_correction = new PIDf_Controller3();
+        Ratchet correction_started = new Ratchet();
+        EnginesStats eStats;
+
         CelestialBody Body { get { return VSL.Body; } }
 
         public AtmoSim(ModuleTCA tca) : base(tca) { }
+
+        public void Init()
+        {
+            eStats = VSL.Engines.NoActiveEngines ?
+                        VSL.Engines.GetNearestEnginedStageStats() :
+                        VSL.Engines.GetEnginesStats(VSL.Engines.Active);
+            pitch.setPID(TargetedToOrbitExecutor.C.TargetPitchPID);
+            pitch.Min = -AttitudeControlBase.C.MaxAttitudeError;
+            pitch.Reset();
+            throttle.setPID(ToOrbitExecutor.C.ThrottlePID);
+            throttle.setClamp(0.5f);
+            throttle.Reset();
+            throttle_correction.setPID(TargetedToOrbitExecutor.C.ThrottleCorrectionPID);
+            throttle_correction.Reset();
+            correction_started.Reset();
+        }
 
         double drag(double s, double h, double v)
         {
@@ -164,28 +187,18 @@ namespace ThrottleControlledAvionics
             var T = new Vector2d(0, 1);
             var m = (double)VSL.Physics.M;
             var m0 = m;
-            var eStats = VSL.Engines.NoActiveEngines ?
-                VSL.Engines.GetNearestEnginedStageStats() :
-                VSL.Engines.GetEnginesStats(VSL.Engines.Active);
             var mT = eStats.MaxThrust;
             var mTm = mT.magnitude;
             var mflow = eStats.MaxMassFlow;
             var AA = eStats.TorqueInfo.AA_rad;
             var s = VSL.Geometry.AreaInDirection(mT);
-            var pitch = new PIDf_Controller3();
-            var throttle = new PIDf_Controller3();
-            var throttle_correction = new PIDf_Controller3();
-			var correction_started = new Ratchet();
-            pitch.setPID(TargetedToOrbitExecutor.C.TargetPitchPID);
-            pitch.Min = -AttitudeControlBase.C.MaxAttitudeError;
-            throttle.setPID(ToOrbitExecutor.C.ThrottlePID);
-            throttle.setClamp(0.5f);
-            throttle_correction.setPID(TargetedToOrbitExecutor.C.ThrottleCorrectionPID);
             var thrust = true;
             var R = r.magnitude;
             var prev_r = r;
             var maxR = ApR*2;
             double turn_start = VSL.Altitude.Absolute;
+            bool turn_started = false;
+            Orbit obt = null;
             while(R > BR && R < maxR &&
                   Utils.Angle2(r0n, r1n) > Utils.Angle2(r0n, r))
             {
@@ -200,18 +213,18 @@ namespace ThrottleControlledAvionics
                 var thr = thrust ? max_G_throttle((float)Vector2d.Dot(T, r.normalized), m, maxG) : 0;
                 var nV = v;
                 if(thrust &&
-                   Vector2d.Dot(r.normalized, v) / VSL.Physics.StG > ToOrbitExecutor.Config.INST.MinClimbTime)
+                   Vector2d.Dot(r.normalized, v) / VSL.Physics.StG > ToOrbitExecutor.C.MinClimbTime)
                 {
-                    var rr1 = r1 - r;
-                    var slv = new LambertSolver2D(Body, r, v, r1);
-                    var minT = slv.ParabolicTime;
-                    var maxT = slv.MinEnergyTime;
-                    nV = slv.dV4TransferME();
+					var rr1 = r1 - r;
+                    solver.Init(Body, r, v, r1);
+                    var minT = solver.ParabolicTime;
+                    var maxT = solver.MinEnergyTime;
+                    nV = solver.dV4TransferME();
                     while(maxT - minT > 0.1)
                     {
                         var curT = (maxT + minT) / 2;
-                        nV = slv.dV4Transfer(curT);
-                        var obt = TrajectoryCalculator.NewOrbit(Body, r, v + nV, VSL.Physics.UT);
+                        nV = solver.dV4Transfer(curT);
+                        obt = TrajectoryCalculator.NewOrbit(Body, r, v + nV, VSL.Physics.UT, obt);
                         if(obt.timeToAp > curT) minT = curT;
                         else maxT = curT;
                     }
@@ -225,11 +238,13 @@ namespace ThrottleControlledAvionics
                         pitch.Action = (float)Utils.Clamp(AoA - neededAoA + angle2Hor, 
                                                           -AttitudeControlBase.C.MaxAttitudeError, 
                                                           AoA);
-                    if(h < Body.atmosphereDepth) 
+                    if(!turn_started && h < Body.atmosphereDepth) 
                     {
                         var atm = Body.AtmoParamsAtAltitude(h);
                         if(atm.Rho > ToOrbitExecutor.C.AtmDensityOffset)
                             turn_start = h;
+                        else
+                            turn_started = true;
                     }
                     var startF = Utils.Clamp((h - turn_start) / ApA/ToOrbitExecutor.C.GTurnOffset, 0, 1);
                     var nT = v.Rotate(pitch.Action * startF);
@@ -275,12 +290,6 @@ namespace ThrottleControlledAvionics
             }
             //Log("TimeToApA: {}", t);//debug
             yield return t;
-        }
-
-        public static IEnumerable<double> FromSurfaceTTA(ModuleTCA tca, float ApA_offset, double ApA, double alpha, float maxG, float angularV)
-        {
-            var sim = new AtmoSim(tca);
-            return sim.FromSurfaceTTA(ApA_offset, ApA, alpha, maxG, angularV);
         }
     }
 }
