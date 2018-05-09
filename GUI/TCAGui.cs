@@ -402,7 +402,7 @@ namespace ThrottleControlledAvionics
         { return TCA != null && VSL != null && vessel != null && CFG.GUIVisible && AllTabs.Count > 0; }
 
         #if DEBUG
-        static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 200, 25).clampToScreen();
+        static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 270, 25).clampToScreen();
         #endif
         protected override void draw_gui()
         {
@@ -457,9 +457,9 @@ namespace ThrottleControlledAvionics
 
             #if DEBUG
             GUI.Label(debug_rect, 
-                      string.Format("[{0}] {1:HH:mm:ss.fff}", 
+                      string.Format("[{0}] {1:HH:mm:ss.fff} FPS: {2:F0}:{3:F0}", 
                                     TCA != null && vessel != null? vessel.situation.ToString() : "", 
-                                    DateTime.Now), 
+                                    DateTime.Now, ComputationBalancer.FPS, ComputationBalancer.FPS_AVG),
                       Styles.boxed_label);
             #endif
         }
