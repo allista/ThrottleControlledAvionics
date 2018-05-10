@@ -10,34 +10,34 @@
 
 namespace ThrottleControlledAvionics
 {
-	public class HorizontalSpeedProps : VesselProps
-	{
-		public HorizontalSpeedProps(VesselWrapper vsl) : base(vsl) {}
+    public class HorizontalSpeedProps : VesselProps
+    {
+        public HorizontalSpeedProps(VesselWrapper vsl) : base(vsl) {}
 
-		public Vector3d Vector { get; private set; }
-		public Vector3d NeededVector { get; private set; }
-		public Vector3d normalized { get { return Vector.normalized; } }
-		public float    Absolute { get; private set; }
-		public bool     MoovingFast;
-		public bool     Mooving;
+        public Vector3d Vector { get; private set; }
+        public Vector3d NeededVector { get; private set; }
+        public Vector3d normalized { get { return Vector.normalized; } }
+        public float    Absolute { get; private set; }
+        public bool     MoovingFast;
+        public bool     Mooving;
 
-		public static implicit operator float(HorizontalSpeedProps hsp) { return hsp.Absolute; }
+        public static implicit operator float(HorizontalSpeedProps hsp) { return hsp.Absolute; }
 
-		public override void Update()
-		{
-			Vector = Vector3d.Exclude(VSL.Physics.Up, vessel.srf_velocity);
-			Absolute = (float)Vector.magnitude;
-			Mooving = Absolute > GLB.HSC.TranslationMinDeltaV;
-			MoovingFast = Absolute > GLB.RAD.MinClosingSpeed;
-		}
+        public override void Update()
+        {
+            Vector = Vector3d.Exclude(VSL.Physics.Up, vessel.srf_velocity);
+            Absolute = (float)Vector.magnitude;
+            Mooving = Absolute > HorizontalSpeedControl.C.TranslationMinDeltaV;
+            MoovingFast = Absolute > Radar.C.MinClosingSpeed;
+        }
 
-		public Vector3d Predicted(float time) 
-		{ return Vector3d.Exclude(VSL.Physics.Up, vessel.srf_velocity+vessel.acceleration*time); }
+        public Vector3d Predicted(float time) 
+        { return Vector3d.Exclude(VSL.Physics.Up, vessel.srf_velocity+vessel.acceleration*time); }
 
-		public void SetNeeded(Vector3d nV)
-		{
-			NeededVector = nV;
-		}
-	}
+        public void SetNeeded(Vector3d nV)
+        {
+            NeededVector = nV;
+        }
+    }
 }
 

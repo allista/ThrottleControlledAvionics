@@ -8,25 +8,26 @@
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 //
 using System;
+using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
     /// <summary>
-    /// Lambert solver.
+    /// Lambert solver.for 2D space
     /// Uses Sun's analytical solution to the Lambert problem with zero revolutions 
     /// and the Laguerre iterative root finder as described in:
     /// Wagner, Samuel Arthur, "Automated trajectory design for impulsive and low thrust interplanetary mission analysis" (2014). 
     /// Graduate Theses and Dissertations. Paper 14238.
     /// Because I can't get the fucking original paper by Sun anywhere =/
     /// </summary>
-    public class LambertSolver
+    public class LambertSolver2D
     {
         double mu; //standard grav. paramenter of the reference body
 
-        Vector3d v1; //start velocity
-        Vector3d r1; //start position
-        Vector3d c;  //r2-r1
+        Vector2d v1; //start velocity
+        Vector2d r1; //start position
+        Vector2d c;  //r2-r1
         //magnitudes
         double cm;
         double m; //r1m+r2m+cm
@@ -41,44 +42,28 @@ namespace ThrottleControlledAvionics
         double m3;
 
         /// <summary>
-        /// Initializes the <see cref="T:ThrottleControlledAvionics.LambertSolver"/> for new optimization
+        /// Initializes a new instance of the <see cref="T:ThrottleControlledAvionics.LambertSolver"/> class.
         /// </summary>
-        /// <param name="orb">Starting orbit.</param>
-        /// <param name="destination">Destination radius-vector.</param>
-        /// <param name="UT">Starting UT.</param>
-        public void Init(Orbit orb, Vector3d destination, double UT) =>
-        Init(orb.getRelativePositionAtUT(UT),
-             orb.getOrbitalVelocityAtUT(UT),
-             destination,
-             orb.GetOrbitNormal(),
-             orb.referenceBody.gravParameter);
+        /// <param name="body">Celectial Body</param>
+        /// <param name="r1">Start position</param>
+        /// <param name="v1">Start velocity</param>
+        /// <param name="r2">End position</param>
+        public void Init(CelestialBody body, Vector2d r1, Vector2d v1, Vector2d r2) =>
+        Init(r1, v1, r2, body.gravParameter);
 
         /// <summary>
-        /// Initializes the <see cref="T:ThrottleControlledAvionics.LambertSolver"/> for new optimization
+        /// Initializes a new instance of the <see cref="T:ThrottleControlledAvionics.LambertSolver"/> class.
         /// </summary>
-        /// <param name="body">Celectial Body.</param>
-        /// <param name="r1">Start position.</param>
-        /// <param name="v1">Start velocity.</param>
-        /// <param name="r2">Destination radius-vector.</param>
-        public void Init(CelestialBody body, Vector3d r1, Vector3d v1, Vector3d r2) =>
-        Init(r1, v1, r2, Vector3d.Cross(r1, v1), body.gravParameter);
-
-        /// <summary>
-        /// Initializes the <see cref="T:ThrottleControlledAvionics.LambertSolver"/> for new optimization
-        /// </summary>
-        /// <param name="r1">Start position.</param>
-        /// <param name="v1">Start velocity.</param>
-        /// <param name="r2">Destination radius-vector.</param>
-        /// <param name="norm">Orbit normal.</param>
-        /// <param name="mu">Celectial body gravitational constant.</param>
-        public void Init(Vector3d r1, Vector3d v1, Vector3d r2, Vector3d norm, double mu)
+        /// <param name="r1">Start position</param>
+        /// <param name="v1">Start velocity</param>
+        /// <param name="r2">End position</param>
+        /// <param name="mu">Gravitational constant of the central body</param>
+        public void Init(Vector2d r1, Vector2d v1, Vector2d r2, double mu)
         {
             this.mu = mu;
 
             this.v1 = v1;
             this.r1 = r1;
-            var h = Vector3d.Cross(r1, r2);
-            if(h.sqrMagnitude < 0.01) h = norm;
             c = r2 - r1;
 
             cm = c.magnitude;
@@ -90,7 +75,7 @@ namespace ThrottleControlledAvionics
             m3 = m * m * m;
 
             sigma = Math.Sqrt(n / m);
-            if(h.z * norm.z < 0)
+            if(Vector2d.Dot(c, v1) < 0)
                 sigma = -sigma;
             sigma2 = sigma * sigma;
             sigma3 = sigma2 * sigma;
@@ -131,7 +116,7 @@ namespace ThrottleControlledAvionics
         /// </summary>
         /// <returns>The DeltaVee for the maneuver.</returns>
         /// <param name="transfer_time">Returned value of the transfer time in seconds.</param>
-        public Vector3d dV4TransferME(out double transfer_time)
+        public Vector2d dV4TransferME(out double transfer_time)
         {
             transfer_time = invtau(tauME);
             return dV4TransferME();
@@ -141,7 +126,7 @@ namespace ThrottleControlledAvionics
         /// Calculates the ME transfer orbit from a given orbit and UT to the destination radius-vector.
         /// </summary>
         /// <returns>The DeltaVee for the maneuver.</returns>
-        public Vector3d dV4TransferME()
+        public Vector2d dV4TransferME()
         {
             var v = Math.Sqrt(mu) * Math.Sign(sigma) * Math.Sqrt(1 - sigma2) / Math.Sqrt(n);
             return (r1.normalized + c / cm) * v - v1;
@@ -152,7 +137,7 @@ namespace ThrottleControlledAvionics
         /// </summary>
         /// <returns>The DeltaVee for the maneuver.</returns>
         /// <param name="transfer_time">Returned value of the transfer time in seconds.</param>
-        public Vector3d dV4TransferP(out double transfer_time)
+        public Vector2d dV4TransferP(out double transfer_time)
         {
             transfer_time = invtau(tauP);
             return dV(1, Math.Sign(sigma));
@@ -164,7 +149,7 @@ namespace ThrottleControlledAvionics
         /// <returns>The DeltaVee for the maneuver.</returns>
         /// <param name="transfer_time">Transfer time.</param>
         /// <param name="tol">Error tolerance.</param>
-        public Vector3d dV4Transfer(double transfer_time, double tol = 1e-6)
+        public Vector2d dV4Transfer(double transfer_time, double tol = 1e-6)
         {
             tau = _tau(transfer_time);
             if(tau <= tauP)
@@ -173,7 +158,7 @@ namespace ThrottleControlledAvionics
                 else //TODO: implement hyperbolic transfers
                 {
                     Utils.Log("dV4Transfer: hyperbolic transfer orbits are not yet supported.");
-                    return Vector3d.zero;
+                    return Vector2d.zero;
                 }
             }
             if(Math.Abs(tau - tauME) < tol) return dV4TransferME();
@@ -195,7 +180,7 @@ namespace ThrottleControlledAvionics
             if(double.IsNaN(x1))
             {
                 Utils.Log("Unable to solve transfer orbit: {}", transfer_time);
-                return Vector3d.zero;
+                return Vector2d.zero;
             }
             return dV(x1, _y(x1));
         }
@@ -206,7 +191,7 @@ namespace ThrottleControlledAvionics
 
         double invtau(double t) { return t / 4 / Math.Sqrt(mu / m3); }
 
-        Vector3d dV(double x, double y)
+        Vector2d dV(double x, double y)
         {
             var sqrt_mu = Math.Sqrt(mu);
             var sqrt_m = Math.Sqrt(m);
@@ -223,8 +208,8 @@ namespace ThrottleControlledAvionics
             var sqrt_one_y2 = Math.Sqrt(1 - y * y);
 
             return (((Math.Acos(x) - x * sqrt_one_x2) -
-                      (Math.Atan(sqrt_one_y2 / y) - y * sqrt_one_y2))
-                     / (sqrt_one_x2 * sqrt_one_x2 * sqrt_one_x2) - tau);
+                     (Math.Atan(sqrt_one_y2 / y) - y * sqrt_one_y2))
+                    / (sqrt_one_x2 * sqrt_one_x2 * sqrt_one_x2) - tau);
         }
 
         double next_elliptic(double x, int N)

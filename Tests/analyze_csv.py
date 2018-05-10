@@ -154,7 +154,7 @@ if __name__ == '__main__':
                 #'SLx', 'SLy', 'SLz',
             ),
             #region=(40,50),
-    )	
+    )    
 
     # analyzeCSV(
     #            gamefile('Tardegrade.AttitudeControl.csv'),

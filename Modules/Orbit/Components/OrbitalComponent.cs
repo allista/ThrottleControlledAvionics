@@ -12,13 +12,13 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	public abstract class OrbitalComponent : TCAComponent
-	{
-		protected OrbitalComponent(ModuleTCA tca) : base(tca) {}
+    public abstract class OrbitalComponent : TCAComponent
+    {
+        protected OrbitalComponent(ModuleTCA tca) : base(tca) {}
 
-		protected Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
-		protected CelestialBody Body { get { return VesselOrbit.referenceBody; } }
-		protected Vector3d hV(double UT) { return VesselOrbit.hV(UT); }
-	}
+        protected Orbit VesselOrbit { get { return VSL.vessel.orbitDriver.orbit; } }
+        protected CelestialBody Body { get { return VesselOrbit.referenceBody; } }
+        protected Vector3d hV(double UT) { return VesselOrbit.hV(UT); }
+    }
 }
 

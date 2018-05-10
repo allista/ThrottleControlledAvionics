@@ -11,11 +11,11 @@ using System;
 
 namespace ThrottleControlledAvionics
 {
-	public class MatchPlaneAutopilot : TrajectoryCalculator
-	{
-		public MatchPlaneAutopilot(ThrottleControlledAvionics tca): base(tca) {}
+    public class MatchPlaneAutopilot : TrajectoryCalculator
+    {
+        public MatchPlaneAutopilot(ThrottleControlledAvionics tca): base(tca) {}
 
 
-	}
+    }
 }
 

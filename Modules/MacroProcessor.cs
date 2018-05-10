@@ -9,11 +9,11 @@
 
 namespace ThrottleControlledAvionics
 {
-	[CareerPart]
-	[OptionalModules(null)]
-	public class MacroProcessor : TCAModule
-	{
-		public MacroProcessor(ModuleTCA tca) : base(tca) {}
+    [CareerPart]
+    [OptionalModules(null)]
+    public class MacroProcessor : TCAModule
+    {
+        public MacroProcessor(ModuleTCA tca) : base(tca) {}
 
         public override void Disable()
         {
@@ -22,17 +22,17 @@ namespace ThrottleControlledAvionics
                 CFG.SelectedMacro.Rewind();
         }
 
-		protected override void UpdateState()
-		{ 
-			base.UpdateState();
-			IsActive &= CFG.MacroIsActive && CFG.SelectedMacro != null; 
-		}
+        protected override void UpdateState()
+        { 
+            base.UpdateState();
+            IsActive &= CFG.MacroIsActive && CFG.SelectedMacro != null; 
+        }
 
-		protected override void Update()
-		{
-			CFG.MacroIsActive &= CFG.SelectedMacro.Execute(VSL);
-			if(!CFG.MacroIsActive) CFG.SelectedMacro.Rewind();
-		}
-	}
+        protected override void Update()
+        {
+            CFG.MacroIsActive &= CFG.SelectedMacro.Execute(VSL);
+            if(!CFG.MacroIsActive) CFG.SelectedMacro.Rewind();
+        }
+    }
 }
 

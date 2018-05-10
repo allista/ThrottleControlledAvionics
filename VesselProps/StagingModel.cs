@@ -18,7 +18,7 @@ namespace ThrottleControlledAvionics
             public int InverseIndex;
 
             public List<Part> Parts { get; private set; }
-            public List<EngineWrapper> Engines { get; private set; }
+            public EnginesDB Engines { get; private set; }
 
             public Stage(VesselWrapper vsl) : base(vsl) {}
 
@@ -28,29 +28,8 @@ namespace ThrottleControlledAvionics
 
             public EnginesStats GetEnginesStats()
             {
-                var stats = new EnginesStats(VSL);
-                for(int i = 0, count = Engines.Count; i < count; i++)
-                {
-                    var e = Engines[i];
-                    e.InitState();
-                    e.InitTorque(VSL, GLB.ENG.TorqueRatioFactor);
-                    var throttle = e.Role == TCARole.MANUAL ? e.thrustLimit : 1;
-                    if(throttle > 0)
-                    {
-                        var thrust = e.nominalCurrentThrust(throttle);
-                        if(e.Role != TCARole.MANEUVER)
-                        {
-                            stats.MaxThrust += e.wThrustDir * thrust;
-                            stats.MaxDefThrust += e.defThrustDir * thrust;
-                            stats.MaxMassFlow += e.MaxFuelFlow * throttle;
-                            //stats.MaxFuelMass += ;
-                        }
-                        if(e.isSteering) 
-                            stats.TorqueLimits.Add(e.specificTorque*thrust);
-                    }
-                }
+                var stats = new EnginesStats(Engines, VSL);
                 stats.MaxDeltaV = DeltaV(stats.MaxThrust.magnitude/stats.MaxMassFlow, stats.MaxFuelMass);
-                stats.Update();
                 return stats;
             }
         }

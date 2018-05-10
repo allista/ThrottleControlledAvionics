@@ -11,16 +11,16 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	public class OrbitalTab : ControlTab
-	{
+    public class OrbitalTab : ControlTab
+    {
         public OrbitalTab(ModuleTCA tca) : base(tca) {}
 
-		MatchVelocityAutopilot MVA;
-		DeorbitAutopilot DEO;
-		RendezvousAutopilot REN;
-		ToOrbitAutopilot ORB;
-		[InternalModule]
-		PointNavigator PN;
+        MatchVelocityAutopilot MVA;
+        DeorbitAutopilot DEO;
+        RendezvousAutopilot REN;
+        ToOrbitAutopilot ORB;
+        [InternalModule]
+        PointNavigator PN;
 
         public override void OnRenderObject()
         {
@@ -28,33 +28,33 @@ namespace ThrottleControlledAvionics
                 DEO.DrawTrajectory();
         }
 
-		public override void Draw()
-		{
-			GUILayout.BeginHorizontal();
-			if(MVA != null) MVA.Draw();
-			GUILayout.EndHorizontal();
-			if(PN  != null && UI.NAV != null) 
-				UI.NAV.TargetUI();
-			GUILayout.BeginHorizontal();
-			if(ORB != null) ORB.Draw();
-			if(REN != null) REN.Draw();
-			if(DEO != null) DEO.Draw();
-			GUILayout.EndHorizontal();
-            if(ORB != null && ORB.ShowOptions)
+        public override void Draw()
+        {
+            GUILayout.BeginHorizontal();
+            if(MVA != null) MVA.Draw();
+            GUILayout.EndHorizontal();
+            if(PN  != null && UI.NAV != null) 
+                UI.NAV.TargetUI();
+            GUILayout.BeginHorizontal();
+            if(ORB != null) ORB.Draw();
+            if(REN != null) REN.Draw();
+            if(DEO != null) DEO.Draw();
+            GUILayout.EndHorizontal();
+            if(ORB != null && ORB.ShowOptions && ORB.ControlsActive)
                 ORB.DrawOptions();
-            if(REN != null && REN.ShowOptions)
+            if(REN != null && REN.ShowOptions && REN.ControlsActive)
             {
                 REN.DrawOptions();
                 REN.DrawBestTrajectories();
             }
-            if(DEO != null && DEO.ShowOptions)
-				DEO.DrawOptions();
-			#if DEBUG
-			if(Utils.ButtonSwitch("DBG", ref TrajectoryCalculator.setp_by_step_computation, 
-			                      "Toggles step-by-step trajectory computation", GUILayout.ExpandWidth(true)) &&
-			   TrajectoryCalculator.setp_by_step_computation)
-				MapView.EnterMapView();
-			#endif
-		}
-	}
+            if(DEO != null && DEO.ShowOptions && DEO.ControlsActive)
+                DEO.DrawOptions();
+            #if DEBUG
+            if(Utils.ButtonSwitch("DBG", ref TrajectoryCalculator.setp_by_step_computation, 
+                                  "Toggles step-by-step trajectory computation", GUILayout.ExpandWidth(true)) &&
+               TrajectoryCalculator.setp_by_step_computation)
+                MapView.EnterMapView();
+            #endif
+        }
+    }
 }

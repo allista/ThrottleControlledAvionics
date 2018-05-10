@@ -2,7 +2,25 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.5.0**
+* **v3.5.2**
+    * More **efficient ToOrbit/Rendezvous** from the ground with _GravityTurn_-like. With a lot of tweakable options.
+        * When launching in-plane with the target TCA now tries to find a launch window to get closer to the target.
+    * TCA takes into account **torque from control surfaces**.
+    * Attitude Control uses Oscillation Detector to quench persistent low-frequency oscillations.
+    * ToOrbit/Rendezvous AP can start without active engines.
+    * Numerous fixes in Rendezvous main logic.
+    * Fixed Maneuver Autopilot logic.
+    * Fixed VTOLControl yaw problem
+    * Fixed some Attitude Control bugs.
+    * Fixed Time Warp control.
+    * Improved performance of many orbital calculations and simulations.
+
+* v3.5.1
+    * Fixed collapsed window rendering.
+    * Using TextureCache.
+    * Restore RCS limiters when disabling TCA.
+
+* v3.5.0
 	* **Major overhaul of orbital autopilots**:
 		* **Deorbit** autopilot performs **simulation of atmospheric flight and main deceleration** to determine approximate landing trajectory. Achieves much more precise landings using chutes/brakes alone; and saves fuel in powered landing.
     		* Atmospheric trajectory is drawn in magenta in Map View

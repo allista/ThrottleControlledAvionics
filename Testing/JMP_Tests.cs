@@ -38,14 +38,5 @@ namespace ThrottleControlledAvionics
             }
         }
     }
-
-    public class JMP_Test_Mun : JMP_Test_Base
-    {
-        public JMP_Test_Mun()
-        {
-            Save = "Jump Test";
-            latSpread = 90;
-        }
-    }
 }
 #endif

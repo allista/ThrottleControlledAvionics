@@ -11,42 +11,42 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-	public class AltitudeProps : VesselProps
-	{
-		public AltitudeProps(VesselWrapper vsl) : base(vsl) {}
+    public class AltitudeProps : VesselProps
+    {
+        public AltitudeProps(VesselWrapper vsl) : base(vsl) {}
 
-		public float Current { get; private set; }
-		public float Absolute { get; private set; }
-		public float Relative { get; private set; }
-		public float PrevRelative { get; private set; }
-		public float TerrainAltitude { get; private set; }
-		public bool  AboveGround { get; private set; }
-		public float Ahead = float.MinValue;
-		public float LowerThreshold = float.MinValue;
-		public bool  CorrectionAllowed = true;
+        public float Current { get; private set; }
+        public float Absolute { get; private set; }
+        public float Relative { get; private set; }
+        public float PrevRelative { get; private set; }
+        public float TerrainAltitude { get; private set; }
+        public bool  AboveGround { get; private set; }
+        public float Ahead = float.MinValue;
+        public float LowerThreshold = float.MinValue;
+        public bool  CorrectionAllowed = true;
 
-		public static implicit operator float(AltitudeProps alt) { return alt.Current; }
+        public static implicit operator float(AltitudeProps alt) { return alt.Current; }
 
-		public override void ClearFrameState()
-		{
-			LowerThreshold = float.MinValue;
-			CorrectionAllowed = true;
-		}
+        public override void ClearFrameState()
+        {
+            LowerThreshold = float.MinValue;
+            CorrectionAllowed = true;
+        }
 
-		public void DontCorrectIfSlow()
-		{ CorrectionAllowed = VSL.HorizontalSpeed.MoovingFast; }
+        public void DontCorrectIfSlow()
+        { CorrectionAllowed = VSL.HorizontalSpeed.MoovingFast; }
 
-		public override void Update()
-		{
-			PrevRelative = Relative;
-			Absolute = (float)vessel.altitude;
-			TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
-			Relative = Utils.ClampL((float)(vessel.altitude) - TerrainAltitude, 0);
-			Current = CFG.AltitudeAboveTerrain? Relative : Absolute;
-			AboveGround = 
-				CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= VSL.Geometry.H ||
-				!CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= TerrainAltitude+VSL.Geometry.H; 
-		}
-	}
+        public override void Update()
+        {
+            PrevRelative = Relative;
+            Absolute = (float)vessel.altitude;
+            TerrainAltitude = (float)((vessel.mainBody.ocean && vessel.terrainAltitude < 0)? 0 : vessel.terrainAltitude);
+            Relative = Utils.ClampL((float)(vessel.altitude) - TerrainAltitude, 0);
+            Current = CFG.AltitudeAboveTerrain? Relative : Absolute;
+            AboveGround = 
+                CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= VSL.Geometry.H ||
+                !CFG.AltitudeAboveTerrain && CFG.DesiredAltitude >= TerrainAltitude+VSL.Geometry.H; 
+        }
+    }
 }
 
