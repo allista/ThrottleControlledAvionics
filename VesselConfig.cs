@@ -164,12 +164,6 @@ namespace ThrottleControlledAvionics
                 foreach(var n in mcn.GetNodes())
                     ModuleConfigs.Add(n.name, n);
             }
-
-            //deprecated: old config conversion
-            var path = node.GetNode("Waypoints"); 
-            if(path != null) Path.Load(path);
-            ///////////////////////////////////
-
             //initialize saved waypoints
             if(Anchor != null && string.IsNullOrEmpty(Anchor.Name))
                 Anchor = null;
