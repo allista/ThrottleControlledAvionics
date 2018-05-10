@@ -28,9 +28,9 @@ using AT_Utils;
 // and "{Major}.{Minor}.{Build}.*" will update just the revision.
 
 #if NIGHTBUILD
-[assembly: AssemblyVersion("3.4.*")]
+[assembly: AssemblyVersion("3.5.*")]
 #else
-[assembly: AssemblyVersion("3.5.1.0")]
+[assembly: AssemblyVersion("3.5.2.0")]
 #endif
 [assembly: KSPAssembly("ThrottleControlledAvionics", 3, 5)]
 
@@ -46,8 +46,8 @@ namespace ThrottleControlledAvionics
     {
         public ModInfo()
         {
-            MinKSPVersion = new Version(1,4,1);
-            MaxKSPVersion = new Version(1,4,1);
+            MinKSPVersion = new Version(1,4,3);
+            MaxKSPVersion = new Version(1,4,3);
 
             VersionURL   = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
             UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
