@@ -742,7 +742,7 @@ namespace ThrottleControlledAvionics
             foreach(var t in optimizer)
             {
                 Status(optimizer.Status);
-                yield return ioptimizer.Current;
+                yield return t;
             }
             trajectory = optimizer.Best;
         }
