@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
         public bool    PauseWhenStopped;
 
         bool dewarp;
-        double warp_to_time = -1;//debug
+        double warp_to_time = -1;
         public double WarpToTime 
         {
             get { return dewarp? 0: warp_to_time; }

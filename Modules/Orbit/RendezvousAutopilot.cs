@@ -496,11 +496,11 @@ namespace ThrottleControlledAvionics
 #endif
                         yield return 0;
                     }
-                    Log("Min.launch: {}\nBest.launch: {}\nincl.delta: {} < {}, max dist: {}\nmin better: {} && {} && {}", 
-                        min, best, inclinationDelta(min.UT), IncDelta.Value, MaxDist.Value,
-                        min.Dist < MaxDist*1000,
-                        inclinationDelta(min.UT) < IncDelta, 
-                        (best == null || min < best));//debug
+                    //Log("Min.launch: {}\nBest.launch: {}\nincl.delta: {} < {}, max dist: {}\nmin better: {} && {} && {}", 
+                        //min, best, inclinationDelta(min.UT), IncDelta.Value, MaxDist.Value,
+                        //min.Dist < MaxDist*1000,
+                        //inclinationDelta(min.UT) < IncDelta, 
+                        //(best == null || min < best));//debug
                     if(min.Dist < MaxDist*1000 &&
                        inclinationDelta(min.UT) < IncDelta && 
                        (best == null || min < best))
@@ -522,8 +522,8 @@ namespace ThrottleControlledAvionics
                 );
                 while(Math.Abs(proj_anlgle) > 30 && in_plane_UT-VSL.Physics.UT < maxT)
                 {
-                    Log("proj_angle {}, time2launch {}", 
-                        proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
+                    //Log("proj_angle {}, time2launch {}", 
+                        //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
                     Status("{0} choosing optimal in-plane launch window: {1:P0}", 
                            ProgressIndicator.Get, (in_plane_UT-VSL.Physics.UT) / maxT);
                     yield return 0;
@@ -534,8 +534,8 @@ namespace ThrottleControlledAvionics
                         TargetOrbit.getOrbitalVelocityAtUT(in_plane_UT)
                     );
                 }
-                Log("proj_angle {}, time2launch {}", 
-                    proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
+                //Log("proj_angle {}, time2launch {}", 
+                    //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
                 var ApR = minApR;
                 if(proj_anlgle < 0)
                 {
@@ -556,7 +556,9 @@ namespace ThrottleControlledAvionics
 
         void to_orbit()
         {
-            startUT = -1;//debug
+            #if DEBUG
+            startUT = -1;
+            #endif
             //setup launch
             CFG.DisableVSC();
             if(VSL.LandedOrSplashed)
@@ -638,8 +640,8 @@ namespace ThrottleControlledAvionics
                 match_orbits();
             else if(TargetLoaded)
             {
-                Log("cur.dist {} > rel.dist/2 {}, direct approach: {}", 
-                    CurrentDistance, rel_dist/2, direct_approach);//debug
+                //Log("cur.dist {} > rel.dist/2 {}, direct approach: {}", 
+                    //CurrentDistance, rel_dist/2, direct_approach);//debug
                 if(direct_approach.FullBrake &&
                    CurrentDistance > rel_dist/2)
                     approach_or_brake();
@@ -647,7 +649,7 @@ namespace ThrottleControlledAvionics
                 {
                     var time_ratio = direct_approach.TimeToTarget/trajectory.TimeToTarget;
                     var dV_ratio = trajectory.GetTotalDeltaV()/direct_approach.GetTotalDeltaV();
-                    Log("time ratio {}, dV ratio {}",  time_ratio, dV_ratio);//debug
+                    //Log("time ratio {}, dV ratio {}",  time_ratio, dV_ratio);//debug
                     if(time_ratio < dV_ratio)
                         approach_or_brake();
                     else
@@ -903,7 +905,7 @@ namespace ThrottleControlledAvionics
                     if(trajectory.TimeToTarget > 0 &&
                        (CorrectingManeuver || trajectory.DirectHit && TargetLoaded))
                     {
-                        var threshold = VSL.Geometry.MinDistance * 2 - trajectory.AtTargetRelPos.magnitude;//debug
+                        var threshold = VSL.Geometry.MinDistance * 2 - trajectory.AtTargetRelPos.magnitude;
 #if DEBUG
                         if(!CorrectingManeuver && threshold > 0)
                         {
@@ -944,7 +946,7 @@ namespace ThrottleControlledAvionics
                 }
                 if(MAN.ManeuverStage == ManeuverAutopilot.Stage.IN_PROGRESS)
                 {
-                    Log("Resuming IN_PROGRESS maneuver");//debug
+                    //Log("Resuming IN_PROGRESS maneuver");//debug
                     clear_nodes();
                     add_node_abs(RelVel, VSL.Physics.UT);
                     CFG.AP1.On(Autopilot1.Maneuver);
