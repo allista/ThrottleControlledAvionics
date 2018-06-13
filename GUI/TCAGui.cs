@@ -233,8 +233,8 @@ namespace ThrottleControlledAvionics
 
         public static void Status(double seconds, string msg, params object[] args)
         {
-            TCAGui.StatusMessage = string.Format(msg, args);
-            TCAGui.StatusEndTime = seconds > 0? DateTime.Now.AddSeconds(seconds) : DateTime.MinValue;
+            StatusMessage = string.Format(msg, args);
+            StatusEndTime = seconds > 0? DateTime.Now.AddSeconds(seconds) : DateTime.MinValue;
         }
 
         public static void Status(string msg, params object[] args) { Status(-1, msg, args); }
