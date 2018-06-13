@@ -79,7 +79,7 @@ namespace ThrottleControlledAvionics
         #if DEBUG
 //        Vector3 Dir, DeltaV, Maneuver;
         bool Collided;
-        public void RadarBeam()
+        public void DrawDebugLines()
         {
             if(!IsActive || VSL == null || VSL.vessel == null) return;
             Utils.GLVec(VSL.refT.position, filter.Value, Color.magenta);
@@ -95,15 +95,15 @@ namespace ThrottleControlledAvionics
 //                    Utils.GLVec(VSL.Physics.wCoM, Maneuver+DeltaV, Color.red);
 //            }
             Utils.GLDrawBounds(VSL.Geometry.B, VSL.refT, Collided? Color.red : Color.white);
-//            for(int i = 0, VSLEnginesCount = VSL.Engines.Count; i < VSLEnginesCount; i++)
-//            {
-//                var e = VSL.Engines[i];
-//                for(int j = 0, eenginethrustTransformsCount = e.engine.thrustTransforms.Count; j < eenginethrustTransformsCount; j++)
-//                {
-//                    var t = e.engine.thrustTransforms[j];
-//                    Utils.GLVec(t.position, t.forward * e.engine.exhaustDamageMaxRange, Color.yellow);
-//                }
-//            }
+            //for(int i = 0, VSLEnginesCount = VSL.Engines.Active.Count; i < VSLEnginesCount; i++)
+    //        {
+                //var e = VSL.Engines.Active[i];
+            //    for(int j = 0, eenginethrustTransformsCount = e.engine.thrustTransforms.Count; j < eenginethrustTransformsCount; j++)
+            //    {
+            //        var t = e.engine.thrustTransforms[j];
+            //        Utils.GLVec(t.position, t.forward * e.engine.exhaustDamageMaxRange, Color.yellow);
+            //    }
+            //}
         }
         #endif
 
