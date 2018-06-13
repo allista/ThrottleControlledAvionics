@@ -42,9 +42,9 @@ namespace ThrottleControlledAvionics
                 Vector3.Dot(RelC, VSL.Physics.Up);
             R = b.extents.magnitude;
             D = R*2;
-            BoundsSideAreas = new Vector3(B.extents.y*B.extents.z, //right
-                                          B.extents.x*B.extents.z, //up
-                                          B.extents.x*B.extents.y);//forward
+            BoundsSideAreas = new Vector3(b.extents.y*b.extents.z, //right
+                                          b.extents.x*b.extents.z, //up
+                                          b.extents.x*b.extents.y);//forward
             Area = (BoundsSideAreas.x+BoundsSideAreas.y+BoundsSideAreas.z)*2;
             //update exhaust bounds
             foreach(var e in VSL.Engines.All)
