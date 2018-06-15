@@ -250,3 +250,4 @@ pip-log.txt
 /TechTree/TechTreeGraph_PartDeps.svg
 *.new
 /Images/*.png
+/GameData/ThrottleControlledAvionics/Plugins/ThrottleControlledAvionics.dll
