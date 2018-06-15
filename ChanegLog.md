@@ -2,7 +2,11 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.5.2**
+* **v3.5.2.1**
+    * Better handling of gimbal and control surface torque
+    * Several small bugfixes
+
+* v3.5.2
     * More **efficient ToOrbit/Rendezvous** from the ground with _GravityTurn_-like. With a lot of tweakable options.
         * When launching in-plane with the target TCA now tries to find a launch window to get closer to the target.
     * TCA takes into account **torque from control surfaces**.
@@ -21,30 +25,30 @@ _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files 
     * Restore RCS limiters when disabling TCA.
 
 * v3.5.0
-	* **Major overhaul of orbital autopilots**:
-		* **Deorbit** autopilot performs **simulation of atmospheric flight and main deceleration** to determine approximate landing trajectory. Achieves much more precise landings using chutes/brakes alone; and saves fuel in powered landing.
-    		* Atmospheric trajectory is drawn in magenta in Map View
-    		* Deceleration trajectory is drawn in green in Map View
-		* **Rendezvous** autopilot employs 2D gradient-descent minimization to search for optimal rendezvous trajectory in several modes:
+    * **Major overhaul of orbital autopilots**:
+        * **Deorbit** autopilot performs **simulation of atmospheric flight and main deceleration** to determine approximate landing trajectory. Achieves much more precise landings using chutes/brakes alone; and saves fuel in powered landing.
+            * Atmospheric trajectory is drawn in magenta in Map View
+            * Deceleration trajectory is drawn in green in Map View
+        * **Rendezvous** autopilot employs 2D gradient-descent minimization to search for optimal rendezvous trajectory in several modes:
             * **Min.DeltaV** - always prioritize the lowest total dV of the rendezvous (including deceleration)
             * **Fast Transfer** - prefers smaller total transfer times (including time before maneuver), if it does not cost too much dV
             * **Manual** - you can choose between calculated transfers yourself
-	* **Full reimplementation of attitude control**:
-    	* Attitude control uses three separate PID cascades with gain scheduling to independently control the three rotational axes. This allows for much better control over a wider range of different engines, faster and more accurate action, and eliminates some long-standing auto-oscillation bugs.
-	* **Remote control** of TCA-equipped vessels:
-    	* Now you can control nearby vessels equipped with TCA without actually switching to them. The control is not full, i.e. keyboard and mouse still belong to the active vessel; but TCA interface in this mode sends commands directly to the selected vessel. This, of course, only works on loaded vessels in comm-range, and only if you have Squadron Control Module installed.
-	* **Default vessel configs**:
-    	* Now in VAB and SPH, *separately*, you can save TCA configuration of a vessel to be the default for newly created vessels. This includes state of TCA Modules and functions, so **!do not forget to activate newly bought modules!** or you'll miss it in flight. *I'm working on automation of that process.*
-	* **Numerous fixes and improvements** in:
-		* Navigation/Land
-		* Navigation/Jump To
-		* Orbital/To Orbit
-		* Orbital/Match Velocity,Brake Near
-		* Smart Engines
-	* **Interface** changes:
-    	* **Removed "Set" buttons** of numerical entry fields. To set entered value push Enter or Keypad/Enter.
-    	* Rendezvous, Deorbit, Jump To, Orbital/Land autopilots use the Setup-then-Execute approach, so pressing, sya, "Land" button does not start landing immediately. All setup controls are now located inside appropriate tabs and are opened when you press the autopilot's main button.
-	* *Much, much more in commit messages...*
+    * **Full reimplementation of attitude control**:
+        * Attitude control uses three separate PID cascades with gain scheduling to independently control the three rotational axes. This allows for much better control over a wider range of different engines, faster and more accurate action, and eliminates some long-standing auto-oscillation bugs.
+    * **Remote control** of TCA-equipped vessels:
+        * Now you can control nearby vessels equipped with TCA without actually switching to them. The control is not full, i.e. keyboard and mouse still belong to the active vessel; but TCA interface in this mode sends commands directly to the selected vessel. This, of course, only works on loaded vessels in comm-range, and only if you have Squadron Control Module installed.
+    * **Default vessel configs**:
+        * Now in VAB and SPH, *separately*, you can save TCA configuration of a vessel to be the default for newly created vessels. This includes state of TCA Modules and functions, so **!do not forget to activate newly bought modules!** or you'll miss it in flight. *I'm working on automation of that process.*
+    * **Numerous fixes and improvements** in:
+        * Navigation/Land
+        * Navigation/Jump To
+        * Orbital/To Orbit
+        * Orbital/Match Velocity,Brake Near
+        * Smart Engines
+    * **Interface** changes:
+        * **Removed "Set" buttons** of numerical entry fields. To set entered value push Enter or Keypad/Enter.
+        * Rendezvous, Deorbit, Jump To, Orbital/Land autopilots use the Setup-then-Execute approach, so pressing, sya, "Land" button does not start landing immediately. All setup controls are now located inside appropriate tabs and are opened when you press the autopilot's main button.
+    * *Much, much more in commit messages...*
 
 * v3.4.2
     * Improved navigation autopilot (Go To, Follow Path, etc.), especially for low TWR, slow-engine VTOLs and H/VTOL-planes.
@@ -55,30 +59,30 @@ _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files 
     * Various bugfixes and small improvements.
 
 * v3.4.1.1
-	* Compatible with KSP-1.3
+    * Compatible with KSP-1.3
 
 * v3.4.1
     * **Rendezvous Autopilot**:
-    	* Lambert Solver now works properly for retrograde transfers.
-    	* In rare cases when a rendezvous maneuver went perfect and the ships are on a collision course at rendezvous point, the brake burn now accounts for ships' sizes to stop before the collision.
-    	* Improved trajectory optimization by using the closest elliptic transfer when a para/hyperbolic transfer time is given and by adding additional maneuver start time prescan.
+        * Lambert Solver now works properly for retrograde transfers.
+        * In rare cases when a rendezvous maneuver went perfect and the ships are on a collision course at rendezvous point, the brake burn now accounts for ships' sizes to stop before the collision.
+        * Improved trajectory optimization by using the closest elliptic transfer when a para/hyperbolic transfer time is given and by adding additional maneuver start time prescan.
         * Improved fine-tuning by selecting initial transfer time to be equal to the current nearest approach time.
         * Additional fine-tuning of the approach after Match Orbits is used only when the target is out of loading range (i.e. not yet visible).
         * Coast stage is only used when distance to target is grater then the tolerance threshold to avoid unnecessary fine-tuning.
     * **Deorbit Autopilot**:
-    	* Landing Trajectory corrects brake time to get the proper fly-over altitude. This fixes the inability to land on a very-low-gravity worlds like Minmus.
+        * Landing Trajectory corrects brake time to get the proper fly-over altitude. This fixes the inability to land on a very-low-gravity worlds like Minmus.
         * Improved trajectory calculation for extremly high-lat targes (i.e. poles) + improved trajectory optimization times.
         * Initial eccentricity estimation uses current vessel orbit instead of a curcular derivative. Works better, less calculations.
         * Removed redundant label from Deorbit Settings.
     * **Macros**:
-    	* Added tooltips to Macro Actions and Conditions.
-    	* Added Dynamic Pressure condition and Execute Maneuver action.
+        * Added tooltips to Macro Actions and Conditions.
+        * Added Dynamic Pressure condition and Execute Maneuver action.
     * **Interface**:
-    	* Updated the Manual
-    	* Added separate icons for Toolbar and AppLauncher. Made the new MAN icon.
-    	* Made Module Selector available in flight to show the modules installed on a ship.
-    	* Added hotkey removal by pressing BACKSPACE when selecting the ky.
-    	* In Editor Window renamed TWR to TMR (thrust to Mass ratio).
+        * Updated the Manual
+        * Added separate icons for Toolbar and AppLauncher. Made the new MAN icon.
+        * Made Module Selector available in flight to show the modules installed on a ship.
+        * Added hotkey removal by pressing BACKSPACE when selecting the ky.
+        * In Editor Window renamed TWR to TMR (thrust to Mass ratio).
     * Engine clusters are not switched while in time warp anymore.
     * TCA's time warp control stays enabled when KSP limits warp rate by altitude.
     * Added emergency dewarping if TCA's time warp is disabled and the ship is in time warp near the upcoming maneuver.
@@ -86,12 +90,12 @@ _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files 
 
 * v3.4.0
     * **User Interface Overhaul**
-    	* Controls were split up into Tabs and Floating Windows
-    	* As a result, the main TCA window became much smaller
+        * Controls were split up into Tabs and Floating Windows
+        * As a result, the main TCA window became much smaller
     * **TCA Modules Selection**
-    	* Now you can select which TCA modules will be installed on you ship during construction (in VAB/SPH)
-    	* This may considerably decrease the amounts of controls you see in TCA window
-    	* But **OTA updates were disabled** for safty reasons. In-flight upgrades of ship's mainframe are now considered too risky!
+        * Now you can select which TCA modules will be installed on you ship during construction (in VAB/SPH)
+        * This may considerably decrease the amounts of controls you see in TCA window
+        * But **OTA updates were disabled** for safty reasons. In-flight upgrades of ship's mainframe are now considered too risky!
     * Added the new **[T+ rV-]** attitude cue that targets ship's engines so that continious thrust will propell the ship towards the target while correcting any lateral drift. Very usefull for approaches from a distance.
     * Added Smart Engines switch to Engine Profile to set S.E. mode when profile is activated.
     * Corrected logic of the Approach stage of Rendezvous autopilot to make it safe to approach huge targes (like asteroids).
@@ -120,7 +124,7 @@ _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files 
 
 * v3.3.3
     * Considerably **improved Bearing Control**:
-    	* It now uses 2-PID cascade, which is a more geneal solution. Works much better for medium to heavy crafts (Max.AA ~0.1-3 rad/s2). Very high-torque crafts (Max.AA ~10-15 rad/s2) work fine, but don't react as quickly as they *possibly* could.
+        * It now uses 2-PID cascade, which is a more geneal solution. Works much better for medium to heavy crafts (Max.AA ~0.1-3 rad/s2). Very high-torque crafts (Max.AA ~10-15 rad/s2) work fine, but don't react as quickly as they *possibly* could.
     * Implemented **active gimbal handling**. Now engines with gimbal capability will be using it for maneuvering.
     * In Editor, added highlighting of the command part where TCA is active.
     * Fixed target and orbital attitude cues calculation for Kerbol-centric orbits.
@@ -138,69 +142,69 @@ _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files 
     * Compiled against **KSP-1.2.2**
     * Fixed the "**black kraken**" bug.
     * **In-Editor engines' balancing:**
-    	* Added "Wet CoM" and "Dry CoM" markers. Added switching between wet/dry mass for engines' balancing.
-    	* When TCA is disabled InEditor, balancing is also disabled and thrust limiters are reset to 100%.
+        * Added "Wet CoM" and "Dry CoM" markers. Added switching between wet/dry mass for engines' balancing.
+        * When TCA is disabled InEditor, balancing is also disabled and thrust limiters are reset to 100%.
     * **Deorbit Autopilot**:
-    	* Now aware of reentry heating and tries to avoid it (tested on Eve).
-    	* Can automatically use brakes and/or parachutes during deceleration to conserve fuel.
+        * Now aware of reentry heating and tries to avoid it (tested on Eve).
+        * Can automatically use brakes and/or parachutes during deceleration to conserve fuel.
         * Has configurable "**Landing Settings**": Use Brakes, Use Chutes, Correct Target, Land ASAP.
     * Minor bugfixes.
 
 * v3.3.0
     * **In-Editor engines balancing with visualization** to help building balanced crafts:
-    	* The thrust limiters of balanced engines are set automatically, so you can see the projected in-flight performance of an engine directly in the right-click menu.
-    	* The TCA Editor UI now has a "Balanced: N%" indicator at the bottom that shows the thrust limiter of the most down-throttled engine. And the "HL" button to highlight engines according to their efficacy (0% magenta > 50% yellow > 99% cyan > 100% no highliting).
-    	* When you pick up an engine and move it, trying to attach to a ship, TCA rebalances and indicates the results (as descrived above) in real time; so you can easily achive decent initial balancing.
-    	* Note, that only the initial (wet) mass is used for balancing. For now.
+        * The thrust limiters of balanced engines are set automatically, so you can see the projected in-flight performance of an engine directly in the right-click menu.
+        * The TCA Editor UI now has a "Balanced: N%" indicator at the bottom that shows the thrust limiter of the most down-throttled engine. And the "HL" button to highlight engines according to their efficacy (0% magenta > 50% yellow > 99% cyan > 100% no highliting).
+        * When you pick up an engine and move it, trying to attach to a ship, TCA rebalances and indicates the results (as descrived above) in real time; so you can easily achive decent initial balancing.
+        * Note, that only the initial (wet) mass is used for balancing. For now.
     * **Waypoints**:
         * Implemented **full, one-way** integration with Stock/WaypointManager waypoints: Stock waypoints may be viewed as a list in TCA window and added to the navigation path (one by one or all at once). *Note, that only the navigatable waypoints on current planet are shown in the list.*
         * Implemented scenario-wide **repository of navigation paths**.
         * Implemented **full waypoint editing + altitude change by mouse**.
-        	* Including Name, Altitude, Latitude and Longitude, Land and Pause states.
-        	* Added Edit button to waypoint list. A currently edited waypoint is highlited by size and color.
+            * Including Name, Altitude, Latitude and Longitude, Land and Pause states.
+            * Added Edit button to waypoint list. A currently edited waypoint is highlited by size and color.
         * Implemented **waypoints sorting** in the navigation path using **^** (up) button.
         * Cosmetics:
-        	* Waypoints added by mouse use sequential numbers in names: "Waypoint 1", "Waypoint 2"...
-        	* Coordinates are now displayed as N/S, E/W instead of counterintuitive angle between 0-360 deg.
-        	* Displaying vertical distance to the next waypoint in  the List.
-        	* A waypoint set to "Land" is highlighted with size.
+            * Waypoints added by mouse use sequential numbers in names: "Waypoint 1", "Waypoint 2"...
+            * Coordinates are now displayed as N/S, E/W instead of counterintuitive angle between 0-360 deg.
+            * Displaying vertical distance to the next waypoint in  the List.
+            * A waypoint set to "Land" is highlighted with size.
     * Improved **Landing from Orbit**:
-    	* *Before* the main deceleration burn the autopilot now scans the surface around the target in search of a flat patch to land on. If it is found, the target is automatically corrected, which saves the fuel later, as the need to fly around after deceleration and physically search where to land is almost completely eliminated.
-    	* The time a ship will need to turn from almost-horizontal to vertical orientation during deceleration is now taken into account during landing trajectory calculation. This prevents crashes of very bulky ships.
-    	* Corrected calculations of the amount of the fuel needed for powered landing. Fuel shortage should not come as a surprize anymore.
+        * *Before* the main deceleration burn the autopilot now scans the surface around the target in search of a flat patch to land on. If it is found, the target is automatically corrected, which saves the fuel later, as the need to fly around after deceleration and physically search where to land is almost completely eliminated.
+        * The time a ship will need to turn from almost-horizontal to vertical orientation during deceleration is now taken into account during landing trajectory calculation. This prevents crashes of very bulky ships.
+        * Corrected calculations of the amount of the fuel needed for powered landing. Fuel shortage should not come as a surprize anymore.
     * Improved **VTOL Assist**:
         * Improved support for very small vessels.
         * Landing gear is not deployed if a user/autopilot does not intend to land (checked by desired altitude and engines' state).
         * The deployment time of the landing gear/wheels is now taken into account; and Assist overrides vertical velocity and holds the ship's descend (if needed) untill the gear is deployed.
         * After landing it smoothly corrects ship's attitude to place it on a tilted surface (if the ship have enough control authority).
     * Improved the way **Radar + Altitude Control + Point Navigation** work together:
-    	* Ships are allowd to **fly through holes** in scenery if they're small enough.
-    	* Altitude Control and Point Navigator now properly take into account target's altitude.
+        * Ships are allowd to **fly through holes** in scenery if they're small enough.
+        * Altitude Control and Point Navigator now properly take into account target's altitude.
         * Point Navigator also takes into account the value of altitude ahead (as calculated by Radar).
         * Changed the meaning of Waypoint's Pause button: now the ship Stops first, then pauses the game.
         * And if both Land and Pause are toggled, the ship will first land, then pause the game.
     * Improved **Maneuver Autopilot**:
-    	* Now it correctly catches the moment when the control authority becomes too low to pursue that last bit of dV.
-    	* Added in-flight engines' prebalancing to correctly calculate maximum thrust on unbalanced ships.
+        * Now it correctly catches the moment when the control authority becomes too low to pursue that last bit of dV.
+        * Added in-flight engines' prebalancing to correctly calculate maximum thrust on unbalanced ships.
     * Improved Bearing Control and Attitude Control performance.
     * Added **CPS** (Collision Prevention System) and **H-Translation** (Use RCS for horizontal speed corrections) toggles to "advanced" and TCA Editor UI.
     * When the game is paused TCA will not process keyboard events. No more disabling TCA while typing in a savegame name.
     * Many bugfixes.
 
 * v3.2.5
-	* TCA is now available on vessels that have only reaction wheels.
+    * TCA is now available on vessels that have only reaction wheels.
     * **Waypoints**:
-    	* Integrated TCA waypoints and Stock/**WaypointManager** waypoints: currently active Stock waypoint can be used as a target for *Go To/Jump To* programs and added as TCA waypoint for *Follow Path* program.
-    	* Made TCA waypoints **draggable**: *point the mouse at a waypoint, leftclick-and-drag to change its location; release the left button to confirm; press the right button (while still pressing the left one) to cancel.*
-    	* Improved waypoints/path overlay: 
-    		* Waypoints now fade out with distance-along-the-path; but they also fade in with distance from the camera to the ship, so that when you zoom out from the ship the whole path becomes visible.
-    		* Added colored lines that connect waypoints along the path.
+        * Integrated TCA waypoints and Stock/**WaypointManager** waypoints: currently active Stock waypoint can be used as a target for *Go To/Jump To* programs and added as TCA waypoint for *Follow Path* program.
+        * Made TCA waypoints **draggable**: *point the mouse at a waypoint, leftclick-and-drag to change its location; release the left button to confirm; press the right button (while still pressing the left one) to cancel.*
+        * Improved waypoints/path overlay: 
+            * Waypoints now fade out with distance-along-the-path; but they also fade in with distance from the camera to the ship, so that when you zoom out from the ship the whole path becomes visible.
+            * Added colored lines that connect waypoints along the path.
     * **Integrated TCA with KerbNet**. TCA now acts as a stand-alone computer that can fly a ship out of signal. But TCA controls will become locked, so you can't control such a ship. *Squadron Mode* now also uses KerbNet to establish connection with controlled vessels.
     * *Level* program and *VTOL Mode* do not take manual thrust into account anymore.
     * Improved maneuver execution: Throttle Control now takes into account current steering request when applying differential thrust limit. Maneuver Autopilot automatically disables itself in case of inadequate thrusting near the end of the maneuver.
     * Improved landing trajectory calculation and landing algorithm: better support of ships with low Thrust/Mass ratio; fixed rapid engine bursts during final deceleration.
     * Added **CPS switch** in "advanced" pane to toggle Collision Prevention System.
-    	* Bugfix: a kerbal EVA does not trigger CPS response if it is on a ladder that belongs to the ship.
+        * Bugfix: a kerbal EVA does not trigger CPS response if it is on a ladder that belongs to the ship.
     * Added **H-Translation** switch in "advanced" pane to disable TRA usage of translation for horizontal speed corrections.
     * *Jump To* now also autosaves the game, like the *Land* program does.
     * Fixed TCA part info updating in Editor.

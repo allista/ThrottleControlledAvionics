@@ -65,29 +65,26 @@ namespace ThrottleControlledAvionics
             } 
         }
 
-		public override void Clear()
-		{
+        public override void Clear()
+        {
             base.Clear();
             Wheels.Clear();
             ControlSurfaces.Clear();
-		}
+        }
 
-		public bool AddTorqueProvider(PartModule m)
+        public bool AddTorqueProvider(PartModule m)
         {
-            if(!(m is ModuleRCS || m is ModuleGimbal))
+            var w = m as ModuleReactionWheel;
+            if(w != null)
             {
-                var w = m as ModuleReactionWheel;
-                if(w != null)
-                {
-                    Wheels.Add(w);
-                    return true;
-                }
-                var s = m as ModuleControlSurface;
-                if(s != null)
-                {
-                    ControlSurfaces.Add(s);
-                    return true;
-                }
+                Wheels.Add(w);
+                return true;
+            }
+            var s = m as ModuleControlSurface;
+            if(s != null)
+            {
+                ControlSurfaces.Add(s);
+                return true;
             }
             return false;
         }
@@ -99,11 +96,14 @@ namespace ThrottleControlledAvionics
             EnginesResponseTime = Vector3.zero;
             EnginesResponseTimeM = 0f;
             EnginesLimits = Vector6.zero;
+            RCSLimits = Vector6.zero;
+            OtherLimits = Vector6.zero;
             var MaxEnginesLimits = Vector6.zero;
             var EnginesSpecificTorque = Vector6.zero;
             var TorqueResponseSpeed = Vector6.zero;
             var TotalSlowTorque = Vector6.zero;
             var TotalSlowSpecificTorque = Vector6.zero;
+            var RCSSpecificTorque = Vector6.zero;
             for(int i = 0, count = VSL.Engines.Active.Steering.Count; i < count; i++)
             {
                 var e = VSL.Engines.Active.Steering[i];
@@ -117,11 +117,16 @@ namespace ThrottleControlledAvionics
                     TotalSlowSpecificTorque.Add(e.defSpecificTorque);
                     TorqueResponseSpeed.Add(max_torque*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
                 }
-                Gimball |= e.gimbal != null && e.gimbal.gimbalActive && !e.gimbal.gimbalLock;
+                if(e.gimbal != null && e.gimbal.gimbalActive && !e.gimbal.gimbalLock)
+                {
+                    Gimball = true;
+                    Vector3 pos, neg;
+                    e.gimbal.GetPotentialTorque(out pos, out neg);
+                    OtherLimits.Add(pos);
+                    OtherLimits.Add(-neg);
+                }
             }
             //RCS
-            RCSLimits = Vector6.zero;
-            var RCSSpecificTorque = Vector6.zero;
             for(int i = 0; i < VSL.Engines.NumActiveRCS; i++)
             {
                 var r = VSL.Engines.ActiveRCS[i];
@@ -135,7 +140,6 @@ namespace ThrottleControlledAvionics
                 }
             }
             //wheels and control surfaces
-            OtherLimits = Vector6.zero;
             for(int i = 0, count = Wheels.Count; i < count; i++)
             {
                 var w = Wheels[i];
@@ -148,11 +152,10 @@ namespace ThrottleControlledAvionics
             for(int i = 0, count = ControlSurfaces.Count; i < count; i++)
             {
                 var s = ControlSurfaces[i];
-                var limit = s.authorityLimiter/100;
                 Vector3 pos, neg;
                 s.GetPotentialTorque(out pos, out neg);
-                OtherLimits.Add(pos*limit);
-                OtherLimits.Add(-neg*limit);
+                OtherLimits.Add(pos);
+                OtherLimits.Add(-neg);
             }
             //torque and angular acceleration
             Engines.Update(EnginesLimits.Max);
