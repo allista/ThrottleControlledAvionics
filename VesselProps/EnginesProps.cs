@@ -757,7 +757,7 @@ namespace ThrottleControlledAvionics
                 {
                     if(e.Role != TCARole.MANEUVER)
                     {
-						var thrust = e.nominalCurrentThrust(throttle);
+                        var thrust = e.nominalCurrentThrust(throttle);
                         MaxThrust += e.wThrustDir * thrust;
                         MaxDefThrust += e.defThrustDir * thrust;
                         MaxMassFlow += e.MaxFuelFlow * throttle;
@@ -827,13 +827,13 @@ namespace ThrottleControlledAvionics
             float torque_error, angle_error, max_limit;
             if(Balanced.Count > 0)
             {
-				torque = TorqueProps.CalculateImbalance(true, Manual, UnBalanced);
+                torque = TorqueProps.CalculateImbalance(true, Manual, UnBalanced);
                 EngineOptimizer.OptimizeLimitsForTorque(Balanced, Vector3.zero, torque, MoI, true, 
                                                         out max_limit, out torque_error, out angle_error);
             }
             if(Steering.Count > 0)
             {
-				torque = TorqueProps.CalculateImbalance(true, Manual, UnBalanced, Balanced);
+                torque = TorqueProps.CalculateImbalance(true, Manual, UnBalanced, Balanced);
                 return EngineOptimizer.OptimizeLimitsForTorque(Steering, Vector3.zero, torque, MoI, true, 
                                                                out max_limit, out torque_error, out angle_error);
             }

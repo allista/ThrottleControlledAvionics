@@ -262,7 +262,7 @@ namespace ThrottleControlledAvionics
             var vel = compute_intial_jump_velocity();
             var dir = vel.normalized;
             var V = vel.magnitude;
-			ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LandingTrajectoryAutopilot.C.Dtol));
+            ComputeTrajectory(new LandingSiteOptimizer(this, V, dir, LandingTrajectoryAutopilot.C.Dtol));
             stage = Stage.Compute;
             trajectory = null;
         }
@@ -279,7 +279,7 @@ namespace ThrottleControlledAvionics
         {
             update_landing_trajecotry();
             var V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
-			ComputeTrajectory(new LandingSiteCorrector(this, V, LandingTrajectoryAutopilot.C.Dtol/2));
+            ComputeTrajectory(new LandingSiteCorrector(this, V, LandingTrajectoryAutopilot.C.Dtol/2));
             stage = Stage.CorrectTrajectory;
             trajectory = null;
         }

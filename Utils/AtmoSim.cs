@@ -215,7 +215,7 @@ namespace ThrottleControlledAvionics
                 if(thrust &&
                    Vector2d.Dot(r.normalized, v) / VSL.Physics.StG > ToOrbitExecutor.C.MinClimbTime)
                 {
-					var rr1 = r1 - r;
+                    var rr1 = r1 - r;
                     solver.Init(Body, r, v, r1);
                     var minT = solver.ParabolicTime;
                     var maxT = solver.MinEnergyTime;
@@ -284,7 +284,7 @@ namespace ThrottleControlledAvionics
                 r += v * C.DeltaTime;
                 r1n = r1n.RotateRad(angularV*C.DeltaTime).normalized;
                 r1 = r1n*ApR;
-				t += C.DeltaTime;
+                t += C.DeltaTime;
                 //DebugUtils.CSV("ToOrbitSim.csv", t, r);//debug
                 //DebugUtils.CSV("ToOrbitSim.csv", t, r, v, rel_v, T*mTm/m*thr, h, m, thr, r1, nV);//debug
             }

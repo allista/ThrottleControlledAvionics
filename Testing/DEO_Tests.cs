@@ -148,8 +148,8 @@ namespace ThrottleControlledAvionics
             GameEvents.onLevelWasLoadedGUIReady.Remove(onLevelWasLoaded);
         }
 
-		public override void Draw()
-		{
+        public override void Draw()
+        {
             GUILayout.BeginHorizontal();
             {
                 GUILayout.BeginVertical();
@@ -166,9 +166,9 @@ namespace ThrottleControlledAvionics
                 GUILayout.EndVertical();
             }
             GUILayout.EndHorizontal();
-		}
+        }
 
-		public override bool NeedsFixedUpdate { get { return false; } }
+        public override bool NeedsFixedUpdate { get { return false; } }
         public override bool NeedsUpdate { get { return true; } }
     }
 

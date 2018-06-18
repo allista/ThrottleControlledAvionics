@@ -64,8 +64,8 @@ namespace ThrottleControlledAvionics
         static FieldInfo get_INST(Type t) => 
         t.GetField("INST", BindingFlags.Static|BindingFlags.FlattenHierarchy|BindingFlags.Public);
 
-		public override void Load(ConfigNode node)
-		{
+        public override void Load(ConfigNode node)
+        {
             base.Load(node);
             foreach(var config in AllConfigs)
             {
@@ -85,10 +85,10 @@ namespace ThrottleControlledAvionics
                 else
                     Utils.Log("WARNING: no configuration for {}", config.Key);
             }
-		}
+        }
 
-		public override void Save(ConfigNode node)
-		{
+        public override void Save(ConfigNode node)
+        {
             base.Save(node);
             foreach(var config in AllConfigs)
             {
@@ -100,9 +100,9 @@ namespace ThrottleControlledAvionics
                         INST.Save(node.AddNode(config.Key));
                 }
             }
-		}
+        }
 
-		public override void Init()
+        public override void Init()
         { 
             try
             {

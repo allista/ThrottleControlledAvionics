@@ -142,7 +142,7 @@ namespace ThrottleControlledAvionics
             public static implicit operator bool(Rotation rot) => 
             !(rot.current.IsZero() || rot.needed.IsZero() || rot.current.IsInvalid() || rot.needed.IsInvalid());
 
-			public override string ToString() => 
+            public override string ToString() => 
             Utils.Format("[Rotation]: current {}, needed {}", current, needed);
         }
 

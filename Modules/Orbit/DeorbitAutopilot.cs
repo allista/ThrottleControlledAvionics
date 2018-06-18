@@ -185,7 +185,7 @@ namespace ThrottleControlledAvionics
                     if(cur.FullManeuver &&
                        cur.DistanceToTarget < Best.DistanceToTarget) 
                     {
-						Best = cur;
+                        Best = cur;
                         bestDeltaV = dVm;
                     }
                     dVm += ddV;
@@ -247,8 +247,8 @@ namespace ThrottleControlledAvionics
 //                    m.Log("startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, pg, ddV, cur.DistanceToTarget);//debug
                     if(cur.DistanceToTarget < Best.DistanceToTarget) 
                     {
-						Best = cur;
-						prograde_dV = pg;
+                        Best = cur;
+                        prograde_dV = pg;
                     }
                     pg += ddV;
                     if(Best != cur)
@@ -339,7 +339,7 @@ namespace ThrottleControlledAvionics
 //                              V, dV, comparer.isBetter(cur, Best), cur, Best);//debug
                         if(comparer.isBetter(cur, Best))
                         {
-							Best = cur;
+                            Best = cur;
                             bestV = V;
                         }
                         V += dV;
@@ -372,7 +372,7 @@ namespace ThrottleControlledAvionics
         void compute_landing_trajectory()
         {
             MAN.MinDeltaV = 1;
-			ComputeTrajectory(new DeorbitTrajectoryOptimizer(this, LandingTrajectoryAutopilot.C.Dtol));
+            ComputeTrajectory(new DeorbitTrajectoryOptimizer(this, LandingTrajectoryAutopilot.C.Dtol));
             stage = Stage.Compute;
             trajectory = null;
         }
@@ -380,7 +380,7 @@ namespace ThrottleControlledAvionics
         protected override void fine_tune_approach()
         {
             CorrectionTimer.Reset();
-			ComputeTrajectory(new DeorbitTrajectoryCorrector(this, LandingTrajectoryAutopilot.C.Dtol/2));
+            ComputeTrajectory(new DeorbitTrajectoryCorrector(this, LandingTrajectoryAutopilot.C.Dtol/2));
             stage = Stage.Correct;
             trajectory = null;
         }

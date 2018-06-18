@@ -46,7 +46,7 @@ namespace ThrottleControlledAvionics
         { 
             dVmin = -1; 
             working = false; 
-			dVrem.Reset();
+            dVrem.Reset();
             stalled.Reset();
         }
 

@@ -38,16 +38,16 @@ namespace ThrottleControlledAvionics
             angle2hor_filter.Tau = 1;
         }
 
-		public override void Reset()
-		{
+        public override void Reset()
+        {
             base.Reset();
             throttle_correction.Reset();
             throttle_fileter.Reset();
             angle2hor_filter.Reset();
             correction_started.Reset();
-		}
+        }
 
-		public override void StartGravityTurn()
+        public override void StartGravityTurn()
         {
             base.StartGravityTurn();
             throttle_fileter.Set(1);

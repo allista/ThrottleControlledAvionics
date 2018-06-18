@@ -38,12 +38,12 @@ namespace ThrottleControlledAvionics
                 public MinMax(float min, float max, float val) 
                 { Min = min; Max = max; Val = Utils.Clamp(val, Min, Max); }
 
-				public override void Load(ConfigNode node)
-				{
+                public override void Load(ConfigNode node)
+                {
                     base.Load(node);
                     Val = Utils.Clamp(Val, Min, Max);
-				}
-			}
+                }
+            }
 
             public override void Load(ConfigNode node)
             {
@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
             /// Instance of the configuration.
             /// </summary>
             public static T INST = new T();
-		}
+        }
 
         public ModuleTCA TCA { get; protected set; }
         public VesselWrapper VSL { get { return TCA.VSL; } }

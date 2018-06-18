@@ -465,10 +465,10 @@ namespace ThrottleControlledAvionics
                 //then find each of the minima exactly and choose the best
                 for(int i = 0, minimaCount = minima.Count; i < minimaCount; i++)
                 {
-					Launch min = null;
+                    Launch min = null;
                     var m = minima[i];
                     startUT = m;
-					dT = 100;
+                    dT = 100;
                     while(Math.Abs(dT) > 0.01)
                     {
                         Status("{0} checking possible launch windows: {1}/{2}", 

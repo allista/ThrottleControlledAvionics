@@ -225,8 +225,8 @@ namespace ThrottleControlledAvionics
             return true;
         }
 
-		protected override bool setup()
-		{
+        protected override bool setup()
+        {
             if(VSL.Engines.NoActiveEngines)
             {
                 Status("yellow", "No engines are active, unable to calculate trajectory.\n" +
@@ -240,9 +240,9 @@ namespace ThrottleControlledAvionics
                 return false;
             }
             return base.setup();
-		}
+        }
 
-		protected bool landing { get { return landing_stage != LandingStage.None; } }
+        protected bool landing { get { return landing_stage != LandingStage.None; } }
 
         protected bool check_initial_trajectory()
         {

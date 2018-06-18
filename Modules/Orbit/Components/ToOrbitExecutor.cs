@@ -13,7 +13,7 @@ namespace ThrottleControlledAvionics
     {
         public class Config : ComponentConfig<Config>
         {
-			[Persistent] public float MaxG = 3;
+            [Persistent] public float MaxG = 3;
             [Persistent] public float MinThrottle = 10;
             [Persistent] public float MinClimbTime = 5;
             [Persistent] public float MaxDynPressure = 10f;
@@ -68,7 +68,7 @@ namespace ThrottleControlledAvionics
 
         public double dApA { get; protected set; } = -1;
         public double dArc { get; protected set; } = -1;
-		protected Vector3d htdir, hvdir, ApV;
+        protected Vector3d htdir, hvdir, ApV;
         protected PIDf_Controller3 pitch = new PIDf_Controller3();
         protected PIDf_Controller3 norm_correction = new PIDf_Controller3();
         protected PIDf_Controller3 throttle = new PIDf_Controller3();
@@ -76,19 +76,19 @@ namespace ThrottleControlledAvionics
         protected bool ApoapsisReached;
         protected bool CourseOnTarget;
 
-		public override void Save(ConfigNode node)
-		{
+        public override void Save(ConfigNode node)
+        {
             base.Save(node);
             node.AddValue("Target", ConfigNode.WriteVector(target));
-		}
+        }
 
-		public override void Load(ConfigNode node)
-		{
+        public override void Load(ConfigNode node)
+        {
             base.Load(node);
             var tgt = node.GetValue("Target");
             if(!string.IsNullOrEmpty(tgt))
                 Target = ConfigNode.ParseVector3D(tgt);
-		}
+        }
 
         public ToOrbitExecutor() : base(null)
         {
