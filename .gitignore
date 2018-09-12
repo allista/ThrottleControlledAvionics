@@ -251,3 +251,5 @@ pip-log.txt
 *.new
 /Images/*.png
 /GameData/ThrottleControlledAvionics/Plugins/ThrottleControlledAvionics.dll
+UserPrefs.xml
+/ThrottleControlledAvionics.sln
