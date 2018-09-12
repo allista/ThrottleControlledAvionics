@@ -131,8 +131,8 @@ namespace ThrottleControlledAvionics
             UpdateCFG(TCA_Modules);
             return true;
         }
-
-        void UpdateCFG(IList<ModuleTCA> TCA_Modules)
+        
+        void UpdateCFG(List<ModuleTCA> TCA_Modules)
         {
             if(CFG == null || TCA_Modules.Count == 0) return;
             TCA_highlight.Reset();
