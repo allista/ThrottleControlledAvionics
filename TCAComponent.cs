@@ -105,10 +105,16 @@ namespace ThrottleControlledAvionics
         protected void TmpStatus(string msg, params object[] args)
         { Status(1, msg, args); }
 
-        protected string LogTemplate(string msg)
-        { return string.Format("{0}.{1}: {2}", VSL.vessel.vesselName, GetType().Name, msg); }
+        protected string GetID() =>
+        string.Format("{0}.{1}[{2:X}]", TCA.GetID(), GetType().Name, GetHashCode());
 
-        protected void Log(string msg, params object[] args) { Utils.Log(LogTemplate(msg), args); }
+        protected string LogTemplate(string msg) =>
+        string.Format("{0}: {1}", GetID(), msg);
+
+        protected void Log(string msg, params object[] args) 
+        { Utils.Log(LogTemplate(msg), args); }
+
+        public override string ToString() => GetID();
 
         #if DEBUG
         protected void AddDebugMessage(string msg, params object[] args)
