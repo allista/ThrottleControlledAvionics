@@ -136,7 +136,7 @@ namespace ThrottleControlledAvionics
             if(GUILayout.Button(new GUIContent("Load", "Load selected configuration"),
                                 Styles.active_button, GUILayout.ExpandWidth(false)) 
                && selected_config != null) 
-                CFG.CopyFrom(selected_config);
+                CFG.Copy(selected_config);
             if(GUILayout.Button(new GUIContent("Delete", "Delete selected configuration"), 
                                 Styles.danger_button, GUILayout.ExpandWidth(false)) 
                && selected_config != null)

@@ -25,7 +25,6 @@ namespace ThrottleControlledAvionics
     public class TCAScenario : ScenarioModule
     {
         public const string MACROSNAME  = "TCA.macro";
-        public const string VSL_NODE    = "VESSELS";
         public const string NAMED_NODE  = "NAMED";
 
         static TCAMacroLibrary macros;
@@ -53,7 +52,6 @@ namespace ThrottleControlledAvionics
 
         public static VesselConfig VAB_DefaultConfig { get; private set; } = new VesselConfig();
         public static VesselConfig SPH_DefaultConfig { get; private set; } = new VesselConfig();
-        public static Dictionary<Guid, VesselConfig> Configs = new Dictionary<Guid, VesselConfig>();
         public static SortedList<string, NamedConfig> NamedConfigs = new SortedList<string, NamedConfig>();
         public static bool ConfigsLoaded { get; private set; }
 
@@ -69,16 +67,6 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region Runtime Interface
-        public static VesselConfig GetConfig(VesselWrapper VSL)
-        { return GetConfig(VSL.vessel); }
-
-        public static VesselConfig GetConfig(Vessel vessel)
-        {
-            if(!Configs.ContainsKey(vessel.id)) 
-                Configs.Add(vessel.id, new VesselConfig(vessel));
-            return Configs[vessel.id];
-        }
-
         public static NamedConfig NewNamedConfig(string name)
         { 
             if(NamedConfigs.ContainsKey(name)) return null;
@@ -101,14 +89,6 @@ namespace ThrottleControlledAvionics
             return true;
         }
 
-        public static void UpdateConfig(VesselConfig config)
-        {
-            VesselConfig old;
-            if(Configs.TryGetValue(config.VesselID, out old))
-                old.CopyFrom(config);
-            else Configs.Add(config.VesselID, config);
-        }
-
         public static VesselConfig GetDefaultConfig(EditorFacility facility)
         {
             return facility == EditorFacility.SPH?
@@ -118,9 +98,9 @@ namespace ThrottleControlledAvionics
         public static void UpdateDefaultConfig(EditorFacility facility, VesselConfig config)
         {
             if(facility == EditorFacility.SPH)
-                SPH_DefaultConfig.CopyFrom(config);
+                SPH_DefaultConfig.Copy(config);
             else 
-                VAB_DefaultConfig.CopyFrom(config);
+                VAB_DefaultConfig.Copy(config);
         }
         #endregion
 
@@ -136,20 +116,10 @@ namespace ThrottleControlledAvionics
         public static void LoadConfigs(ConfigNode node) 
         {
             if(ConfigsLoaded) return;
-            Configs.Clear();
             NamedConfigs.Clear();
             foreach(var n in node.GetNodes())
             {
-                if(n.name == VSL_NODE)
-                {
-                    foreach(var c in n.GetNodes(VesselConfig.NODE_NAME))
-                    {
-                        var config = new VesselConfig();
-                        config.Load(c);
-                        Configs[config.VesselID] = config;
-                    }
-                }
-                else if(n.name == NAMED_NODE)
+                if(n.name == NAMED_NODE)
                 {
                     foreach(var c in n.GetNodes(NamedConfig.NODE_NAME))
                     {
@@ -166,23 +136,9 @@ namespace ThrottleControlledAvionics
 
         public static void SaveConfigs(ConfigNode node) 
         {
-            //save per-vessel configurations into the current game's node
             var current_vessels = new HashSet<Guid>(HighLogic.CurrentGame.flightState.protoVessels.Select(p => p.vesselID));
             var fg = FlightGlobals.fetch;
             if(fg != null) fg.vessels.ForEach(v => current_vessels.Add(v.id));
-            var configs = new List<VesselConfig>(Configs.Values);
-            configs.Sort();
-            if(configs.Count > 0)
-            {
-                var n = node.AddNode(VSL_NODE);
-                foreach(var c in configs)
-                {
-                    if(current_vessels.Contains(c.VesselID))
-                        c.SaveInto(n);
-//                    else Utils.Log("TCAScenario: SaveConfigs: vessel {} is not present in the game. " +
-//                                   "Removing orphan configuration.", c.VesselID);
-                }
-            }
             if(NamedConfigs.Count > 0)
             {
                 var n = node.AddNode(NAMED_NODE);

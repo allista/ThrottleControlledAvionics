@@ -38,7 +38,7 @@ namespace ThrottleControlledAvionics
     public enum Autopilot1 { None, Land, Maneuver, MatchVel, MatchVelNear }
     public enum Autopilot2 { None, Deorbit, BallisticJump, Rendezvous, ToOrbit }
 
-    public class VesselConfig : ConfigNodeObject, IComparable<VesselConfig>
+    public class VesselConfig : ConfigNodeObject
     {
         new public const string NODE_NAME = "VSLCONFIG";
         public ConfigNode LoadedConfig { get; private set; }
@@ -47,7 +47,6 @@ namespace ThrottleControlledAvionics
         public HashSet<string> EnabledTCAParts = new HashSet<string>();
         public SortedList<string,ConfigNode> ModuleConfigs = new SortedList<string, ConfigNode>();
         //common
-        [Persistent] public Guid    VesselID;
         [Persistent] public bool    Enabled;
         [Persistent] public bool    GUIVisible;
         [Persistent] public int     ActiveTab;
@@ -146,16 +145,11 @@ namespace ThrottleControlledAvionics
                                                   .Where(p => p.Active)
                                                   .Select(p => p.Name));
         }
-        public VesselConfig(Vessel vsl) : this() { VesselID = vsl.id; }
-        public VesselConfig(Guid vid) : this() { VesselID = vid; }
 
         public override void Load(ConfigNode node)
         {
             LoadedConfig = node;
             base.Load(node);
-            //restore vessel ID
-            var val = node.GetValue(Utils.PropertyName(new {VesselID}));
-            if(!string.IsNullOrEmpty(val)) VesselID = new Guid(val);
             //restore module configs
             var mcn = node.GetNode("ModuleConfigs");
             if(mcn != null)
@@ -183,7 +177,6 @@ namespace ThrottleControlledAvionics
 
         public override void Save(ConfigNode node)
         {
-            node.AddValue(Utils.PropertyName(new {VesselID}), VesselID.ToString());
             if(ModuleConfigs.Count > 0)
             {
                 var mcn = node.AddNode("ModuleConfigs");
@@ -194,26 +187,6 @@ namespace ThrottleControlledAvionics
             var parts_node = node.AddNode("EnabledTCAParts");
             EnabledTCAParts.ForEach(pname => parts_node.AddValue("item", pname));
             base.Save(node);
-        }
-
-        public int CompareTo(VesselConfig other)
-        { return VesselID.CompareTo(other.VesselID); }
-
-        public static VesselConfig Clone(VesselConfig config)
-        { return ConfigNodeObject.FromConfig<VesselConfig>(config.Configuration); }
-
-        public void CopyFrom(VesselConfig other)
-        {
-            var vid = VesselID;
-            Load(other.Configuration);
-            VesselID = vid;
-        }
-
-        public static VesselConfig FromVesselConfig(Vessel vsl, VesselConfig other)
-        {
-            var c = new VesselConfig(vsl);
-            c.CopyFrom(other);
-            return c;
         }
 
         public void ClearCallbacks()
@@ -242,7 +215,7 @@ namespace ThrottleControlledAvionics
         public static NamedConfig FromVesselConfig(string name, VesselConfig other)
         {
             var nc = new NamedConfig();
-            nc.CopyFrom(other);
+            nc.Copy(other);
             nc.Name = name;
             return nc;
         }
