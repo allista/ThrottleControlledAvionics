@@ -123,25 +123,25 @@ namespace ThrottleControlledAvionics
             var cutoff = CFG.VerticalCutoff;
             if(GameSettings.THROTTLE_UP.GetKey())
                 cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-                                        VerticalSpeedControl.C.MaxSpeed, 
+                                        C.MaxSpeed, 
                                         CFG.ControlSensitivity);
             else if(GameSettings.THROTTLE_DOWN.GetKey())
                 cutoff = Mathf.Lerp(CFG.VerticalCutoff, 
-                                        -VerticalSpeedControl.C.MaxSpeed, 
+                                        -C.MaxSpeed, 
                                         CFG.ControlSensitivity);
             else if(GameSettings.THROTTLE_FULL.GetKeyDown())
-                cutoff = VerticalSpeedControl.C.MaxSpeed;
+                cutoff = C.MaxSpeed;
             else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
-                cutoff = -VerticalSpeedControl.C.MaxSpeed;
+                cutoff = -C.MaxSpeed;
             if(!cutoff.Equals(CFG.VerticalCutoff)) set_vspeed(cutoff);
         }
 
         public override void Draw()
         {
-            var speed = string.Format("V.Spd. {0}", (CFG.VerticalCutoff < VerticalSpeedControl.C.MaxSpeed? 
+            var speed = string.Format("V.Spd. {0}", (CFG.VerticalCutoff < C.MaxSpeed? 
                                                      Utils.formatBigValue(CFG.VerticalCutoff, "m/s", "+0.0;-0.0;+0.0") : "OFF"));
             GUILayout.Label(new GUIContent(speed, "Desired vertical speed"), Styles.boxed_label, GUILayout.ExpandWidth(false));
-            var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, -VerticalSpeedControl.C.MaxSpeed, VerticalSpeedControl.C.MaxSpeed);
+            var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, -C.MaxSpeed, C.MaxSpeed);
             if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5) set_vspeed(VSP);
         }
     }
