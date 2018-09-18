@@ -67,12 +67,14 @@ namespace ThrottleControlledAvionics
             switch(cmd)
             {
             case Multiplexer.Command.Resume:
-            case Multiplexer.Command.On:
-                RegisterTo<SASBlocker>();
+                ForwardDirection = VSL.Physics.Direction(Bearing);
                 NeedCPSWhenMooving();
-                ForwardDirection = VSL.OnPlanetParams.Fwd;
-                Bearing.Value = (float)VSL.Physics.Bearing(ForwardDirection);
+                RegisterTo<SASBlocker>();
                 break;
+
+            case Multiplexer.Command.On:
+                Bearing.Value = (float)VSL.Physics.Bearing(VSL.OnPlanetParams.Fwd);
+                goto case Multiplexer.Command.Resume;
 
             case Multiplexer.Command.Off:
                 DirectionOverride = Vector3d.zero;
