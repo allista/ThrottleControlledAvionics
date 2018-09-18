@@ -63,17 +63,17 @@ namespace ThrottleControlledAvionics
         public bool    HaveLandingGear { get; private set; }
         public float   GearDeployTime { get; private set; }
 
-        public bool    GearDeploying
-        { get { return LandingGear.Count > 0 && LandingGear.All(g => g.fsm.CurrentState == g.st_deploying); } }
+        public bool    GearDeploying => 
+        LandingGear.Count > 0 && LandingGear.Any(g => g.fsm.CurrentState == g.st_deploying);
 
-        public bool    GearDeployed
-        { get { return LandingGear.Count == 0 || LandingGear.All(g => g.fsm.CurrentState == g.st_deployed); } }
+        public bool    GearDeployed => 
+        LandingGear.Count == 0 || LandingGear.All(g => g.fsm.CurrentState == g.st_deployed);
 
-        public bool    GearRetracting
-        { get { return LandingGear.Count > 0 && LandingGear.All(g => g.fsm.CurrentState == g.st_retracting); } }
+        public bool    GearRetracting => 
+        LandingGear.Count > 0 && LandingGear.Any(g => g.fsm.CurrentState == g.st_retracting);
 
-        public bool    GearRetracted
-        { get { return LandingGear.Count == 0 || LandingGear.All(g => g.fsm.CurrentState == g.st_retracted); } }
+        public bool    GearRetracted => 
+        LandingGear.Count == 0 || LandingGear.All(g => g.fsm.CurrentState == g.st_retracted);
 
         public bool AddGear(PartModule pm)
         {
