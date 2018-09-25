@@ -106,6 +106,8 @@ namespace ThrottleControlledAvionics
                     CFG.AP1.OnIfNot(Autopilot1.Maneuver);
                 if(stage == Stage.None && !landing) 
                     stage = Stage.Start;
+                else if(stage == Stage.Accelerate && trajectory == null)
+                    compute_initial_trajectory();
                 break;
 
             case Multiplexer.Command.On:
