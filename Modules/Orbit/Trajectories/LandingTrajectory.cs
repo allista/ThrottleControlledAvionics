@@ -10,6 +10,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Runtime.Serialization.Formatters.Binary
 using UnityEngine;
 using AT_Utils;
 
@@ -17,50 +18,42 @@ namespace ThrottleControlledAvionics
 {
     public class LandingTrajectory : TargetedTrajectory
     {
-        public double TargetAltitude;
+        [Persistent] public double TargetAltitude;
+        [Persistent] public double ActualLandingAngle;
+        [Persistent] public double LandingSteepness;
+        [Persistent] public WayPoint SurfacePoint;
+        [Persistent] public LandingPath Path;
+        [Persistent] public double VslStartLat;
+        [Persistent] public double VslStartLon;
+        [Persistent] public double DeltaLat;
+        [Persistent] public double DeltaLon;
 
-        public double ActualLandingAngle { get; private set; }
-
-        public double LandingSteepness { get; private set; }
-
-        public WayPoint SurfacePoint { get; private set; }
-
-        public LandingPath Path { get; private set; }
-
-        public double VslStartLat { get; private set; }
-
-        public double VslStartLon { get; private set; }
-
-        public double DeltaLat { get; private set; }
-
-        public double DeltaLon { get; private set; }
-
-        Coordinates approach;
+        [Persistent] Coordinates approach;
 
         /// <summary>
         /// Radial difference between the target and the landing site in degrees.
         /// Is positive if the target is located after the landing site along the surface velocity,
         /// negative otherwise.
         /// </summary>
-        public double DeltaR { get; private set; } = 180;
+        [Persistent] public double DeltaR = 180;
+        [Persistent] public LandingPath AfterBrakePath;
+        [Persistent] public LandingPath.Point FlyAbovePoint;
+        [Persistent] public LandingPath.Point BrakeStartPoint;
+        [Persistent] public LandingPath.Point BrakeEndPoint;
+        [Persistent] public double BrakeEndPointDeltaAlt;
+        [Persistent] public float BrakeOffset;
+        [Persistent] public double MaxDynamicPressure;
+        [Persistent] public double MaxShipTemperature;
+        [Persistent] public bool WillOverheat;
 
-        public LandingPath AfterBrakePath { get; private set; }
-
-        public LandingPath.Point FlyAbovePoint { get; private set; }
-
-        public LandingPath.Point BrakeStartPoint { get; private set; }
-
-        public LandingPath.Point BrakeEndPoint { get; private set; }
-
-        public double BrakeEndPointDeltaAlt { get; private set; }
-
-        public float BrakeOffset;
-
-        public double MaxDynamicPressure { get; private set; }
-
-        public double MaxShipTemperature { get; private set; }
-
-        public bool WillOverheat { get; private set; }
+        public override void AttachVSL(VesselWrapper vsl)
+        {
+            base.AttachVSL(vsl);
+            if(Path != null)
+                Path.AttachVSL(vsl);
+            if(AfterBrakePath != null)
+                AfterBrakePath.AttachVSL(vsl);
+        }
 
         public override float GetTotalFuel()
         {
@@ -68,8 +61,8 @@ namespace ThrottleControlledAvionics
             VSL.Engines.FuelNeededAtAlt((float)AtTargetVel.magnitude, (float)TargetAltitude);
         }
 
-        public LandingTrajectory(VesselWrapper vsl, Vector3d dV, double startUT, 
-                                 WayPoint target, double target_altitude = 0, 
+        public LandingTrajectory(VesselWrapper vsl, Vector3d dV, double startUT,
+                                 WayPoint target, double target_altitude = 0,
                                  bool with_brake = true, bool brake_at_fly_above = false)
             : base(vsl, dV, startUT, target)
         {
@@ -97,15 +90,15 @@ namespace ThrottleControlledAvionics
         void update_landing_site_after_brake()
         {
             SetBrakeDeltaV(-LandingTrajectoryAutopilot
-                           .CorrectedBrakeVelocity(VSL, BrakeEndPoint.vel, BrakeEndPoint.pos, 
+                           .CorrectedBrakeVelocity(VSL, BrakeEndPoint.vel, BrakeEndPoint.pos,
                                                    BrakeEndPoint.DynamicPressure / 1000 / LandingTrajectoryAutopilot.C.MinDPressure,
                                                    AtTargetUT - BrakeEndPoint.UT));
             BrakeStartPoint = Path.PointAtUT(Math.Max(BrakeEndPoint.UT - MatchVelocityAutopilot
                                                       .BrakingOffset((float)BrakeDeltaV.magnitude, VSL, out BrakeDuration), StartUT));
-            AfterBrakePath = new LandingPath(VSL, 
+            AfterBrakePath = new LandingPath(VSL,
                                              BrakeStartPoint.OrbitFromHere(),
-                                             TargetAltitude, 
-                                             BrakeStartPoint.UT, 
+                                             TargetAltitude,
+                                             BrakeStartPoint.UT,
                                              (AtTargetUT - BrakeStartPoint.UT) / 20,
                                              VSL.Physics.M - ManeuverFuel,
                                              VSL.Engines.AvailableFuelMass - ManeuverFuel,
@@ -124,7 +117,7 @@ namespace ThrottleControlledAvionics
             AtTargetUT = Body.atmosphere && Orbit.altitude > Body.atmosphereDepth ?
                 TrajectoryCalculator.NearestRadiusUT(Orbit, Body.Radius + Body.atmosphereDepth, StartUT) + 1 : StartUT;
             var end_alt = Math.Max(Orbit.PeA + 10, TargetAltitude);
-            Path = new LandingPath(VSL, Orbit, end_alt, 
+            Path = new LandingPath(VSL, Orbit, end_alt,
                                    AtTargetUT,
                                    Math.Min(LandingTrajectoryAutopilot.C.AtmoTrajectoryResolution,
                                             Utils.ClampL((VSL.Altitude.Absolute - TargetAltitude) / Math.Abs(VSL.VerticalSpeed.Absolute) / 20, 0.1)),
@@ -168,7 +161,7 @@ namespace ThrottleControlledAvionics
         }
 
         void SetBrakeEndUT(double UT)
-        { 
+        {
             SetBrakeEndPoint(Path.PointAtUT(UT));
         }
 
@@ -214,7 +207,7 @@ namespace ThrottleControlledAvionics
             if(with_brake)
             {
                 //estimate time needed to rotate the ship downwards
-                var rotation_time = VSL.Torque.NoEngines ? 
+                var rotation_time = VSL.Torque.NoEngines ?
                     VSL.Torque.NoEngines.RotationTime2Phase(90) :
                     VSL.Torque.MaxPossible.RotationTime2Phase(90, 0.1f);
                 //estimate amount of fuel needed for the maneuver
@@ -224,8 +217,8 @@ namespace ThrottleControlledAvionics
                 if(BrakeFuel > 0)
                 {
                     //calculate braking maneuver
-                    BrakeDuration = VSL.Engines.OnPlanetTTB(BrakeDeltaV, 
-                                                            Orbit.getRelativePositionAtUT(BrakeEndPoint.UT), 
+                    BrakeDuration = VSL.Engines.OnPlanetTTB(BrakeDeltaV,
+                                                            Orbit.getRelativePositionAtUT(BrakeEndPoint.UT),
                                                             (float)(BrakeEndPointDeltaAlt + TargetAltitude));
                     BrakeDuration += rotation_time;
                     if(FullBrake)
@@ -279,7 +272,7 @@ namespace ThrottleControlledAvionics
                 else
                 {
                     SetBrakeEndUT(AerobrakeStartUT);
-                    BrakeStartPoint = BrakeStartPoint;
+                    BrakeStartPoint = BrakeEndPoint;
                     BrakeDuration = 0;
                 }
             }
@@ -308,7 +301,7 @@ namespace ThrottleControlledAvionics
             DeltaFi = 90 - Utils.Angle2(Orbit.GetOrbitNormal(),
                                         TrajectoryCalculator.BodyRotationAtdT(Body, TimeToTarget) * Target.OrbPos(Body));
             DeltaR = Utils.RadDelta(SurfacePoint.AngleTo(VslStartLat, VslStartLon), Target.AngleTo(VslStartLat, VslStartLon)) * Mathf.Rad2Deg;
-//            Utils.Log("{}", this);//debug
+            //            Utils.Log("{}", this);//debug
         }
 
         public Vector3d GetOrbitVelocityAtSurface()
@@ -354,19 +347,19 @@ namespace ThrottleControlledAvionics
                             "AfterBrakePath:\n{}\n",
                              SurfacePoint,
                              DeltaR, DeltaLat, DeltaLon, FlyAbovePoint.UT,
-                             BrakeStartPoint.UT, BrakeEndPoint.UT, BrakeOffset, BrakeStartPoint.UT - VSL.Physics.UT, 
+                             BrakeStartPoint.UT, BrakeEndPoint.UT, BrakeOffset, BrakeStartPoint.UT - VSL.Physics.UT,
                              BrakeEndPointDeltaAlt, ActualLandingAngle, LandingSteepness,
                              WillOverheat, MaxShipTemperature, MaxDynamicPressure,
                              Path, AfterBrakePath);
         }
     }
 
-    public class LandingPath
+    public class LandingPath : ConfigNodeObject
     {
+        [Serializable]
         public struct Point
         {
-            public VesselWrapper VSL;
-            public Orbit Orbit;
+            [NonSerialized]
             public LandingPath Path;
 
             public double UT;
@@ -393,15 +386,15 @@ namespace ThrottleControlledAvionics
             public double ConvectiveCoefficient;
             public double ShipTemperature;
 
-            public CelestialBody Body { get { return Orbit.referenceBody; } }
+            public CelestialBody Body { get { return Path.Orbit.referenceBody; } }
 
             public bool Ascending { get { return Vector3d.Dot(vel, pos) > 0; } }
 
             public void Update(double UT)
             {
                 this.UT = UT;
-                pos = Orbit.getRelativePositionAtUT(UT);
-                vel = Orbit.getOrbitalVelocityAtUT(UT);
+                pos = Path.Orbit.getRelativePositionAtUT(UT);
+                vel = Path.Orbit.getOrbitalVelocityAtUT(UT);
                 Update();
             }
 
@@ -428,7 +421,7 @@ namespace ThrottleControlledAvionics
                     PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(Rho_v));
 
                     var convectiveMachLerp = Math.Pow(UtilMath.Clamp01((Mach - PhysicsGlobals.NewtonianMachTempLerpStartMach) /
-                                             (PhysicsGlobals.NewtonianMachTempLerpEndMach - PhysicsGlobals.NewtonianMachTempLerpStartMach)), 
+                                             (PhysicsGlobals.NewtonianMachTempLerpEndMach - PhysicsGlobals.NewtonianMachTempLerpStartMach)),
                                                       PhysicsGlobals.NewtonianMachTempLerpExponent);
                     ShockTemperature = SrfSpeed * PhysicsGlobals.NewtonianTemperatureFactor;
                     if(convectiveMachLerp > 0.0)
@@ -449,8 +442,8 @@ namespace ThrottleControlledAvionics
             {
                 if(Atmosphere)
                 {
-                    var K = VSL.Physics.MMT_ThermalMass > ConvectiveCoefficient ? 
-                            -ConvectiveCoefficient / VSL.Physics.MMT_ThermalMass : -1;
+                    var K = Path.VSL.Physics.MMT_ThermalMass > ConvectiveCoefficient ?
+                                -ConvectiveCoefficient / Path.VSL.Physics.MMT_ThermalMass : -1;
                     ShipTemperature = ShockTemperature + (startT - ShockTemperature) * Math.Exp(K * LandingTrajectoryAutopilot.C.HeatingCoefficient * Duration);
                 }
                 return ShipTemperature;
@@ -463,8 +456,8 @@ namespace ThrottleControlledAvionics
 
             public Vector3 CBRelativePosInWorldFrame()
             {
-                return (Vector3)(Orbit.referenceBody.BodyFrame.LocalToWorld(rel_pos).xzy +
-                                 Orbit.referenceBody.position);
+                return (Path.Orbit.referenceBody.BodyFrame.LocalToWorld(rel_pos).xzy +
+                        Path.Orbit.referenceBody.position);
             }
 
             public override string ToString()
@@ -476,42 +469,45 @@ namespace ThrottleControlledAvionics
                                     "UT {}, Duration {} s\n" +
                                     "pos {}\n" +
                                     "vel {}\n",
-                                    Altitude, Density, Pressure, AtmosphereTemperature, 
-                                    SrfSpeed, DynamicPressure / 1000, ShockTemperature, 
+                                    Altitude, Density, Pressure, AtmosphereTemperature,
+                                    SrfSpeed, DynamicPressure / 1000, ShockTemperature,
                                     ConvectiveCoefficient, ShipTemperature, UT, Duration,
                                     pos, vel);
             }
         }
 
-        public readonly VesselWrapper VSL;
-        public readonly Orbit Orbit;
-        public readonly double TargetAltitude;
+        public VesselWrapper VSL;
+        [Persistent] public Orbit Orbit;
+        [Persistent] public double TargetAltitude;
 
-        public List<Point> Points = new List<Point>();
+        [Persistent] public PersistentList<Point> Points = new PersistentList<Point>();
 
-        public Point LastPoint { get; private set; }
+        [Persistent] public Point LastPoint;
 
-        public bool HavePoints { get; private set; }
+        [Persistent] public bool HavePoints;
+        [Persistent] public bool Atmosphere;
 
-        public bool Atmosphere { get; private set; }
+        [Persistent] public double UT0 = -1;
+        [Persistent] public double StartUT = -1;
+        [Persistent] public double FirstPointUT = -1;
+        [Persistent] public double AtmoStartUT = -1;
+        [Persistent] public double AtmoStopUT = -1;
+        [Persistent] public double EndUT = -1;
+        [Persistent] public double MaxShipTemperature = -1;
+        [Persistent] public double MaxDynamicPressure = -1;
 
-        public double UT0 = -1;
-        public double StartUT = -1;
-        public double FirstPointUT = -1;
-        public double AtmoStartUT = -1;
-        public double AtmoStopUT = -1;
-        public double EndUT = -1;
-        public double MaxShipTemperature = -1;
-        public double MaxDynamicPressure = -1;
+        public void AttachVSL(VesselWrapper vsl) => VSL = vsl;
 
         Point newP(double UT)
-        { 
-            var p = new Point{ VSL = VSL, Orbit = Orbit, Path=this }; 
-            p.Update(UT); 
-            return p; 
+        {
+            var p = new Point { Path = this };
+            p.Update(UT);
+            return p;
         }
 
-        public LandingPath(VesselWrapper vsl, Orbit orb, double target_altitude, double startUT, double dt, 
+        public LandingPath() { }
+
+        public LandingPath(VesselWrapper vsl, Orbit orb, double target_altitude, double startUT, double dt,
                            double start_mass, double fuel = 0, double brake_vel = 0)
         {
             VSL = vsl;
@@ -559,8 +555,8 @@ namespace ThrottleControlledAvionics
                         {
                             //compute thrust direction
                             var vV = Utils.ClampL(Vector3d.Dot(p.vel, p.pos / r), 1e-5);
-                            var b_dir = LandingTrajectoryAutopilot.CorrectedBrakeVelocity(VSL, p.vel, p.pos, 
-                                                                                          p.DynamicPressure / 1000 / LandingTrajectoryAutopilot.C.MinDPressure, 
+                            var b_dir = LandingTrajectoryAutopilot.CorrectedBrakeVelocity(VSL, p.vel, p.pos,
+                                                                                          p.DynamicPressure / 1000 / LandingTrajectoryAutopilot.C.MinDPressure,
                                                                                           (p.Altitude - TargetAltitude) / vV).normalized;
                             //compute thrust and mass flow
                             float mflow;
@@ -726,25 +722,25 @@ namespace ThrottleControlledAvionics
 
         public Point FlyAbovePoint(Vector3d pos)
         {
-            if(Utils.ProjectionAngle(Orbit.getRelativePositionAtUT(StartUT), pos, 
+            if(Utils.ProjectionAngle(Orbit.getRelativePositionAtUT(StartUT), pos,
                                      Orbit.getOrbitalVelocityAtUT(StartUT)) < 0)
                 return newP(StartUT);
             if(!HavePoints ||
-               Utils.ProjectionAngle(Orbit.getRelativePositionAtUT(AtmoStartUT), 
-                                     TrajectoryCalculator.BodyRotationAtdT(Orbit.referenceBody, AtmoStartUT - UT0) * pos, 
+               Utils.ProjectionAngle(Orbit.getRelativePositionAtUT(AtmoStartUT),
+                                     TrajectoryCalculator.BodyRotationAtdT(Orbit.referenceBody, AtmoStartUT - UT0) * pos,
                                      Orbit.getOrbitalVelocityAtUT(AtmoStartUT)) < 0)
                 return newP(TrajectoryCalculator.FlyAboveUT(Orbit, pos, StartUT));
             var p0 = Points[0];
-            var angle0 = Utils.ProjectionAngle(p0.pos, 
+            var angle0 = Utils.ProjectionAngle(p0.pos,
                                                TrajectoryCalculator
-                                               .BodyRotationAtdT(Orbit.referenceBody, p0.UT - UT0) * pos, 
+                                               .BodyRotationAtdT(Orbit.referenceBody, p0.UT - UT0) * pos,
                                                p0.vel);
             for(int i = 1, count = Points.Count; i < count; i++)
             {
                 var p1 = Points[i];
-                var angle1 = Utils.ProjectionAngle(p1.pos, 
+                var angle1 = Utils.ProjectionAngle(p1.pos,
                                                    TrajectoryCalculator
-                                                   .BodyRotationAtdT(Orbit.referenceBody, p1.UT - UT0) * pos, 
+                                                   .BodyRotationAtdT(Orbit.referenceBody, p1.UT - UT0) * pos,
                                                    p1.vel);
                 if(angle1 > 0)
                 {
@@ -776,7 +772,7 @@ namespace ThrottleControlledAvionics
                                 "EndUT {}\n" +
                                 "MaxShipT {}\n" +
                                 "MaxDynP {}\n" +
-                                "Points: {}", 
+                                "Points: {}",
                                 StartUT, AtmoStartUT, AtmoStopUT, EndUT,
                                 MaxShipTemperature, MaxDynamicPressure / 1000,
                                 Points);
