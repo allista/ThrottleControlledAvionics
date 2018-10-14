@@ -88,7 +88,7 @@ namespace ThrottleControlledAvionics
 
         void update_limits()
         {
-            TargetOrbit.ApA.Min = (float)(ToOrbit.MaxApR - Body.Radius) / 1000;
+            TargetOrbit.ApA.Min = (float)(ToOrbit.MinApR - Body.Radius) / 1000;
             TargetOrbit.ApA.Max = (float)(Body.sphereOfInfluence - Body.Radius) / 1000;
             TargetOrbit.ApA.ClampValue();
             update_inclination_limits();
