@@ -254,8 +254,8 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        void onEditorShipModified(IShipconstruct ship)
-        { set_TCA_Active(ship); }
+        void onEditorShipModified(IShipconstruct ship) =>
+        set_TCA_Active(ship);
 
         void onStageActive(int stage)
         { 
@@ -348,13 +348,13 @@ namespace ThrottleControlledAvionics
                 TCA_Active = (masters.Count == 1 || 
                               masters.Values.SelectMax(m => 
             {
-                try { return -m.part.Modules.IndexOf(m)-m.vessel.Parts.IndexOf(m.part); }
+                try { return -m.part.Modules.IndexOf(m)-ship.Parts.IndexOf(m.part); }
                 catch(NullReferenceException) { return float.NegativeInfinity; }
             }) == this);
             Actions["ToggleTCA"].active = TCA_Active;
             this.Log("TCA Active: {}, GroupMaster {}, masters {}, top master {}", 
                      TCA_Active, GroupMaster, masters,
-                     masters.Values.SelectMax(m => -m.part.Modules.IndexOf(m)-m.vessel.Parts.IndexOf(m.part)));//debug
+                     masters.Values.SelectMax(m => -m.part.Modules.IndexOf(m)-ship.Parts.IndexOf(m.part)));//debug
         }
 
         public void EnableTCA(bool enable = true)//debug
