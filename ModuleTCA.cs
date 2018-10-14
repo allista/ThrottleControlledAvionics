@@ -194,6 +194,8 @@ namespace ThrottleControlledAvionics
                 GroupMaster = true;
                 this.Log("GroupMaster: {}", GroupMaster);//debug
             }
+            if(!string.IsNullOrEmpty(GID))
+                SetGID(GID);
             //deprecated config conversion
             enabled = isEnabled = true;
         }
