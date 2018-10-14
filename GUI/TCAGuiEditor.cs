@@ -140,6 +140,7 @@ namespace ThrottleControlledAvionics
             TCA = TCA_Modules[0];
             TCA.CFG = CFG;
             TCA.EnableTCA(true);
+            TCA_Modules.ForEach(m => m.GID = TCA.GID);
             CFG.ActiveProfile.Update(Engines);
             PartsEditor.SetCFG(CFG);
             update_modules();
