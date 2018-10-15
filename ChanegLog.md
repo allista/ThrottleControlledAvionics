@@ -2,7 +2,12 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.5.2.1**
+* **v3.5.3**
+    * Added **TCA grouping** to facilitate docking/undocking with retaining of configurations
+        * Added the ability to manually activate any TCA instance of the vessel to have, e.g. different TCA Modules enabled.
+    * Various bugfixes.
+
+* v3.5.2.1
     * Better handling of gimbal and control surface torque
     * Several small bugfixes
 
