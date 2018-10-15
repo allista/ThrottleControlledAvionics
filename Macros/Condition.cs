@@ -34,11 +34,15 @@ namespace ThrottleControlledAvionics
         Vector2 scroll;
 
         public Condition() 
-        { Name = Utils.ParseCamelCase(GetType().Name.Replace(typeof(Condition).Name, "")); }
+        { 
+            Name = Utils.ParseCamelCase(GetType().Name.Replace(typeof(Condition).Name, ""));
+            Label = new GUIContent(Name);
+        }
 
         public Condition(ComponentInfo info) : this()
         {
-            if(!string.IsNullOrEmpty(info.Name)) Name = info.Name;
+            if(!string.IsNullOrEmpty(info.Name)) 
+                Name = info.Name;
             Label = new GUIContent(Name, info.Description);
         }
 
@@ -90,7 +94,7 @@ namespace ThrottleControlledAvionics
             else
             {
                 if(GUILayout.Button(new GUIContent("+", "Add new condition"), Styles.active_button, GUILayout.Width(20))) 
-                { if(SelectCondition != null) SelectCondition(Add); }
+                    SelectCondition?.Invoke(Add);
             }
             GUILayout.EndHorizontal();
             GUILayout.EndVertical();
@@ -130,6 +134,7 @@ namespace ThrottleControlledAvionics
         protected virtual float VesselValue(VesselWrapper VSL) { return 0; }
 
         public FloatCondition() { Error.Value = 0.1f; }
+        public FloatCondition(ComponentInfo info): base(info) { Error.Value = 0.1f; }
 
         public override void Load(ConfigNode node)
         {
