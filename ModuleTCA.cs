@@ -192,7 +192,7 @@ namespace ThrottleControlledAvionics
             {
                 CFG = ConfigNodeObject.FromConfig<VesselConfig>(SavedCFG);
                 GroupMaster = true;
-                this.Log("GroupMaster: {}", GroupMaster);//debug
+                //this.Log("GroupMaster: {}", GroupMaster);//debug
             }
             if(!string.IsNullOrEmpty(GID))
                 SetGID(GID);
@@ -234,8 +234,8 @@ namespace ThrottleControlledAvionics
         void onVesselModify(Vessel vsl)
         { 
             if(vsl == null || vsl != vessel) return;
-            this.Log("onVesselModify: vsl.id {}, old.id {}", vsl.id, 
-                     VSL != null && VSL.vessel != null? VSL.vessel.id.ToString() : "null");//debug
+            //this.Log("onVesselModify: vsl.id {}, old.id {}", vsl.id, 
+                     //VSL != null && VSL.vessel != null? VSL.vessel.id.ToString() : "null");//debug
             AllModules.ForEach(m => m.SaveToConfig());
             check_priority();
             if(GroupMaster)
@@ -305,7 +305,7 @@ namespace ThrottleControlledAvionics
             {
                 var other = all_tca.FirstOrDefault(tca => !string.IsNullOrEmpty(tca.GID));
                 SetGID(other != null? other.GID : new_GID());
-                this.Log("init group: {}", GID);//debug
+                //this.Log("init group: {}", GID);//debug
             }
         }
 
@@ -313,7 +313,7 @@ namespace ThrottleControlledAvionics
         {
             var master = all_tca.FirstOrDefault(tca => tca.GID == GID);
             GroupMaster = master == this;
-            this.Log("select group master: {}, {}", master, GroupMaster);//debug
+            //this.Log("select group master: {}, {}", master, GroupMaster);//debug
             return master;
         }
 
@@ -329,7 +329,7 @@ namespace ThrottleControlledAvionics
         {
             var gid = new_GID();
             GetGroup().ForEach(tca => tca.SetGID(gid));
-            this.Log("change group: {}, {}", GID, GetGroup());//debug
+            //this.Log("change group: {}, {}", GID, GetGroup());//debug
         }
 
         void set_TCA_Active(IShipconstruct ship)
@@ -354,17 +354,17 @@ namespace ThrottleControlledAvionics
                 catch(NullReferenceException) { return float.NegativeInfinity; }
             }) == this);
             Actions["ToggleTCA"].active = TCA_Active;
-            this.Log("TCA Active: {}, GroupMaster {}, masters {}, top master {}", 
-                     TCA_Active, GroupMaster, masters,
-                     masters.Values.SelectMax(m => -m.part.Modules.IndexOf(m)-ship.Parts.IndexOf(m.part)));//debug
+            //this.Log("TCA Active: {}, GroupMaster {}, masters {}, top master {}", 
+                     //TCA_Active, GroupMaster, masters,
+                     //masters.Values.SelectMax(m => -m.part.Modules.IndexOf(m)-ship.Parts.IndexOf(m.part)));//debug
         }
 
-        public void EnableTCA(bool enable = true)//debug
+        public void EnableTCA(bool enable = true)
         {
             TCA_Active = enable;
             Actions["ToggleTCA"].active = enable;
             Actions["onActionUpdate"].active = enable;
-            this.Log("TCA Module enabled: {}", enable);//debug
+            //this.Log("TCA Module enabled: {}", enable);//debug
         }
 
         public void DeleteModules()
@@ -508,7 +508,11 @@ namespace ThrottleControlledAvionics
         public void ShowGroup()
         {
             var group = GetGroup();
-            group.ForEach(m => m.part.HighlightAlways(m.GroupMaster? Color.magenta : Color.cyan));
+            group.ForEach(m => m.part.HighlightAlways(m.TCA_Active? 
+                                                      Color.green : 
+                                                      (m.GroupMaster? 
+                                                       Color.magenta : 
+                                                       Color.cyan)));
             StartCoroutine(CallbackUtil.DelayedCallback(3.0f, () => group.ForEach(m => 
             { 
                 if(m != null && m.part != null) 
