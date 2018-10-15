@@ -277,11 +277,11 @@ namespace ThrottleControlledAvionics
                 else if(TCA.IsStateSet(TCAState.StabilizeFlight))
                     return "<color=yellow>Stabilizing Flight</color>";
                 else if(TCA.IsStateSet(TCAState.AltitudeControl))
-                    return "<color=lime>Altitude Control</color>";
+                    return "<color=green>Altitude Control</color>";
                 else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
-                    return "<color=lime>Vertical Speed Control</color>";
+                    return "<color=green>Vertical Speed Control</color>";
                 else if(TCA.State == TCAState.Nominal)
-                    return "<color=lime>Systems Nominal</color>";
+                    return "<color=green>Systems Nominal</color>";
                 else if(TCA.State == TCAState.NoActiveEngines)
                     return "<color=yellow>No Active Engines</color>";
                 else if(TCA.State == TCAState.NoEC)
@@ -417,7 +417,7 @@ namespace ThrottleControlledAvionics
                     {
                         UnlockControls();
                         var prefix = CFG.Enabled? 
-                            "<b><color=lime>TCA: </color></b>" : 
+                            "<b><color=green>TCA: </color></b>" : 
                             (VSL.LandedOrSplashed? "<b>TCA: </b>" : "<b><color=red>TCA: </color></b>");
                         GUI.Label(collapsed_rect, prefix+StatusString(), Styles.boxed_label);
                     }

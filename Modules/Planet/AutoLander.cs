@@ -451,7 +451,7 @@ namespace ThrottleControlledAvionics
                 }
                 if(scan(C.WideCheckLevel)) 
                 {
-                    Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", Progress);
+                    Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=green>{0:P1}</color>", Progress);
                     break;
                 }
                 FlattestNode = flattest_node;
@@ -474,7 +474,7 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.Land:
                 CFG.VTOLAssistON = true;
-                if(CFG.AutoGear) Status("lime", "Landing...");
+                if(CFG.AutoGear) Status("green", "Landing...");
                 else Status("yellow", "Landing. Autodeployment of landing gear is disabled.");
                 if(WideCheckAlt > 0)
                 {
