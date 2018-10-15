@@ -436,7 +436,7 @@ namespace ThrottleControlledAvionics
             var dist = -1.0;
             while(UT0 < stop)
             {
-                Status("white", "Scanning for obstacles: <color=lime>{0:P1}</color>", 
+                Status("white", "Scanning for obstacles: <color=green>{0:P1}</color>", 
                        Math.Min(1, (UT1-start)/(stop-start)));
                 var d = obstacle_between(trj, UT0, UT1, offset);
                 UT0 = UT1; UT1 += dT;
@@ -627,7 +627,7 @@ namespace ThrottleControlledAvionics
                 scanner.Start(CFG.Target.Pos, C.PointsPerFrame, 0.01);
                 scanner.MaxDist = CorrectionMaxDist.Value * 1000;
             }
-            Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", scanner.Progress);
+            Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=green>{0:P1}</color>", scanner.Progress);
             if(scanner.Scan()) return;
             flat_target = scanner.FlatRegion != null && (!scanner.FlatRegion.Equals(CFG.Target.Pos) || !CFG.Target.IsVessel);
             if(flat_target)
@@ -1077,7 +1077,7 @@ namespace ThrottleControlledAvionics
                 }
                 break;
             case LandingStage.LandHere:
-                Status("lime", "Landing...");
+                Status("green", "Landing...");
                 CFG.BR.Off();
                 CFG.BlockThrottle = true;
                 CFG.AltitudeAboveTerrain = true;

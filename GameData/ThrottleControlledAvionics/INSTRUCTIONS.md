@@ -125,7 +125,7 @@ The Main, Configuration and Manual windows are summoned by TCA toolbar button. B
 
 ###Floating windows
 
-Floating windows are transparant borderless windows that consist of a set of controls and a **drag handle** denoted by the <color=lime>●</color> symbol. To move such window around, press this symbol with the mouse, then drag the window.
+Floating windows are transparant borderless windows that consist of a set of controls and a **drag handle** denoted by the <color=green>●</color> symbol. To move such window around, press this symbol with the mouse, then drag the window.
 
 Like tabs of the Main Window, floating windows are context-sensitive and are shown depending on the situation and availability of TCA Modules.
 
@@ -135,7 +135,7 @@ Most of TCA control elements -- buttons, input fields, sliders -- have tooltips 
 
 ###Button switches
 
-Many of the TCA functions are controlled through *switches*. These are buttons that are <color=lime>green</color> when the function is enabled, <color=yellow>yellow</color> when it is disabled, and gray when it is unavailable.
+Many of the TCA functions are controlled through *switches*. These are buttons that are <color=green>green</color> when the function is enabled, <color=yellow>yellow</color> when it is disabled, and gray when it is unavailable.
 
 ###Mutually exclusive functions
 
@@ -222,7 +222,7 @@ When Altitude Control is installed and enabled by the "Hover" switch:
 
 * *Altitude* indicator that shows *current altitude +/- current vertical speed*. In the *Follow Terrain* mode both values are relative to the surface below and may change very rapidly if you're flying above a ragged terrain.
 * **Set Point** control that consists of several elements:
-    1. *Desired Altitude* filed that shows and allows to change the value of the desired altitude directly typing it in from keyboard. If the value *is set* and is <color=lime>green</color>, the altitude is above the ground; if it's <color=red>red</color> it is below.
+    1. *Desired Altitude* filed that shows and allows to change the value of the desired altitude directly typing it in from keyboard. If the value *is set* and is <color=green>green</color>, the altitude is above the ground; if it's <color=red>red</color> it is below.
     2. **Set** button that applies the value entered in the *Desired Altitude* field.
     3. **-10m** and **+10m** buttons subtract or add ten meters to the currently set desired altitude.
 

@@ -64,7 +64,7 @@ namespace ThrottleControlledAvionics
                 get
                 {
                     var tts = Best.TimeToStart;
-                    return string.Format("T- {0}  ETA <color=lime>{1}</color>  dV: <color=yellow><b>{2:F1}</b> m/s</color>",
+                    return string.Format("T- {0}  ETA <color=green>{1}</color>  dV: <color=yellow><b>{2:F1}</b> m/s</color>",
                                          Utils.formatTimeDelta(tts),
                                          Utils.formatTimeDelta(tts + Best.TransferTime),
                                          Best.GetTotalDeltaV());
@@ -260,7 +260,7 @@ namespace ThrottleControlledAvionics
                 {
                     GUILayout.BeginHorizontal();
                     var tts = trajectory.TimeToStart;
-                    var label = string.Format("ETA:  <color=lime>{0}</color>\n" +
+                    var label = string.Format("ETA:  <color=green>{0}</color>\n" +
                                               "Node: <color={1}>{2}</color>",
                                               Utils.formatTimeDelta(tts + transfer),
                                               tts > opt.ren.ManeuverOffset ? "white" : "red",
@@ -271,7 +271,7 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label(string.Format("dV: <color=yellow><b>{0:F1}</b> m/s</color>", trajectory.GetTotalDeltaV()),
                                     Styles.rich_label, GUILayout.ExpandWidth(false));
                     GUILayout.FlexibleSpace();
-                    if(selected) GUILayout.Label("<color=lime><b>●</b></color>",
+                    if(selected) GUILayout.Label("<color=green><b>●</b></color>",
                                                  Styles.rich_label, GUILayout.ExpandWidth(false));
                     GUILayout.EndHorizontal();
                     return sel;
