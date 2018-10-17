@@ -268,6 +268,7 @@ namespace ThrottleControlledAvionics
 
         IEnumerator<YieldInstruction> delayed_init()
         {
+            if(vessel == null) yield break;
             if(!vessel.loaded) yield return null;
             yield return new WaitForSeconds(0.5f);
             init();
@@ -296,7 +297,8 @@ namespace ThrottleControlledAvionics
         {
             if(HighLogic.LoadedSceneIsEditor) 
                 set_TCA_Active(EditorLogic.fetch.ship);
-            else set_TCA_Active(vessel);
+            else if(vessel != null) 
+                set_TCA_Active(vessel);
         }
 
         void init_group(List<ModuleTCA> all_tca)
