@@ -124,7 +124,7 @@ namespace ThrottleControlledAvionics
                     TCAScenario.SaveNamedConfig(config_name, CFG, true);
             }
             else if(GUILayout.Button(new GUIContent("Add", "Save current configuration"),
-                                     Styles.add_button, GUILayout.ExpandWidth(false))
+                                     Styles.open_button, GUILayout.ExpandWidth(false))
                     && config_name != string.Empty)
             {
                 TCAScenario.SaveNamedConfig(config_name, CFG);

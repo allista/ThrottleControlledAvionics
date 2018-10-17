@@ -43,7 +43,7 @@ namespace ThrottleControlledAvionics
             if(WindowEnabled)
             {
                 if(current_section == null)
-                    change_section(Manual.NoText && Manual.Subsections.Count > 0? 
+                    change_section(Manual.NoText && Manual.Subsections.Count > 0 ?
                                    Manual.Subsections[0] : Manual);
             }
         }
@@ -58,7 +58,7 @@ namespace ThrottleControlledAvionics
         static void PartsInfo()
         {
             if(parts == null) return;
-            if(parts.Count == 0) 
+            if(parts.Count == 0)
             {
                 GUILayout.Label("No modules installed.");
                 return;
@@ -70,10 +70,10 @@ namespace ThrottleControlledAvionics
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(part.Title);
                 GUILayout.FlexibleSpace();
-                if(part.Active) GUILayout.Label("Available", Styles.green);
-                else GUILayout.Label(new GUIContent("Dependencies Unsatisfied", 
-                                                    "Consult R&D tree to see what modules are required for this one to work."), 
-                                     Styles.red);
+                if(part.Active) GUILayout.Label("Available", Styles.enabled);
+                else GUILayout.Label(new GUIContent("Dependencies Unsatisfied",
+                                                    "Consult R&D tree to see what modules are required for this one to work."),
+                                     Styles.danger);
                 GUILayout.EndHorizontal();
             }
             GUILayout.EndVertical();
@@ -92,13 +92,15 @@ namespace ThrottleControlledAvionics
             sections_scroll = GUILayout.BeginScrollView(sections_scroll, GUILayout.Height(45));
             GUILayout.BeginHorizontal();
             if(HighLogic.CurrentGame != null &&
-               GUILayout.Button("Status", show_status? Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
+               GUILayout.Button("Status", show_status ?
+                                Styles.open_button : Styles.normal_button,
+                                GUILayout.ExpandWidth(false)))
                 show_status = true;
             for(int i = 0, count = Manual.Subsections.Count; i < count; i++)
             {
                 var ss = Manual.Subsections[i];
-                if(GUILayout.Button(ss.Title, (!show_status && current_section == ss)? 
-                                    Styles.green_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
+                if(GUILayout.Button(ss.Title, (!show_status && current_section == ss) ?
+                                    Styles.good_button : Styles.normal_button, GUILayout.ExpandWidth(false)))
                     change_section(ss);
             }
             GUILayout.EndHorizontal();
@@ -109,31 +111,40 @@ namespace ThrottleControlledAvionics
                 GUILayout.BeginVertical();
                 GUILayout.Label(Title);
                 if(!TCAScenario.ModuleInstalled)
-                    GUILayout.Label("<color=red><size=30>TCA module was not found in any of the loaded parts.</size></color>\n\n" +
+                    GUILayout.Label(Styles.Colors.Danger
+                                    .Tag("<size=30>TCA module was not found in any of the loaded parts.</size>") + "\n\n" +
                                     "This probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
-                                    "<color=yellow><b>ModuleManager</b> is required</color> for TCA to work.", Styles.rich_label);
+                                    Styles.Colors.Warning
+                                    .Tag("<b>ModuleManager</b> is required") + " for TCA to work.",
+                                    Styles.rich_label);
                 else if(HighLogic.CurrentGame.Mode != Game.Modes.SANDBOX)
                 {
-                    
+
                     if(!TCAScenario.HasTCA)
-                        GUILayout.Label("<color=yellow><size=30>TCA Subsystem is <b>NOT</b> purchased. Get it in R&D first.</size></color>", Styles.rich_label);
+                        GUILayout.Label(Styles.Colors.Warning
+                                        .Tag("<size=30>TCA Subsystem is <b>NOT</b> purchased. Get it in R&D first.</size>"),
+                                        Styles.rich_label);
                     else if(HighLogic.LoadedSceneIsFlight)
                     {
-                        GUILayout.Label("<color=lime>TCA Subsystem is purchased.</color>\n" +
-                                        "To see TCA modules installed on the current vessel go to <b>Advanced</b> tab.", 
+                        GUILayout.Label(Styles.Colors.Good
+                                        .Tag("TCA Subsystem is purchased.") + "\n" +
+                                        "To see TCA modules installed on the current vessel go to <b>Advanced</b> tab.",
                                         Styles.rich_label);
                     }
                     else
                     {
-                        GUILayout.Label("<color=lime>TCA Subsystem is purchased.</color>\n" +
-                                        "Available TCA modules:", 
+                        GUILayout.Label(Styles.Colors.Good
+                                        .Tag("TCA Subsystem is purchased.") + "\n" +
+                                        "Available TCA modules:",
                                         Styles.rich_label);
                         PartsInfo();
                     }
                 }
                 else GUILayout.Label("<b>Sandbox Game:</b>\n" +
-                                     "<color=lime>TCA should be fully functional</color> " +
-                                     "on all vessels with some engines/RCS and a command module (cockpit, probe core, etc).", Styles.rich_label);
+                                     Styles.Colors.Good
+                                     .Tag("TCA should be fully functional") +
+                                     "on all vessels with some engines/RCS and a command module (cockpit, probe core, etc).",
+                                     Styles.rich_label);
                 GUILayout.EndVertical();
             }
             else GUILayout.Label(current_text, Styles.rich_label, GUILayout.MaxWidth(width));
@@ -147,10 +158,10 @@ namespace ThrottleControlledAvionics
         protected override void draw_gui()
         {
             LockControls();
-            WindowPos = 
-                GUILayout.Window(GetInstanceID(), 
-                                 WindowPos, 
-                                 DrawMainWindow, 
+            WindowPos =
+                GUILayout.Window(GetInstanceID(),
+                                 WindowPos,
+                                 DrawMainWindow,
                                  Globals.Instance.Manual.Title,
                                  GUILayout.Width(width),
                                  GUILayout.Height(height)).clampToScreen();

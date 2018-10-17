@@ -1109,7 +1109,7 @@ namespace ThrottleControlledAvionics
             Utils.ButtonSwitch("Use Brakes", ref UseBrakes, "Use brakes during deceleration.");
             if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
                 Utils.ButtonSwitch("Use Parachutes", ref UseChutes, "Use parachutes during deceleration.");
-            else GUILayout.Label("Use Parachutes", Styles.grey_button);
+            else GUILayout.Label("Use Parachutes", Styles.inactive_button);
             Utils.ButtonSwitch("Correct Target", ref CorrectTarget, 
                                "Search for a flat surface before deceleration and correct the target site.");
             Utils.ButtonSwitch("Land ASAP", ref LandASAP, 

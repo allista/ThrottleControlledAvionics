@@ -1086,7 +1086,7 @@ namespace ThrottleControlledAvionics
             GUILayout.BeginHorizontal();
             if(computing)
                 GUILayout.Label(new GUIContent("Search Mode: " + ModeNames[(int)mode], ModeDesc[(int)mode]),
-                                Styles.grey, GUILayout.ExpandWidth(true));
+                                Styles.inactive, GUILayout.ExpandWidth(true));
             else
             {
                 GUILayout.Label("Search Mode:", GUILayout.ExpandWidth(false));

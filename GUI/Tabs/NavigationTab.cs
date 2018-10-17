@@ -219,7 +219,7 @@ namespace ThrottleControlledAvionics
                 }
                 if(VSL.TargetUsers.Count > 0)
                     GUILayout.Label(new GUIContent("Del Target", "Target point is in use"),
-                                    Styles.grey_button, GUILayout.ExpandWidth(true));
+                                    Styles.inactive_button, GUILayout.ExpandWidth(true));
                 else if(GUILayout.Button(new GUIContent("Del Target", "Remove target point"), 
                                          Styles.danger_button, GUILayout.ExpandWidth(true)))
                     VSL.SetTarget(null);
@@ -787,7 +787,7 @@ namespace ThrottleControlledAvionics
             if(!VSL.OnPlanet) 
             {
                 GUILayout.BeginVertical();
-                GUILayout.Label("Controls unavailable in orbit", Styles.yellow, GUILayout.ExpandWidth(true));
+                GUILayout.Label("Controls unavailable in orbit", Styles.active, GUILayout.ExpandWidth(true));
                 WaypointList();
                 GUILayout.EndVertical();
             }

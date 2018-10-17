@@ -256,40 +256,58 @@ namespace ThrottleControlledAvionics
             }
         }
 
+        static string[] statuses = {
+            Styles.Colors.Danger.Tag("Obstacle On Course"),
+            Styles.Colors.Danger.Tag("Ground Collision Possible"),
+            Styles.Colors.Danger.Tag("Loosing Altitude"),
+            Styles.Colors.Danger.Tag("Low Control Authority"),
+            Styles.Colors.Warning.Tag("Engines Unoptimized"),
+            Styles.Colors.Warning.Tag("Ascending"),
+            Styles.Colors.Warning.Tag("VTOL Assist On"),
+            Styles.Colors.Warning.Tag("Stabilizing Flight"),
+            Styles.Colors.Enabled.Tag("Altitude Control"),
+            Styles.Colors.Enabled.Tag("Vertical Speed Control"),
+            Styles.Colors.Good.Tag("Systems Nominal"),
+            Styles.Colors.Warning.Tag("No Active Engines"),
+            Styles.Colors.Danger.Tag("No Electric Charge"),
+            Styles.Colors.Selected2.Tag("Unknown State"),
+            Styles.Colors.Inactive.Tag("Disabled")
+        };
+
         string StatusString()
         {
             if(TCA.IsStateSet(TCAState.Enabled))
             {
                 if(TCA.IsStateSet(TCAState.ObstacleAhead))
-                    return "<color=red>Obstacle On Course</color>";
-                else if(TCA.IsStateSet(TCAState.GroundCollision))
-                    return "<color=red>Ground Collision Possible</color>";
-                else if(TCA.IsStateSet(TCAState.LoosingAltitude))
-                    return "<color=red>Loosing Altitude</color>";
-                else if(!VSL.Controls.HaveControlAuthority)
-                    return "<color=red>Low Control Authority</color>";
-                else if(TCA.IsStateSet(TCAState.Unoptimized))
-                    return "<color=yellow>Engines Unoptimized</color>";
-                else if(TCA.IsStateSet(TCAState.Ascending))
-                    return "<color=yellow>Ascending</color>";
-                else if(TCA.IsStateSet(TCAState.VTOLAssist))
-                    return "<color=yellow>VTOL Assist On</color>";
-                else if(TCA.IsStateSet(TCAState.StabilizeFlight))
-                    return "<color=yellow>Stabilizing Flight</color>";
-                else if(TCA.IsStateSet(TCAState.AltitudeControl))
-                    return "<color=lime>Altitude Control</color>";
-                else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
-                    return "<color=lime>Vertical Speed Control</color>";
-                else if(TCA.State == TCAState.Nominal)
-                    return "<color=lime>Systems Nominal</color>";
-                else if(TCA.State == TCAState.NoActiveEngines)
-                    return "<color=yellow>No Active Engines</color>";
-                else if(TCA.State == TCAState.NoEC)
-                    return "<color=red>No Electric Charge</color>";
-                else //this should never happen
-                    return "<color=magenta>Unknown State</color>";
+                    return statuses[0];
+                if(TCA.IsStateSet(TCAState.GroundCollision))
+                    return statuses[1];
+                if(TCA.IsStateSet(TCAState.LoosingAltitude))
+                    return statuses[2];
+                if(!VSL.Controls.HaveControlAuthority)
+                    return statuses[3];
+                if(TCA.IsStateSet(TCAState.Unoptimized))
+                    return statuses[4];
+                if(TCA.IsStateSet(TCAState.Ascending))
+                    return statuses[5];
+                if(TCA.IsStateSet(TCAState.VTOLAssist))
+                    return statuses[6];
+                if(TCA.IsStateSet(TCAState.StabilizeFlight))
+                    return statuses[7];
+                if(TCA.IsStateSet(TCAState.AltitudeControl))
+                    return statuses[8];
+                if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
+                    return statuses[9];
+                if(TCA.State == TCAState.Nominal)
+                    return statuses[10];
+                if(TCA.State == TCAState.NoActiveEngines)
+                    return statuses[11];
+                if(TCA.State == TCAState.NoEC)
+                    return statuses[12];
+                //this should never happen
+                return statuses[13];
             }
-            return "<color=grey>Disabled</color>";
+            return statuses[14];
         }
 
         void StatusLabel()
@@ -427,7 +445,7 @@ namespace ThrottleControlledAvionics
                     UnlockControls();
                     draw_main_window = false;
                     GUI.Label(collapsed_rect, new GUIContent("TCA", "Push to show Main Window"), 
-                          CFG.Enabled? Styles.green : (VSL.LandedOrSplashed? Styles.white : Styles.red));
+                          CFG.Enabled? Styles.enabled : (VSL.LandedOrSplashed? Styles.white : Styles.danger));
                     if(Input.GetMouseButton(0) && collapsed_rect.Contains(Event.current.mousePosition))
                         Collapsed = false;
                     TooltipManager.GetTooltip();
