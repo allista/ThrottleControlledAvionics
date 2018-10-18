@@ -112,8 +112,8 @@ namespace ThrottleControlledAvionics
                 GUILayout.Label(Title);
                 if(!TCAScenario.ModuleInstalled)
                     GUILayout.Label(Styles.Colors.Danger
-                                    .Tag("<size=30>TCA module was not found in any of the loaded parts.</size>") + "\n\n" +
-                                    "This probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
+                                    .Tag("<size=30>TCA module was not found in any of the loaded parts.</size>") + 
+                                    "\n\nThis probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
                                     Styles.Colors.Warning
                                     .Tag("<b>ModuleManager</b> is required") + " for TCA to work.",
                                     Styles.rich_label);
@@ -134,8 +134,8 @@ namespace ThrottleControlledAvionics
                     else
                     {
                         GUILayout.Label(Styles.Colors.Good
-                                        .Tag("TCA Subsystem is purchased.") + "\n" +
-                                        "Available TCA modules:",
+                                        .Tag("TCA Subsystem is purchased.") + 
+                                        "\nAvailable TCA modules:",
                                         Styles.rich_label);
                         PartsInfo();
                     }
@@ -143,7 +143,7 @@ namespace ThrottleControlledAvionics
                 else GUILayout.Label("<b>Sandbox Game:</b>\n" +
                                      Styles.Colors.Good
                                      .Tag("TCA should be fully functional") +
-                                     "on all vessels with some engines/RCS and a command module (cockpit, probe core, etc).",
+                                     " on all vessels with some engines/RCS and a command module (cockpit, probe core, etc).",
                                      Styles.rich_label);
                 GUILayout.EndVertical();
             }
