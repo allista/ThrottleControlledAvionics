@@ -546,14 +546,9 @@ namespace ThrottleControlledAvionics
 
         static Color marker_color(int i, float N, float dist = -1)
         { 
-            var c = Color.red;
+            Color c = Styles.Colors.Danger;
             if(N > 0)
-            {
-                var t = i/N;
-                c = t < 0.5f ? 
-                    Color.Lerp(Color.red, Color.green, t*2).Normalized() : 
-                    Color.Lerp(Color.green, Color.cyan, (t-0.5f)*2).Normalized(); 
-            }
+                c = Styles.Colors.FractionGradient.Evaluate(i/N).Normalized();
             c.a = marker_alpha(dist);
             return c;
         }
@@ -676,15 +671,15 @@ namespace ThrottleControlledAvionics
             //current target and anchor
             if(CFG.Anchor != null) 
             {
-                DrawWayPoint(CFG.Anchor, Color.cyan, "Anchor");
+                DrawWayPoint(CFG.Anchor, Styles.Colors.Selected1, "Anchor");
                 current_target_drawn |= CFG.Anchor.Equals(CFG.Target);
             }
             if(CFG.Target && !current_target_drawn && 
                (!CFG.Target.IsVessel || CFG.Target.GetVessel().LandedOrSplashed))
-                DrawWayPoint(CFG.Target, Color.magenta, "Target");
+                DrawWayPoint(CFG.Target, Styles.Colors.Selected2, "Target");
             //custom markers
-            VSL.Info.CustomMarkersWP.ForEach(m => DrawWayPoint(m, Color.red, m.Name));
-            VSL.Info.CustomMarkersVec.ForEach(m => Markers.DrawWorldMarker(m, Color.red, "Custom WayPoint", WayPointMarker));
+            VSL.Info.CustomMarkersWP.ForEach(m => DrawWayPoint(m, Styles.Colors.Danger, m.Name));
+            VSL.Info.CustomMarkersVec.ForEach(m => Markers.DrawWorldMarker(m, Styles.Colors.Danger, "Custom WayPoint", WayPointMarker));
             //modify the selected waypoint
             if(!SelectingTarget && selected_waypoint != null)
             {

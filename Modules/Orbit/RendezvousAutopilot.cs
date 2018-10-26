@@ -149,12 +149,12 @@ namespace ThrottleControlledAvionics
             if(!base.check_target()) return false;
             if(TargetVessel == null)
             {
-                Status("yellow", "Target should be a vessel or an asteroid");
+                Status(Styles.Colors.Warning, "Target should be a vessel or an asteroid");
                 return false;
             }
             if(TargetVessel.LandedOrSplashed)
             {
-                Status("yellow", "Target is landed");
+                Status(Styles.Colors.Warning, "Target is landed");
                 return false;
             }
             if(!VSL.OnPlanet &&
@@ -165,14 +165,16 @@ namespace ThrottleControlledAvionics
                 var dInc = Math.Abs(TargetOrbit.inclination - VesselOrbit.inclination);
                 if(dInc > 90)
                 {
-                    Status("yellow", "Target orbits in the oposite direction.\n" +
+                    Status(Styles.Colors.Warning, "Target orbits in the oposite direction.\n" +
                            "You need to change orbit direction before the rendezvou maneuver.");
                     return false;
                 }
                 else if(dInc > C.MaxInclinationDelta)
                 {
-                    Status("yellow", "Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
-                           "You need to change orbit plane before the rendezvou maneuver.", C.MaxInclinationDelta);
+                    Status(Styles.Colors.Warning, 
+                           "Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
+                           "You need to change orbit plane before the rendezvou maneuver.", 
+                           C.MaxInclinationDelta);
                     return false;
                 }
             }
@@ -834,7 +836,8 @@ namespace ThrottleControlledAvionics
                 }
                 else
                 {
-                    Status("red", "Failed to compute rendezvou trajectory.\nPlease, try again.");
+                    Status(Styles.Colors.Danger, 
+                           "Failed to compute rendezvou trajectory.\nPlease, try again.");
                     Disable();
                 }
                 break;

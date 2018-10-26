@@ -356,7 +356,7 @@ namespace ThrottleControlledAvionics
             if(WideCheckAlt > C.MaxWideCheckAltitude)
             {
                 CFG.AP1.Off();
-                Status("red", "Unable to find suitale place for landing.");
+                Status(Styles.Colors.Danger, "Unable to find suitale place for landing.");
             }
             else stage = Stage.WideCheck;
         }
@@ -474,8 +474,8 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.Land:
                 CFG.VTOLAssistON = true;
-                if(CFG.AutoGear) Status("lime", "Landing...");
-                else Status("yellow", "Landing. Autodeployment of landing gear is disabled.");
+                if(CFG.AutoGear) Status(Styles.Colors.Good, "Landing...");
+                else Status(Styles.Colors.Warning, "Landing. Autodeployment of landing gear is disabled.");
                 if(WideCheckAlt > 0)
                 {
                     CFG.Nav.OnIfNot(Navigation.Anchor);

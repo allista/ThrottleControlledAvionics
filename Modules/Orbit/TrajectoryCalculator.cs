@@ -77,7 +77,7 @@ namespace ThrottleControlledAvionics
             {
                 if(VSL.Engines.NumActive > 0 && VSL.OnPlanet && VSL.OnPlanetParams.MaxTWR <= 1)
                 {
-                    Status("red", "TWR < 1, impossible to achive orbit");
+                    Status(Styles.Colors.Danger, "TWR < 1, impossible to achive orbit");
                     Disable();
                     return false;
                 }
@@ -662,7 +662,8 @@ namespace ThrottleControlledAvionics
         {
             if(!TCAScenario.HavePatchedConics)
             {
-                Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
+                Status(Styles.Colors.Warning, 
+                       "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
                 Disable();
                 return false;
             }

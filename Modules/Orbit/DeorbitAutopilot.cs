@@ -416,7 +416,7 @@ namespace ThrottleControlledAvionics
                 NeedCPSWhenMooving();
                 if(VesselOrbit.PeR < Body.Radius)
                 {
-                    Status("red", "Already deorbiting. Trying to correct course and land.");
+                    Status(Styles.Colors.Danger, "Already deorbiting. Trying to correct course and land.");
                     fine_tune_approach();
                 }
                 else 

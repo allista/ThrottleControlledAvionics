@@ -93,13 +93,13 @@ namespace ThrottleControlledAvionics
         protected void Status(string msg, params object[] args) 
         { Status(-1, msg, args); }
 
-        protected void Status(double seconds, string color, string msg, params object[] args)
+        protected void Status(double seconds, PersistentColor color, string msg, params object[] args)
         { if(UI_Control) TCAGui.Status(seconds, color, msg, args); }
 
-        protected void Status(string color, string msg, params object[] args) 
+        protected void Status(PersistentColor color, string msg, params object[] args) 
         { Status(-1, color, msg, args); }
 
-        protected void TmpStatus(string color, string msg, params object[] args)
+        protected void TmpStatus(PersistentColor color, string msg, params object[] args)
         { Status(1, color, msg, args); }
 
         protected void TmpStatus(string msg, params object[] args)

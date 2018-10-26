@@ -214,9 +214,10 @@ namespace ThrottleControlledAvionics
                 case Stage.Start:
                     if(dist > C.MaxApproachDistance)
                     {
-                        Status(string.Format("<color=yellow>WARNING:</color> Nearest approach distance is <color=magenta><b>{0}</b></color>\n" +
-                        "<color=red><b>Push to proceed. At your own risk.</b></color>", 
-                           Utils.formatBigValue((float)dist, "m")));
+                        Status(string.Format("<color=yellow>WARNING:</color> " +
+                                             "Nearest approach distance is <color=magenta><b>{0}</b></color>\n" +
+                                             "<color=red><b>Push to proceed. At your own risk.</b></color>", 
+                                             Utils.formatBigValue((float)dist, "m")));
                         stage = Stage.Wait;
                         goto case Stage.Wait;
                     }

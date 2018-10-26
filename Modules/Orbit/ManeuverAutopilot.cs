@@ -65,7 +65,8 @@ namespace ThrottleControlledAvionics
             NodeCB = Node.patch.referenceBody;
             TargetOrbit = Node.nextPatch;
             if(VSL.Engines.MaxDeltaV < Node.DeltaV.magnitude)
-                Status("yellow", "WARNING: there may be not enough propellant for the maneuver");
+                Status(Styles.Colors.Warning, 
+                       "WARNING: there may be not enough propellant for the maneuver");
         }
 
         public override void Init()
@@ -99,7 +100,8 @@ namespace ThrottleControlledAvionics
                 ManeuverStage = Stage.WAITING;
                 if(!TCAScenario.HavePatchedConics)
                 {
-                    Status("yellow", "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
+                    Status(Styles.Colors.Warning, 
+                           "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
                     CFG.AP1.Off(); 
                     return;
                 }

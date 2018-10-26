@@ -511,10 +511,10 @@ namespace ThrottleControlledAvionics
         {
             var group = GetGroup();
             group.ForEach(m => m.part.HighlightAlways(m.TCA_Active? 
-                                                      Color.green : 
+                                                      Styles.Colors.Enabled : 
                                                       (m.GroupMaster? 
-                                                       Color.magenta : 
-                                                       Color.cyan)));
+                                                       Styles.Colors.Selected2 : 
+                                                       Styles.Colors.Selected1)));
             StartCoroutine(CallbackUtil.DelayedCallback(3.0f, () => group.ForEach(m => 
             { 
                 if(m != null && m.part != null) 

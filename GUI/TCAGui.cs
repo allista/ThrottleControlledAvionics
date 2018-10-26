@@ -239,10 +239,10 @@ namespace ThrottleControlledAvionics
 
         public static void Status(string msg, params object[] args) { Status(-1, msg, args); }
 
-        public static void Status(double seconds, string color, string msg, params object[] args)
-        { Status(seconds, string.Format("<color={0}>{1}</color>", color, msg), args); }
+        public static void Status(double seconds, PersistentColor color, string msg, params object[] args)
+        { Status(seconds, color.Tag(msg), args); }
 
-        public static void Status(string color, string msg, params object[] args) 
+        public static void Status(PersistentColor color, string msg, params object[] args) 
         { Status(-1, color, msg, args); }
 
         void DrawStatusMessage()
@@ -467,7 +467,7 @@ namespace ThrottleControlledAvionics
             }
             //draw waypoints and all subwindows
             if(RemoteControl && Event.current.type == EventType.Repaint)
-                Markers.DrawWorldMarker(TCA.vessel.transform.position, Color.green, 
+                Markers.DrawWorldMarker(TCA.vessel.transform.position, Styles.Colors.Good, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
             if(NAV != null) NAV.DrawWaypoints();
             AllWindows.ForEach(w => w.Draw());
