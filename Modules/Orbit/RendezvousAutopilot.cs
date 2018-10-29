@@ -171,9 +171,9 @@ namespace ThrottleControlledAvionics
                 }
                 else if(dInc > C.MaxInclinationDelta)
                 {
-                    Status(Styles.Colors.Warning, 
+                    Status(Styles.Colors.Warning,
                            "Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
-                           "You need to change orbit plane before the rendezvou maneuver.", 
+                           "You need to change orbit plane before the rendezvou maneuver.",
                            C.MaxInclinationDelta);
                     return false;
                 }
@@ -189,9 +189,9 @@ namespace ThrottleControlledAvionics
             if(solver.NotElliptic(transfer_time))
                 transfer_time = solver.ParabolicTime + 1;
             var dV = solver.dV4Transfer(transfer_time);
-//            Log("transfer time {}\ncV {}\ndV {}\norbit {}\ntOrbit {}", 
-//                transfer_time, VesselOrbit.getOrbitalVelocityAtUT(StartUT), dV, 
-//                NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
+            //            Log("transfer time {}\ncV {}\ndV {}\norbit {}\ntOrbit {}", 
+            //                transfer_time, VesselOrbit.getOrbitalVelocityAtUT(StartUT), dV, 
+            //                NextOrbit(endUT), NextOrbit(TargetOrbit, endUT));//debug
             return new RendezvousTrajectory(VSL, dV, StartUT, CFG.Target, transfer_time);
         }
 
@@ -336,7 +336,7 @@ namespace ThrottleControlledAvionics
             public IEnumerable<double> CalculateTransfer()
             {
                 var sim = REN.sim.FromSurfaceTTA(REN.ManeuverOffset, ApR - REN.Body.Radius,
-                                                 ApAArc, REN.ToOrbit.MaxG, 
+                                                 ApAArc, REN.ToOrbit.MaxG,
                                                  -(float)Vector3d.Dot(REN.Body.zUpAngularVelocity, Norm));
                 foreach(var t in sim)
                 {
@@ -359,7 +359,7 @@ namespace ThrottleControlledAvionics
             public override string ToString()
             {
                 return Utils.Format("StartT {}, Transfer {}, Dist {}, ApR {}",
-                                    UT-REN.VSL.Physics.UT, Transfer, Dist, ApR);
+                                    UT - REN.VSL.Physics.UT, Transfer, Dist, ApR);
             }
         }
 
@@ -424,7 +424,7 @@ namespace ThrottleControlledAvionics
             Launch best = null;
             var minApR = ToOrbit.MinApR;
             var maxApR = ToOrbit.MaxApR;
-            var maxT = 3600*MaxDays*(GameSettings.KERBIN_TIME? 6 : 24);
+            var maxT = 3600 * MaxDays * (GameSettings.KERBIN_TIME ? 6 : 24);
             var ApAArc = Mathf.Lerp(C.TargetArc.Max, C.TargetArc.Min, Steepness.Value / 100) * Mathf.Deg2Rad;
             if(!StartInPlane)
             {
@@ -443,7 +443,7 @@ namespace ThrottleControlledAvionics
                 Launch cur = null;
                 while(startUT < endUT)
                 {
-                    Status("{0} searching for possible launch windows:{1:F0}", 
+                    Status("{0} searching for possible launch windows:{1:F0}",
                            ProgressIndicator.Get, (endUT - startUT) / dT);
 #if DEBUG
                     if(setp_by_step_computation &&
@@ -473,8 +473,8 @@ namespace ThrottleControlledAvionics
                     dT = 100;
                     while(Math.Abs(dT) > 0.01)
                     {
-                        Status("{0} checking possible launch windows: {1}/{2}", 
-                               ProgressIndicator.Get, i+1, minimaCount);
+                        Status("{0} checking possible launch windows: {1}/{2}",
+                               ProgressIndicator.Get, i + 1, minimaCount);
 #if DEBUG
                         if(setp_by_step_computation &&
                            !string.IsNullOrEmpty(TCAGui.StatusMessage))
@@ -499,12 +499,12 @@ namespace ThrottleControlledAvionics
                         yield return 0;
                     }
                     //Log("Min.launch: {}\nBest.launch: {}\nincl.delta: {} < {}, max dist: {}\nmin better: {} && {} && {}", 
-                        //min, best, inclinationDelta(min.UT), IncDelta.Value, MaxDist.Value,
-                        //min.Dist < MaxDist*1000,
-                        //inclinationDelta(min.UT) < IncDelta, 
-                        //(best == null || min < best));//debug
-                    if(min.Dist < MaxDist*1000 &&
-                       inclinationDelta(min.UT) < IncDelta && 
+                    //min, best, inclinationDelta(min.UT), IncDelta.Value, MaxDist.Value,
+                    //min.Dist < MaxDist*1000,
+                    //inclinationDelta(min.UT) < IncDelta, 
+                    //(best == null || min < best));//debug
+                    if(min.Dist < MaxDist * 1000 &&
+                       inclinationDelta(min.UT) < IncDelta &&
                        (best == null || min < best))
                         best = min;
                 }
@@ -519,25 +519,25 @@ namespace ThrottleControlledAvionics
                 var in_plane_UT = first_in_plane_UT;
                 var proj_anlgle = -Utils.ProjectionAngle(
                     TargetOrbit.getRelativePositionAtUT(in_plane_UT),
-                    BodyRotationAtdT(Body, in_plane_UT-VSL.Physics.UT)*VesselOrbit.pos,
+                    BodyRotationAtdT(Body, in_plane_UT - VSL.Physics.UT) * VesselOrbit.pos,
                     TargetOrbit.getOrbitalVelocityAtUT(in_plane_UT)
                 );
-                while(Math.Abs(proj_anlgle) > 30 && in_plane_UT-VSL.Physics.UT < maxT)
+                while(Math.Abs(proj_anlgle) > 30 && in_plane_UT - VSL.Physics.UT < maxT)
                 {
                     //Log("proj_angle {}, time2launch {}", 
-                        //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
-                    Status("{0} choosing optimal in-plane launch window: {1:P0}", 
-                           ProgressIndicator.Get, (in_plane_UT-VSL.Physics.UT) / maxT);
+                    //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
+                    Status("{0} choosing optimal in-plane launch window: {1:P0}",
+                           ProgressIndicator.Get, (in_plane_UT - VSL.Physics.UT) / maxT);
                     yield return 0;
-                    in_plane_UT = findInPlaneUT(in_plane_UT+Body.rotationPeriod/2, Body.rotationPeriod / 10);
+                    in_plane_UT = findInPlaneUT(in_plane_UT + Body.rotationPeriod / 2, Body.rotationPeriod / 10);
                     proj_anlgle = -Utils.ProjectionAngle(
                         TargetOrbit.getRelativePositionAtUT(in_plane_UT),
-                        BodyRotationAtdT(Body, in_plane_UT-VSL.Physics.UT)*VesselOrbit.pos,
+                        BodyRotationAtdT(Body, in_plane_UT - VSL.Physics.UT) * VesselOrbit.pos,
                         TargetOrbit.getOrbitalVelocityAtUT(in_plane_UT)
                     );
                 }
                 //Log("proj_angle {}, time2launch {}", 
-                    //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
+                //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
                 var ApR = minApR;
                 if(proj_anlgle < 0)
                 {
@@ -558,9 +558,9 @@ namespace ThrottleControlledAvionics
 
         void to_orbit()
         {
-            #if DEBUG
+#if DEBUG
             startUT = -1;
-            #endif
+#endif
             //setup launch
             CFG.DisableVSC();
             if(VSL.LandedOrSplashed)
@@ -572,13 +572,13 @@ namespace ThrottleControlledAvionics
             {
                 //calculate target vector
                 var proj_anlgle = Utils.ProjectionAngle(VesselOrbit.pos, TargetOrbit.pos, TargetOrbit.vel);
-                var ApR = proj_anlgle > 0? Math.Max(ToOrbit.MinApR, VesselOrbit.ApR) : ToOrbit.MaxApR;
+                var ApR = proj_anlgle > 0 ? Math.Max(ToOrbit.MinApR, VesselOrbit.ApR) : ToOrbit.MaxApR;
                 var hVdir = Vector3d.Cross(VesselOrbit.pos, TargetOrbit.GetOrbitNormal()).normalized;
                 var ascO = AscendingOrbit(ApR, hVdir, ToOrbitAutopilot.C.LaunchSlope);
                 MinDist.Reset();
                 ToOrbit.Reset();
                 ToOrbit.LaunchUT = VSL.Physics.UT;
-                ToOrbit.Target = ToOrbitIniApV = ascO.getRelativePositionAtUT(VSL.Physics.UT+ascO.timeToAp);
+                ToOrbit.Target = ToOrbitIniApV = ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
                 ToOrbit.InPlane = true;
                 ToOrbit.CorrectOnlyAltitude = true;
                 ToOrbit.StartGravityTurn();
@@ -632,25 +632,25 @@ namespace ThrottleControlledAvionics
             var rel_dist = RelPos.magnitude;
             var direct_approach = new RendezvousTrajectory(VSL,
                                                            RelVel +
-                                                           RelPos/rel_dist * C.MaxApproachV,
+                                                           RelPos / rel_dist * C.MaxApproachV,
                                                            VSL.Physics.UT, CFG.Target);
             rel_dist -= VSL.Geometry.MinDistance;
             if(rel_dist < C.Dtol)
                 brake();
-            else if(CurrentDistance < C.Dtol*Utils.Clamp(VSL.Torque.NoEngines.TurnTime, 2, 10) &&
+            else if(CurrentDistance < C.Dtol * Utils.Clamp(VSL.Torque.NoEngines.TurnTime, 2, 10) &&
                     (!TargetLoaded || trajectory.BrakeDeltaV.magnitude > 1))
                 match_orbits();
             else if(TargetLoaded)
             {
                 //Log("cur.dist {} > rel.dist/2 {}, direct approach: {}", 
-                    //CurrentDistance, rel_dist/2, direct_approach);//debug
+                //CurrentDistance, rel_dist/2, direct_approach);//debug
                 if(direct_approach.FullBrake &&
-                   CurrentDistance > rel_dist/2)
+                   CurrentDistance > rel_dist / 2)
                     approach_or_brake();
                 else
                 {
-                    var time_ratio = direct_approach.TimeToTarget/trajectory.TimeToTarget;
-                    var dV_ratio = trajectory.GetTotalDeltaV()/direct_approach.GetTotalDeltaV();
+                    var time_ratio = direct_approach.TimeToTarget / trajectory.TimeToTarget;
+                    var dV_ratio = trajectory.GetTotalDeltaV() / direct_approach.GetTotalDeltaV();
                     //Log("time ratio {}, dV ratio {}",  time_ratio, dV_ratio);//debug
                     if(time_ratio < dV_ratio)
                         approach_or_brake();
@@ -672,9 +672,9 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        protected override void update_trajectory()
+        protected override void update_trajectory(bool reset = false)
         {
-            base.update_trajectory();
+            base.update_trajectory(reset);
             CurrentDistance = trajectory.DistanceToTarget;
         }
 
@@ -705,16 +705,16 @@ namespace ThrottleControlledAvionics
         {
             var r = VesselOrbit.pos;
             var r1 = ToOrbit.Target;
-            if(startUT < 0) 
+            if(startUT < 0)
                 startUT = VSL.Physics.UT;
-            if(y.IsZero()) 
+            if(y.IsZero())
             {
                 y = r.normalized;
                 //pos x [fwd x pos] = fwd(pos*pos) - pos(fwd*pos)
-                x = (r1*y.magnitude-y*Vector3d.Dot(r1, y)).normalized;
+                x = (r1 * y.magnitude - y * Vector3d.Dot(r1, y)).normalized;
             }
-            CSV(VSL.Physics.UT - startUT, 
-                new Vector2d(Vector3d.Dot(r,x), Vector3d.Dot(r,y)));
+            CSV(VSL.Physics.UT - startUT,
+                new Vector2d(Vector3d.Dot(r, x), Vector3d.Dot(r, y)));
         }
 
         struct OptRes
@@ -779,7 +779,7 @@ namespace ThrottleControlledAvionics
                         if(CurrentDistance < MaxDist)
                         {
                             MinDist.Update(CurrentDistance);
-                            if(MinDist) 
+                            if(MinDist)
                             {
                                 start_orbit();
                                 break;
@@ -790,8 +790,8 @@ namespace ThrottleControlledAvionics
                         //                                     trajectory.AtTargetVel);
                         ////Log("Target angle correction: {}", -arcError);//debug
                         //ToOrbit.Target = QuaternionD.AngleAxis(-arcError * TimeWarp.fixedDeltaTime,
-                            //                                   VesselOrbit.GetOrbitNormal())
-                            //* ToOrbit.Target;
+                        //                                   VesselOrbit.GetOrbitNormal())
+                        //* ToOrbit.Target;
                     }
                 }
                 else start_orbit();
@@ -811,7 +811,7 @@ namespace ThrottleControlledAvionics
                 {
                     clear_nodes();
                     add_trajectory_node_rel();
-                    if(VSL.Physics.UT < trajectory.StartUT-ManeuverOffset &&
+                    if(VSL.Physics.UT < trajectory.StartUT - ManeuverOffset &&
                        VesselOrbit.radius < Body.Radius + Body.atmosphereDepth)
                     {
                         TmpStatus("Coasting...");
@@ -836,7 +836,7 @@ namespace ThrottleControlledAvionics
                 }
                 else
                 {
-                    Status(Styles.Colors.Danger, 
+                    Status(Styles.Colors.Danger,
                            "Failed to compute rendezvou trajectory.\nPlease, try again.");
                     Disable();
                 }
@@ -964,11 +964,11 @@ namespace ThrottleControlledAvionics
                 var dist = rel_pos.magnitude;
                 if(dist - VSL.Geometry.MinDistance < C.Dtol)
                 { brake(); break; }
-                var throttle = VSL.Controls.Aligned? VSL.Controls.AlignmentFactor : 0;
+                var throttle = VSL.Controls.Aligned ? VSL.Controls.AlignmentFactor : 0;
                 if(throttle.Equals(0)) break;
                 var dVr = Vector3d.Dot(-RelVel, rel_pos / dist);
-                var nVm = Utils.Clamp((dist - VSL.Geometry.MinDistance) / 
-                                      (TrajectoryCalculator.C.ManeuverOffset+
+                var nVm = Utils.Clamp((dist - VSL.Geometry.MinDistance) /
+                                      (TrajectoryCalculator.C.ManeuverOffset +
                                        VSL.Torque.NoEngines.RotationTime3Phase(180, 0.05f)),
                                       1, C.MaxApproachV);
                 if(dVr < nVm)
@@ -983,7 +983,7 @@ namespace ThrottleControlledAvionics
                 }
                 break;
             case Stage.Brake:
-                if(CFG.AP1[Autopilot1.MatchVelNear]) 
+                if(CFG.AP1[Autopilot1.MatchVelNear])
                 {
                     TmpStatus("Braking near target...");
                     break;
@@ -991,13 +991,13 @@ namespace ThrottleControlledAvionics
                 if(CFG.AP1[Autopilot1.MatchVel])
                 {
                     TmpStatus("Braking...");
-                    if((RelVel).magnitude > MAN.MinDeltaV*1.1f) break;
+                    if((RelVel).magnitude > MAN.MinDeltaV * 1.1f) break;
                     CFG.AP1.Off();
                     THR.Throttle = 0;
                 }
                 if((VSL.Physics.wCoM - TargetVessel.CurrentCoM).magnitude - VSL.Geometry.MinDistance > C.Dtol)
                 { approach(); break; }
-                if(RelVel.magnitude > ThrottleControl.C.MinDeltaV*2)
+                if(RelVel.magnitude > ThrottleControl.C.MinDeltaV * 2)
                 { brake(); break; }
                 Disable();
                 CFG.AT.OnIfNot(Attitude.KillRotation);
