@@ -912,10 +912,11 @@ namespace ThrottleControlledAvionics
                 break;
             case LandingStage.HardLanding:
                 var status = VSL.OnPlanetParams.ParachutesActive ?
-                    "<color=yellow><b>Landing on parachutes.</b></color>" :
-                    "<color=yellow><b>Emergency Landing.</b></color>";
-                status += string.Format("\nVertical impact speed: <color=red><b>{0}</b></color>",
-                                        Utils.formatBigValue((float)terminal_velocity, "m/s"));
+                    "<b>Landing on parachutes.</b>" :
+                    "<b>Emergency Landing.</b>";
+                status = Styles.Colors.Warning.Tag(status);
+                status += string.Format("\nVertical impact speed: <b>{0}</b>",
+                                        Styles.Colors.Danger.Tag(Utils.formatBigValue((float)terminal_velocity, "m/s")));
                 set_destination_vector();
                 CFG.BR.Off();
                 var not_too_hot = VSL.vessel.externalTemperature < VSL.Physics.MinMaxTemperature;
@@ -973,8 +974,9 @@ namespace ThrottleControlledAvionics
                         if(CFG.AutoParachutes)
                             status += "\nWaiting for the right moment to deploy parachutes.";
                         else
-                            status += "\n<color=red>Automatic parachute deployment is disabled." +
-                                "\nActivate parachutes manually when needed.</color>";
+                            status += Styles.Colors.Danger
+                                            .Tag("\nAutomatic parachute deployment is disabled." +
+                                                 "\nActivate parachutes manually when needed.");
                     }
                 }
                 if(Body.atmosphere)
@@ -984,7 +986,7 @@ namespace ThrottleControlledAvionics
                    (VSL.Engines.MaxThrustM.Equals(0) || !VSL.Controls.HaveControlAuthority))
                 {
                     if(Body.atmosphere && not_too_hot) brake_with_drag();
-                    status += "\n<color=red><b>Crash is imminent!</b></color>";
+                    status += Styles.Colors.Danger.Tag("\n<b>Crash is imminent!</b>");
                 }
                 Status(status);
                 break;
@@ -1166,10 +1168,10 @@ namespace ThrottleControlledAvionics
                 if(t.Path != null)
                 {
                     if(t.Path.Points.Count > 1)
-                        Utils.GLLines(t.Path.CBRelativePathInWorldFrame(), c);
+                        Utils.GLLines(t.Path.CBRelativePathInWorldFrame(), Styles.Colors.Selected1);
                     if(t.AfterBrakePath != null &&
                        t.AfterBrakePath.Points.Count > 1)
-                        Utils.GLLines(t.AfterBrakePath.CBRelativePathInWorldFrame(), Styles.Colors.Good);
+                        Utils.GLLines(t.AfterBrakePath.CBRelativePathInWorldFrame(), Styles.Colors.Selected2);
                 }
             }
         }
