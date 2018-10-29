@@ -670,9 +670,9 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        protected override void update_trajectory()
+        protected override void update_trajectory(bool reset = false)
         {
-            base.update_trajectory();
+            base.update_trajectory(reset);
             CurrentDistance = trajectory.DistanceToTarget;
         }
 

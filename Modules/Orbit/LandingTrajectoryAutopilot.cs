@@ -519,9 +519,9 @@ namespace ThrottleControlledAvionics
             ATC.SetThrustDirW(VSL.vessel.srf_velocity);
         }
 
-        protected override void update_trajectory()
+        protected override void update_trajectory(bool reset = false)
         {
-            base.update_trajectory();
+            base.update_trajectory(reset);
             VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
 //            Log("current trajectory: {}", trajectory);//debug
         }
@@ -635,7 +635,7 @@ namespace ThrottleControlledAvionics
                 if(!scanner.FlatRegion.Equals(CFG.Target.Pos))
                 {
                     SetTarget(new WayPoint(scanner.FlatRegion));
-                    trajectory = CurrentTrajectory;
+                    update_trajectory(true);
                     update_landing_trajecotry();
                     if(scanner.BestUnevennes < AutoLander.C.MaxUnevenness)
                         Utils.Message("Found flat region for landing.");

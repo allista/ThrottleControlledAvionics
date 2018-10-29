@@ -795,10 +795,12 @@ namespace ThrottleControlledAvionics
         }
 
         public abstract T CurrentTrajectory { get; }
-        protected virtual void update_trajectory()
+        protected virtual void update_trajectory(bool reset=false)
         {
-            if(trajectory == null) trajectory = CurrentTrajectory;
-            else trajectory.UpdateOrbit(VesselOrbit);
+            if(reset || trajectory == null) 
+                trajectory = CurrentTrajectory;
+            else 
+                trajectory.UpdateOrbit(VesselOrbit);
         }
     }
 
