@@ -153,6 +153,9 @@ namespace ThrottleControlledAvionics
         public override void OnLoad(ConfigNode node)
         { 
             Globals.Load();
+            #if DEBUG
+            //UI = ConfigNodeObjectGUI.FromObject(Globals.Instance);
+            #endif
             LoadConfigs(node);
             //navigation paths
             var paths = node.GetNode(PathDB.NODE_NAME);
@@ -186,6 +189,7 @@ namespace ThrottleControlledAvionics
         #if DEBUG
         //bool show;
         //Rect pos = new Rect();
+        //public ConfigNodeObjectGUI UI;
         //void drawGlobalsUI(int windowID)
         //{
         //    GUILayout.BeginVertical();
@@ -193,9 +197,9 @@ namespace ThrottleControlledAvionics
         //        show = !show;
         //    if(show)
         //    {
-        //        Globals.Instance.UI.Draw();
+        //        UI.Draw();
         //        if(GUILayout.Button("Save", Styles.danger_button, GUILayout.ExpandWidth(true)))
-        //            Globals.Instance.CreateDefaultOverride();
+        //            Globals.SaveOverride();
         //    }
         //    GUILayout.EndVertical();
         //    GUIWindowBase.TooltipsAndDragWindow();
@@ -215,4 +219,3 @@ namespace ThrottleControlledAvionics
         #endif
     }
 }
-
