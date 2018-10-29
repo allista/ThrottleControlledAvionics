@@ -704,7 +704,7 @@ namespace ThrottleControlledAvionics
             T t = null;
 
             var ioptimizer = optimizer.GetEnumerator();
-            Status("white", "{0}\nPush to continue", optimizer.Status);
+            Status("{0}\nPush to continue", optimizer.Status);
             while(true)
             {
                 current_landing_trajectory = t as LandingTrajectory;
@@ -717,7 +717,7 @@ namespace ThrottleControlledAvionics
                 I++;
                 if(t == null) 
                 {
-                    Status("white", "{0}\nPush to continue", optimizer.Status);
+                    Status("{0}\nPush to continue", optimizer.Status);
                     yield return t;
                     continue;
                 }
@@ -726,7 +726,7 @@ namespace ThrottleControlledAvionics
                 if(setp_by_step_computation) 
                 {
                     Log("Trajectory #{}\n{}", I, t);
-                    Status("white", "{0}\nPush to continue", optimizer.Status);
+                    Status("{0}\nPush to continue", optimizer.Status);
                 }
                 else Status(optimizer.Status);
                 yield return t;
