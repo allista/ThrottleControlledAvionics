@@ -509,6 +509,11 @@ namespace ThrottleControlledAvionics
             AllTabs.ForEach(t => t.OnRenderObject());
         }
 
+        public void LateUpdate()
+        {
+            AllTabs.ForEach(t => t.LateUpdate());
+        }
+
 
         #if DEBUG
         static string DebugMessage;
