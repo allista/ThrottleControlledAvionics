@@ -461,10 +461,10 @@ namespace ThrottleControlledAvionics
                 return TrajectoryCalculator.NewOrbit(Body, pos, vel, UT);
             }
 
-            public Vector3 CBRelativePosInWorldFrame()
+            public Vector3d CBRelativePosInWorldFrame()
             {
-                return (Vector3)(Orbit.referenceBody.BodyFrame.LocalToWorld(rel_pos).xzy +
-                                 Orbit.referenceBody.position);
+                return (Orbit.referenceBody.BodyFrame.LocalToWorld(rel_pos).xzy +
+                        Orbit.referenceBody.position);
             }
 
             public override string ToString()
@@ -494,6 +494,10 @@ namespace ThrottleControlledAvionics
         public bool HavePoints { get; private set; }
 
         public bool Atmosphere { get; private set; }
+        public int Count => Points.Count;
+
+        public static implicit operator bool(LandingPath path) => 
+        path != null && path.Points.Count > 0;
 
         public double UT0 = -1;
         public double StartUT = -1;
@@ -763,9 +767,23 @@ namespace ThrottleControlledAvionics
             return LastPoint;
         }
 
-        public Vector3[] CBRelativePathInWorldFrame()
+        public Vector3d[] CBRelativePathInWorldFrame()
         {
             return Points.Select(p => p.CBRelativePosInWorldFrame()).ToArray();
+        }
+
+        static AT_Utils.Gradient heat_map = new AT_Utils.Gradient(new[]{
+            PersistentColor.cyan, PersistentColor.yellow, PersistentColor.magenta
+        });
+
+        public List<Color32> TemperatureMap()
+        {
+            if(Points.Count < 2)
+                return new List<Color32>();
+            List<Color32> map = new List<Color32>(Points.Count-1);
+            for(int i = 0, count = Points.Count-1; i < count; i++)
+                map.Add(heat_map.Evaluate((float)Utils.ClampH(Points[i].ShipTemperature / VSL.Physics.MinMaxTemperature, 1)));
+            return map;
         }
 
         public override string ToString()

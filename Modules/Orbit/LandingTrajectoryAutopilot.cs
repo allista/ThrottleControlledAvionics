@@ -66,6 +66,7 @@ namespace ThrottleControlledAvionics
         [Persistent] public bool LandASAP;
         public bool ShowOptions { get; protected set; }
 
+        protected TrajectoryRenderer trajectory_renderer;
         protected LandingTrajectory landing_trajectory;
         protected ManeuverExecutor Executor;
         protected FuzzyThreshold<double> lateral_angle;
@@ -197,6 +198,8 @@ namespace ThrottleControlledAvionics
             scanned = false;
             flat_target = false;
             landing_trajectory = null;
+            trajectory_renderer?.Reset();
+            trajectory_renderer = null;
             Executor.Reset();
         }
 
@@ -1151,28 +1154,24 @@ namespace ThrottleControlledAvionics
 
         public void DrawTrajectory()
         {
-            var trj = landing_trajectory ?? trajectory;
-#if DEBUG
-            DrawDebug();
-            if(trj == null)
-                trj = current_landing_trajectory;
-#endif
-            if(trj != null)
-                draw_trajectory(trj, Styles.Colors.Selected2);
-        }
-
-        void draw_trajectory(LandingTrajectory t, Color c)
-        {
-            if(MapView.MapIsEnabled && t != null)
+            if(Time.timeScale > 0 && !FlightDriver.Pause)
             {
-                if(t.Path != null)
+                var trj = landing_trajectory ?? trajectory;
+#if DEBUG
+                DrawDebug();
+                if(trj == null)
+                    trj = current_landing_trajectory;
+#endif
+                if(trj != null)
                 {
-                    if(t.Path.Points.Count > 1)
-                        Utils.GLLines(t.Path.CBRelativePathInWorldFrame(), Styles.Colors.Selected1);
-                    if(t.AfterBrakePath != null &&
-                       t.AfterBrakePath.Points.Count > 1)
-                        Utils.GLLines(t.AfterBrakePath.CBRelativePathInWorldFrame(), Styles.Colors.Selected2);
+                    if(trajectory_renderer == null)
+                        trajectory_renderer = new TrajectoryRenderer(trj);
+                    else
+                        trajectory_renderer.UpdateTrajectory(trj);
+                    trajectory_renderer.Draw();
                 }
+                else
+                    trajectory_renderer?.Deactivate();
             }
         }
 
@@ -1324,6 +1323,81 @@ namespace ThrottleControlledAvionics
                 }
             }
             return true;
+        }
+    }
+
+    public class TrajectoryRenderer
+    {
+        LandingTrajectory trajectory;
+        SimpleLineRenderer path;
+        SimpleLineRenderer after_brake_path;
+
+        public TrajectoryRenderer(LandingTrajectory t)
+        {
+            UpdateTrajectory(t);
+        }
+
+        public void UpdateTrajectory(LandingTrajectory t)
+        {
+            trajectory = t;
+            update();
+        }
+
+        void update()
+        {
+            if(trajectory != null)
+            {
+                if(path == null && trajectory.Path)
+                    path = new SimpleLineRenderer("Landing path", 3);
+                else if(path != null && !trajectory.Path)
+                {
+                    path.Reset();
+                    path = null;
+                }
+                if(after_brake_path == null && trajectory.AfterBrakePath)
+                    after_brake_path = new SimpleLineRenderer("After brake path", 2);
+                else if(after_brake_path != null && !trajectory.AfterBrakePath)
+                {
+                    after_brake_path.Reset();
+                    after_brake_path = null;
+                }
+            }
+            else
+                Reset();
+        }
+
+        public void Draw()
+        {
+            if(MapView.MapIsEnabled)
+            {
+                update();
+                if(path != null)
+                    path.SetPoints(trajectory.Path
+                                   .CBRelativePathInWorldFrame(),
+                                   trajectory.Path.TemperatureMap());
+                if(after_brake_path != null)
+                    after_brake_path.SetPoints(trajectory.AfterBrakePath
+                                               .CBRelativePathInWorldFrame(),
+                                               Styles.Colors.Good);
+            }
+            else 
+                Deactivate();
+        }
+
+        public void Deactivate()
+        {
+            if(path != null)
+                path.isActive = false;
+            if(after_brake_path != null)
+                after_brake_path.isActive = false;
+        }
+
+        public void Reset()
+        {
+            Deactivate();
+            path?.Reset();
+            after_brake_path?.Reset();
+            path = after_brake_path = null;
         }
     }
 }
