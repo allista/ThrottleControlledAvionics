@@ -579,6 +579,7 @@ namespace ThrottleControlledAvionics
         //adapted from MechJeb
         bool clicked;
         DateTime clicked_time;
+        readonly SimpleLineRenderer path_renderer = new SimpleLineRenderer("Waypoint Path");
         public void WaypointOverlay()
         {
             if(PN == null || TCA == null || !TCA.Available || !GUIWindowBase.HUD_enabled) return;
