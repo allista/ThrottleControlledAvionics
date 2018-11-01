@@ -431,11 +431,11 @@ namespace ThrottleControlledAvionics
                     Mach1 = Body.GetSpeedOfSound(Pressure, Density);
 
                     var Rho_v = Density * SrfSpeed;
-                    DynamicPressure = Rho_v * SrfSpeed;
+                    DynamicPressure = Rho_v * SrfSpeed / 2;
                     Mach = SrfSpeed / Mach1;
-                    this.SpecificDrag = AtmoSim.Cd * DynamicPressure *
-                    PhysicsGlobals.DragCurveMultiplier.Evaluate((float)Mach) *
-                    PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(Rho_v));
+                    SpecificDrag = AtmoSim.Cd * DynamicPressure *
+                                          PhysicsGlobals.DragCurveValue(PhysicsGlobals.SurfaceCurves, VSL.OnPlanetParams.DragCurveK, (float)Mach) *
+                                          PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(Rho_v));
 
                     var convectiveMachLerp = Math.Pow(UtilMath.Clamp01((Mach - PhysicsGlobals.NewtonianMachTempLerpStartMach) /
                                              (PhysicsGlobals.NewtonianMachTempLerpEndMach - PhysicsGlobals.NewtonianMachTempLerpStartMach)),

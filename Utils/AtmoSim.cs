@@ -19,7 +19,7 @@ namespace ThrottleControlledAvionics
         public class Config : ComponentConfig<Config>
         {
             [Persistent] public float DeltaTime = 0.5f;
-            [Persistent] public float DragK = 0.0008f;
+            [Persistent] public float DragCurveK = 0.8f;
             [Persistent] public float RotAccelPhase = 0.6f;
         }
         public static Config C => Config.INST;
@@ -31,7 +31,8 @@ namespace ThrottleControlledAvionics
             {
                 if(_Cd < 0)
                     //0.0005 converts dynamic pressure to kPa and divides area by 2: Drag = dP * Cd * S/2.
-                    _Cd = 0.0005 * C.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
+                    //_Cd = 0.0005 * C.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
+                    _Cd = 0.0005 * PhysicsGlobals.DragMultiplier;
                 return _Cd;
             }
         }
@@ -68,10 +69,10 @@ namespace ThrottleControlledAvionics
             if(h > Body.atmosphereDepth) return 0;
             var atm = Body.AtmoParamsAtAltitude(h);
             var v2 = v * v;
-            var dP = atm.Rho * v2;
+            var dP = atm.Rho * v2 / 2;
             var mach = v / atm.Mach1;
             var d = Cd *
-                PhysicsGlobals.DragCurveMultiplier.Evaluate((float)mach) *
+                PhysicsGlobals.DragCurveValue(PhysicsGlobals.SurfaceCurves, C.DragCurveK, (float)mach) *
                 PhysicsGlobals.DragCurvePseudoReynolds.Evaluate((float)(atm.Rho * Math.Abs(v)));
             return dP * d * s;
         }
