@@ -296,12 +296,11 @@ namespace ThrottleControlledAvionics
             LTComparer comparer;
             public LandingTrajectory Best { get; private set; }
 
-            static LTComparer.Condition fuel, maneuver, dR, overheat, steepness;
+            static LTComparer.Condition fuel, maneuver, overheat, steepness;
             static EccentricityOptimizer()
             {
                 fuel = LTComparer.MakeCondition(null, (x, y) => x.GetTotalFuel() < y.GetTotalFuel());
                 maneuver = LTComparer.MakeCondition(x => x.FullManeuver, (x, y) => x.ManeuverFuel < y.ManeuverFuel);
-                dR = LTComparer.MakeCondition(x => x.DeltaR < -1, (x, y) => x.DeltaR < y.DeltaR);
                 overheat = LTComparer.MakeCondition(x => !x.WillOverheat, (x, y) => x.MaxShipTemperature < y.MaxShipTemperature);
                 steepness = LTComparer.MakeCondition(x => x.LandingSteepness > C.MinLandingAngle, (x, y) => x.LandingSteepness > y.LandingSteepness);
             }
@@ -309,16 +308,10 @@ namespace ThrottleControlledAvionics
             public EccentricityOptimizer(DeorbitAutopilot module)
             {
                 m = module;
-                comparer = new LTComparer(maneuver, dR);
+                comparer = new LTComparer(maneuver);
                 if(m.Body.atmosphere)
-                {
-                    var maxDynP = C.MaxDynPressure*m.VSL.Torque.MaxPossible.AngularDragResistance;
-                    comparer.AddConditions(overheat, steepness);
-                    comparer.AddCondition(x => x.MaxDynamicPressure < maxDynP, (x, y) => x.MaxDynamicPressure < y.MaxDynamicPressure);
-                }
-                else 
-                    comparer.AddCondition(steepness);
-                comparer.AddCondition(fuel);
+                    comparer.AddConditions(overheat);
+                comparer.AddConditions(steepness, fuel);
             }
 
             public IEnumerator<LandingTrajectory> GetEnumerator()
