@@ -394,6 +394,7 @@ namespace ThrottleControlledAvionics
             /// </summary>
             public double DynamicPressure;
             public double SrfSpeed;
+            public double HorSrfSpeed;
             public double Mach;
             public double SpecificDrag;
 
@@ -419,6 +420,7 @@ namespace ThrottleControlledAvionics
                 Atmosphere = Body.atmosphere && Altitude < Body.atmosphereDepth;
                 rel_pos = Body.BodyFrame.WorldToLocal(TrajectoryCalculator.BodyRotationAtdT(Body, Path.UT0 - UT) * pos);
                 srf_vel = vel + Vector3d.Cross(Body.zUpAngularVelocity, pos);
+                HorSrfSpeed = Vector3d.Exclude(rel_pos, srf_vel).magnitude;
                 SrfSpeed = srf_vel.magnitude;
 
                 if(Atmosphere)
@@ -479,13 +481,13 @@ namespace ThrottleControlledAvionics
             {
                 return Utils.Format("Altitude {} m\n" +
                                     "Density {}, Pressure {} kPa, Atm.T {} K\n" +
-                                    "SrfSpeed {} m/s, Dyn.Pressure {} kPa, Shock.T {} K\n" +
+                                    "SrfSpeed {} m/s, HorSrfSpeed {} m/s, Dyn.Pressure {} kPa, Shock.T {} K\n" +
                                     "ConvectiveCoefficient {}, Ship.T {} K\n" +
                                     "UT {}, Duration {} s\n" +
                                     "pos {}\n" +
                                     "vel {}\n",
-                                    SrfSpeed, DynamicPressure / 1000, ShockTemperature, 
                                     Altitude, Density, Pressure, AtmosphereTemperature,
+                                    SrfSpeed, HorSrfSpeed, DynamicPressure / 1000, ShockTemperature,
                                     ConvectiveCoefficient, ShipTemperature, UT, Duration,
                                     pos, vel);
             }
@@ -575,7 +577,7 @@ namespace ThrottleControlledAvionics
                         //                    VSL.Log("drag dV {}, m {}, fm {}, brake_vel {}, p {}",
                         //                            drag_dv, m, fuel, brake_vel, p);//debug
                         var r = p.pos.magnitude;
-                        if(brake_vel > 0 && fuel > 0)
+                        if(p.HorSrfSpeed > 1 && brake_vel > 0 && fuel > 0)
                         {
                             //compute thrust direction
                             var vV = Utils.ClampL(Vector3d.Dot(p.vel, p.pos / r), 1e-5);
