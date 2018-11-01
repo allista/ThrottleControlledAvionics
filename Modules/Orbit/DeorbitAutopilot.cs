@@ -137,16 +137,30 @@ namespace ThrottleControlledAvionics
             {
                 var startUT = m.VSL.Physics.UT+m.ManeuverOffset;
                 var endUT = startUT + m.VesselOrbit.period*(1 + m.VesselOrbit.period/m.Body.rotationPeriod);
-                var dT = (endUT-startUT)/10;
+                var dT = (endUT-startUT)/20;
                 startUT += dT;
+                var prev = Best;
                 while(startUT < endUT)
                 {
                     var cur = newT(startUT, inclination, deorbit(startUT));
-//                    m.Log("scan.startUT {}, I {}, dT {}, dist {}", startUT, inclination, dT, cur.DistanceToTarget);//debug
-                    if(cur.DistanceToTarget < Best.DistanceToTarget) 
-                        Best = cur;
+                    //m.Log("scan.startUT {}, I {}, dT {}, dist {}", startUT, inclination, dT, cur.DistanceToTarget);//debug
+                    if(cur.DistanceToTarget < prev.DistanceToTarget)
+                    {
+                        var best = Best;
+                        Best = prev;
+                        foreach(var t in optimize_startUT(dT)) yield return t;
+                        if(Best.DistanceToTarget > best.DistanceToTarget)
+                            Best = best;
+                        else
+                        {
+                            startUT = Best.StartUT;
+                            cur = Best;
+                        }
+                        //m.Log("Best so far: {}", Best);//debug
+                    }
                     startUT += dT;
                     yield return cur;
+                    prev = cur;
                 }
             }
 
