@@ -112,6 +112,11 @@ namespace ThrottleControlledAvionics
                                              BrakeDeltaV.magnitude);
             if(Path.Atmosphere)
                 update_overheat_info(AfterBrakePath, BrakeStartPoint.ShipTemperature);
+            BrakeDeltaV = BrakeDeltaV.normalized * AfterBrakePath.BrakeDeltaV;
+            BrakeFuel = (float)AfterBrakePath.FuelUsed;
+            FullBrake = (VSL.Engines.AvailableFuelMass
+                         - ManeuverFuel - BrakeFuel
+                         - VSL.Engines.MaxMassFlow * LandingTrajectoryAutopilot.C.LandingThrustTime > 0);
             AtTargetVel = AfterBrakePath.LastPoint.vel;
             AtTargetPos = AfterBrakePath.LastPoint.pos;
             AtTargetUT = AfterBrakePath.LastPoint.UT;
@@ -507,6 +512,10 @@ namespace ThrottleControlledAvionics
         public double EndUT = -1;
         public double MaxShipTemperature = -1;
         public double MaxDynamicPressure = -1;
+        public double EndMass = -1;
+        public double FuelUsed = -1;
+        public double FuelLeft = -1;
+        public double BrakeDeltaV = -1;
 
         Point newP(double UT)
         { 
@@ -523,6 +532,10 @@ namespace ThrottleControlledAvionics
             TargetAltitude = target_altitude;
             StartUT = startUT;
             UT0 = VSL.Physics.UT;
+            EndMass = start_mass;
+            FuelUsed = 0;
+            FuelLeft = fuel;
+            BrakeDeltaV = brake_vel;
             if(Orbit.referenceBody.atmosphere || brake_vel > 0 && fuel > 0)
             {
                 EndUT = startUT + orb.timeToPe;
@@ -608,6 +621,11 @@ namespace ThrottleControlledAvionics
                 }
                 EndUT = p.UT;
                 LastPoint = p;
+                EndMass = m;
+                FuelUsed = start_mass - m;
+                FuelLeft = Math.Max(fuel, 0);
+                if(brake_vel > 0)
+                    BrakeDeltaV -= brake_vel;
             }
             else
             {
@@ -792,10 +810,14 @@ namespace ThrottleControlledAvionics
                                 "AtmoStartUT {}\n" +
                                 "AtmoStopUT {}\n" +
                                 "EndUT {}\n" +
+                                "EndMass {}\n" +
+                                "FuelUsed {}\n" +
+                                "FuelLeft {}\n" +
                                 "MaxShipT {}\n" +
                                 "MaxDynP {}\n" +
                                 "Points: {}", 
                                 StartUT, AtmoStartUT, AtmoStopUT, EndUT,
+                                EndMass, FuelUsed, FuelLeft,
                                 MaxShipTemperature, MaxDynamicPressure / 1000,
                                 Points);
         }
