@@ -38,6 +38,7 @@ namespace ThrottleControlledAvionics
         public bool    NoseUp { get; private set; }  //if the forward is refT.forward or refT.up
         public Vector3 Heading { get; private set; }  //bearing unit vector of the Control module in world space
 
+        public float DragCurveK = 0.8f;
         public Vector3 Lift { get; private set; } //current lift vector
         public Vector3 Drag { get; private set; } //current drag vector
         public float  vLift { get; private set; } //current vertical lift kN
@@ -161,6 +162,14 @@ namespace ThrottleControlledAvionics
             Lift = lift;
             Drag = drag;
             AeroTorque = torque;
+        }
+
+        public void ChangeDragCurveK(float speed)
+        {
+            if(speed > 0)
+                DragCurveK = Mathf.Lerp(DragCurveK, 1, speed*TimeWarp.fixedDeltaTime);
+            else
+                DragCurveK = Mathf.Lerp(DragCurveK, 0.5f, -speed*TimeWarp.fixedDeltaTime);
         }
 
         public override void Update()
