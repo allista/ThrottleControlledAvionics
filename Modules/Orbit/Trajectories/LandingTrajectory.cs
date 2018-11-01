@@ -500,9 +500,7 @@ namespace ThrottleControlledAvionics
         public List<Point> Points = new List<Point>();
 
         public Point LastPoint { get; private set; }
-
         public bool HavePoints { get; private set; }
-
         public bool Atmosphere { get; private set; }
         public int Count => Points.Count;
 
