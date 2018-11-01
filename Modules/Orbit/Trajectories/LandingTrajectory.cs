@@ -547,21 +547,17 @@ namespace ThrottleControlledAvionics
                 var m = start_mass;
                 var s = Math.Max(VSL.Geometry.MinArea, VSL.Geometry.AreaWithBrakes);
                 var ascending = p.Ascending;
+                var orig_dt = dt;
                 p.Duration = dt;
                 while((ascending || p.Altitude > TargetAltitude) && p.UT < EndUT)
                 {
-                    if(!ascending && dt > 0.01)
-                    {
-                        var dAlt = p.Altitude - TargetAltitude;
-                        if(dAlt / p.SrfSpeed < dt)
-                        {
-                            dt = dAlt / p.SrfSpeed * 0.9;
-                            p.Duration = dt;
-                        }
-                    }
-                    var drag_dv = p.SpecificDrag * s / m * dt;
+                    var dAlt = p.Altitude - TargetAltitude;
+                    var linear_time = dAlt / p.SrfSpeed;
+                    if(!ascending && dt > 0.01 && linear_time / 2 < dt)
+                        p.Duration = dt = linear_time / 2;
+                    var drag_accel = p.SpecificDrag * s / m;
                     var prev_alt = p.Altitude;
-                    Atmosphere |= drag_dv > 0;
+                    Atmosphere |= drag_accel > 0;
                     HavePoints |= Atmosphere;
                     if(HavePoints)
                     {
@@ -577,14 +573,18 @@ namespace ThrottleControlledAvionics
                         var r = p.pos.magnitude;
                         if(p.HorSrfSpeed > 1 && brake_vel > 0 && fuel > 0)
                         {
+                            //adjust dt to capture most of the thrust
+                            float mflow;
+                            var thrust = VSL.Engines.ThrustAtAlt((float)p.SrfSpeed, (float)p.Altitude, out mflow);
+                            var dV_cm = thrust / m * dt;
+                            if(dt > 0.01 && dV_cm > p.SrfSpeed / 10)
+                                dt = p.SrfSpeed / 10 * m / thrust * 0.9;
                             //compute thrust direction
                             var vV = Utils.ClampL(Vector3d.Dot(p.vel, p.pos / r), 1e-5);
                             var b_dir = LandingTrajectoryAutopilot.CorrectedBrakeVelocity(VSL, p.vel, p.pos,
                                                                                           p.DynamicPressure / 1000 / LandingTrajectoryAutopilot.C.MinDPressure,
                                                                                           (p.Altitude - TargetAltitude) / vV).normalized;
-                            //compute thrust and mass flow
-                            float mflow;
-                            var thrust = VSL.Engines.ThrustAtAlt((float)p.SrfSpeed, (float)p.Altitude, out mflow);
+                            //compute change in velocity and mass
                             var Ve = thrust / mflow;
                             var dm = mflow * dt;
                             if(dm > fuel)
@@ -603,8 +603,11 @@ namespace ThrottleControlledAvionics
                             fuel -= dm;
                             m -= dm;
                         }
+                        //adjust dt if its too small
+                        else if(!ascending && dt < orig_dt && linear_time / 50 > dt)
+                            dt = Math.Min(linear_time / 50, orig_dt);
                         if(Atmosphere)
-                            p.vel -= p.srf_vel / p.SrfSpeed * Math.Min(drag_dv, p.SrfSpeed);
+                            p.vel -= p.srf_vel / p.SrfSpeed * Math.Min(drag_accel * dt, p.SrfSpeed);
                         p.vel -= p.pos * p.Body.gMagnitudeAtCenter / r / r / r * dt;
                         p.pos += p.vel * dt;
                         p.UT += dt;
