@@ -101,7 +101,7 @@ namespace ThrottleControlledAvionics
                 while(Math.Abs(dI) > 1e-5)
                 {
                     var cur = newT(startUT, I, dV);
-//                    m.Log("startUT {}, opt.I {}, dI {}, dFi {}, dist {}", startUT, I, dI, cur.DeltaFi, cur.DistanceToTarget);//debug
+                    //m.Log("otp.Inc startUT {}, opt.I {}, dI {}, dFi {}, dist {}", startUT, I, dI, cur.DeltaFi, cur.DistanceToTarget);//debug
                     if(cur.FullManeuver &&
                        cur.DistanceToTarget < Best.DistanceToTarget)
                     {
@@ -181,7 +181,7 @@ namespace ThrottleControlledAvionics
                 while(Math.Abs(ddV) > TrajectoryCalculator.C.dVtol)
                 {
                     var cur = newT(startUT, inclination, dir* dVm);
-//                    m.Log("startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, dVm, ddV, cur.DistanceToTarget);//debug
+                    //m.Log("opt.Ecc startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, dVm, ddV, cur.DistanceToTarget);//debug
                     if(cur.FullManeuver &&
                        cur.DistanceToTarget < Best.DistanceToTarget) 
                     {
