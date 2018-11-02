@@ -488,7 +488,8 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.Correct:
                 if(!trajectory_computed()) break;
-                if(!trajectory.WillOverheat)
+                if(!trajectory.WillOverheat 
+                   && trajectory.TimeToStart > ManeuverOffset)
                     add_correction_node_if_needed();
                 else 
                     update_landing_trajecotry();
