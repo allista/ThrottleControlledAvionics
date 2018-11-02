@@ -366,8 +366,7 @@ namespace ThrottleControlledAvionics
                 VSL.Controls.StopWarp();
         }
 
-        protected float drag_accel
-        { get { return VSL.OnPlanetParams.Drag.magnitude / VSL.Physics.M; } }
+        protected float drag_accel => VSL.OnPlanetParams.Drag.magnitude / VSL.Physics.M;
 
         protected bool correct_trajectory()
         {
@@ -380,7 +379,6 @@ namespace ThrottleControlledAvionics
             //                trajectory.DeltaR, Math.Abs(trajectory.DeltaFi)*Mathf.Deg2Rad*Body.Radius);//debug
             if(trajectory.DeltaR > 0 ||
                Math.Abs(trajectory.DeltaFi) * Mathf.Deg2Rad * Body.Radius >= C.Dtol)
-
             {
                 fine_tune_approach();
                 return false;
@@ -1212,6 +1210,7 @@ namespace ThrottleControlledAvionics
             }
         }
 
+
 #if DEBUG
         void log_flight()
         {
@@ -1300,14 +1299,11 @@ namespace ThrottleControlledAvionics
 #endif
             if(current_point.OnWater)
                 return double.PositiveInfinity;
-            else
-            {
-                var alt_delta = altitude_delta(current_point.Lat - half, current_point.Lon - half, current_point.Alt);
-                alt_delta += altitude_delta(current_point.Lat + half, current_point.Lon - half, current_point.Alt);
-                alt_delta += altitude_delta(current_point.Lat + half, current_point.Lon + half, current_point.Alt);
-                alt_delta += altitude_delta(current_point.Lat - half, current_point.Lon + half, current_point.Alt);
-                return alt_delta / VSL.Geometry.D;
-            }
+            var alt_delta = altitude_delta(current_point.Lat - half, current_point.Lon - half, current_point.Alt);
+            alt_delta += altitude_delta(current_point.Lat + half, current_point.Lon - half, current_point.Alt);
+            alt_delta += altitude_delta(current_point.Lat + half, current_point.Lon + half, current_point.Alt);
+            alt_delta += altitude_delta(current_point.Lat - half, current_point.Lon + half, current_point.Alt);
+            return alt_delta / VSL.Geometry.D;
         }
 
         protected bool good_point(double lat, double lon, double unevenness)
