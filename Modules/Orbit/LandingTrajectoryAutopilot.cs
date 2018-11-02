@@ -326,6 +326,8 @@ namespace ThrottleControlledAvionics
                 { 
                     if(VSL.vessel.dynamicPressurekPa > 0)
                     {
+                        update_trajectory();
+                        brakes_on_if_requested();
                         CFG.AT.OnIfNot(Attitude.Custom);
                         ATC.SetThrustDirW(VSL.vessel.srf_vel_direction);
                     }
@@ -681,6 +683,12 @@ namespace ThrottleControlledAvionics
                 trajectory.BrakeEndPoint.UT > trajectory.Path.AtmoStartUT;
         }
 
+        void brakes_on_if_requested()
+        {
+            if(UseBrakes && VSL.vessel.staticPressurekPa > 0)
+                VSL.BrakesOn();
+        }
+
         void do_aerobraking_if_requested(bool full = false)
         {
             if(VSL.vessel.staticPressurekPa > 0)
@@ -770,6 +778,7 @@ namespace ThrottleControlledAvionics
                 THR.Throttle = 0;
                 nose_to_target();
                 rel_altitude_if_needed();
+                brakes_on_if_requested();
                 update_landing_trajectory_each(5);
                 var obt_vel = VesselOrbit.getOrbitalVelocityAtUT(landing_trajectory.BrakeStartPoint.UT);
                 brake_pos = VesselOrbit.getRelativePositionAtUT(landing_trajectory.BrakeStartPoint.UT);
@@ -1004,6 +1013,8 @@ namespace ThrottleControlledAvionics
                 setup_for_deceleration();
                 if(vessel_within_range || vessel_after_target)
                     do_aerobraking_if_requested(true);
+                else
+                    brakes_on_if_requested();
                 var turn_time = VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError);
                 var CPS_Correction = CPS.CourseCorrection;
                 if(!CPS_Correction.IsZero())
