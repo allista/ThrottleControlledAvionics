@@ -1132,6 +1132,12 @@ namespace ThrottleControlledAvionics
             case LandingStage.Approach:
                 Status("Approaching the target...");
                 set_destination_vector();
+                if(VSL.Engines.AvailableFuelMass / VSL.Engines.MaxMassFlow < C.LandingThrustTime)
+                {
+                    CFG.Nav.Off();
+                    landing_stage = LandingStage.LandHere;
+                    break;
+                }
                 if(!CFG.Nav[Navigation.GoToTarget]) land();
                 break;
             case LandingStage.Land:
