@@ -887,13 +887,26 @@ namespace ThrottleControlledAvionics
                 Status("Coasting. Landing site error: {0}", Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
                 if(is_overheating())
                 {
-                    Message(10, "The ship is overheating!\nPerforming emergency landing...");
-                    landing_stage = LandingStage.HardLanding;
+                    decelerate(false);
                     break;
                 }
                 THR.Throttle = 0;
                 nose_to_target();
                 setup_for_deceleration();
+                if(landing_before_target)
+                {
+                    if(VSL.vessel.mach < 1)
+                        stop_aerobraking();
+                }
+                else
+                {
+                    brakes_on_if_requested();
+                    if(trajectory.DistanceToTarget*2 > CFG.Target.DistanceTo(VSL.vessel))
+                    {
+                        decelerate(false);
+                        break;
+                    }
+                }
                 if(correct_landing_site())
                     correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
                 VSL.Info.TTB = VSL.Engines.TTB((float)VSL.vessel.srfSpeed);
@@ -903,6 +916,8 @@ namespace ThrottleControlledAvionics
                     if(THR.Throttle.Equals(0))
                         warp_to_coundown();
                 }
+                else if(!landing_before_target && !target_within_range)
+                    decelerate(false);
                 else
                 {
                     Working = false;
