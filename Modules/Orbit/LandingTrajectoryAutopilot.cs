@@ -51,6 +51,8 @@ namespace ThrottleControlledAvionics
             [Persistent] public float MaxCorrectionDist = 1;
 
             [Persistent] public float HeatingCoefficient = 0.02f;
+
+            [Persistent] public float DragCurveF = 0.1f;
         }
         public static new Config C => Config.INST;
 
@@ -104,7 +106,6 @@ namespace ThrottleControlledAvionics
 
         public override LandingTrajectory CurrentTrajectory
         { get { return new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, false); } }
-
 
         protected abstract class LandingSiteOptimizerBase : TrajectoryOptimizer
         {
@@ -244,6 +245,7 @@ namespace ThrottleControlledAvionics
                        "Please, change engines profile.");
                 return false;
             }
+            VSL.OnPlanetParams.DragCurveK = AtmoSim.C.DragCurveK;
             return base.setup();
         }
 
@@ -538,7 +540,27 @@ namespace ThrottleControlledAvionics
         {
             base.update_trajectory(reset);
             VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
+            update_drag_curve_K();
             //            Log("current trajectory: {}", trajectory);//debug
+        }
+
+        double prev_deltaR = double.NaN;
+        void update_drag_curve_K()
+        {
+            if(trajectory != null
+               && !double.IsNaN(prev_deltaR)
+               && VSL.vessel.dynamicPressurekPa > 0
+               && VSL.Engines.Thrust.IsZero())
+            {
+                var ddR = (float)((prev_deltaR - trajectory.DeltaR) * Body.Radius * Mathf.Deg2Rad);
+                VSL.OnPlanetParams.ChangeDragCurveK(ddR * C.DragCurveF);
+                //Log("old.dR {} m, new.dR {} m, ddR {} m, DragCurveK {}",
+                //prev_deltaR*Body.Radius*Mathf.Deg2Rad, trajectory.DeltaR*Body.Radius*Mathf.Deg2Rad, 
+                //ddR, VSL.OnPlanetParams.DragCurveK);//debug
+                prev_deltaR = double.NaN;
+            }
+            else
+                prev_deltaR = trajectory.DeltaR;
         }
 
         void nose_to_target()
