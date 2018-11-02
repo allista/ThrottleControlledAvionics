@@ -511,6 +511,7 @@ LandingTrajectoryAutopilot
 	BrakeEndSpeed      = 10   //m/s
 	MinBrakeOffset     = 10   //s
 	FinalBrakeOffset   = 3    //s
+	LandingThrustTime  = 3    //s
 	ParachutesDeployOffset = 10 //s
 	
 	
