@@ -928,7 +928,9 @@ namespace ThrottleControlledAvionics
                         landing_stage = LandingStage.HardLanding;
                         break;
                     }
-                    if(!(VSL.Controls.HaveControlAuthority || VSL.Torque.HavePotentialControlAuthority))
+                    if(!VSL.Controls.HaveControlAuthority
+                       && !VSL.Torque.HavePotentialControlAuthority
+                       && Utils.Angle2(VSL.Engines.CurrentDefThrustDir, (Vector3)VSL.vessel.srf_velocity) > 45)
                     {
                         Message(10, "Lacking control authority to land properly.\nPerforming emergency landing...");
                         landing_stage = LandingStage.HardLanding;
