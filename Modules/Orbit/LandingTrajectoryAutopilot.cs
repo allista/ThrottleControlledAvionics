@@ -1234,6 +1234,8 @@ namespace ThrottleControlledAvionics
 
         protected virtual void DrawDebug()
         {
+            if(VSL == null || VSL.vessel == null || VSL.refT == null)
+                return;
             if(IsActive)
             {
                 Utils.GLVec(VSL.refT.position, VSL.vessel.srf_velocity, Color.yellow);
