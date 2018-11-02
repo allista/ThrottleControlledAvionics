@@ -1114,11 +1114,6 @@ namespace ThrottleControlledAvionics
                                                         VSL.Controls.AlignmentFactor, 1);
                     }
                     else THR.Throttle = 1;
-                    //                    Utils.Log("Countdown {}, Throttle {}\n" +
-                    //                              "Alt {} > {}, target in range {}, flat target {}", 
-                    //                              VSL.Info.Countdown, THR.Throttle,
-                    //                              VSL.Altitude.Relative, AutoLander.LND.WideCheckAltitude, 
-                    //                              target_within_range, flat_target);//debug
                     if(VSL.Altitude.Relative > AutoLander.C.StopAtH * VSL.Geometry.D &&
                        VSL.VerticalSpeed.Absolute < 0)
                     {
