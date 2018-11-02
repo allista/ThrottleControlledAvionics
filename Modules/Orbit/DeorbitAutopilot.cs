@@ -442,7 +442,10 @@ namespace ThrottleControlledAvionics
         {
             SaveGame("before_landing");
             CorrectionTimer.Reset();
-            clear_nodes(); add_trajectory_node_rel();
+            clear_nodes(); 
+            add_trajectory_node_rel();
+            MAN.MinDeltaV = Utils.ClampL(ThrottleControl.C.MinDeltaV, 
+                                         (float)trajectory.ManeuverDeltaV.magnitude*0.01f);
             CFG.AP1.On(Autopilot1.Maneuver); 
             stage = Stage.Deorbit; 
         }
