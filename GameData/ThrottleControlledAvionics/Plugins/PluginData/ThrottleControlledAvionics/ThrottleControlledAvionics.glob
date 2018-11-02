@@ -535,6 +535,8 @@ LandingTrajectoryAutopilot
 	MaxCorrectionDist  = 1
 	
 	HeatingCoefficient = 0.02
+	
+	DragCurveF = 0.008
 }
 
 DeorbitAutopilot
