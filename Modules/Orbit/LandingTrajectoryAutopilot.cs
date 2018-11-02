@@ -953,6 +953,7 @@ namespace ThrottleControlledAvionics
                                         Utils.formatBigValue((float)terminal_velocity, "m/s"));
                 set_destination_vector();
                 CFG.BR.Off();
+                THR.Throttle = 0;
                 var not_too_hot = VSL.vessel.externalTemperature < VSL.Physics.MinMaxTemperature;
                 if(not_too_hot) setup_for_deceleration();
                 if(VSL.Engines.MaxThrustM > 0 && terminal_velocity > 4 &&
@@ -968,10 +969,7 @@ namespace ThrottleControlledAvionics
                          VSL.OnPlanetParams.ParachutesActive && VSL.OnPlanetParams.ParachutesDeployed)))
                         Working = true;
                     else if(VSL.Info.Countdown > 0.5f)
-                    {
                         Working = false;
-                        THR.Throttle = 0;
-                    }
                     if(Working)
                     {
                         THR.CorrectThrottle = false;
