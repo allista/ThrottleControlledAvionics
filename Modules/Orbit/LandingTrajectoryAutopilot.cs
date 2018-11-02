@@ -278,6 +278,16 @@ namespace ThrottleControlledAvionics
             landing_trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, true, true);
         }
 
+        double last_update = -1;
+        protected void update_landing_trajectory_each(double seconds)
+        {
+            if(VSL.Physics.UT - last_update > seconds)
+            {
+                update_landing_trajecotry();
+                last_update = VSL.Physics.UT;
+            }
+        }
+
         protected override bool trajectory_computed()
         {
             if(base.trajectory_computed())
@@ -760,6 +770,7 @@ namespace ThrottleControlledAvionics
                 THR.Throttle = 0;
                 nose_to_target();
                 rel_altitude_if_needed();
+                update_landing_trajectory_each(5);
                 var obt_vel = VesselOrbit.getOrbitalVelocityAtUT(landing_trajectory.BrakeStartPoint.UT);
                 brake_pos = VesselOrbit.getRelativePositionAtUT(landing_trajectory.BrakeStartPoint.UT);
                 brake_vel = corrected_brake_velocity(obt_vel, brake_pos);
