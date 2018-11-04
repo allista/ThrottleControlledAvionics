@@ -581,9 +581,10 @@ namespace ThrottleControlledAvionics
         //adapted from MechJeb
         bool clicked;
         DateTime clicked_time;
-        readonly SimpleLineRenderer path_renderer = new SimpleLineRenderer("Waypoint Path");
+        readonly UnityLineRenderer path_renderer = new UnityLineRenderer("Waypoint Path", 6);
         public void WaypointOverlay()
         {
+            path_renderer.Reset();
             if(PN == null || TCA == null || !TCA.Available || !GUIWindowBase.HUD_enabled) return;
             if(SelectingTarget)
             {
@@ -670,6 +671,7 @@ namespace ThrottleControlledAvionics
                     wp0 = wp; 
                     i++;
                 }
+                path_renderer.Draw();
             }
             //current target and anchor
             if(CFG.Anchor != null) 
@@ -745,30 +747,30 @@ namespace ThrottleControlledAvionics
         }
 
         static readonly float path_point_size = Markers.DefaultIconSize/2;
-        public static void DrawPath(CelestialBody body, WayPoint wp0, WayPoint wp1, Color c, float alpha = -1)
+        void DrawPath(CelestialBody body, WayPoint wp0, WayPoint wp1, Color c, float alpha = -1, bool include_wp0=false)
         {
             if(alpha >= 0) c.a = alpha;
             if(c.a.Equals(0)) return;
             var D = wp1.AngleTo(wp0);
             var N = (int)Mathf.Clamp((float)D*Mathf.Rad2Deg, 1, 5);
             var dD = D/N;
-            var last_point = wp0.WorldPos(body);
             Vector3d point;
             Color line_color = c;
             line_color.a /= 2;
+            if(include_wp0)
+                path_renderer.AddPoint(wp0.WorldPos(body), line_color);
             for(int i = 1; i<N; i++)
             {
                 var p = wp0.PointBetween(wp1, dD*i);
                 p.SetAlt2Surface(body);
                 Markers.DrawCBMarker(body, p, c, out point, PathNodeMarker, path_point_size);
-                Utils.GLLine(last_point, point, line_color);
-                last_point = point;
+                path_renderer.AddPoint(point, line_color);
             }
-            Utils.GLLine(last_point, wp1.WorldPos(body), line_color);
+            path_renderer.AddPoint(wp1.WorldPos(body), line_color);
         }
 
-        public static void DrawPath(Vessel v, WayPoint wp1, Color c)
-        { DrawPath(v.mainBody, new WayPoint(v.latitude, v.longitude, v.altitude), wp1, c, 1); }
+        void DrawPath(Vessel v, WayPoint wp1, Color c)
+        { DrawPath(v.mainBody, new WayPoint(v.latitude, v.longitude, v.altitude), wp1, c, 1, true); }
         #endregion
         #endregion
 
