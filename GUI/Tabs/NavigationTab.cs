@@ -90,7 +90,7 @@ namespace ThrottleControlledAvionics
         BallisticJump BJ;
 
         public bool SelectingTarget { get; private set; }
-        bool select_single;
+        bool select_target;
 
         public static void OnAwake()
         {
@@ -233,7 +233,7 @@ namespace ThrottleControlledAvionics
         public void SetSurfaceTarget()
         {
             was_in_map_view = MapView.MapIsEnabled;
-            select_single = true;
+            select_target = true;
             SelectingTarget = true;
             CFG.GUIVisible = true;
             CFG.ShowPath = true;
@@ -311,7 +311,6 @@ namespace ThrottleControlledAvionics
                 GUILayout.EndVertical();
             }
         }
-
         public void WaypointList()
         {
             if(PN == null) return;
@@ -605,12 +604,12 @@ namespace ThrottleControlledAvionics
                         { 
                             t.Update(VSL);
                             t.Movable = true;
-                            if(select_single)
+                            if(select_target)
                             {
                                 t.Name = "Target";
                                 SelectingTarget = false;
-                                select_single = false;
                                 VSL.SetTarget(null, t);
+                                select_target = false;
                                 if(!was_in_map_view)
                                     MapView.ExitMapView();
                             }
