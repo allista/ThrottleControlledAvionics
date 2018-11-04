@@ -543,11 +543,14 @@ namespace ThrottleControlledAvionics
             return 1;
         }
 
+        static SimpleGradient path_grad = new SimpleGradient(new []{
+            Styles.Colors.Danger, Styles.Colors.Warning, Styles.Colors.Selected1
+        });
         static Color marker_color(int i, float N, float dist = -1)
         { 
             Color c = Styles.Colors.Danger;
             if(N > 0)
-                c = Styles.Colors.FractionGradient.Evaluate(i/N).Normalized();
+                c = path_grad.Evaluate(i/N).Normalized();
             c.a = marker_alpha(dist);
             return c;
         }
