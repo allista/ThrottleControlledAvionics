@@ -634,7 +634,7 @@ namespace ThrottleControlledAvionics
                 }
             }
             bool current_target_drawn = false;
-            var camera = Markers.CurrentCamera;
+            var camera = Utils.CurrentCamera;
             if(CFG.ShowPath)
             {
                 var i = 0;
