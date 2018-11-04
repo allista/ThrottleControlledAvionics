@@ -435,8 +435,9 @@ namespace ThrottleControlledAvionics
                     {
                         UnlockControls();
                         var prefix = CFG.Enabled? 
-                            "<b><color=lime>TCA: </color></b>" : 
-                            (VSL.LandedOrSplashed? "<b>TCA: </b>" : "<b><color=red>TCA: </color></b>");
+                                        Styles.Colors.Enabled.Tag("<b>TCA: </b>") : 
+                                        (VSL.LandedOrSplashed? "<b>TCA: </b>" : 
+                                         Styles.Colors.Danger.Tag("<b>TCA: </b>"));
                         GUI.Label(collapsed_rect, prefix+StatusString(), Styles.boxed_label);
                     }
                 }
