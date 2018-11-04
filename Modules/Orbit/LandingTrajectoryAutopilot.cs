@@ -1329,8 +1329,8 @@ namespace ThrottleControlledAvionics
     public class TrajectoryRenderer
     {
         LandingTrajectory trajectory;
-        SimpleLineRenderer path;
-        SimpleLineRenderer after_brake_path;
+        UnityLineRenderer path;
+        UnityLineRenderer after_brake_path;
 
         public TrajectoryRenderer(LandingTrajectory t)
         {
@@ -1348,14 +1348,16 @@ namespace ThrottleControlledAvionics
             if(trajectory != null)
             {
                 if(path == null && trajectory.Path)
-                    path = new SimpleLineRenderer("Landing path", 3);
+                    path = new UnityLineRenderer("Landing path", 8, 31,
+                                                 material: MapView.OrbitLinesMaterial);
                 else if(path != null && !trajectory.Path)
                 {
                     path.Reset();
                     path = null;
                 }
                 if(after_brake_path == null && trajectory.AfterBrakePath)
-                    after_brake_path = new SimpleLineRenderer("After brake path", 2);
+                    after_brake_path = new UnityLineRenderer("After brake path", 6, 31,
+                                                             material: MapView.OrbitLinesMaterial);
                 else if(after_brake_path != null && !trajectory.AfterBrakePath)
                 {
                     after_brake_path.Reset();
@@ -1380,7 +1382,7 @@ namespace ThrottleControlledAvionics
                                                .CBRelativePathInWorldFrame(),
                                                Styles.Colors.Good);
             }
-            else 
+            else
                 Deactivate();
         }
 
