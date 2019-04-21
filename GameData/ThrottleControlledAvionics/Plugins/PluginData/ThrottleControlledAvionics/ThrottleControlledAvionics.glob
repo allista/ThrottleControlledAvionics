@@ -1,7 +1,7 @@
-UseStockAppLauncher   = true
-IntegrateIntoCareer   = true
-RoleSymmetryInFlight  = true
-AutosaveBeforeLanding = true
+UseStockAppLauncher   = True
+IntegrateIntoCareer   = True
+RoleSymmetryInFlight  = True
+AutosaveBeforeLanding = True
 
 InputDeadZone        = 0.03
 MaxManualGroups      = 10
@@ -105,13 +105,13 @@ AltitudeControl
 	RocketPID
 	{
 		P = 0.3	
-		I = 0.0
+		I = 0
 		D = 0.3
 	}
 	JetsPID
 	{
 		P = 0.5
-		I = 0.0
+		I = 0
 		D = 0.5
 	}
 }
@@ -208,7 +208,7 @@ AttitudeControlBase
 		avD_LowAA_Intersect = 25
 		avD_LowAA_Inclination = 10
 		
-		avI_Scale = 0.0
+		avI_Scale = 0
 		
 		SlowTorqueF = 0.2
 		
@@ -245,7 +245,7 @@ BearingControl
 {
 
 	YawFactor = 60
-	DrawForwardDirection = true
+	DrawForwardDirection = True
 }
 
 ThrustDirectionControl
@@ -259,7 +259,7 @@ HorizontalSpeedControl
 	NeededThrustPID
 	{
 		P = 0.03
-		I = 0.0
+		I = 0
 		D = 0.002
 		Tau = 0.5
 	}
@@ -356,7 +356,7 @@ PointNavigator
 	{
 		P = 1
 		I = 0.5
-		D = 0.0
+		D = 0
 	}
 	
 	LateralPID
@@ -413,7 +413,7 @@ Anchor
 	DistancePID
 	{
 		P = 1.5
-		I = 0.0
+		I = 0
 		D = 2.0
 	}
 }
@@ -585,7 +585,7 @@ ToOrbitExecutor
 	{
 		P = 0.1
 		I = 0.01
-		D = 0.0
+		D = 0
 		Tau = 1
 	}
 	NormCorrectionPID
@@ -603,7 +603,7 @@ TargetedToOrbitExecutor
 	{
 		P = 1
 		I = 0.1
-		D = 0.0
+		D = 0
 		Tau = 1
 		Min = -60
 		Max = 60
