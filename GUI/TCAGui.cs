@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -239,10 +240,10 @@ namespace ThrottleControlledAvionics
 
         public static void Status(string msg, params object[] args) { Status(-1, msg, args); }
 
-        public static void Status(double seconds, PersistentColor color, string msg, params object[] args)
+        public static void Status(double seconds, ColorSetting color, string msg, params object[] args)
         { Status(seconds, color.Tag(msg), args); }
 
-        public static void Status(PersistentColor color, string msg, params object[] args) 
+        public static void Status(ColorSetting color, string msg, params object[] args) 
         { Status(-1, color, msg, args); }
 
         void DrawStatusMessage()
@@ -257,21 +258,21 @@ namespace ThrottleControlledAvionics
         }
 
         static string[] statuses = {
-            Styles.Colors.Danger.Tag("Obstacle On Course"),
-            Styles.Colors.Danger.Tag("Ground Collision Possible"),
-            Styles.Colors.Danger.Tag("Loosing Altitude"),
-            Styles.Colors.Danger.Tag("Low Control Authority"),
-            Styles.Colors.Warning.Tag("Engines Unoptimized"),
-            Styles.Colors.Warning.Tag("Ascending"),
-            Styles.Colors.Warning.Tag("VTOL Assist On"),
-            Styles.Colors.Warning.Tag("Stabilizing Flight"),
-            Styles.Colors.Enabled.Tag("Altitude Control"),
-            Styles.Colors.Enabled.Tag("Vertical Speed Control"),
-            Styles.Colors.Good.Tag("Systems Nominal"),
-            Styles.Colors.Warning.Tag("No Active Engines"),
-            Styles.Colors.Danger.Tag("No Electric Charge"),
-            Styles.Colors.Selected2.Tag("Unknown State"),
-            Styles.Colors.Inactive.Tag("Disabled")
+            Colors.Danger.Tag("Obstacle On Course"),
+            Colors.Danger.Tag("Ground Collision Possible"),
+            Colors.Danger.Tag("Loosing Altitude"),
+            Colors.Danger.Tag("Low Control Authority"),
+            Colors.Warning.Tag("Engines Unoptimized"),
+            Colors.Warning.Tag("Ascending"),
+            Colors.Warning.Tag("VTOL Assist On"),
+            Colors.Warning.Tag("Stabilizing Flight"),
+            Colors.Enabled.Tag("Altitude Control"),
+            Colors.Enabled.Tag("Vertical Speed Control"),
+            Colors.Good.Tag("Systems Nominal"),
+            Colors.Warning.Tag("No Active Engines"),
+            Colors.Danger.Tag("No Electric Charge"),
+            Colors.Selected2.Tag("Unknown State"),
+            Colors.Inactive.Tag("Disabled")
         };
 
         string StatusString()
@@ -435,9 +436,9 @@ namespace ThrottleControlledAvionics
                     {
                         UnlockControls();
                         var prefix = CFG.Enabled? 
-                                        Styles.Colors.Enabled.Tag("<b>TCA: </b>") : 
+                                        Colors.Enabled.Tag("<b>TCA: </b>") : 
                                         (VSL.LandedOrSplashed? "<b>TCA: </b>" : 
-                                         Styles.Colors.Danger.Tag("<b>TCA: </b>"));
+                                         Colors.Danger.Tag("<b>TCA: </b>"));
                         GUI.Label(collapsed_rect, prefix+StatusString(), Styles.boxed_label);
                     }
                 }
@@ -468,7 +469,7 @@ namespace ThrottleControlledAvionics
             }
             //draw waypoints and all subwindows
             if(RemoteControl && Event.current.type == EventType.Repaint)
-                Markers.DrawWorldMarker(TCA.vessel.transform.position, Styles.Colors.Good, 
+                Markers.DrawWorldMarker(TCA.vessel.transform.position, Colors.Good, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
             if(NAV != null) NAV.DrawWaypoints();
             AllWindows.ForEach(w => w.Draw());

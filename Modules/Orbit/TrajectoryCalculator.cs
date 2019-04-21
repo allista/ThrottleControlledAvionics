@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -77,7 +78,7 @@ namespace ThrottleControlledAvionics
             {
                 if(VSL.Engines.NumActive > 0 && VSL.OnPlanet && VSL.OnPlanetParams.MaxTWR <= 1)
                 {
-                    Status(Styles.Colors.Danger, "TWR < 1, impossible to achive orbit");
+                    Status(Colors.Danger, "TWR < 1, impossible to achive orbit");
                     Disable();
                     return false;
                 }
@@ -662,7 +663,7 @@ namespace ThrottleControlledAvionics
         {
             if(!TCAScenario.HavePatchedConics)
             {
-                Status(Styles.Colors.Warning, 
+                Status(Colors.Warning, 
                        "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
                 Disable();
                 return false;

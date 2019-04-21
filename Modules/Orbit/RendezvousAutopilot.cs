@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -149,12 +150,12 @@ namespace ThrottleControlledAvionics
             if(!base.check_target()) return false;
             if(TargetVessel == null)
             {
-                Status(Styles.Colors.Warning, "Target should be a vessel or an asteroid");
+                Status(Colors.Warning, "Target should be a vessel or an asteroid");
                 return false;
             }
             if(TargetVessel.LandedOrSplashed)
             {
-                Status(Styles.Colors.Warning, "Target is landed");
+                Status(Colors.Warning, "Target is landed");
                 return false;
             }
             if(!VSL.OnPlanet &&
@@ -165,13 +166,13 @@ namespace ThrottleControlledAvionics
                 var dInc = Math.Abs(TargetOrbit.inclination - VesselOrbit.inclination);
                 if(dInc > 90)
                 {
-                    Status(Styles.Colors.Warning, "Target orbits in the oposite direction.\n" +
+                    Status(Colors.Warning, "Target orbits in the oposite direction.\n" +
                            "You need to change orbit direction before the rendezvou maneuver.");
                     return false;
                 }
                 else if(dInc > C.MaxInclinationDelta)
                 {
-                    Status(Styles.Colors.Warning,
+                    Status(Colors.Warning,
                            "Target orbit plane is tilted more than {0:F}° with respect to ours.\n" +
                            "You need to change orbit plane before the rendezvou maneuver.",
                            C.MaxInclinationDelta);
@@ -836,7 +837,7 @@ namespace ThrottleControlledAvionics
                 }
                 else
                 {
-                    Status(Styles.Colors.Danger,
+                    Status(Colors.Danger,
                            "Failed to compute rendezvou trajectory.\nPlease, try again.");
                     Disable();
                 }

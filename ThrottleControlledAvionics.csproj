@@ -205,6 +205,11 @@
       <Name>AT_Utils</Name>
       <Private>False</Private>
     </ProjectReference>
+    <ProjectReference Include="..\AT_Utils\Unity\AT_Utils.UI.csproj">
+      <Project>{0B711E55-8312-144F-53AD-EDA5A8CEE04A}</Project>
+      <Name>AT_Utils.UI</Name>
+      <Private>False</Private>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />

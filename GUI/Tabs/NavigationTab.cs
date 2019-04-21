@@ -9,6 +9,7 @@ using System;
 using UnityEngine;
 using FinePrint;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -546,11 +547,11 @@ namespace ThrottleControlledAvionics
         }
 
         static SimpleGradient path_grad = new SimpleGradient(new[]{
-            Styles.Colors.Danger, Styles.Colors.Warning, Styles.Colors.Selected1
+            Colors.Danger, Colors.Warning, Colors.Selected1
         });
         static Color marker_color(int i, float N, float dist = -1)
         {
-            Color c = Styles.Colors.Danger;
+            Color c = Colors.Danger;
             if(N > 0)
                 c = path_grad.Evaluate(i / N).Normalized();
             c.a = marker_alpha(dist);
@@ -675,15 +676,15 @@ namespace ThrottleControlledAvionics
             //current target and anchor
             if(CFG.Anchor != null)
             {
-                DrawWayPoint(CFG.Anchor, Styles.Colors.Selected1, "Anchor");
+                DrawWayPoint(CFG.Anchor, Colors.Selected1, "Anchor");
                 current_target_drawn |= CFG.Anchor.Equals(CFG.Target);
             }
             if(CFG.Target && !current_target_drawn &&
                (!CFG.Target.IsVessel || CFG.Target.GetVessel().LandedOrSplashed))
-                DrawWayPoint(CFG.Target, Styles.Colors.Selected2, "Target");
+                DrawWayPoint(CFG.Target, Colors.Selected2, "Target");
             //custom markers
-            VSL.Info.CustomMarkersWP.ForEach(m => DrawWayPoint(m, Styles.Colors.Danger, m.Name));
-            VSL.Info.CustomMarkersVec.ForEach(m => Markers.DrawWorldMarker(m, Styles.Colors.Danger, "Custom WayPoint", WayPointMarker));
+            VSL.Info.CustomMarkersWP.ForEach(m => DrawWayPoint(m, Colors.Danger, m.Name));
+            VSL.Info.CustomMarkersVec.ForEach(m => Markers.DrawWorldMarker(m, Colors.Danger, "Custom WayPoint", WayPointMarker));
             //modify the selected waypoint
             if(!SelectingTarget && selected_waypoint != null)
             {

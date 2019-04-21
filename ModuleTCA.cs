@@ -14,6 +14,7 @@ using System.Linq;
 using UnityEngine;
 using AT_Utils;
 using CommNet;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -511,10 +512,10 @@ namespace ThrottleControlledAvionics
         {
             var group = GetGroup();
             group.ForEach(m => m.part.HighlightAlways(m.TCA_Active? 
-                                                      Styles.Colors.Enabled : 
+                                                      Colors.Enabled : 
                                                       (m.GroupMaster? 
-                                                       Styles.Colors.Selected2 : 
-                                                       Styles.Colors.Selected1)));
+                                                       Colors.Selected2 : 
+                                                       Colors.Selected1)));
             StartCoroutine(CallbackUtil.DelayedCallback(3.0f, () => group.ForEach(m => 
             { 
                 if(m != null && m.part != null) 

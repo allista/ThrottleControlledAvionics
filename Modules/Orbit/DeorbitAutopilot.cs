@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
 using LTComparer = AT_Utils.HierarchicalComparer<ThrottleControlledAvionics.LandingTrajectory>;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -416,7 +417,7 @@ namespace ThrottleControlledAvionics
                 NeedCPSWhenMooving();
                 if(VesselOrbit.PeR < Body.Radius)
                 {
-                    Status(Styles.Colors.Danger, "Already deorbiting. Trying to correct course and land.");
+                    Status(Colors.Danger, "Already deorbiting. Trying to correct course and land.");
                     fine_tune_approach();
                 }
                 else 

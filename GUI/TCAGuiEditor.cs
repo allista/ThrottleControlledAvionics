@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using KSP.UI.Screens;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -512,7 +513,7 @@ namespace ThrottleControlledAvionics
             if(e.limit < 1) 
             {
                 var lim = e.limit * e.limit;
-                e.part.HighlightAlways(Styles.Colors.FractionGradient.Evaluate(lim));
+                e.part.HighlightAlways(Colors.FractionGradient.Evaluate(lim));
             }
         }
 
@@ -538,7 +539,7 @@ namespace ThrottleControlledAvionics
         void highlight_TCA()
         {
             if(TCA != null && TCA.part != null ) 
-                TCA.part.HighlightAlways(Styles.Colors.Enabled);
+                TCA.part.HighlightAlways(Colors.Enabled);
         }
 
         void reset_TCA_highlighting()
@@ -567,8 +568,8 @@ namespace ThrottleControlledAvionics
             PartsEditor.Draw();
             if(show_imbalance && ActiveEngines.Count > 0)
             {
-                Markers.DrawWorldMarker(WetCoM, Styles.Colors.Active, "Center of Mass", CoM_Icon);
-                Markers.DrawWorldMarker(DryCoM, Styles.Colors.Danger, "Center of Dry Mass", CoM_Icon);
+                Markers.DrawWorldMarker(WetCoM, Colors.Active, "Center of Mass", CoM_Icon);
+                Markers.DrawWorldMarker(DryCoM, Colors.Danger, "Center of Dry Mass", CoM_Icon);
             }
         }
 

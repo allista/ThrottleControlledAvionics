@@ -12,6 +12,7 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -773,7 +774,7 @@ namespace ThrottleControlledAvionics
         }
 
         static SimpleGradient heat_map = new SimpleGradient(new[]{
-            PersistentColor.cyan, PersistentColor.yellow, PersistentColor.magenta
+            ColorSetting.cyan, ColorSetting.yellow, ColorSetting.magenta
         });
 
         public Color32[] TemperatureMap()

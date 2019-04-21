@@ -10,6 +10,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -111,29 +112,29 @@ namespace ThrottleControlledAvionics
                 GUILayout.BeginVertical();
                 GUILayout.Label(Title);
                 if(!TCAScenario.ModuleInstalled)
-                    GUILayout.Label(Styles.Colors.Danger
+                    GUILayout.Label(Colors.Danger
                                     .Tag("<size=30>TCA module was not found in any of the loaded parts.</size>") + 
                                     "\n\nThis probably means you're using an old version of <b>ModuleManager</b> or haven't installed it yet. " +
-                                    Styles.Colors.Warning
+                                    Colors.Warning
                                     .Tag("<b>ModuleManager</b> is required") + " for TCA to work.",
                                     Styles.rich_label);
                 else if(HighLogic.CurrentGame.Mode != Game.Modes.SANDBOX)
                 {
 
                     if(!TCAScenario.HasTCA)
-                        GUILayout.Label(Styles.Colors.Warning
+                        GUILayout.Label(Colors.Warning
                                         .Tag("<size=30>TCA Subsystem is <b>NOT</b> purchased. Get it in R&D first.</size>"),
                                         Styles.rich_label);
                     else if(HighLogic.LoadedSceneIsFlight)
                     {
-                        GUILayout.Label(Styles.Colors.Good
+                        GUILayout.Label(Colors.Good
                                         .Tag("TCA Subsystem is purchased.") + "\n" +
                                         "To see TCA modules installed on the current vessel go to <b>Advanced</b> tab.",
                                         Styles.rich_label);
                     }
                     else
                     {
-                        GUILayout.Label(Styles.Colors.Good
+                        GUILayout.Label(Colors.Good
                                         .Tag("TCA Subsystem is purchased.") + 
                                         "\nAvailable TCA modules:",
                                         Styles.rich_label);
@@ -141,7 +142,7 @@ namespace ThrottleControlledAvionics
                     }
                 }
                 else GUILayout.Label("<b>Sandbox Game:</b>\n" +
-                                     Styles.Colors.Good
+                                     Colors.Good
                                      .Tag("TCA should be fully functional") +
                                      " on all vessels with some engines/RCS and a command module (cockpit, probe core, etc).",
                                      Styles.rich_label);
