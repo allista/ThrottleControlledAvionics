@@ -38,47 +38,47 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\System.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\System.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System.Core">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\System.Core.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\System.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Mono.Cecil">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\Mono.Cecil.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\Mono.Cecil.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Mono.Security">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\Mono.Security.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\Mono.Security.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System.Xml">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\System.Xml.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\System.Xml.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.Networking">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\UnityEngine.Networking.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\UnityEngine.Networking.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.UI">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\UnityEngine.UI.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\UnityEngine.UI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="KSPAssets">
-      <HintPath>..\KSP-test\KSP_test_1.4.5\KSP_Data\Managed\KSPAssets.dll</HintPath>
+      <HintPath>..\KSP-test\KSP_test_1.6.0\KSP_Data\Managed\KSPAssets.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
@@ -203,6 +203,11 @@
     <ProjectReference Include="..\AT_Utils\AT_Utils.csproj">
       <Project>{64CC36A2-0610-4F74-9F31-3D4E22866B7E}</Project>
       <Name>AT_Utils</Name>
+      <Private>False</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\AT_Utils\Unity\AT_Utils.UI.csproj">
+      <Project>{0B711E55-8312-144F-53AD-EDA5A8CEE04A}</Project>
+      <Name>AT_Utils.UI</Name>
       <Private>False</Private>
     </ProjectReference>
   </ItemGroup>

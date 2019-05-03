@@ -33,8 +33,8 @@ namespace ThrottleControlledAvionics
         public double Countdown = -1;
         public float  TTB = -1;
 
-        public List<Vector3d> CustomMarkersVec = new List<Vector3d>();
-        public List<WayPoint> CustomMarkersWP  = new List<WayPoint>();
+        public HashSet<Vector3d> CustomMarkersVec = new HashSet<Vector3d>();
+        public HashSet<WayPoint> CustomMarkersWP  = new HashSet<WayPoint>();
 
         public void AddCustopWaypoint(Vector3d pos, string name = "Custom WayPoint")
         {

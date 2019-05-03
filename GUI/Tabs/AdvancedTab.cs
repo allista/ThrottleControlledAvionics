@@ -177,7 +177,15 @@ namespace ThrottleControlledAvionics
 
         public override void Draw()
         {
+            GUILayout.BeginHorizontal();
             GUILayout.Label(UI.Title, Styles.label, GUILayout.ExpandWidth(true));
+            if(GUILayout.Button(new GUIContent("Reload", "Reload TCA settings from file"),
+                                Styles.active_button, GUILayout.ExpandWidth(true)))
+            {
+                Globals.Load();
+                TCA.OnReloadGlobals();
+            }
+            GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             //change key binding
             if(GUILayout.Button(SelectingKey ? new GUIContent("HotKey: ?", "Choose new TCA hotkey") :
@@ -190,23 +198,29 @@ namespace ThrottleControlledAvionics
                               "Press BACKSPACE to remove TCA hotkey.\n" +
                               "Press ESCAPE to cancel.");
             }
-            Utils.ButtonSwitch("AutoSave", ref Globals.Instance.AutosaveBeforeLanding,
-                               "Automatically save the game before executing complex autopilot programs",
-                               GUILayout.ExpandWidth(true));
+            if(GUILayout.Button(new GUIContent("Colors", "Configure UI colors"),
+                                Styles.active_button, GUILayout.ExpandWidth(true)))
+            {
+                if(Styles.IsUiShown())
+                    Styles.HideUI();
+                else
+                    UI.StartCoroutine(Styles.ShowUI());
+            }
+            if(Utils.ButtonSwitch("AutoSave", ref Globals.Instance.AutosaveBeforeLanding,
+                                  "Automatically save the game before executing complex autopilot programs",
+                                  GUILayout.ExpandWidth(true)))
+                Globals.Save();
             if(Utils.ButtonSwitch(Globals.Instance.UseStockAppLauncher ? "Launcher" : "Toolbar",
                                   ref Globals.Instance.UseStockAppLauncher,
                                   "Use stock AppLauncher or Toolbar plugin?",
                                   GUILayout.ExpandWidth(true)))
-                TCAToolbarManager.Init();
-            Utils.ButtonSwitch("AutoShow", ref TCAGui.Instance.ShowOnHover,
-                               "Show collapsed TCA window when mouse hovers over it", GUILayout.ExpandWidth(true));
-            if(GUILayout.Button(new GUIContent("Reload", "Reload TCA settings from file"),
-                                Styles.active_button, GUILayout.ExpandWidth(true)))
             {
-                Globals.Load();
-                Styles.ConfigureButtons();
-                TCA.OnReloadGlobals();
+                TCAToolbarManager.Init();
+                Globals.Save();
             }
+            Utils.ButtonSwitch("AutoShow", ref UI.ShowOnHover,
+                               "Show collapsed TCA window when mouse hovers over it", 
+                               GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
             Toggles();
             if(THR != null)

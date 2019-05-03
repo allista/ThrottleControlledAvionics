@@ -1,4 +1,4 @@
-//  Author:
+﻿//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2015 Allis Tauri
@@ -10,6 +10,7 @@
 using System;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -65,7 +66,7 @@ namespace ThrottleControlledAvionics
             NodeCB = Node.patch.referenceBody;
             TargetOrbit = Node.nextPatch;
             if(VSL.Engines.MaxDeltaV < Node.DeltaV.magnitude)
-                Status(Styles.Colors.Warning, 
+                Status(Colors.Warning, 
                        "WARNING: there may be not enough propellant for the maneuver");
         }
 
@@ -100,7 +101,7 @@ namespace ThrottleControlledAvionics
                 ManeuverStage = Stage.WAITING;
                 if(!TCAScenario.HavePatchedConics)
                 {
-                    Status(Styles.Colors.Warning, 
+                    Status(Colors.Warning, 
                            "WARNING: maneuver nodes are not yet available. Upgrade the Tracking Station.");
                     CFG.AP1.Off(); 
                     return;

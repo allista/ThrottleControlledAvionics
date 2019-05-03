@@ -1,4 +1,4 @@
-//  Author:
+﻿//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2015 Allis Tauri
@@ -12,6 +12,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -356,7 +357,7 @@ namespace ThrottleControlledAvionics
             if(WideCheckAlt > C.MaxWideCheckAltitude)
             {
                 CFG.AP1.Off();
-                Status(Styles.Colors.Danger, "Unable to find suitale place for landing.");
+                Status(Colors.Danger, "Unable to find suitale place for landing.");
             }
             else stage = Stage.WideCheck;
         }
@@ -474,8 +475,8 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.Land:
                 CFG.VTOLAssistON = true;
-                if(CFG.AutoGear) Status(Styles.Colors.Good, "Landing...");
-                else Status(Styles.Colors.Warning, "Landing. Autodeployment of landing gear is disabled.");
+                if(CFG.AutoGear) Status(Colors.Good, "Landing...");
+                else Status(Colors.Warning, "Landing. Autodeployment of landing gear is disabled.");
                 if(WideCheckAlt > 0)
                 {
                     CFG.Nav.OnIfNot(Navigation.Anchor);

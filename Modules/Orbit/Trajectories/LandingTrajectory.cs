@@ -12,6 +12,7 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -796,17 +797,18 @@ namespace ThrottleControlledAvionics
             return Points.Select(p => p.CBRelativePosInWorldFrame()).ToArray();
         }
 
-        static AT_Utils.Gradient heat_map = new AT_Utils.Gradient(new[]{
-            PersistentColor.cyan, PersistentColor.yellow, PersistentColor.magenta
+        static SimpleGradient heat_map = new SimpleGradient(new[]{
+            ColorSetting.cyan, ColorSetting.yellow, ColorSetting.magenta
         });
 
-        public List<Color32> TemperatureMap()
+        public Color32[] TemperatureMap()
         {
-            if(Points.Count < 2)
-                return new List<Color32>();
-            List<Color32> map = new List<Color32>(Points.Count-1);
-            for(int i = 0, count = Points.Count-1; i < count; i++)
-                map.Add(heat_map.Evaluate((float)Utils.ClampH(Points[i].ShipTemperature / VSL.Physics.MinMaxTemperature, 1)));
+            if(Points.Count == 0)
+                return null;
+            var count = Points.Count;
+            var map = new Color32[count];
+            for(int i = 0; i < count; i++)
+                map[i] = heat_map.Evaluate((float)Utils.ClampH(Points[i].ShipTemperature / VSL.Physics.MinMaxTemperature, 1));
             return map;
         }
 
