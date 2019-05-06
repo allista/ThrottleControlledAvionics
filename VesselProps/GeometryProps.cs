@@ -73,7 +73,7 @@ namespace ThrottleControlledAvionics
             {
                 TCAGui.Status(0.1, "Testing aero-brakes...");
                 var min_area = BoundsSideAreas.MinComponentF();
-                if(min_area > AreaWithBrakes)
+                if(min_area > AreaWithBrakes*1.001)
                 {
                     AreaWithBrakes = min_area;
                     brakes_measured_timer.Reset();
