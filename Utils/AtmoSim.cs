@@ -31,8 +31,7 @@ namespace ThrottleControlledAvionics
             {
                 if(_Cd < 0)
                     //0.0005 converts dynamic pressure to kPa and divides area by 2: Drag = dP * Cd * S/2.
-                    //_Cd = 0.0005 * C.DragK * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
-                    _Cd = 0.0005 * PhysicsGlobals.DragMultiplier;
+                    _Cd = 0.0005 * PhysicsGlobals.DragCubeMultiplier * PhysicsGlobals.DragMultiplier;
                 return _Cd;
             }
         }
