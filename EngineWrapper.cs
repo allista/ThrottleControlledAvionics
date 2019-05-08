@@ -9,7 +9,6 @@
 
 // Original idea of EngineWrapper came from HoneyFox's EngineIgnitor mod: https://github.com/HoneyFox/EngineIgnitor
 
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
