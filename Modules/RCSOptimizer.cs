@@ -10,6 +10,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using System.Linq;
 
 namespace ThrottleControlledAvionics
 {
@@ -47,10 +48,11 @@ namespace ThrottleControlledAvionics
         {
             var num_engines = engines.Count;
             var zero_torque = needed_torque.IsZero();
+            var preset_limits = engines.Any(e => e.preset_limit >= 0);
             TorqueAngle = TorqueError = -1f;
             float error, angle;
             var last_error = -1f;
-            Vector3 cur_imbalance, target;
+            Vector3 cur_imbalance = Vector3.zero, target;
             for(int i = 0; i < C.MaxIterations; i++)
             {
                 //calculate current errors and target
@@ -60,8 +62,9 @@ namespace ThrottleControlledAvionics
                 angle = zero_torque ? 0f : Utils.Angle2(cur_imbalance, needed_torque);
                 target = needed_torque - cur_imbalance;
                 error = VSL.Torque.AngularAcceleration(target).magnitude;
+                //Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, C.OptimizationTorqueCutoff * C.OptimizationPrecision);//debug
                 //remember the best state
-                if(angle <= 0f && error < TorqueError || angle < TorqueAngle || TorqueAngle < 0)
+                if(angle <= 0f && error < TorqueError || angle + error < TorqueAngle + TorqueError || TorqueAngle < 0)
                 {
                     for(int j = 0; j < num_engines; j++)
                     { var e = engines[j]; e.best_limit = e.limit; }
@@ -74,22 +77,28 @@ namespace ThrottleControlledAvionics
                     break;
                 last_error = error;
                 //normalize limits before optimization
-                var limit_norm = 0f;
-                for(int j = 0; j < num_engines; j++)
+                if(!preset_limits)
                 {
-                    var e = engines[j];
-                    if(limit_norm < e.limit) limit_norm = e.limit;
-                }
-                if(limit_norm > 0)
-                {
+                    var limit_norm = 0f;
                     for(int j = 0; j < num_engines; j++)
-                    { var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
+                    {
+                        var e = engines[j];
+                        if(limit_norm < e.limit) limit_norm = e.limit;
+                    }
+                    if(limit_norm > 0)
+                    {
+                        for(int j = 0; j < num_engines; j++)
+                        { var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
+                    }
                 }
                 if(!optimization_pass(engines, num_engines, target, error, C.OptimizationPrecision))
                     break;
             }
             var optimized = TorqueError < C.OptimizationTorqueCutoff ||
                 (!zero_torque && TorqueAngle < C.OptimizationAngleCutoff);
+            //Utils.Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}\nlimits:\n{}\n" +
+            //"-------------------------------------------------------------------------------------------------",
+            //num_engines, optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance, engines);//debug
             //treat single-engine crafts specially
             if(num_engines == 1)
                 engines[0].limit = optimized ? 1f : 0f;
