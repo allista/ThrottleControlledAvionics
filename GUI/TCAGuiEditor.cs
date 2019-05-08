@@ -31,6 +31,7 @@ namespace ThrottleControlledAvionics
         ModuleTCA TCA;
         NamedConfig CFG;
         readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
+        readonly List<RCSWrapper> RCS = new List<RCSWrapper>();
         readonly EnginesDB ActiveEngines = new EnginesDB();
         static bool HaveSelectedPart { get { return EditorLogic.SelectedPart != null && EditorLogic.SelectedPart.potentialParent != null; } }
 
@@ -189,21 +190,26 @@ namespace ThrottleControlledAvionics
             part.children.ForEach(update_mass_and_CoM);
         }
 
-        void find_engines_recursively(Part part, List<EngineWrapper> engines)
+        void find_engines_recursively(Part part, List<EngineWrapper> engines, List<RCSWrapper> rcs)
         {
             if(part.Modules != null)
+            {
                 engines.AddRange(part.Modules.GetModules<ModuleEngines>()
-                                 .Select(m => new EngineWrapper(m)));
-            part.children.ForEach(p => find_engines_recursively(p, engines));
+                                     .Select(m => new EngineWrapper(m)));
+                rcs.AddRange(part.Modules.GetModules<ModuleRCS>()
+                                     .Select(m => new RCSWrapper(m)));
+            }
+            part.children.ForEach(p => find_engines_recursively(p, engines, rcs));
         }
 
         bool UpdateEngines()
         {
             Engines_highlight.Reset();
             Engines.Clear();
+            RCS.Clear();
             if(TCAScenario.HasTCA && EditorLogic.RootPart) 
-                find_engines_recursively(EditorLogic.RootPart, Engines);
-            var ret = Engines.Count > 0;
+                find_engines_recursively(EditorLogic.RootPart, Engines, RCS);
+            var ret = Engines.Count > 0 || RCS.Count > 0;
             if(!ret) Reset();
             return ret;
         }
@@ -258,7 +264,8 @@ namespace ThrottleControlledAvionics
                 if(selected_parts.Count > 0)
                 {
                     var selected_engines = new List<EngineWrapper>();
-                    selected_parts.ForEach(p => find_engines_recursively(p, selected_engines));
+                    var selected_rcs = new List<RCSWrapper>();
+                    selected_parts.ForEach(p => find_engines_recursively(p, selected_engines, selected_rcs));
                     ActiveEngines.AddRange(selected_engines);
                 }
                 if(ActiveEngines.Count > 0)
@@ -291,8 +298,9 @@ namespace ThrottleControlledAvionics
 
         void AutoconfigureProfile()
         {
-            CalculateMassAndCoM(GetSelectedParts());
             var EnginesCount = Engines.Count;
+            if(EnginesCount == 0) return;
+            CalculateMassAndCoM(GetSelectedParts());
             //reset groups; set CoM-coaxial engines to UnBalanced role
             for(int i = 0; i < EnginesCount; i++)
             {
@@ -338,6 +346,7 @@ namespace ThrottleControlledAvionics
                 Available = false;
                 Modules.Clear();
                 Engines.Clear();
+                RCS.Clear();
                 PartsEditor.SetCFG(null);
                 CFG = null;
                 reset = false;
@@ -369,7 +378,7 @@ namespace ThrottleControlledAvionics
                 UpdateShipStats();
                 update_stats = false;
             }
-            Available |= CFG != null && Engines.Count > 0;
+            Available |= CFG != null && (Engines.Count > 0 || RCS.Count > 0);
             TCA_highlight.Update(Available && doShow);
             Engines_highlight.Update(Available && doShow && show_imbalance && ActiveEngines.Count > 0);
         }
