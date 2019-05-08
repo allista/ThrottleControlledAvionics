@@ -101,7 +101,7 @@ namespace ThrottleControlledAvionics
                 while(Math.Abs(dI) > 1e-5)
                 {
                     var cur = newT(startUT, I, dV);
-//                    m.Log("startUT {}, opt.I {}, dI {}, dFi {}, dist {}", startUT, I, dI, cur.DeltaFi, cur.DistanceToTarget);//debug
+                    //m.Log("otp.Inc startUT {}, opt.I {}, dI {}, dFi {}, dist {}", startUT, I, dI, cur.DeltaFi, cur.DistanceToTarget);//debug
                     if(cur.FullManeuver &&
                        cur.DistanceToTarget < Best.DistanceToTarget)
                     {
@@ -137,16 +137,30 @@ namespace ThrottleControlledAvionics
             {
                 var startUT = m.VSL.Physics.UT+m.ManeuverOffset;
                 var endUT = startUT + m.VesselOrbit.period*(1 + m.VesselOrbit.period/m.Body.rotationPeriod);
-                var dT = (endUT-startUT)/10;
+                var dT = (endUT-startUT)/20;
                 startUT += dT;
+                var prev = Best;
                 while(startUT < endUT)
                 {
                     var cur = newT(startUT, inclination, deorbit(startUT));
-//                    m.Log("scan.startUT {}, I {}, dT {}, dist {}", startUT, inclination, dT, cur.DistanceToTarget);//debug
-                    if(cur.DistanceToTarget < Best.DistanceToTarget) 
-                        Best = cur;
+                    //m.Log("scan.startUT {}, I {}, dT {}, dist {}", startUT, inclination, dT, cur.DistanceToTarget);//debug
+                    if(cur.DistanceToTarget < prev.DistanceToTarget)
+                    {
+                        var best = Best;
+                        Best = prev;
+                        foreach(var t in optimize_startUT(dT)) yield return t;
+                        if(Best.DistanceToTarget > best.DistanceToTarget)
+                            Best = best;
+                        else
+                        {
+                            startUT = Best.StartUT;
+                            cur = Best;
+                        }
+                        //m.Log("Best so far: {}", Best);//debug
+                    }
                     startUT += dT;
                     yield return cur;
+                    prev = cur;
                 }
             }
 
@@ -181,7 +195,7 @@ namespace ThrottleControlledAvionics
                 while(Math.Abs(ddV) > TrajectoryCalculator.C.dVtol)
                 {
                     var cur = newT(startUT, inclination, dir* dVm);
-//                    m.Log("startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, dVm, ddV, cur.DistanceToTarget);//debug
+                    //m.Log("opt.Ecc startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, dVm, ddV, cur.DistanceToTarget);//debug
                     if(cur.FullManeuver &&
                        cur.DistanceToTarget < Best.DistanceToTarget) 
                     {
@@ -282,12 +296,11 @@ namespace ThrottleControlledAvionics
             LTComparer comparer;
             public LandingTrajectory Best { get; private set; }
 
-            static LTComparer.Condition fuel, maneuver, dR, overheat, steepness;
+            static LTComparer.Condition fuel, maneuver, overheat, steepness;
             static EccentricityOptimizer()
             {
                 fuel = LTComparer.MakeCondition(null, (x, y) => x.GetTotalFuel() < y.GetTotalFuel());
                 maneuver = LTComparer.MakeCondition(x => x.FullManeuver, (x, y) => x.ManeuverFuel < y.ManeuverFuel);
-                dR = LTComparer.MakeCondition(x => x.DeltaR < -1, (x, y) => x.DeltaR < y.DeltaR);
                 overheat = LTComparer.MakeCondition(x => !x.WillOverheat, (x, y) => x.MaxShipTemperature < y.MaxShipTemperature);
                 steepness = LTComparer.MakeCondition(x => x.LandingSteepness > C.MinLandingAngle, (x, y) => x.LandingSteepness > y.LandingSteepness);
             }
@@ -295,16 +308,10 @@ namespace ThrottleControlledAvionics
             public EccentricityOptimizer(DeorbitAutopilot module)
             {
                 m = module;
-                comparer = new LTComparer(maneuver, dR);
+                comparer = new LTComparer(maneuver);
                 if(m.Body.atmosphere)
-                {
-                    var maxDynP = C.MaxDynPressure*m.VSL.Torque.MaxPossible.AngularDragResistance;
-                    comparer.AddConditions(overheat, steepness);
-                    comparer.AddCondition(x => x.MaxDynamicPressure < maxDynP, (x, y) => x.MaxDynamicPressure < y.MaxDynamicPressure);
-                }
-                else 
-                    comparer.AddCondition(steepness);
-                comparer.AddCondition(fuel);
+                    comparer.AddConditions(overheat);
+                comparer.AddConditions(steepness, fuel);
             }
 
             public IEnumerator<LandingTrajectory> GetEnumerator()
@@ -312,12 +319,12 @@ namespace ThrottleControlledAvionics
 //                m.Log("Calculating initial orbit eccentricity...");//debug
                 var tPos = m.CFG.Target.OrbPos(m.Body);
                 var UT = m.VSL.Physics.UT +
-                    TrajectoryCalculator.AngleDelta(m.VesselOrbit, tPos, m.VSL.Physics.UT)/360*m.VesselOrbit.period;
+                    AngleDelta(m.VesselOrbit, tPos, m.VSL.Physics.UT)/360*m.VesselOrbit.period;
                 if(UT < m.VSL.Physics.UT) UT += m.VesselOrbit.period;
                 var vPos = m.VesselOrbit.getRelativePositionAtUT(UT);
                 var vVel = m.VesselOrbit.getOrbitalVelocityAtUT(UT);
                 var incl = Math.Abs(90-Utils.Angle2(tPos, m.VesselOrbit.GetOrbitNormal()));
-                var ini_dV = TrajectoryCalculator.dV4Pe(m.VesselOrbit, (m.Body.Radius+m.TargetAltitude*0.9), UT);
+                var ini_dV = dV4Pe(m.VesselOrbit, (m.Body.Radius+m.TargetAltitude*0.9), UT);
                 ini_dV = QuaternionD.AngleAxis(incl, vPos)*(ini_dV+vVel);
                 var dir = -ini_dV.normalized;
                 var maxV = ini_dV.magnitude;
@@ -435,7 +442,10 @@ namespace ThrottleControlledAvionics
         {
             SaveGame("before_landing");
             CorrectionTimer.Reset();
-            clear_nodes(); add_trajectory_node_rel();
+            clear_nodes(); 
+            add_trajectory_node_rel();
+            MAN.MinDeltaV = Utils.ClampL(ThrottleControl.C.MinDeltaV, 
+                                         (float)trajectory.ManeuverDeltaV.magnitude*0.01f);
             CFG.AP1.On(Autopilot1.Maneuver); 
             stage = Stage.Deorbit; 
         }
@@ -478,7 +488,8 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.Correct:
                 if(!trajectory_computed()) break;
-                if(!trajectory.WillOverheat)
+                if(!trajectory.WillOverheat 
+                   && trajectory.TimeToStart > ManeuverOffset)
                     add_correction_node_if_needed();
                 else 
                     update_landing_trajecotry();

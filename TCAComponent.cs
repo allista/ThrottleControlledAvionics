@@ -136,6 +136,7 @@ namespace ThrottleControlledAvionics
         protected DrawableComponent(ModuleTCA tca) : base(tca) {}
         public abstract void Draw();
         public virtual void OnRenderObject() {}
+        public virtual void LateUpdate() {}
     }
 
     public abstract class TCAModule : DrawableComponent

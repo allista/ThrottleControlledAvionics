@@ -511,6 +511,7 @@ LandingTrajectoryAutopilot
 	BrakeEndSpeed      = 10   //m/s
 	MinBrakeOffset     = 10   //s
 	FinalBrakeOffset   = 3    //s
+	LandingThrustTime  = 3    //s
 	ParachutesDeployOffset = 10 //s
 	
 	
@@ -534,6 +535,8 @@ LandingTrajectoryAutopilot
 	MaxCorrectionDist  = 1
 	
 	HeatingCoefficient = 0.02
+	
+	DragCurveF = 0.008
 }
 
 DeorbitAutopilot
@@ -563,7 +566,7 @@ BallisticJump
 AtmoSim
 {
     DeltaTime = 0.5 //s
-    DragK = 0.0008
+    DragCurveK = 0.8
     RotAccelPhase = 0.1
 }
 
