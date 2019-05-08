@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
     {
         public readonly ModuleRCS rcs;
 
-        Vector3 avg_thrust_dir;
+        Vector3 total_thrust_dir;
         Vector3 avg_thrust_pos;
         float current_thrust;
         float current_max_thrust;
@@ -91,24 +91,23 @@ namespace ThrottleControlledAvionics
         public override void InitState()
         {
             thrustMod = rcs.atmosphereCurve.Evaluate((float)(rcs.part.staticPressureAtm)) / zeroIsp;
-            var total_sthrust = 0f;
-            avg_thrust_dir = Vector3.zero;
+            var total_thrust = 0f;
+            total_thrust_dir = Vector3.zero;
             avg_thrust_pos = Vector3.zero;
             for(int i = 0, count = rcs.thrusterTransforms.Count; i < count; i++)
             {
-                var sthrust = rcs.thrustForces[i];
+                var thrust = rcs.thrustForces[i];
                 var T = rcs.thrusterTransforms[i];
-                if(T == null) continue;
-                avg_thrust_dir += (rcs.useZaxis ? T.forward : T.up) * sthrust;
-                avg_thrust_pos += T.position * sthrust;
-                total_sthrust += sthrust;
+                if(T == null || thrust.Equals(0)) continue;
+                total_thrust_dir += (rcs.useZaxis ? T.forward : T.up) * thrust;
+                avg_thrust_pos += T.position * thrust;
+                total_thrust += thrust;
             }
-            var current_sthrust = avg_thrust_dir.magnitude;
-            if(total_sthrust > 0) avg_thrust_pos /= total_sthrust;
+            current_thrust = total_thrust_dir.magnitude;
+            if(total_thrust > 0) avg_thrust_pos /= total_thrust;
             else avg_thrust_pos = rcs.transform.position;
-            avg_thrust_dir.Normalize();
-            current_max_thrust = current_sthrust * rcs.thrusterPower * thrustMod;
-            current_thrust = current_sthrust * rcs.thrustPercentage * 0.01f * rcs.thrusterPower * thrustMod;
+            total_thrust_dir.Normalize();
+            current_max_thrust = current_thrust / rcs.thrustPercentage * 100f;
             InitLimits();
         }
 
@@ -121,7 +120,7 @@ namespace ThrottleControlledAvionics
         public override Vessel vessel { get { return rcs.vessel; } }
         public override Part part { get { return rcs.part; } }
 
-        public override Vector3 wThrustDir { get { return avg_thrust_dir; } }
+        public override Vector3 wThrustDir { get { return total_thrust_dir; } }
         public override Vector3 wThrustPos { get { return avg_thrust_pos; } }
 
         public float currentMaxThrust { get { return current_max_thrust; } }
