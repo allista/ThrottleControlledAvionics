@@ -469,15 +469,18 @@ namespace ThrottleControlledAvionics
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
-                if(GUILayout.Button(new GUIContent("Autoconfigure Active Profile",
-                                                   "This will overwrite any existing groups and roles"),
-                                    Styles.danger_button, GUILayout.ExpandWidth(true)))
-                    autoconfigure_profile = true;
-                CFG.EnginesProfiles.Draw(height);
-                if(CFG.ActiveProfile.Changed)
+                if(Engines.Count > 0)
                 {
-                    CFG.ActiveProfile.Apply(Engines);
-                    update_engines = true;
+                    if(GUILayout.Button(new GUIContent("Autoconfigure Active Profile",
+                                                       "This will overwrite any existing groups and roles"),
+                                        Styles.danger_button, GUILayout.ExpandWidth(true)))
+                        autoconfigure_profile = true;
+                    CFG.EnginesProfiles.Draw(height);
+                    if(CFG.ActiveProfile.Changed)
+                    {
+                        CFG.ActiveProfile.Apply(Engines);
+                        update_engines = true;
+                    }
                 }
                 GUILayout.BeginHorizontal(Styles.white);
                 {
