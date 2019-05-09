@@ -93,12 +93,12 @@ namespace ThrottleControlledAvionics
             }
 
 #if DEBUG
-            Utils.Log("\nTCA Modules in the ModulesDatabase:\n{}", 
-                      RegisteredModules.Aggregate("", (s, t) => s + t.Value + "\n\n"));
+            Utils.Log("\nTCA Modules in the ModulesDatabase:\n{}",
+                RegisteredModules.Aggregate("", (s, t) => s + t.Value + "\n\n"));
             Utils.Log("Pipeline: {}", Pipeline.Aggregate("", (s, t) => s + t.Name + "->"));
             Utils.Log("AP Pipeline: {}", Pipeline.Where(m => m.IsSubclassOf(typeof(AutopilotModule))).Aggregate("", (s, t) => s + t.Name + "->"));
-            File.WriteAllText("ModuleDatabase.csv",
-                              RegisteredModules.Aggregate("", (s, t) => s + t.Value.ToCSV() + "\n"));
+            System.IO.File.WriteAllText("ModuleDatabase.csv",
+                RegisteredModules.Aggregate("", (s, t) => s + t.Value.ToCSV() + "\n"));
 #endif
         }
 
