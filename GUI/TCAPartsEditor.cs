@@ -5,7 +5,6 @@
 //
 //  Copyright (c) 2017 Allis Tauri
 
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
@@ -25,9 +24,9 @@ namespace ThrottleControlledAvionics
             {
                 base.SetPart(part);
                 //remove Module from module title. Maybe drop it altogether from the TechTree?
-                button = new GUIContent(part.Title.Replace("Module", "").Trim(), 
+                button = new GUIContent(part.Title.Replace("Module", "").Trim(),
                                         //remove the "Updates TCA (tm)..." sentence.
-                                        part.Description.Substring(part.Description.IndexOf('.')+1));
+                                        part.Description.Substring(part.Description.IndexOf('.') + 1));
             }
 
             public bool Draw(VesselConfig CFG)
@@ -66,7 +65,7 @@ namespace ThrottleControlledAvionics
                 foreach(var tier in tiers.Keys)
                 {
                     GUILayout.BeginVertical(Styles.white, GUILayout.ExpandHeight(true));
-                    GUILayout.Label("Tier "+tier, GUILayout.ExpandWidth(true));
+                    GUILayout.Label("Tier " + tier, GUILayout.ExpandWidth(true));
                     tiers[tier].ForEach(node => button_pressed = node.Draw(CFG) || button_pressed);
                     GUILayout.EndVertical();
                     if(tier < tiers.Count) GUILayout.Space(10);
@@ -126,9 +125,9 @@ namespace ThrottleControlledAvionics
             GUILayout.BeginVertical();
             if(graph.Draw(CFG)) update_part_status();
             GUILayout.EndVertical();
-            if(!HighLogic.LoadedSceneIsFlight) 
+            if(!HighLogic.LoadedSceneIsFlight)
             {
-                if(GUILayout.Button(new GUIContent("Enable All", "Enable all disabled modules"), 
+                if(GUILayout.Button(new GUIContent("Enable All", "Enable all disabled modules"),
                                     Styles.active_button, GUILayout.ExpandWidth(true)))
                 {
                     parts.ForEach(p => CFG.EnabledTCAParts.Add(p.Name));
@@ -145,11 +144,11 @@ namespace ThrottleControlledAvionics
             if(doShow)
             {
                 LockControls();
-                WindowPos = GUILayout.Window(GetInstanceID(), 
+                WindowPos = GUILayout.Window(GetInstanceID(),
                                              WindowPos, MainWindow,
-                                             HighLogic.LoadedSceneIsFlight?
+                                             HighLogic.LoadedSceneIsFlight ?
                                              "Installed TCA Modules" :
-                                             "Select TCA Modules", 
+                                             "Select TCA Modules",
                                              GUILayout.Width(width),
                                              GUILayout.Height(height)).clampToScreen();
             }
@@ -167,16 +166,16 @@ namespace ThrottleControlledAvionics
                 {
                     foreach(var tier in graph.tiers)
                     {
-                        var next_tier = tier.Key+1;
+                        var next_tier = tier.Key + 1;
                         foreach(var node in tier.Value)
                         {
                             var sr = node.button_rect;
-                            var start = new Vector2(WindowPos.x+sr.x+sr.width, WindowPos.y+sr.y+sr.height/2);
+                            var start = new Vector2(WindowPos.x + sr.x + sr.width, WindowPos.y + sr.y + sr.height / 2);
                             foreach(var next in node.outputs)
                             {
                                 if(next.tier != next_tier) continue;
                                 var er = (next as PrettyNode).button_rect;
-                                var end = new Vector2(WindowPos.x+er.x, WindowPos.y+er.y+sr.height/2);
+                                var end = new Vector2(WindowPos.x + er.x, WindowPos.y + er.y + sr.height / 2);
                                 Drawing.DrawLine(start, end, next.part.Active? Colors.Good : inactive, 1, true);
                             }
                         }

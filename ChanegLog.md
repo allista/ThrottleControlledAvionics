@@ -2,7 +2,13 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.5.3**
+* **v3.5.4**
+    * Improved Land (from orbit) and Ballistic Jump autopilots with adaptations for new aerodynamic 
+    model of KSP 1.4.5+
+    * Fixed stucking in "Testing aerobrakes" fase of the landing when no aerobrakes are present.
+    * Other minor fixes in landing logic.
+
+* v3.5.3
     * Added **TCA grouping** to facilitate docking/undocking with retaining of configurations
         * Added the ability to manually activate any TCA instance of the vessel to have, e.g. different TCA Modules enabled.
     * Various bugfixes.

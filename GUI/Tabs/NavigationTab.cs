@@ -312,7 +312,6 @@ namespace ThrottleControlledAvionics
                 GUILayout.EndVertical();
             }
         }
-
         //FIXME: this is a real FPS hog!!!
         public void WaypointList()
         {

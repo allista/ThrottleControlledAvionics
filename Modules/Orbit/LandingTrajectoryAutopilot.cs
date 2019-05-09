@@ -364,7 +364,7 @@ namespace ThrottleControlledAvionics
         {
             if(VSL.Controls.CanWarp)
                 VSL.Controls.WarpToTime = VSL.Physics.UT + (VSL.Info.Countdown > 0 ?
-                                                          Utils.ClampH(VSL.Info.Countdown, 60) : 60);
+                                                            Utils.ClampH(VSL.Info.Countdown, 60) : 60);
             else
                 VSL.Controls.StopWarp();
         }
@@ -922,7 +922,7 @@ namespace ThrottleControlledAvionics
                 else
                 {
                     brakes_on_if_requested();
-                    if(trajectory.DistanceToTarget*2 > CFG.Target.DistanceTo(VSL.vessel))
+                    if(trajectory.DistanceToTarget * 2 > CFG.Target.DistanceTo(VSL.vessel))
                     {
                         decelerate(false);
                         break;
@@ -995,8 +995,8 @@ namespace ThrottleControlledAvionics
                         (!VSL.OnPlanetParams.HaveParachutes ||
                          VSL.OnPlanetParams.ParachutesActive && VSL.OnPlanetParams.ParachutesDeployed)))
                         Working = true;
-                    else if(VSL.Info.Countdown > 0.5f)
-                        Working = false;
+                    else
+                        Working &= VSL.Info.Countdown <= 0.5f;
                     if(Working)
                     {
                         THR.CorrectThrottle = false;
@@ -1354,7 +1354,7 @@ namespace ThrottleControlledAvionics
 
         public void Start(Coordinates pos, int num_points_per_frame, double tol)
         {
-            base.Start(pos, num_points_per_frame);
+            Start(pos, num_points_per_frame);
             optimizer = new CDOS_Optimizer2D_Generic(pos.Lat, pos.Lon, delta * 10, tol * delta, 1e-7, calculate_unevenness, good_point);
         }
 
