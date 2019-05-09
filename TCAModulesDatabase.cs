@@ -11,7 +11,6 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
-using System.IO;
 using UnityEngine;
 using AT_Utils;
 
@@ -23,7 +22,7 @@ namespace ThrottleControlledAvionics
         static Type[] tca_modules = null;
         public static Type[] ValidModules
         {
-            get 
+            get
             {
                 if(tca_modules == null)
                     tca_modules = Assembly.GetExecutingAssembly().GetTypes().Where(ValidModule).ToArray();
@@ -39,8 +38,8 @@ namespace ThrottleControlledAvionics
         {
             if(route == null) route = new List<Type>();
             if(route.Contains(m))
-                throw new ApplicationException(string.Format("Circular TCAModule dependency detected:\n{0}", 
-                                                             route.Aggregate("", (s, t) => s+t.Name+"->")+m.Name));
+                throw new ApplicationException(string.Format("Circular TCAModule dependency detected:\n{0}",
+                                                             route.Aggregate("", (s, t) => s + t.Name + "->") + m.Name));
             if(RegisteredModules.ContainsKey(m) && !Pipeline.Contains(m))
             {
                 route.Add(m);
@@ -64,7 +63,7 @@ namespace ThrottleControlledAvionics
             var user_meta = GetModuleMeta(user);
             if(user_meta != null) user_meta.Optional.Add(optional);
         }
-        
+
         void Awake()
         {
             //register modules
@@ -93,39 +92,39 @@ namespace ThrottleControlledAvionics
                 }
             }
 
-            #if DEBUG
+#if DEBUG
             Utils.Log("\nTCA Modules in the ModulesDatabase:\n{}", 
                       RegisteredModules.Aggregate("", (s, t) => s + t.Value + "\n\n"));
             Utils.Log("Pipeline: {}", Pipeline.Aggregate("", (s, t) => s + t.Name + "->"));
             Utils.Log("AP Pipeline: {}", Pipeline.Where(m => m.IsSubclassOf(typeof(AutopilotModule))).Aggregate("", (s, t) => s + t.Name + "->"));
             File.WriteAllText("ModuleDatabase.csv",
                               RegisteredModules.Aggregate("", (s, t) => s + t.Value.ToCSV() + "\n"));
-            #endif
+#endif
         }
 
         public static bool ValidModule(Type module)
         { return module.IsSubclassOf(typeof(TCAModule)) && !module.IsAbstract; }
 
         public static ModuleMeta GetModuleMeta(Type t)
-        { 
+        {
             ModuleMeta meta = null;
-            return RegisteredModules.TryGetValue(t, out meta)? meta : null;
+            return RegisteredModules.TryGetValue(t, out meta) ? meta : null;
         }
 
-        public static bool ModuleAvailable(Type mtype, VesselConfig CFG) 
-        { 
+        public static bool ModuleAvailable(Type mtype, VesselConfig CFG)
+        {
             if(!ValidModule(mtype)) return false;
             var meta = GetModuleMeta(mtype);
             if(meta == null) return true;
             if(CFG != null && !CFG.EnabledTCAParts.Contains(meta.PartName)) return false;
             if(!Globals.Instance.IntegrateIntoCareer) return true;
-            return (string.IsNullOrEmpty(meta.PartName) || 
+            return (string.IsNullOrEmpty(meta.PartName) ||
                     Utils.PartIsPurchased(meta.PartName))
                 && meta.Requires.All(m => ModuleAvailable(m, CFG));
         }
 
         static TCAModule create_module(Type mtype, ModuleTCA TCA)
-        { return ModuleAvailable(mtype, TCA.CFG)? TCA.CreateComponent(mtype) as TCAModule : null; }
+        { return ModuleAvailable(mtype, TCA.CFG) ? TCA.CreateComponent(mtype) as TCAModule : null; }
 
         public static void InitModules(ModuleTCA TCA)
         {
@@ -172,7 +171,7 @@ namespace ThrottleControlledAvionics
         public static List<FieldInfo> GetAllModuleFields(Type t, List<FieldInfo> list = null)
         {
             if(list == null) list = new List<FieldInfo>();
-            list.AddRange(t.GetFields(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.FlattenHierarchy)
+            list.AddRange(t.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy)
                           .Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))));
             if(t.BaseType != null) GetAllModuleFields(t.BaseType, list);
             return list;
@@ -190,8 +189,8 @@ namespace ThrottleControlledAvionics
         }
     }
 
-    [AttributeUsage(AttributeTargets.Class, 
-                    Inherited = false, 
+    [AttributeUsage(AttributeTargets.Class,
+                    Inherited = false,
                     AllowMultiple = true)]
     public abstract class Relation : Attribute
     {
@@ -205,14 +204,14 @@ namespace ThrottleControlledAvionics
     }
 
     public class RequireModules : Relation
-    { public RequireModules(params Type[] modules) : base(modules) {} }
+    { public RequireModules(params Type[] modules) : base(modules) { } }
     public class OptionalModules : Relation
-    { public OptionalModules(params Type[] modules) : base(modules) {} }
+    { public OptionalModules(params Type[] modules) : base(modules) { } }
 
     public class ModuleInputs : Relation
-    { public ModuleInputs(params Type[] modules) : base(modules) {} }
+    { public ModuleInputs(params Type[] modules) : base(modules) { } }
     public class OverrideModules : ModuleInputs
-    { public OverrideModules(params Type[] modules) : base(modules) {} }
+    { public OverrideModules(params Type[] modules) : base(modules) { } }
 
     public class CareerPart : Attribute
     {
@@ -229,7 +228,7 @@ namespace ThrottleControlledAvionics
 
         public HashSet<Type> Requires = new HashSet<Type>();
         public HashSet<Type> Optional = new HashSet<Type>();
-        public HashSet<Type> Input    = new HashSet<Type>();
+        public HashSet<Type> Input = new HashSet<Type>();
 
         public bool Valid { get { return HasMeta(Module); } }
 
@@ -240,9 +239,9 @@ namespace ThrottleControlledAvionics
         { return Attribute.GetCustomAttributes(t, typeof(A)) as A[]; }
 
         public static bool HasMeta(Type t)
-        { 
+        {
             if(GetAttr<CareerPart>(t) != null) return true;
-            var rels = GetAttrs<Relation>(t); 
+            var rels = GetAttrs<Relation>(t);
             return rels != null && rels.Length > 0;
         }
 
@@ -265,10 +264,10 @@ namespace ThrottleControlledAvionics
         {
             Module = module;
             var partname = GetAttr<CareerPart>(Module);
-            if(partname != null) 
+            if(partname != null)
             {
                 PartName = "TCAModule";
-                PartName += string.IsNullOrEmpty(partname)? Module.Name : partname;
+                PartName += string.IsNullOrEmpty(partname) ? Module.Name : partname;
             }
             AddToSet<RequireModules>(ref Requires);
             AddToSet<OptionalModules>(ref Optional);
@@ -288,7 +287,7 @@ namespace ThrottleControlledAvionics
         {
             return string.Format("{0} [{1}]\nRequires: {2}\nOptional: {3}\nInput: {4}",
                                  Module.Name ?? "null",
-                                 string.IsNullOrEmpty(PartName)? "always available" : PartName,
+                                 string.IsNullOrEmpty(PartName) ? "always available" : PartName,
                                  Requires.Aggregate("", (s, t) => s + t.Name + " "),
                                  Optional.Aggregate("", (s, t) => s + t.Name + " "),
                                  Input.Aggregate("", (s, t) => s + t.Name + " "));
@@ -323,7 +322,7 @@ namespace ThrottleControlledAvionics
         {
             if(module.PartName != Name)
             {
-                Utils.Log("PartMeta[{}]: trying to add {} that belongs to the {}", 
+                Utils.Log("PartMeta[{}]: trying to add {} that belongs to the {}",
                           Name, module.Module.Name, module.PartName);
                 return;
             }
@@ -331,16 +330,16 @@ namespace ThrottleControlledAvionics
         }
 
         public void UpdateInfo(VesselConfig CFG = null)
-        { 
+        {
             if(info == null)
             {
-                info = PartLoader.getPartInfoByName(Name); 
+                info = PartLoader.getPartInfoByName(Name);
                 if(info != null)
                 {
                     Title = info.title;
                     Description = info.description;
                 }
-                if(string.IsNullOrEmpty(Title)) 
+                if(string.IsNullOrEmpty(Title))
                     Title = Utils.ParseCamelCase(Name);
             }
             Purchased = Utils.PartIsPurchased(Name);
@@ -378,7 +377,7 @@ namespace ThrottleControlledAvionics
     {
         public List<T> roots = new List<T>();
         public List<T> leafs = new List<T>();
-        public SortedList<int,List<T>> tiers;
+        public SortedList<int, List<T>> tiers;
 
         static void sort_into_tiers(T node, HashSet<T> nodes, int tier = 1)
         {
@@ -405,7 +404,7 @@ namespace ThrottleControlledAvionics
                 List<T> tier;
                 if(tiers.TryGetValue(node.tier, out tier))
                     tier.Add(node);
-                else tiers.Add(node.tier, new List<T>{node});
+                else tiers.Add(node.tier, new List<T> { node });
             }
             tiers.ForEach(t => t.Value.Sort((a, b) => b.outputs.Count.CompareTo(a.outputs.Count)));
         }
@@ -413,7 +412,7 @@ namespace ThrottleControlledAvionics
         public static G BuildGraph<G>(IEnumerable<TCAPart> parts)
             where G : TCAPartGraph<T>, new()
         {
-            var nodes  = new List<T>();
+            var nodes = new List<T>();
             var lookup = new Dictionary<Type, T>();
             foreach(var part in parts)
             {
@@ -422,7 +421,7 @@ namespace ThrottleControlledAvionics
                 part.Modules.ForEach(m => lookup.Add(m.Module, node));
                 nodes.Add(node);
             }
-            foreach(var node in nodes) 
+            foreach(var node in nodes)
             {
                 foreach(var module in node.part.Modules)
                 {
@@ -431,8 +430,8 @@ namespace ThrottleControlledAvionics
                         T input;
                         if(lookup.TryGetValue(req, out input))
                         { if(input != node) node.AddInput(input); }
-//                        Utils.Log("Node: {}, {} requires {}, input part {}\ninputs {}\noutputs {}", 
-//                                  node, module.Module, req, input, node.inputs, node.outputs);//debug
+                        //                        Utils.Log("Node: {}, {} requires {}, input part {}\ninputs {}\noutputs {}", 
+                        //                                  node, module.Module, req, input, node.inputs, node.outputs);//debug
                     }
                 }
             }
