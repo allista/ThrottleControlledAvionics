@@ -209,14 +209,14 @@ namespace ThrottleControlledAvionics
             if(Utils.ButtonSwitch("AutoSave", ref Globals.Instance.AutosaveBeforeLanding,
                                   "Automatically save the game before executing complex autopilot programs",
                                   GUILayout.ExpandWidth(true)))
-                Globals.Save();
+                Globals.Save(":AutosaveBeforeLanding");
             if(Utils.ButtonSwitch(Globals.Instance.UseStockAppLauncher ? "Launcher" : "Toolbar",
                                   ref Globals.Instance.UseStockAppLauncher,
                                   "Use stock AppLauncher or Toolbar plugin?",
                                   GUILayout.ExpandWidth(true)))
             {
                 TCAToolbarManager.Init();
-                Globals.Save();
+                Globals.Save(":UseStockAppLauncher");
             }
             Utils.ButtonSwitch("AutoShow", ref UI.ShowOnHover,
                                "Show collapsed TCA window when mouse hovers over it", 
