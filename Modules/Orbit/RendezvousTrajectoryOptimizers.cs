@@ -38,19 +38,24 @@ namespace ThrottleControlledAvionics
             public abstract IEnumerator<RendezvousTrajectory> GetEnumerator();
 
             System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-            { return GetEnumerator(); }
+            {
+                return GetEnumerator();
+            }
 
             protected bool trajectory_is_better(RendezvousTrajectory t)
             {
                 //always accept the first trajecotry
-                if(Best == null) return true;
+                if(Best == null)
+                    return true;
                 //between two killers choose the one with greater PeR
                 if(t.KillerOrbit && Best.KillerOrbit)
                     return t.Orbit.PeR > Best.Orbit.PeR;
                 //if current is a killer, it's no better
-                if(t.KillerOrbit) return false;
+                if(t.KillerOrbit)
+                    return false;
                 //if best is still a killer, any non-killer is better
-                if(Best.KillerOrbit) return true;
+                if(Best.KillerOrbit)
+                    return true;
                 //if best is has negligable maneuver dV, or current misses the target,
                 //compare qualities
                 var bestDeltaV = Best.ManeuverDeltaV.sqrMagnitude;
@@ -77,7 +82,8 @@ namespace ThrottleControlledAvionics
                 get
                 {
                     var s = ProgressIndicator.Get + " searching for the best trajectory";
-                    if(Best == null) return s + "...";
+                    if(Best == null)
+                        return s + "...";
                     return s + "\n" + BestDesc;
                 }
             }
@@ -105,7 +111,8 @@ namespace ThrottleControlledAvionics
                 {
                     var t = ren.new_trajectory(start, transfer);
                     var is_better = trajectory_is_better(t);
-                    if(is_better) Best = t;
+                    if(is_better)
+                        Best = t;
                     minStartUT = ren.VSL.Physics.UT + ren.CorrectionOffset;
                     if(start - minStartUT < t.ManeuverDuration / 2)
                         start = minStartUT + t.ManeuverDuration / 2 +
@@ -120,7 +127,7 @@ namespace ThrottleControlledAvionics
                         scanned = true;
                     }
                     //ren.Log("startT {}, transfer {}, Trajectory {}",
-                            //start-ren.VSL.Physics.UT, transfer, t);//debug
+                    //start-ren.VSL.Physics.UT, transfer, t);//debug
                     yield return t;
                 }
             }
@@ -147,7 +154,8 @@ namespace ThrottleControlledAvionics
                 {
                     var t = ren.new_trajectory(start, maxStartUT - start);
                     var is_better = trajectory_is_better(t);
-                    if(is_better) Best = t;
+                    if(is_better)
+                        Best = t;
                     minStartUT = ren.VSL.Physics.UT + ren.CorrectionOffset;
                     start = t.StartUT + dt;
                     if(scanned && (start >= maxStartUT || start <= minStartUT ||
@@ -190,7 +198,8 @@ namespace ThrottleControlledAvionics
                 {
                     trajectory = opt.ren.new_trajectory(start, transfer);
                     transfer = trajectory.TransferTime;
-                    if(with_distance) UpdateDist();
+                    if(with_distance)
+                        UpdateDist();
                 }
 
                 public void UpdateDist()
@@ -228,19 +237,29 @@ namespace ThrottleControlledAvionics
                 }
 
                 public static bool operator <(Point a, Point b)
-                { return a.distance < b.distance; }
+                {
+                    return a.distance < b.distance;
+                }
 
                 public static bool operator >(Point a, Point b)
-                { return a.distance < b.distance; }
+                {
+                    return a.distance < b.distance;
+                }
 
                 public static Vector2d Delta(Point a, Point b)
-                { return new Vector2d(b.start - a.start, b.transfer - a.transfer); }
+                {
+                    return new Vector2d(b.start - a.start, b.transfer - a.transfer);
+                }
 
                 public static double DistK(Point a, Point b)
-                { return 1 - Math.Abs(a.distance - b.distance) / Math.Max(a.distance, b.distance); }
+                {
+                    return 1 - Math.Abs(a.distance - b.distance) / Math.Max(a.distance, b.distance);
+                }
 
                 public static bool Close(Point a, Point b)
-                { return Math.Abs(a.start - b.start) < 10 && Math.Abs(a.transfer - b.transfer) < 10; }
+                {
+                    return Math.Abs(a.start - b.start) < 10 && Math.Abs(a.transfer - b.transfer) < 10;
+                }
 
                 public bool Better(Point b)
                 {
@@ -282,7 +301,9 @@ namespace ThrottleControlledAvionics
 
                 #region IEquatable implementation
                 public bool Equals(Point other)
-                { return start.Equals(other.start) && transfer.Equals(other.transfer); }
+                {
+                    return start.Equals(other.start) && transfer.Equals(other.transfer);
+                }
                 #endregion
             }
 
@@ -292,7 +313,7 @@ namespace ThrottleControlledAvionics
             List<Point> start_points = new List<Point>();
             List<Point> best_points = new List<Point>();
 
-            #if DEBUG
+#if DEBUG
             void LogP(Point p, string tag = "")
             {
                 //                Utils.Log("{}, startT {}, transfer {}, dist {}, dir.x {}, dir.y {}, dT {}, dDist {}",
@@ -300,8 +321,11 @@ namespace ThrottleControlledAvionics
                 DebugUtils.CSV("CDOS_test.csv", tag, p.start, p.transfer, p.distance, dir.x, dir.y, dDist, feasible_point(p), DateTime.Now.ToShortTimeString());
             }
 
-            void LogP(string tag = "") { LogP(P, tag); }
-            #endif
+            void LogP(string tag = "")
+            {
+                LogP(P, tag);
+            }
+#endif
 
             public CDOS_Optimizer2D(RendezvousAutopilot ren,
                                     double minStartUT, double maxStartUT,
@@ -346,7 +370,8 @@ namespace ThrottleControlledAvionics
                 {
                     P.UpdateTrajectory();
                     yield return P.trajectory;
-                    if(feasible_point(P)) break;
+                    if(feasible_point(P))
+                        break;
                     P.transfer += dT;
                 }
                 P.UpdateDist();
@@ -383,7 +408,8 @@ namespace ThrottleControlledAvionics
                        !bestOK && (tOK || cur.trajectory.Orbit.PeR > bestP.trajectory.Orbit.PeR))
                     {
                         //always add the first feasable point
-                        if(tOK && !bestOK) start_points.Add(cur);
+                        if(tOK && !bestOK)
+                            start_points.Add(cur);
                         bestP = cur;
                         bestOK = tOK;
                     }
@@ -393,7 +419,8 @@ namespace ThrottleControlledAvionics
                         if(minZ.True && feasible_point(prev))
                             start_points.Add(prev);
                         var step_k = Point.DistK(prev, cur);
-                        if(step_k.Equals(0)) step_k = 1;
+                        if(step_k.Equals(0))
+                            step_k = 1;
                         prev = cur;
                         cur.start += dT * step_k;
                     }
@@ -411,7 +438,8 @@ namespace ThrottleControlledAvionics
                 if(!bestOK)
                 {
                     P = bestP;
-                    foreach(var t in find_first_point()) yield return t;
+                    foreach(var t in find_first_point())
+                        yield return t;
                     bestP = P;
                 }
                 if(!start_points.Contains(bestP))
@@ -420,7 +448,8 @@ namespace ThrottleControlledAvionics
                 for(int i = 0, minimaCount = start_points.Count; i < minimaCount; i++)
                 {
                     P = start_points[i];
-                    foreach(var t in find_minimum(dT, true)) yield return t;
+                    foreach(var t in find_minimum(dT, true))
+                        yield return t;
                     start_points[i] = P;
                 }
             }
@@ -449,10 +478,13 @@ namespace ThrottleControlledAvionics
                         if(no_scan || !scan_finished || dD > 0.1 || dt > 0.1)
                         {
                             path = 0.0;
-                            if(dir.x.Equals(0) && Math.Abs(cur.transfer - requestedTT) > 1) dt /= 2;
-                            else if(scan_finished) dt *= 1.4;
+                            if(dir.x.Equals(0) && Math.Abs(cur.transfer - requestedTT) > 1)
+                                dt /= 2;
+                            else if(scan_finished)
+                                dt *= 1.4;
                         }
-                        else break;
+                        else
+                            break;
                     }
                     else if(scan_finished)
                     {
@@ -493,20 +525,24 @@ namespace ThrottleControlledAvionics
             IEnumerable<RendezvousTrajectory> shift_and_find(double dt, double stride = 1)
             {
                 P0 = P;
-                foreach(var t in orto_shift(0.62 * dt)) yield return t;
-                foreach(var t in find_minimum(dt, true)) yield return t;
+                foreach(var t in orto_shift(0.62 * dt))
+                    yield return t;
+                foreach(var t in find_minimum(dt, true))
+                    yield return t;
                 if(P0 < P)
                 {
                     set_dir(Point.Delta(P, P0).normalized);
                     P = P0;
                 }
-                else set_dir(Point.Delta(P0, P).normalized);
+                else
+                    set_dir(Point.Delta(P0, P).normalized);
                 if(P.start < minStartUT + 1 && dir.x < 0)
                 {
                     dir.x = 0.1;
                     dir.y = Math.Sign(dir.y);
                 }
-                foreach(var t in find_minimum(stride * dt)) yield return t;
+                foreach(var t in find_minimum(stride * dt))
+                    yield return t;
                 dDist = P.distance.Equals(double.MaxValue) || P0.distance.Equals(double.MaxValue) ?
                          -1 : Math.Abs(P.distance - P0.distance);
                 if(P0 < P)
@@ -519,8 +555,10 @@ namespace ThrottleControlledAvionics
             IEnumerable<RendezvousTrajectory> build_conjugate_set(double dt)
             {
                 set_dir(new Vector2d(0, 1));
-                foreach(var t in find_minimum(dt)) yield return t;
-                foreach(var t in shift_and_find(dt)) yield return t;
+                foreach(var t in find_minimum(dt))
+                    yield return t;
+                foreach(var t in shift_and_find(dt))
+                    yield return t;
             }
 
             IEnumerable<RendezvousTrajectory> full_search(double dt)
@@ -529,10 +567,13 @@ namespace ThrottleControlledAvionics
                     yield return t;
                 while(dt > 0.1 || dDist > 0.1 || dDist < 0)
                 {
-                    if(need_to_stop) yield break;
-                    foreach(var t in shift_and_find(dt, 3)) yield return t;
+                    if(need_to_stop)
+                        yield break;
+                    foreach(var t in shift_and_find(dt, 3))
+                        yield return t;
                     dt = 0.3 * Point.Delta(P0, P).magnitude + 0.1 * dt;
-                    if(dt.Equals(0)) dt = 1;
+                    if(dt.Equals(0))
+                        dt = 1;
                 }
             }
 
@@ -561,16 +602,20 @@ namespace ThrottleControlledAvionics
                 start_points.Clear();
                 P.UpdateTrajectory(true);
                 add_end_point();
-                foreach(var t in scan_start_time()) yield return t;
+                foreach(var t in scan_start_time())
+                    yield return t;
                 var bestP = P;
                 Best = bestP.trajectory;
-                if(P.trajectory.DistanceToTarget < C.Dtol) best_points.Add(P);
+                if(P.trajectory.DistanceToTarget < C.Dtol)
+                    best_points.Add(P);
                 for(int i = 0, count = start_points.Count; i < count; i++)
                 {
-                    if(need_to_stop) yield break;
+                    if(need_to_stop)
+                        yield break;
                     progress = (i + 1f) / (count + 1);
                     P = start_points[i];
-                    foreach(var t in full_search(dT)) yield return t;
+                    foreach(var t in full_search(dT))
+                        yield return t;
                     if(!manual_stop &&
                        (ren.mode != Mode.Manual || best_points.Count == 0) &&
                        P.Better(bestP))
@@ -593,7 +638,8 @@ namespace ThrottleControlledAvionics
                 if(ren.mode == Mode.Manual && best_points.Count > 1)
                 {
                     add_best_node();
-                    while(!manual_stop) yield return null;
+                    while(!manual_stop)
+                        yield return null;
                 }
             }
 
@@ -618,13 +664,15 @@ namespace ThrottleControlledAvionics
             Vector2 scroll = Vector2.zero;
             public void DrawBestTrajecotries()
             {
-                if(manual_stop) return;
+                if(manual_stop)
+                    return;
                 GUILayout.BeginVertical();
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("Sort by:", GUILayout.ExpandWidth(false));
                 var old_order = sort_order;
                 sort_order = GUILayout.Toolbar(sort_order, sorting, GUILayout.ExpandWidth(true));
-                if(sort_order != old_order) sort_best_points();
+                if(sort_order != old_order)
+                    sort_best_points();
                 GUILayout.EndHorizontal();
                 scroll = GUILayout.BeginScrollView(scroll, Styles.white, GUILayout.Height(75));
                 foreach(var p in best_points)
@@ -652,16 +700,19 @@ namespace ThrottleControlledAvionics
                     var s = ProgressIndicator.Get +
                                              (ren.mode == Mode.Manual ?
                          " searching for transfers" : " searching for the best transfer");
-                    if(Best == null) return s + "...";
+                    if(Best == null)
+                        return s + "...";
                     return s + string.Format(" {0:P0}\n", progress) + BestDesc;
                 }
             }
         }
         #endregion
 
-        #if DEBUG
+#if DEBUG
         static void log_patches(Orbit o, string tag)
-        { Utils.Log(Utils.formatPatches(o, tag)); }
+        {
+            Utils.Log(Utils.formatPatches(o, tag));
+        }
 
         public static bool _CalculatePatch(Orbit p, Orbit nextPatch, double startEpoch, PatchedConics.SolverParameters pars, CelestialBody targetBody)
         {
@@ -675,7 +726,8 @@ namespace ThrottleControlledAvionics
             for(int i = 0; i < count; i++)
             {
                 OrbitDriver orbitDriver = Planetarium.Orbits[i];
-                if(orbitDriver.orbit == p) continue;
+                if(orbitDriver.orbit == p)
+                    continue;
                 if(orbitDriver.celestialBody)
                 {
                     if(targetBody == null)
@@ -686,7 +738,7 @@ namespace ThrottleControlledAvionics
                     {
                         goto IL_B6;
                     }
-                    IL_C5:
+                IL_C5:
                     if(orbitDriver.referenceBody == p.referenceBody)
                     {
                         var enc = PatchedConics.CheckEncounter(p, nextPatch, startEpoch, orbitDriver, targetBody, pars);
@@ -695,11 +747,12 @@ namespace ThrottleControlledAvionics
                         goto IL_FA;
                     }
                     goto IL_FA;
-                    IL_B6:
+                IL_B6:
                     p.closestTgtApprUT = 0.0;
                     goto IL_C5;
                 }
-                IL_FA:;
+            IL_FA:
+                ;
             }
             log_patches(p, "Patch 1");
             if(p.patchEndTransition == Orbit.PatchTransitionType.FINAL)
@@ -740,7 +793,7 @@ namespace ThrottleControlledAvionics
                     }
                 }
             }
-            IL_2C0:
+        IL_2C0:
             nextPatch.StartUT = p.EndUT;
             double arg_2FD_1;
             if(nextPatch.eccentricity < 1.0)
@@ -757,6 +810,6 @@ namespace ThrottleControlledAvionics
             log_patches(p, "Patch 2");
             return p.patchEndTransition != Orbit.PatchTransitionType.FINAL;
         }
-        #endif
+#endif
     }
 }
