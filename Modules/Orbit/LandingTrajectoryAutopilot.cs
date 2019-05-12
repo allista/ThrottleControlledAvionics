@@ -263,20 +263,23 @@ namespace ThrottleControlledAvionics
             if(trajectory.DistanceToTarget < C.Dtol && enough_fuel) return true;
             if(!enough_fuel)
             {
-                status += string.Format("<b>WARNING</b>: Fuel is <color=magenta><b>{0:P0}</b></color> below safe margin for powered landing.\n",
-                                        (needed_hover_time - hover_time) / needed_hover_time);
+                status += "<b>WARNING</b>: Fuel is " +
+                          Colors.Selected2.Tag("<b>{0:P0}</b>", 
+                                               (needed_hover_time - hover_time) / needed_hover_time) +
+                          "below safe margin for powered landing.\n";
                 if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
                     status += "<i>Landing with parachutes may be possible, " +
-                        "but you're advised to supervise the process.</i>\n";
+                              "but you're advised to supervise the process.</i>\n";
             }
             if(trajectory.DistanceToTarget > C.Dtol)
-                status += string.Format("<b>WARNING</b>: Predicted landing site is too far from the target.\n" +
-                                        "Error is <color=magenta><b>{0}</b></color>\n",
-                                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+                status += "<b>WARNING</b>: Predicted landing site is too far from the target.\nError is " +
+                          Colors.Selected2.Tag("<b>{0}</b>\n",
+                                               Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
             if(trajectory.WillOverheat)
-                status += string.Format("<b>WARNING</b>: predicted reentry temperature is <color=magenta><b>{0:F0}K</b></color>\n" +
-                                        "<color=red><b>The ship may loose integrity and explode!</b></color>\n", trajectory.MaxShipTemperature);
-            status += "\n<color=red><b>Push to proceed. At your own risk.</b></color>";
+                status += "<b>WARNING</b>: predicted reentry temperature is " +
+                          Colors.Selected2.Tag("<b>{0:F0}K</b>\n", trajectory.MaxShipTemperature) +
+                          Colors.Danger.Tag("<b>The ship may loose integrity and explode!</b>\n");
+            status += Colors.Danger.Tag("\n<b>Push to proceed. At your own risk.</b>");
             Status(Colors.Warning, status);
             return false;
         }
@@ -665,7 +668,9 @@ namespace ThrottleControlledAvionics
                 scanner.Start(CFG.Target.Pos, C.PointsPerFrame, 0.01);
                 scanner.MaxDist = CorrectionMaxDist.Value * 1000;
             }
-            Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", scanner.Progress);
+            Status("Scanning for {0} surface to land: {1)",
+                   Colors.Active.Tag("<b>flat</b>"),
+                   Colors.Good.Tag(scanner.Progress.ToString("P1")));
             if(scanner.Scan()) return;
             flat_target = scanner.FlatRegion != null && (!scanner.FlatRegion.Equals(CFG.Target.Pos) || !CFG.Target.IsVessel);
             if(flat_target)

@@ -366,7 +366,7 @@ namespace ThrottleControlledAvionics
                 else if(!VSL.LandedOrSplashed) 
                 {
                     if(EnabledBlinker.On) enabled_style = Styles.danger_button;
-                    Status(0.1, "red", "<b>TCA is disabled</b>");
+                    Status(0.1, Colors.Danger, "<b>TCA is disabled</b>");
                 }
                 if(GUILayout.Button("Enabled", enabled_style, GUILayout.Width(70)))
                     TCA.ToggleTCA();

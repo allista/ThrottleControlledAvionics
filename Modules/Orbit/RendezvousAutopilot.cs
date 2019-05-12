@@ -925,7 +925,8 @@ namespace ThrottleControlledAvionics
                         if(threshold > 0)
                         {
                             TmpStatus("Matching orbits at nearest approach...\n" +
-                                      "<color=yellow><b>PROXIMITY ALERT!</b></color> Clearence {0:F1} m",
+                                      "{0} Clearence {1:F1} m",
+                                      Colors.Warning.Tag("<b>PROXIMITY ALERT!</b>"),
                                       trajectory.DistanceToTarget);
                             var correction = Vector3d.Exclude(RelPos, -trajectory.AtTargetRelPos).normalized *
                                 threshold / Utils.Clamp(trajectory.TimeToTarget / 2, 0.1, 10);

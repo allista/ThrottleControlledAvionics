@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -64,10 +65,10 @@ namespace ThrottleControlledAvionics
                 get
                 {
                     var tts = Best.TimeToStart;
-                    return string.Format("T- {0}  ETA <color=lime>{1}</color>  dV: <color=yellow><b>{2:F1}</b> m/s</color>",
+                    return string.Format("T- {0}  ETA {1}  dV: {2}",
                                          Utils.formatTimeDelta(tts),
-                                         Utils.formatTimeDelta(tts + Best.TransferTime),
-                                         Best.GetTotalDeltaV());
+                                         Colors.Enabled.Tag(Utils.formatTimeDelta(tts + Best.TransferTime)),
+                                         Colors.Enabled.Tag("<b>{2:F1}</b> m/s", Best.GetTotalDeltaV()));
                 }
             }
 
@@ -260,19 +261,21 @@ namespace ThrottleControlledAvionics
                 {
                     GUILayout.BeginHorizontal();
                     var tts = trajectory.TimeToStart;
-                    var label = string.Format("ETA:  <color=lime>{0}</color>\n" +
-                                              "Node: <color={1}>{2}</color>",
-                                              Utils.formatTimeDelta(tts + transfer),
-                                              tts > opt.ren.ManeuverOffset ? "white" : "red",
-                                              Utils.formatTimeDelta(tts));
+                    var tts_str = Utils.formatTimeDelta(tts);
+                    var label = string.Format("ETA:  {0}\n" +
+                                              "Node: {1}",
+                                              Colors.Good.Tag(Utils.formatTimeDelta(tts + transfer)),
+                                              tts > opt.ren.ManeuverOffset ?
+                                              Colors.Neutral.Tag(tts_str) : Colors.Danger.Tag(tts_str));
                     var sel = GUILayout.Button(new GUIContent(label, "Press to select this transfer"),
                                                Styles.rich_label, GUILayout.ExpandWidth(false));
                     GUILayout.FlexibleSpace();
-                    GUILayout.Label(string.Format("dV: <color=yellow><b>{0:F1}</b> m/s</color>", trajectory.GetTotalDeltaV()),
+                    GUILayout.Label("dV: " + Colors.Active.Tag("<b>{0:F1}</b> m/s", trajectory.GetTotalDeltaV()),
                                     Styles.rich_label, GUILayout.ExpandWidth(false));
                     GUILayout.FlexibleSpace();
-                    if(selected) GUILayout.Label("<color=lime><b>●</b></color>",
-                                                 Styles.rich_label, GUILayout.ExpandWidth(false));
+                    if(selected)
+                        GUILayout.Label(Colors.Good.Tag("<b>●</b>"),
+                                        Styles.rich_label, GUILayout.ExpandWidth(false));
                     GUILayout.EndHorizontal();
                     return sel;
                 }

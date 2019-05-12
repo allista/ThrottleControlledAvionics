@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -62,7 +63,7 @@ namespace ThrottleControlledAvionics
         public static bool ModuleInstalled { get; private set; }
         public static bool HavePersistentRotation { get; private set; }
         public static string ModuleStatusString()
-        { return HasTCA ? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
+        { return HasTCA ? Colors.Good.Tag("<b>Software Installed</b>") : Colors.Danger.Tag("Unavailable"); }
         #endregion
 
         #region Runtime Interface

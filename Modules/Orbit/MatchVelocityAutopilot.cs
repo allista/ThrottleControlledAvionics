@@ -7,9 +7,9 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-using System;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -214,10 +214,11 @@ namespace ThrottleControlledAvionics
                 case Stage.Start:
                     if(dist > C.MaxApproachDistance)
                     {
-                        Status(string.Format("<color=yellow>WARNING:</color> " +
-                                             "Nearest approach distance is <color=magenta><b>{0}</b></color>\n" +
-                                             "<color=red><b>Push to proceed. At your own risk.</b></color>", 
-                                             Utils.formatBigValue((float)dist, "m")));
+                        Status(Colors.Warning.Tag("WARNING: ") +
+                               "Nearest approach distance is " +
+                               Colors.Selected2.Tag("<b>{0}</b>\n") +
+                               Colors.Danger.Tag("<b>Push to proceed. At your own risk.</b>"),
+                               Utils.formatBigValue((float)dist, "m"));
                         stage = Stage.Wait;
                         goto case Stage.Wait;
                     }
