@@ -101,6 +101,7 @@ namespace ThrottleControlledAvionics
         public override void Awake()
         {
             base.Awake();
+            Styles.onSkinInit += reset_statuses;
             AllTabFields = ControlTab.GetTabFields(GetType());
             AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
             GameEvents.onGameStateSave.Add(save_config);
@@ -117,6 +118,7 @@ namespace ThrottleControlledAvionics
             GameEvents.onGameStateSave.Remove(save_config);
             GameEvents.onVesselChange.Remove(onVesselChange);
             GameEvents.onVesselDestroy.Remove(onVesselDestroy);
+            Styles.onSkinInit -= reset_statuses;
         }
 
         void onVesselDestroy(Vessel vsl)
@@ -257,23 +259,36 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        static string[] statuses = {
-            Colors.Danger.Tag("Obstacle On Course"),
-            Colors.Danger.Tag("Ground Collision Possible"),
-            Colors.Danger.Tag("Loosing Altitude"),
-            Colors.Danger.Tag("Low Control Authority"),
-            Colors.Warning.Tag("Engines Unoptimized"),
-            Colors.Warning.Tag("Ascending"),
-            Colors.Warning.Tag("VTOL Assist On"),
-            Colors.Warning.Tag("Stabilizing Flight"),
-            Colors.Enabled.Tag("Altitude Control"),
-            Colors.Enabled.Tag("Vertical Speed Control"),
-            Colors.Good.Tag("Systems Nominal"),
-            Colors.Warning.Tag("No Active Engines"),
-            Colors.Danger.Tag("No Electric Charge"),
-            Colors.Selected2.Tag("Unknown State"),
-            Colors.Inactive.Tag("Disabled")
-        };
+        static string[] _statuses;
+        static string[] statuses
+        {
+            get
+            {
+                if(_statuses == null)
+                {
+                    _statuses = new[] 
+                    {
+                        Colors.Danger.Tag("Obstacle On Course"),
+                        Colors.Danger.Tag("Ground Collision Possible"),
+                        Colors.Danger.Tag("Loosing Altitude"),
+                        Colors.Danger.Tag("Low Control Authority"),
+                        Colors.Warning.Tag("Engines Unoptimized"),
+                        Colors.Warning.Tag("Ascending"),
+                        Colors.Warning.Tag("VTOL Assist On"),
+                        Colors.Warning.Tag("Stabilizing Flight"),
+                        Colors.Enabled.Tag("Altitude Control"),
+                        Colors.Enabled.Tag("Vertical Speed Control"),
+                        Colors.Good.Tag("Systems Nominal"),
+                        Colors.Warning.Tag("No Active Engines"),
+                        Colors.Danger.Tag("No Electric Charge"),
+                        Colors.Selected2.Tag("Unknown State"),
+                        Colors.Inactive.Tag("Disabled")
+                    };
+                }
+                return _statuses;
+            }
+        }
+        static void reset_statuses() => _statuses = null;
 
         string StatusString()
         {
