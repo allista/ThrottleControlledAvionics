@@ -149,7 +149,7 @@ namespace ThrottleControlledAvionics
             #endif
             if(CFG.BR[BearingMode.Auto] || !DirectionOverride.IsZero())
             {
-                GUILayout.Label("AutoBearing", Styles.green, GUILayout.ExpandWidth(true));
+                GUILayout.Label("AutoBearing", Styles.enabled, GUILayout.ExpandWidth(true));
             }
             else if(CFG.BR[BearingMode.User])
             {

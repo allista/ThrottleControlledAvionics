@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using KSP.UI.Screens;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -22,7 +23,7 @@ namespace ThrottleControlledAvionics
         const string DefaultConstractName = "Untitled Space Craft";
 
         public static bool Available { get; private set; }
-        Dictionary<Type,bool> Modules = new Dictionary<Type, bool>();
+        Dictionary<Type, bool> Modules = new Dictionary<Type, bool>();
         static Texture2D CoM_Icon;
 
         TCAPartsEditor PartsEditor;
@@ -31,6 +32,7 @@ namespace ThrottleControlledAvionics
         ModuleTCA TCA;
         NamedConfig CFG;
         readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
+        readonly List<RCSWrapper> RCS = new List<RCSWrapper>();
         readonly EnginesDB ActiveEngines = new EnginesDB();
         static bool HaveSelectedPart { get { return EditorLogic.SelectedPart != null && EditorLogic.SelectedPart.potentialParent != null; } }
 
@@ -66,7 +68,7 @@ namespace ThrottleControlledAvionics
 
         }
 
-        public override void OnDestroy ()
+        public override void OnDestroy()
         {
             GameEvents.onEditorShipModified.Remove(OnShipModified);
             GameEvents.onEditorLoad.Remove(OnShipLoad);
@@ -85,7 +87,7 @@ namespace ThrottleControlledAvionics
                 foreach(var mi in ap.moduleInfos)
                 {
                     if(mi.moduleName != ModuleTCA.TCA_NAME) continue;
-                    mi.primaryInfo = "<b>TCA:</b> "+info;
+                    mi.primaryInfo = "<b>TCA:</b> " + info;
                     mi.info = info;
                 }
             }
@@ -98,7 +100,7 @@ namespace ThrottleControlledAvionics
         void OnShipLoad(ShipConstruct ship, CraftBrowserDialog.LoadType load_type)
         { init_engines = load_type == CraftBrowserDialog.LoadType.Normal; }
 
-        void OnShipModified(ShipConstruct ship) 
+        void OnShipModified(ShipConstruct ship)
         { update_engines = true; }
 
         void update_modules()
@@ -131,7 +133,7 @@ namespace ThrottleControlledAvionics
             UpdateCFG(TCA_Modules);
             return true;
         }
-        
+
         void UpdateCFG(List<ModuleTCA> TCA_Modules)
         {
             if(CFG == null || TCA_Modules.Count == 0) return;
@@ -174,13 +176,13 @@ namespace ThrottleControlledAvionics
         {
             if(part == null) return;
             var dryMass = part.mass;
-            var wetMass = dryMass+part.GetResourceMass();
+            var wetMass = dryMass + part.GetResourceMass();
             Vector3 pos = Vector3.zero;
-            if (part.physicalSignificance == Part.PhysicalSignificance.FULL)
+            if(part.physicalSignificance == Part.PhysicalSignificance.FULL)
                 pos = part.transform.position + part.transform.rotation * part.CoMOffset;
             else if(part.parent != null)
                 pos = part.parent.transform.position + part.parent.transform.rotation * part.parent.CoMOffset;
-            else if (part.potentialParent != null)
+            else if(part.potentialParent != null)
                 pos = part.potentialParent.transform.position + part.potentialParent.transform.rotation * part.potentialParent.CoMOffset;
             WetCoM += pos * wetMass;
             DryCoM += pos * dryMass;
@@ -189,21 +191,26 @@ namespace ThrottleControlledAvionics
             part.children.ForEach(update_mass_and_CoM);
         }
 
-        void find_engines_recursively(Part part, List<EngineWrapper> engines)
+        void find_engines_recursively(Part part, List<EngineWrapper> engines, List<RCSWrapper> rcs)
         {
             if(part.Modules != null)
+            {
                 engines.AddRange(part.Modules.GetModules<ModuleEngines>()
-                                 .Select(m => new EngineWrapper(m)));
-            part.children.ForEach(p => find_engines_recursively(p, engines));
+                                     .Select(m => new EngineWrapper(m)));
+                rcs.AddRange(part.Modules.GetModules<ModuleRCS>()
+                                     .Select(m => new RCSWrapper(m)));
+            }
+            part.children.ForEach(p => find_engines_recursively(p, engines, rcs));
         }
 
         bool UpdateEngines()
         {
             Engines_highlight.Reset();
             Engines.Clear();
-            if(TCAScenario.HasTCA && EditorLogic.RootPart) 
-                find_engines_recursively(EditorLogic.RootPart, Engines);
-            var ret = Engines.Count > 0;
+            RCS.Clear();
+            if(TCAScenario.HasTCA && EditorLogic.RootPart)
+                find_engines_recursively(EditorLogic.RootPart, Engines, RCS);
+            var ret = Engines.Count > 0 || RCS.Count > 0;
             if(!ret) Reset();
             return ret;
         }
@@ -237,7 +244,7 @@ namespace ThrottleControlledAvionics
             if(selected_parts != null)
                 selected_parts.ForEach(update_mass_and_CoM);
             WetCoM /= Mass; DryCoM /= DryMass;
-            CoM = use_wet_mass? WetCoM : DryCoM;
+            CoM = use_wet_mass ? WetCoM : DryCoM;
         }
 
         void UpdateShipStats()
@@ -258,7 +265,8 @@ namespace ThrottleControlledAvionics
                 if(selected_parts.Count > 0)
                 {
                     var selected_engines = new List<EngineWrapper>();
-                    selected_parts.ForEach(p => find_engines_recursively(p, selected_engines));
+                    var selected_rcs = new List<RCSWrapper>();
+                    selected_parts.ForEach(p => find_engines_recursively(p, selected_engines, selected_rcs));
                     ActiveEngines.AddRange(selected_engines);
                 }
                 if(ActiveEngines.Count > 0)
@@ -280,19 +288,20 @@ namespace ThrottleControlledAvionics
                         if(e.Role != TCARole.MANUAL &&
                            e.Role != TCARole.MANEUVER &&
                            MinLimit > e.limit) MinLimit = e.limit;
-                        e.forceThrustPercentage(e.limit*100);
+                        e.forceThrustPercentage(e.limit * 100);
                     }
-                    var T = thrust.magnitude/Utils.G0;
-                    MinTWR = T/Mass;
-                    MaxTWR = T/DryMass;
+                    var T = thrust.magnitude / Utils.G0;
+                    MinTWR = T / Mass;
+                    MaxTWR = T / DryMass;
                 }
             }
         }
 
         void AutoconfigureProfile()
         {
-            CalculateMassAndCoM(GetSelectedParts());
             var EnginesCount = Engines.Count;
+            if(EnginesCount == 0) return;
+            CalculateMassAndCoM(GetSelectedParts());
             //reset groups; set CoM-coaxial engines to UnBalanced role
             for(int i = 0; i < EnginesCount; i++)
             {
@@ -338,6 +347,7 @@ namespace ThrottleControlledAvionics
                 Available = false;
                 Modules.Clear();
                 Engines.Clear();
+                RCS.Clear();
                 PartsEditor.SetCFG(null);
                 CFG = null;
                 reset = false;
@@ -364,12 +374,12 @@ namespace ThrottleControlledAvionics
                 autoconfigure_profile = false;
                 update_stats = true;
             }
-            if(update_stats) 
+            if(update_stats)
             {
                 UpdateShipStats();
                 update_stats = false;
             }
-            Available |= CFG != null && Engines.Count > 0;
+            Available |= CFG != null && (Engines.Count > 0 || RCS.Count > 0);
             TCA_highlight.Update(Available && doShow);
             Engines_highlight.Update(Available && doShow && show_imbalance && ActiveEngines.Count > 0);
         }
@@ -377,7 +387,7 @@ namespace ThrottleControlledAvionics
         void DrawMainWindow(int windowID)
         {
             //help button
-            if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f), 
+            if(GUI.Button(new Rect(WindowPos.width - 23f, 2f, 20f, 18f),
                           new GUIContent("?", "Help"))) TCAManual.ToggleInstance();
             GUILayout.BeginVertical();
             {
@@ -388,7 +398,7 @@ namespace ThrottleControlledAvionics
                         PartsEditor.Toggle();
                     if(Modules[typeof(MacroProcessor)])
                     {
-                        
+
                         if(TCAMacroEditor.Editing)
                             GUILayout.Label("Edit Macros", Styles.inactive_button, GUILayout.ExpandWidth(true));
                         else if(GUILayout.Button("Edit Macros", Styles.active_button, GUILayout.ExpandWidth(true)))
@@ -407,52 +417,52 @@ namespace ThrottleControlledAvionics
                         {
                             if(Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false)))
                             {
-                                if(!CFG.Enabled) 
+                                if(!CFG.Enabled)
                                     Engines.ForEach(e => e.forceThrustPercentage(100));
                                 CFG.GUIVisible = CFG.Enabled;
                             }
                             if(Modules[typeof(AltitudeControl)])
                             {
-                                if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl], 
+                                if(Utils.ButtonSwitch("Hover", CFG.VF[VFlight.AltitudeControl],
                                                       "Enable Altitude Control", GUILayout.ExpandWidth(false)))
                                     CFG.VF.Toggle(VFlight.AltitudeControl);
-                                Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain, 
+                                Utils.ButtonSwitch("Follow Terrain", ref CFG.AltitudeAboveTerrain,
                                                    "Enable follow terrain mode", GUILayout.ExpandWidth(false));
                             }
                             if(Modules[typeof(VTOLControl)])
                             {
-                                if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL], 
+                                if(Utils.ButtonSwitch("VTOL Mode", CFG.CTRL[ControlMode.VTOL],
                                                       "Keyboard controls thrust direction instead of torque", GUILayout.ExpandWidth(false)))
                                     CFG.CTRL.XToggle(ControlMode.VTOL);
                             }
                             if(Modules[typeof(VTOLAssist)])
-                                Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON, 
+                                Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON,
                                                    "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
                             if(Modules[typeof(FlightStabilizer)])
-                                Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight, 
+                                Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight,
                                                    "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
                             if(Modules[typeof(HorizontalSpeedControl)])
-                                Utils.ButtonSwitch("H-Translation", ref CFG.CorrectWithTranslation, 
+                                Utils.ButtonSwitch("H-Translation", ref CFG.CorrectWithTranslation,
                                                    "Use translation to correct horizontal velocity", GUILayout.ExpandWidth(false));
-                            if(Modules[typeof(CollisionPreventionSystem)]) 
-                                Utils.ButtonSwitch("CPS", ref CFG.UseCPS, 
+                            if(Modules[typeof(CollisionPreventionSystem)])
+                                Utils.ButtonSwitch("CPS", ref CFG.UseCPS,
                                                    "Enable Collistion Prevention System", GUILayout.ExpandWidth(false));
                         }
                         GUILayout.EndHorizontal();
                         GUILayout.BeginHorizontal();
                         {
-                            Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle, 
+                            Utils.ButtonSwitch("AutoThrottle", ref CFG.BlockThrottle,
                                                "Change altitude/vertical velocity using main throttle control", GUILayout.ExpandWidth(true));
-                            if(Utils.ButtonSwitch("SmartEngines", ref CFG.UseSmartEngines, 
+                            if(Utils.ButtonSwitch("SmartEngines", ref CFG.UseSmartEngines,
                                                   "Group engines by thrust direction and automatically use appropriate group for a meneuver", GUILayout.ExpandWidth(true)))
                             { if(CFG.UseSmartEngines) CFG.SmartEngines.OnIfNot(SmartEnginesMode.Best); }
-                            Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear, 
+                            Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear,
                                                "Automatically deploy/retract landing gear when needed", GUILayout.ExpandWidth(true));
-                            Utils.ButtonSwitch("AutoBrakes", ref CFG.AutoBrakes, 
+                            Utils.ButtonSwitch("AutoBrakes", ref CFG.AutoBrakes,
                                                "Automatically ebable/disable brakes when needed", GUILayout.ExpandWidth(true));
-                            Utils.ButtonSwitch("AutoStage", ref CFG.AutoStage, 
+                            Utils.ButtonSwitch("AutoStage", ref CFG.AutoStage,
                                                "Automatically activate next stage when previous falmeouted", GUILayout.ExpandWidth(true));
-                            Utils.ButtonSwitch("AutoChute", ref CFG.AutoParachutes, 
+                            Utils.ButtonSwitch("AutoChute", ref CFG.AutoParachutes,
                                                "Automatically activate parachutes when needed", GUILayout.ExpandWidth(true));
                         }
                         GUILayout.EndHorizontal();
@@ -460,15 +470,18 @@ namespace ThrottleControlledAvionics
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
-                if(GUILayout.Button(new GUIContent("Autoconfigure Active Profile", 
-                                                   "This will overwrite any existing groups and roles"), 
-                                    Styles.danger_button, GUILayout.ExpandWidth(true)))
-                    autoconfigure_profile = true;
-                CFG.EnginesProfiles.Draw(height);
-                if(CFG.ActiveProfile.Changed)
+                if(Engines.Count > 0)
                 {
-                    CFG.ActiveProfile.Apply(Engines);
-                    update_engines = true;
+                    if(GUILayout.Button(new GUIContent("Autoconfigure Active Profile",
+                                                       "This will overwrite any existing groups and roles"),
+                                        Styles.danger_button, GUILayout.ExpandWidth(true)))
+                        autoconfigure_profile = true;
+                    CFG.EnginesProfiles.Draw(height);
+                    if(CFG.ActiveProfile.Changed)
+                    {
+                        CFG.ActiveProfile.Apply(Engines);
+                        update_engines = true;
+                    }
                 }
                 GUILayout.BeginHorizontal(Styles.white);
                 {
@@ -478,7 +491,7 @@ namespace ThrottleControlledAvionics
                     if(Utils.ButtonSwitch(Utils.formatMass(Mass), ref use_wet_mass, "Balance engines using Wet Mass"))
                         update_stats = true;
                     GUILayout.Label("►");
-                    if(Utils.ButtonSwitch(Utils.formatMass(DryMass), !use_wet_mass, "Balance engines using Dry Mass")) 
+                    if(Utils.ButtonSwitch(Utils.formatMass(DryMass), !use_wet_mass, "Balance engines using Dry Mass"))
                     {
                         use_wet_mass = !use_wet_mass;
                         update_stats = true;
@@ -488,8 +501,8 @@ namespace ThrottleControlledAvionics
                         if(ActiveEngines.Count > 0)
                         {
                             GUILayout.Label(new GUIContent(string.Format("TMR: {0:F2} ► {1:F2}", MinTWR, MaxTWR),
-                                                           "Thrust ot Mass Ratio"), 
-                                            Styles.fracStyle(Utils.Clamp(MinTWR-1, 0, 1)));
+                                                           "Thrust ot Mass Ratio"),
+                                            Styles.fracStyle(Utils.Clamp(MinTWR - 1, 0, 1)));
                             GUILayout.Label(new GUIContent(string.Format("Balanced: {0:P1}", MinLimit),
                                                            "The efficacy of the least efficient of balanced engines"),
                                             Styles.fracStyle(MinLimit));
@@ -509,12 +522,10 @@ namespace ThrottleControlledAvionics
 
         static void highlight_engine(ThrusterWrapper e)
         {
-            if(e.limit < 1) 
+            if(e.limit < 1)
             {
                 var lim = e.limit * e.limit;
-                e.part.HighlightAlways(lim < 0.5f? 
-                                       Color.Lerp(Color.magenta, Color.yellow, lim/0.5f) :
-                                       Color.Lerp(Color.yellow, Color.cyan, (lim-0.5f)/0.5f));
+                e.part.HighlightAlways(Colors.FractionGradient.Evaluate(lim));
             }
         }
 
@@ -539,46 +550,46 @@ namespace ThrottleControlledAvionics
 
         void highlight_TCA()
         {
-            if(TCA != null && TCA.part != null ) 
-                TCA.part.HighlightAlways(Color.green);
+            if(TCA != null && TCA.part != null)
+                TCA.part.HighlightAlways(Colors.Enabled);
         }
 
         void reset_TCA_highlighting()
         {
-            if(TCA != null && TCA.part != null) 
+            if(TCA != null && TCA.part != null)
                 TCA.part.SetHighlightDefault();
         }
 
         protected override void draw_gui()
         {
             LockControls();
-            WindowPos = 
-                GUILayout.Window(GetInstanceID(), 
-                                 WindowPos, 
-                                 DrawMainWindow, 
+            WindowPos =
+                GUILayout.Window(GetInstanceID(),
+                                 WindowPos,
+                                 DrawMainWindow,
                                  Title,
                                  GUILayout.Width(width),
                                  GUILayout.Height(height)).clampToScreen();
             if(warning.doShow)
             {
                 var facility = EditorLogic.fetch.ship.shipFacility;
-                warning.Draw("Are you sure you want to save current ship configuration as default for "+facility+"?");
-                if(warning.Result == SimpleDialog.Answer.Yes) 
+                warning.Draw("Are you sure you want to save current ship configuration as default for " + facility + "?");
+                if(warning.Result == SimpleDialog.Answer.Yes)
                     TCAScenario.UpdateDefaultConfig(facility, CFG);
             }
             PartsEditor.Draw();
             if(show_imbalance && ActiveEngines.Count > 0)
             {
-                Markers.DrawWorldMarker(WetCoM, Color.yellow, "Center of Mass", CoM_Icon);
-                Markers.DrawWorldMarker(DryCoM, Color.red, "Center of Dry Mass", CoM_Icon);
+                Markers.DrawWorldMarker(WetCoM, Colors.Active, "Center of Mass", CoM_Icon);
+                Markers.DrawWorldMarker(DryCoM, Colors.Danger, "Center of Dry Mass", CoM_Icon);
             }
         }
 
         class HighlightSwitcher
         {
             bool enabled;
-            public Action Enable = delegate {};
-            public Action Disable = delegate {};
+            public Action Enable = delegate { };
+            public Action Disable = delegate { };
 
             public HighlightSwitcher(Action highlight, Action disable_highliting)
             {

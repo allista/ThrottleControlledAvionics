@@ -13,6 +13,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -68,6 +69,7 @@ namespace ThrottleControlledAvionics
         [Persistent] public bool LandASAP;
         public bool ShowOptions { get; protected set; }
 
+        protected TrajectoryRenderer trajectory_renderer;
         protected LandingTrajectory landing_trajectory;
         protected ManeuverExecutor Executor;
         protected FuzzyThreshold<double> lateral_angle;
@@ -198,6 +200,8 @@ namespace ThrottleControlledAvionics
             scanned = false;
             flat_target = false;
             landing_trajectory = null;
+            trajectory_renderer?.Reset();
+            trajectory_renderer = null;
             Executor.Reset();
         }
 
@@ -207,7 +211,7 @@ namespace ThrottleControlledAvionics
             var orb = CFG.Target.GetOrbit();
             if(orb != null && orb.referenceBody != VSL.Body)
             {
-                Status("yellow", "Target should be in the same sphere of influence.");
+                Status(Colors.Warning, "Target should be in the same sphere of influence.");
                 return false;
             }
             if(CFG.Target.IsProxy)
@@ -216,11 +220,11 @@ namespace ThrottleControlledAvionics
                 {
                     if(!TargetVessel.LandedOrSplashed)
                     {
-                        Status("yellow", "Target vessel should be landed");
+                        Status(Colors.Warning, "Target vessel should be landed");
                         return false;
                     }
                 }
-                Status("yellow", "Target should be a vessel or a waypoint");
+                Status(Colors.Warning, "Target should be a vessel or a waypoint");
                 return false;
             }
             return true;
@@ -230,13 +234,15 @@ namespace ThrottleControlledAvionics
         {
             if(VSL.Engines.NoActiveEngines)
             {
-                Status("yellow", "No engines are active, unable to calculate trajectory.\n" +
+                Status(Colors.Warning,
+                       "No engines are active, unable to calculate trajectory.\n" +
                        "Please, activate ship's engines and try again.");
                 return false;
             }
             if(!VSL.Engines.HaveThrusters)
             {
-                Status("yellow", "There are only Maneuver/Manual engines in current profile.\n" +
+                Status(Colors.Warning,
+                       "There are only Maneuver/Manual engines in current profile.\n" +
                        "Please, change engines profile.");
                 return false;
             }
@@ -257,21 +263,24 @@ namespace ThrottleControlledAvionics
             if(trajectory.DistanceToTarget < C.Dtol && enough_fuel) return true;
             if(!enough_fuel)
             {
-                status += string.Format("<b>WARNING</b>: Fuel is <color=magenta><b>{0:P0}</b></color> below safe margin for powered landing.\n",
-                                        (needed_hover_time - hover_time) / needed_hover_time);
+                status += "<b>WARNING</b>: Fuel is " +
+                          Colors.Selected2.Tag("<b>{0:P0}</b>", 
+                                               (needed_hover_time - hover_time) / needed_hover_time) +
+                          "below safe margin for powered landing.\n";
                 if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
                     status += "<i>Landing with parachutes may be possible, " +
-                        "but you're advised to supervise the process.</i>\n";
+                              "but you're advised to supervise the process.</i>\n";
             }
             if(trajectory.DistanceToTarget > C.Dtol)
-                status += string.Format("<b>WARNING</b>: Predicted landing site is too far from the target.\n" +
-                                        "Error is <color=magenta><b>{0}</b></color>\n",
-                                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+                status += "<b>WARNING</b>: Predicted landing site is too far from the target.\nError is " +
+                          Colors.Selected2.Tag("<b>{0}</b>\n",
+                                               Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
             if(trajectory.WillOverheat)
-                status += string.Format("<b>WARNING</b>: predicted reentry temperature is <color=magenta><b>{0:F0}K</b></color>\n" +
-                                        "<color=red><b>The ship may loose integrity and explode!</b></color>\n", trajectory.MaxShipTemperature);
-            status += "\n<color=red><b>Push to proceed. At your own risk.</b></color>";
-            Status("yellow", status);
+                status += "<b>WARNING</b>: predicted reentry temperature is " +
+                          Colors.Selected2.Tag("<b>{0:F0}K</b>\n", trajectory.MaxShipTemperature) +
+                          Colors.Danger.Tag("<b>The ship may loose integrity and explode!</b>\n");
+            status += Colors.Danger.Tag("\n<b>Push to proceed. At your own risk.</b>");
+            Status(Colors.Warning, status);
             return false;
         }
 
@@ -448,7 +457,7 @@ namespace ThrottleControlledAvionics
             var dist = -1.0;
             while(UT0 < stop)
             {
-                Status("white", "Scanning for obstacles: <color=lime>{0:P1}</color>",
+                Status("Scanning for obstacles: " + Colors.Good.Tag("{0:P1}"),
                        Math.Min(1, (UT1 - start) / (stop - start)));
                 var d = obstacle_between(trj, UT0, UT1, offset);
                 UT0 = UT1; UT1 += dT;
@@ -659,7 +668,9 @@ namespace ThrottleControlledAvionics
                 scanner.Start(CFG.Target.Pos, C.PointsPerFrame, 0.01);
                 scanner.MaxDist = CorrectionMaxDist.Value * 1000;
             }
-            Status("Scanning for <color=yellow><b>flat</b></color> surface to land: <color=lime>{0:P1}</color>", scanner.Progress);
+            Status("Scanning for {0} surface to land: {1}",
+                   Colors.Active.Tag("<b>flat</b>"),
+                   Colors.Good.Tag(scanner.Progress.ToString("P1")));
             if(scanner.Scan()) return;
             flat_target = scanner.FlatRegion != null && (!scanner.FlatRegion.Equals(CFG.Target.Pos) || !CFG.Target.IsVessel);
             if(flat_target)
@@ -840,7 +851,7 @@ namespace ThrottleControlledAvionics
                 CFG.BR.Off();
                 if(Working)
                 {
-                    Status("red", "Possible collision detected.");
+                    Status(Colors.Danger, "Possible collision detected.");
                     correct_attitude_with_thrusters(VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
                     Executor.Execute(VSL.Physics.Up * 10);
                     if(obstacle_ahead(100) > 0) { CollisionTimer.Reset(); break; }
@@ -848,7 +859,7 @@ namespace ThrottleControlledAvionics
                     start_landing();
                     break;
                 }
-                Status("white", "Decelerating. Landing site error: {0}",
+                Status("Decelerating. Landing site error: {0}",
                        Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
                 if(CorrectTarget)
                     scan_for_landing_site();
@@ -899,7 +910,7 @@ namespace ThrottleControlledAvionics
                 landing_trajectory = null;
                 break;
             case LandingStage.Coast:
-                Status("white", "Coasting. Landing site error: {0}", Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+                Status("Coasting. Landing site error: {0}", Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
                 if(is_overheating())
                 {
                     decelerate(false);
@@ -967,10 +978,11 @@ namespace ThrottleControlledAvionics
                 break;
             case LandingStage.HardLanding:
                 var status = VSL.OnPlanetParams.ParachutesActive ?
-                    "<color=yellow><b>Landing on parachutes.</b></color>" :
-                    "<color=yellow><b>Emergency Landing.</b></color>";
-                status += string.Format("\nVertical impact speed: <color=red><b>{0}</b></color>",
-                                        Utils.formatBigValue((float)terminal_velocity, "m/s"));
+                    "<b>Landing on parachutes.</b>" :
+                    "<b>Emergency Landing.</b>";
+                status = Colors.Warning.Tag(status);
+                status += string.Format("\nVertical impact speed: <b>{0}</b>",
+                                        Colors.Danger.Tag(Utils.formatBigValue((float)terminal_velocity, "m/s")));
                 set_destination_vector();
                 CFG.BR.Off();
                 THR.Throttle = 0;
@@ -1026,8 +1038,9 @@ namespace ThrottleControlledAvionics
                         if(CFG.AutoParachutes)
                             status += "\nWaiting for the right moment to deploy parachutes.";
                         else
-                            status += "\n<color=red>Automatic parachute deployment is disabled." +
-                                "\nActivate parachutes manually when needed.</color>";
+                            status += Colors.Danger
+                                            .Tag("\nAutomatic parachute deployment is disabled." +
+                                                 "\nActivate parachutes manually when needed.");
                     }
                 }
                 if(Body.atmosphere)
@@ -1037,7 +1050,7 @@ namespace ThrottleControlledAvionics
                    (VSL.Engines.MaxThrustM.Equals(0) || !VSL.Controls.HaveControlAuthority))
                 {
                     if(Body.atmosphere && not_too_hot) brake_with_drag();
-                    status += "\n<color=red><b>Crash is imminent!</b></color>";
+                    status += Colors.Danger.Tag("\n<b>Crash is imminent!</b>");
                 }
                 Status(status);
                 break;
@@ -1054,7 +1067,7 @@ namespace ThrottleControlledAvionics
                 var CPS_Correction = CPS.CourseCorrection;
                 if(!CPS_Correction.IsZero())
                 {
-                    Status("red", "Avoiding collision!");
+                    Status(Colors.Danger, "Avoiding collision!");
                     CFG.Target = trajectory.SurfacePoint;
                     trajectory.Target = CFG.Target;
                     trajectory.TargetAltitude = CFG.Target.Pos.Alt;
@@ -1074,10 +1087,10 @@ namespace ThrottleControlledAvionics
                     if(!Working)
                     {
                         if(VSL.Controls.InvAlignmentFactor > 0.5)
-                            Status("white", "Final deceleration: correcting attitude.\nLanding site error: {0}",
+                            Status("Final deceleration: correcting attitude.\nLanding site error: {0}",
                                    Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
                         else
-                            Status("white", "Final deceleration: waiting for the burn.\nLanding site error: {0}",
+                            Status("Final deceleration: waiting for the burn.\nLanding site error: {0}",
                                    Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
                         break;
                     }
@@ -1111,7 +1124,7 @@ namespace ThrottleControlledAvionics
                        VSL.VerticalSpeed.Absolute < 0)
                     {
                         Working = THR.Throttle > 0.7 || VSL.Info.Countdown < 10;
-                        Status("white", "Final deceleration. Landing site error: {0}",
+                        Status("Final deceleration. Landing site error: {0}",
                                Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
                         break;
                     }
@@ -1129,7 +1142,7 @@ namespace ThrottleControlledAvionics
                 }
                 break;
             case LandingStage.LandHere:
-                Status("lime", "Landing...");
+                Status(Colors.Good, "Landing...");
                 CFG.BR.Off();
                 CFG.BlockThrottle = true;
                 CFG.AltitudeAboveTerrain = true;
@@ -1167,7 +1180,7 @@ namespace ThrottleControlledAvionics
             Utils.ButtonSwitch("Use Brakes", ref UseBrakes, "Use brakes during deceleration.");
             if(Body.atmosphere && VSL.OnPlanetParams.HaveParachutes)
                 Utils.ButtonSwitch("Use Parachutes", ref UseChutes, "Use parachutes during deceleration.");
-            else GUILayout.Label("Use Parachutes", Styles.grey_button);
+            else GUILayout.Label("Use Parachutes", Styles.inactive_button);
             Utils.ButtonSwitch("Correct Target", ref CorrectTarget,
                                "Search for a flat surface before deceleration and correct the target site.");
             Utils.ButtonSwitch("Land ASAP", ref LandASAP,
@@ -1205,30 +1218,27 @@ namespace ThrottleControlledAvionics
 
         public void DrawTrajectory()
         {
-            var trj = landing_trajectory ?? trajectory;
-#if DEBUG
-            DrawDebug();
-            if(trj == null) 
-                trj = current_landing_trajectory;
-#endif
-            if(trj != null)
-                draw_trajectory(trj, Color.magenta);
-        }
-
-        void draw_trajectory(LandingTrajectory t, Color c)
-        {
-            if(MapView.MapIsEnabled && t != null)
+            if(Time.timeScale > 0 && !FlightDriver.Pause)
             {
-                if(t.Path != null)
+                var trj = landing_trajectory ?? trajectory;
+#if DEBUG
+                DrawDebug();
+                if(trj == null)
+                    trj = current_landing_trajectory;
+#endif
+                if(trj != null)
                 {
-                    if(t.Path.Points.Count > 1)
-                        Utils.GLLines(t.Path.CBRelativePathInWorldFrame(), c);
-                    if(t.AfterBrakePath != null &&
-                       t.AfterBrakePath.Points.Count > 1)
-                        Utils.GLLines(t.AfterBrakePath.CBRelativePathInWorldFrame(), Color.green);
+                    if(trajectory_renderer == null)
+                        trajectory_renderer = new TrajectoryRenderer(trj);
+                    else
+                        trajectory_renderer.UpdateTrajectory(trj);
+                    trajectory_renderer.Draw();
                 }
+                else
+                    trajectory_renderer?.Deactivate();
             }
         }
+
 
 #if DEBUG
         void log_flight()
@@ -1377,6 +1387,83 @@ namespace ThrottleControlledAvionics
                 }
             }
             return true;
+        }
+    }
+
+    public class TrajectoryRenderer
+    {
+        LandingTrajectory trajectory;
+        UnityLineRenderer path;
+        UnityLineRenderer after_brake_path;
+
+        public TrajectoryRenderer(LandingTrajectory t)
+        {
+            UpdateTrajectory(t);
+        }
+
+        public void UpdateTrajectory(LandingTrajectory t)
+        {
+            trajectory = t;
+            update();
+        }
+
+        void update()
+        {
+            if(trajectory != null)
+            {
+                if(path == null && trajectory.Path)
+                    path = new UnityLineRenderer("Landing path", 8, 31,
+                                                 material: MapView.OrbitLinesMaterial);
+                else if(path != null && !trajectory.Path)
+                {
+                    path.Reset();
+                    path = null;
+                }
+                if(after_brake_path == null && trajectory.AfterBrakePath)
+                    after_brake_path = new UnityLineRenderer("After brake path", 6, 31,
+                                                             material: MapView.OrbitLinesMaterial);
+                else if(after_brake_path != null && !trajectory.AfterBrakePath)
+                {
+                    after_brake_path.Reset();
+                    after_brake_path = null;
+                }
+            }
+            else
+                Reset();
+        }
+
+        public void Draw()
+        {
+            if(MapView.MapIsEnabled)
+            {
+                update();
+                if(path != null)
+                    path.SetPoints(trajectory.Path
+                                   .CBRelativePathInWorldFrame(),
+                                   trajectory.Path.TemperatureMap());
+                if(after_brake_path != null)
+                    after_brake_path.SetPoints(trajectory.AfterBrakePath
+                                               .CBRelativePathInWorldFrame(),
+                                               Colors.Good);
+            }
+            else
+                Deactivate();
+        }
+
+        public void Deactivate()
+        {
+            if(path != null)
+                path.isActive = false;
+            if(after_brake_path != null)
+                after_brake_path.isActive = false;
+        }
+
+        public void Reset()
+        {
+            Deactivate();
+            path?.Reset();
+            after_brake_path?.Reset();
+            path = after_brake_path = null;
         }
     }
 }

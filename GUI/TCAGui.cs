@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -100,6 +101,7 @@ namespace ThrottleControlledAvionics
         public override void Awake()
         {
             base.Awake();
+            Styles.onSkinInit += reset_statuses;
             AllTabFields = ControlTab.GetTabFields(GetType());
             AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
             GameEvents.onGameStateSave.Add(save_config);
@@ -112,10 +114,11 @@ namespace ThrottleControlledAvionics
         {
             base.OnDestroy();
             clear_fields();
-            TCAToolbarManager.AttachTCA(null);
+            TCAAppToolbar.AttachTCA(null);
             GameEvents.onGameStateSave.Remove(save_config);
             GameEvents.onVesselChange.Remove(onVesselChange);
             GameEvents.onVesselDestroy.Remove(onVesselDestroy);
+            Styles.onSkinInit -= reset_statuses;
         }
 
         void onVesselDestroy(Vessel vsl)
@@ -212,7 +215,7 @@ namespace ThrottleControlledAvionics
         {
             clear_fields();
             ClearStatus();
-            TCAToolbarManager.AttachTCA(null);
+            TCAAppToolbar.AttachTCA(null);
             TCA = ModuleTCA.AvailableTCA(vessel);
             if(TCA == null || CFG == null) return false;
             ActiveVesselTCA = ModuleTCA.AvailableTCA(FlightGlobals.ActiveVessel);
@@ -220,7 +223,7 @@ namespace ThrottleControlledAvionics
             RemoteControl = ActiveVesselTCA != TCA;
             ShowInstance(CFG.GUIVisible);
             ModulesGraph.SetCFG(CFG);
-            TCAToolbarManager.AttachTCA(TCA);
+            TCAAppToolbar.AttachTCA(TCA);
             create_fields();
             if(ADV != null)
                 ADV.UpdateNamedConfigs();
@@ -229,7 +232,7 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region Status
-        public static void ClearStatus() { TCAGui.StatusMessage = ""; StatusEndTime = DateTime.MinValue; }
+        public static void ClearStatus() { StatusMessage = ""; StatusEndTime = DateTime.MinValue; }
 
         public static void Status(double seconds, string msg, params object[] args)
         {
@@ -239,10 +242,10 @@ namespace ThrottleControlledAvionics
 
         public static void Status(string msg, params object[] args) { Status(-1, msg, args); }
 
-        public static void Status(double seconds, string color, string msg, params object[] args)
-        { Status(seconds, string.Format("<color={0}>{1}</color>", color, msg), args); }
+        public static void Status(double seconds, ColorSetting color, string msg, params object[] args)
+        { Status(seconds, color.Tag(msg), args); }
 
-        public static void Status(string color, string msg, params object[] args) 
+        public static void Status(ColorSetting color, string msg, params object[] args) 
         { Status(-1, color, msg, args); }
 
         void DrawStatusMessage()
@@ -256,40 +259,71 @@ namespace ThrottleControlledAvionics
             }
         }
 
+        static string[] _statuses;
+        static string[] statuses
+        {
+            get
+            {
+                if(_statuses == null)
+                {
+                    _statuses = new[] 
+                    {
+                        Colors.Danger.Tag("Obstacle On Course"),
+                        Colors.Danger.Tag("Ground Collision Possible"),
+                        Colors.Danger.Tag("Loosing Altitude"),
+                        Colors.Danger.Tag("Low Control Authority"),
+                        Colors.Warning.Tag("Engines Unoptimized"),
+                        Colors.Warning.Tag("Ascending"),
+                        Colors.Warning.Tag("VTOL Assist On"),
+                        Colors.Warning.Tag("Stabilizing Flight"),
+                        Colors.Enabled.Tag("Altitude Control"),
+                        Colors.Enabled.Tag("Vertical Speed Control"),
+                        Colors.Good.Tag("Systems Nominal"),
+                        Colors.Warning.Tag("No Active Engines"),
+                        Colors.Danger.Tag("No Electric Charge"),
+                        Colors.Selected2.Tag("Unknown State"),
+                        Colors.Inactive.Tag("Disabled")
+                    };
+                }
+                return _statuses;
+            }
+        }
+        static void reset_statuses() => _statuses = null;
+
         string StatusString()
         {
             if(TCA.IsStateSet(TCAState.Enabled))
             {
                 if(TCA.IsStateSet(TCAState.ObstacleAhead))
-                    return "<color=red>Obstacle On Course</color>";
-                else if(TCA.IsStateSet(TCAState.GroundCollision))
-                    return "<color=red>Ground Collision Possible</color>";
-                else if(TCA.IsStateSet(TCAState.LoosingAltitude))
-                    return "<color=red>Loosing Altitude</color>";
-                else if(!VSL.Controls.HaveControlAuthority)
-                    return "<color=red>Low Control Authority</color>";
-                else if(TCA.IsStateSet(TCAState.Unoptimized))
-                    return "<color=yellow>Engines Unoptimized</color>";
-                else if(TCA.IsStateSet(TCAState.Ascending))
-                    return "<color=yellow>Ascending</color>";
-                else if(TCA.IsStateSet(TCAState.VTOLAssist))
-                    return "<color=yellow>VTOL Assist On</color>";
-                else if(TCA.IsStateSet(TCAState.StabilizeFlight))
-                    return "<color=yellow>Stabilizing Flight</color>";
-                else if(TCA.IsStateSet(TCAState.AltitudeControl))
-                    return "<color=lime>Altitude Control</color>";
-                else if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
-                    return "<color=lime>Vertical Speed Control</color>";
-                else if(TCA.State == TCAState.Nominal)
-                    return "<color=lime>Systems Nominal</color>";
-                else if(TCA.State == TCAState.NoActiveEngines)
-                    return "<color=yellow>No Active Engines</color>";
-                else if(TCA.State == TCAState.NoEC)
-                    return "<color=red>No Electric Charge</color>";
-                else //this should never happen
-                    return "<color=magenta>Unknown State</color>";
+                    return statuses[0];
+                if(TCA.IsStateSet(TCAState.GroundCollision))
+                    return statuses[1];
+                if(TCA.IsStateSet(TCAState.LoosingAltitude))
+                    return statuses[2];
+                if(!VSL.Controls.HaveControlAuthority)
+                    return statuses[3];
+                if(TCA.IsStateSet(TCAState.Unoptimized))
+                    return statuses[4];
+                if(TCA.IsStateSet(TCAState.Ascending))
+                    return statuses[5];
+                if(TCA.IsStateSet(TCAState.VTOLAssist))
+                    return statuses[6];
+                if(TCA.IsStateSet(TCAState.StabilizeFlight))
+                    return statuses[7];
+                if(TCA.IsStateSet(TCAState.AltitudeControl))
+                    return statuses[8];
+                if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
+                    return statuses[9];
+                if(TCA.State == TCAState.Nominal)
+                    return statuses[10];
+                if(TCA.State == TCAState.NoActiveEngines)
+                    return statuses[11];
+                if(TCA.State == TCAState.NoEC)
+                    return statuses[12];
+                //this should never happen
+                return statuses[13];
             }
-            return "<color=grey>Disabled</color>";
+            return statuses[14];
         }
 
         void StatusLabel()
@@ -311,6 +345,7 @@ namespace ThrottleControlledAvionics
         static GUIContent next_vessel_button = new GUIContent("▶", "Switch to next vessel");
         static GUIContent active_vessel_button = new GUIContent("◇", "Back to active vessel");
         static GUIContent switch_vessel_button = new GUIContent("◆", "Switch to current vessel");
+        static GUIContent help_button = new GUIContent("?", "TCA Manual");
         void DrawMainWindow(int windowID)
         {
             //help button
@@ -321,7 +356,7 @@ namespace ThrottleControlledAvionics
                 update_collapsed_rect();
             }
             if(GUI.Button(new Rect(WindowPos.width - 20f, 0f, 20f, 18f), 
-                          new GUIContent("?", "Help"), Styles.label)) 
+                          help_button, Styles.label)) 
                 TCAManual.ToggleInstance();
             //vessel switching
             if(HaveRemoteControl)
@@ -347,7 +382,7 @@ namespace ThrottleControlledAvionics
                 else if(!VSL.LandedOrSplashed) 
                 {
                     if(EnabledBlinker.On) enabled_style = Styles.danger_button;
-                    Status(0.1, "red", "<b>TCA is disabled</b>");
+                    Status(0.1, Colors.Danger, "<b>TCA is disabled</b>");
                 }
                 if(GUILayout.Button("Enabled", enabled_style, GUILayout.Width(70)))
                     TCA.ToggleTCA();
@@ -417,8 +452,9 @@ namespace ThrottleControlledAvionics
                     {
                         UnlockControls();
                         var prefix = CFG.Enabled? 
-                            "<b><color=lime>TCA: </color></b>" : 
-                            (VSL.LandedOrSplashed? "<b>TCA: </b>" : "<b><color=red>TCA: </color></b>");
+                                        Colors.Enabled.Tag("<b>TCA: </b>") : 
+                                        (VSL.LandedOrSplashed? "<b>TCA: </b>" : 
+                                         Colors.Danger.Tag("<b>TCA: </b>"));
                         GUI.Label(collapsed_rect, prefix+StatusString(), Styles.boxed_label);
                     }
                 }
@@ -427,7 +463,7 @@ namespace ThrottleControlledAvionics
                     UnlockControls();
                     draw_main_window = false;
                     GUI.Label(collapsed_rect, new GUIContent("TCA", "Push to show Main Window"), 
-                          CFG.Enabled? Styles.green : (VSL.LandedOrSplashed? Styles.white : Styles.red));
+                          CFG.Enabled? Styles.enabled : (VSL.LandedOrSplashed? Styles.white : Styles.danger));
                     if(Input.GetMouseButton(0) && collapsed_rect.Contains(Event.current.mousePosition))
                         Collapsed = false;
                     TooltipManager.GetTooltip();
@@ -449,7 +485,7 @@ namespace ThrottleControlledAvionics
             }
             //draw waypoints and all subwindows
             if(RemoteControl && Event.current.type == EventType.Repaint)
-                Markers.DrawWorldMarker(TCA.vessel.transform.position, Color.green, 
+                Markers.DrawWorldMarker(TCA.vessel.transform.position, Colors.Good, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
             if(NAV != null) NAV.DrawWaypoints();
             AllWindows.ForEach(w => w.Draw());

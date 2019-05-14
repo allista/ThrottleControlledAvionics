@@ -7,7 +7,6 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-﻿using System;
 using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
@@ -16,18 +15,18 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-    public enum Attitude 
-    { 
-        None, 
-        KillRotation, HoldAttitude, 
-        Prograde, Retrograde, 
-        Radial, AntiRadial, 
-        Normal, AntiNormal, 
-        Target, AntiTarget, 
-        RelVel, AntiRelVel, 
-        TargetCorrected, 
-        ManeuverNode, 
-        Custom 
+    public enum Attitude
+    {
+        None,
+        KillRotation, HoldAttitude,
+        Prograde, Retrograde,
+        Radial, AntiRadial,
+        Normal, AntiNormal,
+        Target, AntiTarget,
+        RelVel, AntiRelVel,
+        TargetCorrected,
+        ManeuverNode,
+        Custom
     }
     public enum SmartEnginesMode { None, Closest, Fastest, Best }
     public enum BearingMode { None, User, Auto }
@@ -45,22 +44,22 @@ namespace ThrottleControlledAvionics
 
         //modules
         public HashSet<string> EnabledTCAParts = new HashSet<string>();
-        public SortedList<string,ConfigNode> ModuleConfigs = new SortedList<string, ConfigNode>();
+        public SortedList<string, ConfigNode> ModuleConfigs = new SortedList<string, ConfigNode>();
         //common
-        [Persistent] public bool    Enabled;
-        [Persistent] public bool    GUIVisible;
-        [Persistent] public int     ActiveTab;
+        [Persistent] public bool Enabled;
+        [Persistent] public bool GUIVisible;
+        [Persistent] public int ActiveTab;
         [Persistent] public KSPActionGroup ActionGroup = KSPActionGroup.None;
         //attitude control
         [Persistent] public Multiplexer<Attitude> AT = new Multiplexer<Attitude>();
         [Persistent] public bool WarpToNode = true;
         //vertical speed and altitude
         [Persistent] public Multiplexer<VFlight> VF = new Multiplexer<VFlight>();
-        [Persistent] public bool    AltitudeAboveTerrain;
-        [Persistent] public float   DesiredAltitude; //desired altitude m (configurable)
-        [Persistent] public float   VerticalCutoff; //desired positive vertical speed m/s (configurable)
-        [Persistent] public bool    BlockThrottle;
-        [Persistent] public float   ControlSensitivity = 0.01f;
+        [Persistent] public bool AltitudeAboveTerrain;
+        [Persistent] public float DesiredAltitude; //desired altitude m (configurable)
+        [Persistent] public float VerticalCutoff; //desired positive vertical speed m/s (configurable)
+        [Persistent] public bool BlockThrottle;
+        [Persistent] public float ControlSensitivity = 0.01f;
 
         public bool VSCIsActive { get { return VF || VerticalCutoff < VerticalSpeedControl.C.MaxSpeed; } }
         public void DisableVSC() { VF.Off(); VerticalCutoff = VerticalSpeedControl.C.MaxSpeed; BlockThrottle = false; }
@@ -68,24 +67,24 @@ namespace ThrottleControlledAvionics
         public void SmoothSetVSC(float spd, float min, float max) { VerticalCutoff = Utils.Clamp(Mathf.Lerp(VerticalCutoff, spd, TimeWarp.fixedDeltaTime), min, max); }
         //steering
         [Persistent] public Multiplexer<ControlMode> CTRL = new Multiplexer<ControlMode>();
-        [Persistent] public uint    ControlTransform = 0;
-        [Persistent] public float   SteeringGain     = 1f;          //steering vector is scaled by this
+        [Persistent] public uint ControlTransform = 0;
+        [Persistent] public float SteeringGain = 1f;          //steering vector is scaled by this
         [Persistent] public Vector3 SteeringModifier = Vector3.one; //steering vector is scaled by this (pitch, roll, yaw); needed to prevent too fast roll on vtols and oscilations in wobbly ships
-        [Persistent] public bool    PitchYawLinked   = true;        //if true, pitch and yaw sliders will be linked
-        [Persistent] public bool    AutoTune         = true;        //if true, engine PI coefficients and steering modifier will be tuned automatically
+        [Persistent] public bool PitchYawLinked = true;        //if true, pitch and yaw sliders will be linked
+        [Persistent] public bool AutoTune = true;        //if true, engine PI coefficients and steering modifier will be tuned automatically
         //horizontal velocity
         [Persistent] public Multiplexer<HFlight> HF = new Multiplexer<HFlight>();
-        [Persistent] public bool     SASIsControlled;
-        [Persistent] public bool     SASWasEnabled;
+        [Persistent] public bool SASIsControlled;
+        [Persistent] public bool SASWasEnabled;
         [Persistent] public WayPoint Anchor;
         //cruise control
         [Persistent] public Multiplexer<BearingMode> BR = new Multiplexer<BearingMode>();
         //waypoint navigation
         [Persistent] public Multiplexer<Navigation> Nav = new Multiplexer<Navigation>();
-        [Persistent] public float    MaxNavSpeed = 100;
-        [Persistent] public bool     ShowPath;
+        [Persistent] public float MaxNavSpeed = 100;
+        [Persistent] public bool ShowPath;
         [Persistent] public WayPoint Target;
-        [Persistent] public NavPath  Path = new NavPath();
+        [Persistent] public NavPath Path = new NavPath();
         //autopilot
         [Persistent] public Multiplexer<Autopilot1> AP1 = new Multiplexer<Autopilot1>();
         [Persistent] public Multiplexer<Autopilot2> AP2 = new Multiplexer<Autopilot2>();
@@ -119,11 +118,11 @@ namespace ThrottleControlledAvionics
             }
         }
         //automation
-        static List<FieldInfo> multiplexer_fields = typeof(VesselConfig).GetFields(BindingFlags.Public|BindingFlags.Instance)
+        static List<FieldInfo> multiplexer_fields = typeof(VesselConfig).GetFields(BindingFlags.Public | BindingFlags.Instance)
             .Where(fi => fi.FieldType.IsSubclassOf(typeof(Multiplexer))).ToList();
         readonly List<Multiplexer> multiplexers = new List<Multiplexer>();
 
-        public ConfigNode Configuration 
+        public ConfigNode Configuration
         { get { var node = new ConfigNode(); Save(node); return node; } }
 
         public VesselConfig()
@@ -193,23 +192,23 @@ namespace ThrottleControlledAvionics
         { multiplexers.ForEach(m => m.ClearCallbacks()); }
 
         public void Resume(ModuleTCA TCA)
-        { 
-            if(Target != null) 
+        {
+            if(Target != null)
             {
                 Target.Update(TCA.VSL);
                 TCA.VSL.SetTarget(null, Target);
             }
             if(Anchor != null) Anchor.Update(TCA.VSL);
             Path.ForEach(wp => wp.Update(TCA.VSL));
-            multiplexers.ForEach(m => m.Resume()); 
+            multiplexers.ForEach(m => m.Resume());
         }
     }
 
     public class NamedConfig : VesselConfig
-    { 
-        [Persistent] public string Name = "Config"; 
+    {
+        [Persistent] public string Name = "Config";
 
-        public NamedConfig() {}
+        public NamedConfig() { }
         public NamedConfig(string name) : this() { Name = name; }
 
         public static NamedConfig FromVesselConfig(string name, VesselConfig other)

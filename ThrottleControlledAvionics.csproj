@@ -37,10 +37,6 @@
     <NoWarn>0649</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System">
-      <HintPath>..\KSP-test\KSP_test_1.7.0\KSP_Data\Managed\System.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\KSP-test\KSP_test_1.7.0\KSP_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
@@ -81,6 +77,10 @@
       <HintPath>..\KSP-test\KSP_test_1.7.0\KSP_Data\Managed\KSPAssets.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="System">
+      <HintPath>..\KSP-test\KSP_test_1.7.0\KSP_Data\Managed\System.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
@@ -93,7 +93,7 @@
     <Compile Include="EngineConfig.cs" />
     <Compile Include="TCAScenario.cs" />
     <Compile Include="GUI\TCAGui.cs" />
-    <Compile Include="GUI\TCAToolbarManager.cs" />
+    <Compile Include="GUI\TCAAppToolbar.cs" />
     <Compile Include="Macros\TCAMacro.cs" />
     <Compile Include="Macros\Conditions.cs" />
     <Compile Include="Macros\MacroNodes.cs" />
@@ -203,6 +203,11 @@
     <ProjectReference Include="..\AT_Utils\AT_Utils.csproj">
       <Project>{64CC36A2-0610-4F74-9F31-3D4E22866B7E}</Project>
       <Name>AT_Utils</Name>
+      <Private>False</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\AT_Utils\Unity\AT_Utils.UI.csproj">
+      <Project>{0B711E55-8312-144F-53AD-EDA5A8CEE04A}</Project>
+      <Name>AT_Utils.UI</Name>
       <Private>False</Private>
     </ProjectReference>
   </ItemGroup>

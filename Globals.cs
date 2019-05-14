@@ -45,10 +45,6 @@ namespace ThrottleControlledAvionics
         public MDSection Manual;
         public static readonly SortedDictionary<string, Type> AllConfigs;
 
-        #if DEBUG
-        public ConfigNodeObjectGUI UI;
-        #endif
-
         static Globals()
         {
             AllConfigs = new SortedDictionary<string, Type>();
@@ -114,9 +110,6 @@ namespace ThrottleControlledAvionics
             }
             catch(Exception ex) { Utils.Log("Error loading {} file:\n{}", PluginFolder(INSTRUCTIONS), ex); }
             InputDeadZone *= InputDeadZone; //it is compared with the sqrMagnitude
-            #if DEBUG
-            UI = ConfigNodeObjectGUI.FromObject(this);
-            #endif
         }
     }
 }

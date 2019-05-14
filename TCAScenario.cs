@@ -10,13 +10,13 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
-    [KSPScenario(ScenarioCreationOptions.AddToAllGames, 
-        new []
+    [KSPScenario(ScenarioCreationOptions.AddToAllGames,
+        new[]
         {
             GameScenes.SPACECENTER,
             GameScenes.FLIGHT,
@@ -24,8 +24,8 @@ namespace ThrottleControlledAvionics
         })]
     public class TCAScenario : ScenarioModule
     {
-        public const string MACROSNAME  = "TCA.macro";
-        public const string NAMED_NODE  = "NAMED";
+        public const string MACROSNAME = "TCA.macro";
+        public const string NAMED_NODE = "NAMED";
 
         static TCAMacroLibrary macros;
         public static TCAMacroLibrary Macros
@@ -63,12 +63,12 @@ namespace ThrottleControlledAvionics
         public static bool ModuleInstalled { get; private set; }
         public static bool HavePersistentRotation { get; private set; }
         public static string ModuleStatusString()
-        { return HasTCA? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
+        { return HasTCA ? Colors.Good.Tag("<b>Software Installed</b>") : Colors.Danger.Tag("Unavailable"); }
         #endregion
 
         #region Runtime Interface
         public static NamedConfig NewNamedConfig(string name)
-        { 
+        {
             if(NamedConfigs.ContainsKey(name)) return null;
             var c = new NamedConfig(name);
             NamedConfigs[name] = c;
@@ -82,7 +82,7 @@ namespace ThrottleControlledAvionics
         { return NamedConfigs.Count > index ? NamedConfigs.Values[index] : null; }
 
         public static bool SaveNamedConfig(string name, VesselConfig config, bool overwrite = false)
-        { 
+        {
             if(name == string.Empty || //do not allow empty name
                 NamedConfigs.ContainsKey(name) && !overwrite) return false;
             NamedConfigs[name] = NamedConfig.FromVesselConfig(name, config);
@@ -91,7 +91,7 @@ namespace ThrottleControlledAvionics
 
         public static VesselConfig GetDefaultConfig(EditorFacility facility)
         {
-            return facility == EditorFacility.SPH?
+            return facility == EditorFacility.SPH ?
                 SPH_DefaultConfig : VAB_DefaultConfig;
         }
 
@@ -99,7 +99,7 @@ namespace ThrottleControlledAvionics
         {
             if(facility == EditorFacility.SPH)
                 SPH_DefaultConfig.Copy(config);
-            else 
+            else
                 VAB_DefaultConfig.Copy(config);
         }
         #endregion
@@ -113,7 +113,7 @@ namespace ThrottleControlledAvionics
             return node;
         }
 
-        public static void LoadConfigs(ConfigNode node) 
+        public static void LoadConfigs(ConfigNode node)
         {
             if(ConfigsLoaded) return;
             NamedConfigs.Clear();
@@ -134,7 +134,7 @@ namespace ThrottleControlledAvionics
             ConfigsLoaded = true;
         }
 
-        public static void SaveConfigs(ConfigNode node) 
+        public static void SaveConfigs(ConfigNode node)
         {
             var current_vessels = new HashSet<Guid>(HighLogic.CurrentGame.flightState.protoVessels.Select(p => p.vesselID));
             var fg = FlightGlobals.fetch;
@@ -151,8 +151,11 @@ namespace ThrottleControlledAvionics
         #endregion
 
         public override void OnLoad(ConfigNode node)
-        { 
+        {
             Globals.Load();
+            #if DEBUG
+            //UI = ConfigNodeObjectGUI.FromObject(Globals.Instance);
+            #endif
             LoadConfigs(node);
             //navigation paths
             var paths = node.GetNode(PathDB.NODE_NAME);
@@ -160,7 +163,7 @@ namespace ThrottleControlledAvionics
             else Paths.Clear();
             //patched conics availability
             HavePatchedConics = GameVariables.Instance
-                .GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation)) 
+                .GetOrbitDisplayMode(ScenarioUpgradeableFacilities.GetFacilityLevel(SpaceCenterFacility.TrackingStation))
                 == GameVariables.OrbitDisplayMode.PatchedConics;
             //check if MM is successfully installed ModuleTCA in any of the parts
             ModuleInstalled = false;
@@ -177,15 +180,16 @@ namespace ThrottleControlledAvionics
             HavePersistentRotation = AssemblyLoader.loadedAssemblies.FirstOrDefault(a => a.name == Globals.Instance.PersistentRotationName) != null;
         }
 
-        public override void OnSave(ConfigNode node) 
-        { 
+        public override void OnSave(ConfigNode node)
+        {
             SaveConfigs(node);
             Paths.SaveInto(node);
         }
 
-        #if DEBUG
+#if DEBUG
         //bool show;
         //Rect pos = new Rect();
+        //public ConfigNodeObjectGUI UI;
         //void drawGlobalsUI(int windowID)
         //{
         //    GUILayout.BeginVertical();
@@ -193,9 +197,9 @@ namespace ThrottleControlledAvionics
         //        show = !show;
         //    if(show)
         //    {
-        //        Globals.Instance.UI.Draw();
+        //        UI.Draw();
         //        if(GUILayout.Button("Save", Styles.danger_button, GUILayout.ExpandWidth(true)))
-        //            Globals.Instance.CreateDefaultOverride();
+        //            Globals.SaveOverride();
         //    }
         //    GUILayout.EndVertical();
         //    GUIWindowBase.TooltipsAndDragWindow();
@@ -212,7 +216,6 @@ namespace ThrottleControlledAvionics
         //            .clampToScreen();
         //    }
         //}
-        #endif
+#endif
     }
 }
-

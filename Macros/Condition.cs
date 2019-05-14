@@ -87,7 +87,7 @@ namespace ThrottleControlledAvionics
             GUILayout.BeginVertical();
             GUILayout.BeginHorizontal();
             if(Prev != null && GUILayout.Button(or? "OR" : "AND", Styles.white, GUILayout.Width(40))) or = !or;
-            if(negatable && GUILayout.Button(not? "NOT" : "", Styles.red, GUILayout.Width(40))) not = !not;
+            if(negatable && GUILayout.Button(not? "NOT" : "", Styles.danger, GUILayout.Width(40))) not = !not;
             DrawThis();
             if(Prev != null && GUILayout.Button(new GUIContent("X", "Delete"), Styles.close_button, GUILayout.Width(20))) Delete();
             if(Next != null) Next.Draw();
@@ -150,7 +150,7 @@ namespace ThrottleControlledAvionics
             if(Edit) 
             { 
                 GUILayout.Label(Label, Styles.white, GUILayout.ExpandWidth(false));
-                if(GUILayout.Button(OperatorNames[Operator], Styles.yellow, GUILayout.ExpandWidth(false)))
+                if(GUILayout.Button(OperatorNames[Operator], Styles.active, GUILayout.ExpandWidth(false)))
                     Operator = (CompareOperator)(((int)Operator+1)%3);
                 Value.Draw(Suffix);
                 if(Operator == CompareOperator.EQ)

@@ -123,13 +123,13 @@ namespace ThrottleControlledAvionics
             {
                 GUILayout.BeginHorizontal();
                 if(GUILayout.Button(new GUIContent(cues_short[CFG.AT.state], cues_long[CFG.AT.state]+". Push to disable."), 
-                                    Styles.green, GUILayout.ExpandWidth(false)))
+                                    Styles.enabled, GUILayout.ExpandWidth(false)))
                     CFG.AT.Off();
                 //attitude error display
                 var err = "OFF";
                 if(VSL.AutopilotDisabled) err = "USER";
                 else if(CFG.AT) err = string.Format("Err: {0:F1}°", VSL.Controls.AttitudeError);
-                GUILayout.Label(err, VSL.Controls.Aligned? Styles.green : Styles.white, GUILayout.Width(100));
+                GUILayout.Label(err, VSL.Controls.Aligned? Styles.enabled : Styles.white, GUILayout.Width(100));
                 GUILayout.EndHorizontal();
                 TooltipManager.GetTooltip();
             }
@@ -156,7 +156,7 @@ namespace ThrottleControlledAvionics
             //Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.OnPlanetParams.MaxAeroForceL)*10, Color.magenta);
             #endif
             if(GUILayout.Button(new GUIContent("T-SAS", "Push to toggle attitude controls"), 
-                                CFG.AT && !VSL.AutopilotDisabled? Styles.cyan : Styles.white, GUILayout.ExpandWidth(false)))
+                                CFG.AT && !VSL.AutopilotDisabled? Styles.selected1 : Styles.white, GUILayout.ExpandWidth(false)))
                 cues.Toggle();
         }
     }
