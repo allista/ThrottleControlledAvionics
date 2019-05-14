@@ -232,7 +232,7 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region Status
-        public static void ClearStatus() { TCAGui.StatusMessage = ""; StatusEndTime = DateTime.MinValue; }
+        public static void ClearStatus() { StatusMessage = ""; StatusEndTime = DateTime.MinValue; }
 
         public static void Status(double seconds, string msg, params object[] args)
         {
