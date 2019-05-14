@@ -11,6 +11,7 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -250,7 +251,7 @@ namespace ThrottleControlledAvionics
             if(VSL.Engines.HaveMainEngines &&
                max_limit < VSL.PostUpdateControls.mainThrottle * 0.05f &&
                !engines.Any(e => e.preset_limit >= 0))
-                Status(0.1, "red", "Thrust is disabled because engines cannot be balanced.");
+                Status(0.1, Colors.Danger, "Thrust is disabled because engines cannot be balanced.");
         }
 
         void tune_steering_params()

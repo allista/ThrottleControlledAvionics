@@ -384,7 +384,7 @@ namespace ThrottleControlledAvionics
                 Changed |= Active;
             }
             if(Edit) Name = GUILayout.TextField(Name, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
-            else GUILayout.Label(Name, Active? Styles.green : Styles.white, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
+            else GUILayout.Label(Name, Active? Styles.enabled : Styles.white, GUILayout.ExpandWidth(true), GUILayout.MinWidth(50));
         }
 
         void Switches()
@@ -418,7 +418,7 @@ namespace ThrottleControlledAvionics
             //header controls
             TitleControl();
             //default switch
-            if(Default) GUILayout.Label("Default", Styles.green, GUILayout.ExpandWidth(false));
+            if(Default) GUILayout.Label("Default", Styles.enabled, GUILayout.ExpandWidth(false));
             else { Default = GUILayout.Toggle(Default, "Default", GUILayout.ExpandWidth(false)); }
             //edit button
             if(GUILayout.Button(Edit? "Done" : "Edit", 
@@ -611,7 +611,7 @@ namespace ThrottleControlledAvionics
             if(del.Count > 0) foreach(var p in del) DB.Remove(p);
             GUILayout.EndVertical();
             GUILayout.EndScrollView();
-            if(GUILayout.Button("Add Profile", Styles.add_button, GUILayout.ExpandWidth(true)))
+            if(GUILayout.Button("Add Profile", Styles.open_button, GUILayout.ExpandWidth(true)))
                 CopyActive();
             GUILayout.EndVertical();
         }

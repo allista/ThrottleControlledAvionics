@@ -1,4 +1,4 @@
-//  Author:
+﻿//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2015 Allis Tauri
@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -93,13 +94,13 @@ namespace ThrottleControlledAvionics
         protected void Status(string msg, params object[] args) 
         { Status(-1, msg, args); }
 
-        protected void Status(double seconds, string color, string msg, params object[] args)
+        protected void Status(double seconds, ColorSetting color, string msg, params object[] args)
         { if(UI_Control) TCAGui.Status(seconds, color, msg, args); }
 
-        protected void Status(string color, string msg, params object[] args) 
+        protected void Status(ColorSetting color, string msg, params object[] args) 
         { Status(-1, color, msg, args); }
 
-        protected void TmpStatus(string color, string msg, params object[] args)
+        protected void TmpStatus(ColorSetting color, string msg, params object[] args)
         { Status(1, color, msg, args); }
 
         protected void TmpStatus(string msg, params object[] args)

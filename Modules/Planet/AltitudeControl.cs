@@ -290,7 +290,7 @@ namespace ThrottleControlledAvionics
         {
             update_from_cfg();
             var above_ground = VSL.Altitude.AboveGround;
-            var style = above_ground? Styles.green : Styles.red;
+            var style = above_ground? Styles.enabled : Styles.danger;
             GUILayout.Label(new GUIContent("Alt. (m):", above_ground? 
                                            "Desired altitude is above the ground" : 
                                            "Warning! Desired altitude is below the ground"), 

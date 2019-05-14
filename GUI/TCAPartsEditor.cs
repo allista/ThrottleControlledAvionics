@@ -8,6 +8,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -175,7 +176,7 @@ namespace ThrottleControlledAvionics
                                 if(next.tier != next_tier) continue;
                                 var er = (next as PrettyNode).button_rect;
                                 var end = new Vector2(WindowPos.x + er.x, WindowPos.y + er.y + sr.height / 2);
-                                Drawing.DrawLine(start, end, next.part.Active ? Color.green : inactive, 1, true);
+                                Drawing.DrawLine(start, end, next.part.Active? Colors.Good : inactive, 1, true);
                             }
                         }
                     }

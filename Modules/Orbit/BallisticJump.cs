@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -75,7 +76,7 @@ namespace ThrottleControlledAvionics
             if(!base.check_target()) return false;
             if(VesselOrbit.PeR > Body.Radius)
             {
-                Status("yellow", "Cannot perform <b>Ballistic Jump</b> from orbit.\n" +
+                Status(Colors.Warning, "Cannot perform <b>Ballistic Jump</b> from orbit.\n" +
                        "Use <b>Land at Target</b> instead.");
                 return false;
             }
@@ -87,7 +88,7 @@ namespace ThrottleControlledAvionics
                 #if DEBUG
                 Log("Too close jump trajectory: {}", trj);
                 #endif
-                Status("yellow", "The target is too close for the jump.\n" +
+                Status(Colors.Warning, "The target is too close for the jump.\n" +
                        "Use <b>Go To</b> instead.");
                 return false;
             }
@@ -364,8 +365,7 @@ namespace ThrottleControlledAvionics
                     }
 //                    Log("dV {}, dVv {}, correction {}, I {}", dV, dVv, fall_correction.Action, fall_correction.I);//debug
                     if(Executor.Execute(dV+fall_correction*VSL.Physics.Up, 10)) 
-                        Status("white", 
-                               "Accelerating: <color=yellow><b>{0}</b> m/s</color>", 
+                        Status("Accelerating: "+Colors.Warning.Tag("<b>{0}</b> m/s"), 
                                (dV.magnitude-10).ToString("F1"));
                     else fine_tune_approach();
                 }

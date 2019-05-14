@@ -12,6 +12,7 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -471,10 +472,10 @@ namespace ThrottleControlledAvionics
                 return TrajectoryCalculator.NewOrbit(Body, pos, vel, UT);
             }
 
-            public Vector3 CBRelativePosInWorldFrame()
+            public Vector3d CBRelativePosInWorldFrame()
             {
-                return (Vector3)(Orbit.referenceBody.BodyFrame.LocalToWorld(rel_pos).xzy +
-                                 Orbit.referenceBody.position);
+                return (Orbit.referenceBody.BodyFrame.LocalToWorld(rel_pos).xzy +
+                        Orbit.referenceBody.position);
             }
 
             public override string ToString()
@@ -502,6 +503,10 @@ namespace ThrottleControlledAvionics
         public Point LastPoint { get; private set; }
         public bool HavePoints { get; private set; }
         public bool Atmosphere { get; private set; }
+        public int Count => Points.Count;
+
+        public static implicit operator bool(LandingPath path) => 
+        path != null && path.Points.Count > 0;
 
         public double UT0 = -1;
         public double StartUT = -1;
@@ -787,9 +792,24 @@ namespace ThrottleControlledAvionics
             return LastPoint;
         }
 
-        public Vector3[] CBRelativePathInWorldFrame()
+        public Vector3d[] CBRelativePathInWorldFrame()
         {
             return Points.Select(p => p.CBRelativePosInWorldFrame()).ToArray();
+        }
+
+        static SimpleGradient heat_map = new SimpleGradient(new[]{
+            ColorSetting.cyan, ColorSetting.yellow, ColorSetting.magenta
+        });
+
+        public Color32[] TemperatureMap()
+        {
+            if(Points.Count == 0)
+                return null;
+            var count = Points.Count;
+            var map = new Color32[count];
+            for(int i = 0; i < count; i++)
+                map[i] = heat_map.Evaluate((float)Utils.ClampH(Points[i].ShipTemperature / VSL.Physics.MinMaxTemperature, 1));
+            return map;
         }
 
         public override string ToString()

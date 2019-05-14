@@ -25,7 +25,7 @@ namespace ThrottleControlledAvionics
             if(CFG.SelectedMacro != null && CFG.MacroIsActive)
             {
                 GUILayout.Label(new GUIContent("Macro: "+CFG.SelectedMacro.Title, "The macro is executing..."), 
-                                Styles.yellow, GUILayout.ExpandWidth(true));
+                                Styles.warning, GUILayout.ExpandWidth(true));
                 CFG.MacroIsActive &= !GUILayout.Button("Pause", Styles.enabled_button, GUILayout.Width(70));
                 if(GUILayout.Button("Stop", Styles.danger_button, GUILayout.ExpandWidth(false))) 
                     CFG.StopMacro();
@@ -48,7 +48,7 @@ namespace ThrottleControlledAvionics
             {
                 if(GUILayout.Button("Select Macro", Styles.normal_button, GUILayout.ExpandWidth(true))) 
                     selecting_macro = !selecting_macro;
-                if(GUILayout.Button("New Macro", Styles.add_button, GUILayout.ExpandWidth(false)))
+                if(GUILayout.Button("New Macro", Styles.open_button, GUILayout.ExpandWidth(false)))
                     TCAMacroEditor.Edit(CFG);
             }
             GUILayout.EndHorizontal();

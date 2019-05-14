@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using AT_Utils;
+using AT_Utils.UI;
 
 namespace ThrottleControlledAvionics
 {
@@ -62,7 +63,7 @@ namespace ThrottleControlledAvionics
         public static bool ModuleInstalled { get; private set; }
         public static bool HavePersistentRotation { get; private set; }
         public static string ModuleStatusString()
-        { return HasTCA ? "<b><color=#00ff00ff>Software Installed</color></b>" : "<color=#ff0000ff>Unavailable</color>"; }
+        { return HasTCA ? Colors.Good.Tag("<b>Software Installed</b>") : Colors.Danger.Tag("Unavailable"); }
         #endregion
 
         #region Runtime Interface
@@ -152,6 +153,9 @@ namespace ThrottleControlledAvionics
         public override void OnLoad(ConfigNode node)
         {
             Globals.Load();
+            #if DEBUG
+            //UI = ConfigNodeObjectGUI.FromObject(Globals.Instance);
+            #endif
             LoadConfigs(node);
             //navigation paths
             var paths = node.GetNode(PathDB.NODE_NAME);
@@ -185,6 +189,7 @@ namespace ThrottleControlledAvionics
 #if DEBUG
         //bool show;
         //Rect pos = new Rect();
+        //public ConfigNodeObjectGUI UI;
         //void drawGlobalsUI(int windowID)
         //{
         //    GUILayout.BeginVertical();
@@ -192,9 +197,9 @@ namespace ThrottleControlledAvionics
         //        show = !show;
         //    if(show)
         //    {
-        //        Globals.Instance.UI.Draw();
+        //        UI.Draw();
         //        if(GUILayout.Button("Save", Styles.danger_button, GUILayout.ExpandWidth(true)))
-        //            Globals.Instance.CreateDefaultOverride();
+        //            Globals.SaveOverride();
         //    }
         //    GUILayout.EndVertical();
         //    GUIWindowBase.TooltipsAndDragWindow();
@@ -214,4 +219,3 @@ namespace ThrottleControlledAvionics
 #endif
     }
 }
-
