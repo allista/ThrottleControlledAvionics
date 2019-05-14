@@ -668,7 +668,7 @@ namespace ThrottleControlledAvionics
                 scanner.Start(CFG.Target.Pos, C.PointsPerFrame, 0.01);
                 scanner.MaxDist = CorrectionMaxDist.Value * 1000;
             }
-            Status("Scanning for {0} surface to land: {1)",
+            Status("Scanning for {0} surface to land: {1}",
                    Colors.Active.Tag("<b>flat</b>"),
                    Colors.Good.Tag(scanner.Progress.ToString("P1")));
             if(scanner.Scan()) return;

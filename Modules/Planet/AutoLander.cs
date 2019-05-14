@@ -452,7 +452,7 @@ namespace ThrottleControlledAvionics
                 }
                 if(scan(C.WideCheckLevel))
                 {
-                    Status("Scanning for {0} surface to land: {1)",
+                    Status("Scanning for {0} surface to land: {1}",
                            Colors.Active.Tag("<b>flat</b>"),
                            Colors.Good.Tag(Progress.ToString("P1")));
                     break;
