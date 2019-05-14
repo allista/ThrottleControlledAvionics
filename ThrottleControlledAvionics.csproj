@@ -93,7 +93,7 @@
     <Compile Include="EngineConfig.cs" />
     <Compile Include="TCAScenario.cs" />
     <Compile Include="GUI\TCAGui.cs" />
-    <Compile Include="GUI\TCAToolbarManager.cs" />
+    <Compile Include="GUI\TCAAppToolbar.cs" />
     <Compile Include="Macros\TCAMacro.cs" />
     <Compile Include="Macros\Conditions.cs" />
     <Compile Include="Macros\MacroNodes.cs" />

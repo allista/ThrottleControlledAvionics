@@ -113,7 +113,7 @@ namespace ThrottleControlledAvionics
         {
             base.OnDestroy();
             clear_fields();
-            TCAToolbarManager.AttachTCA(null);
+            TCAAppToolbar.AttachTCA(null);
             GameEvents.onGameStateSave.Remove(save_config);
             GameEvents.onVesselChange.Remove(onVesselChange);
             GameEvents.onVesselDestroy.Remove(onVesselDestroy);
@@ -213,7 +213,7 @@ namespace ThrottleControlledAvionics
         {
             clear_fields();
             ClearStatus();
-            TCAToolbarManager.AttachTCA(null);
+            TCAAppToolbar.AttachTCA(null);
             TCA = ModuleTCA.AvailableTCA(vessel);
             if(TCA == null || CFG == null) return false;
             ActiveVesselTCA = ModuleTCA.AvailableTCA(FlightGlobals.ActiveVessel);
@@ -221,7 +221,7 @@ namespace ThrottleControlledAvionics
             RemoteControl = ActiveVesselTCA != TCA;
             ShowInstance(CFG.GUIVisible);
             ModulesGraph.SetCFG(CFG);
-            TCAToolbarManager.AttachTCA(TCA);
+            TCAAppToolbar.AttachTCA(TCA);
             create_fields();
             if(ADV != null)
                 ADV.UpdateNamedConfigs();

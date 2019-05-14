@@ -198,14 +198,6 @@ namespace ThrottleControlledAvionics
                               "Press BACKSPACE to remove TCA hotkey.\n" +
                               "Press ESCAPE to cancel.");
             }
-            if(GUILayout.Button(new GUIContent("Colors", "Configure UI colors"),
-                                Styles.active_button, GUILayout.ExpandWidth(true)))
-            {
-                if(Styles.IsUiShown())
-                    Styles.HideUI();
-                else
-                    UI.StartCoroutine(Styles.ShowUI());
-            }
             if(Utils.ButtonSwitch("AutoSave", ref Globals.Instance.AutosaveBeforeLanding,
                                   "Automatically save the game before executing complex autopilot programs",
                                   GUILayout.ExpandWidth(true)))
@@ -215,7 +207,7 @@ namespace ThrottleControlledAvionics
                                   "Use stock AppLauncher or Toolbar plugin?",
                                   GUILayout.ExpandWidth(true)))
             {
-                TCAToolbarManager.Init();
+                TCAAppToolbar.Init();
                 Globals.Save(":UseStockAppLauncher");
             }
             Utils.ButtonSwitch("AutoShow", ref UI.ShowOnHover,
