@@ -330,6 +330,7 @@ namespace ThrottleControlledAvionics
         static GUIContent next_vessel_button = new GUIContent("▶", "Switch to next vessel");
         static GUIContent active_vessel_button = new GUIContent("◇", "Back to active vessel");
         static GUIContent switch_vessel_button = new GUIContent("◆", "Switch to current vessel");
+        static GUIContent help_button = new GUIContent("?", "TCA Manual");
         void DrawMainWindow(int windowID)
         {
             //help button
@@ -340,7 +341,7 @@ namespace ThrottleControlledAvionics
                 update_collapsed_rect();
             }
             if(GUI.Button(new Rect(WindowPos.width - 20f, 0f, 20f, 18f), 
-                          new GUIContent("?", "Help"), Styles.label)) 
+                          help_button, Styles.label)) 
                 TCAManual.ToggleInstance();
             //vessel switching
             if(HaveRemoteControl)
