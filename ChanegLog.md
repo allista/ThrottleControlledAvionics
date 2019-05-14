@@ -2,7 +2,18 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.5.4**
+* **v3.5.5**
+    * Added ability to change UI color scheme at runtime
+        * To access the Color Scheme dialog, **right-click the GC toolbar button**
+    * Advanced Tab: AutoSave and Launcher/Toolbar options are now persistent.
+    * Fixed RCS balancing (issue #65)
+    * In-editor TCA window is now available for vessels with RCS thrusters only (issue #66)
+    * Improved landing trajectory rendering using UnityLineRenderer:
+        * Lines are thicker and smoother
+        * Deceleration trajectory is colored according to predicted hull temperature
+    * Other minor fixes.
+
+* v3.5.4
     * Improved Land (from orbit) and Ballistic Jump autopilots with adaptations for new aerodynamic 
     model of KSP 1.4.5+
     * Fixed stucking in "Testing aerobrakes" fase of the landing when no aerobrakes are present.
