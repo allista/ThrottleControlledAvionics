@@ -406,7 +406,12 @@ namespace ThrottleControlledAvionics
                     }
                     if(GUILayout.Button(new GUIContent("Save As Default", "Save current configuration as default for new ships in this facility (VAB/SPH)"),
                                         Styles.active_button, GUILayout.ExpandWidth(true)))
+                    {
+                        var facility = EditorLogic.fetch.ship.shipFacility;
+                        warning.Message = string.Format("Are you sure you want to save current ship configuration as default for {0}?", facility);
+                        warning.yesCallback = () => TCAScenario.UpdateDefaultConfig(facility, CFG);
                         warning.Show(true);
+                    }
                 }
                 GUILayout.EndHorizontal();
                 GUILayout.BeginHorizontal();
@@ -570,13 +575,6 @@ namespace ThrottleControlledAvionics
                                  Title,
                                  GUILayout.Width(width),
                                  GUILayout.Height(height)).clampToScreen();
-            if(warning.doShow)
-            {
-                var facility = EditorLogic.fetch.ship.shipFacility;
-                warning.Draw("Are you sure you want to save current ship configuration as default for " + facility + "?");
-                if(warning.Result == SimpleDialog.Answer.Yes)
-                    TCAScenario.UpdateDefaultConfig(facility, CFG);
-            }
             PartsEditor.Draw();
             if(show_imbalance && ActiveEngines.Count > 0)
             {
