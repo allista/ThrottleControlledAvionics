@@ -810,8 +810,8 @@ namespace ThrottleControlledAvionics
     {
         protected TargetedTrajectoryCalculator(ModuleTCA tca) : base(tca) {}
 
-        public Orbit TargetOrbit => CFG.Target.GetOrbit();
-        public Vessel TargetVessel => CFG.Target.GetVessel();
+        public Orbit TargetOrbit => CFG.Target?.GetOrbit();
+        public Vessel TargetVessel => CFG.Target?.GetVessel();
         public bool TargetLoaded => TargetVessel != null && TargetVessel.loaded;
         public Vector3d RelVel => TargetOrbit.vel - VesselOrbit.vel;
         public Vector3d RelPos => TargetOrbit.pos - VesselOrbit.pos;

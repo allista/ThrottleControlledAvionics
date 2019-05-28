@@ -54,6 +54,7 @@ namespace ThrottleControlledAvionics
             width = 600;
             height = 100;
             GameEvents.onEditorShipModified.Add(OnShipModified);
+            GameEvents.onEditorPartEvent.Add(OnPartEvent);
             GameEvents.onEditorLoad.Add(OnShipLoad);
             GameEvents.onEditorRestart.Add(Reset);
             GameEvents.onEditorStarted.Add(Started);
@@ -65,12 +66,12 @@ namespace ThrottleControlledAvionics
             //highlighters
             TCA_highlight = new HighlightSwitcher(highlight_TCA, reset_TCA_highlighting);
             Engines_highlight = new HighlightSwitcher(highlight_engines, reset_engines_highlightig);
-
         }
 
         public override void OnDestroy()
         {
             GameEvents.onEditorShipModified.Remove(OnShipModified);
+            GameEvents.onEditorPartEvent.Remove(OnPartEvent);
             GameEvents.onEditorLoad.Remove(OnShipLoad);
             GameEvents.onEditorRestart.Remove(Reset);
             GameEvents.onEditorStarted.Remove(Started);
@@ -101,6 +102,9 @@ namespace ThrottleControlledAvionics
         { init_engines = load_type == CraftBrowserDialog.LoadType.Normal; }
 
         void OnShipModified(ShipConstruct ship)
+        { update_engines = true; }
+
+        void OnPartEvent(ConstructionEventType eventType, Part part)
         { update_engines = true; }
 
         void update_modules()
@@ -137,15 +141,23 @@ namespace ThrottleControlledAvionics
         void UpdateCFG(List<ModuleTCA> TCA_Modules)
         {
             if(CFG == null || TCA_Modules.Count == 0) return;
+            //this.Log("UpdateCFG start: TCA Modules: {}", TCA_Modules);//debug
             TCA_highlight.Reset();
-            TCA_Modules.ForEach(m => { m.CFG = null; m.EnableTCA(false); });
             TCA = TCA_Modules[0];
+            TCA_Modules.ForEach(m =>
+            {
+                m.CFG = null;
+                m.EnableTCA(false);
+                m.GroupMaster = false;
+                m.SetGID(TCA.GID);
+            });
+            TCA.GroupMaster = true;
             TCA.CFG = CFG;
             TCA.EnableTCA(true);
-            TCA_Modules.ForEach(m => m.GID = TCA.GID);
             CFG.ActiveProfile.Update(Engines);
             PartsEditor.SetCFG(CFG);
             update_modules();
+            //this.Log("UpdateCFG end: TCA Modules: {}", TCA_Modules);//debug
         }
         void UpdateCFG() { UpdateCFG(ModuleTCA.AllTCA(EditorLogic.fetch.ship)); }
 
@@ -203,16 +215,13 @@ namespace ThrottleControlledAvionics
             part.children.ForEach(p => find_engines_recursively(p, engines, rcs));
         }
 
-        bool UpdateEngines()
+        void UpdateEngines()
         {
             Engines_highlight.Reset();
             Engines.Clear();
             RCS.Clear();
             if(TCAScenario.HasTCA && EditorLogic.RootPart)
                 find_engines_recursively(EditorLogic.RootPart, Engines, RCS);
-            var ret = Engines.Count > 0 || RCS.Count > 0;
-            if(!ret) Reset();
-            return ret;
         }
 
         void process_active_engine(EngineWrapper e)
@@ -291,8 +300,13 @@ namespace ThrottleControlledAvionics
                         e.forceThrustPercentage(e.limit * 100);
                     }
                     var T = thrust.magnitude / Utils.G0;
-                    MinTWR = T / Mass;
-                    MaxTWR = T / DryMass;
+                    if(use_wet_mass)
+                    {
+                        MinTWR = T / Mass;
+                        MaxTWR = T / DryMass;
+                    }
+                    else
+                        MinTWR = MaxTWR = T / DryMass;
                 }
             }
         }
@@ -354,17 +368,16 @@ namespace ThrottleControlledAvionics
             }
             if(init_engines)
             {
-                if(UpdateEngines()) GetCFG();
+                UpdateEngines();
+                GetCFG();
                 init_engines = false;
                 update_stats = true;
             }
             if(update_engines)
             {
-                if(UpdateEngines())
-                {
-                    if(CFG != null) UpdateCFG();
-                    else GetCFG();
-                }
+                UpdateEngines();
+                if(CFG != null) UpdateCFG();
+                else GetCFG();
                 update_engines = false;
                 update_stats = true;
             }
@@ -379,7 +392,7 @@ namespace ThrottleControlledAvionics
                 UpdateShipStats();
                 update_stats = false;
             }
-            Available |= CFG != null && (Engines.Count > 0 || RCS.Count > 0);
+            Available |= CFG != null;
             TCA_highlight.Update(Available && doShow);
             Engines_highlight.Update(Available && doShow && show_imbalance && ActiveEngines.Count > 0);
         }
@@ -406,7 +419,12 @@ namespace ThrottleControlledAvionics
                     }
                     if(GUILayout.Button(new GUIContent("Save As Default", "Save current configuration as default for new ships in this facility (VAB/SPH)"),
                                         Styles.active_button, GUILayout.ExpandWidth(true)))
+                    {
+                        var facility = EditorLogic.fetch.ship.shipFacility;
+                        warning.Message = string.Format("Are you sure you want to save current ship configuration as default for {0}?", facility);
+                        warning.yesCallback = () => TCAScenario.UpdateDefaultConfig(facility, CFG);
                         warning.Show(true);
+                    }
                 }
                 GUILayout.EndHorizontal();
                 GUILayout.BeginHorizontal();
@@ -488,12 +506,15 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label("Ship Info:");
                     GUILayout.FlexibleSpace();
                     GUILayout.Label("Mass:", Styles.boxed_label);
-                    if(Utils.ButtonSwitch(Utils.formatMass(Mass), ref use_wet_mass, "Balance engines using Wet Mass"))
+                    if(Utils.ButtonSwitch(Utils.formatMass(Mass), use_wet_mass, "Balance engines using Wet Mass"))
+                    {
+                        use_wet_mass = true;
                         update_stats = true;
+                    }
                     GUILayout.Label("►");
                     if(Utils.ButtonSwitch(Utils.formatMass(DryMass), !use_wet_mass, "Balance engines using Dry Mass"))
                     {
-                        use_wet_mass = !use_wet_mass;
+                        use_wet_mass = false;
                         update_stats = true;
                     }
                     if(CFG.Enabled)
@@ -570,13 +591,6 @@ namespace ThrottleControlledAvionics
                                  Title,
                                  GUILayout.Width(width),
                                  GUILayout.Height(height)).clampToScreen();
-            if(warning.doShow)
-            {
-                var facility = EditorLogic.fetch.ship.shipFacility;
-                warning.Draw("Are you sure you want to save current ship configuration as default for " + facility + "?");
-                if(warning.Result == SimpleDialog.Answer.Yes)
-                    TCAScenario.UpdateDefaultConfig(facility, CFG);
-            }
             PartsEditor.Draw();
             if(show_imbalance && ActiveEngines.Count > 0)
             {

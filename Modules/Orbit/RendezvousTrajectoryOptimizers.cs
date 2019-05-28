@@ -73,7 +73,7 @@ namespace ThrottleControlledAvionics
                     return string.Format("T- {0}  ETA {1}  dV: {2}",
                                          Utils.formatTimeDelta(tts),
                                          Colors.Enabled.Tag(Utils.formatTimeDelta(tts + Best.TransferTime)),
-                                         Colors.Enabled.Tag("<b>{2:F1}</b> m/s", Best.GetTotalDeltaV()));
+                                         Colors.Enabled.Tag("<b>{0:F1}</b> m/s", Best.GetTotalDeltaV()));
                 }
             }
 
