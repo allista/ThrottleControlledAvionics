@@ -208,16 +208,13 @@ namespace ThrottleControlledAvionics
             part.children.ForEach(p => find_engines_recursively(p, engines, rcs));
         }
 
-        bool UpdateEngines()
+        void UpdateEngines()
         {
             Engines_highlight.Reset();
             Engines.Clear();
             RCS.Clear();
             if(TCAScenario.HasTCA && EditorLogic.RootPart)
                 find_engines_recursively(EditorLogic.RootPart, Engines, RCS);
-            var ret = Engines.Count > 0 || RCS.Count > 0;
-            if(!ret) Reset();
-            return ret;
         }
 
         void process_active_engine(EngineWrapper e)
@@ -359,17 +356,16 @@ namespace ThrottleControlledAvionics
             }
             if(init_engines)
             {
-                if(UpdateEngines()) GetCFG();
+                UpdateEngines();
+                GetCFG();
                 init_engines = false;
                 update_stats = true;
             }
             if(update_engines)
             {
-                if(UpdateEngines())
-                {
-                    if(CFG != null) UpdateCFG();
-                    else GetCFG();
-                }
+                UpdateEngines();
+                if(CFG != null) UpdateCFG();
+                else GetCFG();
                 update_engines = false;
                 update_stats = true;
             }
@@ -384,7 +380,7 @@ namespace ThrottleControlledAvionics
                 UpdateShipStats();
                 update_stats = false;
             }
-            Available |= CFG != null && (Engines.Count > 0 || RCS.Count > 0);
+            Available |= CFG != null;
             TCA_highlight.Update(Available && doShow);
             Engines_highlight.Update(Available && doShow && show_imbalance && ActiveEngines.Count > 0);
         }
