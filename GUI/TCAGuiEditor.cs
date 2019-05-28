@@ -54,6 +54,7 @@ namespace ThrottleControlledAvionics
             width = 600;
             height = 100;
             GameEvents.onEditorShipModified.Add(OnShipModified);
+            GameEvents.onEditorPartEvent.Add(OnPartEvent);
             GameEvents.onEditorLoad.Add(OnShipLoad);
             GameEvents.onEditorRestart.Add(Reset);
             GameEvents.onEditorStarted.Add(Started);
@@ -71,6 +72,7 @@ namespace ThrottleControlledAvionics
         public override void OnDestroy()
         {
             GameEvents.onEditorShipModified.Remove(OnShipModified);
+            GameEvents.onEditorPartEvent.Remove(OnPartEvent);
             GameEvents.onEditorLoad.Remove(OnShipLoad);
             GameEvents.onEditorRestart.Remove(Reset);
             GameEvents.onEditorStarted.Remove(Started);
@@ -101,6 +103,9 @@ namespace ThrottleControlledAvionics
         { init_engines = load_type == CraftBrowserDialog.LoadType.Normal; }
 
         void OnShipModified(ShipConstruct ship)
+        { update_engines = true; }
+
+        void OnPartEvent(ConstructionEventType eventType, Part part)
         { update_engines = true; }
 
         void update_modules()
