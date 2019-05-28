@@ -2,7 +2,12 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.5.5**
+* **v3.3.6**
+    * In editor TCA UI is available whenever you have a command module. No engines/rcs are required to setup TCA configuration.
+    * Fixed exceptions caused by TCA grouping (thanks @123nick for reporting it)
+    * Other bugfixes.
+
+* v3.5.5
     * Added ability to change UI color scheme at runtime
         * To access the Color Scheme dialog, **right-click the GC toolbar button**
     * Advanced Tab: AutoSave and Launcher/Toolbar options are now persistent.
