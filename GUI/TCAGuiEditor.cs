@@ -293,8 +293,13 @@ namespace ThrottleControlledAvionics
                         e.forceThrustPercentage(e.limit * 100);
                     }
                     var T = thrust.magnitude / Utils.G0;
-                    MinTWR = T / Mass;
-                    MaxTWR = T / DryMass;
+                    if(use_wet_mass)
+                    {
+                        MinTWR = T / Mass;
+                        MaxTWR = T / DryMass;
+                    }
+                    else
+                        MinTWR = MaxTWR = T / DryMass;
                 }
             }
         }
