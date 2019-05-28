@@ -499,12 +499,15 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label("Ship Info:");
                     GUILayout.FlexibleSpace();
                     GUILayout.Label("Mass:", Styles.boxed_label);
-                    if(Utils.ButtonSwitch(Utils.formatMass(Mass), ref use_wet_mass, "Balance engines using Wet Mass"))
+                    if(Utils.ButtonSwitch(Utils.formatMass(Mass), use_wet_mass, "Balance engines using Wet Mass"))
+                    {
+                        use_wet_mass = true;
                         update_stats = true;
+                    }
                     GUILayout.Label("►");
                     if(Utils.ButtonSwitch(Utils.formatMass(DryMass), !use_wet_mass, "Balance engines using Dry Mass"))
                     {
-                        use_wet_mass = !use_wet_mass;
+                        use_wet_mass = false;
                         update_stats = true;
                     }
                     if(CFG.Enabled)
