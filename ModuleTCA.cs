@@ -145,6 +145,11 @@ namespace ThrottleControlledAvionics
 
         public override string GetInfo() 
         { return "Software can be installed"; }
+        public override string ToString()
+        {
+            return string.Format("{0} GID: {1}, Master: {2}, Active: {3}",
+                                 this.GetID(), GID, GroupMaster, TCA_Active);
+        }
 
         internal const string TCA_NAME = "TCA";
         public string GetModuleTitle() { return TCA_NAME; }
