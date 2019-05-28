@@ -278,8 +278,11 @@ namespace ThrottleControlledAvionics
         {
             ProfileSyncAllowed = false;
             yield return new WaitForSeconds(0.5f);
-            VSL.UpdateParts();
-            CFG.ActiveProfile.Update(VSL.Engines.All, true);
+            if(TCA_Active)
+            {
+                VSL.UpdateParts();
+                CFG.ActiveProfile.Update(VSL.Engines.All, true);
+            }
             ProfileSyncAllowed = true;
         }
 
