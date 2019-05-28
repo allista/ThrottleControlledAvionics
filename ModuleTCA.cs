@@ -44,10 +44,13 @@ namespace ThrottleControlledAvionics
         [KSPField(guiActive = true, guiActiveEditor = true, guiName = "TCA Active")]
         public bool TCA_Active;
 
+        [KSPField(isPersistant = true)]
+        public string GID = "";
+        static string new_GID() => Guid.NewGuid().ToString("N");
+
         [KSPField(guiActive = true, guiActiveEditor = true, guiName = "TCA Group")]
         public string GID_Display = "";
 
-        [KSPField(isPersistant = true)] public string GID = "";
         [KSPField(isPersistant = true)] public bool GroupMaster;
 
         public M GetModule<M>() where M : TCAModule 
@@ -90,8 +93,7 @@ namespace ThrottleControlledAvionics
                 tca_fi.SetValue(obj, tca);
         }
 
-        public void SetTCAField(object obj)
-        { SetTCAField(obj, this); }
+        public void SetTCAField(object obj) => SetTCAField(obj, this);
 
         public void InitModuleFields(object obj)
         {
@@ -121,16 +123,11 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region Public Info
-        public bool Valid { get { return vessel != null && part != null && Available; } }
-        public bool Available { get { return TCA_Active && VSL != null; } }
-        public bool IsControllable 
-        { 
-            get 
-            { 
-                return Available && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL || 
-                                     vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED); 
-            } 
-        }
+        public bool Valid => vessel != null && part != null && Available;
+        public bool Available => TCA_Active && VSL != null;
+        public bool IsControllable =>
+        Available && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL ||
+                      vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED);
         #endregion
 
         #region Initialization
@@ -143,19 +140,18 @@ namespace ThrottleControlledAvionics
             VSL.ConnectAutopilotOutput();
         }
 
-        public override string GetInfo() 
-        { return "Software can be installed"; }
         public override string ToString()
         {
             return string.Format("{0} GID: {1}, Master: {2}, Active: {3}",
                                  this.GetID(), GID, GroupMaster, TCA_Active);
         }
 
-        internal const string TCA_NAME = "TCA";
-        public string GetModuleTitle() { return TCA_NAME; }
+        public override string GetInfo() => "Software can be installed";
 
-        public string GetPrimaryField()
-        { return "<b>TCA:</b> "+TCAScenario.ModuleStatusString(); }
+        internal const string TCA_NAME = "TCA";
+        public string GetModuleTitle() => TCA_NAME;
+
+        public string GetPrimaryField() => "<b>TCA:</b> " + TCAScenario.ModuleStatusString();
 
         public Callback<Rect> GetDrawModulePanelCallback() { return null; }
 
@@ -290,7 +286,8 @@ namespace ThrottleControlledAvionics
         {
             if(!CFG.Enabled) yield break;
             yield return new WaitForSeconds(0.5f);
-            if(VSL != null) VSL.SetUnpackDistance(GLB.UnpackDistance);
+            if(VSL != null) 
+                VSL.SetUnpackDistance(GLB.UnpackDistance);
         }
 
         [KSPAction("Update TCA Profile")]
@@ -321,8 +318,6 @@ namespace ThrottleControlledAvionics
             //this.Log("select group master: {}, {}", master, GroupMaster);//debug
             return master;
         }
-
-        string new_GID() => Guid.NewGuid().ToString("N");
 
         void activate_master_TCA(IShipconstruct ship)
         {
@@ -389,7 +384,8 @@ namespace ThrottleControlledAvionics
             var TCA_Modules = new List<ModuleTCA>();
             if(ship.Parts != null)
             {
-                (from p in ship.Parts where p.Modules != null 
+                (from p in ship.Parts
+                 where p.Modules != null
                  select p.Modules.GetModules<ModuleTCA>())
                     .ForEach(TCA_Modules.AddRange);
             }
