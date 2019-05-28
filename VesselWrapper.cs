@@ -423,8 +423,8 @@ namespace ThrottleControlledAvionics
             while(next_stage >= 0 && stage_is_empty(next_stage)) next_stage--;
             if(next_stage == vessel.currentStage) next_stage--;
             if(next_stage < 0) return;
-            Log(vessel.parts.Aggregate("\n", (s, p) => s+Utils.Format("{}: {}, stage {}\n", p.Title(), p.State, p.inverseStage)));//debug
-            Log("current stage {}, next stage {}, next engines {}", vessel.currentStage, next_stage, Engines.NearestEnginedStage);//debug
+            //Log(vessel.parts.Aggregate("\n", (s, p) => s+Utils.Format("{}: {}, stage {}\n", p.Title(), p.State, p.inverseStage)));//debug
+            //Log("current stage {}, next stage {}, next engines {}", vessel.currentStage, next_stage, Engines.NearestEnginedStage);//debug
             if(IsActiveVessel)
             {
                 StageManager.ActivateStage(next_stage);
