@@ -58,11 +58,16 @@ namespace ThrottleControlledAvionics
         public bool Execute(Vector3d dV, float MinDeltaV = 0.1f, ManeuverCondition condition = null)
         {
             THR.Throttle = 0;
-            var has_correction = !course_correction.IsZero();
+            var has_correction = !course_correction.IsInvalid() && !course_correction.IsZero();
             if(has_correction)
             {
                 dV += course_correction;
                 course_correction = Vector3d.zero;
+            }
+            if(dV.IsInvalid())
+            {
+                Utils.Log("WARNING: dV is invalid: {}", dV);//debug
+                return false;
             }
             dVrem.Lower = MinDeltaV * 5;
             dVrem.Upper = dVrem.Lower + 1;

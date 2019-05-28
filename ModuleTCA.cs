@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
         public EngineOptimizer ENG;
         public RCSOptimizer RCS;
         public static List<FieldInfo> CoreModuleFields = typeof(ModuleTCA)
-            .GetFields(BindingFlags.Public|BindingFlags.Instance)
+            .GetFields(BindingFlags.Public | BindingFlags.Instance)
             .Where(fi => fi.FieldType.IsSubclassOf(typeof(TCAModule))).ToList();
         //optional modules
         public Dictionary<Type, TCAModule> ModulesDB = new Dictionary<Type, TCAModule>();
@@ -44,30 +44,33 @@ namespace ThrottleControlledAvionics
         [KSPField(guiActive = true, guiActiveEditor = true, guiName = "TCA Active")]
         public bool TCA_Active;
 
+        [KSPField(isPersistant = true)]
+        public string GID = "";
+        static string new_GID() => Guid.NewGuid().ToString("N");
+
         [KSPField(guiActive = true, guiActiveEditor = true, guiName = "TCA Group")]
         public string GID_Display = "";
 
-        [KSPField(isPersistant = true)] public string GID = "";
         [KSPField(isPersistant = true)] public bool GroupMaster;
 
-        public M GetModule<M>() where M : TCAModule 
-        { 
+        public M GetModule<M>() where M : TCAModule
+        {
             TCAModule module = null;
-            return ModulesDB.TryGetValue(typeof(M), out module)? module as M : null;
+            return ModulesDB.TryGetValue(typeof(M), out module) ? module as M : null;
         }
 
         public TCAModule GetModule(Type T)
         {
             TCAModule module = null;
-            return ModulesDB.TryGetValue(T, out module)? module : null;
+            return ModulesDB.TryGetValue(T, out module) ? module : null;
         }
 
         public object CreateComponent(Type T)
         {
-            var constructor = T.GetConstructor(new [] {typeof(ModuleTCA)});
+            var constructor = T.GetConstructor(new[] { typeof(ModuleTCA) });
             if(constructor == null)
                 throw new MissingMemberException(string.Format("No suitable constructor found for {0}", T.Name));
-            return constructor.Invoke(new [] {this});
+            return constructor.Invoke(new[] { this });
         }
 
         public List<T> CreateComponents<T>(IList<FieldInfo> fields, object obj = null)
@@ -90,8 +93,7 @@ namespace ThrottleControlledAvionics
                 tca_fi.SetValue(obj, tca);
         }
 
-        public void SetTCAField(object obj)
-        { SetTCAField(obj, this); }
+        public void SetTCAField(object obj) => SetTCAField(obj, this);
 
         public void InitModuleFields(object obj)
         {
@@ -121,54 +123,51 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region Public Info
-        public bool Valid { get { return vessel != null && part != null && Available; } }
-        public bool Available { get { return TCA_Active && VSL != null; } }
-        public bool IsControllable 
-        { 
-            get 
-            { 
-                return Available && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL || 
-                                     vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED); 
-            } 
-        }
+        public bool Valid => vessel != null && part != null && Available;
+        public bool Available => TCA_Active && VSL != null;
+        public bool IsControllable =>
+        Available && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL ||
+                      vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED);
         #endregion
 
         #region Initialization
-        public void OnReloadGlobals() 
-        { 
-            AllModules.ForEach(m => m.Cleanup()); 
+        public void OnReloadGlobals()
+        {
+            AllModules.ForEach(m => m.Cleanup());
             VSL.Reset();
             VSL.Init();
-            AllModules.ForEach(m => m.Init()); 
+            AllModules.ForEach(m => m.Init());
             VSL.ConnectAutopilotOutput();
         }
 
-        public override string GetInfo() 
-        { return "Software can be installed"; }
+        public override string ToString()
+        {
+            return string.Format("{0} GID: {1}, Master: {2}, Active: {3}",
+                                 this.GetID(), GID, GroupMaster, TCA_Active);
+        }
+
+        public override string GetInfo() => "Software can be installed";
 
         internal const string TCA_NAME = "TCA";
-        public string GetModuleTitle() { return TCA_NAME; }
+        public string GetModuleTitle() => TCA_NAME;
 
-        public string GetPrimaryField()
-        { return "<b>TCA:</b> "+TCAScenario.ModuleStatusString(); }
+        public string GetPrimaryField() => "<b>TCA:</b> " + TCAScenario.ModuleStatusString();
 
         public Callback<Rect> GetDrawModulePanelCallback() { return null; }
 
         public override void OnAwake()
         {
             base.OnAwake();
-            GameEvents.onEditorShipModified.Add(onEditorShipModified);
             GameEvents.onVesselWasModified.Add(onVesselModify);
             GameEvents.onStageActivate.Add(onStageActive);
             GameEvents.onVesselGoOffRails.Add(onVesselGoOffRails);
         }
 
-        internal void OnDestroy() 
-        { 
+        internal void OnDestroy()
+        {
             if(vessel != null && vessel.connection != null)
                 vessel.connection.UnregisterCommandSource(this);
             GameEvents.CommNet.OnNetworkInitialized.Remove(OnNetworkInitialised);
-            GameEvents.onEditorShipModified.Remove(onEditorShipModified);
             GameEvents.onVesselWasModified.Remove(onVesselModify);
             GameEvents.onStageActivate.Remove(onStageActive);
             GameEvents.onVesselGoOffRails.Remove(onVesselGoOffRails);
@@ -181,6 +180,7 @@ namespace ThrottleControlledAvionics
             {
                 AllModules.ForEach(m => m.SaveToConfig());
                 CFG.SaveInto(node);
+                //this.Log("OnSave: GroupMaster: {}", this);//debug
             }
             base.OnSave(node);
         }
@@ -193,7 +193,7 @@ namespace ThrottleControlledAvionics
             {
                 CFG = ConfigNodeObject.FromConfig<VesselConfig>(SavedCFG);
                 GroupMaster = true;
-                //this.Log("GroupMaster: {}", GroupMaster);//debug
+                //this.Log("OnLoad: GroupMaster: {}", this);//debug
             }
             if(!string.IsNullOrEmpty(GID))
                 SetGID(GID);
@@ -204,15 +204,14 @@ namespace ThrottleControlledAvionics
         public override void OnStart(StartState state)
         {
             base.OnStart(state);
-            Actions["onActionUpdate"].active = false;
-            if(state == StartState.None || !TCAScenario.HasTCA) 
-            { 
-                EnableTCA(false); 
-                return; 
-            }
-            check_priority();
-            EnableTCA(TCA_Active);
-            if(state != StartState.Editor) 
+            EnableTCA(false);
+            if(state == StartState.None || !TCAScenario.HasTCA)
+                return;
+            if(vessel != null)
+                activate_master_TCA(vessel);
+            else if(string.IsNullOrEmpty(GID))
+                SetGID(new_GID());
+            if(state != StartState.Editor)
                 StartCoroutine(delayed_init());
         }
 
@@ -221,7 +220,7 @@ namespace ThrottleControlledAvionics
             if(vsl != vessel) return;
             if(vessel.situation == Vessel.Situations.PRELAUNCH)
             {
-                if(VSL != null && CFG != null && 
+                if(VSL != null && CFG != null &&
                    CFG.ActiveProfile != null &&
                    CFG.ActiveProfile.HasActiveEngines)
                 {
@@ -233,35 +232,31 @@ namespace ThrottleControlledAvionics
         }
 
         void onVesselModify(Vessel vsl)
-        { 
+        {
             if(vsl == null || vsl != vessel) return;
             //this.Log("onVesselModify: vsl.id {}, old.id {}", vsl.id, 
-                     //VSL != null && VSL.vessel != null? VSL.vessel.id.ToString() : "null");//debug
+            //VSL != null && VSL.vessel != null? VSL.vessel.id.ToString() : "null");//debug
             AllModules.ForEach(m => m.SaveToConfig());
-            check_priority();
+            activate_master_TCA(vessel);
             if(GroupMaster)
-                change_GID();
-            EnableTCA(TCA_Active);
+                ChangeGID();
             if(!TCA_Active) reset();
             else if(VSL == null || VSL.vessel == null || vsl.id != VSL.vessel.id)
-            { 
-                reset(); 
-                if(CFG != null) 
+            {
+                reset();
+                if(CFG != null)
                     CFG = CFG.Clone<VesselConfig>();
-                init(); 
+                init();
             }
-            else 
+            else
             {
                 VSL.Engines.ForceUpdateParts = true;
                 StartCoroutine(updateUnpackDistance());
             }
         }
 
-        void onEditorShipModified(IShipconstruct ship) =>
-        set_TCA_Active(ship);
-
         void onStageActive(int stage)
-        { 
+        {
             if(VSL == null || !CFG.Enabled || !VSL.IsActiveVessel) return;
             if(!CFG.EnginesProfiles.ActivateOnStage(stage, VSL.Engines.All))
                 StartCoroutine(activeProfileUpdate());
@@ -279,8 +274,11 @@ namespace ThrottleControlledAvionics
         {
             ProfileSyncAllowed = false;
             yield return new WaitForSeconds(0.5f);
-            VSL.UpdateParts();
-            CFG.ActiveProfile.Update(VSL.Engines.All, true);
+            if(TCA_Active)
+            {
+                VSL.UpdateParts();
+                CFG.ActiveProfile.Update(VSL.Engines.All, true);
+            }
             ProfileSyncAllowed = true;
         }
 
@@ -288,28 +286,29 @@ namespace ThrottleControlledAvionics
         {
             if(!CFG.Enabled) yield break;
             yield return new WaitForSeconds(0.5f);
-            if(VSL != null) VSL.SetUnpackDistance(GLB.UnpackDistance);
+            if(VSL != null) 
+                VSL.SetUnpackDistance(GLB.UnpackDistance);
         }
 
         [KSPAction("Update TCA Profile")]
         void onActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
 
-        void check_priority()
+        public void SetGID(string gid)
         {
-            if(HighLogic.LoadedSceneIsEditor) 
-                set_TCA_Active(EditorLogic.fetch.ship);
-            else if(vessel != null) 
-                set_TCA_Active(vessel);
+            GID = gid;
+            GID_Display = gid.Substring(gid.Length - 6);
         }
 
-        void init_group(List<ModuleTCA> all_tca)
+        public string ChangeGID()
         {
-            if(string.IsNullOrEmpty(GID))
-            {
-                var other = all_tca.FirstOrDefault(tca => !string.IsNullOrEmpty(tca.GID));
-                SetGID(other != null? other.GID : new_GID());
-                //this.Log("init group: {}", GID);//debug
-            }
+            var gid = new_GID();
+            var group = GetGroup();
+            if(group != null)
+                group.ForEach(tca => tca.SetGID(gid));
+            else
+                SetGID(gid);
+            //this.Log("change group: {}, {}", GID, GetGroup());//debug
+            return gid;
         }
 
         ModuleTCA select_group_master(List<ModuleTCA> all_tca)
@@ -320,29 +319,29 @@ namespace ThrottleControlledAvionics
             return master;
         }
 
-        string new_GID() => Guid.NewGuid().ToString("N");
-
-        void SetGID(string gid)
+        void activate_master_TCA(IShipconstruct ship)
         {
-            GID = gid;
-            GID_Display = gid.Substring(gid.Length-6);
-        }
-
-        void change_GID()
-        {
-            var gid = new_GID();
-            GetGroup().ForEach(tca => tca.SetGID(gid));
-            //this.Log("change group: {}, {}", GID, GetGroup());//debug
-        }
-
-        void set_TCA_Active(IShipconstruct ship)
-        {
-            TCA_Active = false;
+            EnableTCA(false);
             var all_tca = AllTCA(ship);
-            init_group(all_tca);
-            var masters = all_tca
-                .Where(tca => tca.GroupMaster)
-                .ToDictionary(tca => tca.GID);
+            if(string.IsNullOrEmpty(GID))
+            {
+                var other = all_tca.FirstOrDefault(tca => !string.IsNullOrEmpty(tca.GID));
+                SetGID(other != null ? other.GID : new_GID());
+                //this.Log("init group: {}", GID);//debug
+            }
+            var masters = new Dictionary<string, ModuleTCA>();
+            foreach(var tca in all_tca.Where(tca => tca.GroupMaster))
+            {
+                ModuleTCA m;
+                if(masters.TryGetValue(tca.GID, out m))
+                {
+                    this.Log("WARNING: found another TCA instance {} that claims to be the master of {}",
+                             tca.GetID(), m.GID);
+                    m.GroupMaster = false;
+                }
+                else
+                    masters[tca.GID] = tca;
+            }
             if(!masters.ContainsKey(GID))
             {
                 var master = select_group_master(all_tca);
@@ -350,16 +349,15 @@ namespace ThrottleControlledAvionics
                     masters[GID] = master;
             }
             if(GroupMaster)
-                TCA_Active = (masters.Count == 1 || 
-                              masters.Values.SelectMax(m => 
+                EnableTCA(masters.Count == 1 ||
+                          masters.Values.SelectMax(m =>
             {
-                try { return -m.part.Modules.IndexOf(m)-ship.Parts.IndexOf(m.part); }
+                try { return -m.part.Modules.IndexOf(m) - ship.Parts.IndexOf(m.part) * 1000; }
                 catch(NullReferenceException) { return float.NegativeInfinity; }
             }) == this);
-            Actions["ToggleTCA"].active = TCA_Active;
-            //this.Log("TCA Active: {}, GroupMaster {}, masters {}, top master {}", 
+            //this.Log("TCA Active: {}, GroupMaster {}, masters {}, top master {}",
                      //TCA_Active, GroupMaster, masters,
-                     //masters.Values.SelectMax(m => -m.part.Modules.IndexOf(m)-ship.Parts.IndexOf(m.part)));//debug
+                     //masters.Values.SelectMax(m => -m.part.Modules.IndexOf(m) - ship.Parts.IndexOf(m.part) * 1000));//debug
         }
 
         public void EnableTCA(bool enable = true)
@@ -386,7 +384,8 @@ namespace ThrottleControlledAvionics
             var TCA_Modules = new List<ModuleTCA>();
             if(ship.Parts != null)
             {
-                (from p in ship.Parts where p.Modules != null 
+                (from p in ship.Parts
+                 where p.Modules != null
                  select p.Modules.GetModules<ModuleTCA>())
                     .ForEach(TCA_Modules.AddRange);
             }
@@ -396,7 +395,7 @@ namespace ThrottleControlledAvionics
         public static ModuleTCA AvailableTCA(IShipconstruct ship)
         {
             ModuleTCA tca = null;
-            for(int i = 0, shipPartsCount = ship.Parts.Count; i < shipPartsCount; i++) 
+            for(int i = 0, shipPartsCount = ship.Parts.Count; i < shipPartsCount; i++)
             {
                 tca = ship.Parts[i].Modules
                     .GetModules<ModuleTCA>()
@@ -407,13 +406,13 @@ namespace ThrottleControlledAvionics
         }
 
         public static ModuleTCA EnabledTCA(IShipconstruct ship)
-        { 
+        {
             var tca = AvailableTCA(ship);
-            return tca != null && tca.CFG != null && tca.CFG.Enabled? tca : null;
+            return tca != null && tca.CFG != null && tca.CFG.Enabled ? tca : null;
         }
 
         public List<ModuleTCA> GetGroup() =>
-        vessel != null? AllTCA(vessel).Where(tca => tca.GID == GID).ToList() : null;
+        vessel != null ? AllTCA(vessel).Where(tca => tca.GID == GID).ToList() : null;
 
         void updateCFG()
         {
@@ -432,8 +431,8 @@ namespace ThrottleControlledAvionics
             if(!TCA_Active) return;
             updateCFG();
             VSL = new VesselWrapper(this);
-            EnableTCA(VSL.Engines.All.Count > 0 || 
-                          VSL.Engines.RCS.Count > 0 || 
+            EnableTCA(VSL.Engines.All.Count > 0 ||
+                          VSL.Engines.RCS.Count > 0 ||
                           VSL.Torque.Wheels.Count > 0);
             if(!TCA_Active) { VSL = null; return; }
             VSL.Init();
@@ -483,17 +482,17 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        [KSPEvent(guiName ="Activate TCA", guiActive = true, active = true)]
+        [KSPEvent(guiName = "Activate TCA", guiActive = true, active = true)]
         public void ActivateTCA()
         {
             if(TCA_Active) return;
             var all_tca = AllTCA(vessel);
-            all_tca.ForEach(tca => 
-            { 
+            all_tca.ForEach(tca =>
+            {
                 if(tca.TCA_Active)
                     tca.AllModules.ForEach(m => m.SaveToConfig());
-                tca.EnableTCA(false); 
-                tca.reset(); 
+                tca.EnableTCA(false);
+                tca.reset();
             });
             if(!GroupMaster)
             {
@@ -507,25 +506,25 @@ namespace ThrottleControlledAvionics
             ShowGroup();
         }
 
-        [KSPEvent(guiName ="Show TCA Group", guiActive = true, active = true)]
+        [KSPEvent(guiName = "Show TCA Group", guiActive = true, active = true)]
         public void ShowGroup()
         {
             var group = GetGroup();
-            group.ForEach(m => m.part.HighlightAlways(m.TCA_Active? 
-                                                      Colors.Enabled : 
-                                                      (m.GroupMaster? 
-                                                       Colors.Selected2 : 
+            group.ForEach(m => m.part.HighlightAlways(m.TCA_Active ?
+                                                      Colors.Enabled :
+                                                      (m.GroupMaster ?
+                                                       Colors.Selected2 :
                                                        Colors.Selected1)));
-            StartCoroutine(CallbackUtil.DelayedCallback(3.0f, () => group.ForEach(m => 
-            { 
-                if(m != null && m.part != null) 
+            StartCoroutine(CallbackUtil.DelayedCallback(3.0f, () => group.ForEach(m =>
+            {
+                if(m != null && m.part != null)
                     m.part.SetHighlightDefault();
             })));
         }
         #endregion
 
         #region ICommNetControlSource
-        public void UpdateNetwork() {}
+        public void UpdateNetwork() { }
         VesselControlState localControlState;
         public VesselControlState GetControlSourceState() { return localControlState; }
         public bool IsCommCapable() { return false; }
@@ -534,31 +533,31 @@ namespace ThrottleControlledAvionics
         //why not do it in OnStart?
         public virtual void Start()
         {
-            if(HighLogic.LoadedSceneIsGame && !HighLogic.LoadedSceneIsEditor && 
+            if(HighLogic.LoadedSceneIsGame && !HighLogic.LoadedSceneIsEditor &&
                HighLogic.LoadedScene != GameScenes.SPACECENTER)
-                {
-                    if(CommNetNetwork.Initialized)
-                    { if(vessel.Connection != null) OnNetworkInitialised(); }
-                    GameEvents.CommNet.OnNetworkInitialized.Add(OnNetworkInitialised);
-                }
+            {
+                if(CommNetNetwork.Initialized)
+                { if(vessel.Connection != null) OnNetworkInitialised(); }
+                GameEvents.CommNet.OnNetworkInitialized.Add(OnNetworkInitialised);
+            }
         }
         protected virtual void OnNetworkInitialised()
         { vessel.connection.RegisterCommandSource(this); }
         #endregion
 
         void ClearFrameState()
-        { 
+        {
             VSL.ClearFrameState();
             AllModules.ForEach(m => m.ClearFrameState());
-            #if DEBUG
+#if DEBUG
             if(VSL.IsActiveVessel) TCAGui.ClearDebugMessage();
-            #endif
+#endif
         }
 
         void Update() //works both in Editor and in flight
         {
             if(!TCA_Active) return;
-            if(CFG != null) 
+            if(CFG != null)
                 CFG.ActionGroup = Actions["ToggleTCA"].actionGroup;
         }
 
@@ -573,17 +572,17 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        public void OnPreAutopilotUpdate(FlightCtrlState s) 
+        public void OnPreAutopilotUpdate(FlightCtrlState s)
         {
             if(!Valid) return;
             //initialize systems
             VSL.PreUpdateState(s);
             State = TCAState.Disabled;
-            if(CFG.Enabled) 
+            if(CFG.Enabled)
             {
                 State = TCAState.Enabled;
                 localControlState = VesselControlState.None;
-                if(!VSL.Info.ElectricChargeAvailible) 
+                if(!VSL.Info.ElectricChargeAvailible)
                 {
                     if(VSL.Controls.WarpToTime > 0)
                         VSL.Controls.AbortWarp();
