@@ -142,15 +142,23 @@ namespace ThrottleControlledAvionics
         void UpdateCFG(List<ModuleTCA> TCA_Modules)
         {
             if(CFG == null || TCA_Modules.Count == 0) return;
+            //this.Log("UpdateCFG start: TCA Modules: {}", TCA_Modules);//debug
             TCA_highlight.Reset();
-            TCA_Modules.ForEach(m => { m.CFG = null; m.EnableTCA(false); });
             TCA = TCA_Modules[0];
+            TCA_Modules.ForEach(m =>
+            {
+                m.CFG = null;
+                m.EnableTCA(false);
+                m.GroupMaster = false;
+                m.SetGID(TCA.GID);
+            });
+            TCA.GroupMaster = true;
             TCA.CFG = CFG;
             TCA.EnableTCA(true);
-            TCA_Modules.ForEach(m => m.GID = TCA.GID);
             CFG.ActiveProfile.Update(Engines);
             PartsEditor.SetCFG(CFG);
             update_modules();
+            //this.Log("UpdateCFG end: TCA Modules: {}", TCA_Modules);//debug
         }
         void UpdateCFG() { UpdateCFG(ModuleTCA.AllTCA(EditorLogic.fetch.ship)); }
 
