@@ -66,7 +66,6 @@ namespace ThrottleControlledAvionics
             //highlighters
             TCA_highlight = new HighlightSwitcher(highlight_TCA, reset_TCA_highlighting);
             Engines_highlight = new HighlightSwitcher(highlight_engines, reset_engines_highlightig);
-
         }
 
         public override void OnDestroy()
