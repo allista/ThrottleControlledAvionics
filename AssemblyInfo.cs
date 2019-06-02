@@ -47,7 +47,7 @@ namespace ThrottleControlledAvionics
         public ModInfo()
         {
             MinKSPVersion = new Version(1,7,0);
-            MaxKSPVersion = new Version(1,7,0);
+            MaxKSPVersion = new Version(1,7,1);
 
             VersionURL   = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
             UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
