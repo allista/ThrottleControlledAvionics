@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
 //                    RAD.DrawDebugLines();//debug
                 }
             }
-            if(THR != null) THR.Draw();
+            if(THR != null && (ALT != null || VSC != null)) THR.Draw();
             GUILayout.EndHorizontal();
             GUILayout.EndVertical();
         }
