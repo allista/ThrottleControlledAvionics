@@ -1,0 +1,167 @@
+﻿//   VFlightUI.cs
+//
+//  Author:
+//       Allis Tauri <allista@gmail.com>
+//
+//  Copyright (c) 2019 Allis Tauri
+
+using UnityEngine;
+using UnityEngine.UI;
+
+using AT_Utils.UI;
+
+namespace TCA.UI
+{
+    public class VFlightUI : ScreenBoundRect
+    {
+        public VSC_UI VSC;
+        public ALT_UI ALT;
+
+        public Toggle hoverButton;
+        public Toggle followTerrainButton;
+        public Toggle autoThrottleButton;
+
+        public Text infoFiled;
+
+        protected override void Awake()
+        {
+            base.Awake();
+            hoverButton.onValueChanged.AddListener(onHover);
+            followTerrainButton.onValueChanged.AddListener(onFollowTerrain);
+            autoThrottleButton.onValueChanged.AddListener(onAutoThrottle);
+            VSC.onValueChanged.AddListener(onVSC);
+            ALT.onValueChanged.AddListener(onALT);
+            onHover(false);
+        }
+
+        void OnDestroy()
+        {
+            hoverButton.onValueChanged.RemoveListener(onHover);
+            followTerrainButton.onValueChanged.RemoveListener(onFollowTerrain);
+            autoThrottleButton.onValueChanged.RemoveListener(onAutoThrottle);
+            VSC.onValueChanged.RemoveListener(onVSC);
+            ALT.onValueChanged.RemoveListener(onALT);
+        }
+
+        void onVSC(float vSpeed)
+        {
+            autoThrottleButton.isOn |= hoverButton.isOn || vSpeed < VSC.Max;
+        }
+
+        void onALT(float alt)
+        {
+            autoThrottleButton.isOn = true;
+        }
+
+        void onHover(bool state)
+        {
+            ALT.SetActive(state);
+            VSC.SetActive(!state);
+            autoThrottleButton.isOn |= state;
+        }
+
+        void onFollowTerrain(bool state)
+        {
+        }
+
+        void onAutoThrottle(bool state)
+        {
+            if(state && VSC.Value >= VSC.Max)
+                VSC.Value = 0;
+        }
+
+        public void UpdateInfo(float Altitude, float VerticalSpeed, float HorizontalSpeed)
+        {
+            infoFiled.text = string.Format("{0} {1} ►{2}",
+                                           FormatUtils.formatBigValue(Altitude, "m"),
+                                           FormatUtils.formatBigValue(VerticalSpeed, "m/s", "▲ 0.0;▼ 0.0;▲ 0.0"),
+                                           FormatUtils.formatBigValue(HorizontalSpeed, "m/s"));
+        }
+    }
+
+    public class VSC_UI : BoundedFloatValueUI
+    {
+        public Slider slider;
+        public Text display;
+
+        public float min;
+        public override float Min { get => min; set { min = value; slider.minValue = min; } }
+
+        public float max;
+        public override float Max { get => max; set { max = value; slider.maxValue = max; } }
+
+        readonly FloatEvent _onValueChange = new FloatEvent();
+        public override FloatEvent onValueChanged => _onValueChange;
+
+        void update_display()
+        {
+            slider.value = value;
+            if(value < max)
+                display.text = FormatUtils.formatBigValue(value, "m/s", "+0.0;-0.0;+0.0");
+            else
+                display.text = "OFF";
+        }
+
+        void Awake()
+        {
+            slider.minValue = min;
+            slider.maxValue = max;
+            slider.value = value = max;
+            slider.onValueChanged.AddListener(changeValue);
+            update_display();
+        }
+
+        void OnDestroy()
+        {
+            slider.onValueChanged.RemoveListener(changeValue);
+        }
+
+        protected override void changeValue(float newValue)
+        {
+            if(value.Equals(newValue))
+                return;
+            value = newValue;
+            update_display();
+            onValueChanged.Invoke(value);
+        }
+    }
+
+    public class ALT_UI : FloatValueUI
+    {
+        public FloatController Altitude;
+        TooltipTrigger tooltip;
+        bool altitudeAboveGround;
+
+        public override FloatEvent onValueChanged => Altitude.onValueChanged;
+
+        void Awake()
+        {
+            tooltip = Altitude.input.gameObject.AddComponent<TooltipTrigger>();
+            SetAltitudeAboveGround(!altitudeAboveGround);
+        }
+
+        public void SetAltitudeAboveGround(bool above)
+        {
+            if(altitudeAboveGround == above) return;
+            if(above)
+            {
+                tooltip.text = "Desired altitude is above the ground";
+                Colors.Danger.removeOnColorChangeListner(onInputColorChange);
+                Colors.Good.addOnColorChangeListner(onInputColorChange);
+                onInputColorChange(Colors.Good);
+            }
+            else
+            {
+                tooltip.text = "Warning! Desired altitude is below the ground";
+                Colors.Good.removeOnColorChangeListner(onInputColorChange);
+                Colors.Danger.addOnColorChangeListner(onInputColorChange);
+                onInputColorChange(Colors.Danger);
+            }
+            altitudeAboveGround = above;
+        }
+
+        void onInputColorChange(Color color) => Altitude.input.textComponent.color = color;
+
+        protected override void changeValue(float newValue) => Altitude.Value = newValue;
+    }
+}
