@@ -27,47 +27,18 @@ namespace TCA.UI
         {
             base.Awake();
             hoverButton.onValueChanged.AddListener(onHover);
-            followTerrainButton.onValueChanged.AddListener(onFollowTerrain);
-            autoThrottleButton.onValueChanged.AddListener(onAutoThrottle);
-            VSC.onValueChanged.AddListener(onVSC);
-            ALT.onValueChanged.AddListener(onALT);
             onHover(false);
         }
 
         void OnDestroy()
         {
             hoverButton.onValueChanged.RemoveListener(onHover);
-            followTerrainButton.onValueChanged.RemoveListener(onFollowTerrain);
-            autoThrottleButton.onValueChanged.RemoveListener(onAutoThrottle);
-            VSC.onValueChanged.RemoveListener(onVSC);
-            ALT.onValueChanged.RemoveListener(onALT);
-        }
-
-        void onVSC(float vSpeed)
-        {
-            autoThrottleButton.isOn |= hoverButton.isOn || vSpeed < VSC.Max;
-        }
-
-        void onALT(float alt)
-        {
-            autoThrottleButton.isOn = true;
         }
 
         void onHover(bool state)
         {
             ALT.SetActive(state);
             VSC.SetActive(!state);
-            autoThrottleButton.isOn |= state;
-        }
-
-        void onFollowTerrain(bool state)
-        {
-        }
-
-        void onAutoThrottle(bool state)
-        {
-            if(state && VSC.Value >= VSC.Max)
-                VSC.Value = 0;
         }
 
         public void UpdateInfo(float Altitude, float VerticalSpeed, float HorizontalSpeed)
