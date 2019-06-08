@@ -97,15 +97,12 @@ namespace ThrottleControlledAvionics
         #pragma warning restore 169
 
         #region Initialization
-        void save_config(ConfigNode node) { SaveConfig(); }
-
         public override void Awake()
         {
             base.Awake();
             Styles.onSkinInit += reset_statuses;
             AllTabFields = ControlTab.GetTabFields(GetType());
             AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
-            GameEvents.onGameStateSave.Add(save_config);
             AllPanels.Add(VFlight_Panel);
             GameEvents.onVesselChange.Add(onVesselChange);
             GameEvents.onVesselDestroy.Add(onVesselDestroy);
@@ -117,7 +114,6 @@ namespace ThrottleControlledAvionics
             base.OnDestroy();
             clear_fields();
             TCAAppToolbar.AttachTCA(null);
-            GameEvents.onGameStateSave.Remove(save_config);
             GameEvents.onVesselChange.Remove(onVesselChange);
             GameEvents.onVesselDestroy.Remove(onVesselDestroy);
             Styles.onSkinInit -= reset_statuses;
