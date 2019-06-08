@@ -93,6 +93,7 @@ GameObject:
   - component: {fileID: 114109955611089312}
   - component: {fileID: 114931907319400396}
   - component: {fileID: 114488748622676184}
+  - component: {fileID: 114112632454066310}
   m_Layer: 5
   m_Name: autoThrottleToggle
   m_TagString: Untagged
@@ -112,6 +113,7 @@ GameObject:
   - component: {fileID: 222291257083087922}
   - component: {fileID: 114461073140966908}
   - component: {fileID: 114475094743886620}
+  - component: {fileID: 114433674746291184}
   m_Layer: 5
   m_Name: Info
   m_TagString: Untagged
@@ -571,6 +573,7 @@ GameObject:
   - component: {fileID: 114055470672752486}
   - component: {fileID: 114812357740286376}
   - component: {fileID: 114594413847486074}
+  - component: {fileID: 114312903828887252}
   m_Layer: 5
   m_Name: followTerrainToggle
   m_TagString: Untagged
@@ -846,6 +849,20 @@ MonoBehaviour:
     m_TypeName: UnityEngine.UI.Toggle+ToggleEvent, UnityEngine.UI, Version=1.0.0.0,
       Culture=neutral, PublicKeyToken=null
   m_IsOn: 0
+--- !u!114 &114112632454066310
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1131898508632494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -382320990, guid: 23fd6eb82728348aba7ba3f92873da24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  text: Change altitude or vertical speed with throttle controls
+  delay: 0.3
+  position: 0
 --- !u!114 &114116999871904820
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -1196,6 +1213,20 @@ MonoBehaviour:
   m_FillAmount: 1
   m_FillClockwise: 1
   m_FillOrigin: 0
+--- !u!114 &114312903828887252
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1759576923883568}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -382320990, guid: 23fd6eb82728348aba7ba3f92873da24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  text: Keep altitude relative to the ground
+  delay: 0.3
+  position: 0
 --- !u!114 &114314937724536604
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -1604,6 +1635,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   toggleText: {fileID: 114934193671797454}
+--- !u!114 &114491702610950390
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1270783163930938}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -382320990, guid: 23fd6eb82728348aba7ba3f92873da24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  text: Maintain altitude
+  delay: 0.3
+  position: 0
 --- !u!114 &114505829618281622
 MonoBehaviour:
   m_ObjectHideFlags: 1
