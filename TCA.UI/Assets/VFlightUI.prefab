@@ -1108,6 +1108,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   panel: {fileID: 224843330607588460}
   Altitude: {fileID: 114989429460725422}
+  tooltip: {fileID: 114433360662540530}
 --- !u!114 &114275556005878486
 MonoBehaviour:
   m_ObjectHideFlags: 1

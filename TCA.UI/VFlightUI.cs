@@ -100,14 +100,13 @@ namespace TCA.UI
     public class ALT_UI : FloatValueUI
     {
         public FloatController Altitude;
-        TooltipTrigger tooltip;
+        public TooltipTrigger tooltip;
         bool altitudeAboveGround;
 
         public override FloatEvent onValueChanged => Altitude.onValueChanged;
 
         void Awake()
         {
-            tooltip = Altitude.input.gameObject.AddComponent<TooltipTrigger>();
             SetAltitudeAboveGround(!altitudeAboveGround);
         }
 
