@@ -1681,7 +1681,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 
+  m_Text: 100.0
 --- !u!114 &114510422013431138
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -1901,7 +1901,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 
+  m_Text: +999.9m/s
 --- !u!114 &114594413847486074
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -2072,7 +2072,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 
+  m_Text: "999.9km \u25B2 999.9m/s \u25BA999.9m/s"
 --- !u!114 &114759001108439880
 MonoBehaviour:
   m_ObjectHideFlags: 1
