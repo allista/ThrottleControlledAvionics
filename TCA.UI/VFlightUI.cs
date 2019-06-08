@@ -26,16 +26,16 @@ namespace TCA.UI
         protected override void Awake()
         {
             base.Awake();
-            hoverButton.onValueChanged.AddListener(onHover);
-            onHover(false);
+            hoverButton.onValueChanged.AddListener(EnableALT);
+            EnableALT(false);
         }
 
         void OnDestroy()
         {
-            hoverButton.onValueChanged.RemoveListener(onHover);
+            hoverButton.onValueChanged.RemoveListener(EnableALT);
         }
 
-        void onHover(bool state)
+        public void EnableALT(bool state)
         {
             ALT.SetActive(state);
             VSC.SetActive(!state);
