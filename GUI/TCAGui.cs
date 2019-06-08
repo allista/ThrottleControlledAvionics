@@ -183,12 +183,13 @@ namespace ThrottleControlledAvionics
             AllPanels.ForEach(p => p.Init(TCA));
             foreach(var fi in AllTabFields)
             {
-                var tab = TCA.CreateComponent(fi.FieldType) as ControlTab;
-                if(tab == null) continue;
+                if(!(TCA.CreateComponent(fi.FieldType) is ControlTab tab)) 
+                    continue;
                 tab.Init();
-                if(!tab.Valid) continue;
-                var info = fi.GetCustomAttributes(typeof(TabInfo), false).FirstOrDefault() as TabInfo;
-                if(info != null) tab.SetupTab(info);
+                if(!tab.Valid) 
+                    continue;
+                if(fi.GetCustomAttributes(typeof(TabInfo), false).FirstOrDefault() is TabInfo info) 
+                    tab.SetupTab(info);
                 fi.SetValue(this, tab);
                 AllTabs.Add(tab);
             }
