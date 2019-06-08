@@ -75,9 +75,9 @@ namespace TCA.UI
 
         void Awake()
         {
+            value = max;
             slider.minValue = min;
             slider.maxValue = max;
-            slider.value = value = max;
             slider.onValueChanged.AddListener(changeValue);
             update_display();
         }
