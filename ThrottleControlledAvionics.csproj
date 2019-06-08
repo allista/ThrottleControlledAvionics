@@ -181,6 +181,7 @@
     <Compile Include="Modules\Orbit\Components\TargetedToOrbitExecutor.cs" />
     <Compile Include="Utils\LambertSolver2D.cs" />
     <Compile Include="Modules\Orbit\RendezvousTrajectoryOptimizers.cs" />
+    <Compile Include="GUI\Elements\ControlPanel.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

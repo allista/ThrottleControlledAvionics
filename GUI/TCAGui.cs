@@ -67,6 +67,7 @@ namespace ThrottleControlledAvionics
         ManeuverWindow Maneuver_Window;
         AttitudeControlWindow Attitude_Window;
         List<ControlWindow> AllWindows = new List<ControlWindow>();
+        List<IControlPanel> AllPanels = new List<IControlPanel>();
         #endregion
 
         #region ControlTabs
@@ -182,6 +183,7 @@ namespace ThrottleControlledAvionics
         {
             TCA.InitModuleFields(this);
             AllWindows.ForEach(w => w.Init(TCA));
+            AllPanels.ForEach(p => p.Init(TCA));
             foreach(var fi in AllTabFields)
             {
                 var tab = TCA.CreateComponent(fi.FieldType) as ControlTab;
@@ -204,6 +206,7 @@ namespace ThrottleControlledAvionics
             ModulesGraph.Show(false);
             AllTabs.ForEach(t => t.Reset());
             AllWindows.ForEach(w => w.Reset());
+            AllPanels.ForEach(p => p.Reset());
             AllTabFields.ForEach(fi => fi.SetValue(this, null));
             ModuleTCA.ResetModuleFields(this);
             AllTabs.Clear();
@@ -530,6 +533,7 @@ namespace ThrottleControlledAvionics
         public void LateUpdate()
         {
             AllTabs.ForEach(t => t.LateUpdate());
+            AllPanels.ForEach(p => p.LateUpdate());
         }
 
 
