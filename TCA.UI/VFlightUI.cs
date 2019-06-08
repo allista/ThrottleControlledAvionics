@@ -78,22 +78,24 @@ namespace TCA.UI
             value = max;
             slider.minValue = min;
             slider.maxValue = max;
-            slider.onValueChanged.AddListener(changeValue);
             update_display();
+            slider.onValueChanged.AddListener(changeValueAndNotify);
         }
 
         void OnDestroy()
         {
-            slider.onValueChanged.RemoveListener(changeValue);
+            slider.onValueChanged.RemoveListener(changeValueAndNotify);
         }
 
-        protected override void changeValue(float newValue)
+        public override bool SetValueWithoutNotify(float newValue)
         {
-            if(value.Equals(newValue))
-                return;
-            value = newValue;
-            update_display();
-            onValueChanged.Invoke(value);
+            if(!value.Equals(newValue))
+            {
+                value = newValue;
+                update_display();
+                return true;
+            }
+            return false;
         }
     }
 
@@ -132,6 +134,6 @@ namespace TCA.UI
 
         void onInputColorChange(Color color) => Altitude.input.textComponent.color = color;
 
-        protected override void changeValue(float newValue) => Altitude.Value = newValue;
+        public override bool SetValueWithoutNotify(float newValue) => Altitude.SetValueWithoutNotify(newValue);
     }
 }
