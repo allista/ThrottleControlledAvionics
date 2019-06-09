@@ -68,7 +68,7 @@ namespace TCA.UI
         {
             slider.value = value;
             if(value < max)
-                display.text = FormatUtils.formatBigValue(value, "m/s", "+0.0;-0.0;+0.0");
+                display.text = FormatUtils.formatBigValue(value, "m/s", "+0.0;-0.0; 0.0");
             else
                 display.text = "OFF";
         }
