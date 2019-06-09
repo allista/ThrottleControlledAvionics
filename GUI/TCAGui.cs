@@ -539,9 +539,6 @@ namespace ThrottleControlledAvionics
 
         #if DEBUG
         static string DebugMessage;
-        #pragma warning disable 169
-        DebugMessageWindow debug_window;
-        #pragma warning restore 169
 
         public static void AddDebugMessage(string msg, params object[] args)
         { DebugMessage += Utils.Format(msg, args)+"\n"; }
@@ -599,23 +596,6 @@ namespace ThrottleControlledAvionics
             GUILayout.Label(string.Format("Thr: {0:P1}", VSL.vessel.ctrlState.mainThrottle), GUILayout.Width(100));
             GUILayout.Label(string.Format("ecc: {0:0.000}", VSL.orbit.eccentricity), GUILayout.Width(100));
             GUILayout.EndHorizontal();
-        }
-
-        class DebugMessageWindow : ControlWindow
-        {
-            public DebugMessageWindow()
-            {
-                width = 600;
-                height = 25;
-            }
-
-            protected override void DrawContent()
-            {
-    //          DebugInfo();
-    //          EnginesInfo();
-                if(!string.IsNullOrEmpty(DebugMessage))
-                    GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.Width(width));
-            }
         }
         #endif
     }
