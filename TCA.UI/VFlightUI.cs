@@ -21,7 +21,7 @@ namespace TCA.UI
         public Toggle followTerrainButton;
         public Toggle autoThrottleButton;
 
-        public Text infoFiled;
+        public Text Altitude, vSpeed, vSpeedLabel, hSpeed;
 
         protected override void Awake()
         {
@@ -41,12 +41,12 @@ namespace TCA.UI
             VSC.SetActive(!state);
         }
 
-        public void UpdateInfo(float Altitude, float VerticalSpeed, float HorizontalSpeed)
+        public void UpdateInfo(float altitude, float v_speed, float h_speed)
         {
-            infoFiled.text = string.Format("{0} {1} ►{2}",
-                                           FormatUtils.formatBigValue(Altitude, "m"),
-                                           FormatUtils.formatBigValue(VerticalSpeed, "m/s", "▲ 0.0;▼ 0.0;▲ 0.0"),
-                                           FormatUtils.formatBigValue(HorizontalSpeed, "m/s"));
+            Altitude.text = FormatUtils.formatBigValue(altitude, "m");
+            vSpeed.text = FormatUtils.formatBigValue(v_speed, "m/s", "0.0;0.0;0.0");
+            vSpeedLabel.text = v_speed > 0 ? "▲" : "▼";
+            hSpeed.text = FormatUtils.formatBigValue(h_speed, "m/s");
         }
     }
 
