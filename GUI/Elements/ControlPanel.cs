@@ -33,6 +33,12 @@ namespace ThrottleControlledAvionics
 
         protected virtual bool shouldShow => Connected && TCA.IsControllable && CFG.GUIVisible;
 
+        protected override void init_controller()
+        {
+            if(Connected)
+                OnLateUpdate();
+        }
+
         protected ControlPanel() : base(GLB.AssetBundle)
         {
         }

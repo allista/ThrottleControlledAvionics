@@ -49,8 +49,7 @@ namespace ThrottleControlledAvionics
                 Controller.VSC.onValueChanged.AddListener(onVSC);
             else
                 Controller.VSC.SetActive(false);
-            if(Connected)
-                OnLateUpdate();
+            base.init_controller();
         }
 
         void onHover(bool hover)
