@@ -65,7 +65,6 @@ namespace ThrottleControlledAvionics
         #region ControlWindows
         readonly VFlightPanel VFlight_Panel = new VFlightPanel();
         readonly AttitudePanel Attitude_Panel = new AttitudePanel();
-        List<ControlWindow> AllWindows = new List<ControlWindow>();
         readonly ManeuverPanel Maneuver_Panel =  new ManeuverPanel();
         List<IControlPanel> AllPanels = new List<IControlPanel>();
         #endregion
@@ -102,7 +101,6 @@ namespace ThrottleControlledAvionics
             base.Awake();
             Styles.onSkinInit += reset_statuses;
             AllTabFields = ControlTab.GetTabFields(GetType());
-            AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
             AllPanels.Add(VFlight_Panel);
             AllPanels.Add(Attitude_Panel);
             AllPanels.Add(Maneuver_Panel);
@@ -181,7 +179,6 @@ namespace ThrottleControlledAvionics
         void create_fields()
         {
             TCA.InitModuleFields(this);
-            AllWindows.ForEach(w => w.Init(TCA));
             AllPanels.ForEach(p => p.Init(TCA));
             foreach(var fi in AllTabFields)
             {
@@ -205,7 +202,6 @@ namespace ThrottleControlledAvionics
         {
             ModulesGraph.Show(false);
             AllTabs.ForEach(t => t.Reset());
-            AllWindows.ForEach(w => w.Reset());
             AllPanels.ForEach(p => p.Reset());
             AllTabFields.ForEach(fi => fi.SetValue(this, null));
             ModuleTCA.ResetModuleFields(this);
@@ -491,7 +487,6 @@ namespace ThrottleControlledAvionics
                 Markers.DrawWorldMarker(TCA.vessel.transform.position, Colors.Good, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
             if(NAV != null) NAV.DrawWaypoints();
-            AllWindows.ForEach(w => w.Draw());
             ModulesGraph.Draw();
 
             #if DEBUG
