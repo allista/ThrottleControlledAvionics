@@ -63,9 +63,9 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region ControlWindows
-        VFlightPanel VFlight_Panel = new VFlightPanel();
+        readonly VFlightPanel VFlight_Panel = new VFlightPanel();
+        readonly AttitudePanel Attitude_Panel = new AttitudePanel();
         ManeuverWindow Maneuver_Window;
-        AttitudeControlWindow Attitude_Window;
         List<ControlWindow> AllWindows = new List<ControlWindow>();
         List<IControlPanel> AllPanels = new List<IControlPanel>();
         #endregion
@@ -104,6 +104,7 @@ namespace ThrottleControlledAvionics
             AllTabFields = ControlTab.GetTabFields(GetType());
             AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
             AllPanels.Add(VFlight_Panel);
+            AllPanels.Add(Attitude_Panel);
             GameEvents.onVesselChange.Add(onVesselChange);
             GameEvents.onVesselDestroy.Add(onVesselDestroy);
             NavigationTab.OnAwake();

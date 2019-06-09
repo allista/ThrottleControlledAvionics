@@ -29,6 +29,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="VFlightUI.cs" />
+    <Compile Include="AttitudeUI.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\AT_Utils\Unity\AT_Utils.UI.csproj">

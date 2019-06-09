@@ -161,7 +161,6 @@
     <Compile Include="VesselConfig.cs" />
     <Compile Include="GUI\TCAGuiEditor.cs" />
     <Compile Include="GUI\Elements\ControlWindow.cs" />
-    <Compile Include="GUI\HUD\AttitudeWindow.cs" />
     <Compile Include="GUI\HUD\ManeuverWindow.cs" />
     <Compile Include="GUI\Elements\ControlTab.cs" />
     <Compile Include="GUI\Tabs\NavigationTab.cs" />
@@ -182,6 +181,7 @@
     <Compile Include="Modules\Orbit\RendezvousTrajectoryOptimizers.cs" />
     <Compile Include="GUI\Elements\ControlPanel.cs" />
     <Compile Include="GUI\HUD\VFlightPanel.cs" />
+    <Compile Include="GUI\HUD\AttitudePanel.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
