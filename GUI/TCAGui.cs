@@ -528,8 +528,9 @@ namespace ThrottleControlledAvionics
             AllTabs.ForEach(t => t.OnRenderObject());
         }
 
-        public void LateUpdate()
+        protected override void LateUpdate()
         {
+            base.LateUpdate();
             AllTabs.ForEach(t => t.LateUpdate());
             AllPanels.ForEach(p => p.LateUpdate());
         }
