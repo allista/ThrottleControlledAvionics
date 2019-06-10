@@ -91,6 +91,8 @@ namespace TCA.UI
         {
             if(!value.Equals(newValue))
             {
+                if(Mathf.Abs(newValue) < 0.1f)
+                    newValue = 0;
                 value = newValue;
                 update_display();
                 return true;
