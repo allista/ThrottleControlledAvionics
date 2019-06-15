@@ -121,8 +121,9 @@ namespace ThrottleControlledAvionics
 
         void onVesselDestroy(Vessel vsl)
         {
-            if(vsl == vessel && vsl != FlightGlobals.ActiveVessel)
-                onVesselChange(FlightGlobals.ActiveVessel);
+            var active = FlightGlobals.fetch?.activeVessel;
+            if(vsl != null && active != null && vsl == vessel && vsl != active)
+                onVesselChange(active);
         }
 
         void onVesselChange(Vessel vsl)
