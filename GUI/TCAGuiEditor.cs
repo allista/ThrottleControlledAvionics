@@ -144,6 +144,8 @@ namespace ThrottleControlledAvionics
             //this.Log("UpdateCFG start: TCA Modules: {}", TCA_Modules);//debug
             TCA_highlight.Reset();
             TCA = TCA_Modules[0];
+            if(string.IsNullOrEmpty(TCA.GID))
+                TCA.ChangeGID();
             TCA_Modules.ForEach(m =>
             {
                 m.CFG = null;

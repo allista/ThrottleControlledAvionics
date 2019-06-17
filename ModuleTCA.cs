@@ -296,7 +296,7 @@ namespace ThrottleControlledAvionics
         public void SetGID(string gid)
         {
             GID = gid;
-            GID_Display = gid.Substring(gid.Length - 6);
+            GID_Display = gid.Substring(Math.Max(gid.Length - 6, 0));
         }
 
         public string ChangeGID()

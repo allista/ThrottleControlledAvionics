@@ -28,7 +28,7 @@ namespace ThrottleControlledAvionics
         int last_warp_index;
         int frames_to_skip;
 
-        void AbortWarp(bool instant = false)
+        public void AbortWarp(bool instant = false)
         {
             VSL.Controls.AbortWarp(instant);
             Reset();
@@ -132,15 +132,6 @@ namespace ThrottleControlledAvionics
                     TimeToDewarp(TimeWarp.CurrentRateIndex+1) > 0)
                 TimeWarp.SetRate(TimeWarp.CurrentRateIndex+1, false, false);
             end: Reset();
-        }
-
-        public override void Draw()
-        {
-            if(Utils.ButtonSwitch("Warp", CFG.WarpToNode, "Warp to the burn", GUILayout.ExpandWidth(false)))
-            {
-                CFG.WarpToNode = !CFG.WarpToNode;
-                if(!CFG.WarpToNode) AbortWarp();
-            }
         }
     }
 }

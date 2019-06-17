@@ -63,10 +63,10 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region ControlWindows
-        VFlightWindow VFlight_Window;
-        ManeuverWindow Maneuver_Window;
-        AttitudeControlWindow Attitude_Window;
-        List<ControlWindow> AllWindows = new List<ControlWindow>();
+        readonly VFlightPanel VFlight_Panel = new VFlightPanel();
+        readonly AttitudePanel Attitude_Panel = new AttitudePanel();
+        readonly ManeuverPanel Maneuver_Panel =  new ManeuverPanel();
+        List<IControlPanel> AllPanels = new List<IControlPanel>();
         #endregion
 
         #region ControlTabs
@@ -96,15 +96,14 @@ namespace ThrottleControlledAvionics
         #pragma warning restore 169
 
         #region Initialization
-        void save_config(ConfigNode node) { SaveConfig(); }
-
         public override void Awake()
         {
             base.Awake();
             Styles.onSkinInit += reset_statuses;
             AllTabFields = ControlTab.GetTabFields(GetType());
-            AllWindows = subwindows.Where(sw => sw is ControlWindow).Cast<ControlWindow>().ToList();
-            GameEvents.onGameStateSave.Add(save_config);
+            AllPanels.Add(VFlight_Panel);
+            AllPanels.Add(Attitude_Panel);
+            AllPanels.Add(Maneuver_Panel);
             GameEvents.onVesselChange.Add(onVesselChange);
             GameEvents.onVesselDestroy.Add(onVesselDestroy);
             NavigationTab.OnAwake();
@@ -115,7 +114,6 @@ namespace ThrottleControlledAvionics
             base.OnDestroy();
             clear_fields();
             TCAAppToolbar.AttachTCA(null);
-            GameEvents.onGameStateSave.Remove(save_config);
             GameEvents.onVesselChange.Remove(onVesselChange);
             GameEvents.onVesselDestroy.Remove(onVesselDestroy);
             Styles.onSkinInit -= reset_statuses;
@@ -123,8 +121,9 @@ namespace ThrottleControlledAvionics
 
         void onVesselDestroy(Vessel vsl)
         {
-            if(vsl == vessel && vsl != FlightGlobals.ActiveVessel)
-                onVesselChange(FlightGlobals.ActiveVessel);
+            var active = FlightGlobals.fetch?.activeVessel;
+            if(vsl != null && active != null && vsl == vessel && vsl != active)
+                onVesselChange(active);
         }
 
         void onVesselChange(Vessel vsl)
@@ -181,15 +180,16 @@ namespace ThrottleControlledAvionics
         void create_fields()
         {
             TCA.InitModuleFields(this);
-            AllWindows.ForEach(w => w.Init(TCA));
+            AllPanels.ForEach(p => p.Init(TCA));
             foreach(var fi in AllTabFields)
             {
-                var tab = TCA.CreateComponent(fi.FieldType) as ControlTab;
-                if(tab == null) continue;
+                if(!(TCA.CreateComponent(fi.FieldType) is ControlTab tab)) 
+                    continue;
                 tab.Init();
-                if(!tab.Valid) continue;
-                var info = fi.GetCustomAttributes(typeof(TabInfo), false).FirstOrDefault() as TabInfo;
-                if(info != null) tab.SetupTab(info);
+                if(!tab.Valid) 
+                    continue;
+                if(fi.GetCustomAttributes(typeof(TabInfo), false).FirstOrDefault() is TabInfo info) 
+                    tab.SetupTab(info);
                 fi.SetValue(this, tab);
                 AllTabs.Add(tab);
             }
@@ -203,7 +203,7 @@ namespace ThrottleControlledAvionics
         {
             ModulesGraph.Show(false);
             AllTabs.ForEach(t => t.Reset());
-            AllWindows.ForEach(w => w.Reset());
+            AllPanels.ForEach(p => p.Reset());
             AllTabFields.ForEach(fi => fi.SetValue(this, null));
             ModuleTCA.ResetModuleFields(this);
             AllTabs.Clear();
@@ -488,7 +488,6 @@ namespace ThrottleControlledAvionics
                 Markers.DrawWorldMarker(TCA.vessel.transform.position, Colors.Good, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
             if(NAV != null) NAV.DrawWaypoints();
-            AllWindows.ForEach(w => w.Draw());
             ModulesGraph.Draw();
 
             #if DEBUG
@@ -527,17 +526,16 @@ namespace ThrottleControlledAvionics
             AllTabs.ForEach(t => t.OnRenderObject());
         }
 
-        public void LateUpdate()
+        protected override void LateUpdate()
         {
+            base.LateUpdate();
             AllTabs.ForEach(t => t.LateUpdate());
+            AllPanels.ForEach(p => p.LateUpdate());
         }
 
 
         #if DEBUG
         static string DebugMessage;
-        #pragma warning disable 169
-        DebugMessageWindow debug_window;
-        #pragma warning restore 169
 
         public static void AddDebugMessage(string msg, params object[] args)
         { DebugMessage += Utils.Format(msg, args)+"\n"; }
@@ -595,23 +593,6 @@ namespace ThrottleControlledAvionics
             GUILayout.Label(string.Format("Thr: {0:P1}", VSL.vessel.ctrlState.mainThrottle), GUILayout.Width(100));
             GUILayout.Label(string.Format("ecc: {0:0.000}", VSL.orbit.eccentricity), GUILayout.Width(100));
             GUILayout.EndHorizontal();
-        }
-
-        class DebugMessageWindow : ControlWindow
-        {
-            public DebugMessageWindow()
-            {
-                width = 600;
-                height = 25;
-            }
-
-            protected override void DrawContent()
-            {
-    //          DebugInfo();
-    //          EnginesInfo();
-                if(!string.IsNullOrEmpty(DebugMessage))
-                    GUILayout.Label(DebugMessage, Styles.boxed_label, GUILayout.Width(width));
-            }
         }
         #endif
     }

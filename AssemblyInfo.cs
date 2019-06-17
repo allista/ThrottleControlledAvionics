@@ -30,7 +30,7 @@ using AT_Utils;
 #if NIGHTBUILD
 [assembly: AssemblyVersion("3.5.*")]
 #else
-[assembly: AssemblyVersion("3.5.6")]
+[assembly: AssemblyVersion("3.5.7")]
 #endif
 [assembly: KSPAssembly("ThrottleControlledAvionics", 3, 5)]
 
@@ -46,11 +46,11 @@ namespace ThrottleControlledAvionics
     {
         public ModInfo()
         {
-            MinKSPVersion = new Version(1,7,0);
-            MaxKSPVersion = new Version(1,7,1);
+            MinKSPVersion = new Version(1, 6, 1);
+            MaxKSPVersion = new Version(1, 7, 2);
 
-            VersionURL   = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
-            UpgradeURL   = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
+            VersionURL = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
+            UpgradeURL = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
             ChangeLogURL = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/ChanegLog.md";
         }
     }
