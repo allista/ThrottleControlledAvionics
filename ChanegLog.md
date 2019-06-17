@@ -2,7 +2,18 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.3.6**
+* **v3.5.7**
+    * Only show "AutoThrottle" switch if Altitude Control or Vertical Speed Control are available.
+    * Reimplemented the HUD windows using uGUI:
+        * Vertical Flight Controls
+        * T-SAS Controls
+        * Maneuver Controls
+    * Snap Desired Vertical Speed to 0 when in [-0.1, 0.1]
+    * Fixed out-of-range exception in editor while trying to set empty GID
+        * Closed #67
+    * Fixed NRE in TCAGui.onVesselDestroy
+
+* v3.5.6
     * In editor TCA UI is available whenever you have a command module. No engines/rcs are required to setup TCA configuration.
     * Fixed exceptions caused by TCA grouping (thanks @123nick for reporting it)
     * Other bugfixes.
@@ -19,7 +30,7 @@ _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files 
     * Other minor fixes.
 
 * v3.5.4
-    * Improved Land (from orbit) and Ballistic Jump autopilots with adaptations for new aerodynamic 
+    * Improved Land (from orbit) and Ballistic Jump autopilots with adaptations for new aerodynamic
     model of KSP 1.4.5+
     * Fixed stucking in "Testing aerobrakes" fase of the landing when no aerobrakes are present.
     * Other minor fixes in landing logic.
