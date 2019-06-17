@@ -22,6 +22,8 @@ namespace ThrottleControlledAvionics
         public const string RADIATION_ICON = "ThrottleControlledAvionics/Icons/waypoint";
         public const string CIRCLE_ICON = "ThrottleControlledAvionics/Icons/path-node";
 
+        public UIBundle AssetBundle = new UIBundle("ThrottleControlledAvionics/tca_ui");
+
         [Persistent] public bool  IntegrateIntoCareer   = true;
         [Persistent] public bool  RoleSymmetryInFlight  = true;
         [Persistent] public bool  UseStockAppLauncher   = false;

@@ -47,11 +47,11 @@ namespace ThrottleControlledAvionics
         readonly EWA setpoint_correction = new EWA();
         readonly Timer Falling = new Timer();
 
-        void set_vspeed(float vspeed)
+        public void SetVerticalCutoff(float cutoff)
         {
             TCA.SquadConfigAction(cfg =>
             {
-                cfg.VerticalCutoff = vspeed;
+                cfg.VerticalCutoff = cutoff;
                 cfg.BlockThrottle |= cfg.VSCIsActive;
             });
         }
@@ -133,16 +133,8 @@ namespace ThrottleControlledAvionics
                 cutoff = C.MaxSpeed;
             else if(GameSettings.THROTTLE_CUTOFF.GetKeyDown())
                 cutoff = -C.MaxSpeed;
-            if(!cutoff.Equals(CFG.VerticalCutoff)) set_vspeed(cutoff);
-        }
-
-        public override void Draw()
-        {
-            var speed = string.Format("V.Spd. {0}", (CFG.VerticalCutoff < C.MaxSpeed? 
-                                                     Utils.formatBigValue(CFG.VerticalCutoff, "m/s", "+0.0;-0.0;+0.0") : "OFF"));
-            GUILayout.Label(new GUIContent(speed, "Desired vertical speed"), Styles.boxed_label, GUILayout.ExpandWidth(false));
-            var VSP = GUILayout.HorizontalSlider(CFG.VerticalCutoff, -C.MaxSpeed, C.MaxSpeed);
-            if(Mathf.Abs(VSP-CFG.VerticalCutoff) > 1e-5) set_vspeed(VSP);
+            if(!cutoff.Equals(CFG.VerticalCutoff)) 
+                SetVerticalCutoff(cutoff);
         }
     }
 }

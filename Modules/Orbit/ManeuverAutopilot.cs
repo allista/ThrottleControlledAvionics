@@ -227,17 +227,5 @@ namespace ThrottleControlledAvionics
             Node.RemoveSelf();
             Disable();
         }
-
-        public override void Draw()
-        {
-            if(ControlsActive)
-            {
-                if(GUILayout.Button(CFG.AP1[Autopilot1.Maneuver]? "Abort Maneuver" : "Execute Node", 
-                                    CFG.AP1[Autopilot1.Maneuver]? Styles.danger_button : Styles.active_button, 
-                                    GUILayout.ExpandWidth(false)))
-                    CFG.AP1.XToggle(Autopilot1.Maneuver);
-            }
-            else GUILayout.Label("Execute Node", Styles.inactive_button, GUILayout.ExpandWidth(false));
-        }
     }
 }

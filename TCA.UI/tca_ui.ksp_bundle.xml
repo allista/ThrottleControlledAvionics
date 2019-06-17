@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KSPBundleDefinition xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" UrlName="tca_ui.ksp" Name="tca_ui.ksp" CreatedTime="-8586414943482195008">
+  <Author>Allis Tauri</Author>
+  <Info>UI prefabs for Throttle Controlled Avionics</Info>
+  <Assets>
+    <Asset Name="AttitudeUI" Path="Assets/UI/TCA/AttitudeUI.prefab" Type="GameObject" Url="UI/TCA/AttitudeUI" AutoLoad="false" />
+    <Asset Name="ManeuverUI" Path="Assets/UI/TCA/ManeuverUI.prefab" Type="GameObject" Url="UI/TCA/ManeuverUI" AutoLoad="false" />
+    <Asset Name="VFlightUI" Path="Assets/UI/TCA/VFlightUI.prefab" Type="GameObject" Url="UI/TCA/VFlightUI" AutoLoad="false" />
+  </Assets>
+  <Dependencies>
+    <Dependency>at_utils_ui.ksp</Dependency>
+  </Dependencies>
+</KSPBundleDefinition>
