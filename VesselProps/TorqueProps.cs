@@ -100,6 +100,7 @@ namespace ThrottleControlledAvionics
             OtherLimits = Vector6.zero;
             var MaxEnginesLimits = Vector6.zero;
             var EnginesSpecificTorque = Vector6.zero;
+            var EnginesMaxSpecificTorque = Vector6.zero;
             var TorqueResponseSpeed = Vector6.zero;
             var TotalSlowTorque = Vector6.zero;
             var TotalSlowSpecificTorque = Vector6.zero;
@@ -107,23 +108,24 @@ namespace ThrottleControlledAvionics
             for(int i = 0, count = VSL.Engines.Active.Steering.Count; i < count; i++)
             {
                 var e = VSL.Engines.Active.Steering[i];
-                var max_torque = e.defSpecificTorque*e.nominalFullThrust;
-                EnginesLimits.Add(e.defCurrentTorque);
-                EnginesSpecificTorque.Add(e.defSpecificTorque);
-                MaxEnginesLimits.Add(max_torque);
-                if(e.useEngineResponseTime)
-                {
-                    TotalSlowTorque.Add(max_torque);
-                    TotalSlowSpecificTorque.Add(e.defSpecificTorque);
-                    TorqueResponseSpeed.Add(max_torque*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
-                }
+                var max_torque = e.defSpecificTorque * e.nominalFullThrust;
+                Vector3 pos, neg, max_spec_torque = e.defSpecificTorque;
                 if(e.gimbal != null && e.gimbal.gimbalActive && !e.gimbal.gimbalLock)
                 {
                     Gimball = true;
-                    Vector3 pos, neg;
                     e.gimbal.GetPotentialTorque(out pos, out neg);
-                    OtherLimits.Add(pos);
-                    OtherLimits.Add(-neg);
+                    max_torque += new Vector3(Mathf.Max(pos.x, neg.x), Mathf.Max(pos.y, neg.y), Mathf.Max(pos.z, neg.z));
+                    max_spec_torque = max_torque / e.nominalFullThrust;
+                }
+                EnginesLimits.Add(e.defCurrentTorque);
+                EnginesSpecificTorque.Add(e.defSpecificTorque);
+                MaxEnginesLimits.Add(max_torque);
+                EnginesMaxSpecificTorque.Add(max_spec_torque);
+                if(e.useEngineResponseTime)
+                {
+                    TotalSlowTorque.Add(max_torque);
+                    TotalSlowSpecificTorque.Add(max_spec_torque);
+                    TorqueResponseSpeed.Add(max_torque* Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
                 }
             }
             //RCS
@@ -169,9 +171,9 @@ namespace ThrottleControlledAvionics
             //specifc torque
             Engines.SpecificTorque = EnginesSpecificTorque.Max;
             NoEngines.SpecificTorque = RCSSpecificTorque.Max;
-            MaxEngines.SpecificTorque = Engines.SpecificTorque;
+            MaxEngines.SpecificTorque = EnginesMaxSpecificTorque.Max;
             MaxCurrent.SpecificTorque = Engines.SpecificTorque+NoEngines.SpecificTorque;
-            MaxPossible.SpecificTorque = MaxCurrent.SpecificTorque;
+            MaxPossible.SpecificTorque = MaxEngines.SpecificTorque + NoEngines.SpecificTorque;
             MaxPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxCurrent.SpecificTorque, VSL.Engines.CurrentThrustDir).AbsComponents();
             SlowMaxPossible.SpecificTorque = TotalSlowSpecificTorque.Max;
             Instant.SpecificTorque = MaxPossible.SpecificTorque-SlowMaxPossible.SpecificTorque;
