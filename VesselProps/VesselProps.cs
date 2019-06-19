@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
         protected Vessel vessel { get { return VSL.vessel; } }
         protected Transform refT { get { return VSL.refT; } set { VSL.refT = value; } }
 
+        public virtual void OnEnableTCA(bool enable) { }
         public virtual void Clear() {}
         public virtual void ClearFrameState() {}
         public virtual void Update() {}

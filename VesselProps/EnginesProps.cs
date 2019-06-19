@@ -723,6 +723,16 @@ namespace ThrottleControlledAvionics
             base.ClearFrameState();
             _AvailableFuelMass = -1;
         }
+
+        public override void OnEnableTCA(bool enable)
+        {
+            base.OnEnableTCA(enable);
+            if(!enable)
+            {
+                All.ForEach(e => e.RestoreState());
+                RCS.ForEach(e => e.RestoreState());
+            }
+        }
     }
 
     public class EnginesStats : VesselProps

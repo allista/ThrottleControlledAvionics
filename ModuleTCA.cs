@@ -468,18 +468,9 @@ namespace ThrottleControlledAvionics
         {
             CFG.Enabled = !CFG.Enabled;
             if(CFG.Enabled)
-            {
                 CFG.ActiveProfile.Update(VSL.Engines.All, true);
-                VSL.SetUnpackDistance(GLB.UnpackDistance);
-                AllModules.ForEach(m => m.OnEnableTCA(true));
-            }
-            else
-            {
-                AllModules.ForEach(m => m.OnEnableTCA(false));
-                VSL.Engines.All.ForEach(e => e.forceThrustPercentage(100));
-                VSL.Engines.RCS.ForEach(e => e.forceThrustPercentage(100));
-                VSL.RestoreUnpackDistance();
-            }
+            AllModules.ForEach(m => m.OnEnableTCA(CFG.Enabled));
+            VSL.OnEnableTCA(CFG.Enabled);
         }
 
         [KSPEvent(guiName = "Activate TCA", guiActive = true, active = true)]
