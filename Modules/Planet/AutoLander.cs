@@ -447,7 +447,7 @@ namespace ThrottleControlledAvionics
                 //FIXME: the first wide check sometimes causes uncontrolled ascent
                 if(!fully_stopped)
                 {
-                    Status("Prepearing for surface scanning...");
+                    Status("Preparing for surface scanning...");
                     break;
                 }
                 if(scan(C.WideCheckLevel))
