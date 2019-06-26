@@ -214,6 +214,7 @@
     <ProjectReference Include="TCA.UI\TCA.UI.csproj">
       <Project>{B16128EB-C7FC-404C-9C48-D996D489805B}</Project>
       <Name>TCA.UI</Name>
+      <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
