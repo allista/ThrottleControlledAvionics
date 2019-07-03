@@ -160,7 +160,6 @@
     <Compile Include="Globals.cs" />
     <Compile Include="VesselConfig.cs" />
     <Compile Include="GUI\TCAGuiEditor.cs" />
-    <Compile Include="GUI\Elements\ControlWindow.cs" />
     <Compile Include="GUI\Elements\ControlTab.cs" />
     <Compile Include="GUI\Tabs\NavigationTab.cs" />
     <Compile Include="GUI\Tabs\AdvancedTab.cs" />
