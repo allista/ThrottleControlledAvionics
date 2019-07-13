@@ -66,7 +66,7 @@ namespace ThrottleControlledAvionics
             }
             if(dV.IsInvalid())
             {
-                Utils.Log("WARNING: dV is invalid: {}", dV);//debug
+                Utils.Log("WARNING: dV is invalid: {}", dV);
                 return false;
             }
             dVrem.Lower = MinDeltaV * 5;
