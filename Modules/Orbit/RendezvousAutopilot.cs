@@ -38,6 +38,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float MaxInclinationDelta = 30; //deg
             [Persistent] public float MaxInclinationDeltaToOrbit = 5; //deg
             [Persistent] public float MaxDaysToLaunch = 5; //celectial body rotations
+            [Persistent] public float MaxInclinationDeltaInPlane = 0.1f; //deg
             [Persistent] public MinMax TargetArc = new MinMax(15, 90, 60); //deg
         }
         public static new Config C => Config.INST;
@@ -417,6 +418,13 @@ namespace ThrottleControlledAvionics
                 findInPlaneUT(inPlaneUT + Body.rotationPeriod / 2, 60);
         }
 
+        double projection_angle(double UT) =>
+            -Utils.ProjectionAngle(
+                TargetOrbit.getRelativePositionAtUT(UT),
+                BodyRotationAtdT(Body, UT - VSL.Physics.UT) * VesselOrbit.pos,
+                TargetOrbit.getOrbitalVelocityAtUT(UT)
+            );
+
         ComputationBalancer.Task launch_window_calculator;
         IEnumerator<int> calculate_launch_window()
         {
@@ -514,42 +522,44 @@ namespace ThrottleControlledAvionics
             //start when in plane
             if(best == null)
             {
-                Utils.Message("No launch window was found for direct rendezvous.\n\n" +
-                              "Launching in plane with the target...");
-                var first_in_plane_UT = findInPlaneUT(VSL.Physics.UT, Body.rotationPeriod / 10);
-                var in_plane_UT = first_in_plane_UT;
-                var proj_anlgle = -Utils.ProjectionAngle(
-                    TargetOrbit.getRelativePositionAtUT(in_plane_UT),
-                    BodyRotationAtdT(Body, in_plane_UT - VSL.Physics.UT) * VesselOrbit.pos,
-                    TargetOrbit.getOrbitalVelocityAtUT(in_plane_UT)
-                );
-                while(Math.Abs(proj_anlgle) > 30 && in_plane_UT - VSL.Physics.UT < maxT)
+                if(!StartInPlane)
+                    Utils.Message("No launch window was found for direct rendezvous.\n\n"
+                                  + "Launching in plane with the target...");
+                var in_plane_UT = VSL.Physics.UT + ManeuverOffset;
+                var incDelta1 = inclinationDelta(in_plane_UT);
+                var incDelta2 = inclinationDelta(in_plane_UT+Body.rotationPeriod/4);
+                double proj_angle;
+                if(Math.Abs(incDelta1) > C.MaxInclinationDeltaInPlane
+                   || Math.Abs(incDelta2) > C.MaxInclinationDeltaInPlane)
                 {
-                    //Log("proj_angle {}, time2launch {}", 
-                    //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
-                    Status("{0} choosing optimal in-plane launch window: {1:P0}",
-                           ProgressIndicator.Get, (in_plane_UT - VSL.Physics.UT) / maxT);
-                    yield return 0;
-                    in_plane_UT = findInPlaneUT(in_plane_UT + Body.rotationPeriod / 2, Body.rotationPeriod / 10);
-                    proj_anlgle = -Utils.ProjectionAngle(
-                        TargetOrbit.getRelativePositionAtUT(in_plane_UT),
-                        BodyRotationAtdT(Body, in_plane_UT - VSL.Physics.UT) * VesselOrbit.pos,
-                        TargetOrbit.getOrbitalVelocityAtUT(in_plane_UT)
-                    );
+                    var first_in_plane_UT = findInPlaneUT(VSL.Physics.UT, Body.rotationPeriod / 10);
+                    in_plane_UT = first_in_plane_UT;
+                    proj_angle = projection_angle(in_plane_UT);
+                    while(Math.Abs(proj_angle) > 30 && in_plane_UT - VSL.Physics.UT < maxT)
+                    {
+                        //Log("proj_angle {}, time2launch {}", 
+                        //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
+                        Status("{0} choosing optimal in-plane launch window: {1:P0}",
+                            ProgressIndicator.Get,
+                            (in_plane_UT - VSL.Physics.UT) / maxT);
+                        yield return 0;
+                        in_plane_UT = findInPlaneUT(in_plane_UT + Body.rotationPeriod / 2,
+                            Body.rotationPeriod / 10);
+                        proj_angle = projection_angle(in_plane_UT);
+                    }
+                    if(proj_angle < -30)
+                        in_plane_UT = first_in_plane_UT;
                 }
+                else
+                    proj_angle = projection_angle(in_plane_UT);
                 //Log("proj_angle {}, time2launch {}", 
                 //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
                 var ApR = minApR;
-                if(proj_anlgle < 0)
-                {
-                    if(proj_anlgle < -30)
-                        in_plane_UT = first_in_plane_UT;
+                if(proj_angle < 0)
                     ApR = maxApR;
-                }
                 best = new Launch(this, in_plane_UT, -1, ApR, ApR, ApAArc);
                 ToOrbit.InPlane = true;
                 ToOrbit.CorrectOnlyAltitude = true;
-
             }
             else
                 ToOrbit.ApAUT = best.UT + best.Transfer;
