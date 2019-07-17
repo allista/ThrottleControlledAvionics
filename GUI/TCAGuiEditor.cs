@@ -593,7 +593,6 @@ namespace ThrottleControlledAvionics
                                  Title,
                                  GUILayout.Width(width),
                                  GUILayout.Height(height)).clampToScreen();
-            PartsEditor.Draw();
             if(show_imbalance && ActiveEngines.Count > 0)
             {
                 Markers.DrawWorldMarker(WetCoM, Colors.Active, "Center of Mass", CoM_Icon);

@@ -139,28 +139,23 @@ namespace ThrottleControlledAvionics
             TooltipsAndDragWindow();
         }
 
-        public void Draw()
+        static Color inactive = new Color(0.8f, 0.8f, 0.8f);
+        void OnGUI()
         {
+            if(Event.current.type != EventType.Layout && Event.current.type != EventType.Repaint) return;
+            GUI.depth = -1;
             if(doShow)
             {
                 LockControls();
                 WindowPos = GUILayout.Window(GetInstanceID(),
-                                             WindowPos, MainWindow,
-                                             HighLogic.LoadedSceneIsFlight ?
-                                             "Installed TCA Modules" :
-                                             "Select TCA Modules",
-                                             GUILayout.Width(width),
-                                             GUILayout.Height(height)).clampToScreen();
-            }
-            else UnlockControls();
-        }
-
-        static Color inactive = new Color(0.8f, 0.8f, 0.8f);
-        void OnGUI()
-        {
-            GUI.depth = -1;
-            if(doShow)
-            {
+                        WindowPos,
+                        MainWindow,
+                        HighLogic.LoadedSceneIsFlight
+                            ? "Installed TCA Modules"
+                            : "Select TCA Modules",
+                        GUILayout.Width(width),
+                        GUILayout.Height(height))
+                    .clampToScreen();
                 //draw dependecies
                 if(Event.current.type == EventType.Repaint)
                 {
@@ -182,6 +177,8 @@ namespace ThrottleControlledAvionics
                     }
                 }
             }
+            else
+                UnlockControls();
         }
     }
 }
