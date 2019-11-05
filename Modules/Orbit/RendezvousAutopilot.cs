@@ -1013,9 +1013,7 @@ namespace ThrottleControlledAvionics
                     break;
                 case Stage.MatchOrbits:
                     TmpStatus("Matching orbits at nearest approach...");
-                    Log("Stage: {}, target loaded: {}", stage, TargetLoaded); //debug
                     update_trajectory();
-                    Log("Trajectory: {}", trajectory); //debug
                     if(CFG.AP1[Autopilot1.Maneuver])
                     {
                         if(trajectory.TimeToTarget > 0
@@ -1023,9 +1021,6 @@ namespace ThrottleControlledAvionics
                         {
                             var threshold = VSL.Geometry.MinDistance * 2
                                             - trajectory.AtTargetRelPos.magnitude;
-                            Log("threshold: {}, correcting: {}",
-                                threshold,
-                                CorrectingManeuver); //debug
 //#if DEBUG
 //                        if(!CorrectingManeuver && threshold > 0)
 //                        {
