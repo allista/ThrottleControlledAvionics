@@ -59,7 +59,7 @@ namespace ThrottleControlledAvionics
             IsActive &= CFG.UseCPS && VSL.OnPlanet && !VSL.LandedOrSplashed && VSL.refT != null && HasActiveClients;
         }
 
-        static int RadarMask = (1 | 1 << LayerMask.NameToLayer("Parts"));
+        static int RadarMask;
         readonly HashSet<Guid> Dangerous = new HashSet<Guid>();
         List<Vector3d> Corrections = new List<Vector3d>();
         Vector3 Correction;
@@ -72,6 +72,7 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
+            RadarMask = Utils.GetLayer("Parts") | 1;
             filter.Tau = C.LowPassF;
             ManeuverTimer.Period = C.ManeuverTimer;
         }
