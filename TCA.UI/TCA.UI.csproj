@@ -53,6 +53,9 @@
       <HintPath>..\..\KSP-test\KSP_test_1.8.1\KSP_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\..\KSP-test\KSP_test_1.8.1\KSP_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>..\..\KSP-test\KSP_test_1.8.1\KSP_Data\Managed\UnityEngine.UI.dll</HintPath>
       <Private>False</Private>
