@@ -336,25 +336,32 @@ namespace ThrottleControlledAvionics
             return coast(pg_vel);
         }
 
+
+        static readonly GUIContent label_TimeToApA = new GUIContent("Time to Apoapsis:",
+            "More time to apoapsis means steeper trajectory "
+            + "and greater acceleration. Low values can "
+            + "save a lot of fuel.");
+
+        static readonly GUIContent label_MinThrottle = new GUIContent("Min. Throttle:",
+            "Minimum throttle value. "
+            + "Increasing it will shorten the last stage of the ascent.");
+
+        static readonly GUIContent label_MaxAccel = new GUIContent("Max. Acceleration:",
+            "Maximum allowed acceleration (in gees of the current planet). "
+            + "Smooths gravity turn on low-gravity worlds. Saves fuel.");
+
         public void DrawOptions()
         {
             GUILayout.BeginHorizontal();
             {
                 GUILayout.BeginVertical();
                 {
-                    GUILayout.Label(new GUIContent("Time to Apoapsis:",
-                                                   "More time to apoapsis means steeper trajectory " +
-                                                   "and greater acceleration. Low values can " +
-                                                   "save a lot of fuel."),
-                                    GUILayout.ExpandWidth(true));
-                    GUILayout.Label(new GUIContent("Min. Throttle:",
-                                                   "Minimum throttle value. " +
-                                                   "Increasing it will shorten the last stage of the ascent."),
-                                    GUILayout.ExpandWidth(true));
-                    GUILayout.Label(new GUIContent("Max. Acceleration:",
-                                                   "Maximum allowed acceleration (in gees of the current planet). " +
-                                                   "Smooths gravity turn on low-gravity worlds. Saves fuel."),
-                                    GUILayout.ExpandWidth(true));
+                    GUILayout.Label(label_TimeToApA,
+                        GUILayout.ExpandWidth(true));
+                    GUILayout.Label(label_MinThrottle,
+                        GUILayout.ExpandWidth(true));
+                    GUILayout.Label(label_MaxAccel,
+                        GUILayout.ExpandWidth(true));
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
