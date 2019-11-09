@@ -186,7 +186,6 @@ namespace ThrottleControlledAvionics
                     }
                     else
                     {
-
                         var inclination = Math.Acos(needed_norm.z / needed_norm.magnitude) * Mathf.Rad2Deg;
                         var chord = Vector3d.Exclude(needed_norm, ToOrbit.Target).normalized * VesselOrbit.radius - VesselOrbit.pos;
                         var alpha = inclination_correction(inclination, chord.magnitude);
