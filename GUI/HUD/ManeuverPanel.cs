@@ -48,7 +48,7 @@ namespace ThrottleControlledAvionics
         {
             base.OnLateUpdate();
             if(WRP != null)
-                Controller.WarpToggle.SetIsOnWithoutNotify(CFG.WarpToNode);
+                Controller.WarpToggle.SetIsOnAndColorWithoutNotify(CFG.WarpToNode);
             if(MAN != null)
             {
                 if(MAN.ControlsActive)
