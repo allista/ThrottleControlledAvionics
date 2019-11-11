@@ -253,3 +253,4 @@ pip-log.txt
 /GameData/ThrottleControlledAvionics/Plugins/ThrottleControlledAvionics.dll
 UserPrefs.xml
 /ThrottleControlledAvionics.sln
+/GameData/ThrottleControlledAvionics/Plugins/*.dll
