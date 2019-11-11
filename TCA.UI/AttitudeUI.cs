@@ -63,20 +63,20 @@ namespace TCA.UI
                              bool rVp, bool rVm,
                              bool Tp_rVm)
         {
-            this.Kill.SetIsOnWithoutNotify(Kill);
-            this.Hold.SetIsOnWithoutNotify(Hold);
-            this.Maneuver.SetIsOnWithoutNotify(Maneuver);
-            this.PG.SetIsOnWithoutNotify(PG);
-            this.RG.SetIsOnWithoutNotify(RG);
-            this.Rp.SetIsOnWithoutNotify(Rp);
-            this.Rm.SetIsOnWithoutNotify(Rm);
-            this.Np.SetIsOnWithoutNotify(Np);
-            this.Nm.SetIsOnWithoutNotify(Nm);
-            this.Tp.SetIsOnWithoutNotify(Tp);
-            this.Tm.SetIsOnWithoutNotify(Tm);
-            this.rVp.SetIsOnWithoutNotify(rVp);
-            this.rVm.SetIsOnWithoutNotify(rVm);
-            this.Tp_rVm.SetIsOnWithoutNotify(Tp_rVm);
+            this.Kill.SetIsOnAndColorWithoutNotify(Kill);
+            this.Hold.SetIsOnAndColorWithoutNotify(Hold);
+            this.Maneuver.SetIsOnAndColorWithoutNotify(Maneuver);
+            this.PG.SetIsOnAndColorWithoutNotify(PG);
+            this.RG.SetIsOnAndColorWithoutNotify(RG);
+            this.Rp.SetIsOnAndColorWithoutNotify(Rp);
+            this.Rm.SetIsOnAndColorWithoutNotify(Rm);
+            this.Np.SetIsOnAndColorWithoutNotify(Np);
+            this.Nm.SetIsOnAndColorWithoutNotify(Nm);
+            this.Tp.SetIsOnAndColorWithoutNotify(Tp);
+            this.Tm.SetIsOnAndColorWithoutNotify(Tm);
+            this.rVp.SetIsOnAndColorWithoutNotify(rVp);
+            this.rVm.SetIsOnAndColorWithoutNotify(rVm);
+            this.Tp_rVm.SetIsOnAndColorWithoutNotify(Tp_rVm);
         }
     }
 

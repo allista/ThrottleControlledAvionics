@@ -488,8 +488,6 @@ namespace ThrottleControlledAvionics
                 Markers.DrawWorldMarker(TCA.vessel.transform.position, Colors.Good, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
             if(NAV != null) NAV.DrawWaypoints();
-            ModulesGraph.Draw();
-
             #if DEBUG
             GUI.Label(debug_rect, 
                       string.Format("[{0}] {1:HH:mm:ss.fff} FPS: {2:F0}:{3:F0}", 

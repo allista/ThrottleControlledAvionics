@@ -24,7 +24,7 @@ namespace ThrottleControlledAvionics
         [Persistent] public bool InPlane;
         [Persistent] Ratchet correction_started = new Ratchet();
         protected PIDf_Controller3 throttle_correction = new PIDf_Controller3();
-        protected LowPassFilterF throttle_fileter = new LowPassFilterF();
+        protected LowPassFilterF throttle_filter = new LowPassFilterF();
         protected LowPassFilterD angle2hor_filter = new LowPassFilterD();
 
         public TargetedToOrbitExecutor()
@@ -34,7 +34,7 @@ namespace ThrottleControlledAvionics
             pitch.Max = 0;
             throttle_correction.setPID(C.ThrottleCorrectionPID);
             norm_correction.setClamp(AttitudeControlBase.C.MaxAttitudeError);
-            throttle_fileter.Tau = 1;
+            throttle_filter.Tau = 1;
             angle2hor_filter.Tau = 1;
         }
 
@@ -42,7 +42,7 @@ namespace ThrottleControlledAvionics
         {
             base.Reset();
             throttle_correction.Reset();
-            throttle_fileter.Reset();
+            throttle_filter.Reset();
             angle2hor_filter.Reset();
             correction_started.Reset();
         }
@@ -50,7 +50,7 @@ namespace ThrottleControlledAvionics
         public override void StartGravityTurn()
         {
             base.StartGravityTurn();
-            throttle_fileter.Set(1);
+            throttle_filter.Set(1);
         }
 
         public bool TargetedGravityTurn(float Dtol)
@@ -84,8 +84,8 @@ namespace ThrottleControlledAvionics
                 throttle_correction.setClamp(Utils.ClampL(TimeToApA-10, 1));
                 throttle_correction.Update((float)angle2Hor);
                 throttle.Update(TimeToApA + throttle_correction - (float)TimeToClosestApA);
-                throttle_fileter.Update(Utils.Clamp(0.5f + throttle, 0, max_G_throttle()));
-                THR.Throttle = throttle_fileter * (float)Utils.ClampH(ErrorThreshold.Value / Dtol / 10, 1);
+                throttle_filter.Update(Utils.Clamp(0.5f + throttle, 0, max_G_throttle()));
+                THR.Throttle = throttle_filter * (float)Utils.ClampH(ErrorThreshold.Value / Dtol / 10, 1);
                 //Log("alt {}, ApA {}, dApA {}, dArc {}, Err {}, angle2Hor {}, AoA {} < {}, startF {}, THR {}\n" +
                     //"thr.correction {}\nthrottle {}\npitch {}",
                     //VSL.Altitude.Absolute, VesselOrbit.ApA, dApA, dArc, ErrorThreshold,

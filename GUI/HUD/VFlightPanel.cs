@@ -100,14 +100,14 @@ namespace ThrottleControlledAvionics
                 Controller.EnableALT(CFG.VF[VFlight.AltitudeControl]);
                 Controller.ALT.SetValueWithoutNotify(CFG.DesiredAltitude);
                 Controller.ALT.SetAltitudeAboveGround(VSL.Altitude.AboveGround);
-                Controller.hoverButton.SetIsOnWithoutNotify(CFG.VF[VFlight.AltitudeControl]);
+                Controller.hoverButton.SetIsOnAndColorWithoutNotify(CFG.VF[VFlight.AltitudeControl]);
                 if(RAD != null)
-                    Controller.followTerrainButton.SetIsOnWithoutNotify(CFG.AltitudeAboveTerrain);
+                    Controller.followTerrainButton.SetIsOnAndColorWithoutNotify(CFG.AltitudeAboveTerrain);
             }
             if(VSC != null)
                 Controller.VSC.SetValueWithoutNotify(CFG.VerticalCutoff);
             if(THR != null)
-                Controller.autoThrottleButton.SetIsOnWithoutNotify(CFG.BlockThrottle);
+                Controller.autoThrottleButton.SetIsOnAndColorWithoutNotify(CFG.BlockThrottle);
         }
     }
 }

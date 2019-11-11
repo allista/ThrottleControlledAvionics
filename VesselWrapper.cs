@@ -225,6 +225,15 @@ namespace ThrottleControlledAvionics
             vessel.vesselRanges = new VesselRanges(saved_ranges);
             saved_ranges = null;
         }
+
+        public void OnEnableTCA(bool enable)
+        {
+            AllPros.ForEach(p => p.OnEnableTCA(enable));
+            if(enable)
+                SetUnpackDistance(GLB.UnpackDistance);
+            else
+                RestoreUnpackDistance();
+        }
         #endregion
 
         void create_props()
