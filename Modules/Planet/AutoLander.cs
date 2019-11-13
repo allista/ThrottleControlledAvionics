@@ -49,7 +49,7 @@ namespace ThrottleControlledAvionics
         }
         public static Config C => Config.INST;
 
-        static int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery") | 1 << LayerMask.NameToLayer("Parts") | 1);
+        static int RadarMask;
         enum Stage { None, Start, PointCheck, WideCheck, FlatCheck, MoveNext, Land }
         Stage stage;
 
@@ -75,6 +75,7 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
+            RadarMask = Utils.GetLayers("Local Scenery", "Parts") | 1;
             StopTimer.Period = C.StopTimer;
             CutoffTimer.Period = C.CutoffTimer;
             CFG.AP1.AddHandler(this, Autopilot1.Land);
@@ -447,7 +448,7 @@ namespace ThrottleControlledAvionics
                 //FIXME: the first wide check sometimes causes uncontrolled ascent
                 if(!fully_stopped)
                 {
-                    Status("Prepearing for surface scanning...");
+                    Status("Preparing for surface scanning...");
                     break;
                 }
                 if(scan(C.WideCheckLevel))

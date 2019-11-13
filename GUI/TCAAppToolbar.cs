@@ -37,7 +37,7 @@ namespace ThrottleControlledAvionics
         protected override string AL_ICON => AL_ICON_MAN;
 
         protected override ApplicationLauncher.AppScenes AL_SCENES =>
-        ApplicationLauncher.AppScenes.FLIGHT |
+        ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.MAPVIEW |
             ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.VAB;
 
         protected override GameScenes[] TB_SCENES =>

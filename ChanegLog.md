@@ -2,7 +2,17 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.5.7**
+
+* **v3.5.8**
+    * Supports **KSP-1.8**
+    * Improved engine balancing and attitude control with high-vectoring engines.
+    * In Rendezvous autopilot: if target is already in plane with the vessel on 
+        the ground, launch immediately.
+    * Added RP-1 patch for tech tree parts by @GordonDry
+    * TCA AppLauncher button is now visible in mapview.
+    * Bug fixes: #68 #69 #71 #78
+
+* v3.5.7
     * Only show "AutoThrottle" switch if Altitude Control or Vertical Speed Control are available.
     * Reimplemented the HUD windows using uGUI:
         * Vertical Flight Controls

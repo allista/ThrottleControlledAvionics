@@ -71,7 +71,7 @@ namespace ThrottleControlledAvionics
         public float TimeAhead { get; private set; }
         public float DistanceAhead { get; private set; }
 
-        public static readonly int RadarMask = (1 << LayerMask.NameToLayer("Local Scenery"));
+        public static int RadarMask;
         //normal radar
         Mode     mode;
         Vector3  Dir;
@@ -103,6 +103,7 @@ namespace ThrottleControlledAvionics
         public override void Init()
         {
             base.Init();
+            RadarMask = Utils.GetLayer("Local Scenery");
             ManeuverTimer.Period = C.ManeuverTimer;
             Reset();
         }

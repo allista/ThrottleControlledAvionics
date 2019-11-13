@@ -457,7 +457,7 @@ namespace ThrottleControlledAvionics
                             }
                             if(Modules[typeof(VTOLAssist)])
                                 Utils.ButtonSwitch("VTOL Assist", ref CFG.VTOLAssistON,
-                                                   "Automatic assistnce with vertical takeof or landing", GUILayout.ExpandWidth(false));
+                                                   "Automatic assistance with vertical takeof or landing", GUILayout.ExpandWidth(false));
                             if(Modules[typeof(FlightStabilizer)])
                                 Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight,
                                                    "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
@@ -593,7 +593,6 @@ namespace ThrottleControlledAvionics
                                  Title,
                                  GUILayout.Width(width),
                                  GUILayout.Height(height)).clampToScreen();
-            PartsEditor.Draw();
             if(show_imbalance && ActiveEngines.Count > 0)
             {
                 Markers.DrawWorldMarker(WetCoM, Colors.Active, "Center of Mass", CoM_Icon);

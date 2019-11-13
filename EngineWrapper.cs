@@ -53,6 +53,7 @@ namespace ThrottleControlledAvionics
 
         public abstract void InitLimits();
         public abstract void InitState();
+        public abstract void RestoreState();
         public abstract void UpdateCurrentTorque(float throttle);
 
         //needed for autopilots that are executed before FixedUpdate
@@ -109,6 +110,11 @@ namespace ThrottleControlledAvionics
             total_thrust_dir.Normalize();
             current_max_thrust = current_thrust / rcs.thrustPercentage * 100f;
             InitLimits();
+        }
+
+        public override void RestoreState()
+        {
+            forceThrustPercentage(100);
         }
 
         public override void UpdateCurrentTorque(float throttle)
@@ -344,6 +350,13 @@ namespace ThrottleControlledAvionics
             //                      zeroIsp, realIsp, flowMod, thrustMod,
             //                      part.staticPressureAtm, part.atmDensity, part.machNumber, 
             //                      engine.multIsp, engine.multFlow);//debug
+        }
+
+        public override void RestoreState()
+        {
+            forceThrustPercentage(100);
+            if(gimbal != null)
+                gimbal.gimbalLimiter = 100;
         }
 
         public override void UpdateCurrentTorque(float throttle)

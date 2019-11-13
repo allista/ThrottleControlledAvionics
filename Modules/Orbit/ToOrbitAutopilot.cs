@@ -186,12 +186,11 @@ namespace ThrottleControlledAvionics
                     }
                     else
                     {
-
                         var inclination = Math.Acos(needed_norm.z / needed_norm.magnitude) * Mathf.Rad2Deg;
-                        var chord = Vector3d.Exclude(norm, ToOrbit.Target).normalized * VesselOrbit.radius - VesselOrbit.pos;
+                        var chord = Vector3d.Exclude(needed_norm, ToOrbit.Target).normalized * VesselOrbit.radius - VesselOrbit.pos;
                         var alpha = inclination_correction(inclination, chord.magnitude);
-                        var axis = Vector3d.Cross(norm, VesselOrbit.pos.normalized);
-                        if(arcT < 0) alpha = -alpha;
+                        var axis = Vector3d.Cross(needed_norm, VesselOrbit.pos.normalized);
+                        if(arcT > 0) alpha = -alpha;
                         ToOrbit.Target = QuaternionD.AngleAxis(alpha, axis) * ToOrbit.Target;
                     }
                 }

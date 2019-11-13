@@ -73,15 +73,16 @@ namespace ThrottleControlledAvionics
                     var INSTf = get_INST(config.Value);
                     if(INSTf != null)
                     {
-                        var INST = INSTf.GetValue(null) as TCAComponent.ComponentConfig;
-                        if(INST != null)
+                        if(INSTf.GetValue(null) is TCAComponent.ComponentConfig INST)
                             INST.Load(config_node);
                     }
                     else
-                        Utils.Log("WARNING: {} has not public static INST field", config.Value.FullName);
+                        Utils.Log("WARNING: {} has no public static INST field", config.Value.FullName);
                 }
+#if DEBUG
                 else
                     Utils.Log("WARNING: no configuration for {}", config.Key);
+#endif
             }
         }
 
