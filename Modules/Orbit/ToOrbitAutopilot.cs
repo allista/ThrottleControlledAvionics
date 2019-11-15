@@ -123,12 +123,6 @@ namespace ThrottleControlledAvionics
             return TargetOrbit.DescendingNode ? -error : error;
         }
 
-        double inclination_correction(double inclination, double chord)
-        {
-            return Utils.Clamp(chord * Math.Tan(inclination_error(inclination) * Mathf.Deg2Rad)
-                               / VesselOrbit.radius * Mathf.Rad2Deg, -10, 10);
-        }
-
         Vector3d correct_dV(Vector3d dV, double UT)
         {
             var v = VesselOrbit.getOrbitalVelocityAtUT(UT);
