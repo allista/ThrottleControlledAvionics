@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float Dtol = 100f;
             [Persistent] public float RadiusOffset = 10000f;
             [Persistent] public float LaunchSlope = 50f;
+            [Persistent] public PIDf_Controller3 InclinationPID = new PIDf_Controller3();
         }
         public static new Config C => Config.INST;
 
@@ -37,6 +38,7 @@ namespace ThrottleControlledAvionics
         public bool ShowOptions;
 
         double ApR => TargetOrbit.ApA * 1000 + Body.Radius;
+        private PIDf_Controller3 inclinationPID = new PIDf_Controller3();
 
         public ToOrbitAutopilot(ModuleTCA tca) : base(tca) { }
 
@@ -45,6 +47,7 @@ namespace ThrottleControlledAvionics
             base.Init();
             CFG.AP2.AddHandler(this, Autopilot2.ToOrbit);
             ToOrbit.AttachTCA(TCA);
+            inclinationPID.setPID(C.InclinationPID);
         }
 
         protected override void UpdateState()
@@ -108,6 +111,7 @@ namespace ThrottleControlledAvionics
             base.Reset();
             update_limits();
             ToOrbit.Reset();
+            inclinationPID.Reset();
             stage = Stage.None;
         }
 
@@ -159,40 +163,32 @@ namespace ThrottleControlledAvionics
                 else
                 {
                     ToOrbit.StartGravityTurn();
+                    inclinationPID.Reset();
                     stage = Stage.GravityTurn;
                 }
                 break;
             case Stage.Liftoff:
                 if(ToOrbit.Liftoff()) break;
+                inclinationPID.Reset();
                 stage = Stage.GravityTurn;
                 break;
             case Stage.GravityTurn:
                 update_inclination_limits();
-                var norm = VesselOrbit.GetOrbitNormal();
-                var needed_norm = Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target.normalized);
-                var norm2norm = Math.Abs(Utils.Angle2(norm, needed_norm) - 90);
+                var orbitNormal = VesselOrbit.GetOrbitNormal();
+                var targetNormalized = ToOrbit.Target.normalized;
+                var vsl2TargetNormal = Vector3d.Cross(VesselOrbit.pos, targetNormalized);
+                var norm2norm = Math.Abs(Utils.Angle2(orbitNormal, vsl2TargetNormal) - 90);
                 if(norm2norm > 60)
                 {
                     var ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp);
-                    var arcApA = AngleDelta(VesselOrbit, ApV);
-                    var arcT = AngleDelta(VesselOrbit, ToOrbit.Target);
-                    if(arcT > 0 && arcT < arcApA)
-                    {
-                        ApV.Normalize();
-                        var chord = ApV * VesselOrbit.radius - VesselOrbit.pos;
-                        var alpha = inclination_correction(VesselOrbit.inclination, chord.magnitude);
-                        var axis = Vector3d.Cross(norm, ApV);
-                        ToOrbit.Target = QuaternionD.AngleAxis(alpha, axis) * ApV * ToOrbit.TargetR;
-                    }
-                    else
-                    {
-                        var inclination = Math.Acos(needed_norm.z / needed_norm.magnitude) * Mathf.Rad2Deg;
-                        var chord = Vector3d.Exclude(needed_norm, ToOrbit.Target).normalized * VesselOrbit.radius - VesselOrbit.pos;
-                        var alpha = inclination_correction(inclination, chord.magnitude);
-                        var axis = Vector3d.Cross(needed_norm, VesselOrbit.pos.normalized);
-                        if(arcT > 0) alpha = -alpha;
-                        ToOrbit.Target = QuaternionD.AngleAxis(alpha, axis) * ToOrbit.Target;
-                    }
+                    var arcApA = Utils.Angle2(VesselOrbit.pos, ApV);
+                    var arcApAT = Utils.Angle2(ApV, ToOrbit.Target);
+                    if(arcApAT < arcApA)
+                        ToOrbit.Target = QuaternionD.AngleAxis(arcApA-arcApAT, vsl2TargetNormal) * ToOrbit.Target;
+                    var inclination = Math.Acos(vsl2TargetNormal.z / vsl2TargetNormal.magnitude) * Mathf.Rad2Deg;
+                    inclinationPID.Update((float)inclination_error(inclination));
+                    var axis = Vector3d.Cross(vsl2TargetNormal, targetNormalized);
+                    ToOrbit.Target = QuaternionD.AngleAxis(inclinationPID.Action, axis) * ToOrbit.Target;
                 }
                 if(ToOrbit.GravityTurn(C.Dtol))
                     break;

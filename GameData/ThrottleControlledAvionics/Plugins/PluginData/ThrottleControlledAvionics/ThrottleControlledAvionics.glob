@@ -625,6 +625,15 @@ ToOrbitAutopilot
 	Dtol           = 100   //m
 	RadiusOffset   = 10000 //m
 	LaunchSlope    = 30 //deg
+    InclinationPID
+    {
+        P = 0.1
+        I = 0.01
+        D = 0
+        Tau = 1
+        Min = -1
+        Max = 1
+    }
 }
 
 RendezvousAutopilot
