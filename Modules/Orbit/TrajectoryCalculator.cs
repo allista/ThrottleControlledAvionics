@@ -653,9 +653,9 @@ namespace ThrottleControlledAvionics
         protected void clear_nodes()
         {
             if(VSL.vessel.patchedConicSolver == null) return;
-            VSL.vessel.patchedConicSolver.maneuverNodes.ForEach(n => n.RemoveSelf());
-            VSL.vessel.patchedConicSolver.maneuverNodes.Clear();
-            VSL.vessel.patchedConicSolver.flightPlan.Clear();
+            var nodes = VSL.vessel.patchedConicSolver.maneuverNodes; 
+            for(var i = nodes.Count-1; i >= 0; i--)
+                nodes[i].RemoveSelf();
         }
 
 
