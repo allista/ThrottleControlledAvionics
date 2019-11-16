@@ -246,7 +246,7 @@ namespace ThrottleControlledAvionics
                        "Please, change engines profile.");
                 return false;
             }
-            if(DiscontiniousOrbit(VesselOrbit))
+            if(DiscontinuousOrbit(VesselOrbit))
             {
                 Status(Colors.Warning, 
                     "Ship's orbit is discontinuous.\n"

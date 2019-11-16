@@ -227,7 +227,7 @@ namespace ThrottleControlledAvionics
             double maxStartUT, maxEndUT = -1;
             var lastOrbitV = LastOrbit(VesselOrbit);
             var lastOrbitT = LastOrbit(TargetOrbit);
-            if(DiscontiniousOrbit(lastOrbitV))
+            if(DiscontinuousOrbit(lastOrbitV))
             {
                 maxStartUT = lastOrbitV.EndUT;
                 softMaxStart = false;
@@ -238,7 +238,7 @@ namespace ThrottleControlledAvionics
                     double.IsInfinity(lastOrbitT.period) ? 0 : lastOrbitT.period);
                 maxStartUT = VSL.Physics.UT + period * (C.MaxTTR + 1);
             }
-            if(DiscontiniousOrbit(lastOrbitT))
+            if(DiscontinuousOrbit(lastOrbitT))
             {
                 maxEndUT = lastOrbitT.EndUT;
                 maxStartUT = Math.Min(maxStartUT, maxEndUT);
@@ -281,7 +281,7 @@ namespace ThrottleControlledAvionics
             var transfer_time = (VesselOrbit.period + TargetOrbit.period) / 4;
             double maxEndUT;
             var lastOrbitT = LastOrbit(TargetOrbit);
-            if(DiscontiniousOrbit(lastOrbitT))
+            if(DiscontinuousOrbit(lastOrbitT))
                 maxEndUT = lastOrbitT.EndUT;
             else if(!double.IsInfinity(lastOrbitT.period))
                 maxEndUT = VSL.Physics.UT + lastOrbitT.period * (C.MaxTTR + 2);
@@ -497,7 +497,7 @@ namespace ThrottleControlledAvionics
                 var startUT = VSL.Physics.UT;
                 var endUT = startUT + maxT;
                 var tEndUT = TargetOrbit.GetEndUT();
-                if(DiscontiniousOrbit(LastOrbit(TargetOrbit)))
+                if(DiscontinuousOrbit(LastOrbit(TargetOrbit)))
                     endUT = tEndUT;
                 else if(!double.IsInfinity(tEndUT))
                     endUT = Math.Max(endUT, tEndUT);

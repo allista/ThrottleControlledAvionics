@@ -63,7 +63,7 @@ namespace ThrottleControlledAvionics
             return orb;
         }
 
-        public static bool DiscontiniousOrbit(Orbit o)
+        public static bool DiscontinuousOrbit(Orbit o)
         {
             return o.EndUT > 0 && !double.IsInfinity(o.EndUT) &&
                 (o.patchEndTransition == Orbit.PatchTransitionType.ESCAPE ||
