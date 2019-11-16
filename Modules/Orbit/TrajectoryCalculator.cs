@@ -543,6 +543,14 @@ namespace ThrottleControlledAvionics
         {
             double UT = startUT;
             double dT = (toUT-fromUT)/10;
+            if(double.IsInfinity(dT))
+            {
+                dT = double.IsInfinity(a.period)
+                    ? double.IsInfinity(t.period)
+                        ? 60 //slow but safe default
+                        : t.period / 10
+                    : a.period / 10;
+            }
             bool dir = dT > 0;
             double minD  = double.MaxValue;
             double minUT = UT;
