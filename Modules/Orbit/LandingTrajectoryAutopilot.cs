@@ -246,6 +246,13 @@ namespace ThrottleControlledAvionics
                        "Please, change engines profile.");
                 return false;
             }
+            if(VesselOrbit.eccentricity >= 1)
+            {
+                Status(Colors.Warning, 
+                    "This is a fly-by orbit.\n"
+                    + "Cannot perform a targeted landing without a stable orbit.");
+                return false;
+            }
             VSL.OnPlanetParams.DragCurveK = AtmoSim.C.DragCurveK;
             return base.setup();
         }
