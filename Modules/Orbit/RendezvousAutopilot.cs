@@ -97,7 +97,6 @@ namespace ThrottleControlledAvionics
         CDOS_Optimizer2D optimizer;
 
         MinimumD MinDist = new MinimumD();
-        Vector3d ToOrbitIniApV;
         double CurrentDistance = -1;
         bool CorrectingManeuver;
         LowPassFilterVd Correction = new LowPassFilterVd();
@@ -666,8 +665,7 @@ namespace ThrottleControlledAvionics
                 MinDist.Reset();
                 ToOrbit.Reset();
                 ToOrbit.LaunchUT = VSL.Physics.UT;
-                ToOrbit.Target = ToOrbitIniApV =
-                    ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
+                ToOrbit.Target = ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
                 ToOrbit.InPlane = true;
                 ToOrbit.CorrectOnlyAltitude = true;
                 ToOrbit.StartGravityTurn();
