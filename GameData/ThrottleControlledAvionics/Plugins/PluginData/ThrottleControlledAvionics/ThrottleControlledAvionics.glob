@@ -473,7 +473,7 @@ TranslationControl
 TimeWarpControl
 {
 	DewarpTime = 10 //sec
-	MaxWarp    = 10000
+	MaxWarp    = 100000
 	FramesToSkip = 3
 }
 
