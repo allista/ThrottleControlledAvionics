@@ -242,5 +242,6 @@
     </ItemGroup>
     <ItemGroup>
       <Content Include="GameData\ThrottleControlledAvionics\Plugins\PluginData\ThrottleControlledAvionics\ThrottleControlledAvionics.glob" />
+      <Content Include="ThrottleControlledAvionics.netkan" />
     </ItemGroup>
 </Project>
