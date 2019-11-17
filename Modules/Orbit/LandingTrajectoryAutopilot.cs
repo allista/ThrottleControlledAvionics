@@ -246,6 +246,13 @@ namespace ThrottleControlledAvionics
                        "Please, change engines profile.");
                 return false;
             }
+            if(DiscontinuousOrbit(VesselOrbit))
+            {
+                Status(Colors.Warning, 
+                    "Ship's orbit is discontinuous.\n"
+                    + "Cannot perform a targeted landing from unstable orbit.");
+                return false;
+            }
             VSL.OnPlanetParams.DragCurveK = AtmoSim.C.DragCurveK;
             return base.setup();
         }

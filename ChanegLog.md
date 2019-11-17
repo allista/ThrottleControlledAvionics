@@ -2,6 +2,20 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
+* **v3.5.9**
+    * Fixed ToOrbit AP _(autopilot)_
+    * Increased maximum auto time warp factor to 100k.
+    * Fixed several bugs in trajectory optimizer that where caused by
+        the same not obvious incompatibility with KSP-1.8.
+    * Do not allow to use orbital landing AP from unstable (discontinuous)
+        orbits. Because in general you can't land at a ground target with only
+        one fly-by.
+    * Fixed game freeze when trying to find NearestApproach from discontinuous
+        orbit.
+    * Added "Max Days to Start" option for in-orbit rendezvous to shorten
+        transfer search on huge orbits (like kerbolcentric). To use: enable the
+        "Max Days to Start" switch **and** set the desired time span (in days)
+        within which you wish to start the first maneuver.
 
 * **v3.5.8**
     * Supports **KSP-1.8**

@@ -56,21 +56,6 @@ namespace ThrottleControlledAvionics
             get { return "Landing Autopilot"; }
         }
 
-        Vector3d PlaneCorrection(TargetedTrajectoryBase old)
-        {
-            var angle = old.DeltaFi;
-            angle *= Math.Sin(old.TransferTime/old.Orbit.period*2*Math.PI);
-            angle *= Math.Sign(Utils.ProjectionAngle(old.StartPos, old.AtTargetPos, old.AfterStartVel));
-            var rot = QuaternionD.AngleAxis(angle, old.StartPos);
-            return ManeuverAutopilot.Orbital2NodeDeltaV(VesselOrbit, (rot*old.AfterStartVel)-old.AfterStartVel, old.StartUT);
-        }
-
-        double ProgradeCorrection(LandingTrajectory old)
-        {
-            return old.DeltaR *
-                Utils.ClampH(old.Orbit.period/old.TimeToTarget*Body.GeeASL, 1);
-        }
-
         abstract class DeorbitOptimizerBase : LandingSiteOptimizerBase
         {
             protected readonly DeorbitAutopilot m;

@@ -396,7 +396,9 @@ namespace ThrottleControlledAvionics
                 var prev = P;
                 var bestP = cur;
                 var bestOK = feasible_point(bestP);
-                var endUT = Math.Max(P.start + P.transfer * 2, maxStartUT);
+                var endUT = softMaxStart
+                    ? Math.Max(P.start + P.transfer * 2, maxStartUT) 
+                    : maxStartUT;
                 var maxTT = maxStartUT - minStartUT;
                 var minZ = new MinimumD();
                 while(cur.start < endUT)

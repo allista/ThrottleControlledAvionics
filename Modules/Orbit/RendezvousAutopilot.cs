@@ -77,10 +77,14 @@ namespace ThrottleControlledAvionics
         [Persistent] public FloatField Steepness = new FloatField(format: "F1", min: 0, max: 100);
         [Persistent] public FloatField IncDelta = new FloatField(min: 1, max: 90);
         [Persistent] public FloatField MaxDist = new FloatField(min: 1, max: 100);
-        [Persistent] public FloatField MaxDays = new FloatField(min: 1, max: 365);
+        [Persistent] public FloatField MaxDays = new FloatField(min: 1, max: 365*10);
+        [Persistent] public bool HardMaxStart = false;
         [Persistent] public bool StartInPlane = false;
         [Persistent] public Mode mode;
         [Persistent] public bool ShowOptions;
+
+        private float MaxDaysInSeconds()
+            => 3600 * MaxDays * (GameSettings.KERBIN_TIME ? 6 : 24);
 
         public enum Mode { DeltaV, TimeToTarget, Manual }
 
@@ -97,7 +101,6 @@ namespace ThrottleControlledAvionics
         CDOS_Optimizer2D optimizer;
 
         MinimumD MinDist = new MinimumD();
-        Vector3d ToOrbitIniApV;
         double CurrentDistance = -1;
         bool CorrectingManeuver;
         LowPassFilterVd Correction = new LowPassFilterVd();
@@ -228,7 +231,7 @@ namespace ThrottleControlledAvionics
             double maxStartUT, maxEndUT = -1;
             var lastOrbitV = LastOrbit(VesselOrbit);
             var lastOrbitT = LastOrbit(TargetOrbit);
-            if(DiscontiniousOrbit(lastOrbitV))
+            if(DiscontinuousOrbit(lastOrbitV))
             {
                 maxStartUT = lastOrbitV.EndUT;
                 softMaxStart = false;
@@ -239,10 +242,15 @@ namespace ThrottleControlledAvionics
                     double.IsInfinity(lastOrbitT.period) ? 0 : lastOrbitT.period);
                 maxStartUT = VSL.Physics.UT + period * (C.MaxTTR + 1);
             }
-            if(DiscontiniousOrbit(lastOrbitT))
+            if(DiscontinuousOrbit(lastOrbitT))
             {
                 maxEndUT = lastOrbitT.EndUT;
                 maxStartUT = Math.Min(maxStartUT, maxEndUT);
+                softMaxStart = false;
+            }
+            if(HardMaxStart)
+            {
+                maxStartUT = Math.Min(maxStartUT, minStartUT + MaxDaysInSeconds());
                 softMaxStart = false;
             }
             optimizer = new CDOS_Optimizer2D(this,
@@ -282,7 +290,7 @@ namespace ThrottleControlledAvionics
             var transfer_time = (VesselOrbit.period + TargetOrbit.period) / 4;
             double maxEndUT;
             var lastOrbitT = LastOrbit(TargetOrbit);
-            if(DiscontiniousOrbit(lastOrbitT))
+            if(DiscontinuousOrbit(lastOrbitT))
                 maxEndUT = lastOrbitT.EndUT;
             else if(!double.IsInfinity(lastOrbitT.period))
                 maxEndUT = VSL.Physics.UT + lastOrbitT.period * (C.MaxTTR + 2);
@@ -490,7 +498,7 @@ namespace ThrottleControlledAvionics
             Launch best = null;
             var minApR = ToOrbit.MinApR;
             var maxApR = ToOrbit.MaxApR;
-            var maxT = 3600 * MaxDays * (GameSettings.KERBIN_TIME ? 6 : 24);
+            var maxT = MaxDaysInSeconds();
             var ApAArc = Mathf.Lerp(C.TargetArc.Max, C.TargetArc.Min, Steepness.Value / 100)
                          * Mathf.Deg2Rad;
             if(!StartInPlane)
@@ -498,7 +506,7 @@ namespace ThrottleControlledAvionics
                 var startUT = VSL.Physics.UT;
                 var endUT = startUT + maxT;
                 var tEndUT = TargetOrbit.GetEndUT();
-                if(DiscontiniousOrbit(LastOrbit(TargetOrbit)))
+                if(DiscontinuousOrbit(LastOrbit(TargetOrbit)))
                     endUT = tEndUT;
                 else if(!double.IsInfinity(tEndUT))
                     endUT = Math.Max(endUT, tEndUT);
@@ -666,8 +674,7 @@ namespace ThrottleControlledAvionics
                 MinDist.Reset();
                 ToOrbit.Reset();
                 ToOrbit.LaunchUT = VSL.Physics.UT;
-                ToOrbit.Target = ToOrbitIniApV =
-                    ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
+                ToOrbit.Target = ascO.getRelativePositionAtUT(VSL.Physics.UT + ascO.timeToAp);
                 ToOrbit.InPlane = true;
                 ToOrbit.CorrectOnlyAltitude = true;
                 ToOrbit.StartGravityTurn();
@@ -1240,22 +1247,41 @@ namespace ThrottleControlledAvionics
                 }
                 StartInPlane = in_plane;
             }
-            GUILayout.BeginHorizontal();
             if(computing)
+            {
                 GUILayout.Label(new GUIContent("Search Mode: " + ModeNames[(int)mode],
                         ModeDesc[(int)mode]),
                     Styles.inactive,
                     GUILayout.ExpandWidth(true));
+                if(!VSL.LandedOrSplashed && HardMaxStart)
+                {
+                    GUILayout.Label(new GUIContent($"Max. Days to Start: {MaxDays.Value:F0} d",
+                            "Maximum time allowed before the first maneuver."),
+                        Styles.inactive,
+                        GUILayout.ExpandWidth(true));
+                }
+            }
             else
             {
+                GUILayout.BeginHorizontal();
                 GUILayout.Label("Search Mode:", GUILayout.ExpandWidth(false));
                 var choice = Utils.LeftRightChooser(ModeNames[(int)mode], ModeDesc[(int)mode]);
                 if(choice > 0)
                     mode = (Mode)(((int)mode + 1) % NumModes);
                 if(choice < 0)
                     mode = (Mode)(mode > 0 ? (int)mode - 1 : NumModes - 1);
+                GUILayout.EndHorizontal();
+                if(!VSL.LandedOrSplashed)
+                {
+                    GUILayout.BeginHorizontal();
+                    Utils.ButtonSwitch(new GUIContent("Max. Days to Start:",
+                            "If enabled, sets maximum time allowed before the first maneuver."),
+                        ref HardMaxStart,
+                        GUILayout.ExpandWidth(false));
+                    MaxDays.Draw("d", 5, "F0", suffix_width: 25);
+                    GUILayout.EndHorizontal();
+                }
             }
-            GUILayout.EndHorizontal();
             if(stage == Stage.ToOrbit)
                 ToOrbit.DrawInfo();
             GUILayout.EndVertical();

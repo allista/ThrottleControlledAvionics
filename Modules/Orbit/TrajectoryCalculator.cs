@@ -63,7 +63,7 @@ namespace ThrottleControlledAvionics
             return orb;
         }
 
-        public static bool DiscontiniousOrbit(Orbit o)
+        public static bool DiscontinuousOrbit(Orbit o)
         {
             return o.EndUT > 0 && !double.IsInfinity(o.EndUT) &&
                 (o.patchEndTransition == Orbit.PatchTransitionType.ESCAPE ||
@@ -543,6 +543,14 @@ namespace ThrottleControlledAvionics
         {
             double UT = startUT;
             double dT = (toUT-fromUT)/10;
+            if(double.IsInfinity(dT))
+            {
+                dT = double.IsInfinity(a.period)
+                    ? double.IsInfinity(t.period)
+                        ? 60 //slow but safe default
+                        : t.period / 10
+                    : a.period / 10;
+            }
             bool dir = dT > 0;
             double minD  = double.MaxValue;
             double minUT = UT;
@@ -653,9 +661,9 @@ namespace ThrottleControlledAvionics
         protected void clear_nodes()
         {
             if(VSL.vessel.patchedConicSolver == null) return;
-            VSL.vessel.patchedConicSolver.maneuverNodes.ForEach(n => n.RemoveSelf());
-            VSL.vessel.patchedConicSolver.maneuverNodes.Clear();
-            VSL.vessel.patchedConicSolver.flightPlan.Clear();
+            var nodes = VSL.vessel.patchedConicSolver.maneuverNodes; 
+            for(var i = nodes.Count-1; i >= 0; i--)
+                nodes[i].RemoveSelf();
         }
 
 
