@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Creator: CorelDRAW X5 -->
+<svg
+    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:ns1="http://sozi.baierouge.fr"
+    xmlns:cc="http://web.resource.org/cc/"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+    style="fill-rule:evenodd;text-rendering:geometricPrecision;image-rendering:optimizeQuality;clip-rule:evenodd;shape-rendering:geometricPrecision"
+    xml:space="preserve"
+    viewBox="0 0 8885 8885"
+  >
+ <defs
+    >
+  <style
+        type="text/css"
+      >
+    .str1 {stroke:black;stroke-width:20}
+    .str0 {stroke:black;stroke-width:105.83}
+    .fil2 {fill:black}
+    .fil1 {fill:#999999}
+    .fil0 {fill:#E6E6E6}
+  </style
+    >
+ </defs
+  >
+ <g
+      id="Laag_x0020_1"
+    >
+  <circle
+        cy="4443"
+        cx="4443"
+        r="4390"
+        class="fil0 str0"
+    />
+  <path
+        class="fil1 str0"
+        d="m4443 4443l-3802 2195c1212 2100 3897 2819 5997 1607s2819-3897 1607-5997l-3802 2195z"
+    />
+  <path
+        class="fil2 str1"
+        d="m4577 4047c120 40 215 134 258 252 1318 10 2330 71 2330 144s-1012 134-2330 144c-59 160-212 274-392 274s-334-114-392-274c-1318-10-2330-71-2330-144s1012-134 2330-144c43-118 139-211 258-252 22-366 74-623 134-623s112 257 134 623z"
+    />
+ </g
+  >
+<metadata
+    ><rdf:RDF
+      ><cc:Work
+        ><dc:format
+          >image/svg+xml</dc:format
+        ><dc:type
+            rdf:resource="http://purl.org/dc/dcmitype/StillImage"
+        /><cc:license
+            rdf:resource="http://creativecommons.org/licenses/publicdomain/"
+        /><dc:publisher
+          ><cc:Agent
+              rdf:about="http://openclipart.org/"
+            ><dc:title
+              >Openclipart</dc:title
+            ></cc:Agent
+          ></dc:publisher
+        ></cc:Work
+      ><cc:License
+          rdf:about="http://creativecommons.org/licenses/publicdomain/"
+        ><cc:permits
+            rdf:resource="http://creativecommons.org/ns#Reproduction"
+        /><cc:permits
+            rdf:resource="http://creativecommons.org/ns#Distribution"
+        /><cc:permits
+            rdf:resource="http://creativecommons.org/ns#DerivativeWorks"
+        /></cc:License
+      ></rdf:RDF
+    ></metadata
+  ></svg
+>

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   viewBox="0 0 287 286"
+   version="1.1"
+   id="svg13"
+   sodipodi:docname="vspeed-dial.svg"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)">
+  <defs
+     id="defs17">
+    <marker
+       inkscape:stockid="Arrow1Lstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker1121"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path1119"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:none;stroke-width:1pt;stroke-opacity:1;fill:#231f20;fill-opacity:1"
+         transform="scale(0.8) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lstart"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path837"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:none;stroke-width:1pt;stroke-opacity:1;fill:#231f20;fill-opacity:1"
+         transform="scale(0.8) translate(12.5,0)" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1055"
+     id="namedview15"
+     showgrid="false"
+     inkscape:zoom="1.4889777"
+     inkscape:cx="-0.21363342"
+     inkscape:cy="234.57557"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g835" />
+  <g
+     id="g835"
+     transform="rotate(-90,144.29991,143.117)">
+    <g
+       id="g1178"
+       transform="matrix(1.1244805,0,0,1.1244805,-17.962519,-17.815271)">
+      <path
+         style="fill:#090808;fill-opacity:1;stroke-width:0.996539"
+         inkscape:connector-curvature="0"
+         d="m 144.29494,29.817 c 62.8626,0 113.83791,50.723 113.83791,113.3 0,62.58 -50.97531,113.3 -113.83791,113.3 -62.863591,0 -113.827977,-50.72 -113.827977,-113.3 -0.003,-62.58 50.963393,-113.3 113.827977,-113.3 m 0,26.905 c -48.030799,0 -87.108891,38.758 -87.108891,86.395 0,47.64 39.079085,86.39 87.108891,86.39 48.03576,0 87.11385,-38.75 87.11385,-86.39 0,-47.638 -39.07809,-86.395 -87.11385,-86.395 z"
+         id="imagebot_15" />
+      <path
+         style="fill:#000000;fill-opacity:1;stroke-width:0.996539"
+         inkscape:connector-curvature="0"
+         d="M 144.35945,239.97 V 38.55 c 0,-1.27 1.01295,-2.284 2.26425,-2.284 1.24136,0 2.25431,1.015 2.25431,2.279 v 201.42 c 0,1.27 -1.01295,2.28 -2.25431,2.28 -1.2513,0 -2.26425,-1.01 -2.26425,-2.27 z"
+         id="imagebot_14" />
+      <path
+         style="fill:#000000;fill-opacity:1;stroke-width:0.64379644"
+         inkscape:connector-curvature="0"
+         d="m 166.35347,143.11823 c 0,12.12603 -9.88016,21.95218 -22.05712,21.95218 -12.18979,0 -22.06995,-9.82615 -22.06995,-21.95218 0,-12.13249 9.88016,-21.95864 22.06995,-21.95864 12.17696,0 22.05712,9.82615 22.05712,21.95864 z"
+         id="imagebot_12" />
+      <path
+         inkscape:connector-curvature="0"
+         id="path1153"
+         d="m 186.71039,72.900154 -40.48046,57.631916 10.66219,5.88115 z"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    </g>
+  </g>
+  <metadata
+     id="metadata11">
+    <rdf:RDF>
+      <cc:Work>
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <cc:license
+           rdf:resource="http://creativecommons.org/publicdomain/zero/1.0/" />
+        <dc:publisher>
+          <cc:Agent
+             rdf:about="http://openclipart.org/">
+            <dc:title>Openclipart</dc:title>
+          </cc:Agent>
+        </dc:publisher>
+        <dc:title></dc:title>
+        <dc:date>2012-12-05T21:54:25</dc:date>
+        <dc:description />
+        <dc:source>https://openclipart.org/detail/173586/sdaggsadgsadgsdf-by-biduleman-173586</dc:source>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>Biduleman</dc:title>
+          </cc:Agent>
+        </dc:creator>
+        <dc:subject>
+          <rdf:Bag>
+            <rdf:li>dial</rdf:li>
+            <rdf:li>b_w</rdf:li>
+            <rdf:li>start</rdf:li>
+          </rdf:Bag>
+        </dc:subject>
+      </cc:Work>
+      <cc:License
+         rdf:about="http://creativecommons.org/publicdomain/zero/1.0/">
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Reproduction" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Distribution" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#DerivativeWorks" />
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+</svg>
