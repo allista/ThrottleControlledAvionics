@@ -108,7 +108,9 @@ namespace ThrottleControlledAvionics
             if(total_thrust > 0) avg_thrust_pos /= total_thrust;
             else avg_thrust_pos = rcs.transform.position;
             total_thrust_dir.Normalize();
-            current_max_thrust = current_thrust / rcs.thrustPercentage * 100f;
+            current_max_thrust = rcs.thrustPercentage > 0
+                ? current_thrust / rcs.thrustPercentage * 100f
+                : 0;
             InitLimits();
         }
 
