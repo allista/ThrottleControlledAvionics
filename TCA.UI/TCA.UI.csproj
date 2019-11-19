@@ -32,12 +32,13 @@
         <Optimize>true</Optimize>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="AssemblyInfo.cs"/>
-        <Compile Include="VFlightUI.cs"/>
-        <Compile Include="AttitudeUI.cs"/>
-        <Compile Include="ManeuverUI.cs"/>
+        <Compile Include="AssemblyInfo.cs" />
+        <Compile Include="ClickableLabel.cs" />
         <Compile Include="Indicator.cs" />
         <Compile Include="StatusUI.cs" />
+        <Compile Include="VFlightUI.cs" />
+        <Compile Include="AttitudeUI.cs" />
+        <Compile Include="ManeuverUI.cs" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\..\AT_Utils\Unity\AT_Utils.UI.csproj">
@@ -64,7 +65,7 @@
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.UI">
-            <HintPath>..\..\KSP-test\KSP_test_1.8.1\KSP_Data\Managed\UnityEngine.UI.dll</HintPath>
+            <HintPath>../../KSP-test/KSP_test_1.8.1/KSP_Data/Managed/UnityEngine.UI.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
@@ -72,5 +73,5 @@
           <Private>False</Private>
         </Reference>
     </ItemGroup>
-    <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets"/>
+    <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
