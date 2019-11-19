@@ -100,6 +100,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="AssemblyInfo.cs" />
+        <Compile Include="GUI\HUD\StatusPanel.cs" />
         <Compile Include="TCAEngineInfo.cs" />
         <Compile Include="EngineWrapper.cs" />
         <Compile Include="VesselWrapper.cs" />

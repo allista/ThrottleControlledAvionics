@@ -66,6 +66,7 @@ namespace ThrottleControlledAvionics
         readonly VFlightPanel VFlight_Panel = new VFlightPanel();
         readonly AttitudePanel Attitude_Panel = new AttitudePanel();
         readonly ManeuverPanel Maneuver_Panel =  new ManeuverPanel();
+        readonly StatusPanel Status_Panel = new StatusPanel();
         List<IControlPanel> AllPanels = new List<IControlPanel>();
         #endregion
 
@@ -99,11 +100,11 @@ namespace ThrottleControlledAvionics
         public override void Awake()
         {
             base.Awake();
-            Styles.onSkinInit += reset_statuses;
             AllTabFields = ControlTab.GetTabFields(GetType());
             AllPanels.Add(VFlight_Panel);
             AllPanels.Add(Attitude_Panel);
             AllPanels.Add(Maneuver_Panel);
+            AllPanels.Add(Status_Panel);
             GameEvents.onVesselChange.Add(onVesselChange);
             GameEvents.onVesselDestroy.Add(onVesselDestroy);
             NavigationTab.OnAwake();
@@ -116,7 +117,6 @@ namespace ThrottleControlledAvionics
             TCAAppToolbar.AttachTCA(null);
             GameEvents.onVesselChange.Remove(onVesselChange);
             GameEvents.onVesselDestroy.Remove(onVesselDestroy);
-            Styles.onSkinInit -= reset_statuses;
         }
 
         void onVesselDestroy(Vessel vsl)
@@ -258,76 +258,6 @@ namespace ThrottleControlledAvionics
                     StatusMessage = "";
             }
         }
-
-        static string[] _statuses;
-        static string[] statuses
-        {
-            get
-            {
-                if(_statuses == null)
-                {
-                    _statuses = new[] 
-                    {
-                        Colors.Danger.Tag("Obstacle On Course"),
-                        Colors.Danger.Tag("Ground Collision Possible"),
-                        Colors.Danger.Tag("Loosing Altitude"),
-                        Colors.Danger.Tag("Low Control Authority"),
-                        Colors.Warning.Tag("Engines Unoptimized"),
-                        Colors.Warning.Tag("Ascending"),
-                        Colors.Warning.Tag("VTOL Assist On"),
-                        Colors.Warning.Tag("Stabilizing Flight"),
-                        Colors.Enabled.Tag("Altitude Control"),
-                        Colors.Enabled.Tag("Vertical Speed Control"),
-                        Colors.Good.Tag("Systems Nominal"),
-                        Colors.Warning.Tag("No Active Engines"),
-                        Colors.Danger.Tag("No Electric Charge"),
-                        Colors.Selected2.Tag("Unknown State"),
-                        Colors.Inactive.Tag("Disabled")
-                    };
-                }
-                return _statuses;
-            }
-        }
-        static void reset_statuses() => _statuses = null;
-
-        string StatusString()
-        {
-            if(TCA.IsStateSet(TCAState.Enabled))
-            {
-                if(TCA.IsStateSet(TCAState.GroundCollision))
-                    return statuses[1];
-                if(TCA.IsStateSet(TCAState.LoosingAltitude))
-                    return statuses[2];
-                if(!VSL.Controls.HaveControlAuthority)
-                    return statuses[3];
-                if(TCA.IsStateSet(TCAState.Unoptimized))
-                    return statuses[4];
-                if(TCA.IsStateSet(TCAState.Ascending))
-                    return statuses[5];
-                if(TCA.IsStateSet(TCAState.VTOLAssist))
-                    return statuses[6];
-                if(TCA.IsStateSet(TCAState.StabilizeFlight))
-                    return statuses[7];
-                if(TCA.IsStateSet(TCAState.AltitudeControl))
-                    return statuses[8];
-                if(TCA.IsStateSet(TCAState.VerticalSpeedControl))
-                    return statuses[9];
-                if(TCA.State == TCAState.Nominal)
-                    return statuses[10];
-                if(TCA.State == TCAState.NoActiveEngines)
-                    return statuses[11];
-                if(TCA.State == TCAState.NoEC)
-                    return statuses[12];
-                //this should never happen
-                return statuses[13];
-            }
-            return statuses[14];
-        }
-
-        void StatusLabel()
-        {
-            GUILayout.Label(StatusString(), Styles.boxed_label, GUILayout.ExpandWidth(false));
-        }
         #endregion
 
         void update_collapsed_rect()
@@ -395,7 +325,6 @@ namespace ThrottleControlledAvionics
                 //squad mode switch
                 if(SQD != null) SQD.Draw();
                 GUILayout.FlexibleSpace();
-                StatusLabel();
                 GUILayout.EndHorizontal();
                 GUILayout.BeginHorizontal();
                 GUILayout.BeginVertical(Styles.white, GUILayout.MinHeight(ControlsHeight), GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(true));
@@ -422,7 +351,6 @@ namespace ThrottleControlledAvionics
                 GUILayout.BeginHorizontal();
                 VSL.Info.Draw();
                 GUILayout.FlexibleSpace();
-                StatusLabel();
                 GUILayout.EndHorizontal();
                 GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
                 DrawStatusMessage();
@@ -450,10 +378,10 @@ namespace ThrottleControlledAvionics
                     {
                         UnlockControls();
                         var prefix = CFG.Enabled? 
-                                        Colors.Enabled.Tag("<b>TCA: </b>") : 
-                                        (VSL.LandedOrSplashed? "<b>TCA: </b>" : 
-                                         Colors.Danger.Tag("<b>TCA: </b>"));
-                        GUI.Label(collapsed_rect, prefix+StatusString(), Styles.boxed_label);
+                                        Colors.Enabled.Tag("<b>TCA</b>") : 
+                                        (VSL.LandedOrSplashed? "<b>TCA</b>" : 
+                                         Colors.Danger.Tag("<b>TCA</b>"));
+                        GUI.Label(collapsed_rect, prefix, Styles.boxed_label);
                     }
                 }
                 else
