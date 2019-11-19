@@ -137,8 +137,8 @@ namespace ThrottleControlledAvionics
                 var obstacle_ahead = VSL.HorizontalSpeed.MoovingFast && alt-VSL.Altitude.Ahead <= VSL.Geometry.H;
                 if(obstacle_ahead) 
                 {
+                    SetState(TCAState.GroundCollision);
                     var dAlt = VSL.Altitude.Ahead+CFG.DesiredAltitude-VSL.Altitude.Absolute;
-                    SetState(VSL.VerticalSpeed.Absolute < 0? TCAState.GroundCollision : TCAState.ObstacleAhead);
                     if(VSL.Altitude.CorrectionAllowed && RAD != null && 
                        RAD.TimeAhead > 0 && dAlt/RAD.TimeAhead > VerticalSpeedControl.C.MaxSpeed)
                     {

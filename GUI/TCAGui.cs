@@ -294,8 +294,6 @@ namespace ThrottleControlledAvionics
         {
             if(TCA.IsStateSet(TCAState.Enabled))
             {
-                if(TCA.IsStateSet(TCAState.ObstacleAhead))
-                    return statuses[0];
                 if(TCA.IsStateSet(TCAState.GroundCollision))
                     return statuses[1];
                 if(TCA.IsStateSet(TCAState.LoosingAltitude))

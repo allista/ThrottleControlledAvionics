@@ -491,7 +491,7 @@ namespace ThrottleControlledAvionics
         AltitudeControl        = 1 << 5,
         LoosingAltitude        = 1 << 6,
         //cruise radar
-        ObstacleAhead            = 1 << 7,
+        VesselCollision            = 1 << 7,
         GroundCollision            = 1 << 8,
         Ascending                = 1 << 9,
         //autopilot
