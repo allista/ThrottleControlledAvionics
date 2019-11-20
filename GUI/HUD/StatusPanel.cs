@@ -32,6 +32,20 @@ namespace ThrottleControlledAvionics
             base.init_controller();
         }
 
+        protected override void onGamePause()
+        {
+            base.onGamePause();
+            if(Controller != null)
+                Controller.EnableSound(false);
+        }
+
+        protected override void onGameUnpause()
+        {
+            base.onGameUnpause();
+            if(Controller != null)
+                Controller.EnableSound(true);
+        }
+
         public override void Reset()
         {
             if(Controller != null)
