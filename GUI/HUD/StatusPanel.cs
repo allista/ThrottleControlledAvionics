@@ -1,9 +1,13 @@
+using AT_Utils;
 using TCA.UI;
+using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
     public class StatusPanel : ControlPanel<StatusUI>
     {
+        [ConfigOption] private Vector3 messagePos = Vector3.zero;
+
         private VerticalSpeedControl VSC;
         private AltitudeControl ALT;
         private VTOLAssist VTOL_assist;
@@ -11,6 +15,13 @@ namespace ThrottleControlledAvionics
         private FlightStabilizer Stabilizer;
         private CollisionPreventionSystem CPS;
         private Radar RAD;
+
+        public override void SyncState()
+        {
+            base.SyncState();
+            if(Controller != null)
+                messagePos = Controller.messagePanel.anchoredPosition;
+        }
 
         protected override void init_controller()
         {
@@ -29,6 +40,8 @@ namespace ThrottleControlledAvionics
             if(RAD == null)
                 Controller.TerrainCollision.Show(false);
             Controller.message.onLabelClicked.AddListener(clearGUIStatus);
+            if(initialized)
+                Controller.messagePanel.anchoredPosition = messagePos;
             base.init_controller();
         }
 
