@@ -28,12 +28,29 @@ namespace ThrottleControlledAvionics
                 Controller.VesselCollision.Show(false);
             if(RAD == null)
                 Controller.TerrainCollision.Show(false);
+            Controller.message.onLabelClicked.AddListener(clearGUIStatus);
             base.init_controller();
+        }
+
+        public override void Reset()
+        {
+            if(Controller != null)
+                Controller.message.onLabelClicked.RemoveListener(clearGUIStatus);
+            base.Reset();
+        }
+
+        void clearGUIStatus() => TCAGui.ClearStatus();
+
+        public void ClearMessage()
+        {
+            if(Controller != null)
+                Controller.ClearMessage();
         }
 
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
+            // set states of the indicators
             Controller.Ascending.isOn = TCA.IsStateSet(TCAState.Ascending);
             Controller.LoosingAltitude.isOn = TCA.IsStateSet(TCAState.LoosingAltitude);
             Controller.TerrainCollision.isOn = TCA.IsStateSet(TCAState.GroundCollision);
@@ -51,6 +68,9 @@ namespace ThrottleControlledAvionics
                                    && !TCA.IsStateSet(TCAState.HaveEC);
             // fade out irrelevant indicators
             Controller.VesselCollision.SetActive(CFG.UseCPS);
+            // set status message
+            if(!string.IsNullOrEmpty(TCAGui.StatusMessage))
+                Controller.SetMessage(TCAGui.StatusMessage);
         }
     }
 }

@@ -129,8 +129,7 @@ namespace ThrottleControlledAvionics
         void onVesselChange(Vessel vsl)
         {
             vessel = vsl;
-            StatusMessage = "";
-            StatusEndTime = DateTime.MinValue;
+            ClearStatus();
             if(vsl != null && vsl.parts != null) 
                 StartCoroutine(init_on_load());
             else clear_fields();
@@ -232,7 +231,13 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region Status
-        public static void ClearStatus() { StatusMessage = ""; StatusEndTime = DateTime.MinValue; }
+        public static void ClearStatus() 
+        { 
+            StatusMessage = "";
+            StatusEndTime = DateTime.MinValue;
+            if(Instance != null)
+                Instance.Status_Panel.ClearMessage(); 
+        }
 
         public static void Status(double seconds, string msg, params object[] args)
         {
@@ -247,17 +252,6 @@ namespace ThrottleControlledAvionics
 
         public static void Status(ColorSetting color, string msg, params object[] args) 
         { Status(-1, color, msg, args); }
-
-        void DrawStatusMessage()
-        {
-            if(!string.IsNullOrEmpty(StatusMessage))
-            { 
-                if(GUILayout.Button(new GUIContent(StatusMessage, "Click to dismiss"), 
-                                       Styles.boxed_label, GUILayout.ExpandWidth(true)) ||
-                      StatusEndTime > DateTime.MinValue && DateTime.Now > StatusEndTime)
-                    StatusMessage = "";
-            }
-        }
         #endregion
 
         void update_collapsed_rect()
@@ -307,11 +301,8 @@ namespace ThrottleControlledAvionics
                 //tca toggle
                 var enabled_style = Styles.inactive_button;
                 if(CFG.Enabled) enabled_style = Styles.enabled_button;
-                else if(!VSL.LandedOrSplashed) 
-                {
-                    if(EnabledBlinker.On) enabled_style = Styles.danger_button;
-                    Status(0.1, Colors.Danger, "<b>TCA is disabled</b>");
-                }
+                else if(!VSL.LandedOrSplashed && EnabledBlinker.On) 
+                    enabled_style = Styles.danger_button;
                 if(GUILayout.Button("Enabled", enabled_style, GUILayout.Width(70)))
                     TCA.ToggleTCA();
                 #if DEBUG
@@ -342,7 +333,6 @@ namespace ThrottleControlledAvionics
                 }
                 GUILayout.EndScrollView();
                 GUILayout.EndHorizontal();
-                DrawStatusMessage();
                 GUILayout.EndVertical();
             }
             else 
@@ -353,7 +343,6 @@ namespace ThrottleControlledAvionics
                 GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
                 GUILayout.Label("Vessel is Uncontrollable", Styles.label, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-                DrawStatusMessage();
                 GUILayout.EndVertical();
             }
             TooltipsAndDragWindow();
@@ -453,6 +442,11 @@ namespace ThrottleControlledAvionics
         protected override void LateUpdate()
         {
             base.LateUpdate();
+            if(TCA != null && VSL != null && !CFG.Enabled && !VSL.LandedOrSplashed)
+                Status(0.1, Colors.Danger, "<b>TCA is disabled</b>");
+            if(StatusEndTime > DateTime.MinValue
+               && DateTime.Now > StatusEndTime)
+                ClearStatus();
             AllTabs.ForEach(t => t.LateUpdate());
             AllPanels.ForEach(p => p.LateUpdate());
         }
