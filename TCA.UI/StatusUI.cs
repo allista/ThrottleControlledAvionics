@@ -7,6 +7,10 @@ namespace TCA.UI
     public class StatusUI : ScreenBoundRect
     {
         public Toggle soundToggle;
+        public RectTransform indicatorsCommon;
+        public RectTransform indicatorsOnPlanet;
+        public RectTransform indicatorsInOrbit;
+
         public Indicator Ascending,
             LoosingAltitude,
             TerrainCollision,
@@ -44,6 +48,21 @@ namespace TCA.UI
             message.text.text = text;
             messagePanel.gameObject.SetActive(true);
         }
+
+        private static void togglePanel(Component panel, bool enable)
+        {
+            if(enable)
+                panel.gameObject.SetActive(true);
+            else if(panel.gameObject.activeSelf)
+            {
+                foreach(var indicator in panel.gameObject.GetComponentsInChildren<Indicator>())
+                    indicator.isOn = false;
+                panel.gameObject.SetActive(false);
+            }
+        }
+
+        public void ToggleOnPlanet(bool enable) => togglePanel(indicatorsOnPlanet, enable);
+        public void ToggleInOrbit(bool enable) => togglePanel(indicatorsInOrbit, enable);
 
         protected override void Awake()
         {

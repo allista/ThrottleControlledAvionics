@@ -64,6 +64,9 @@ namespace ThrottleControlledAvionics
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
+            // disable sub-panels depending on situation
+            Controller.ToggleOnPlanet(VSL.OnPlanet);
+            Controller.ToggleInOrbit(VSL.InOrbit);
             // set states of the indicators
             Controller.Ascending.isOn = TCA.IsStateSet(TCAState.Ascending);
             Controller.LoosingAltitude.isOn = TCA.IsStateSet(TCAState.LoosingAltitude);
