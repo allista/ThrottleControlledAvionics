@@ -117,7 +117,6 @@ namespace ThrottleControlledAvionics
 
         protected override void Update()
         {
-            SetState(TCAState.AltitudeControl);
             //calculate current altitude or apoapsis, if the vessel is moving upwards
             var alt = VSL.Altitude.Absolute;
             if(VSL.VerticalSpeed.Absolute > 0 && !VSL.LandedOrSplashed)
