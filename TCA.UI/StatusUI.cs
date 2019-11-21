@@ -1,4 +1,5 @@
 using AT_Utils.UI;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace TCA.UI
@@ -21,6 +22,7 @@ namespace TCA.UI
             NoEC;
 
         public ClickableLabel message;
+        public RectTransform messagePanel;
 
         public void EnableSound(bool isOn)
         {
@@ -34,13 +36,13 @@ namespace TCA.UI
         public void ClearMessage()
         {
             message.text.text = "";
-            message.gameObject.SetActive(false);
+            messagePanel.gameObject.SetActive(false);
         }
 
         public void SetMessage(string text)
         {
             message.text.text = text;
-            message.gameObject.SetActive(true);
+            messagePanel.gameObject.SetActive(true);
         }
 
         protected override void Awake()
