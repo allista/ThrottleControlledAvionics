@@ -71,9 +71,9 @@ namespace ThrottleControlledAvionics
             Controller.VesselCollision.isOn = TCA.IsStateSet(TCAState.VesselCollision);
             Controller.LowControlAuthority.isOn = !VSL.Controls.HaveControlAuthority;
             Controller.EnginesUnoptimized.isOn = TCA.IsStateSet(TCAState.Unoptimized);
-            Controller.VSC.isOn = TCA.IsStateSet(TCAState.VerticalSpeedControl);
-            Controller.ALT.isOn = TCA.IsStateSet(TCAState.AltitudeControl);
-            Controller.VTOLMode.isOn = CFG.CTRL[ControlMode.VTOL];
+            Controller.VSC.isOn = TCAModule.ExistsAndActive(VSC);
+            Controller.ALT.isOn = TCAModule.ExistsAndActive(ALT);
+            Controller.VTOLMode.isOn = TCAModule.ExistsAndActive(VTOL_control);
             Controller.VTOLAssist.isOn = TCA.IsStateSet(TCAState.VTOLAssist);
             Controller.Stabilizing.isOn = TCA.IsStateSet(TCAState.StabilizeFlight);
             Controller.NoEngines.isOn = TCA.IsStateSet(TCAState.HaveEC)
@@ -81,6 +81,7 @@ namespace ThrottleControlledAvionics
             Controller.NoEC.isOn = TCA.IsStateSet(TCAState.Enabled)
                                    && !TCA.IsStateSet(TCAState.HaveEC);
             // fade out irrelevant indicators
+            Controller.TerrainCollision.SetActive(TCAModule.ExistsAndActive(RAD));
             Controller.VesselCollision.SetActive(CFG.UseCPS);
             // set status message
             if(!string.IsNullOrEmpty(TCAGui.StatusMessage))
