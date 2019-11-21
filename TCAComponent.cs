@@ -144,6 +144,7 @@ namespace ThrottleControlledAvionics
     {
         public bool ControlsActive { get; protected set; } = true;
         public bool IsActive { get; protected set; }
+        public static bool ExistsAndActive(TCAModule module) => module != null && module.IsActive;
         public bool Working { get; protected set; }
 
         protected TCAModule(ModuleTCA tca) : base(tca) {}
