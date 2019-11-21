@@ -115,9 +115,6 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        void set_ascending_state()
-        { if(VSL.VerticalSpeed.Absolute > 1 && CFG.VerticalCutoff > 1) SetState(TCAState.Ascending); }
-
         protected override void Update()
         {
             SetState(TCAState.AltitudeControl);
@@ -156,13 +153,16 @@ namespace ThrottleControlledAvionics
                         }
 //                        Log("VSF {}, vV {}, hV {}, G_A {}, dAlt {}, ttAp {}, TimeAhead {}", 
 //                            CFG.VerticalCutoff, VSL.VerticalSpeed.Absolute, VSL.HorizontalSpeed.Absolute, G_A, dAlt, ttAp, RAD.TimeAhead);//debug
+                        if(CFG.VerticalCutoff > 0)
+                            SetState(TCAState.Ascending);
                         return;
                     }
                 }
                 var lower_threshold = Mathf.Max(VSL.Altitude.TerrainAltitude, VSL.Altitude.LowerThreshold);
                 if(VSL.Altitude.CorrectionAllowed) lower_threshold = Mathf.Max(VSL.Altitude.Ahead, lower_threshold);
                 alt -= lower_threshold;
-                if(alt < 0) set_ascending_state();
+                if(alt < VSL.Geometry.H && CFG.VerticalCutoff > 0) 
+                    SetState(TCAState.Ascending);
             }
             //calculate altitude error
             var error = (CFG.DesiredAltitude-alt);
