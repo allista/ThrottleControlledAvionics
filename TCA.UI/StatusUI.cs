@@ -1,6 +1,5 @@
 using AT_Utils.UI;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace TCA.UI
@@ -26,16 +25,6 @@ namespace TCA.UI
             NoEngines,
             NoEC;
 
-        public ClickableLabel message;
-        public RectTransform messagePanel;
-
-        public override void OnBeginDrag(PointerEventData data)
-        {
-            base.OnBeginDrag(data);
-            if(!messagePanel.gameObject.activeSelf)
-                SetMessage("Drag this to set the location of TCA status panel");
-        }
-
         public void EnableSound(bool isOn)
         {
             if(Indicator.soundEnabled == isOn)
@@ -43,18 +32,6 @@ namespace TCA.UI
             Indicator.soundEnabled = isOn;
             foreach(var indicator in gameObject.GetComponentsInChildren<Indicator>())
                 indicator.EnableSound(isOn);
-        }
-
-        public void ClearMessage()
-        {
-            message.text.text = "";
-            messagePanel.gameObject.SetActive(false);
-        }
-
-        public void SetMessage(string text)
-        {
-            message.text.text = text;
-            messagePanel.gameObject.SetActive(true);
         }
 
         private static void togglePanel(Component panel, bool enable)
@@ -77,7 +54,6 @@ namespace TCA.UI
             base.Awake();
             soundToggle.SetIsOnWithoutNotify(Indicator.soundEnabled);
             soundToggle.onValueChanged.AddListener(EnableSound);
-            ClearMessage();
         }
 
         private void OnDestroy()

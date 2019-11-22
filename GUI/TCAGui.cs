@@ -67,6 +67,7 @@ namespace ThrottleControlledAvionics
         readonly AttitudePanel Attitude_Panel = new AttitudePanel();
         readonly ManeuverPanel Maneuver_Panel =  new ManeuverPanel();
         readonly StatusPanel Status_Panel = new StatusPanel();
+        readonly InfoPanel Info_Panel = new InfoPanel();
         List<IControlPanel> AllPanels = new List<IControlPanel>();
         #endregion
 
@@ -105,6 +106,7 @@ namespace ThrottleControlledAvionics
             AllPanels.Add(Attitude_Panel);
             AllPanels.Add(Maneuver_Panel);
             AllPanels.Add(Status_Panel);
+            AllPanels.Add(Info_Panel);
             GameEvents.onVesselChange.Add(onVesselChange);
             GameEvents.onVesselDestroy.Add(onVesselDestroy);
             NavigationTab.OnAwake();
@@ -236,7 +238,7 @@ namespace ThrottleControlledAvionics
             StatusMessage = "";
             StatusEndTime = DateTime.MinValue;
             if(Instance != null)
-                Instance.Status_Panel.ClearMessage(); 
+                Instance.Info_Panel.ClearMessage(); 
         }
 
         public static void Status(double seconds, string msg, params object[] args)

@@ -35,6 +35,7 @@
         <Compile Include="AssemblyInfo.cs" />
         <Compile Include="ClickableLabel.cs" />
         <Compile Include="Indicator.cs" />
+        <Compile Include="InfoUI.cs" />
         <Compile Include="StatusUI.cs" />
         <Compile Include="VFlightUI.cs" />
         <Compile Include="AttitudeUI.cs" />

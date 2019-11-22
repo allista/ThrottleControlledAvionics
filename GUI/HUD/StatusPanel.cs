@@ -1,13 +1,9 @@
-using AT_Utils;
 using TCA.UI;
-using UnityEngine;
 
 namespace ThrottleControlledAvionics
 {
     public class StatusPanel : ControlPanel<StatusUI>
     {
-        [ConfigOption] private Vector3 messagePos = Vector3.zero;
-
         private VerticalSpeedControl VSC;
         private AltitudeControl ALT;
         private VTOLAssist VTOL_assist;
@@ -15,13 +11,6 @@ namespace ThrottleControlledAvionics
         private FlightStabilizer Stabilizer;
         private CollisionPreventionSystem CPS;
         private Radar RAD;
-
-        public override void SyncState()
-        {
-            base.SyncState();
-            if(Controller != null)
-                messagePos = Controller.messagePanel.anchoredPosition;
-        }
 
         protected override void init_controller()
         {
@@ -39,9 +28,6 @@ namespace ThrottleControlledAvionics
                 Controller.VesselCollision.Show(false);
             if(RAD == null)
                 Controller.TerrainCollision.Show(false);
-            Controller.message.onLabelClicked.AddListener(clearGUIStatus);
-            if(initialized)
-                Controller.messagePanel.anchoredPosition = messagePos;
             base.init_controller();
         }
 
@@ -57,21 +43,6 @@ namespace ThrottleControlledAvionics
             base.onGameUnpause();
             if(Controller != null)
                 Controller.EnableSound(true);
-        }
-
-        public override void Reset()
-        {
-            if(Controller != null)
-                Controller.message.onLabelClicked.RemoveListener(clearGUIStatus);
-            base.Reset();
-        }
-
-        void clearGUIStatus() => TCAGui.ClearStatus();
-
-        public void ClearMessage()
-        {
-            if(Controller != null)
-                Controller.ClearMessage();
         }
 
         protected override void OnLateUpdate()
@@ -99,9 +70,6 @@ namespace ThrottleControlledAvionics
             // fade out irrelevant indicators
             Controller.TerrainCollision.SetActive(TCAModule.ExistsAndActive(RAD));
             Controller.VesselCollision.SetActive(CFG.UseCPS);
-            // set status message
-            if(!string.IsNullOrEmpty(TCAGui.StatusMessage))
-                Controller.SetMessage(TCAGui.StatusMessage);
         }
     }
 }
