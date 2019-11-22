@@ -44,6 +44,8 @@ namespace ThrottleControlledAvionics
 
         [ConfigOption]
         public bool ShowOnHover = true;
+        RealTimer ShowOnHover_fade_in_timer = new RealTimer(0.3);
+        RealTimer ShowOnHover_fade_out_timer = new RealTimer(0.5);
 
         bool draw_main_window;
 
@@ -258,9 +260,7 @@ namespace ThrottleControlledAvionics
 
         void update_collapsed_rect()
         {
-            if(Collapsed)
-                collapsed_rect = new Rect(WindowPos.x, WindowPos.y, 
-                                          ShowOnHover? WindowPos.width : 40, 23);
+             collapsed_rect = new Rect(WindowPos.x, WindowPos.y, 40, 23);
         }
 
         static GUIContent collapse_button = new GUIContent("▲", "Collapse Main Window");
@@ -277,7 +277,12 @@ namespace ThrottleControlledAvionics
                           Collapsed? uncollapse_button : collapse_button, Styles.label)) 
             {
                 Collapsed = !Collapsed;
-                update_collapsed_rect();
+                if(Collapsed)
+                {
+                    ShowOnHover_fade_in_timer.Reset();
+                    ShowOnHover_fade_out_timer.Reset();
+                    update_collapsed_rect();
+                }
             }
             if(GUI.Button(new Rect(WindowPos.width - 20f, 0f, 20f, 18f), 
                           help_button, Styles.label)) 
@@ -363,8 +368,6 @@ namespace ThrottleControlledAvionics
             {
                 if(ShowOnHover)
                 {
-                    if(Event.current.type == EventType.Repaint) 
-                        draw_main_window = WindowPos.Contains(Event.current.mousePosition);
                     if(!draw_main_window)
                     {
                         UnlockControls();
@@ -373,6 +376,21 @@ namespace ThrottleControlledAvionics
                                         (VSL.LandedOrSplashed? "<b>TCA</b>" : 
                                          Colors.Danger.Tag("<b>TCA</b>"));
                         GUI.Label(collapsed_rect, prefix, Styles.boxed_label);
+                    }
+                    if(Event.current.type == EventType.Repaint)
+                    {
+                        if(WindowPos.Contains(Event.current.mousePosition))
+                        {
+                            draw_main_window = ShowOnHover_fade_in_timer.TimePassed;
+                            if(draw_main_window)
+                                ShowOnHover_fade_out_timer.Reset();
+                        }
+                        else
+                        {
+                            draw_main_window = !ShowOnHover_fade_out_timer.TimePassed;
+                            if(!draw_main_window)
+                                ShowOnHover_fade_in_timer.Reset();
+                        }
                     }
                 }
                 else
@@ -386,7 +404,8 @@ namespace ThrottleControlledAvionics
                     TooltipManager.GetTooltip();
                 }
             }
-            else draw_main_window = true;
+            else 
+                draw_main_window = true;
             //draw main window if allowed
             if(draw_main_window)
             {
