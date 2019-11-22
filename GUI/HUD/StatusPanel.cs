@@ -70,6 +70,8 @@ namespace ThrottleControlledAvionics
             // fade out irrelevant indicators
             Controller.TerrainCollision.SetActive(TCAModule.ExistsAndActive(RAD));
             Controller.VesselCollision.SetActive(CFG.UseCPS);
+            Controller.VTOLAssist.SetActive(CFG.VTOLAssistON);
+            Controller.Stabilizing.SetActive(CFG.StabilizeFlight);
         }
     }
 }
