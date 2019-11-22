@@ -1,5 +1,6 @@
 using AT_Utils.UI;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace TCA.UI
@@ -27,6 +28,13 @@ namespace TCA.UI
 
         public ClickableLabel message;
         public RectTransform messagePanel;
+
+        public override void OnBeginDrag(PointerEventData data)
+        {
+            base.OnBeginDrag(data);
+            if(!messagePanel.gameObject.activeSelf)
+                SetMessage("Drag this to set the location of TCA status panel");
+        }
 
         public void EnableSound(bool isOn)
         {
