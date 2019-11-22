@@ -779,7 +779,11 @@ namespace ThrottleControlledAvionics
         {
             base.Reset();
             trajectory = null;
-            trajectory_task = null;
+            if(trajectory_task != null)
+            {
+                trajectory_task.canceled = true;
+                trajectory_task = null;
+            }
             #if DEBUG
             current_landing_trajectory = null;
             #endif
