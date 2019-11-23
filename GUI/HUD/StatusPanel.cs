@@ -11,6 +11,9 @@ namespace ThrottleControlledAvionics
         private FlightStabilizer Stabilizer;
         private CollisionPreventionSystem CPS;
         private Radar RAD;
+        private HorizontalSpeedControl HSC;
+        private PointNavigator NAV;
+        private Anchor anchor;
 
         protected override void init_controller()
         {
@@ -28,6 +31,10 @@ namespace ThrottleControlledAvionics
                 Controller.VesselCollision.Show(false);
             if(RAD == null)
                 Controller.TerrainCollision.Show(false);
+            if(NAV == null)
+                Controller.Navigation.Show(false);
+            if(HSC == null)
+                Controller.Stop.Show(false);
             base.init_controller();
         }
 
@@ -67,11 +74,18 @@ namespace ThrottleControlledAvionics
                                         && !TCA.IsStateSet(TCAState.HaveActiveEngines);
             Controller.NoEC.isOn = TCA.IsStateSet(TCAState.Enabled)
                                    && !TCA.IsStateSet(TCAState.HaveEC);
+            Controller.SmartEngines.isOn = CFG.UseSmartEngines;
+            Controller.Stop.isOn = CFG.HF[HFlight.Stop] 
+                                   || TCAModule.ExistsAndActive(anchor);
+            Controller.Navigation.isOn = CFG.Nav.Any(Navigation.GoToTarget,
+                Navigation.FollowPath,
+                Navigation.FollowTarget);
             // fade out irrelevant indicators
             Controller.TerrainCollision.SetActive(TCAModule.ExistsAndActive(RAD));
             Controller.VesselCollision.SetActive(CFG.UseCPS);
             Controller.VTOLAssist.SetActive(CFG.VTOLAssistON);
             Controller.Stabilizing.SetActive(CFG.StabilizeFlight);
+            Controller.SmartEngines.SetActive(VSL.Engines.Clusters.Multi);
         }
     }
 }

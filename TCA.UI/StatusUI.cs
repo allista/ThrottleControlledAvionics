@@ -23,7 +23,10 @@ namespace TCA.UI
             VTOLAssist,
             Stabilizing,
             NoEngines,
-            NoEC;
+            NoEC,
+            SmartEngines,
+            Stop,
+            Navigation;
 
         public void EnableSound(bool isOn)
         {
