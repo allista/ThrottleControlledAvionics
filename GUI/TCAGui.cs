@@ -277,6 +277,7 @@ namespace ThrottleControlledAvionics
                           Collapsed? uncollapse_button : collapse_button, Styles.label)) 
             {
                 Collapsed = !Collapsed;
+                draw_main_window = Collapsed;
                 if(Collapsed)
                 {
                     ShowOnHover_fade_in_timer.Reset();
@@ -363,6 +364,19 @@ namespace ThrottleControlledAvionics
         #endif
         protected override void draw_gui()
         {
+            //draw main window if allowed
+            if(draw_main_window)
+            {
+                LockControls();
+                WindowPos = 
+                    GUILayout.Window(TCA.GetInstanceID(), 
+                        WindowPos, 
+                        DrawMainWindow, 
+                        RemoteControl? "RC: "+vessel.vesselName : vessel.vesselName,
+                        GUILayout.Width(ControlsWidth),
+                        GUILayout.Height(50)).clampToScreen();
+                update_collapsed_rect();
+            }
             //handle collapsed state
             if(Collapsed)
             {
@@ -400,30 +414,21 @@ namespace ThrottleControlledAvionics
                     GUI.Label(collapsed_rect, new GUIContent("TCA", "Push to show Main Window"), 
                           CFG.Enabled? Styles.enabled : (VSL.LandedOrSplashed? Styles.white : Styles.danger));
                     if(Input.GetMouseButton(0) && collapsed_rect.Contains(Event.current.mousePosition))
+                    {
+                        draw_main_window = true;
                         Collapsed = false;
+                    }
                     TooltipManager.GetTooltip();
                 }
             }
-            else 
+            else
                 draw_main_window = true;
-            //draw main window if allowed
-            if(draw_main_window)
-            {
-                LockControls();
-                WindowPos = 
-                    GUILayout.Window(TCA.GetInstanceID(), 
-                                     WindowPos, 
-                                     DrawMainWindow, 
-                                     RemoteControl? "RC: "+vessel.vesselName : vessel.vesselName,
-                                     GUILayout.Width(ControlsWidth),
-                                     GUILayout.Height(50)).clampToScreen();
-                update_collapsed_rect();
-            }
-            //draw waypoints and all subwindows
-            if(RemoteControl && Event.current.type == EventType.Repaint)
+            //draw waypoints
+            NAV?.DrawWaypoints();
+            if(RemoteControl 
+               && Event.current.type == EventType.Repaint)
                 Markers.DrawWorldMarker(TCA.vessel.transform.position, Colors.Good, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
-            if(NAV != null) NAV.DrawWaypoints();
             #if DEBUG
             GUI.Label(debug_rect, 
                       string.Format("[{0}] {1:HH:mm:ss.fff} FPS: {2:F0}:{3:F0}", 
@@ -446,11 +451,12 @@ namespace ThrottleControlledAvionics
                 {
                     if(CFG.BlockThrottle && THR != null)
                     {
-                        if(CFG.VF[VFlight.AltitudeControl]) 
-                        { if(ALT != null) ALT.ProcessKeys(); }
-                        else if(VSC != null) VSC.ProcessKeys();
+                        if(CFG.VF[VFlight.AltitudeControl])
+                            ALT?.ProcessKeys();
+                        else
+                            VSC?.ProcessKeys();
                     }
-                    if(WRP != null) WRP.ProcessKeys();
+                    WRP?.ProcessKeys();
                 }
             }
         }
@@ -465,7 +471,7 @@ namespace ThrottleControlledAvionics
             base.LateUpdate();
             if(TCA != null && VSL != null && !CFG.Enabled && !VSL.LandedOrSplashed)
                 Status(0.1, Colors.Danger, "<b>TCA is disabled</b>");
-            if(StatusEndTime > DateTime.MinValue
+            else if(StatusEndTime > DateTime.MinValue
                && DateTime.Now > StatusEndTime)
                 ClearStatus();
             AllTabs.ForEach(t => t.LateUpdate());
