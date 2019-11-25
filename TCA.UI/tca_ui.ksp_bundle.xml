@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<KSPBundleDefinition xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" UrlName="tca_ui.ksp" Name="tca_ui.ksp" CreatedTime="-8586270708803109008">
+<KSPBundleDefinition xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" UrlName="tca_ui.ksp" Name="tca_ui.ksp" CreatedTime="-8586269395433305278">
   <Author>Allis Tauri</Author>
   <Info>UI prefabs for Throttle Controlled Avionics</Info>
   <Assets>
@@ -21,7 +21,6 @@
     <Asset Name="vessel" Path="Assets/UI/TCA/icons/vessel.png" Type="Texture2D" Url="UI/TCA/icons/vessel" AutoLoad="false" />
     <Asset Name="vspeed-dial" Path="Assets/UI/TCA/icons/vspeed-dial.png" Type="Texture2D" Url="UI/TCA/icons/vspeed-dial" AutoLoad="false" />
     <Asset Name="VTOLAssist" Path="Assets/UI/TCA/icons/VTOLAssist.png" Type="Texture2D" Url="UI/TCA/icons/VTOLAssist" AutoLoad="false" />
-    <Asset Name="Indicator" Path="Assets/UI/TCA/Indicator.prefab" Type="GameObject" Url="UI/TCA/Indicator" AutoLoad="false" />
     <Asset Name="InfoUI" Path="Assets/UI/TCA/InfoUI.prefab" Type="GameObject" Url="UI/TCA/InfoUI" AutoLoad="false" />
     <Asset Name="ManeuverUI" Path="Assets/UI/TCA/ManeuverUI.prefab" Type="GameObject" Url="UI/TCA/ManeuverUI" AutoLoad="false" />
     <Asset Name="alert" Path="Assets/UI/TCA/sounds/alert.ogg" Type="AudioClip" Url="UI/TCA/sounds/alert" AutoLoad="false" />

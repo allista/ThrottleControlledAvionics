@@ -33,7 +33,6 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="AssemblyInfo.cs" />
-        <Compile Include="Indicator.cs" />
         <Compile Include="InfoUI.cs" />
         <Compile Include="StatusUI.cs" />
         <Compile Include="VFlightUI.cs" />
@@ -56,10 +55,6 @@
             <HintPath>..\..\KSP-test\KSP_test_1.8.1\KSP_Data\Managed\UnityEngine.dll</HintPath>
             <Private>False</Private>
         </Reference>
-        <Reference Include="UnityEngine.AudioModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>..\..\KSP-test\KSP_1.8.1\KSP_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
-            <Private>False</Private>
-        </Reference>
         <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>..\..\KSP-test\KSP_test_1.8.1\KSP_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
             <Private>False</Private>
@@ -67,10 +62,6 @@
         <Reference Include="UnityEngine.UI">
             <HintPath>../../KSP-test/KSP_test_1.8.1/KSP_Data/Managed/UnityEngine.UI.dll</HintPath>
             <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>../../KSP-test/KSP_1.8.1/KSP_Data/Managed/UnityEngine.UIModule.dll</HintPath>
-          <Private>False</Private>
         </Reference>
     </ItemGroup>
     <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
