@@ -244,6 +244,10 @@
     </ItemGroup>
     <ItemGroup>
       <Content Include="GameData\ThrottleControlledAvionics\Plugins\PluginData\ThrottleControlledAvionics\ThrottleControlledAvionics.glob" />
+      <Content Include="TechTree\data\DummyPartTemplate.cfg" />
+      <Content Include="TechTree\data\Parts.xlsx" />
+      <Content Include="TechTree\ModuleNetworks.py" />
+      <Content Include="TechTree\__init__.py" />
       <Content Include="ThrottleControlledAvionics.netkan" />
     </ItemGroup>
 </Project>
