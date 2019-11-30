@@ -28,11 +28,11 @@ using AT_Utils;
 // and "{Major}.{Minor}.{Build}.*" will update just the revision.
 
 #if NIGHTBUILD
-[assembly: AssemblyVersion("3.5.*")]
+[assembly: AssemblyVersion("3.6.*")]
 #else
-[assembly: AssemblyVersion("3.5.9")]
+[assembly: AssemblyVersion("3.6.0")]
 #endif
-[assembly: KSPAssembly("ThrottleControlledAvionics", 3, 5)]
+[assembly: KSPAssembly("ThrottleControlledAvionics", 3, 6)]
 
 // The following attributes are used to specify the signing key for the assembly, 
 // if desired. See the Mono documentation for more information about signing.

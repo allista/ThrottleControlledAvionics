@@ -34,6 +34,8 @@ namespace ThrottleControlledAvionics
         readonly PIDf_Controller pid = new PIDf_Controller();
         readonly EWA AccelCorrection = new EWA();
 
+        private static int raycastMask;
+
         public override void Init()
         {
             base.Init();
@@ -41,6 +43,7 @@ namespace ThrottleControlledAvionics
             pid.Min = 0;
             pid.Max = C.MaxSpeed;
             pid.Reset();
+            raycastMask = Utils.GetLayer("Local Scenery");
             CFG.Nav.AddHandler(this, Navigation.Anchor, Navigation.AnchorHere);
         }
 
@@ -80,7 +83,14 @@ namespace ThrottleControlledAvionics
             if(cmd == Multiplexer.Command.On)
             {
                 CFG.Anchor = new WayPoint(VSL.Physics.wCoM, VSL.Body);
-                CFG.Anchor.Pos.SetAlt2Surface(VSL.Body);
+                if(Physics.Raycast(VSL.Physics.wCoM,
+                    -VSL.Physics.Up,
+                    out var raycast,
+                    (float)VSL.Body.Radius,
+                    raycastMask))
+                    CFG.Anchor.Pos.Alt = VSL.Body.GetAltitude(raycast.point);
+                else
+                    CFG.Anchor.Pos.SetAlt2Surface(VSL.Body);
                 CFG.Anchor.Movable = true;
             }
             AnchorCallback(cmd);

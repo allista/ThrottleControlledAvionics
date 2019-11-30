@@ -45,7 +45,12 @@ namespace TCA.UI
         {
             Altitude.text = FormatUtils.formatBigValue(altitude, "m");
             vSpeed.text = FormatUtils.formatBigValue(v_speed, "m/s", "0.0;0.0;0.0");
-            vSpeedLabel.text = v_speed > 0 ? "▲" : "▼";
+            if(v_speed > 0.01f)
+                vSpeedLabel.text = "▲";
+            else if(v_speed < -0.01f)
+                vSpeedLabel.text = "▼";
+            else
+                vSpeedLabel.text = "";
             hSpeed.text = FormatUtils.formatBigValue(h_speed, "m/s");
         }
     }

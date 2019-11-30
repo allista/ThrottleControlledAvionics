@@ -319,6 +319,7 @@ namespace ThrottleControlledAvionics
                 }
             }
             if(Correction.IsZero()) return;
+            SetState(TCAState.VesselCollision);
             filter.Update(Correction.ClampComponents(-C.MaxAvoidanceSpeed, C.MaxAvoidanceSpeed));
             //correct needed vertical speed
             if(VSC != null && CFG.VF[VFlight.AltitudeControl])

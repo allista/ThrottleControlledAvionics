@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Creator: CorelDRAW X5 -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+   xml:space="preserve"
+   viewBox="0 0 64 64"
+   version="1.1"
+   id="svg15"
+   sodipodi:docname="stabilizing.svg"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
+   width="64"
+   height="64"
+   inkscape:export-filename="/home/storage/Games/KSP-Development/AT_KSP_Plugins/ThrottleControlledAvionics/TCA.UI/Assets/icons/stabilizing.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"><sodipodi:namedview
+   pagecolor="#ffffff"
+   bordercolor="#666666"
+   borderopacity="1"
+   objecttolerance="10"
+   gridtolerance="10"
+   guidetolerance="10"
+   inkscape:pageopacity="0"
+   inkscape:pageshadow="2"
+   inkscape:window-width="1920"
+   inkscape:window-height="1055"
+   id="namedview17"
+   showgrid="false"
+   showguides="true"
+   inkscape:guide-bbox="true"
+   inkscape:zoom="6.9705882"
+   inkscape:cx="35.092941"
+   inkscape:cy="34.64152"
+   inkscape:window-x="0"
+   inkscape:window-y="25"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="svg15"
+   fit-margin-top="2"
+   fit-margin-left="2"
+   fit-margin-right="2"
+   fit-margin-bottom="2" />
+ <defs
+   id="defs4">
+  <style
+   type="text/css"
+   id="style2">
+    .str1 {stroke:black;stroke-width:20}
+    .str0 {stroke:black;stroke-width:105.83}
+    .fil2 {fill:black}
+    .fil1 {fill:#999999}
+    .fil0 {fill:#E6E6E6}
+  </style>
+ 
+  
+  
+  
+ </defs>
+ <g
+   id="g840"
+   transform="matrix(0.10252013,0,0,0.10252013,-1.3278057,-0.28507759)"><path
+     class="fil1 str0"
+     d="M 325.0855,314.91454 88.975697,451.22726 C 164.24268,581.64035 330.98513,626.29132 461.39822,551.02434 591.81131,475.75735 636.46228,309.0149 561.1953,178.6018 Z"
+     id="path8"
+     inkscape:connector-curvature="0"
+     style="fill:#999999;stroke:#000000;stroke-width:20;stroke-miterlimit:4;stroke-dasharray:none" /><circle
+     cy="314.91452"
+     cx="325.08548"
+     r="272.62546"
+     class="fil0 str0"
+     id="circle6"
+     style="fill:#e6e6e6;fill-opacity:0.029148;stroke:#000000;stroke-width:40;stroke-miterlimit:4;stroke-dasharray:none" /><path
+     sodipodi:nodetypes="ccscscsccsc"
+     class="fil2 str1"
+     d="m 339.14825,273.77663 c 12.59351,4.19783 22.56338,14.06275 27.07606,26.44638 138.3187,1.04944 197.91157,8.70122 197.91157,15.1122 0,6.41097 -59.59287,14.06275 -197.91157,15.11221 -6.19183,16.79135 -22.24855,28.75519 -41.13881,28.75519 -18.89026,0 -35.05194,-11.96384 -41.13881,-28.75519 -138.3187,-1.04946 -197.911571,-8.70124 -197.911571,-15.11221 0,-6.41098 59.592871,-14.06276 197.911571,-15.1122 4.51268,-12.38363 14.58748,-22.1436 27.07605,-26.44638 2.30881,-38.4102 7.76601,-101.31172 14.06276,-101.31172 6.29675,0 11.75394,62.90152 14.06275,101.31172 z"
+     id="path10"
+     inkscape:connector-curvature="0"
+     style="fill:#000000;stroke:#000000;stroke-width:2.09891868" /></g>
+<metadata
+   id="metadata13"><rdf:RDF><cc:Work><dc:format>image/svg+xml</dc:format><dc:type
+         rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><cc:license
+         rdf:resource="http://creativecommons.org/publicdomain/zero/1.0/" /><dc:publisher><cc:Agent
+           rdf:about="http://openclipart.org/"><dc:title>Openclipart</dc:title></cc:Agent></dc:publisher><dc:title></dc:title></cc:Work><cc:License
+       rdf:about="http://creativecommons.org/publicdomain/zero/1.0/"><cc:permits
+         rdf:resource="http://creativecommons.org/ns#Reproduction" /><cc:permits
+         rdf:resource="http://creativecommons.org/ns#Distribution" /><cc:permits
+         rdf:resource="http://creativecommons.org/ns#DerivativeWorks" /></cc:License></rdf:RDF></metadata></svg>
