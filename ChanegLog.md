@@ -2,7 +2,50 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.5.9**
+* **v3.6.0 - Status UI**
+    * **Added Status Panel**
+        * It replaces the status string that was located at the top of the main
+          TCA window.
+        * All statuses are displayed on the panel as a grid of small 
+          **indicators** with icons and tooltips.
+        * Indicators are divided into two groups: the top row contains
+          indicators common for all situations and is shown always; below
+          there are indicators relevant to VTOL flight on the surface.
+        * Most indicators belong to corresponding TCA modules and in career
+          game will be missing until the backend module is installed on the ship.
+        * An indicator may be in 3 different states:
+            * Inactive: almost transparent. The indicator is irrelevant
+              right now.
+            * Passive: grey icon. The situation that it should indicate is not
+              present.
+            * Active: red, yellow or green (configurable); sometimes blinking;
+              sometimes with a sound alert (can be disabled).
+    * **Added Info Panel**
+        * It replaces the information pane that was located at the bottom of the
+          main TCA window.
+        * It shows any info that TCA modules need to display, like trajectory
+          search progress.
+        * Its position may be set by dragging it when it displays a message.
+          When nothing is displayed you can open the Advanced Tab and press
+          the **InfoPanel button** to display sample message.
+        * As before, some messages disappear after a short time and some are
+          displayed until you click on them.
+    * Show collapsed TCA window after 300ms of mouse hovering. Hide it after
+      500ms when mouse left its bounds. This prevents flickering when mouse
+      accidentally passes through collapsed window.
+    * When the **Anchor** program is activated above a building, the anchor
+      whaypoint is placed on top of that building rather than on the ground
+      below it.
+    * Added progress indication for initial scans when Rendezvous Autopilot.
+      starts to search for possible transfers.
+    * Do not display up/down arrow in Vertical Flight HUD for |v.speed| < 0.01
+    * When Rendezvous Autopilot is aborted its trajectory calculation tasks
+      are canceled.
+    * Fixed "Getting control 0's position in a group with only 0 controls"
+      exception that appeared each time TCA window was shown-on-hover.
+    * Fixed relative altitude and velocity calculation.
+
+* v3.5.9
     * Fixed ToOrbit AP _(autopilot)_
     * Increased maximum auto time warp factor to 100k.
     * Fixed several bugs in trajectory optimizer that where caused by
