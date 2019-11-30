@@ -1,10 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<KSPBundleDefinition xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" UrlName="tca_ui.ksp" Name="tca_ui.ksp" CreatedTime="-8586414943482195008">
+<KSPBundleDefinition xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" UrlName="tca_ui.ksp" Name="tca_ui.ksp" CreatedTime="-8586269395433305278">
   <Author>Allis Tauri</Author>
   <Info>UI prefabs for Throttle Controlled Avionics</Info>
   <Assets>
     <Asset Name="AttitudeUI" Path="Assets/UI/TCA/AttitudeUI.prefab" Type="GameObject" Url="UI/TCA/AttitudeUI" AutoLoad="false" />
+    <Asset Name="altitude-dial" Path="Assets/UI/TCA/icons/altitude-dial.png" Type="Texture2D" Url="UI/TCA/icons/altitude-dial" AutoLoad="false" />
+    <Asset Name="ascending" Path="Assets/UI/TCA/icons/ascending.png" Type="Texture2D" Url="UI/TCA/icons/ascending" AutoLoad="false" />
+    <Asset Name="circle-arrows" Path="Assets/UI/TCA/icons/circle-arrows.png" Type="Texture2D" Url="UI/TCA/icons/circle-arrows" AutoLoad="false" />
+    <Asset Name="copter" Path="Assets/UI/TCA/icons/copter.png" Type="Texture2D" Url="UI/TCA/icons/copter" AutoLoad="false" />
+    <Asset Name="descending" Path="Assets/UI/TCA/icons/descending.png" Type="Texture2D" Url="UI/TCA/icons/descending" AutoLoad="false" />
+    <Asset Name="engines-diff" Path="Assets/UI/TCA/icons/engines-diff.png" Type="Texture2D" Url="UI/TCA/icons/engines-diff" AutoLoad="false" />
+    <Asset Name="mountain" Path="Assets/UI/TCA/icons/mountain.png" Type="Texture2D" Url="UI/TCA/icons/mountain" AutoLoad="false" />
+    <Asset Name="navigation" Path="Assets/UI/TCA/icons/navigation.png" Type="Texture2D" Url="UI/TCA/icons/navigation" AutoLoad="false" />
+    <Asset Name="no-engines" Path="Assets/UI/TCA/icons/no-engines.png" Type="Texture2D" Url="UI/TCA/icons/no-engines" AutoLoad="false" />
+    <Asset Name="noEC" Path="Assets/UI/TCA/icons/noEC.png" Type="Texture2D" Url="UI/TCA/icons/noEC" AutoLoad="false" />
+    <Asset Name="SmartEngines" Path="Assets/UI/TCA/icons/SmartEngines.png" Type="Texture2D" Url="UI/TCA/icons/SmartEngines" AutoLoad="false" />
+    <Asset Name="sound" Path="Assets/UI/TCA/icons/sound.png" Type="Texture2D" Url="UI/TCA/icons/sound" AutoLoad="false" />
+    <Asset Name="stabilizing" Path="Assets/UI/TCA/icons/stabilizing.png" Type="Texture2D" Url="UI/TCA/icons/stabilizing" AutoLoad="false" />
+    <Asset Name="stop" Path="Assets/UI/TCA/icons/stop.png" Type="Texture2D" Url="UI/TCA/icons/stop" AutoLoad="false" />
+    <Asset Name="vessel" Path="Assets/UI/TCA/icons/vessel.png" Type="Texture2D" Url="UI/TCA/icons/vessel" AutoLoad="false" />
+    <Asset Name="vspeed-dial" Path="Assets/UI/TCA/icons/vspeed-dial.png" Type="Texture2D" Url="UI/TCA/icons/vspeed-dial" AutoLoad="false" />
+    <Asset Name="VTOLAssist" Path="Assets/UI/TCA/icons/VTOLAssist.png" Type="Texture2D" Url="UI/TCA/icons/VTOLAssist" AutoLoad="false" />
+    <Asset Name="InfoUI" Path="Assets/UI/TCA/InfoUI.prefab" Type="GameObject" Url="UI/TCA/InfoUI" AutoLoad="false" />
     <Asset Name="ManeuverUI" Path="Assets/UI/TCA/ManeuverUI.prefab" Type="GameObject" Url="UI/TCA/ManeuverUI" AutoLoad="false" />
+    <Asset Name="alert" Path="Assets/UI/TCA/sounds/alert.ogg" Type="AudioClip" Url="UI/TCA/sounds/alert" AutoLoad="false" />
+    <Asset Name="StatusUI" Path="Assets/UI/TCA/StatusUI.prefab" Type="GameObject" Url="UI/TCA/StatusUI" AutoLoad="false" />
     <Asset Name="VFlightUI" Path="Assets/UI/TCA/VFlightUI.prefab" Type="GameObject" Url="UI/TCA/VFlightUI" AutoLoad="false" />
   </Assets>
   <Dependencies>

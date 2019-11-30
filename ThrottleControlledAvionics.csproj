@@ -100,6 +100,8 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="AssemblyInfo.cs" />
+        <Compile Include="GUI\HUD\InfoPanel.cs" />
+        <Compile Include="GUI\HUD\StatusPanel.cs" />
         <Compile Include="TCAEngineInfo.cs" />
         <Compile Include="EngineWrapper.cs" />
         <Compile Include="VesselWrapper.cs" />
@@ -242,6 +244,10 @@
     </ItemGroup>
     <ItemGroup>
       <Content Include="GameData\ThrottleControlledAvionics\Plugins\PluginData\ThrottleControlledAvionics\ThrottleControlledAvionics.glob" />
+      <Content Include="TechTree\data\DummyPartTemplate.cfg" />
+      <Content Include="TechTree\data\Parts.xlsx" />
+      <Content Include="TechTree\ModuleNetworks.py" />
+      <Content Include="TechTree\__init__.py" />
       <Content Include="ThrottleControlledAvionics.netkan" />
     </ItemGroup>
 </Project>

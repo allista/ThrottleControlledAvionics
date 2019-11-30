@@ -213,6 +213,11 @@ namespace ThrottleControlledAvionics
             Utils.ButtonSwitch("AutoShow", ref UI.ShowOnHover,
                                "Show collapsed TCA window when mouse hovers over it", 
                                GUILayout.ExpandWidth(true));
+            if(GUILayout.Button(new GUIContent("InfoPanel", 
+                "Show test info message to change the position of the info panel"),
+                GUILayout.ExpandWidth(true)) 
+               && string.IsNullOrEmpty(TCAGui.StatusMessage))
+                Status(InfoPanel.TEST_MSG);
             GUILayout.EndHorizontal();
             Toggles();
             if(THR != null)

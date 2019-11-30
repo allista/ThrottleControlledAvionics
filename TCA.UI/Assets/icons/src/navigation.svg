@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Generator: Adobe Illustrator 14.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 43363)  -->
+<svg
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:cc="http://web.resource.org/cc/"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:svg="http://www.w3.org/2000/svg"
+    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+    xmlns:ns1="http://sozi.baierouge.fr"
+    id="Layer_1"
+    enable-background="new 0 0 56.068 100"
+    xml:space="preserve"
+    viewBox="0 0 56.068 100"
+    version="1.0"
+    y="0px"
+    x="0px"
+  >
+<path
+      d="m28.034 0c-15.482 0-28.034 12.552-28.034 28.034s28.034 71.966 28.034 71.966 28.034-56.483 28.034-71.966-12.551-28.034-28.034-28.034zm0 40.477c-6.871 0-12.442-5.572-12.442-12.442 0-6.872 5.571-12.442 12.442-12.442 6.872 0 12.442 5.57 12.442 12.442 0.001 6.87-5.57 12.442-12.442 12.442z"
+  />
+<metadata
+    ><rdf:RDF
+      ><cc:Work
+        ><dc:format
+          >image/svg+xml</dc:format
+        ><dc:type
+            rdf:resource="http://purl.org/dc/dcmitype/StillImage"
+        /><cc:license
+            rdf:resource="http://creativecommons.org/licenses/publicdomain/"
+        /><dc:publisher
+          ><cc:Agent
+              rdf:about="http://openclipart.org/"
+            ><dc:title
+              >Openclipart</dc:title
+            ></cc:Agent
+          ></dc:publisher
+        ><dc:title
+          >Google Places</dc:title
+        ><dc:date
+          >2011-12-27T11:22:53</dc:date
+        ><dc:description
+        /><dc:source
+          >https://openclipart.org/detail/166612/google-places-by-mrtossum</dc:source
+        ><dc:creator
+          ><cc:Agent
+            ><dc:title
+              >MrTossum</dc:title
+            ></cc:Agent
+          ></dc:creator
+        ><dc:subject
+          ><rdf:Bag
+            ><rdf:li
+              >location</rdf:li
+            ><rdf:li
+              >pin</rdf:li
+            ><rdf:li
+              >tag</rdf:li
+            ><rdf:li
+              >map</rdf:li
+            ><rdf:li
+              >GUI</rdf:li
+            ><rdf:li
+              >icon</rdf:li
+            ><rdf:li
+              >graphic</rdf:li
+            ><rdf:li
+              >interface</rdf:li
+            ></rdf:Bag
+          ></dc:subject
+        ></cc:Work
+      ><cc:License
+          rdf:about="http://creativecommons.org/licenses/publicdomain/"
+        ><cc:permits
+            rdf:resource="http://creativecommons.org/ns#Reproduction"
+        /><cc:permits
+            rdf:resource="http://creativecommons.org/ns#Distribution"
+        /><cc:permits
+            rdf:resource="http://creativecommons.org/ns#DerivativeWorks"
+        /></cc:License
+      ></rdf:RDF
+    ></metadata
+  ></svg
+>

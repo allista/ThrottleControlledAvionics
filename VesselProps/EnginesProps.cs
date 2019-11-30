@@ -419,7 +419,7 @@ namespace ThrottleControlledAvionics
                         CFG.ActiveProfile.Update(All);
                 }
             }
-            return !(NoActiveEngines && NoActiveRCS);
+            return !(NoActiveEngines && NumActiveRCS == 0);
         }
 
         public void Sort() 

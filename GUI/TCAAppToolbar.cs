@@ -85,13 +85,13 @@ namespace ThrottleControlledAvionics
                 if(TBButton != null)
                 {
                     if(TCA.IsStateSet(TCAState.Enabled))
-                        TBButton.TexturePath = TCA.State != TCAState.NoEC ? TB_ICON_ON : TB_ICON_NC;
+                        TBButton.TexturePath = TCA.IsStateSet(TCAState.HaveEC) ? TB_ICON_ON : TB_ICON_NC;
                     else TBButton.TexturePath = TB_ICON_OFF;
                 }
                 if(ALButton != null)
                 {
                     if(TCA.IsStateSet(TCAState.Enabled))
-                        ALButton.SetTexture(TCA.State != TCAState.NoEC ? textureOn : textureNoCharge);
+                        ALButton.SetTexture(TCA.IsStateSet(TCAState.HaveEC) ? textureOn : textureNoCharge);
                     else ALButton.SetTexture(textureOff);
                 }
             }

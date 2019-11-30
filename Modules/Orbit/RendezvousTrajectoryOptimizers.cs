@@ -333,6 +333,7 @@ namespace ThrottleControlledAvionics
                                     double startUT, double startTransfer, double dT)
                 : base(ren, minStartUT, maxStartUT, maxEndUT, softMaxStart, dT)
             {
+                progress = -1;
                 P0 = P = new Point(Math.Max(startUT, minStartUT + 1), startTransfer, this);
                 set_dir(new Vector2d(0, 1));
             }
@@ -401,8 +402,10 @@ namespace ThrottleControlledAvionics
                     : maxStartUT;
                 var maxTT = maxStartUT - minStartUT;
                 var minZ = new MinimumD();
+                var searchSpan = endUT - minStartUT;
                 while(cur.start < endUT)
                 {
+                    progress = (float)((cur.start - minStartUT) / searchSpan);
                     var requestedTT = cur.transfer;
                     cur.UpdateTrajectory(true);
                     var tOK = feasible_point(cur);
@@ -440,6 +443,7 @@ namespace ThrottleControlledAvionics
                 if(!bestOK)
                 {
                     P = bestP;
+                    progress = -1;
                     foreach(var t in find_first_point())
                         yield return t;
                     bestP = P;
@@ -447,8 +451,10 @@ namespace ThrottleControlledAvionics
                 if(!start_points.Contains(bestP))
                     start_points.Add(bestP);
                 set_dir(new Vector2d(1, 0));
+                progress = 0;
                 for(int i = 0, minimaCount = start_points.Count; i < minimaCount; i++)
                 {
+                    progress = (i + 1f) / (minimaCount + 1f);
                     P = start_points[i];
                     foreach(var t in find_minimum(dT, true))
                         yield return t;
@@ -700,11 +706,11 @@ namespace ThrottleControlledAvionics
                     if(ren.mode == Mode.Manual && Best != null && progress.Equals(1))
                         return "Selected transfer:\n" + BestDesc;
                     var s = ProgressIndicator.Get +
-                                             (ren.mode == Mode.Manual ?
-                         " searching for transfers" : " searching for the best transfer");
-                    if(Best == null)
-                        return s + "...";
-                    return s + string.Format(" {0:P0}\n", progress) + BestDesc;
+                                             (ren.mode == Mode.Manual
+                                                 ? " searching for transfers"
+                                                 : " searching for the best transfer");
+                    s += progress < 0 ? "..." : $" {progress:P0}";
+                    return Best != null ? s + "\n" + BestDesc : s;
                 }
             }
         }

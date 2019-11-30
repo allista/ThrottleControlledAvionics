@@ -478,28 +478,26 @@ namespace ThrottleControlledAvionics
     /// They should to be checked in this particular order, as they are set sequentially:
     /// If a previous flag is not set, the next ones are not either.
     /// </summary>
-    [Flags] public enum TCAState 
-    { 
+    [Flags]
+    public enum TCAState
+    {
         //basic state
-        Disabled                = 0,
-        Enabled                = 1 << 0,
-        HaveEC                    = 1 << 1, 
-        HaveActiveEngines        = 1 << 2,
-        Unoptimized               = 1 << 3,
+        Disabled = 0,
+        Enabled = 1,
+        HaveEC = 1 << 1,
+        HaveActiveEngines = 1 << 2,
+        Unoptimized = 1 << 3,
+
         //vertical flight
-        VerticalSpeedControl   = 1 << 4,
-        AltitudeControl        = 1 << 5,
-        LoosingAltitude        = 1 << 6,
+        LoosingAltitude = 1 << 4,
+
         //cruise radar
-        ObstacleAhead            = 1 << 7,
-        GroundCollision            = 1 << 8,
-        Ascending                = 1 << 9,
+        VesselCollision = 1 << 5,
+        GroundCollision = 1 << 6,
+        Ascending = 1 << 7,
+
         //autopilot
-        VTOLAssist             = 1 << 10,
-        StabilizeFlight        = 1 << 11,
-        //composite
-        Nominal                   = Enabled | HaveEC | HaveActiveEngines,
-        NoActiveEngines        = Enabled | HaveEC,
-        NoEC                   = Enabled,
+        VTOLAssist = 1 << 8,
+        StabilizeFlight = 1 << 9,
     }
 }
