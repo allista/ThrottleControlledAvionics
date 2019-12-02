@@ -262,7 +262,7 @@ namespace ThrottleControlledAvionics
 
         public void UpdateCtrlState(FlightCtrlState s) 
         { 
-            if(CFG.Enabled)
+            if(CFG != null && CFG.Enabled)
             {
                 CS = s;
                 _Update(OnAutopilotUpdate);
