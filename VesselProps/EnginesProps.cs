@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
         public bool NoActiveRCS;
         public bool HaveMainEngines { get; private set; }
         public bool HaveThrusters { get; private set; }
-        public bool ForceUpdateParts = false;
+        public bool ForceUpdateParts;
 
         public bool HaveNextStageEngines { get; private set; }
         public int  NearestEnginedStage { get; private set; }
@@ -63,17 +63,17 @@ namespace ThrottleControlledAvionics
         public override void Clear() { All.Clear(); RCS.Clear(); }
 
         public bool AddEngine(PartModule pm) 
-        { 
-            var engine = pm as ModuleEngines;
-            if(engine == null) return false;
+        {
+            if(!(pm is ModuleEngines engine))
+                return false;
             All.Add(new EngineWrapper(engine));
             return true;
         }
 
         public bool AddRCS(PartModule pm)
-        { 
-            var rcs = pm as ModuleRCS;
-            if(rcs == null) return false;
+        {
+            if(!(pm is ModuleRCS rcs))
+                return false;
             RCS.Add(new RCSWrapper(rcs));
             return true;
         }
@@ -92,17 +92,25 @@ namespace ThrottleControlledAvionics
                     : VSL.refT.forward
                 : VSL.refT.up;
 
-        public Vector3 FallbackThrustDir(Vector3 fallback) 
-        => fallback.IsZero() ? -refT_thrust_axis : fallback.normalized;
+        public Vector3 FallbackThrustDir(Vector3 fallback) =>
+            fallback.IsZero()
+                ? -refT_thrust_axis
+                : fallback.normalized;
 
-        public Vector3 CurrentDefThrustDir 
-        => MaxDefThrust.IsZero() ? FallbackThrustDir(NearestEnginedStageMaxDefThrust) : MaxDefThrust.normalized;
+        public Vector3 CurrentDefThrustDir =>
+            MaxDefThrust.IsZero()
+                ? FallbackThrustDir(NearestEnginedStageMaxDefThrust)
+                : MaxDefThrust.normalized;
 
-        public Vector3 CurrentMaxThrustDir 
-        => MaxThrust.IsZero() ? FallbackThrustDir(NearestEnginedStageMaxThrust) : MaxThrust.normalized;
+        public Vector3 CurrentMaxThrustDir =>
+            MaxThrust.IsZero()
+                ? FallbackThrustDir(NearestEnginedStageMaxThrust)
+                : MaxThrust.normalized;
 
-        public Vector3 CurrentThrustDir 
-        => Thrust.IsZero() ? CurrentMaxThrustDir : Thrust.normalized;
+        public Vector3 CurrentThrustDir =>
+            Thrust.IsZero()
+                ? CurrentMaxThrustDir
+                : Thrust.normalized;
 
         public float ThrustAtAlt(float vel, float alt, out float mflow)
         {
@@ -648,7 +656,8 @@ namespace ThrottleControlledAvionics
                 e.preset_limit = -1;
             }
             VSL.Controls.ManualTranslationSwitch.Checked();
-            if(NoActiveRCS) return;
+            if(NoActiveRCS)
+                return;
             var use_RCS = CFG.RotateWithRCS || VSL.Controls.HasTranslation;
             for(int i = 0; i < NumActiveRCS; i++)
             {

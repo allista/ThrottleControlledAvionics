@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
         public Vector3 AutopilotSteering;
         public bool    TranslationAvailable;
         public Vector3 ManualTranslation;
-        public Switch  ManualTranslationSwitch = new Switch();
+        public readonly Switch  ManualTranslationSwitch = new Switch();
         public float   GimbalLimit = 100;
         public bool    HaveControlAuthority = true;
         public bool    NoDewarpOffset;
@@ -30,8 +30,8 @@ namespace ThrottleControlledAvionics
         public bool    HasTranslation { get; private set; }
         public bool    HasSteering { get; private set; }
 
-        bool dewarp;
-        double warp_to_time = -1;
+        private bool dewarp;
+        private double warp_to_time = -1;
         public double WarpToTime 
         {
             get { return dewarp? 0: warp_to_time; }
