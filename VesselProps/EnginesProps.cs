@@ -494,7 +494,7 @@ namespace ThrottleControlledAvionics
         {
             //init RCS wrappers and calculate MaxThrust taking torque imbalance into account
             MaxThrustRCS = new Vector6();
-            var RCSThrusImbalance = new Vector3[6];
+            var RCSThrustImbalance = new Vector3[6];
             for(int i = 0; i < NumActiveRCS; i++)
             {
                 var t = ActiveRCS[i];
@@ -510,7 +510,7 @@ namespace ThrottleControlledAvionics
                     {
                         athrust[k] = thrust[k];
                         var p = pos; p[k] = 0;
-                        RCSThrusImbalance[thrust[k] > 0 ? k : k + 3] += Vector3.Cross(p, athrust);
+                        RCSThrustImbalance[thrust[k] > 0 ? k : k + 3] += Vector3.Cross(p, athrust);
                         athrust[k] = 0;
                     }
                 }
@@ -520,12 +520,12 @@ namespace ThrottleControlledAvionics
             }
             if(!MaxThrustRCS.IsZero())
                 MaxThrustRCS.Scale(new Vector6(
-                    1/Utils.ClampL(RCSThrusImbalance[0].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[1].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[2].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[3].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[4].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[5].sqrMagnitude, 1)));
+                    1/Utils.ClampL(RCSThrustImbalance[0].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[1].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[2].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[3].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[4].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[5].sqrMagnitude, 1)));
         }
 
         public override void Update()
