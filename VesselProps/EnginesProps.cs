@@ -29,7 +29,7 @@ namespace ThrottleControlledAvionics
         public int  NumActive { get; private set; }
         public int  NumActiveRCS { get; private set; }
         public bool NoActiveEngines { get; private set; }
-        public bool NoActiveRCS { get; private set; }
+        public bool NoActiveRCS;
         public bool HaveMainEngines { get; private set; }
         public bool HaveThrusters { get; private set; }
         public bool ForceUpdateParts = false;
@@ -402,9 +402,7 @@ namespace ThrottleControlledAvionics
             NumActive = Active.Count;
             NumActiveRCS = ActiveRCS.Count;
             NoActiveEngines = NumActive == 0;
-            NoActiveRCS = NumActiveRCS == 0 || 
-                VSL.Controls.Steering.sqrMagnitude < GLB.InputDeadZone && 
-                VSL.Controls.Translation.sqrMagnitude < GLB.InputDeadZone;
+            NoActiveRCS = NumActiveRCS == 0;
             //switch single coaxial engine to UnBalanced mode
             if(NumActive == 1)
             {
@@ -516,7 +514,6 @@ namespace ThrottleControlledAvionics
                         athrust[k] = 0;
                     }
                 }
-                if(NoActiveRCS) continue;
                 t.InitTorque(VSL, RCSOptimizer.C.TorqueRatioFactor);
                 t.UpdateCurrentTorque(1);
                 t.ApplyPreset();
@@ -644,10 +641,14 @@ namespace ThrottleControlledAvionics
             }
             VSL.Controls.ManualTranslationSwitch.Checked();
             if(NoActiveRCS) return;
+            var use_RCS = CFG.RotateWithRCS || VSL.Controls.HasTranslation;
             for(int i = 0; i < NumActiveRCS; i++)
             {
                 var t = ActiveRCS[i];
-                t.thrustLimit = Mathf.Clamp01(t.limit);
+                if(use_RCS)
+                    t.thrustLimit = Mathf.Clamp01(t.limit);
+                else 
+                    t.forceThrustPercentage(0);
                 t.preset_limit = -1;
             }
         }

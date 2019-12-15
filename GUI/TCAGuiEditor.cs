@@ -435,7 +435,7 @@ namespace ThrottleControlledAvionics
                     {
                         GUILayout.BeginHorizontal();
                         {
-                            if(Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(false)))
+                            if(Utils.ButtonSwitch("Enable TCA", ref CFG.Enabled, "", GUILayout.ExpandWidth(true)))
                             {
                                 if(!CFG.Enabled)
                                     Engines.ForEach(e => e.forceThrustPercentage(100));
@@ -461,9 +461,6 @@ namespace ThrottleControlledAvionics
                             if(Modules[typeof(FlightStabilizer)])
                                 Utils.ButtonSwitch("Flight Stabilizer", ref CFG.StabilizeFlight,
                                                    "Automatic flight stabilization when vessel is out of control", GUILayout.ExpandWidth(false));
-                            if(Modules[typeof(HorizontalSpeedControl)])
-                                Utils.ButtonSwitch("H-Translation", ref CFG.CorrectWithTranslation,
-                                                   "Use translation to correct horizontal velocity", GUILayout.ExpandWidth(false));
                             if(Modules[typeof(CollisionPreventionSystem)])
                                 Utils.ButtonSwitch("CPS", ref CFG.UseCPS,
                                                    "Enable Collistion Prevention System", GUILayout.ExpandWidth(false));
@@ -485,6 +482,13 @@ namespace ThrottleControlledAvionics
                             Utils.ButtonSwitch("AutoChute", ref CFG.AutoParachutes,
                                                "Automatically activate parachutes when needed", GUILayout.ExpandWidth(true));
                         }
+                        GUILayout.EndHorizontal();
+                        GUILayout.BeginHorizontal();
+                        if(Modules[typeof(HorizontalSpeedControl)])
+                            Utils.ButtonSwitch("RCS Translation", ref CFG.CorrectWithTranslation,
+                                "Use RCS to correct horizontal velocity", GUILayout.ExpandWidth(true));
+                        Utils.ButtonSwitch("RCS Rotation", ref CFG.RotateWithRCS,
+                            "Use RCS for attitude control", GUILayout.ExpandWidth(true));
                         GUILayout.EndHorizontal();
                     }
                     GUILayout.EndVertical();

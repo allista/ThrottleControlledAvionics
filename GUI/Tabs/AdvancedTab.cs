@@ -88,12 +88,9 @@ namespace ThrottleControlledAvionics
             if(STB != null)
                 Utils.ButtonSwitch("Stabilizer", ref CFG.StabilizeFlight,
                                    "Try to stabilize flight if spinning uncontrollably", GUILayout.ExpandWidth(true));
-            if(TRA != null)
-                Utils.ButtonSwitch("H-Translation", ref CFG.CorrectWithTranslation,
-                                   "Use translation to correct horizontal velocity", GUILayout.ExpandWidth(true));
             if(CPS != null)
                 Utils.ButtonSwitch("CPS", ref CFG.UseCPS,
-                                   "Enable Collistion Prevention System", GUILayout.ExpandWidth(true));
+                                   "Enable Collision Prevention System", GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             Utils.ButtonSwitch("AutoGear", ref CFG.AutoGear,
@@ -107,6 +104,13 @@ namespace ThrottleControlledAvionics
             if(GUILayout.Button(new GUIContent("Modules", "Show TCA modules installed on this ship"),
                                 Styles.active_button, GUILayout.ExpandWidth(true)))
                 UI.ModulesGraph.Toggle();
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            if(TRA != null)
+                Utils.ButtonSwitch("RCS Translation", ref CFG.CorrectWithTranslation,
+                    "Use RCS to correct horizontal velocity", GUILayout.ExpandWidth(true));
+            Utils.ButtonSwitch("RCS Rotation", ref CFG.RotateWithRCS,
+                "Use RCS for attitude control", GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
         }
 

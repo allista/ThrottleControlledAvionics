@@ -113,7 +113,7 @@ namespace ThrottleControlledAvionics
             if(VSL.Engines.NoActiveRCS) return;
             //calculate needed torque
             var needed_torque = Vector3.zero;
-            if(VSL.Controls.Steering.sqrMagnitude >= Globals.Instance.InputDeadZone)
+            if(CFG.RotateWithRCS && VSL.Controls.HasSteering)
             {
                 for(int i = 0; i < VSL.Engines.NumActiveRCS; i++)
                 { needed_torque += VSL.Engines.ActiveRCS[i].currentTorque; }
