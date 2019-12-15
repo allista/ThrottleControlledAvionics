@@ -78,11 +78,19 @@ namespace ThrottleControlledAvionics
             return true;
         }
 
-        public Vector3 refT_forward_axis 
-        => VSL.OnPlanetParams.NoseUp ? VSL.refT.forward : VSL.refT.up;
+        public Vector3 refT_forward_axis =>
+            VSL.OnPlanet
+                ? VSL.OnPlanetParams.NoseUp
+                    ? VSL.refT.forward
+                    : VSL.refT.up
+                : VSL.refT.forward;
 
-        public Vector3 refT_thrust_axis 
-        => VSL.OnPlanetParams.NoseUp ? VSL.refT.up : VSL.refT.forward;
+        public Vector3 refT_thrust_axis =>
+            VSL.OnPlanet
+                ? VSL.OnPlanetParams.NoseUp
+                    ? VSL.refT.up
+                    : VSL.refT.forward
+                : VSL.refT.up;
 
         public Vector3 FallbackThrustDir(Vector3 fallback) 
         => fallback.IsZero() ? -refT_thrust_axis : fallback.normalized;
