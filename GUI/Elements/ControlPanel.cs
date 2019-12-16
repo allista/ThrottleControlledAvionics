@@ -19,6 +19,7 @@ namespace ThrottleControlledAvionics
         void Open();
         void Close();
         void LateUpdate();
+        void OnRenderObject();
     }
 
     public abstract class ControlPanel<T> : UIWindowBase<T>, IControlPanel where T : ScreenBoundRect
@@ -80,6 +81,14 @@ namespace ThrottleControlledAvionics
                 else if(shouldShow)
                     Open();
             }
+
+        protected virtual void OnRender() { }
+
+        public void OnRenderObject()
+        {
+            if(!Connected || !IsShown || !shouldShow)
+                return;
+            OnRender();
         }
     }
 }

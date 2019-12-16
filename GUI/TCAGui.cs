@@ -454,6 +454,7 @@ namespace ThrottleControlledAvionics
         public void OnRenderObject()
         {
             AllTabs.ForEach(t => t.OnRenderObject());
+            AllPanels.ForEach(p => p.OnRenderObject());
         }
 
         protected override void LateUpdate()
