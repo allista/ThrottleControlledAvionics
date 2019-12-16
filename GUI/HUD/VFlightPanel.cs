@@ -12,13 +12,14 @@ namespace ThrottleControlledAvionics
 {
     public class VFlightPanel : ControlPanel<VFlightUI>
     {
-        VerticalSpeedControl VSC;
-        AltitudeControl ALT;
-        ThrottleControl THR;
-        Radar RAD;
+        private VerticalSpeedControl VSC;
         private BearingControl BRC;
+        private AltitudeControl ALT;
+        private ThrottleControl THR;
+        private Radar RAD;
 
-        protected override bool shouldShow => base.shouldShow && VSL.OnPlanet && AllModules.Count > 0;
+        protected override bool shouldShow =>
+            base.shouldShow && VSL.OnPlanet && AllModules.Count > 0;
 
         protected override void init_controller()
         {
@@ -53,12 +54,13 @@ namespace ThrottleControlledAvionics
             base.init_controller();
         }
 
-        void onHover(bool hover)
+        private void onHover(bool hover)
         {
             if(hover)
-                TCA.SquadConfigAction(cfg => { 
-                    cfg.VF.XOnIfNot(VFlight.AltitudeControl); 
-                    cfg.BlockThrottle = true; 
+                TCA.SquadConfigAction(cfg =>
+                {
+                    cfg.VF.XOnIfNot(VFlight.AltitudeControl);
+                    cfg.BlockThrottle = true;
                 });
             else
                 TCA.SquadConfigAction(cfg => cfg.VF.XOffIfOn(VFlight.AltitudeControl));
@@ -70,22 +72,21 @@ namespace ThrottleControlledAvionics
             TCA.SquadAction(tca =>
             {
                 var alt = tca.GetModule<AltitudeControl>();
-                if(alt != null)
-                    alt.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
+                alt?.SetAltitudeAboveTerrain(CFG.AltitudeAboveTerrain);
             });
         }
 
-        void onAutoThrottle(bool auto_throttle)
+        private void onAutoThrottle(bool auto_throttle)
         {
             THR.BlockThrottle(auto_throttle);
         }
 
-        void onVSC(float vertical_speed)
+        private void onVSC(float vertical_speed)
         {
             VSC.SetVerticalCutoff(vertical_speed);
         }
 
-        void onALT(float altitude)
+        private void onALT(float altitude)
         {
             ALT.SetDesiredAltitude(altitude);
         }
@@ -93,17 +94,19 @@ namespace ThrottleControlledAvionics
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
-            Controller.UpdateInfo(VSL.Altitude.Current, 
-                                  VSL.VerticalSpeed.Display, 
-                                  VSL.HorizontalSpeed.Absolute);
+            Controller.UpdateInfo(VSL.Altitude.Current,
+                VSL.VerticalSpeed.Display,
+                VSL.HorizontalSpeed.Absolute);
             if(ALT != null)
             {
                 Controller.EnableALT(CFG.VF[VFlight.AltitudeControl]);
                 Controller.ALT.SetValueWithoutNotify(CFG.DesiredAltitude);
                 Controller.ALT.SetAltitudeAboveGround(VSL.Altitude.AboveGround);
-                Controller.hoverButton.SetIsOnAndColorWithoutNotify(CFG.VF[VFlight.AltitudeControl]);
+                Controller.hoverButton
+                    .SetIsOnAndColorWithoutNotify(CFG.VF[VFlight.AltitudeControl]);
                 if(RAD != null)
-                    Controller.followTerrainButton.SetIsOnAndColorWithoutNotify(CFG.AltitudeAboveTerrain);
+                    Controller.followTerrainButton
+                        .SetIsOnAndColorWithoutNotify(CFG.AltitudeAboveTerrain);
             }
             if(VSC != null)
                 Controller.VSC.SetValueWithoutNotify(CFG.VerticalCutoff);
