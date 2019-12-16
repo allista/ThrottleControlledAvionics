@@ -16,6 +16,7 @@ namespace ThrottleControlledAvionics
         AltitudeControl ALT;
         ThrottleControl THR;
         Radar RAD;
+        private BearingControl BRC;
 
         protected override bool shouldShow => base.shouldShow && VSL.OnPlanet && AllModules.Count > 0;
 
@@ -108,6 +109,12 @@ namespace ThrottleControlledAvionics
                 Controller.VSC.SetValueWithoutNotify(CFG.VerticalCutoff);
             if(THR != null)
                 Controller.autoThrottleButton.SetIsOnAndColorWithoutNotify(CFG.BlockThrottle);
+        }
+
+        protected override void OnRender()
+        {
+            base.OnRender();
+            BRC?.DrawForwardDirection();
         }
     }
 }
