@@ -110,8 +110,17 @@ namespace ThrottleControlledAvionics
             overriden = false;
             if(VSL.LandedOrSplashed) return;
             //loosing altitude alert
-            if(!CFG.VF) Falling.RunIf(() => SetState(TCAState.LoosingAltitude), 
-                                      VSL.VerticalSpeed.Absolute < 0 && raw_setpoint-VSL.VerticalSpeed.Absolute > C.MaxDeltaV);
+            if(!CFG.VF)
+            {
+                if(VSL.VerticalSpeed.Absolute < 0
+                   && raw_setpoint - VSL.VerticalSpeed.Absolute > C.MaxDeltaV)
+                {
+                    if(Falling.TimePassed)
+                        SetState(TCAState.LoosingAltitude);
+                }
+                else 
+                    Falling.Reset();
+            }
 //            CSV(VSL.Altitude, VSL.Altitude.TerrainAltitude, VSL.VerticalSpeed.Relative,
 //                           VSL.VerticalSpeed, raw_setpoint, setpoint, setpoint_correction, 
 //                           VSL.VerticalSpeed.Derivative, upAF, K, VSL.VSF);//debug
