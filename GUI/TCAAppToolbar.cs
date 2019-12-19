@@ -13,7 +13,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-    [KSPAddon(KSPAddon.Startup.MainMenu, true)]
+    [KSPAddon(KSPAddon.Startup.EveryScene, true)]
     public class TCAAppToolbar : AppToolbar<TCAAppToolbar>
     {
         ModuleTCA TCA;
