@@ -2,7 +2,17 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.6.0 - Status UI**
+* **v3.6.1 - RCS Rotation option**
+    * Added **RCS Rotation** option (Advanced Tab) to disable the use of RCS 
+      for attitude control. Sometimes you have enough control authority 
+      from reaction wheels and only want to use RCS as thrusters for
+      translation.
+    * When using Bearing Control or Cruise mode the Forward Direction
+      is shown even if the main window is collapsed
+    * Fixed attitude control in orbit for vessels without engines
+    * Various small fixes
+
+* v3.6.0 - **Status UI**
     * **Added Status Panel**
         * It replaces the status string that was located at the top of the main
           TCA window.
