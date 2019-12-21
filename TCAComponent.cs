@@ -252,17 +252,19 @@ namespace ThrottleControlledAvionics
 
         public override void Init() 
         { 
-            base.Init(); 
+            base.Init();
             VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; 
             VSL.vessel.OnAutopilotUpdate += UpdateCtrlState; 
-        
         }
 
         public override void Cleanup() { VSL.vessel.OnAutopilotUpdate -= UpdateCtrlState; }
 
-        public void UpdateCtrlState(FlightCtrlState s) 
-        { 
-            if(CFG.Enabled)
+        public void UpdateCtrlState(FlightCtrlState s)
+        {
+            if(TCA != null
+               && VSL != null
+               && CFG != null
+               && CFG.Enabled)
             {
                 CS = s;
                 _Update(OnAutopilotUpdate);

@@ -30,7 +30,7 @@ using AT_Utils;
 #if NIGHTBUILD
 [assembly: AssemblyVersion("3.6.*")]
 #else
-[assembly: AssemblyVersion("3.6.0")]
+[assembly: AssemblyVersion("3.6.1")]
 #endif
 [assembly: KSPAssembly("ThrottleControlledAvionics", 3, 6)]
 

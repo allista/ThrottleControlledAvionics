@@ -131,6 +131,7 @@ namespace ThrottleControlledAvionics
                     VSL.Controls.AddSteering(steering);
                 }
             }
+            draw_forward_direction = !DirectionLineTimer.TimePassed;
             DirectionOverride = Vector3d.zero;
         }
 
@@ -138,26 +139,29 @@ namespace ThrottleControlledAvionics
         static readonly GUIContent X_cnt = new GUIContent("X", "Disable Bearing Control");
         static readonly GUIContent Enable_cnt = new GUIContent("Bearing", "Enable Bearing Control");
         static Color dir_color = new Color(0, 1, 0, 0.5f);
-        public override void Draw ()
+
+        public void DrawForwardDirection()
         {
-            #if DEBUG
+#if DEBUG
 //            var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
 //            Utils.GLVec(VSL.refT.position, dir.normalized*2500, dir_color);
 //            Utils.GLVec(VSL.refT.position, rotation_axis*5, Color.red);
 //            Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Fwd*5, Color.yellow);
 //            Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading*5, Color.magenta);
-            #endif
+#endif
+            if(!draw_forward_direction || !CFG.BR[BearingMode.User])
+                return;
+            Utils.GLVec(VSL.Physics.wCoM, ForwardDirection.normalized*2500, dir_color);
+        }
+        
+        public override void Draw ()
+        {
             if(CFG.BR[BearingMode.Auto] || !DirectionOverride.IsZero())
             {
                 GUILayout.Label("AutoBearing", Styles.enabled, GUILayout.ExpandWidth(true));
             }
             else if(CFG.BR[BearingMode.User])
             {
-                if(draw_forward_direction)
-                {
-                    Utils.GLVec(VSL.Physics.wCoM, ForwardDirection.normalized*2500, dir_color);
-                    draw_forward_direction = !DirectionLineTimer.TimePassed;
-                }
                 if(Bearing.Draw("°", increment:10))
                 { 
                     ForwardDirection = VSL.Physics.Direction(Bearing);

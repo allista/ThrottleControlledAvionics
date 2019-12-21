@@ -29,10 +29,10 @@ namespace ThrottleControlledAvionics
         public int  NumActive { get; private set; }
         public int  NumActiveRCS { get; private set; }
         public bool NoActiveEngines { get; private set; }
-        public bool NoActiveRCS { get; private set; }
+        public bool NoActiveRCS;
         public bool HaveMainEngines { get; private set; }
         public bool HaveThrusters { get; private set; }
-        public bool ForceUpdateParts = false;
+        public bool ForceUpdateParts;
 
         public bool HaveNextStageEngines { get; private set; }
         public int  NearestEnginedStage { get; private set; }
@@ -63,38 +63,54 @@ namespace ThrottleControlledAvionics
         public override void Clear() { All.Clear(); RCS.Clear(); }
 
         public bool AddEngine(PartModule pm) 
-        { 
-            var engine = pm as ModuleEngines;
-            if(engine == null) return false;
+        {
+            if(!(pm is ModuleEngines engine))
+                return false;
             All.Add(new EngineWrapper(engine));
             return true;
         }
 
         public bool AddRCS(PartModule pm)
-        { 
-            var rcs = pm as ModuleRCS;
-            if(rcs == null) return false;
+        {
+            if(!(pm is ModuleRCS rcs))
+                return false;
             RCS.Add(new RCSWrapper(rcs));
             return true;
         }
 
-        public Vector3 refT_forward_axis 
-        => VSL.OnPlanetParams.NoseUp ? VSL.refT.forward : VSL.refT.up;
+        public Vector3 refT_forward_axis =>
+            VSL.OnPlanet
+                ? VSL.OnPlanetParams.NoseUp
+                    ? VSL.refT.forward
+                    : VSL.refT.up
+                : VSL.refT.forward;
 
-        public Vector3 refT_thrust_axis 
-        => VSL.OnPlanetParams.NoseUp ? VSL.refT.up : VSL.refT.forward;
+        public Vector3 refT_thrust_axis =>
+            VSL.OnPlanet
+                ? VSL.OnPlanetParams.NoseUp
+                    ? VSL.refT.up
+                    : VSL.refT.forward
+                : VSL.refT.up;
 
-        public Vector3 FallbackThrustDir(Vector3 fallback) 
-        => fallback.IsZero() ? -refT_thrust_axis : fallback.normalized;
+        public Vector3 FallbackThrustDir(Vector3 fallback) =>
+            fallback.IsZero()
+                ? -refT_thrust_axis
+                : fallback.normalized;
 
-        public Vector3 CurrentDefThrustDir 
-        => MaxDefThrust.IsZero() ? FallbackThrustDir(NearestEnginedStageMaxDefThrust) : MaxDefThrust.normalized;
+        public Vector3 CurrentDefThrustDir =>
+            MaxDefThrust.IsZero()
+                ? FallbackThrustDir(NearestEnginedStageMaxDefThrust)
+                : MaxDefThrust.normalized;
 
-        public Vector3 CurrentMaxThrustDir 
-        => MaxThrust.IsZero() ? FallbackThrustDir(NearestEnginedStageMaxThrust) : MaxThrust.normalized;
+        public Vector3 CurrentMaxThrustDir =>
+            MaxThrust.IsZero()
+                ? FallbackThrustDir(NearestEnginedStageMaxThrust)
+                : MaxThrust.normalized;
 
-        public Vector3 CurrentThrustDir 
-        => Thrust.IsZero() ? CurrentMaxThrustDir : Thrust.normalized;
+        public Vector3 CurrentThrustDir =>
+            Thrust.IsZero()
+                ? CurrentMaxThrustDir
+                : Thrust.normalized;
 
         public float ThrustAtAlt(float vel, float alt, out float mflow)
         {
@@ -402,9 +418,7 @@ namespace ThrottleControlledAvionics
             NumActive = Active.Count;
             NumActiveRCS = ActiveRCS.Count;
             NoActiveEngines = NumActive == 0;
-            NoActiveRCS = NumActiveRCS == 0 || 
-                VSL.Controls.Steering.sqrMagnitude < GLB.InputDeadZone && 
-                VSL.Controls.Translation.sqrMagnitude < GLB.InputDeadZone;
+            NoActiveRCS = NumActiveRCS == 0;
             //switch single coaxial engine to UnBalanced mode
             if(NumActive == 1)
             {
@@ -496,7 +510,7 @@ namespace ThrottleControlledAvionics
         {
             //init RCS wrappers and calculate MaxThrust taking torque imbalance into account
             MaxThrustRCS = new Vector6();
-            var RCSThrusImbalance = new Vector3[6];
+            var RCSThrustImbalance = new Vector3[6];
             for(int i = 0; i < NumActiveRCS; i++)
             {
                 var t = ActiveRCS[i];
@@ -512,23 +526,22 @@ namespace ThrottleControlledAvionics
                     {
                         athrust[k] = thrust[k];
                         var p = pos; p[k] = 0;
-                        RCSThrusImbalance[thrust[k] > 0 ? k : k + 3] += Vector3.Cross(p, athrust);
+                        RCSThrustImbalance[thrust[k] > 0 ? k : k + 3] += Vector3.Cross(p, athrust);
                         athrust[k] = 0;
                     }
                 }
-                if(NoActiveRCS) continue;
                 t.InitTorque(VSL, RCSOptimizer.C.TorqueRatioFactor);
                 t.UpdateCurrentTorque(1);
                 t.ApplyPreset();
             }
             if(!MaxThrustRCS.IsZero())
                 MaxThrustRCS.Scale(new Vector6(
-                    1/Utils.ClampL(RCSThrusImbalance[0].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[1].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[2].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[3].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[4].sqrMagnitude, 1),
-                    1/Utils.ClampL(RCSThrusImbalance[5].sqrMagnitude, 1)));
+                    1/Utils.ClampL(RCSThrustImbalance[0].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[1].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[2].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[3].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[4].sqrMagnitude, 1),
+                    1/Utils.ClampL(RCSThrustImbalance[5].sqrMagnitude, 1)));
         }
 
         public override void Update()
@@ -643,11 +656,16 @@ namespace ThrottleControlledAvionics
                 e.preset_limit = -1;
             }
             VSL.Controls.ManualTranslationSwitch.Checked();
-            if(NoActiveRCS) return;
+            if(NoActiveRCS)
+                return;
+            var use_RCS = CFG.RotateWithRCS || VSL.Controls.HasTranslation;
             for(int i = 0; i < NumActiveRCS; i++)
             {
                 var t = ActiveRCS[i];
-                t.thrustLimit = Mathf.Clamp01(t.limit);
+                if(use_RCS)
+                    t.thrustLimit = Mathf.Clamp01(t.limit);
+                else 
+                    t.forceThrustPercentage(0);
                 t.preset_limit = -1;
             }
         }

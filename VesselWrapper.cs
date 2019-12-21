@@ -21,7 +21,7 @@ namespace ThrottleControlledAvionics
     {
         public ModuleTCA    TCA { get; private set; }
         public VesselConfig CFG { get; private set; }
-        internal Globals GLB => Globals.Instance;
+        private static Globals GLB => Globals.Instance;
 
         public TCAState State;
         public void SetState(TCAState state) => State |= state;

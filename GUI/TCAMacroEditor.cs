@@ -14,7 +14,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-    [KSPAddon(KSPAddon.Startup.EveryScene, false)]
+    [KSPAddon(KSPAddon.Startup.FlightAndEditor, false)]
     public class TCAMacroEditor : AddonWindowBase<TCAMacroEditor>
     {
         static TCAMacro Macro;

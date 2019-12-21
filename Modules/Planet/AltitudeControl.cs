@@ -236,10 +236,15 @@ namespace ThrottleControlledAvionics
                                       Utils.ClampL(alt/C.RelAltitudeFactor, 1), 0);
                 CFG.VerticalCutoff += dV;
                 //Loosing Altitude alert
-                Falling.RunIf(() => SetState(TCAState.LoosingAltitude),
-                              VSL.VerticalSpeed.Relative < 0 && 
-                              VSL.CFG.VerticalCutoff-VSL.VerticalSpeed.Absolute > 0 && 
-                              VSL.Altitude < CFG.DesiredAltitude-VSL.VerticalSpeed.Relative*C.TimeAhead);
+                if(VSL.VerticalSpeed.Relative < 0
+                   && VSL.CFG.VerticalCutoff - VSL.VerticalSpeed.Absolute > 0
+                   && VSL.Altitude < CFG.DesiredAltitude - VSL.VerticalSpeed.Relative * C.TimeAhead)
+                {
+                    if(Falling.TimePassed)
+                        SetState(TCAState.LoosingAltitude);
+                }
+                else 
+                    Falling.Reset();
 //                Log("error {0}, dV: {1}, VSP: {2}, min speed {3}, max speed {4}", 
 //                    error, dV, CFG.VerticalCutoff, min_speed, max_speed);//debug
 //                CSV(alt, VSL.vessel.altitude, VSL.Altitude.TerrainAltitude, VSL.Altitude, RAD.AltitudeAhead, error, 

@@ -19,6 +19,7 @@ namespace ThrottleControlledAvionics
         void Open();
         void Close();
         void LateUpdate();
+        void OnRenderObject();
     }
 
     public abstract class ControlPanel<T> : UIWindowBase<T>, IControlPanel where T : ScreenBoundRect
@@ -39,9 +40,7 @@ namespace ThrottleControlledAvionics
                 OnLateUpdate();
         }
 
-        protected ControlPanel() : base(GLB.AssetBundle)
-        {
-        }
+        protected ControlPanel() : base(GLB.AssetBundle) { }
 
         public virtual void Reset()
         {
@@ -62,24 +61,30 @@ namespace ThrottleControlledAvionics
 
         public void Open() => Show(TCA);
 
-        protected virtual void OnLateUpdate()
-        {
-        }
+        protected virtual void OnLateUpdate() { }
 
         public void LateUpdate()
         {
-            if(Connected)
+            if(!Connected)
+                return;
+            if(IsShown)
             {
-                if(IsShown)
-                {
-                    if(shouldShow)
-                        OnLateUpdate();
-                    else
-                        Close();
-                }
-                else if(shouldShow)
-                    Open();
+                if(shouldShow)
+                    OnLateUpdate();
+                else
+                    Close();
             }
+            else if(shouldShow)
+                Open();
+        }
+
+        protected virtual void OnRender() { }
+
+        public void OnRenderObject()
+        {
+            if(!Connected || !IsShown || !shouldShow)
+                return;
+            OnRender();
         }
     }
 }

@@ -359,9 +359,6 @@ namespace ThrottleControlledAvionics
         protected override bool can_draw()
         { return TCA != null && VSL != null && vessel != null && CFG.GUIVisible && AllTabs.Count > 0; }
 
-        #if DEBUG
-        static Rect debug_rect = new Rect(Screen.width*0.75f, 0, 270, 25).clampToScreen();
-        #endif
         protected override void draw_gui()
         {
             //draw main window if allowed
@@ -429,13 +426,6 @@ namespace ThrottleControlledAvionics
                && Event.current.type == EventType.Repaint)
                 Markers.DrawWorldMarker(TCA.vessel.transform.position, Colors.Good, 
                                         "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
-            #if DEBUG
-            GUI.Label(debug_rect, 
-                      string.Format("[{0}] {1:HH:mm:ss.fff} FPS: {2:F0}:{3:F0}", 
-                                    TCA != null && vessel != null? vessel.situation.ToString() : "", 
-                                    DateTime.Now, ComputationBalancer.FPS, ComputationBalancer.FPS_AVG),
-                      Styles.boxed_label);
-            #endif
         }
 
         public void Update()
@@ -464,6 +454,7 @@ namespace ThrottleControlledAvionics
         public void OnRenderObject()
         {
             AllTabs.ForEach(t => t.OnRenderObject());
+            AllPanels.ForEach(p => p.OnRenderObject());
         }
 
         protected override void LateUpdate()

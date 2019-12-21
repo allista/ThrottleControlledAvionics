@@ -80,7 +80,7 @@ VerticalSpeedControl
 	UpAf              = 0.2  //factor for the upA adjustment of VerticalCutoff
 	ASf               = 2    //factor for the acceleration speed adjustment of VerticalCutoff
 	DSf               = 1    //factor for the deceleration speed adjustment of VerticalCutoff
-	FallingTime       = 0.2    //min. time falling to trigger Loosing Altitude alert
+	FallingTime       = 0.5  //min. time falling to trigger Loosing Altitude alert
 	MaxDeltaV         = 1
 	AccelThreshold    = 0.1
 	MaxVSFtwr         = 0.9
@@ -98,7 +98,7 @@ AltitudeControl
 	RelVelocityErrF   = 1
 
 	TimeAhead         = 5
-	FallingTime       = 0.2  //min. time falling to trigger Loosing Altitude alert
+	FallingTime       = 0.5 //min. time falling to trigger Loosing Altitude alert
 	
 	SlowCorrectionF = 0.5
 	

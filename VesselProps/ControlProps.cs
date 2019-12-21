@@ -22,14 +22,16 @@ namespace ThrottleControlledAvionics
         public Vector3 AutopilotSteering;
         public bool    TranslationAvailable;
         public Vector3 ManualTranslation;
-        public Switch  ManualTranslationSwitch = new Switch();
+        public readonly Switch  ManualTranslationSwitch = new Switch();
         public float   GimbalLimit = 100;
         public bool    HaveControlAuthority = true;
         public bool    NoDewarpOffset;
         public bool    PauseWhenStopped;
+        public bool    HasTranslation { get; private set; }
+        public bool    HasSteering { get; private set; }
 
-        bool dewarp;
-        double warp_to_time = -1;
+        private bool dewarp;
+        private double warp_to_time = -1;
         public double WarpToTime 
         {
             get { return dewarp? 0: warp_to_time; }
@@ -89,8 +91,19 @@ namespace ThrottleControlledAvionics
         {
             Steering = new Vector3(s.pitch, s.roll, s.yaw);
             Translation = new Vector3(s.X, s.Z, s.Y);
-            if(!Steering.IsZero()) Steering = Steering/Steering.CubeNorm().magnitude;
-            if(!Translation.IsZero()) Translation = Translation/Translation.CubeNorm().magnitude;
+            HasSteering = false;
+            if(!Steering.IsZero())
+            {
+                Steering /= Steering.CubeNorm().magnitude;
+                HasSteering = Steering.sqrMagnitude >= GLB.InputDeadZone;
+            }
+            HasTranslation = false;
+            if(!Translation.IsZero())
+            {
+                Translation /= Translation.CubeNorm().magnitude;
+                HasTranslation = Translation.sqrMagnitude >= GLB.InputDeadZone;
+            }
+            VSL.Engines.NoActiveRCS &= !(HasSteering || HasTranslation);
 //            if(VSL.IsActiveVessel)
 //                TCAGui.AddDebugMessage("Steering {}\nTranslation {}", 
 //                                       Utils.formatComponents(Steering), 

@@ -16,7 +16,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-    [KSPAddon(KSPAddon.Startup.Instantly, false)]
+    [KSPAddon(KSPAddon.Startup.Instantly, true)]
     public class TCAModulesDatabase : MonoBehaviour
     {
         static Type[] tca_modules = null;
