@@ -293,6 +293,21 @@ namespace ThrottleControlledAvionics
         [KSPAction("Update TCA Profile")]
         void onActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
 
+        /// <summary>
+        /// It is a component message handler.
+        /// The "DisableAttitudeControl" message is sent from CargoAccelerators mod when
+        /// its own attitude control is enabled.
+        /// </summary>
+        private void DisableAttitudeControl(object value)
+        {
+            if(value.Equals(this))
+                return;
+            if(!Valid)
+                return;
+            CFG.AT.XOff();
+            CFG.BR.XOff();
+        }
+
         public void SetGID(string gid)
         {
             GID = gid;
