@@ -140,7 +140,8 @@ namespace ThrottleControlledAvionics
                         if(t == null)
                             continue;
                         var specificTorque = refT.InverseTransformDirection(
-                            Vector3.Cross(t.position - VSL.Physics.wCoM, t.up));
+                            Vector3.Cross(t.position - VSL.Physics.wCoM, 
+                                r.rcs.useZaxis ? t.forward : t.up));
                         RCSLimits.Add(specificTorque * r.rcs.thrusterPower);
                         RCSSpecificTorque.Add(specificTorque);
                     }
