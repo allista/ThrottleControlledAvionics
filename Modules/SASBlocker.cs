@@ -7,6 +7,8 @@
 // To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ 
 // or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+using UnityEngine;
+
 namespace ThrottleControlledAvionics
 {
     [CareerPart(typeof(AttitudeControl))]
@@ -25,6 +27,10 @@ namespace ThrottleControlledAvionics
                 {
                     CFG.SASWasEnabled = VSL.vessel.ActionGroups[KSPActionGroup.SAS];
                     CFG.SASIsControlled = true;
+                    VSL.vessel.Parts.ForEach(p =>
+                        p.SendMessage("DisableAttitudeControl",
+                            TCA,
+                            SendMessageOptions.DontRequireReceiver));
                 }
                 // Disable SAS so it won't interfere.
                 // But enable it while in timewarp for compatibility with PersistentRotation

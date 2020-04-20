@@ -141,31 +141,11 @@ namespace ThrottleControlledAvionics
             Node = null;
         }
 
-        public static Vector3d Orbital2NodeDeltaV(Orbit o, Vector3d orbitalDeltaV, double UT)
-        {
-            var norm = o.GetOrbitNormal().normalized;
-            var prograde = o.getOrbitalVelocityAtUT(UT).normalized;
-            var radial = Vector3d.Cross(prograde, norm).normalized;
-            return new Vector3d(Vector3d.Dot(orbitalDeltaV, radial),
-                                Vector3d.Dot(orbitalDeltaV, norm),
-                                Vector3d.Dot(orbitalDeltaV, prograde));
-        }
+        public static void AddNode(VesselWrapper VSL, Vector3d dV, double UT) => 
+            Utils.AddNode(VSL.vessel, dV, UT);
 
-        public static void AddNode(VesselWrapper VSL, Vector3d dV, double UT)
-        {
-            var node = VSL.vessel.patchedConicSolver.AddManeuverNode(UT);
-            node.DeltaV = Orbital2NodeDeltaV(node.patch, dV, UT);
-            VSL.vessel.patchedConicSolver.UpdateFlightPlan();
-//            VSL.Log("AddNode: {} : {}", UT, node.DeltaV);//debug
-        }
-
-        public static void AddNodeRaw(VesselWrapper VSL, Vector3d NodeV, double UT)
-        {
-            var node = VSL.vessel.patchedConicSolver.AddManeuverNode(UT);
-            node.DeltaV = NodeV;
-            VSL.vessel.patchedConicSolver.UpdateFlightPlan();
-//            VSL.Log("AddNodeRaw: {} : {}", UT, node.DeltaV);//debug
-        }
+        public static void AddNodeRaw(VesselWrapper VSL, Vector3d NodeV, double UT) => 
+            Utils.AddNodeRaw(VSL.vessel, NodeV, UT);
 
         bool StartCondition(float dV)
         {

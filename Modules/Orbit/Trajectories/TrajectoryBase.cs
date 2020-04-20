@@ -60,7 +60,7 @@ namespace ThrottleControlledAvionics
             if(dVm > 0)
             {
                 ManeuverDeltaV = dV;
-                NodeDeltaV = ManeuverAutopilot.Orbital2NodeDeltaV(obt, ManeuverDeltaV, StartUT);
+                NodeDeltaV = Utils.Orbital2NodeDeltaV(obt, ManeuverDeltaV, StartUT);
                 try 
                 { 
                     Orbit = TrajectoryCalculator.NewOrbit(obt, ManeuverDeltaV, StartUT);

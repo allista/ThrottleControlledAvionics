@@ -199,30 +199,17 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region VesselRanges
-        static List<FieldInfo> situation_ranges = typeof(VesselRanges)
-            .GetFields(BindingFlags.Public|BindingFlags.Instance)
-            .Where(fi => fi.FieldType.Equals(typeof(VesselRanges.Situation))).ToList();
         VesselRanges saved_ranges;
 
         public void SetUnpackDistance(float distance)
         {
-            if(saved_ranges == null) 
-                saved_ranges = new VesselRanges(vessel.vesselRanges);
-            foreach(var fi in situation_ranges)
-            {
-                var sit = fi.GetValue(vessel.vesselRanges) as VesselRanges.Situation;
-                if(sit == null) continue;
-                sit.pack   = distance*1.5f;
-                sit.unpack = distance;
-                sit.unload = distance*2.5f;
-                sit.load   = distance*2f;
-            }
+            saved_ranges = vessel.SetUnpackDistance(distance);
         }
 
         public void RestoreUnpackDistance()
         {
             if(saved_ranges == null) return;
-            vessel.vesselRanges = new VesselRanges(saved_ranges);
+            vessel.vesselRanges = saved_ranges;
             saved_ranges = null;
         }
 

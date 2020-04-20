@@ -15,6 +15,7 @@ using UnityEngine;
 using AT_Utils;
 using CommNet;
 using AT_Utils.UI;
+using JetBrains.Annotations;
 
 namespace ThrottleControlledAvionics
 {
@@ -290,8 +291,25 @@ namespace ThrottleControlledAvionics
                 VSL.SetUnpackDistance(GLB.UnpackDistance);
         }
 
+        [UsedImplicitly]
         [KSPAction("Update TCA Profile")]
-        void onActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
+        private void onActionUpdate(KSPActionParam param) { StartCoroutine(activeProfileUpdate()); }
+
+        /// <summary>
+        /// It is a component message handler.
+        /// The "DisableAttitudeControl" message is sent from CargoAccelerators mod when
+        /// its own attitude control is enabled.
+        /// </summary>
+        [UsedImplicitly]
+        private void DisableAttitudeControl(object value)
+        {
+            if(value.Equals(this))
+                return;
+            if(!Valid)
+                return;
+            CFG.AT.XOff();
+            CFG.BR.XOff();
+        }
 
         public void SetGID(string gid)
         {
