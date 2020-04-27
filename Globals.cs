@@ -5,7 +5,7 @@
 //
 //  Copyright (c) 2016 Allis Tauri
 
-﻿using System;
+using System;
 using System.IO;
 using System.Reflection;
 using System.Linq;
@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
         public const string RADIATION_ICON = "ThrottleControlledAvionics/Icons/waypoint";
         public const string CIRCLE_ICON = "ThrottleControlledAvionics/Icons/path-node";
 
-        public UIBundle AssetBundle = new UIBundle("ThrottleControlledAvionics/tca_ui");
+        public UIBundle AssetBundle = new UIBundle("ThrottleControlledAvionics/tca_ui.ksp");
 
         [Persistent] public bool  IntegrateIntoCareer   = true;
         [Persistent] public bool  RoleSymmetryInFlight  = true;
