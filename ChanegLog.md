@@ -2,10 +2,14 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.6.2**
+* **v3.6.2.1**
+    * **Compatible with KSP-1.9**
+    * Compiled against AT_Utils 1.9.2
+
+* v3.6.2
     * Fixed RCS specific torque calculation for some thrusters
     * Added integration with the new CargoAccelerators mod (WIP)
-    * Compiled agains AT_Utils 1.9.1
+    * Compiled against AT_Utils 1.9.1
 
 * v3.6.1 - **RCS Rotation option**
     * Added **RCS Rotation** option (Advanced Tab) to disable the use of RCS 
