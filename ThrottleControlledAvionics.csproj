@@ -236,7 +236,7 @@
     </ItemGroup>
     <ItemGroup>
         <None Include=".gitignore" />
-        <None Include="ChanegLog.md" />
+        <None Include="ChangeLog.md" />
         <None Include="export_git.sh" />
         <None Include="extract_csv.sh" />
         <None Include="make-release.sh" />
