@@ -2,7 +2,7 @@
     "NAME":"ThrottleControlledAvionics",
     "URL":"https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version",
     "DOWNLOAD":"http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics",
-    "CHANGE_LOG_URL":"https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/ChanegLog.md",
+    "CHANGE_LOG_URL":"https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/ChangeLog.md",
     "VERSION":
      {
          "MAJOR":3,

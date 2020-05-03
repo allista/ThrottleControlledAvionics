@@ -51,7 +51,7 @@ namespace ThrottleControlledAvionics
 
             VersionURL = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/GameData/ThrottleControlledAvionics/ThrottleControlledAvionics.version";
             UpgradeURL = "http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics";
-            ChangeLogURL = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/ChanegLog.md";
+            ChangeLogURL = "https://raw.githubusercontent.com/allista/ThrottleControlledAvionics/master/ChangeLog.md";
         }
     }
 }
