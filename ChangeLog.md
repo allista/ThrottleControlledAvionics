@@ -2,7 +2,11 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.6.2.1**
+* **v3.6.2.2**
+    * Fixed HUD panels disappearing after scene switch
+    * Compiled against AT_Utils 1.9.2
+
+* v3.6.2.1
     * **Compatible with KSP-1.9**
     * Compiled against AT_Utils 1.9.2
 
