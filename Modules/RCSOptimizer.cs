@@ -47,6 +47,8 @@ namespace ThrottleControlledAvionics
         public bool Optimize(IList<RCSWrapper> engines, Vector3 needed_torque)
         {
             var num_engines = engines.Count;
+            if(num_engines == 0)
+                return true;
             var zero_torque = needed_torque.IsZero();
             var preset_limits = engines.Any(e => e.preset_limit >= 0);
             TorqueAngle = TorqueError = -1f;

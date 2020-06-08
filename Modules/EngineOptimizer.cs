@@ -101,7 +101,12 @@ namespace ThrottleControlledAvionics
         public static bool OptimizeLimitsForTorque(IList<EngineWrapper> engines, Vector3 needed_torque, Vector3 start_imbalance, Vector3 MoI, bool useDefTorque,
                                                    out float max_limit, out float torque_error, out float angle_error)
         {
+            torque_error = -1f;
+            angle_error = -1f;
+            max_limit = 0;
             var num_engines = engines.Count;
+            if(num_engines == 0)
+                return true;
             var zero_torque = needed_torque.IsZero();
             var preset_limits = engines.Any(e => e.preset_limit >= 0);
             var torqueOnly = !preset_limits && engines.All(e => e.Role == TCARole.MANEUVER);
@@ -109,8 +114,6 @@ namespace ThrottleControlledAvionics
             var last_error = -1f;
             Vector3 cur_imbalance = start_imbalance;
             Vector3 target;
-            torque_error = -1f;
-            angle_error = -1f;
             //            Utils.Log("=============================== Optimization ===============================\n" +
             //                      "needed torque {}\n" +
             //                      "start imbalance {}\n" +
