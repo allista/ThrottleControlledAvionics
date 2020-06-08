@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
         public Vector3 wThrustLever = Vector3.zero;
         public float currentTorque_m;
         public float torqueRatio;
+        public float thrustRatio;
         public float limit, best_limit, limit_tmp;
         public float preset_limit = -1;
         public float thrustMod;
@@ -60,14 +61,25 @@ namespace ThrottleControlledAvionics
         public void ApplyPreset() { if(preset_limit >= 0) limit = best_limit = limit_tmp = preset_limit; }
 
         public void InitTorque(VesselWrapper VSL, float ratio_factor)
-        { InitTorque(VSL.refT, VSL.Physics.wCoM, ratio_factor); }
+        { InitTorque(VSL.refT, VSL.Physics.wCoM, VSL.Physics.M, VSL.Physics.MoI, ratio_factor); }
 
-        public virtual void InitTorque(Transform vesselTransform, Vector3 CoM, float ratio_factor)
+        public virtual void InitTorque(Transform vesselTransform, Vector3 CoM, float mass, Vector3 MoI, float ratio_factor)
         {
             wThrustLever = wThrustPos - CoM;
             thrustDirection = vesselTransform.InverseTransformDirection(wThrustDir);
             specificTorque = vesselTransform.InverseTransformDirection(Vector3.Cross(wThrustLever, wThrustDir));
-            torqueRatio = Mathf.Pow(Mathf.Clamp01(1 - Mathf.Abs(Vector3.Dot(wThrustLever.normalized, wThrustDir))), ratio_factor);
+            torqueRatio = computeTorqueRatio(wThrustLever, wThrustDir, specificTorque, mass, MoI, ratio_factor, out thrustRatio);
+        }
+
+        protected static float computeTorqueRatio(Vector3 lever, Vector3 thrustDir, Vector3 specTorque, float mass, Vector3 MoI, float ratio_factor, out float specificThrustToCom)
+        {
+            specificThrustToCom = Vector3.Dot(lever.normalized, thrustDir);
+            var specificLinearAccel = Mathf.Abs(specificThrustToCom / mass);
+            var specificAngularAccel = TorqueProps.AngularAcceleration(specTorque, MoI).magnitude;
+            var ratio = specificLinearAccel > 0
+                ? Mathf.Clamp01(1 - 1 / (1 + specificAngularAccel * ratio_factor / specificLinearAccel))
+                : 0;
+            return ratio;
         }
     }
 
@@ -206,6 +218,7 @@ namespace ThrottleControlledAvionics
         public Vector3 defCurrentTorque { get; private set; }
         public float defCurrentTorque_m { get; private set; }
         public float defTorqueRatio { get; private set; }
+        public float defThrustRatio;
 
         public float nominalFullThrust { get; private set; }
 
@@ -267,20 +280,34 @@ namespace ThrottleControlledAvionics
         public void SetRole(TCARole role) { info.SetRole(role); }
         public void SetGroup(int group) { info.group = group; }
 
-        public override void InitTorque(Transform vesselTransform, Vector3 CoM, float ratio_factor)
+        public override void InitTorque(
+            Transform vesselTransform,
+            Vector3 CoM,
+            float mass,
+            Vector3 MoI,
+            float ratio_factor
+        )
         {
-            base.InitTorque(vesselTransform, CoM, ratio_factor);
+            base.InitTorque(vesselTransform, CoM, mass, MoI, ratio_factor);
             if(gimbal != null)
             {
                 defThrustDirL = vesselTransform.InverseTransformDirection(defThrustDir);
-                defSpecificTorque = vesselTransform.InverseTransformDirection(Vector3.Cross(wThrustLever, defThrustDir));
-                defTorqueRatio = Mathf.Pow(Mathf.Clamp01(1 - Mathf.Abs(Vector3.Dot(wThrustLever.normalized, defThrustDir))), ratio_factor);
+                defSpecificTorque =
+                    vesselTransform.InverseTransformDirection(Vector3.Cross(wThrustLever, defThrustDir));
+                defTorqueRatio = computeTorqueRatio(wThrustLever,
+                    defThrustDir,
+                    defSpecificTorque,
+                    mass,
+                    MoI,
+                    ratio_factor,
+                    out defThrustRatio);
             }
             else
             {
                 defThrustDirL = thrustDirection;
                 defSpecificTorque = specificTorque;
                 defTorqueRatio = torqueRatio;
+                defThrustRatio = thrustRatio;
             }
         }
 
@@ -504,14 +531,17 @@ namespace ThrottleControlledAvionics
                                 "useEngineResponseTime: {}, engineAccelerationSpeed={}, engineDecelerationSpeed={}\n" +
                                 "finalThrust: {}, thrustLimit: {}, isOperational: {}\n" +
                                 "limit: {}, best_limit: {}, limit_tmp: {}, preset: {}\n" +
-                                "thrust: {}\ndir {}\ndef dir: {}\npos {}\nlever: {}\ntorque: {}\ntorqueRatio: {}\n",
+                                "thrust: {}\ndir {}\ndef dir: {}\npos {}\nlever: {}\ntorque: {}\n"
+                                + "torqueRatio: {} defTorqueRatio: {}\n"
+                                + "thrustRatio: {} defThrustRatio: {}\n",
                                 name, ID, flightID, part.inverseStage, Role, isVSC, Group, engine.flameout,
                                 useEngineResponseTime, engineAccelerationSpeed, engineDecelerationSpeed,
                                 finalThrust, thrustLimit, isOperational,
                                 limit, best_limit, limit_tmp, preset_limit,
                                 nominalFullThrust,
                                 wThrustDir, defThrustDir, wThrustPos, wThrustLever,
-                                currentTorque, torqueRatio
+                                currentTorque, torqueRatio, defTorqueRatio,
+                                thrustRatio, defThrustRatio
                                );
         }
     }

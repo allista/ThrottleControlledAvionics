@@ -44,6 +44,7 @@ namespace ThrottleControlledAvionics
         Vector3 DryCoM = Vector3.zero;
         Matrix3x3f InertiaTensor = new Matrix3x3f();
         Vector3 MoI { get { return new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]); } }
+        private float Mass => use_wet_mass ? WetMass : DryMass;
 
         bool show_imbalance;
         bool use_wet_mass = true;
@@ -231,8 +232,11 @@ namespace ThrottleControlledAvionics
             e.throttle = e.VSF = e.thrustMod = 1;
             e.UpdateThrustInfo();
             e.InitLimits();
-            e.InitTorque(EditorLogic.RootPart.transform, CoM,
-                         EngineOptimizer.C.TorqueRatioFactor);
+            e.InitTorque(EditorLogic.RootPart.transform,
+                CoM,
+                Mass,
+                MoI,
+                EngineOptimizer.C.TorqueRatioFactor);
             e.UpdateCurrentTorque(1);
         }
 
@@ -332,7 +336,7 @@ namespace ThrottleControlledAvionics
                     continue;
                 }
                 e.UpdateThrustInfo();
-                e.InitTorque(EditorLogic.fetch.ship[0].transform, CoM, 1);
+                e.InitTorque(EditorLogic.fetch.ship[0].transform, CoM, Mass, MoI, EngineOptimizer.C.TorqueRatioFactor);
                 if(e.torqueRatio < EngineOptimizer.C.UnBalancedThreshold) e.SetRole(TCARole.UNBALANCE);
             }
             //group symmetry-clones
