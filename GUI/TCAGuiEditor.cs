@@ -38,7 +38,7 @@ namespace ThrottleControlledAvionics
 
         HighlightSwitcher TCA_highlight, Engines_highlight;
 
-        float Mass, DryMass, MinTWR, MaxTWR, MinLimit;
+        float WetMass, DryMass, MinTWR, MaxTWR, MinLimit;
         Vector3 CoM = Vector3.zero;
         Vector3 WetCoM = Vector3.zero;
         Vector3 DryCoM = Vector3.zero;
@@ -200,7 +200,7 @@ namespace ThrottleControlledAvionics
                 pos = part.potentialParent.transform.position + part.potentialParent.transform.rotation * part.potentialParent.CoMOffset;
             WetCoM += pos * wetMass;
             DryCoM += pos * dryMass;
-            Mass += wetMass;
+            WetMass += wetMass;
             DryMass += dryMass;
             part.children.ForEach(update_mass_and_CoM);
         }
@@ -249,12 +249,12 @@ namespace ThrottleControlledAvionics
 
         void CalculateMassAndCoM(List<Part> selected_parts)
         {
-            Mass = DryMass = MinTWR = MaxTWR = 0;
+            WetMass = DryMass = MinTWR = MaxTWR = 0;
             CoM = WetCoM = DryCoM = Vector3.zero;
             update_mass_and_CoM(EditorLogic.RootPart);
             if(selected_parts != null)
                 selected_parts.ForEach(update_mass_and_CoM);
-            WetCoM /= Mass; DryCoM /= DryMass;
+            WetCoM /= WetMass; DryCoM /= DryMass;
             CoM = use_wet_mass ? WetCoM : DryCoM;
         }
 
@@ -304,7 +304,7 @@ namespace ThrottleControlledAvionics
                     var T = thrust.magnitude / Utils.G0;
                     if(use_wet_mass)
                     {
-                        MinTWR = T / Mass;
+                        MinTWR = T / WetMass;
                         MaxTWR = T / DryMass;
                     }
                     else
@@ -512,7 +512,7 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label("Ship Info:");
                     GUILayout.FlexibleSpace();
                     GUILayout.Label("Mass:", Styles.boxed_label);
-                    if(Utils.ButtonSwitch(Utils.formatMass(Mass), use_wet_mass, "Balance engines using Wet Mass"))
+                    if(Utils.ButtonSwitch(Utils.formatMass(WetMass), use_wet_mass, "Balance engines using Wet Mass"))
                     {
                         use_wet_mass = true;
                         update_stats = true;
