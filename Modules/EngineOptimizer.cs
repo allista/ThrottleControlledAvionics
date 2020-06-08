@@ -262,7 +262,7 @@ namespace ThrottleControlledAvionics
             return ret;
         }
 
-        public void PresetLimitsForTranslation(IList<EngineWrapper> engines, Vector3 translation)
+        public static void PresetLimitsForTranslation(IList<EngineWrapper> engines, Vector3 translation)
         {
             if(translation.IsZero())
                 return;
@@ -275,7 +275,7 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        public void LimitInDirection(IList<EngineWrapper> engines, Vector3 dir)
+        public static void LimitInDirection(IList<EngineWrapper> engines, Vector3 dir)
         {
             var num_engines = engines.Count;
             for(int i = 0; i < num_engines; i++)
