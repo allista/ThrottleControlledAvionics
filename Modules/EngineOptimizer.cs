@@ -59,10 +59,11 @@ namespace ThrottleControlledAvionics
         {
             var compensation = Vector3.zero;
             var maneuver = Vector3.zero;
+            var target_n = target/target_m;
             for(int i = 0; i < num_engines; i++)
             {
                 var e = engines[i];
-                e.limit_tmp = -Vector3.Dot(e.getCurrentTorque(useDefTorque), target) / target_m / e.getCurrentTorqueM(useDefTorque) * e.getTorqueRatio(useDefTorque);
+                e.limit_tmp = -Vector3.Dot(e.getCurrentTorque(useDefTorque), target_n) / e.getCurrentTorqueM(useDefTorque) * e.getTorqueRatio(useDefTorque || e.Role == TCARole.MANEUVER);
                 if(e.limit_tmp > 0)
                     compensation += e.getSpecificTorque(useDefTorque) * e.nominalCurrentThrust(e.throttle * e.limit);
                 else if(e.Role == TCARole.MANEUVER)
