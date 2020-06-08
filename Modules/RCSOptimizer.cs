@@ -61,9 +61,9 @@ namespace ThrottleControlledAvionics
                 cur_imbalance = Vector3.zero;
                 for(int j = 0; j < num_engines; j++)
                 { var e = engines[j]; cur_imbalance += e.Torque(e.limit); }
-                angle = zero_torque ? 0f : Utils.Angle2(cur_imbalance, needed_torque);
+                angle = zero_torque ? 0f : Utils.Angle2Rad(cur_imbalance, needed_torque) * C.AngleErrorWeight;
                 target = needed_torque - cur_imbalance;
-                error = VSL.Torque.AngularAcceleration(target).magnitude;
+                error = VSL.Torque.AngularAcceleration(target).sqrMagnitude;
                 if(target.IsZero())
                     break;
                 //Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, C.OptimizationTorqueCutoff * C.OptimizationPrecision);//debug
@@ -77,7 +77,7 @@ namespace ThrottleControlledAvionics
                         TorqueAngle = angle;
                 }
                 //check convergence conditions
-                if(error < C.OptimizationTorqueCutoff * C.OptimizationPrecision ||
+                if(error < C.TorqueCutoff ||
                    last_error > 0 && Mathf.Abs(error - last_error) < C.OptimizationPrecision * last_error)
                     break;
                 last_error = error;
@@ -96,7 +96,7 @@ namespace ThrottleControlledAvionics
                         { var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
                     }
                 }
-                if(!optimization_pass(engines, num_engines, target, error, C.OptimizationPrecision))
+                if(!optimization_pass(engines, num_engines, target, target.magnitude, C.OptimizationPrecision))
                     break;
             }
             var optimized = TorqueError < C.OptimizationTorqueCutoff

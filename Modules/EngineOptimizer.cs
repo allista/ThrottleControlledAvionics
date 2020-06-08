@@ -24,7 +24,22 @@ namespace ThrottleControlledAvionics
             [Persistent] public float OptimizationAngleCutoff = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
             [Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
             [Persistent] public float TorqueRatioFactor = 0.1f;  //torque-ratio curve
+            [Persistent] public float AngleErrorWeight = 1f;
             [Persistent] public float UnBalancedThreshold = 0.0001f; //<1 deg
+
+            public float TorqueCutoff;
+
+            public override void Load(ConfigNode node)
+            {
+                base.Load(node);
+                // working in radians
+                OptimizationAngleCutoff *= Mathf.Deg2Rad * AngleErrorWeight;
+                // working in square magnitude
+                OptimizationTorqueCutoff *= OptimizationTorqueCutoff;
+                OptimizationPrecision *= OptimizationPrecision;
+                // precalculate frequently used values
+                TorqueCutoff = OptimizationTorqueCutoff * OptimizationPrecision;
+            }
         }
 
         public float TorqueError { get; protected set; }
@@ -122,16 +137,17 @@ namespace ThrottleControlledAvionics
             //                      needed_torque, start_imbalance, MoI, engines);//debug
             for(int i = 0; i < C.MaxIterations; i++)
             {
-                //calculate current errors and target
+                // calculate current target
                 cur_imbalance = start_imbalance;
                 for(int j = 0; j < num_engines; j++)
                 { var e = engines[j]; cur_imbalance += e.Torque(e.throttle * e.limit, useDefTorque); }
-                angle = zero_torque ? 0f : Utils.Angle2(cur_imbalance, needed_torque);
                 target = needed_torque - cur_imbalance;
-                error = TorqueProps.AngularAcceleration(target, MoI).magnitude;
                 //                Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision);//debug
                 if(target.IsZero())
                     break;
+                // calculate torque and angle errors
+                error = TorqueProps.AngularAcceleration(target, MoI).sqrMagnitude;
+                angle = zero_torque ? 0f : Utils.Angle2Rad(cur_imbalance, needed_torque) * C.AngleErrorWeight;
                 //remember the best state
                 if(zero_torque && error < torque_error
                    || angle + error < angle_error + torque_error
@@ -143,8 +159,8 @@ namespace ThrottleControlledAvionics
                     if(!zero_torque && !cur_imbalance.IsZero())
                         angle_error = angle;
                 }
-                //check convergence conditions
-                if(error < C.OptimizationTorqueCutoff * C.OptimizationPrecision ||
+                // check convergence conditions
+                if(error < C.TorqueCutoff ||
                    last_error > 0 && Mathf.Abs(error - last_error) < C.OptimizationPrecision * last_error)
                     break;
                 last_error = error;

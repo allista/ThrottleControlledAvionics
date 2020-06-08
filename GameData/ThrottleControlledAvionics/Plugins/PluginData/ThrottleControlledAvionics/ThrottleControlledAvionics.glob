@@ -25,6 +25,7 @@ RCSOptimizer
 	OptimizationAngleCutoff = 10
 	OptimizationTorqueCutoff = 0.002 //rad/s2
 	TorqueRatioFactor = 1
+	AngleErrorWeight = 0.1
 }
 
 EngineOptimizer
@@ -36,6 +37,7 @@ EngineOptimizer
 	ThrustOptimizationPrecision = 0.001
 	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 1
+	AngleErrorWeight = 0.1
 	
 	MaxAAFilter = 5
 	
