@@ -64,6 +64,8 @@ namespace ThrottleControlledAvionics
                 angle = zero_torque ? 0f : Utils.Angle2(cur_imbalance, needed_torque);
                 target = needed_torque - cur_imbalance;
                 error = VSL.Torque.AngularAcceleration(target).magnitude;
+                if(target.IsZero())
+                    break;
                 //Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, C.OptimizationTorqueCutoff * C.OptimizationPrecision);//debug
                 //remember the best state
                 if(zero_torque && error < TorqueError || angle + error < TorqueAngle + TorqueError || TorqueAngle < 0)

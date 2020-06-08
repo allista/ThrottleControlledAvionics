@@ -130,6 +130,8 @@ namespace ThrottleControlledAvionics
                 target = needed_torque - cur_imbalance;
                 error = TorqueProps.AngularAcceleration(target, MoI).magnitude;
                 //                Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision);//debug
+                if(target.IsZero())
+                    break;
                 //remember the best state
                 if(zero_torque && error < torque_error
                    || angle + error < angle_error + torque_error
