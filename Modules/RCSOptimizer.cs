@@ -66,7 +66,6 @@ namespace ThrottleControlledAvionics
                 error = VSL.Torque.AngularAcceleration(target).sqrMagnitude;
                 if(target.IsZero())
                     break;
-                //Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, C.OptimizationTorqueCutoff * C.OptimizationPrecision);//debug
                 //remember the best state
                 if(zero_torque && error < TorqueError || angle + error < TorqueAngle + TorqueError || TorqueAngle < 0)
                 {
@@ -101,9 +100,6 @@ namespace ThrottleControlledAvionics
             }
             var optimized = TorqueError < C.OptimizationTorqueCutoff
                             || (TorqueAngle >= 0 && TorqueAngle < C.OptimizationAngleCutoff);
-            //Utils.Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}\nlimits:\n{}\n" +
-            //"-------------------------------------------------------------------------------------------------",
-            //num_engines, optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance, engines);//debug
             //treat single-engine crafts specially
             if(num_engines == 1)
                 engines[0].limit = optimized ? 1f : 0f;

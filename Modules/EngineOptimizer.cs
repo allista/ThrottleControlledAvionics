@@ -163,12 +163,6 @@ namespace ThrottleControlledAvionics
             var last_error = -1f;
             Vector3 cur_imbalance = start_imbalance;
             Vector3 target;
-            //            Utils.Log("=============================== Optimization ===============================\n" +
-            //                      "needed torque {}\n" +
-            //                      "start imbalance {}\n" +
-            //                      "MoI {}\n" +
-            //                      "engines:\n{}", 
-            //                      needed_torque, start_imbalance, MoI, engines);//debug
             for(int i = 0; i < C.MaxIterations; i++)
             {
                 // calculate current target
@@ -176,7 +170,6 @@ namespace ThrottleControlledAvionics
                 for(int j = 0; j < num_engines; j++)
                 { var e = engines[j]; cur_imbalance += e.Torque(e.throttle * e.limit, useDefTorque); }
                 target = needed_torque - cur_imbalance;
-                //                Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision);//debug
                 if(target.IsZero())
                     break;
                 // calculate torque and angle errors
@@ -224,11 +217,6 @@ namespace ThrottleControlledAvionics
             }
             var optimized = torque_error < C.OptimizationTorqueCutoff
                             || (angle_error >= 0 && angle_error < C.OptimizationAngleCutoff);
-            //     Utils.Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent torque {}\nlimits:\n{}\n" +
-            //         "-------------------------------------------------------------------------------------------------", 
-            //         num_engines, optimized, torque_error, angle_error, needed_torque, cur_imbalance,
-            //         engines.Aggregate("", (s, e) => s+string.Format("{0}: VSF {1:P1}, throttle {2:P1}, best limit {3:P1}\n", 
-            //                                                         e.name, e.VSF, e.throttle, e.best_limit)));//debug
             //treat single-engine crafts specially
             if(num_engines == 1)
             {
@@ -339,56 +327,6 @@ namespace ThrottleControlledAvionics
             CFG.Engines.P = C.EnginesCurve.Evaluate(VSL.Torque.Engines.AA_rad);
             CFG.Engines.I = CFG.Engines.P / 2f;
         }
-
-#if DEBUG
-//        public override void Init() 
-//        { 
-//            base.Init(); 
-//            RenderingManager.AddToPostDrawQueue(1, RadarBeam);
-//        }
-//
-//        public void RadarBeam()
-//        {
-//            if(VSL == null || VSL.vessel == null) return;
-//            for(int i = 0; i < VSL.Engines.NumActive; i++)
-//            {
-//                var e = VSL.Engines.Active[i];
-//                if(e.thrustInfo == null) continue;
-//                Utils.GLVec(e.wThrustPos, e.wThrustDir * 0.5f, Color.yellow);
-//            }
-//        }
-//
-//        public override void Reset()
-//        {
-//            base.Reset();
-//            RenderingManager.RemoveFromPostDrawQueue(1, RadarBeam);
-//        }
-
-        void DebugEngines(IList<EngineWrapper> engines, Vector3 needed_torque)
-        {
-            Utils.Log("Engines:\n{}",
-                      engines.Aggregate("", (s, e) => s 
-                        +string.Format("engine(vec{0}, vec{1}, vec{2}, {3}, {4}),\n",
-                        VSL.LocalDir(e.wThrustPos-VSL.Physics.wCoM),
-                                       e.thrustDirection,e.specificTorque, e.nominalCurrentThrust(0), e.nominalFullThrust)));
-            Utils.Log("Engines Torque:\n{}", engines.Aggregate("", (s, e) => s + "vec"+e.Torque(e.throttle*e.limit)+",\n"));
-            Utils.Log(
-                "Steering: {}\n" +
-                "Needed Torque: {}\n" +
-                "Torque Imbalance: {}\n" +
-                "Torque Error: {}kNm, {}°\n" +
-                "Torque Clamp:\n   +{}\n   -{}\n" +
-                "Limits: [{}]", 
-                Steering,
-                needed_torque,
-                engines.Aggregate(Vector3.zero, (v,e) => v+e.Torque(e.throttle*e.limit)),
-                TorqueError, TorqueAngle,
-                VSL.Torque.EnginesLimits.positive, 
-                VSL.Torque.EnginesLimits.negative,
-                engines.Aggregate("", (s, e) => s+e.limit+" ").Trim()
-            );
-        }
-#endif
     }
 }
 
