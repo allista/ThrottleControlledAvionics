@@ -55,7 +55,15 @@ namespace ThrottleControlledAvionics
 
         Vector3 Steering;
 
-        static bool optimization_for_torque_pass(IList<EngineWrapper> engines, int num_engines, Vector3 target, float target_m, float eps, bool useDefTorque)
+        static bool optimization_for_torque_pass(
+            IList<EngineWrapper> engines,
+            int num_engines,
+            Vector3 target,
+            float target_m,
+            float eps,
+            bool useDefTorque,
+            bool torqueOnly
+        )
         {
             var compensation = Vector3.zero;
             var maneuver = Vector3.zero;
@@ -68,7 +76,8 @@ namespace ThrottleControlledAvionics
                     compensation += e.getSpecificTorque(useDefTorque) * e.nominalCurrentThrust(e.throttle * e.limit);
                 else if(e.Role == TCARole.MANEUVER)
                 {
-                    if(e.limit.Equals(0)) e.limit = eps;
+                    if(e.limit <= 0)
+                        e.limit = torqueOnly ? -e.limit_tmp : eps;
                     maneuver += e.getSpecificTorque(useDefTorque) * e.nominalCurrentThrust(e.throttle * e.limit);
                 }
                 else
@@ -95,6 +104,7 @@ namespace ThrottleControlledAvionics
             var num_engines = engines.Count;
             var zero_torque = needed_torque.IsZero();
             var preset_limits = engines.Any(e => e.preset_limit >= 0);
+            var torqueOnly = !preset_limits && engines.All(e => e.Role == TCARole.MANEUVER);
             float error, angle;
             var last_error = -1f;
             Vector3 cur_imbalance = start_imbalance;
@@ -151,7 +161,7 @@ namespace ThrottleControlledAvionics
                     }
                 }
                 //optimize limits
-                if(!optimization_for_torque_pass(engines, num_engines, target, target.magnitude, C.OptimizationPrecision, useDefTorque))
+                if(!optimization_for_torque_pass(engines, num_engines, target, target.magnitude, C.OptimizationPrecision, useDefTorque, torqueOnly))
                     break;
             }
             var optimized = torque_error < C.OptimizationTorqueCutoff ||
