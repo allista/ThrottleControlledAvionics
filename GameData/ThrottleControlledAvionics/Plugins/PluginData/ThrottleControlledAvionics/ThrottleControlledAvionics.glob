@@ -34,8 +34,6 @@ EngineOptimizer
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 45
 	OptimizationTorqueCutoff = 0.01 //rad/s2
-	ThrustOptimizationPrecision = 0.001
-	ThrustOptimizationCutoff = 1
 	TorqueRatioFactor = 1
 	AngleErrorWeight = 0.1
 	

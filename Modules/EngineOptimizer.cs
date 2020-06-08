@@ -52,9 +52,6 @@ namespace ThrottleControlledAvionics
     {
         public class Config : Config<Config>
         {
-            [Persistent] public float ThrustOptimizationPrecision = 0.001f;
-            [Persistent] public float ThrustOptimizationCutoff = 1f;
-
             //default values for PI controllers
             [Persistent] public float MaxP = 1f; //value of P slider
             [Persistent] public float MaxI = 1f; //value of I slider
