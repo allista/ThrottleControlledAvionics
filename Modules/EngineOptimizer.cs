@@ -128,12 +128,15 @@ namespace ThrottleControlledAvionics
                 error = TorqueProps.AngularAcceleration(target, MoI).magnitude;
                 //                Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, ENG.OptimizationTorqueCutoff*ENG.OptimizationPrecision);//debug
                 //remember the best state
-                if(angle <= 0 && error < torque_error || angle + error < angle_error + torque_error || angle_error < 0)
+                if(zero_torque && error < torque_error
+                   || angle + error < angle_error + torque_error
+                   || angle_error < 0)
                 {
                     for(int j = 0; j < num_engines; j++)
                     { var e = engines[j]; e.best_limit = e.limit; }
-                    angle_error = angle;
                     torque_error = error;
+                    if(!zero_torque && !cur_imbalance.IsZero())
+                        angle_error = angle;
                 }
                 //check convergence conditions
                 if(error < C.OptimizationTorqueCutoff * C.OptimizationPrecision ||
@@ -164,13 +167,13 @@ namespace ThrottleControlledAvionics
                 if(!optimization_for_torque_pass(engines, num_engines, target, target.magnitude, C.OptimizationPrecision, useDefTorque, torqueOnly))
                     break;
             }
-            var optimized = torque_error < C.OptimizationTorqueCutoff ||
-                (!zero_torque && angle_error < C.OptimizationAngleCutoff);
-            //            Utils.Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}\nlimits:\n{}\n" +
-            //                "-------------------------------------------------------------------------------------------------", 
-            //                num_engines, optimized, torque_error, angle_error, needed_torque, cur_imbalance,
-            //                engines.Aggregate("", (s, e) => s+string.Format("{0}: VSF {1:P1}, throttle {2:P1}, best limit {3:P1}\n", 
-            //                                                                e.name, e.VSF, e.throttle, e.best_limit)));//debug
+            var optimized = torque_error < C.OptimizationTorqueCutoff
+                            || (angle_error >= 0 && angle_error < C.OptimizationAngleCutoff);
+            //     Utils.Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent torque {}\nlimits:\n{}\n" +
+            //         "-------------------------------------------------------------------------------------------------", 
+            //         num_engines, optimized, torque_error, angle_error, needed_torque, cur_imbalance,
+            //         engines.Aggregate("", (s, e) => s+string.Format("{0}: VSF {1:P1}, throttle {2:P1}, best limit {3:P1}\n", 
+            //                                                         e.name, e.VSF, e.throttle, e.best_limit)));//debug
             //treat single-engine crafts specially
             if(num_engines == 1)
             {

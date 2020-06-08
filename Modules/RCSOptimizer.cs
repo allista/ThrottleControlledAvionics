@@ -64,12 +64,13 @@ namespace ThrottleControlledAvionics
                 error = VSL.Torque.AngularAcceleration(target).magnitude;
                 //Utils.Log("current imbalance: {}\nerror: {} < {}", cur_imbalance, error, C.OptimizationTorqueCutoff * C.OptimizationPrecision);//debug
                 //remember the best state
-                if(angle <= 0f && error < TorqueError || angle + error < TorqueAngle + TorqueError || TorqueAngle < 0)
+                if(zero_torque && error < TorqueError || angle + error < TorqueAngle + TorqueError || TorqueAngle < 0)
                 {
                     for(int j = 0; j < num_engines; j++)
                     { var e = engines[j]; e.best_limit = e.limit; }
-                    TorqueAngle = angle;
                     TorqueError = error;
+                    if(!zero_torque && !cur_imbalance.IsZero())
+                        TorqueAngle = angle;
                 }
                 //check convergence conditions
                 if(error < C.OptimizationTorqueCutoff * C.OptimizationPrecision ||
@@ -94,8 +95,8 @@ namespace ThrottleControlledAvionics
                 if(!optimization_pass(engines, num_engines, target, error, C.OptimizationPrecision))
                     break;
             }
-            var optimized = TorqueError < C.OptimizationTorqueCutoff ||
-                (!zero_torque && TorqueAngle < C.OptimizationAngleCutoff);
+            var optimized = TorqueError < C.OptimizationTorqueCutoff
+                            || (TorqueAngle >= 0 && TorqueAngle < C.OptimizationAngleCutoff);
             //Utils.Log("num engines {}, optimized {}, TorqueError {}, TorqueAngle {}\nneeded torque {}\ncurrent turque {}\nlimits:\n{}\n" +
             //"-------------------------------------------------------------------------------------------------",
             //num_engines, optimized, TorqueError, TorqueAngle, needed_torque, cur_imbalance, engines);//debug
