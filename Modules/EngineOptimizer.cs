@@ -19,12 +19,35 @@ namespace ThrottleControlledAvionics
     {
         public abstract class Config<T> : ComponentConfig<T> where T : ComponentConfig, new()
         {
-            [Persistent] public int MaxIterations = 50;    //maximum number of optimizations per fixed frame
-            [Persistent] public float OptimizationPrecision = 0.01f;  //optimize engines limits until torque error or delta torque error is less than this
-            [Persistent] public float OptimizationAngleCutoff = 45f;   //maximum angle between torque imbalance and torque demand that is considered optimized
-            [Persistent] public float OptimizationTorqueCutoff = 1f;    //maximum torque delta between imbalance and demand that is considered optimized
-            [Persistent] public float TorqueRatioFactor = 0.1f;  //torque-ratio curve
+            /// <summary>
+            /// maximum number of optimizations per fixed frame
+            /// </summary>
+            [Persistent] public int MaxIterations = 50;
+            /// <summary>
+            /// optimize engines limits until torque error or delta torque error is less than this
+            /// </summary>
+            [Persistent] public float OptimizationPrecision = 0.01f;
+            /// <summary>
+            /// maximum angle in degrees between torque and torque demand
+            /// that is considered optimized
+            /// </summary>
+            [Persistent] public float OptimizationAngleCutoff = 45f;
+            /// <summary>
+            /// linear weight of angle error in the total error = torque_error+angle_error
+            /// </summary>
             [Persistent] public float AngleErrorWeight = 1f;
+            /// <summary>
+            /// maximum delta between torque and torque demand
+            /// that is considered optimized
+            /// </summary>
+            [Persistent] public float OptimizationTorqueCutoff = 1f;
+            /// <summary>
+            /// torque-ratio curve
+            /// </summary>
+            [Persistent] public float TorqueRatioFactor = 0.1f;
+            /// <summary>
+            /// torque ratio threshold for switching an engine to unbalanced mode
+            /// </summary>
             [Persistent] public float UnBalancedThreshold = 0.0001f; //<1 deg
 
             public float TorqueCutoff;
@@ -52,12 +75,26 @@ namespace ThrottleControlledAvionics
     {
         public class Config : Config<Config>
         {
-            //default values for PI controllers
-            [Persistent] public float MaxP = 1f; //value of P slider
-            [Persistent] public float MaxI = 1f; //value of I slider
-            [Persistent] public PI_Controller EnginesPI = new PI_Controller(0.4f, 0.2f); //thrustPercentage master PI controller defaults
-            [Persistent] public FloatCurve EnginesCurve = new FloatCurve();  //float curve for P value of Engines PI controller = F(torque/MoI)
-            [Persistent] public FloatCurve SteeringCurve = new FloatCurve(); // float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
+            /// <summary>
+            /// default value of P slider
+            /// </summary>
+            [Persistent] public float MaxP = 1f;
+            /// <summary>
+            /// default value of I slider
+            /// </summary>
+            [Persistent] public float MaxI = 1f;
+            /// <summary>
+            /// thrustPercentage master PI controller defaults
+            /// </summary>
+            [Persistent] public PI_Controller EnginesPI = new PI_Controller(0.4f, 0.2f);
+            /// <summary>
+            /// float curve for P value of Engines PI controller = F(torque/MoI)
+            /// </summary>
+            [Persistent] public FloatCurve EnginesCurve = new FloatCurve();
+            /// <summary>
+            /// float curve for Pitch,Yaw,Roll steering modifiers = F(torque/MoI)
+            /// </summary>
+            [Persistent] public FloatCurve SteeringCurve = new FloatCurve();
         }
         public static Config C => Config.INST;
 
