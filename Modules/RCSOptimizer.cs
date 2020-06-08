@@ -19,23 +19,32 @@ namespace ThrottleControlledAvionics
     public class RCSOptimizer : TorqueOptimizer
     {
         public class Config : Config<Config> { }
+
         public static Config C => Config.INST;
 
         public RCSOptimizer(ModuleTCA tca) : base(tca) { }
 
         public override void Disable() { }
 
-        private static bool optimization_pass(IList<RCSWrapper> engines, int num_engines, Vector3 target, float target_m, float eps)
+        private static bool optimization_pass(
+            IList<RCSWrapper> engines,
+            int num_engines,
+            Vector3 target,
+            float target_m,
+            float eps
+        )
         {
             var compensation = Vector3.zero;
             for(var i = 0; i < num_engines; i++)
             {
                 var e = engines[i];
                 e.limit_tmp = -Vector3.Dot(e.currentTorque, target) / target_m / e.currentTorque_m * e.torqueRatio;
-                if(e.limit_tmp > 0) compensation += e.Torque(e.limit);
+                if(e.limit_tmp > 0)
+                    compensation += e.Torque(e.limit);
             }
             var compensation_m = compensation.magnitude;
-            if(compensation_m < eps) return false;
+            if(compensation_m < eps)
+                return false;
             var limits_norm = Mathf.Clamp01(target_m / compensation_m);
             for(var i = 0; i < num_engines; i++)
             {
@@ -60,40 +69,50 @@ namespace ThrottleControlledAvionics
                 // calculate current target
                 var cur_imbalance = Vector3.zero;
                 for(var j = 0; j < num_engines; j++)
-                { var e = engines[j]; cur_imbalance += e.Torque(e.limit); }
+                {
+                    var e = engines[j];
+                    cur_imbalance += e.Torque(e.limit);
+                }
                 var target = needed_torque - cur_imbalance;
                 if(target.IsZero())
                     break;
                 // calculate torque and angle errors
                 var error = VSL.Torque.AngularAcceleration(target).sqrMagnitude;
                 var angle = zero_torque ? 0f : Utils.Angle2Rad(cur_imbalance, needed_torque) * C.AngleErrorWeight;
-                //remember the best state
+                // remember the best state
                 if(zero_torque && error < TorqueError || angle + error < TorqueAngle + TorqueError || TorqueAngle < 0)
                 {
                     for(var j = 0; j < num_engines; j++)
-                    { var e = engines[j]; e.best_limit = e.limit; }
+                    {
+                        var e = engines[j];
+                        e.best_limit = e.limit;
+                    }
                     TorqueError = error;
                     if(!zero_torque && !cur_imbalance.IsZero())
                         TorqueAngle = angle;
                 }
-                //check convergence conditions
-                if(error < C.TorqueCutoff ||
-                   last_error > 0 && Mathf.Abs(error - last_error) < C.OptimizationPrecision * last_error)
+                // check convergence conditions
+                if(error < C.TorqueCutoff
+                   || last_error > 0 && Mathf.Abs(error - last_error) < C.OptimizationPrecision * last_error)
                     break;
                 last_error = error;
-                //normalize limits before optimization
+                // normalize limits before optimization
                 if(!preset_limits)
                 {
                     var limit_norm = 0f;
                     for(var j = 0; j < num_engines; j++)
                     {
                         var e = engines[j];
-                        if(limit_norm < e.limit) limit_norm = e.limit;
+                        if(limit_norm < e.limit)
+                            limit_norm = e.limit;
                     }
                     if(limit_norm > 0)
                     {
                         for(var j = 0; j < num_engines; j++)
-                        { var e = engines[j]; e.limit = Mathf.Clamp01(e.limit / limit_norm); }
+                        {
+                            var e = engines[j];
+                            e.limit = Mathf.Clamp01(e.limit / limit_norm);
+                        }
                     }
                 }
                 if(!optimization_pass(engines, num_engines, target, target.magnitude, C.OptimizationPrecision))
@@ -101,18 +120,22 @@ namespace ThrottleControlledAvionics
             }
             var optimized = TorqueError < C.OptimizationTorqueCutoff
                             || (TorqueAngle >= 0 && TorqueAngle < C.OptimizationAngleCutoff);
-            //treat single-engine crafts specially
+            // treat single-engine crafts specially
             if(num_engines == 1)
                 engines[0].limit = optimized ? 1f : 0f;
             else //restore the best state
                 for(var j = 0; j < num_engines; j++)
-                { var e = engines[j]; e.limit = e.best_limit; }
+                {
+                    var e = engines[j];
+                    e.limit = e.best_limit;
+                }
             return optimized;
         }
 
         public void Steer()
         {
-            if(VSL.Engines.NoActiveRCS) return;
+            if(VSL.Engines.NoActiveRCS)
+                return;
             //calculate needed torque
             var needed_torque = Vector3.zero;
             if(CFG.RotateWithRCS && VSL.Controls.HasSteering)
@@ -131,4 +154,3 @@ namespace ThrottleControlledAvionics
         }
     }
 }
-
