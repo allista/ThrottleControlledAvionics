@@ -627,7 +627,8 @@ namespace ThrottleControlledAvionics
                     if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.Engines.Active.Manual, VSL.Physics.UpL);
                 }
                 //:optimize limits for steering
-                ENG.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, VSL.Controls.Translation);
+                if(VSL.Controls.HasTranslation)
+                    ENG.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, VSL.Controls.Translation);
                 ENG.Steer();
             }
             RCS.Steer();
