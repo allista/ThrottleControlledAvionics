@@ -31,6 +31,7 @@ namespace ThrottleControlledAvionics
 
         public abstract Vessel vessel { get; }
         public abstract Part part { get; }
+        public uint flightID => part.flightID;
 
         public bool Valid(VesselWrapper VSL)
         { return part != null && vessel != null && vessel.id == VSL.vessel.id; }
@@ -163,6 +164,23 @@ namespace ThrottleControlledAvionics
 
         public override bool isOperational
         { get { return rcs.rcsEnabled && rcs.thrusterTransforms.Count > 0 && rcs.thrusterTransforms.Count == rcs.thrustForces.Length; } }
+
+        public override string ToString()
+        {
+            return Utils.Format("[{}, Stage {}, flameout {}]\n" +
+                                "finalThrust: {}, thrustLimit: {}, isOperational: {}\n" +
+                                "limit: {}, best_limit: {}, limit_tmp: {}, preset: {}\n" +
+                                "thrust: {}\ndir {}\npos {}\nlever: {}\ntorque: {}\n"
+                                + "torqueRatio: {}\n"
+                                + "thrustRatio: {}\n",
+                part.GetID(), part.inverseStage, rcs.flameout,
+                finalThrust, thrustLimit, isOperational,
+                limit, best_limit, limit_tmp, preset_limit,
+                current_max_thrust,
+                wThrustDir, wThrustPos, wThrustLever,
+                currentTorque, torqueRatio,
+                thrustRatio);
+        }
     }
 
     public class EngineID
@@ -196,7 +214,6 @@ namespace ThrottleControlledAvionics
         public string name { get; private set; }
 
         public uint ID { get; private set; }
-        public uint flightID { get { return part.flightID; } }
 
         public float throttle;
         public float realIsp;
