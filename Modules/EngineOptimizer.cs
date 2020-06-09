@@ -247,7 +247,7 @@ namespace ThrottleControlledAvionics
                         if(limit_norm < e.limit)
                             limit_norm = e.limit;
                     }
-                    if(limit_norm > 0)
+                    if(limit_norm > 0 && limit_norm < 1)
                     {
                         for(var j = 0; j < num_engines; j++)
                         {
