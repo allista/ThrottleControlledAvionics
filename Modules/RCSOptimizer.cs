@@ -136,21 +136,11 @@ namespace ThrottleControlledAvionics
         {
             if(VSL.Engines.NoActiveRCS)
                 return;
-            //calculate needed torque
             var needed_torque = Vector3.zero;
             if(CFG.RotateWithRCS && VSL.Controls.HasSteering)
-            {
-                for(var i = 0; i < VSL.Engines.NumActiveRCS; i++)
-                    needed_torque += VSL.Engines.ActiveRCS[i].currentTorque;
-                needed_torque = Vector3.Project(needed_torque, VSL.Controls.Steering);
-                needed_torque = VSL.Torque.RCSLimits.Clamp(needed_torque);
-            }
-            //optimize engines; if failed, set the flag and kill torque if requested
-            if(Optimize(VSL.Engines.ActiveRCS, needed_torque) || needed_torque.IsZero())
-                return;
-            for(var j = 0; j < VSL.Engines.NumActiveRCS; j++)
-                VSL.Engines.ActiveRCS[j].InitLimits();
-            Optimize(VSL.Engines.ActiveRCS, Vector3.zero);
+                needed_torque = VSL.Torque.RCSLimits.Project(VSL.Controls.Steering);
+            var engines = VSL.Engines.ActiveRCS.Where(e => e.currentMaxThrust > 0).ToList();
+            Optimize(engines, needed_torque);
         }
     }
 }
