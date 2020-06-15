@@ -423,9 +423,10 @@ namespace ThrottleControlledAvionics
             if(NumActive == 1)
             {
                 var e = Active[0];
-                  if(e.Role != TCARole.UNBALANCE &&
-                     e.Role != TCARole.MANUAL &&
-                     e.defTorqueRatio < EngineOptimizer.C.UnBalancedThreshold)
+                if(e.Role != TCARole.UNBALANCE
+                   && e.Role != TCARole.MANUAL
+                   && e.Role != TCARole.MANEUVER
+                   && e.defTorqueRatio < EngineOptimizer.C.UnBalancedThreshold)
                 {
                     Utils.Message("{0} was switched to UnBalanced mode.", e.name);
                     e.SetRole(TCARole.UNBALANCE);
