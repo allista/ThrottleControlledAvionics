@@ -311,6 +311,19 @@ namespace ThrottleControlledAvionics
             CFG.BR.XOff();
         }
 
+        /// <summary>
+        /// It is a component message handler.
+        /// The "ExecuteManeuverNode" message is sent from CargoAccelerators mod when
+        /// it adds a correction node that should be executed immediately.
+        /// </summary>
+        [UsedImplicitly]
+        private void ExecuteManeuverNode()
+        {
+            if(!Valid)
+                return;
+            CFG.AP1.XOn(Autopilot1.Maneuver);
+        }
+
         public void SetGID(string gid)
         {
             GID = gid;
