@@ -130,7 +130,14 @@ namespace ThrottleControlledAvionics
             else if(TargetInfo.targetType != ProtoTargetInfo.Type.Null && 
                     HighLogic.LoadedSceneIsFlight)
             {
-                target = TargetInfo.FindTarget();
+                try
+                {
+                    target = TargetInfo.FindTarget();
+                }
+                catch
+                {
+                    target = null;
+                }
                 if(target == null) 
                 {
                     TargetInfo.targetType = ProtoTargetInfo.Type.Null;
