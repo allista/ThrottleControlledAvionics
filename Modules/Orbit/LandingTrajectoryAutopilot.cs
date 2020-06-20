@@ -1,4 +1,4 @@
-﻿//  Author:
+//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2016 Allis Tauri
@@ -214,17 +214,17 @@ namespace ThrottleControlledAvionics
                 Status(Colors.Warning, "Target should be in the same sphere of influence.");
                 return false;
             }
-            if(CFG.Target.IsProxy)
+            if(!CFG.Target.IsProxy)
+                return true;
+            if(!CFG.Target.IsVessel)
             {
-                if(CFG.Target.IsVessel)
-                {
-                    if(!TargetVessel.LandedOrSplashed)
-                    {
-                        Status(Colors.Warning, "Target vessel should be landed");
-                        return false;
-                    }
-                }
                 Status(Colors.Warning, "Target should be a vessel or a waypoint");
+                return false;
+            }
+            // ReSharper disable once InvertIf
+            if(!TargetVessel.LandedOrSplashed)
+            {
+                Status(Colors.Warning, "Target vessel should be landed");
                 return false;
             }
             return true;
