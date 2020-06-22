@@ -170,8 +170,12 @@ namespace ThrottleControlledAvionics
                 set_coordinates(m.vessel);
                 return;
             case ProtoTargetInfo.Type.Part:
+                // There may be ITargetable Part derivatives in some mods
+                // ReSharper disable once SuspiciousTypeConversion.Global
                 var p = target as Part;
-                if(p == null || p.vessel == null) break;
+                if(p == null || p.vessel == null)
+                    // ProtoTargetInfo.FindTarget() may return a Vessel when the Type == Part
+                    goto case ProtoTargetInfo.Type.Vessel;
                 set_coordinates(p.vessel);
                 return;
             case ProtoTargetInfo.Type.Generic:
