@@ -55,20 +55,56 @@ namespace ThrottleControlledAvionics
 
         public void UpdateNode()
         {
-            if(VSL.HasManeuverNode)
-                update_maneuver_node();
+            if(VSL.HasManeuverNode
+               && !update_maneuver_node())
+                Disable();
         }
 
-        void update_maneuver_node()
+        private bool update_maneuver_node()
         {
-            Node = Solver.maneuverNodes[0];
-            NodeDeltaV = Node.GetBurnVector(VSL.orbit);
+            Node = null;
+            NodeCB = null;
+            TargetOrbit = null;
+            if(Solver != null)
+            {
+                if(Solver.maneuverNodes.Count <= 0)
+                    return false;
+                Node = Solver.maneuverNodes[0];
+            }
+            else
+            {
+                if(VSL.vessel.flightPlanNode.nodes.Count <= 0)
+                    return false;
+                var node = VSL.vessel.flightPlanNode.nodes[0];
+                Node =  new ManeuverNode();
+                Node.Load(node);
+                Node.patch = new Orbit(VSL.orbit);
+                Node.nextPatch =
+                    TrajectoryCalculator.NewOrbit(VSL.orbit, Utils.Node2OrbitalDeltaV(Node), Node.UT);
+                VSL.vessel.flightPlanNode.RemoveNode(node);
+            }
             NodeCB = Node.patch.referenceBody;
             TargetOrbit = Node.nextPatch;
+            update_node_deltaV();
             if(VSL.Engines.MaxDeltaV < Node.DeltaV.magnitude)
                 Status(Colors.Warning, 
                        "WARNING: there may be not enough propellant for the maneuver");
+            return true;
         }
+
+        private void remove_maneuver_node()
+        {
+            if(Node.solver != null)
+                Node.RemoveSelf();
+            else if(Solver != null
+                    && Solver.maneuverNodes.Count > 0
+                    && Math.Abs(Solver.maneuverNodes[0].UT - Node.UT) < 1e-6)
+                Solver.maneuverNodes[0].RemoveSelf();
+            Node = null;
+        }
+
+        private void update_node_deltaV() =>
+            NodeDeltaV = (TargetOrbit.GetFrameVelAtUT(NodeUT)-VSL.orbit.GetFrameVelAtUT(NodeUT)).xzy;
 
         public override void Init()
         {
@@ -106,11 +142,13 @@ namespace ThrottleControlledAvionics
                     CFG.AP1.Off(); 
                     return;
                 }
-                if(!VSL.HasManeuverNode) 
-                { CFG.AP1.Off(); return; }
+                if(!VSL.HasManeuverNode || !update_maneuver_node())
+                {
+                    CFG.AP1.Off();
+                    return;
+                }
                 VSL.Controls.StopWarp();
                 CFG.AT.On(Attitude.ManeuverNode);
-                update_maneuver_node();
                 THR.Throttle = 0;
                 CFG.DisableVSC();
                 break;
@@ -182,13 +220,31 @@ namespace ThrottleControlledAvionics
             return true;
         }
 
+        private bool checkManeuverNode()
+        {
+            // ReSharper disable once InvertIf
+            if(Solver != null && Node.solver == Solver)
+            {
+                if(Solver.maneuverNodes.Count <= 0
+                   || Node != Solver.maneuverNodes[0])
+                {
+                    Message("Maneuver node was changed.");
+                    return false;
+                }
+                // ReSharper disable once InvertIf
+                if(NodeCB != Node.patch.referenceBody)
+                {
+                    Message("Maneuver node changed SoI.");
+                    return false;
+                }
+            }
+            return true;
+        }
+
         protected override void Update()
         {
-            if(!VSL.HasManeuverNode || 
-               Node != Solver.maneuverNodes[0] ||
-               NodeCB != Node.patch.referenceBody) 
-            { 
-                Message("Maneuver has been interrupted.");
+            if(!checkManeuverNode())
+            {
                 Disable();
                 return; 
             }
@@ -199,12 +255,12 @@ namespace ThrottleControlledAvionics
                 return;
             }
             //update the node
-            NodeDeltaV = (TargetOrbit.GetFrameVelAtUT(NodeUT)-VSL.orbit.GetFrameVelAtUT(NodeUT)).xzy;
+            update_node_deltaV();
             Executor.ThrustWhenAligned = ThrustWhenAligned;
             ThrustWhenAligned = true;
             if(Executor.Execute(NodeDeltaV, MinDeltaV, StartCondition)) return;
             ManeuverStage = Stage.FINISHED;
-            Node.RemoveSelf();
+            remove_maneuver_node();
             Disable();
         }
     }

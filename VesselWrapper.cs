@@ -61,15 +61,12 @@ namespace ThrottleControlledAvionics
         public bool AutopilotDisabled;
         public bool HasUserInput;
 
-        public bool HasManeuverNode 
-        { 
-            get 
-            { 
-                return vessel.patchedConicSolver != null && 
-                    vessel.patchedConicSolver.maneuverNodes.Count > 0 && 
-                    vessel.patchedConicSolver.maneuverNodes[0] != null; 
-            } 
-        }
+        public bool HasManeuverNode =>
+            vessel.patchedConicSolver != null
+            && vessel.patchedConicSolver.maneuverNodes.Count > 0
+            && vessel.patchedConicSolver.maneuverNodes[0] != null
+            || vessel.flightPlanNode.nodes.Count > 0;
+
         public ManeuverNode FirstManeuverNode => vessel.patchedConicSolver.maneuverNodes[0];
 
 
