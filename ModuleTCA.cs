@@ -317,10 +317,20 @@ namespace ThrottleControlledAvionics
         /// it adds a correction node that should be executed immediately.
         /// </summary>
         [UsedImplicitly]
-        private void ExecuteManeuverNode()
+        private void ExecuteManeuverNode(object value)
         {
             if(!Valid)
                 return;
+            if(GetModule<ManeuverAutopilot>() == null)
+                return;
+            if(value is ManeuverNode node)
+            {
+                Utils.ClearManeuverNodes(VSL.vessel);
+                if(vessel.patchedConicSolver != null)
+                    Utils.AddNodeRaw(vessel, node.DeltaV, node.UT);
+                else
+                    Utils.AddNodeRawToFlightPlanNode(vessel, node.DeltaV, node.UT);
+            }
             CFG.AP1.XOn(Autopilot1.Maneuver);
         }
 
