@@ -181,9 +181,10 @@ namespace ThrottleControlledAvionics
             case ProtoTargetInfo.Type.Generic:
                 var t = target.GetTransform();
                 if(t == null) break;
-                set_coordinates(body.GetLatitude(t.position),
-                                body.GetLongitude(t.position),
-                                body.GetAltitude(t.position));
+                var position = t.position;
+                set_coordinates(body.GetLatitude(position),
+                                body.GetLongitude(position),
+                                body.GetAltitude(position));
                 return;
             }
             TargetInfo.targetType = ProtoTargetInfo.Type.Null;
