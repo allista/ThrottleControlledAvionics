@@ -179,7 +179,7 @@ namespace ThrottleControlledAvionics
         {
             if(GroupMaster && CFG != null)
             {
-                AllModules.ForEach(m => m.SaveToConfig());
+                SaveToConfig();
                 CFG.SaveInto(node);
                 //this.Log("OnSave: GroupMaster: {}", this);//debug
             }
@@ -455,6 +455,8 @@ namespace ThrottleControlledAvionics
         public List<ModuleTCA> GetGroup() =>
         vessel != null ? AllTCA(vessel).Where(tca => tca.GID == GID).ToList() : null;
 
+        public void SaveToConfig() => AllModules.ForEach(m => m.SaveToConfig());
+
         void updateCFG()
         {
             var group = GetGroup();
@@ -522,7 +524,7 @@ namespace ThrottleControlledAvionics
             all_tca.ForEach(tca =>
             {
                 if(tca.TCA_Active)
-                    tca.AllModules.ForEach(m => m.SaveToConfig());
+                    tca.SaveToConfig();
                 tca.EnableTCA(false);
                 tca.reset();
             });
