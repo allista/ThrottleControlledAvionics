@@ -640,7 +640,7 @@ namespace ThrottleControlledAvionics
                 var e = Active[i];
                 if(e.gimbal != null && e.Role != TCARole.MANEUVER)
                     e.gimbal.gimbalLimiter = VSL.Controls.GimbalLimit;
-                if(!Equals(e.Role, TCARole.MANUAL))
+                if(e.Role != TCARole.MANUAL)
                     e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
                 e.preset_limit = -1;
             }
