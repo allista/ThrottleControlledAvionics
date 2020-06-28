@@ -221,8 +221,11 @@ namespace ThrottleControlledAvionics
         public float VSF;   //vertical speed factor
         public bool isVSC; //vertical speed controller
         public bool isSteering;
-        public TCARole Role { get { return info.Role; } }
-        public int Group { get { return info.Group; } }
+        public TCARole Role => info.Role;
+        public int Group => info.group;
+
+        public bool rotationEnabled = true;
+        public bool translationEnabled = true;
 
         Vector3 act_thrust_dir;
         Vector3 act_thrust_pos;
@@ -294,9 +297,6 @@ namespace ThrottleControlledAvionics
         }
 
         #region methods
-        public void SetRole(TCARole role) { info.SetRole(role); }
-        public void SetGroup(int group) { info.group = group; }
-
         public override void InitTorque(
             Transform vesselTransform,
             Vector3 CoM,
@@ -342,7 +342,7 @@ namespace ThrottleControlledAvionics
                 break;
             case TCARole.MANEUVER:
                 limit = best_limit = 0f;
-                isSteering = true;
+                isSteering = rotationEnabled;
                 break;
             case TCARole.MANUAL:
                 limit = best_limit = thrustLimit;
@@ -386,6 +386,10 @@ namespace ThrottleControlledAvionics
                 info.SetRole(TCARole.MANUAL);
             InitLimits();
             nominalFullThrust = nominalCurrentThrust(1);
+            rotationEnabled = info.Role != TCARole.MANEUVER 
+                              || (info.Mode & ManeuverMode.TORQUE) == ManeuverMode.TORQUE;
+            translationEnabled = info.Role != TCARole.MANEUVER 
+                                 || (info.Mode & ManeuverMode.TRANSLATION) == ManeuverMode.TRANSLATION;
             //            Utils.Log("Engine.InitState: {}\n" +
             //                      "wThrustDir {}\n" +
             //                      "wThrustPos {}\n" +

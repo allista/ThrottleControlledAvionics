@@ -427,7 +427,7 @@ namespace ThrottleControlledAvionics
                    && e.defTorqueRatio < EngineOptimizer.C.UnBalancedThreshold)
                 {
                     Utils.Message("{0} was switched to UnBalanced mode.", e.name);
-                    e.SetRole(TCARole.UNBALANCE);
+                    e.info.SetRole(TCARole.UNBALANCE);
                     if(VSL.TCA.ProfileSyncAllowed)
                         CFG.ActiveProfile.Update(All);
                 }
@@ -554,11 +554,10 @@ namespace ThrottleControlledAvionics
             for(int i = 0; i < NumActive; i++) 
             {
                 var e = Active[i];
-                e.InitState();
                 e.InitTorque(VSL, EngineOptimizer.C.TorqueRatioFactor);
                 e.UpdateCurrentTorque(1);
                 //do not include maneuver engines' thrust into the total to break the feedback loop with HSC
-                if(e.Role == TCARole.MANEUVER)
+                if(e.Role == TCARole.MANEUVER && e.translationEnabled)
                 {
                     var thrust = e.defThrustDirL*e.nominalFullThrust;
                     TranslationThrustLimits.Add(thrust);
@@ -819,6 +818,7 @@ namespace ThrottleControlledAvionics
             for(int i = 0; i < count; i++)
             {
                 var e = this[i];
+                e.InitState();
                 switch(e.Role)
                 {
                 case TCARole.MAIN:
@@ -826,7 +826,9 @@ namespace ThrottleControlledAvionics
                     Steering.Add(e);
                     break;
                 case TCARole.MANEUVER:
-                    Steering.Add(e);
+                    if(e.rotationEnabled)
+                        Steering.Add(e);
+                    if(e.translationEnabled)
                         Translation.Add(e);
                     Maneuver.Add(e);
                     break;

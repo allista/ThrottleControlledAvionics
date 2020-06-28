@@ -154,12 +154,16 @@ namespace ThrottleControlledAvionics
                               / e.getCurrentTorqueM(useDefTorque)
                               * e.getTorqueRatio(useDefTorque || e.Role == TCARole.MANEUVER);
                 if(e.limit_tmp > 0)
-                    compensation += e.getSpecificTorque(useDefTorque) * e.nominalCurrentThrust(e.throttle * e.limit);
+                {
+                    if(e.limit > 0)
+                        compensation += e.getSpecificTorque(useDefTorque) * e.nominalCurrentThrust(e.throttle * e.limit);
+                }
                 else if(e.Role == TCARole.MANEUVER)
                 {
-                    if(e.limit <= 0)
+                    if(e.rotationEnabled && e.limit <= 0)
                         e.limit = torqueOnly ? -e.limit_tmp : eps;
-                    maneuver += e.getSpecificTorque(useDefTorque) * e.nominalCurrentThrust(e.throttle * e.limit);
+                    if(e.limit > 0)
+                        maneuver += e.getSpecificTorque(useDefTorque) * e.nominalCurrentThrust(e.throttle * e.limit);
                 }
                 else
                     e.limit_tmp = 0f;
@@ -321,8 +325,15 @@ namespace ThrottleControlledAvionics
             for(var i = 0; i < num_engines; i++)
             {
                 var e = engines[i];
-                e.limit_tmp = Vector3.Dot(e.thrustDirection, translation);
-                e.limit = e.preset_limit = e.limit_tmp > 0 ? e.limit_tmp : 0;
+                if(e.preset_limit >= 0)
+                    continue;
+                if(e.translationEnabled)
+                {
+                    e.limit_tmp = Vector3.Dot(e.thrustDirection, translation);
+                    e.limit = e.preset_limit = e.limit_tmp > 0 ? e.limit_tmp : 0;
+                }
+                else
+                    e.limit = e.preset_limit = 0;
             }
         }
 

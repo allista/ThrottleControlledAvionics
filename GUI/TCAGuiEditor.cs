@@ -326,18 +326,24 @@ namespace ThrottleControlledAvionics
             for(int i = 0; i < EnginesCount; i++)
             {
                 var e = Engines[i];
-                e.SetGroup(0);
-                if(e.Role == TCARole.MANUAL || e.Role == TCARole.MANEUVER)
+                e.info.SetGroup(0);
+                if(e.Role == TCARole.MANUAL)
                     continue;
+                if(e.Role == TCARole.MANEUVER)
+                {
+                    if(e.torqueRatio < EngineOptimizer.C.UnBalancedThreshold)
+                        e.info.SetMode(ManeuverMode.TRANSLATION);
+                    continue;
+                }
                 if(e.engine.throttleLocked)
                 {
-                    e.SetRole(TCARole.MANUAL);
+                    e.info.SetRole(TCARole.MANUAL);
                     e.forceThrustPercentage(100);
                     continue;
                 }
                 e.UpdateThrustInfo();
                 e.InitTorque(EditorLogic.fetch.ship[0].transform, CoM, Mass, MoI, EngineOptimizer.C.TorqueRatioFactor);
-                if(e.torqueRatio < EngineOptimizer.C.UnBalancedThreshold) e.SetRole(TCARole.UNBALANCE);
+                if(e.torqueRatio < EngineOptimizer.C.UnBalancedThreshold) e.info.SetRole(TCARole.UNBALANCE);
             }
             //group symmetry-clones
             var group = 1;
@@ -347,7 +353,7 @@ namespace ThrottleControlledAvionics
                 if(e.Group > 0) continue;
                 if(e.part.symmetryCounterparts.Count > 0)
                 {
-                    e.SetGroup(group);
+                    e.info.SetGroup(group);
                     e.part.symmetryCounterparts.ForEach(p => p.Modules.GetModule<TCAEngineInfo>().group = group);
                     group += 1;
                 }
