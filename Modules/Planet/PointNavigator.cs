@@ -547,14 +547,14 @@ namespace ThrottleControlledAvionics
                     var mg2 = VSL.Physics.mg*VSL.Physics.mg;
                     var brake_thrust = Mathf.Min(VSL.Physics.mg, VSL.Engines.MaxThrustM/2*VSL.OnPlanetParams.TWRf);
                     var max_thrust = Mathf.Min(Mathf.Sqrt(brake_thrust*brake_thrust + mg2), VSL.Engines.MaxThrustM*0.99f);
-                    var manual_thrust = VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
-                    if(manual_thrust > brake_thrust) brake_thrust = manual_thrust;
-                    else manual_thrust = -1;
+                    var horizontal_thrust = VSL.Engines.TranslationThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
+                    if(horizontal_thrust > brake_thrust) brake_thrust = horizontal_thrust;
+                    else horizontal_thrust = -1;
                     if(brake_thrust > 0)
                     {
                         var brake_accel = brake_thrust/VSL.Physics.M;
                         var prep_time = 0f;
-                        if(manual_thrust < 0) 
+                        if(horizontal_thrust < 0) 
                         {
                             var brake_angle = Utils.Angle2(VSL.Engines.CurrentDefThrustDir, vdir)-45;
                             if(brake_angle > 0)

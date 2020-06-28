@@ -272,7 +272,7 @@ HorizontalSpeedControl
 	
 	RotationMinDeltaV = 0.05
 	
-	ManualTranslation
+	HorizontalThrust
 	{
 		ThrustF = 6
 		I_MinSpeed = 20

@@ -43,9 +43,8 @@ namespace ThrottleControlledAvionics
         public Vector3  DefThrust { get; private set; }
         public Vector3  MaxThrust { get; private set; }
         public Vector3  MaxDefThrust { get; private set; }
-        public Vector3  DefManualThrust { get; private set; }
-        public Vector6  ManualThrustLimits { get; private set; } = Vector6.zero;
-        public Vector6  ManualThrustSpeed { get; private set; } = Vector6.zero;
+        public Vector6  TranslationThrustLimits { get; private set; } = Vector6.zero;
+        public Vector6  TranslationThrustSpeed { get; private set; } = Vector6.zero;
         public float    MaxThrustM { get; private set; }
         public float    MaxAccel { get; private set; }
         public float    TMR { get; private set; }
@@ -56,7 +55,6 @@ namespace ThrottleControlledAvionics
         public bool     Slow { get; private set; } //if there are engines that have non-zero engine acceleration/deceleration speed
 
         public float    MassFlow { get; private set; }
-        public float    ManualMassFlow { get; private set; }
         public float    MaxMassFlow { get; private set; }
         public float    MaxVe { get; private set; } //Specific impulse in m/s, aka effective exhaust velocity
 
@@ -442,7 +440,7 @@ namespace ThrottleControlledAvionics
             Active.SortByRole(); 
             HaveMainEngines = Active.HaveMainEngines;
             HaveThrusters = Active.HaveThrusters;
-            VSL.Controls.TranslationAvailable = Active.Maneuver.Count > 0 || NumActiveRCS > 0;
+            VSL.Controls.TranslationAvailable = NumActiveRCS > 0 || Active.HaveTranslation; 
         }
 
         void update_MaxThrust()
@@ -550,11 +548,9 @@ namespace ThrottleControlledAvionics
             //init engine wrappers, update thrust and torque information
             Thrust = Vector3.zero;
             DefThrust = Vector3.zero;
-            DefManualThrust = Vector3.zero;
-            ManualThrustLimits = Vector6.zero;
-            ManualThrustSpeed = Vector6.zero;
+            TranslationThrustLimits = Vector6.zero;
+            TranslationThrustSpeed = Vector6.zero;
             MassFlow = 0f;
-            ManualMassFlow = 0f;
             for(int i = 0; i < NumActive; i++) 
             {
                 var e = Active[i];
@@ -562,23 +558,21 @@ namespace ThrottleControlledAvionics
                 e.InitTorque(VSL, EngineOptimizer.C.TorqueRatioFactor);
                 e.UpdateCurrentTorque(1);
                 //do not include maneuver engines' thrust into the total to break the feedback loop with HSC
-                if(e.Role != TCARole.MANEUVER) 
+                if(e.Role == TCARole.MANEUVER)
+                {
+                    var thrust = e.defThrustDirL*e.nominalFullThrust;
+                    TranslationThrustLimits.Add(thrust);
+                    if(e.useEngineResponseTime)
+                        TranslationThrustSpeed.Add(thrust*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
+                }
+                else
                 {
                     Thrust += e.wThrustDir*e.finalThrust;
                     DefThrust += e.defThrustDir*e.finalThrust;
                 }
-                if(e.Role == TCARole.MANUAL)
-                {
-                    DefManualThrust += e.defThrustDir*e.finalThrust;
-                    ManualMassFlow += e.RealFuelFlow;
-                    var man_thrust = e.defThrustDirL*e.nominalFullThrust;
-                    ManualThrustLimits.Add(man_thrust);
-                    if(e.useEngineResponseTime)
-                        ManualThrustSpeed.Add(man_thrust*Mathf.Max(e.engineAccelerationSpeed, e.engineDecelerationSpeed));
-                }
                 MassFlow += e.RealFuelFlow;
             }
-            ManualThrustSpeed.Scale(ManualThrustLimits.Inverse());
+            TranslationThrustSpeed.Scale(TranslationThrustLimits.Inverse());
             update_MaxThrust();
             update_RCS();
             //update engines' current torque
@@ -650,13 +644,8 @@ namespace ThrottleControlledAvionics
                     e.gimbal.gimbalLimiter = VSL.Controls.GimbalLimit;
                 if(!Equals(e.Role, TCARole.MANUAL))
                     e.thrustLimit = Mathf.Clamp01(e.VSF * e.limit);
-                else if(VSL.Controls.ManualTranslationSwitch.On)
-                    e.forceThrustPercentage(e.limit*100);
-                else if(VSL.Controls.ManualTranslationSwitch.WasSet)
-                    e.forceThrustPercentage(0);
                 e.preset_limit = -1;
             }
-            VSL.Controls.ManualTranslationSwitch.Checked();
             if(NoActiveRCS)
                 return;
             var use_RCS = CFG.RotateWithRCS || VSL.Controls.HasTranslation;
@@ -805,11 +794,13 @@ namespace ThrottleControlledAvionics
         public List<EngineWrapper> Balanced   = new List<EngineWrapper>();
         public List<EngineWrapper> UnBalanced = new List<EngineWrapper>();
         public List<EngineWrapper> Maneuver   = new List<EngineWrapper>();
+        public List<EngineWrapper> Translation = new List<EngineWrapper>();
         public List<EngineWrapper> Steering   = new List<EngineWrapper>();
         public List<EngineWrapper> Manual     = new List<EngineWrapper>();
 
         public bool HaveMainEngines => Main.Count > 0;
         public bool HaveThrusters => HaveMainEngines || Balanced.Count > 0 || UnBalanced.Count > 0;
+        public bool HaveTranslation => Translation.Count > 0;
 
         public EnginesDB() : base() {}
         public EnginesDB(int capacity) : base(capacity) {}
@@ -820,6 +811,7 @@ namespace ThrottleControlledAvionics
             var count = Count;
             Main.Clear(); Main.Capacity = count;
             Steering.Clear(); Steering.Capacity = count;
+            Translation.Clear(); Translation.Capacity = count;
             Maneuver.Clear(); Maneuver.Capacity = count;
             Balanced.Clear(); Balanced.Capacity = count;
             UnBalanced.Clear(); UnBalanced.Capacity = count;
@@ -835,6 +827,7 @@ namespace ThrottleControlledAvionics
                     break;
                 case TCARole.MANEUVER:
                     Steering.Add(e);
+                        Translation.Add(e);
                     Maneuver.Add(e);
                     break;
                 case TCARole.BALANCE:

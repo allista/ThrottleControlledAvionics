@@ -644,14 +644,15 @@ namespace ThrottleControlledAvionics
             if(VSL.Engines.NumActive > 0)
             {
                 //:preset manual limits for translation if needed
-                if(VSL.Controls.ManualTranslationSwitch.On)
-                {
-                    EngineOptimizer.PresetLimitsForTranslation(VSL.Engines.Active.Manual, VSL.Controls.ManualTranslation);
-                    if(CFG.VSCIsActive) EngineOptimizer.LimitInDirection(VSL.Engines.Active.Manual, VSL.Physics.UpL);
-                }
-                //:optimize limits for steering
+                var translation = VSL.Controls.EnginesTranslation;
                 if(VSL.Controls.HasTranslation)
-                    EngineOptimizer.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, VSL.Controls.Translation);
+                    translation = VSL.Controls.Translation;
+                if(!translation.IsZero())
+                {
+                    EngineOptimizer.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, translation.normalized);
+                    if(CFG.VSCIsActive && !VSL.Controls.HasTranslation) 
+                        EngineOptimizer.LimitInDirection(VSL.Engines.Active.Maneuver, VSL.Physics.UpL);
+                }
                 ENG.Steer();
             }
             RCS.Steer();
