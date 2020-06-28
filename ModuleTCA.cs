@@ -127,8 +127,9 @@ namespace ThrottleControlledAvionics
         public bool Valid => vessel != null && part != null && Available;
         public bool Available => TCA_Active && VSL != null;
         public bool IsControllable =>
-        Available && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL ||
-                      vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED);
+            Valid
+            && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL
+                || vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED);
         #endregion
 
         #region Initialization
