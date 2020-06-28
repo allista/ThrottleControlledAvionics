@@ -112,7 +112,6 @@ namespace ThrottleControlledAvionics
         }
 
         #if DEBUG
-
         public void DrawDebugLines()
         {
             if(VSL == null || VSL.vessel == null || VSL.refT == null || !CFG.HF) return;
