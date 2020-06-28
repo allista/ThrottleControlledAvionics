@@ -335,6 +335,25 @@ namespace ThrottleControlledAvionics
             CFG.AP1.XOn(Autopilot1.Maneuver);
         }
 
+        [UsedImplicitly]
+        [KSPEvent(guiActive = false, active = true)]
+        private void onLaunchedFromHangar(BaseEventDetails data)
+        {
+            if(!Valid)
+                return;
+            if(!data.GetBool("fromFairings"))
+                return;
+            var pm = data.Get<PartModule>("hangar");
+            if(pm == null || pm.vessel == null)
+                return;
+            var tca = AvailableTCA(pm.vessel);
+            if(tca == null)
+                return;
+            reset();
+            CFG = tca.CloneConfig();
+            init();
+        }
+
         public void SetGID(string gid)
         {
             GID = gid;
@@ -457,6 +476,17 @@ namespace ThrottleControlledAvionics
         vessel != null ? AllTCA(vessel).Where(tca => tca.GID == GID).ToList() : null;
 
         public void SaveToConfig() => AllModules.ForEach(m => m.SaveToConfig());
+
+        public VesselConfig CloneConfig()
+        {
+            var tca = this;
+            if(!TCA_Active)
+                tca = AvailableTCA(vessel);
+            if(tca == null)
+                return null;
+            tca.SaveToConfig();
+            return tca.CFG.Clone<VesselConfig>();
+        }
 
         void updateCFG()
         {
