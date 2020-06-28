@@ -464,7 +464,6 @@ namespace ThrottleControlledAvionics
             MaxThrust = Vector3.zero;
             MaxMassFlow = 0f;
             Slow = false;
-            var have_steering = !VSL.Controls.Steering.IsZero();
             var total_thrust = 0f;
             for(int i = 0; i < NumActive; i++) 
             {
@@ -484,7 +483,7 @@ namespace ThrottleControlledAvionics
                             AccelerationSpeed += thrust*e.engineAccelerationSpeed;
                     }
                 }
-                if(e.isSteering && have_steering) e.InitLimits();
+                if(e.isSteering && VSL.Controls.HasSteering) e.InitLimits();
             }
             if(AccelerationSpeed > 0)
             { 
