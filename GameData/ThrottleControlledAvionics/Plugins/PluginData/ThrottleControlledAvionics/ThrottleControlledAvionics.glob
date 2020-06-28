@@ -264,8 +264,6 @@ HorizontalSpeedControl
 		Tau = 0.5
 	}
 	
-	TurnTime_Curve = 1.8
-
 	TranslationMaxDeltaV = 5
 	TranslationMinDeltaV = 0.5
 	TranslationMaxAngle = 80

@@ -62,7 +62,6 @@ namespace ThrottleControlledAvionics
             [Persistent] public HorizontalThrustConfig HorizontalThrust = new HorizontalThrustConfig();
 
             [Persistent] public PIDf_Controller3 NeededThrustPID = new PIDf_Controller3(1, 0, 0, -1, 1, 1);
-            [Persistent] public float TurnTime_Curve = 1.1f;
 
             public float TranslationMaxCos;
 
