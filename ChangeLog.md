@@ -2,7 +2,35 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.6.2.2**
+* **v3.7.0 - Maneuver Engines Reloaded**
+    * *Manual engines are no longer used for horizontal thrust*, 
+    instead the maneuver engines are used.
+    * Added *Mode* of operation *of maneuver engines*
+        * Rotation & Translation -- a maneuver engine in this
+        (default) mode responses to both rotation and translation
+        controls and may be used for horizontal thrust.
+        * Rotation -- a maneuver engine in this mode only responses
+        to rotation controls and is never used for horizontal thrust.
+        * Translation -- a maneuver engine in this mode only responses
+        to translation controls and may be used for horizontal thrust.
+    * Fixed balancing of engine profiles that have only maneuver engines 
+    active.
+    * Improved handling of R&T maneuver engines that provide more thrust
+    than torque (i.e. they're more or less in line with CoM).
+    Even if you don't set such engines to Translation mode, they won't be
+    firing much during rotation. Such engines are also no longer switched
+    to UnBalanced mode.
+    * Added support for Cargo Accelerators:
+        * ModuleTCA now handles the ExecuteManeuverNode message,
+        which allows it to continue maneuvers that were only partially
+        executed by an accelerator.
+    * Added support for Hangar:
+        * ModuleTCA now handles onLaunchedFromHangar KSPEvent and, in case
+        of launching from fairings hangar, continues what the TCA of the
+        previous stage was doing (e.g. the To Orbit program).
+    * Various bug fixes, including TCA WayPoints,   
+
+* v3.6.2.2
     * Fixed HUD panels disappearing after scene switch
     * Compiled against AT_Utils 1.9.2
 
