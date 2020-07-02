@@ -43,6 +43,7 @@ namespace ThrottleControlledAvionics
                 [Persistent] public float D_Max = 2;
                 [Persistent] public float Turn_MinLateralDeltaV = 10f;
                 [Persistent] public float Turn_MinDeltaV = 30f;
+                [Persistent] public float MinAccel = 0.1f;
             }
 
             [Persistent] public float TranslationMaxDeltaV = 5f;
@@ -232,25 +233,40 @@ namespace ThrottleControlledAvionics
                         horizontal_thrust = VSL.Engines.TranslationThrustLimits.Slice(VSL.LocalDir(-forward_dir));
                         translation_factor = Utils.ClampL((Vector3.Dot(VSL.WorldDir(horizontal_thrust.normalized), -forward_dir.normalized)-0.5f), 0)*2;
                     }
-                    with_horizontal_thrust = !horizontal_thrust.IsZero();
+                    with_horizontal_thrust =
+                        translation_factor > 0
+                        && horizontal_thrust.magnitude / VSL.Physics.M > C.HorizontalThrust.MinAccel;
                     if(with_horizontal_thrust)
                     {
                         thrust = VSL.Engines.CurrentDefThrustDir;
-                        rotation_vector = Vector3.ProjectOnPlane(error_vector, forward_dir);
-                        var translation_vector = error_vector-rotation_vector; //forward-backward velocity with respect to the manual thrust vector
-                        rotation_abs = rotation_vector.magnitude;
-                        translation_abs = Utils.ClampL(translation_vector.magnitude, 1e-5);
-                        translation_factor *= Utils.Clamp(1+Vector3.Dot(thrust.normalized, pure_error_vector.normalized)*C.HorizontalThrust.ThrustF, 0, 1);
-                        translation_factor *= translation_factor*translation_factor*translation_factor;
-                        translation_pid.I = (VSL.HorizontalSpeed > C.HorizontalThrust.I_MinSpeed && 
-                                             VSL.vessel.mainBody.atmosphere)? 
-                            C.HorizontalThrust.PID.I*VSL.HorizontalSpeed : 0;
-                        var D = VSL.Engines.TranslationThrustSpeed.Project(error_vector_local.normalized).magnitude;
-                        if(D > 0) 
-                            D = Mathf.Min(C.HorizontalThrust.PID.D/D, C.HorizontalThrust.D_Max);
-                        translation_pid.D = D;
-                        translation_pid.Update((float)translation_abs);
-                        VSL.Controls.EnginesTranslation = translation_pid.Action*error_vector_local.CubeNorm()*translation_factor;
+                        translation_factor *=
+                            Utils.Clamp(1
+                                        + Vector3.Dot(thrust, pure_error_vector.normalized)
+                                        * C.HorizontalThrust.ThrustF,
+                                0,
+                                1);
+                        if(translation_factor > 0)
+                        {
+                            translation_factor *= translation_factor * translation_factor * translation_factor;
+                            rotation_vector = Vector3.ProjectOnPlane(error_vector, forward_dir);
+                            //forward-backward velocity with respect to the horizontal thrust vector
+                            var translation_vector = error_vector-rotation_vector;
+                            rotation_abs = rotation_vector.magnitude;
+                            translation_abs = Utils.ClampL(translation_vector.magnitude, 1e-5);
+                            translation_pid.I =
+                                (VSL.HorizontalSpeed > C.HorizontalThrust.I_MinSpeed && VSL.vessel.mainBody.atmosphere)
+                                    ? C.HorizontalThrust.PID.I * VSL.HorizontalSpeed
+                                    : 0;
+                            var D = VSL.Engines.TranslationThrustSpeed.Project(error_vector_local.normalized).magnitude;
+                            if(D > 0)
+                                D = Mathf.Min(C.HorizontalThrust.PID.D / D, C.HorizontalThrust.D_Max);
+                            translation_pid.D = D;
+                            translation_pid.Update((float)translation_abs);
+                            VSL.Controls.EnginesTranslation =
+                                translation_pid.Action * error_vector_local.CubeNorm() * translation_factor;
+                        }
+                        else
+                            with_horizontal_thrust = false;
                     }
                 }
                 
