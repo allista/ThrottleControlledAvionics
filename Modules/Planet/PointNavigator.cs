@@ -507,13 +507,12 @@ namespace ThrottleControlledAvionics
                     WayPoint next_wp = null;
                     if(CFG.Path.Peek() == CFG.Target)
                     {
-                        var iwp = CFG.Path.GetEnumerator();
-                        try 
-                        { 
-                            iwp.MoveNext(); iwp.MoveNext();
-                            next_wp = iwp.Current;
-                        } 
-                        catch {}
+                        using(var iwp = CFG.Path.GetEnumerator())
+                        {
+                            if(iwp.MoveNext()
+                               && iwp.MoveNext())
+                                next_wp = iwp.Current;
+                        }
                     }
                     else next_wp = CFG.Path.Peek();
                     if(next_wp != null)
