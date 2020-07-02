@@ -212,7 +212,7 @@ namespace ThrottleControlledAvionics
                 CFG.AP1.XOn(Autopilot1.Land);
                 return true; 
             }
-            else if(CFG.Target.Pause) 
+            if(CFG.Target.Pause) 
             { 
                 CFG.Target.Pause = false; 
                 CFG.HF.XOn(HFlight.Stop); 
