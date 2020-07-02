@@ -284,7 +284,7 @@ namespace ThrottleControlledAvionics
                 }
 
                 //try to use translation controls (maneuver engines and RCS)
-                if(error_abs > C.TranslationMinDeltaV && TRA != null && CFG.CorrectWithTranslation)
+                if(error_abs > C.TranslationMinDeltaV && CFG.CorrectWithTranslation && TRA != null)
                 {
                     var nVn = needed_abs > 0? needed_vector/needed_abs : Vector3d.zero;
                     var cV_lat = Vector3.ProjectOnPlane(CourseCorrection, needed_vector);
