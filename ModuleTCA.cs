@@ -680,7 +680,7 @@ namespace ThrottleControlledAvionics
                 //:preset manual limits for translation if needed
                 var translation = VSL.Controls.EnginesTranslation;
                 if(VSL.Controls.HasTranslation)
-                    translation = VSL.Controls.Translation;
+                    translation += VSL.Controls.Translation;
                 if(!translation.IsZero())
                 {
                     EngineOptimizer.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, translation.normalized);
