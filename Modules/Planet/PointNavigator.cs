@@ -193,11 +193,11 @@ namespace ThrottleControlledAvionics
 
         void finish()
         {
-            CFG.Nav.Off();
-            CFG.HF.OnIfNot(HFlight.Stop);
             ReleaseCPS();
             reset_formation();
             SetTarget();
+            CFG.Nav.Off();
+            CFG.HF.OnIfNot(HFlight.Stop);
         }
 
         bool on_arrival()
