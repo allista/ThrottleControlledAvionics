@@ -200,6 +200,12 @@ namespace ThrottleControlledAvionics
             CFG.HF.OnIfNot(HFlight.Stop);
         }
 
+        private void anchor_at_target()
+        {
+            CFG.Anchor = CFG.Target;
+            CFG.Nav.XOn(Navigation.Anchor);
+        }
+
         bool on_arrival()
         {
             if(CFG.Target == null || !CFG.Target.Valid) return false;
@@ -214,9 +220,9 @@ namespace ThrottleControlledAvionics
             }
             if(CFG.Target.Pause) 
             { 
-                CFG.Target.Pause = false; 
-                CFG.HF.XOn(HFlight.Stop); 
+                CFG.Target.Pause = false;
                 VSL.Controls.PauseWhenStopped = true;
+                anchor_at_target();
                 return true;
             }
             return false;
@@ -447,7 +453,7 @@ namespace ThrottleControlledAvionics
                                 { 
                                     CFG.Path.Clear();
                                     if(on_arrival()) return;
-                                    finish();
+                                    anchor_at_target();
                                     return;
                                 }
                             }
