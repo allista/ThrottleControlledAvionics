@@ -165,8 +165,14 @@ namespace ThrottleControlledAvionics
         private void update_events()
         {
             Events[nameof(SwitchRole)].guiName = $"Role: {Roles[Role]}";
-            Events[nameof(SwitchMode)].guiName = $"Mode: {Modes[Mode]}";
-            Events[nameof(SwitchMode)].active = Role == TCARole.MANEUVER;
+            var modeEvent = Events[nameof(SwitchMode)];
+            modeEvent.guiName = $"Mode: {Modes[Mode]}";
+            var enableModeEvent = Role == TCARole.MANEUVER;
+            if(modeEvent.active != enableModeEvent)
+            {
+                modeEvent.active = enableModeEvent;
+                MonoUtilities.RefreshPartContextWindow(part);
+            } 
             if(HighLogic.LoadedSceneIsEditor)
                 GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
         }
