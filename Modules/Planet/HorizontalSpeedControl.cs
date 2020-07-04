@@ -198,10 +198,15 @@ namespace ThrottleControlledAvionics
                 var translation_abs = 0.0;
 
                 //decide if horizontal thrust can and should be used
-                var with_horizontal_thrust = VSL.Engines.Active.HaveTranslation && 
-                    (needed_abs >= C.TranslationMaxDeltaV ||
-                     error_abs >= C.TranslationMaxDeltaV ||
-                     CourseCorrection.magnitude >= C.TranslationMaxDeltaV);
+                var min_required_thrust_sqr = CFG.MinHorizontalAccel * VSL.Physics.M;
+                min_required_thrust_sqr *= min_required_thrust_sqr;
+                var max_horizontal_thrust = VSL.Engines.TranslationThrustLimits.MaxInPlane(VSL.Physics.UpL);
+                var with_horizontal_thrust =
+                    CFG.UseHorizontalThrust
+                    && max_horizontal_thrust.sqrMagnitude > min_required_thrust_sqr 
+                    && (needed_abs >= C.TranslationMaxDeltaV
+                        || error_abs >= C.TranslationMaxDeltaV
+                        || CourseCorrection.magnitude >= C.TranslationMaxDeltaV);
                 horizontal_thrust = Vector3.zero;
                 if(with_horizontal_thrust)
                 {
@@ -216,16 +221,17 @@ namespace ThrottleControlledAvionics
                         Vector3.ProjectOnPlane(VSL.HorizontalSpeed.NeededVector, horizontal_speed_dir)
                         .magnitude > C.HorizontalThrust.Turn_MinLateralDeltaV))
                     {
-                        horizontal_thrust = VSL.Engines.TranslationThrustLimits.MaxInPlane(VSL.Physics.UpL);
-                        if(!horizontal_thrust.IsZero())
-                        {
-                            var fwdH = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL);
-                            var angle = Utils.Angle2(horizontal_thrust, fwdH);
-                            var rot = Quaternion.AngleAxis(angle, VSL.Physics.Up * Mathf.Sign(Vector3.Dot(horizontal_thrust, Vector3.right)));
-                            BRC.DirectionOverride = rot*pure_error_vector;
-                            translation_factor = Utils.ClampL((Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized)-0.5f), 0)*2;
-                            forward_dir = BRC.DirectionOverride;
-                        }
+                        horizontal_thrust = max_horizontal_thrust;
+                        var fwdH = Vector3.ProjectOnPlane(VSL.OnPlanetParams.FwdL, VSL.Physics.UpL);
+                        var angle = Utils.Angle2(horizontal_thrust, fwdH);
+                        var rot = Quaternion.AngleAxis(angle,
+                            VSL.Physics.Up * Mathf.Sign(Vector3.Dot(horizontal_thrust, Vector3.right)));
+                        BRC.DirectionOverride = rot * pure_error_vector;
+                        translation_factor =
+                            Utils.ClampL((Vector3.Dot(VSL.OnPlanetParams.Fwd, BRC.DirectionOverride.normalized) - 0.5f),
+                                0)
+                            * 2;
+                        forward_dir = BRC.DirectionOverride;
                     }
                     //simply use horizontal thrust currently available in the forward direction
                     else if(Vector3.Dot(forward_dir, error_vector) < 0)  
@@ -235,7 +241,7 @@ namespace ThrottleControlledAvionics
                     }
                     with_horizontal_thrust =
                         translation_factor > 0
-                        && horizontal_thrust.magnitude / VSL.Physics.M > C.HorizontalThrust.MinAccel;
+                        && horizontal_thrust.sqrMagnitude > min_required_thrust_sqr;
                     if(with_horizontal_thrust)
                     {
                         thrust = VSL.Engines.CurrentDefThrustDir;

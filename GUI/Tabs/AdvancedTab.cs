@@ -23,6 +23,7 @@ namespace ThrottleControlledAvionics
         VTOLAssist VLA;
         FlightStabilizer STB;
         TranslationControl TRA;
+        private HorizontalSpeedControl HSC;
         CollisionPreventionSystem CPS;
 
         public bool SelectingKey;
@@ -30,6 +31,14 @@ namespace ThrottleControlledAvionics
         NamedConfig selected_config;
         string config_name = string.Empty;
         readonly DropDownList named_configs = new DropDownList();
+
+        private readonly FloatField MinHorizontalAccel = new FloatField(min:0);
+
+        public override void Init()
+        {
+            base.Init();
+            MinHorizontalAccel.Value = CFG.MinHorizontalAccel;
+        }
 
         #region Configs Selector
         public void UpdateNamedConfigs()
@@ -106,9 +115,24 @@ namespace ThrottleControlledAvionics
                 UI.ModulesGraph.Toggle();
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
-            if(TRA != null)
-                Utils.ButtonSwitch("RCS Translation", ref CFG.CorrectWithTranslation,
-                    "Use RCS to correct horizontal velocity", GUILayout.ExpandWidth(true));
+            if(HSC != null)
+            {
+                Utils.ButtonSwitch("Hor. Thrust",
+                    ref CFG.UseHorizontalThrust,
+                    "Use maneuver engines to provide thrust for horizontal flight",
+                    GUILayout.ExpandWidth(true));
+                if(MinHorizontalAccel.Draw("kN/t",
+                    field_width: 50,
+                    suffix_tooltip:
+                    "Maneuver engines will be used as horizontal thrusters only if they produce more thrust than this.")
+                )
+                    CFG.MinHorizontalAccel = MinHorizontalAccel;
+                if(TRA != null)
+                    Utils.ButtonSwitch("RCS Translation",
+                        ref CFG.CorrectWithTranslation,
+                        "Use RCS to correct horizontal velocity",
+                        GUILayout.ExpandWidth(true));
+            }
             Utils.ButtonSwitch("RCS Rotation", ref CFG.RotateWithRCS,
                 "Use RCS for attitude control", GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
@@ -269,6 +293,8 @@ namespace ThrottleControlledAvionics
                 }
                 SelectingKey = false;
             }
+            if(!CFG.MinHorizontalAccel.Equals(MinHorizontalAccel))
+                MinHorizontalAccel.Value = CFG.MinHorizontalAccel;
         }
     }
 }

@@ -279,8 +279,6 @@ HorizontalSpeedControl
 		Turn_MinLateralDeltaV = 10
         Turn_MinDeltaV = 30
 		
-		MinAccel = 0.1
-
 		PID
 		{
 			P = 0.05
