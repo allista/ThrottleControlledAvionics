@@ -143,11 +143,11 @@ namespace ThrottleControlledAvionics
         public void DrawForwardDirection()
         {
 #if DEBUG
-//            var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
-//            Utils.GLVec(VSL.refT.position, dir.normalized*2500, dir_color);
-//            Utils.GLVec(VSL.refT.position, rotation_axis*5, Color.red);
-//            Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Fwd*5, Color.yellow);
-//            Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading*5, Color.magenta);
+            // var dir = DirectionOverride.IsZero()? ForwardDirection : DirectionOverride;
+            // Utils.GLVec(VSL.refT.position, dir.normalized*2500, dir_color);
+            // Utils.GLVec(VSL.refT.position, VSL.WorldDir(rotation_axis)*5, Color.red);
+            // Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Fwd*5, Color.yellow);
+            // Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading*5, Color.magenta);
 #endif
             if(!draw_forward_direction || !CFG.BR[BearingMode.User])
                 return;
