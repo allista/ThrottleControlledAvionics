@@ -49,15 +49,6 @@ namespace ThrottleControlledAvionics
             if(first) named_configs.SelectItem(configs.Count - 1);
         }
 
-        void SelectConfig_start()
-        {
-            named_configs.styleListBox = Styles.list_box;
-            named_configs.styleListItem = Styles.list_item;
-            named_configs.windowRect = UI.WindowPos;
-            if(TCAScenario.NamedConfigs.Count > 0)
-                named_configs.DrawBlockingSelector();
-        }
-
         void SelectConfig()
         {
             if(TCAScenario.NamedConfigs.Count == 0)
@@ -72,13 +63,6 @@ namespace ThrottleControlledAvionics
                     config_name = selected_config != null ? selected_config.Name : string.Empty;
                 }
             }
-        }
-
-        void SelectConfig_end()
-        {
-            if(TCAScenario.NamedConfigs.Count == 0) return;
-            named_configs.DrawDropDown();
-            named_configs.CloseOnOutsideClick();
         }
         #endregion
 
