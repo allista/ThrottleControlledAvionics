@@ -2,7 +2,10 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.7.0 - Maneuver Engines Reloaded**
+* **v3.7.0.1**
+    * Compiled against KSP-1.10
+
+* v3.7.0 - **Maneuver Engines Reloaded**
     * **Manual engines are no longer used for horizontal thrust**, 
     instead _the maneuver engines are used_.
     * Added *Mode* of operation *of maneuver engines*
