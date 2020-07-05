@@ -658,14 +658,7 @@ namespace ThrottleControlledAvionics
         protected double AngleDelta2StartUT(BaseTrajectory old, double angle, double offset, double forward_step, double period)
         { return NextStartUT(old, angle/360*period, offset, forward_step); }
 
-        protected void clear_nodes()
-        {
-            if(VSL.vessel.patchedConicSolver == null) return;
-            var nodes = VSL.vessel.patchedConicSolver.maneuverNodes; 
-            for(var i = nodes.Count-1; i >= 0; i--)
-                nodes[i].RemoveSelf();
-        }
-
+        protected void clear_nodes() => Utils.ClearManeuverNodes(VSL.vessel);
 
         protected bool check_patched_conics()
         {

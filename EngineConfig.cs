@@ -25,6 +25,7 @@ namespace ThrottleControlledAvionics
         [Persistent] public float Limit;
         [Persistent] string role;
         public TCARole Role;
+        [Persistent] public ManeuverMode Mode = ManeuverMode.ALL;
         public bool Changed, Edit;
 
 //        bool changed; //debug
@@ -55,6 +56,7 @@ namespace ThrottleControlledAvionics
         {
             Limit = e.thrustLimit;
             Role  = e.Role;
+            Mode = e.info.Mode;
             if(with_On) On = e.engine.EngineIgnited;
             else Changed |= On != e.engine.EngineIgnited;
         }
@@ -85,7 +87,7 @@ namespace ThrottleControlledAvionics
         public void Apply(EngineWrapper e)
         {
             if(e == null || e.info == null) return;
-            e.SetRole(Role);
+            e.info.SetRoleAndMode(Role, Mode);
             if(HighLogic.LoadedSceneIsFlight)
             {
                 if(On && !e.engine.EngineIgnited) e.engine.Activate();
@@ -97,17 +99,26 @@ namespace ThrottleControlledAvionics
 
         public bool DiffersFrom(EngineWrapper e)
         {
-            return On != e.engine.EngineIgnited || Role != e.Role ||
+            return On != e.engine.EngineIgnited || Role != e.Role || Mode != e.info.Mode ||
                 (Role == TCARole.MANUAL && Mathf.Abs(e.thrustLimit-Limit) > lim_eps);
         }
 
         void RoleControl()
         {
             if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(15)))
-            { Role = TCAEngineInfo.PrevRole(Role); Changed = true; }
-            GUILayout.Label(TCAEngineInfo.RoleNames[(int)Role], GUILayout.Width(120));
+            { Role = TCAEngineInfo.Roles.Prev(Role); Changed = true; }
+            GUILayout.Label(TCAEngineInfo.Roles[Role], GUILayout.Width(130));
             if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(15)))
-            { Role = TCAEngineInfo.NextRole(Role); Changed = true; }
+            { Role = TCAEngineInfo.Roles.Next(Role); Changed = true; }
+        }
+
+        void ModeControl()
+        {
+            if(GUILayout.Button("<", Styles.normal_button, GUILayout.Width(15)))
+            { Mode = TCAEngineInfo.Modes.Prev(Mode); Changed = true; }
+            GUILayout.Label(TCAEngineInfo.Modes[Mode], GUILayout.Width(130));
+            if(GUILayout.Button(">", Styles.normal_button, GUILayout.Width(15)))
+            { Mode = TCAEngineInfo.Modes.Next(Mode); Changed = true; }
         }
 
         void NameControl(string comment)
@@ -131,21 +142,38 @@ namespace ThrottleControlledAvionics
             NameControl(comment);
             if(GUILayout.Button(On? "On" : "Off", On? Styles.enabled_button : Styles.close_button, GUILayout.Width(30)))
             { On = !On; Changed = true; }
-            if(with_role) RoleControl();
+            if(with_role)
+                RoleControl();
             GUILayout.EndHorizontal();
-            if(Role == TCARole.MANUAL)
+            // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
+            switch(Role)
             {
-                GUILayout.BeginHorizontal();
-                var lim = Utils.FloatSlider("", Limit, 0f, 1f, "P1", 50, "Throttle");
-                if(lim <= lim_eps) lim = 0;
-                if(Mathf.Abs(lim-Limit) > lim_eps) { Limit = lim; Changed = true; }
-                GUILayout.EndHorizontal();
+                case TCARole.MANEUVER:
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(168);
+                    ModeControl();
+                    GUILayout.EndHorizontal();
+                    break;
+                case TCARole.MANUAL:
+                {
+                    GUILayout.BeginHorizontal();
+                    var lim = Utils.FloatSlider("", Limit, 0f, 1f, "P1", 50, "Throttle");
+                    if(lim <= lim_eps)
+                        lim = 0;
+                    if(Mathf.Abs(lim - Limit) > lim_eps)
+                    {
+                        Limit = lim;
+                        Changed = true;
+                    }
+                    GUILayout.EndHorizontal();
+                    break;
+                }
             }
             return Changed;
         }
 
         public override string ToString()
-        { return string.Format("[{0}]: Role {1}, Limit {2}, On: {3}", Name, Role, Limit, On); }
+        { return $"[{Name}]: Role {Role}, Mode {Mode}, Limit {Limit}, On: {On}"; }
     }
 
     public abstract class EngineConfigDB<K> : ConfigNodeObject

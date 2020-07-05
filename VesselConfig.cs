@@ -95,6 +95,8 @@ namespace ThrottleControlledAvionics
         [Persistent] public bool UseCPS = true;
         [Persistent] public bool CorrectWithTranslation = true;
         [Persistent] public bool RotateWithRCS = true;
+        [Persistent] public bool UseHorizontalThrust = true;
+        [Persistent] public float MinHorizontalAccel = 0.5f;
         //engines
         [Persistent] public PI_Controller Engines = new PI_Controller();
         [Persistent] public EnginesProfileDB EnginesProfiles = new EnginesProfileDB();

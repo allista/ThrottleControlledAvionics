@@ -130,7 +130,14 @@ namespace ThrottleControlledAvionics
             else if(TargetInfo.targetType != ProtoTargetInfo.Type.Null && 
                     HighLogic.LoadedSceneIsFlight)
             {
-                target = TargetInfo.FindTarget();
+                try
+                {
+                    target = TargetInfo.FindTarget();
+                }
+                catch
+                {
+                    target = null;
+                }
                 if(target == null) 
                 {
                     TargetInfo.targetType = ProtoTargetInfo.Type.Null;
@@ -163,16 +170,21 @@ namespace ThrottleControlledAvionics
                 set_coordinates(m.vessel);
                 return;
             case ProtoTargetInfo.Type.Part:
+                // There may be ITargetable Part derivatives in some mods
+                // ReSharper disable once SuspiciousTypeConversion.Global
                 var p = target as Part;
-                if(p == null || p.vessel == null) break;
+                if(p == null || p.vessel == null)
+                    // ProtoTargetInfo.FindTarget() may return a Vessel when the Type == Part
+                    goto case ProtoTargetInfo.Type.Vessel;
                 set_coordinates(p.vessel);
                 return;
             case ProtoTargetInfo.Type.Generic:
                 var t = target.GetTransform();
                 if(t == null) break;
-                set_coordinates(body.GetLatitude(t.position),
-                                body.GetLongitude(t.position),
-                                body.GetAltitude(t.position));
+                var position = t.position;
+                set_coordinates(body.GetLatitude(position),
+                                body.GetLongitude(position),
+                                body.GetAltitude(position));
                 return;
             }
             TargetInfo.targetType = ProtoTargetInfo.Type.Null;

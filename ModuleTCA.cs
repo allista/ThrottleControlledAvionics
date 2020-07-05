@@ -124,11 +124,13 @@ namespace ThrottleControlledAvionics
         #endregion
 
         #region Public Info
-        public bool Valid => vessel != null && part != null && Available;
         public bool Available => TCA_Active && VSL != null;
+        public bool Valid => vessel != null && part != null && Available;
+
         public bool IsControllable =>
-        Available && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL ||
-                      vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED);
+            Valid
+            && (vessel.CurrentControlLevel == Vessel.ControlLevel.FULL
+                || vessel.CurrentControlLevel == Vessel.ControlLevel.PARTIAL_MANNED);
         #endregion
 
         #region Initialization
@@ -179,7 +181,7 @@ namespace ThrottleControlledAvionics
         {
             if(GroupMaster && CFG != null)
             {
-                AllModules.ForEach(m => m.SaveToConfig());
+                SaveToConfig();
                 CFG.SaveInto(node);
                 //this.Log("OnSave: GroupMaster: {}", this);//debug
             }
@@ -311,6 +313,48 @@ namespace ThrottleControlledAvionics
             CFG.BR.XOff();
         }
 
+        /// <summary>
+        /// It is a component message handler.
+        /// The "ExecuteManeuverNode" message is sent from CargoAccelerators mod when
+        /// it adds a correction node that should be executed immediately.
+        /// </summary>
+        [UsedImplicitly]
+        private void ExecuteManeuverNode(object value)
+        {
+            if(!Valid)
+                return;
+            if(GetModule<ManeuverAutopilot>() == null)
+                return;
+            if(value is ManeuverNode node)
+            {
+                Utils.ClearManeuverNodes(VSL.vessel);
+                if(vessel.patchedConicSolver != null)
+                    Utils.AddNodeRaw(vessel, node.DeltaV, node.UT);
+                else
+                    Utils.AddNodeRawToFlightPlanNode(vessel, node.DeltaV, node.UT);
+            }
+            CFG.AP1.XOn(Autopilot1.Maneuver);
+        }
+
+        [UsedImplicitly]
+        [KSPEvent(guiActive = false, active = true)]
+        private void onLaunchedFromHangar(BaseEventDetails data)
+        {
+            if(!Valid)
+                return;
+            if(!data.GetBool("fromFairings"))
+                return;
+            var pm = data.Get<PartModule>("hangar");
+            if(pm == null || pm.vessel == null)
+                return;
+            var tca = AvailableTCA(pm.vessel);
+            if(tca == null)
+                return;
+            reset();
+            CFG = tca.CloneConfig();
+            init();
+        }
+
         public void SetGID(string gid)
         {
             GID = gid;
@@ -432,6 +476,19 @@ namespace ThrottleControlledAvionics
         public List<ModuleTCA> GetGroup() =>
         vessel != null ? AllTCA(vessel).Where(tca => tca.GID == GID).ToList() : null;
 
+        public void SaveToConfig() => AllModules.ForEach(m => m.SaveToConfig());
+
+        public VesselConfig CloneConfig()
+        {
+            var tca = this;
+            if(!TCA_Active)
+                tca = AvailableTCA(vessel);
+            if(tca == null)
+                return null;
+            tca.SaveToConfig();
+            return tca.CFG.Clone<VesselConfig>();
+        }
+
         void updateCFG()
         {
             var group = GetGroup();
@@ -499,7 +556,7 @@ namespace ThrottleControlledAvionics
             all_tca.ForEach(tca =>
             {
                 if(tca.TCA_Active)
-                    tca.AllModules.ForEach(m => m.SaveToConfig());
+                    tca.SaveToConfig();
                 tca.EnableTCA(false);
                 tca.reset();
             });
@@ -621,13 +678,15 @@ namespace ThrottleControlledAvionics
             if(VSL.Engines.NumActive > 0)
             {
                 //:preset manual limits for translation if needed
-                if(VSL.Controls.ManualTranslationSwitch.On)
+                var translation = VSL.Controls.EnginesTranslation;
+                if(VSL.Controls.HasTranslation)
+                    translation += VSL.Controls.Translation;
+                if(!translation.IsZero())
                 {
-                    ENG.PresetLimitsForTranslation(VSL.Engines.Active.Manual, VSL.Controls.ManualTranslation);
-                    if(CFG.VSCIsActive) ENG.LimitInDirection(VSL.Engines.Active.Manual, VSL.Physics.UpL);
+                    EngineOptimizer.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, translation.normalized);
+                    if(CFG.VSCIsActive && !VSL.Controls.HasTranslation) 
+                        EngineOptimizer.LimitInDirection(VSL.Engines.Active.Maneuver, VSL.Physics.UpL);
                 }
-                //:optimize limits for steering
-                ENG.PresetLimitsForTranslation(VSL.Engines.Active.Maneuver, VSL.Controls.Translation);
                 ENG.Steer();
             }
             RCS.Steer();

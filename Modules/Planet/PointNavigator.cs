@@ -193,11 +193,17 @@ namespace ThrottleControlledAvionics
 
         void finish()
         {
-            CFG.Nav.Off();
-            CFG.HF.OnIfNot(HFlight.Stop);
             ReleaseCPS();
             reset_formation();
             SetTarget();
+            CFG.Nav.Off();
+            CFG.HF.OnIfNot(HFlight.Stop);
+        }
+
+        private void anchor_at_target()
+        {
+            CFG.Anchor = CFG.Target;
+            CFG.Nav.XOn(Navigation.Anchor);
         }
 
         bool on_arrival()
@@ -212,11 +218,11 @@ namespace ThrottleControlledAvionics
                 CFG.AP1.XOn(Autopilot1.Land);
                 return true; 
             }
-            else if(CFG.Target.Pause) 
+            if(CFG.Target.Pause) 
             { 
-                CFG.Target.Pause = false; 
-                CFG.HF.XOn(HFlight.Stop); 
+                CFG.Target.Pause = false;
                 VSL.Controls.PauseWhenStopped = true;
+                anchor_at_target();
                 return true;
             }
             return false;
@@ -447,7 +453,7 @@ namespace ThrottleControlledAvionics
                                 { 
                                     CFG.Path.Clear();
                                     if(on_arrival()) return;
-                                    finish();
+                                    anchor_at_target();
                                     return;
                                 }
                             }
@@ -507,13 +513,12 @@ namespace ThrottleControlledAvionics
                     WayPoint next_wp = null;
                     if(CFG.Path.Peek() == CFG.Target)
                     {
-                        var iwp = CFG.Path.GetEnumerator();
-                        try 
-                        { 
-                            iwp.MoveNext(); iwp.MoveNext();
-                            next_wp = iwp.Current;
-                        } 
-                        catch {}
+                        using(var iwp = CFG.Path.GetEnumerator())
+                        {
+                            if(iwp.MoveNext()
+                               && iwp.MoveNext())
+                                next_wp = iwp.Current;
+                        }
                     }
                     else next_wp = CFG.Path.Peek();
                     if(next_wp != null)
@@ -547,14 +552,14 @@ namespace ThrottleControlledAvionics
                     var mg2 = VSL.Physics.mg*VSL.Physics.mg;
                     var brake_thrust = Mathf.Min(VSL.Physics.mg, VSL.Engines.MaxThrustM/2*VSL.OnPlanetParams.TWRf);
                     var max_thrust = Mathf.Min(Mathf.Sqrt(brake_thrust*brake_thrust + mg2), VSL.Engines.MaxThrustM*0.99f);
-                    var manual_thrust = VSL.Engines.ManualThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
-                    if(manual_thrust > brake_thrust) brake_thrust = manual_thrust;
-                    else manual_thrust = -1;
+                    var horizontal_thrust = VSL.Engines.TranslationThrustLimits.Project(VSL.LocalDir(vdir)).magnitude;
+                    if(horizontal_thrust > brake_thrust) brake_thrust = horizontal_thrust;
+                    else horizontal_thrust = -1;
                     if(brake_thrust > 0)
                     {
                         var brake_accel = brake_thrust/VSL.Physics.M;
                         var prep_time = 0f;
-                        if(manual_thrust < 0) 
+                        if(horizontal_thrust < 0) 
                         {
                             var brake_angle = Utils.Angle2(VSL.Engines.CurrentDefThrustDir, vdir)-45;
                             if(brake_angle > 0)

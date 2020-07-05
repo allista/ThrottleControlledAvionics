@@ -24,7 +24,8 @@ RCSOptimizer
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 10
 	OptimizationTorqueCutoff = 0.002 //rad/s2
-	TorqueRatioFactor = 0.1
+	TorqueRatioFactor = 1
+	AngleErrorWeight = 0.1
 }
 
 EngineOptimizer
@@ -33,9 +34,8 @@ EngineOptimizer
 	OptimizationPrecision = 0.01
 	OptimizationAngleCutoff = 45
 	OptimizationTorqueCutoff = 0.01 //rad/s2
-	ThrustOptimizationPrecision = 0.001
-	ThrustOptimizationCutoff = 1
-	TorqueRatioFactor = 0.1
+	TorqueRatioFactor = 1
+	AngleErrorWeight = 0.1
 	
 	MaxAAFilter = 5
 	
@@ -264,22 +264,20 @@ HorizontalSpeedControl
 		Tau = 0.5
 	}
 	
-	TurnTime_Curve = 1.8
-
 	TranslationMaxDeltaV = 5
 	TranslationMinDeltaV = 0.5
 	TranslationMaxAngle = 80
 	
 	RotationMinDeltaV = 0.05
 	
-	ManualTranslation
+	HorizontalThrust
 	{
 		ThrustF = 6
 		I_MinSpeed = 20
 		D_Max = 0.3
 		
 		Turn_MinLateralDeltaV = 10
-                Turn_MinDeltaV = 30
+        Turn_MinDeltaV = 30
 		
 		PID
 		{

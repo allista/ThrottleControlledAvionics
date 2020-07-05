@@ -21,8 +21,7 @@ namespace ThrottleControlledAvionics
         public Vector3 Translation { get; private set; }
         public Vector3 AutopilotSteering;
         public bool    TranslationAvailable;
-        public Vector3 ManualTranslation;
-        public readonly Switch  ManualTranslationSwitch = new Switch();
+        public Vector3 EnginesTranslation;
         public float   GimbalLimit = 100;
         public bool    HaveControlAuthority = true;
         public bool    NoDewarpOffset;
@@ -53,6 +52,7 @@ namespace ThrottleControlledAvionics
         public override void ClearFrameState()
         {
             AutopilotSteering = Vector3.zero;
+            EnginesTranslation = Vector3.zero;
             GimbalLimit = 100;
             dewarp = false;
         }

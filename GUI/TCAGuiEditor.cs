@@ -37,13 +37,16 @@ namespace ThrottleControlledAvionics
         static bool HaveSelectedPart { get { return EditorLogic.SelectedPart != null && EditorLogic.SelectedPart.potentialParent != null; } }
 
         HighlightSwitcher TCA_highlight, Engines_highlight;
+        
+        private readonly FloatField MinHorizontalAccel = new FloatField(min:0);
 
-        float Mass, DryMass, MinTWR, MaxTWR, MinLimit;
+        float WetMass, DryMass, MinTWR, MaxTWR, MinLimit;
         Vector3 CoM = Vector3.zero;
         Vector3 WetCoM = Vector3.zero;
         Vector3 DryCoM = Vector3.zero;
         Matrix3x3f InertiaTensor = new Matrix3x3f();
         Vector3 MoI { get { return new Vector3(InertiaTensor[0, 0], InertiaTensor[1, 1], InertiaTensor[2, 2]); } }
+        private float Mass => use_wet_mass ? WetMass : DryMass;
 
         bool show_imbalance;
         bool use_wet_mass = true;
@@ -158,6 +161,7 @@ namespace ThrottleControlledAvionics
             TCA.EnableTCA(true);
             CFG.ActiveProfile.Update(Engines);
             PartsEditor.SetCFG(CFG);
+            MinHorizontalAccel.Value = CFG.MinHorizontalAccel;
             update_modules();
             //this.Log("UpdateCFG end: TCA Modules: {}", TCA_Modules);//debug
         }
@@ -200,7 +204,7 @@ namespace ThrottleControlledAvionics
                 pos = part.potentialParent.transform.position + part.potentialParent.transform.rotation * part.potentialParent.CoMOffset;
             WetCoM += pos * wetMass;
             DryCoM += pos * dryMass;
-            Mass += wetMass;
+            WetMass += wetMass;
             DryMass += dryMass;
             part.children.ForEach(update_mass_and_CoM);
         }
@@ -231,8 +235,11 @@ namespace ThrottleControlledAvionics
             e.throttle = e.VSF = e.thrustMod = 1;
             e.UpdateThrustInfo();
             e.InitLimits();
-            e.InitTorque(EditorLogic.RootPart.transform, CoM,
-                         EngineOptimizer.C.TorqueRatioFactor);
+            e.InitTorque(EditorLogic.RootPart.transform,
+                CoM,
+                Mass,
+                MoI,
+                EngineOptimizer.C.TorqueRatioFactor);
             e.UpdateCurrentTorque(1);
         }
 
@@ -249,12 +256,12 @@ namespace ThrottleControlledAvionics
 
         void CalculateMassAndCoM(List<Part> selected_parts)
         {
-            Mass = DryMass = MinTWR = MaxTWR = 0;
+            WetMass = DryMass = MinTWR = MaxTWR = 0;
             CoM = WetCoM = DryCoM = Vector3.zero;
             update_mass_and_CoM(EditorLogic.RootPart);
             if(selected_parts != null)
                 selected_parts.ForEach(update_mass_and_CoM);
-            WetCoM /= Mass; DryCoM /= DryMass;
+            WetCoM /= WetMass; DryCoM /= DryMass;
             CoM = use_wet_mass ? WetCoM : DryCoM;
         }
 
@@ -304,7 +311,7 @@ namespace ThrottleControlledAvionics
                     var T = thrust.magnitude / Utils.G0;
                     if(use_wet_mass)
                     {
-                        MinTWR = T / Mass;
+                        MinTWR = T / WetMass;
                         MaxTWR = T / DryMass;
                     }
                     else
@@ -322,18 +329,24 @@ namespace ThrottleControlledAvionics
             for(int i = 0; i < EnginesCount; i++)
             {
                 var e = Engines[i];
-                e.SetGroup(0);
-                if(e.Role == TCARole.MANUAL || e.Role == TCARole.MANEUVER)
+                e.info.SetGroup(0);
+                if(e.Role == TCARole.MANUAL)
                     continue;
+                if(e.Role == TCARole.MANEUVER)
+                {
+                    if(e.torqueRatio < EngineOptimizer.C.UnBalancedThreshold)
+                        e.info.SetMode(ManeuverMode.TRANSLATION);
+                    continue;
+                }
                 if(e.engine.throttleLocked)
                 {
-                    e.SetRole(TCARole.MANUAL);
+                    e.info.SetRole(TCARole.MANUAL);
                     e.forceThrustPercentage(100);
                     continue;
                 }
                 e.UpdateThrustInfo();
-                e.InitTorque(EditorLogic.fetch.ship[0].transform, CoM, 1);
-                if(e.torqueRatio < EngineOptimizer.C.UnBalancedThreshold) e.SetRole(TCARole.UNBALANCE);
+                e.InitTorque(EditorLogic.fetch.ship[0].transform, CoM, Mass, MoI, EngineOptimizer.C.TorqueRatioFactor);
+                if(e.torqueRatio < EngineOptimizer.C.UnBalancedThreshold) e.info.SetRole(TCARole.UNBALANCE);
             }
             //group symmetry-clones
             var group = 1;
@@ -343,7 +356,7 @@ namespace ThrottleControlledAvionics
                 if(e.Group > 0) continue;
                 if(e.part.symmetryCounterparts.Count > 0)
                 {
-                    e.SetGroup(group);
+                    e.info.SetGroup(group);
                     e.part.symmetryCounterparts.ForEach(p => p.Modules.GetModule<TCAEngineInfo>().group = group);
                     group += 1;
                 }
@@ -485,8 +498,23 @@ namespace ThrottleControlledAvionics
                         GUILayout.EndHorizontal();
                         GUILayout.BeginHorizontal();
                         if(Modules[typeof(HorizontalSpeedControl)])
-                            Utils.ButtonSwitch("RCS Translation", ref CFG.CorrectWithTranslation,
-                                "Use RCS to correct horizontal velocity", GUILayout.ExpandWidth(true));
+                        {
+                            Utils.ButtonSwitch("Hor. Thrust",
+                                ref CFG.UseHorizontalThrust,
+                                "Use maneuver engines to provide thrust for horizontal flight",
+                                GUILayout.ExpandWidth(true));
+                            if(MinHorizontalAccel.Draw("kN/t",
+                                field_width: 50,
+                                suffix_tooltip:
+                                "Maneuver engines will be used as horizontal thrusters only if they produce more thrust than this.")
+                            )
+                                CFG.MinHorizontalAccel = MinHorizontalAccel;
+                            if(Modules[typeof(TranslationControl)])
+                                Utils.ButtonSwitch("RCS Translation",
+                                    ref CFG.CorrectWithTranslation,
+                                    "Use RCS to correct horizontal velocity",
+                                    GUILayout.ExpandWidth(true));
+                        }
                         Utils.ButtonSwitch("RCS Rotation", ref CFG.RotateWithRCS,
                             "Use RCS for attitude control", GUILayout.ExpandWidth(true));
                         GUILayout.EndHorizontal();
@@ -512,7 +540,7 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label("Ship Info:");
                     GUILayout.FlexibleSpace();
                     GUILayout.Label("Mass:", Styles.boxed_label);
-                    if(Utils.ButtonSwitch(Utils.formatMass(Mass), use_wet_mass, "Balance engines using Wet Mass"))
+                    if(Utils.ButtonSwitch(Utils.formatMass(WetMass), use_wet_mass, "Balance engines using Wet Mass"))
                     {
                         use_wet_mass = true;
                         update_stats = true;
