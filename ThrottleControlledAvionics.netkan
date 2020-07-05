@@ -23,5 +23,9 @@
     [
         { "name" : "KSP-AVC" },
         { "name" : "KerbalJointReinforcement" }
+    ],
+    "supports":
+    [
+        { "name": "Hangar" }
     ]
 }
