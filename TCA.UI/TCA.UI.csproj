@@ -48,15 +48,15 @@
     </ItemGroup>
     <ItemGroup>
         <Reference Include="System">
-            <HintPath>..\..\KSP-test\KSP_test_1.9.1\KSP_Data\Managed\System.dll</HintPath>
+            <HintPath>..\..\KSP-test\KSP_test_1.10.0\KSP_Data\Managed\System.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine">
-            <HintPath>..\..\KSP-test\KSP_test_1.9.1\KSP_Data\Managed\UnityEngine.dll</HintPath>
+            <HintPath>..\..\KSP-test\KSP_test_1.10.0\KSP_Data\Managed\UnityEngine.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>..\..\KSP-test\KSP_test_1.9.1\KSP_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+            <HintPath>..\..\KSP-test\KSP_test_1.10.0\KSP_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.UI">
