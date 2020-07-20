@@ -1,4 +1,4 @@
-﻿//  Author:
+//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2015 Allis Tauri
@@ -27,7 +27,6 @@ namespace ThrottleControlledAvionics
         static Texture2D CoM_Icon;
 
         TCAPartsEditor PartsEditor;
-        SimpleWarning warning;
 
         ModuleTCA TCA;
         NamedConfig CFG;
@@ -436,9 +435,11 @@ namespace ThrottleControlledAvionics
                                         Styles.active_button, GUILayout.ExpandWidth(true)))
                     {
                         var facility = EditorLogic.fetch.ship.shipFacility;
-                        warning.Message = string.Format("Are you sure you want to save current ship configuration as default for {0}?", facility);
-                        warning.yesCallback = () => TCAScenario.UpdateDefaultConfig(facility, CFG);
-                        warning.Show(true);
+                        DialogFactory.Danger(
+                            $"Are you sure you want to save current ship configuration as default for {facility}?",
+                            () => TCAScenario.UpdateDefaultConfig(facility, CFG),
+                            context: this
+                        );
                     }
                 }
                 GUILayout.EndHorizontal();
