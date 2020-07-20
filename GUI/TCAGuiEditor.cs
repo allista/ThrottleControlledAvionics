@@ -1,4 +1,4 @@
-//  Author:
+﻿//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2015 Allis Tauri
@@ -20,8 +20,6 @@ namespace ThrottleControlledAvionics
     [KSPAddon(KSPAddon.Startup.EditorAny, false)]
     public class TCAGuiEditor : AddonWindowBase<TCAGuiEditor>
     {
-        const string DefaultConstractName = "Untitled Space Craft";
-
         public static bool Available { get; private set; }
         Dictionary<Type, bool> Modules = new Dictionary<Type, bool>();
         static Texture2D CoM_Icon;
