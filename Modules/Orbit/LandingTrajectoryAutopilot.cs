@@ -28,10 +28,7 @@ namespace ThrottleControlledAvionics
 
             [Persistent] public float BrakeThrustThreshod = 100; //m/s
             [Persistent] public float BrakeEndSpeed = 10; //m/s
-            [Persistent] public float MinBrakeOffset = 10; //m/s
-            [Persistent] public float FinalBrakeOffset = 5; //m/s
             [Persistent] public float LandingThrustTime = 3; //s
-            [Persistent] public float ParachutesDeployOffset = 10; //s
 
             [Persistent] public float CorrectionOffset = 20f; //s
             [Persistent] public float CorrectionTimer = 10f; //s
@@ -40,7 +37,6 @@ namespace ThrottleControlledAvionics
             [Persistent] public float CorrectionTimeF = 2f;
             [Persistent] public float CorrectionDirF = 2f;
 
-            [Persistent] public float ObstacleBrakeF = 1.1f;
             [Persistent] public float HoverTimeThreshold = 60f; //s
             [Persistent] public float DropBallastThreshold = 0.5f; //dP/P_asl
             [Persistent] public float MaxDPressure = 3f; //kPa

@@ -507,11 +507,7 @@ LandingTrajectoryAutopilot
 	
 	BrakeThrustThreshod = 100 //m/s
 	BrakeEndSpeed      = 10   //m/s
-	MinBrakeOffset     = 10   //s
-	FinalBrakeOffset   = 3    //s
 	LandingThrustTime  = 3    //s
-	ParachutesDeployOffset = 10 //s
-	
 	
 	CorrectionTimer    = 30   //s
 	CorrectionMinDv    = 1    //m/s
@@ -519,7 +515,6 @@ LandingTrajectoryAutopilot
 	CorrectionTimeF    = 2
 	CorrectionDirF     = 10
 	
-	ObstacleBrakeF     = 1.1
 	HoverTimeThreshold = 60    //s
 	DropBallastThreshold = 0.4 //dP/P_asl
 	MaxDPressure       = 3     //kPa
