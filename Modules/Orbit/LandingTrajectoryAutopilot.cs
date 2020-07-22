@@ -323,21 +323,18 @@ namespace ThrottleControlledAvionics
 
         private void update_landing_trajectory_each(double seconds)
         {
-            if(VSL.Physics.UT - last_update > seconds)
-            {
-                update_landing_trajecotry();
-                last_update = VSL.Physics.UT;
-            }
+            if(!(VSL.Physics.UT - last_update > seconds))
+                return;
+            update_landing_trajecotry();
+            last_update = VSL.Physics.UT;
         }
 
         protected override bool trajectory_computed()
         {
-            if(base.trajectory_computed())
-            {
-                landing_trajectory = trajectory;
-                return true;
-            }
-            return false;
+            if(!base.trajectory_computed())
+                return false;
+            landing_trajectory = trajectory;
+            return true;
         }
 
         protected bool coast_to_start()
@@ -369,13 +366,12 @@ namespace ThrottleControlledAvionics
                 VSL.Controls.NoDewarpOffset = true;
                 if(!correct_trajectory())
                 {
-                    if(VSL.vessel.dynamicPressurekPa > 0)
-                    {
-                        update_trajectory();
-                        brakes_on_if_requested();
-                        CFG.AT.OnIfNot(Attitude.Custom);
-                        ATC.SetThrustDirW(VSL.vessel.srf_vel_direction);
-                    }
+                    if(VSL.vessel.dynamicPressurekPa <= 0)
+                        return true;
+                    update_trajectory();
+                    brakes_on_if_requested();
+                    CFG.AT.OnIfNot(Attitude.Custom);
+                    ATC.SetThrustDirW(VSL.vessel.srf_vel_direction);
                     return true;
                 }
             }
@@ -419,12 +415,11 @@ namespace ThrottleControlledAvionics
             trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude);
             //            Log("Correcting? DeltaR {} deg, DeltaFi {} m",
             //                trajectory.DeltaR, Math.Abs(trajectory.DeltaFi)*Mathf.Deg2Rad*Body.Radius);//debug
-            if(trajectory.DeltaR > 0 || Math.Abs(trajectory.DeltaFi) * Mathf.Deg2Rad * Body.Radius >= C.Dtol)
-            {
-                fine_tune_approach();
-                return false;
-            }
-            return !Body.atmosphere;
+            if(trajectory.DeltaR <= 0
+               && Math.Abs(trajectory.DeltaFi) * Mathf.Deg2Rad * Body.Radius < C.Dtol)
+                return !Body.atmosphere;
+            fine_tune_approach();
+            return false;
         }
 
         protected void add_correction_node_if_needed()
@@ -778,22 +773,19 @@ namespace ThrottleControlledAvionics
 
         private bool scan_for_landing_site_when_in_range()
         {
-            if(CorrectTarget
-               && !scanned
-               && Utils.Angle2((Vector3)VSL.orbit.vel.xzy, -CFG.Target.VectorTo(VSL)) < C.ScanningAngle)
-            {
-                VSL.Controls.StopWarp();
-                scan_for_landing_site();
-                if(scanned)
-                {
-                    CFG.AP1.OffIfOn(Autopilot1.Maneuver);
-                    clear_nodes();
-                    fine_tune_approach();
-                }
-                //                Log("scanned {}, scanner {}, flat {}", scanned, scanner, scanner != null? scanner.FlatRegion : null);//debug
+            if(!CorrectTarget
+               || scanned
+               || !(Utils.Angle2((Vector3)VSL.orbit.vel.xzy, -CFG.Target.VectorTo(VSL)) < C.ScanningAngle))
+                return false;
+            VSL.Controls.StopWarp();
+            scan_for_landing_site();
+            if(!scanned)
                 return scanned;
-            }
-            return false;
+            CFG.AP1.OffIfOn(Autopilot1.Maneuver);
+            clear_nodes();
+            fine_tune_approach();
+            //                Log("scanned {}, scanner {}, flat {}", scanned, scanner, scanner != null? scanner.FlatRegion : null);//debug
+            return scanned;
         }
 
         private bool can_aerobrake()
@@ -812,15 +804,14 @@ namespace ThrottleControlledAvionics
 
         private void do_aerobraking_if_requested(bool full = false)
         {
-            if(VSL.vessel.staticPressurekPa > 0)
-            {
-                if(UseBrakes)
-                    VSL.BrakesOn();
-                if(UseChutes
-                   && VSL.OnPlanetParams.HaveUsableParachutes
-                   && (full || !VSL.OnPlanetParams.ParachutesActive))
-                    VSL.OnPlanetParams.ActivateParachutesASAP();
-            }
+            if(!(VSL.vessel.staticPressurekPa > 0))
+                return;
+            if(UseBrakes)
+                VSL.BrakesOn();
+            if(UseChutes
+               && VSL.OnPlanetParams.HaveUsableParachutes
+               && (full || !VSL.OnPlanetParams.ParachutesActive))
+                VSL.OnPlanetParams.ActivateParachutesASAP();
         }
 
         private void stop_aerobraking()
@@ -1353,25 +1344,24 @@ namespace ThrottleControlledAvionics
 
         public void DrawTrajectory()
         {
-            if(Time.timeScale > 0 && !FlightDriver.Pause)
-            {
-                var trj = landing_trajectory ?? trajectory;
+            if(Time.timeScale <= 0 || FlightDriver.Pause)
+                return;
+            var trj = landing_trajectory ?? trajectory;
 #if DEBUG
                 DrawDebug();
                 if(trj == null)
                     trj = current_landing_trajectory;
 #endif
-                if(trj != null)
-                {
-                    if(trajectory_renderer == null)
-                        trajectory_renderer = new TrajectoryRenderer(trj);
-                    else
-                        trajectory_renderer.UpdateTrajectory(trj);
-                    trajectory_renderer.Draw();
-                }
+            if(trj != null)
+            {
+                if(trajectory_renderer == null)
+                    trajectory_renderer = new TrajectoryRenderer(trj);
                 else
-                    trajectory_renderer?.Deactivate();
+                    trajectory_renderer.UpdateTrajectory(trj);
+                trajectory_renderer.Draw();
             }
+            else
+                trajectory_renderer?.Deactivate();
         }
 
 
@@ -1520,14 +1510,13 @@ namespace ThrottleControlledAvionics
                 optimization = optimizer.GetEnumerator();
             for(var p = 0; p < points_per_frame; p++)
             {
-                if(!optimization.MoveNext())
-                {
-                    var best = optimizer.Best;
-                    FlatRegion = Coordinates.SurfacePoint(best.x, best.y, VSL.Body);
-                    BestUnevennes = best.z;
-                    //                    Utils.Log("Best: {} < {}", BestUnevennes, MaxUnevennes);//debug
-                    return false;
-                }
+                if(optimization.MoveNext())
+                    continue;
+                var best = optimizer.Best;
+                FlatRegion = Coordinates.SurfacePoint(best.x, best.y, VSL.Body);
+                BestUnevennes = best.z;
+                //                    Utils.Log("Best: {} < {}", BestUnevennes, MaxUnevennes);//debug
+                return false;
             }
             return true;
         }
