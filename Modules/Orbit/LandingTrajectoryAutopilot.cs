@@ -412,8 +412,6 @@ namespace ThrottleControlledAvionics
             if(drag_accel > ThrottleControl.C.MinDeltaV)
                 return true;
             trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude);
-            //            Log("Correcting? DeltaR {} deg, DeltaFi {} m",
-            //                trajectory.DeltaR, Math.Abs(trajectory.DeltaFi)*Mathf.Deg2Rad*Body.Radius);//debug
             if(trajectory.DeltaR <= 0
                && Math.Abs(trajectory.DeltaFi) * Mathf.Deg2Rad * Body.Radius < C.Dtol)
                 return !Body.atmosphere;
@@ -426,8 +424,6 @@ namespace ThrottleControlledAvionics
             var nodeDeltaV = trajectory.NodeDeltaV;
             var dV_threshold = Utils.ClampL(C.CorrectionMinDv * (1 - CFG.Target.AngleTo(VSL) / Math.PI),
                 ThrottleControl.C.MinDeltaV * 2);
-            //            Log("add correction: min dV {}, dV {}, Current Trajectory: {}", 
-            //                dV_threshold, nodeDeltaV, CurrentTrajectory);//debug
             if(nodeDeltaV.magnitude > dV_threshold)
             {
                 clear_nodes();
@@ -475,14 +471,10 @@ namespace ThrottleControlledAvionics
         {
             if(trajectory != null)
             {
-                //                var dist = //debug
                 obstacle_between(trajectory,
                     trajectory.StartUT,
                     Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT - 0.1),
                     offset);
-                //                if(dist > 0)//debug
-                //                    Log("Obstacle ahead: dist {}, startUT {}, endUT {}, offset {}m", 
-                //                        dist, trajectory.StartUT, Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT-0.1), offset);//debug
             }
             return -1;
         }
@@ -596,7 +588,6 @@ namespace ThrottleControlledAvionics
             base.update_trajectory(reset);
             VSL.Info.CustomMarkersWP.Add(trajectory.SurfacePoint);
             update_drag_curve_K();
-            //            Log("current trajectory: {}", trajectory);//debug
         }
 
         private double prev_deltaR = double.NaN;
@@ -610,9 +601,6 @@ namespace ThrottleControlledAvionics
             {
                 var ddR = (float)((prev_deltaR - trajectory.DeltaR) * Body.Radius * Mathf.Deg2Rad);
                 VSL.OnPlanetParams.ChangeDragCurveK(ddR * C.DragCurveF);
-                //Log("old.dR {} m, new.dR {} m, ddR {} m, DragCurveK {}",
-                //prev_deltaR*Body.Radius*Mathf.Deg2Rad, trajectory.DeltaR*Body.Radius*Mathf.Deg2Rad, 
-                //ddR, VSL.OnPlanetParams.DragCurveK);//debug
                 prev_deltaR = double.NaN;
             }
             else
@@ -783,7 +771,6 @@ namespace ThrottleControlledAvionics
             CFG.AP1.OffIfOn(Autopilot1.Maneuver);
             clear_nodes();
             fine_tune_approach();
-            //                Log("scanned {}, scanner {}, flat {}", scanned, scanner, scanner != null? scanner.FlatRegion : null);//debug
             return scanned;
         }
 
@@ -964,9 +951,6 @@ namespace ThrottleControlledAvionics
                     }
                     if(VSL.Controls.HaveControlAuthority)
                         DecelerationTimer.Reset();
-                    //                Log("ControlAuthority {}, DecelerationTimer {}", 
-                    //                    VSL.Controls.HaveControlAuthority,
-                    //                    DecelerationTimer);//debug
                     if(vessel_after_target)
                     {
                         if(Executor.Execute(-VSL.vessel.srf_velocity, C.BrakeEndSpeed))
@@ -1514,7 +1498,6 @@ namespace ThrottleControlledAvionics
                 var best = optimizer.Best;
                 FlatRegion = Coordinates.SurfacePoint(best.x, best.y, VSL.Body);
                 BestUnevennes = best.z;
-                //                    Utils.Log("Best: {} < {}", BestUnevennes, MaxUnevennes);//debug
                 return false;
             }
             return true;
