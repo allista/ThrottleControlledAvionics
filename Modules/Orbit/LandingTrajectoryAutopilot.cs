@@ -63,16 +63,15 @@ namespace ThrottleControlledAvionics
 
         public enum LandingStage
         {
-            None,
-            Start,
-            Wait,
-            Decelerate,
-            Coast,
-            HardLanding,
-            SoftLanding,
-            Approach,
-            Land,
-            LandHere
+            None = 0,
+            Wait = 2,
+            Decelerate = 3,
+            Coast = 4,
+            HardLanding = 5,
+            SoftLanding = 6,
+            Approach = 7,
+            Land = 8,
+            LandHere = 9
         }
 
         // ReSharper disable MemberCanBePrivate.Global
