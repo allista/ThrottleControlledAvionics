@@ -15,6 +15,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using AT_Utils;
 using AT_Utils.UI;
+using JetBrains.Annotations;
 using UnityEngine;
 
 namespace ThrottleControlledAvionics
@@ -115,11 +116,11 @@ namespace ThrottleControlledAvionics
         private bool target_within_range;
         private bool landing_before_target;
 
-        protected AttitudeControl ATC;
-        protected ThrottleControl THR;
-        protected BearingControl BRC;
-        protected AutoLander LND;
-        protected CollisionPreventionSystem CPS;
+        [UsedImplicitly] protected AttitudeControl ATC;
+        [UsedImplicitly] protected ThrottleControl THR;
+        [UsedImplicitly] protected BearingControl BRC;
+        [UsedImplicitly] protected AutoLander LND;
+        [UsedImplicitly] protected CollisionPreventionSystem CPS;
 
         protected double TargetAltitude { get { return CFG.Target.SurfaceAlt(Body); } }
 
