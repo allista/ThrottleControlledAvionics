@@ -749,7 +749,7 @@ namespace ThrottleControlledAvionics
                     SetTarget(new WayPoint(scanner.FlatRegion));
                     update_trajectory(true);
                     update_landing_trajectory();
-                    if(scanner.BestUnevennes < AutoLander.C.MaxUnevenness)
+                    if(scanner.BestUnevenness < AutoLander.C.MaxUnevenness)
                         Utils.Message("Found flat region for landing.");
                     else
                         Utils.Message("Moved landing site to a flatter region.");
@@ -1398,8 +1398,8 @@ namespace ThrottleControlledAvionics
         public double Delta => delta * Mathf.Deg2Rad * VSL.Body.Radius;
 
         public double MaxDist = -1;
-        protected double MaxUnevennes;
-        public double BestUnevennes { get; protected set; }
+        protected double MaxUnevenness;
+        public double BestUnevenness { get; protected set; }
         public Coordinates FlatRegion { get; protected set; }
         public abstract bool Idle { get; }
         public abstract float Progress { get; }
@@ -1407,13 +1407,13 @@ namespace ThrottleControlledAvionics
         protected PQS_Scanner(VesselWrapper vsl, double max_unevenness)
         {
             VSL = vsl;
-            MaxUnevennes = max_unevenness;
+            MaxUnevenness = max_unevenness;
         }
 
         public virtual void Reset()
         {
             FlatRegion = null;
-            BestUnevennes = double.MaxValue;
+            BestUnevenness = double.MaxValue;
         }
 
         protected void Start(Coordinates start, int points_per_frame)
@@ -1461,7 +1461,7 @@ namespace ThrottleControlledAvionics
         public override bool Idle => optimizer == null;
 
         public override float Progress =>
-            optimizer == null ? 0 : (float)Math.Min(MaxUnevennes / optimizer.BestValue, 1);
+            optimizer == null ? 0 : (float)Math.Min(MaxUnevenness / optimizer.BestValue, 1);
 
         public PQS_Scanner_CDOS(VesselWrapper vsl, double max_unevenness)
             : base(vsl, max_unevenness) { }
@@ -1497,7 +1497,7 @@ namespace ThrottleControlledAvionics
                     continue;
                 var best = optimizer.Best;
                 FlatRegion = Coordinates.SurfacePoint(best.x, best.y, VSL.Body);
-                BestUnevennes = best.z;
+                BestUnevenness = best.z;
                 return false;
             }
             return true;
