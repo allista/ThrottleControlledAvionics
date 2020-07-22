@@ -392,7 +392,7 @@ namespace ThrottleControlledAvionics
             pressureASL = Body.GetPressure(0);
         }
 
-        protected void warp_to_coundown()
+        protected void warp_to_countdown()
         {
             if(VSL.Controls.CanWarp)
                 VSL.Controls.WarpToTime =
@@ -405,7 +405,7 @@ namespace ThrottleControlledAvionics
 
         private bool correct_trajectory()
         {
-            warp_to_coundown();
+            warp_to_countdown();
             if(!CorrectionTimer.TimePassed)
                 return false;
             CorrectionTimer.Reset();
@@ -1040,7 +1040,7 @@ namespace ThrottleControlledAvionics
                     if(VSL.Info.Countdown > 0 && !vessel_after_target)
                     {
                         if(THR.Throttle.Equals(0))
-                            warp_to_coundown();
+                            warp_to_countdown();
                     }
                     else if(!landing_before_target && !target_within_range)
                         decelerate(false);

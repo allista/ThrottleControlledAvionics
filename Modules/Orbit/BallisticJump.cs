@@ -375,7 +375,7 @@ namespace ThrottleControlledAvionics
                 VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT-VSL.Physics.UT-ManeuverOffset;
                 if(VSL.Info.Countdown > 0)
                 {
-                    warp_to_coundown();
+                    warp_to_countdown();
                     if(!trajectory_computed()) break;
                     add_correction_node_if_needed();
                     stage = Stage.Coast;
