@@ -1378,10 +1378,11 @@ namespace ThrottleControlledAvionics
 
         private Coordinates start;
         protected int points_per_frame;
-        protected double delta, half;
+        protected double delta;
+        private double half;
 
         public double MaxDist = -1;
-        protected double MaxUnevenness;
+        protected readonly double MaxUnevenness;
         public double BestUnevenness { get; protected set; }
         public Coordinates FlatRegion { get; protected set; }
 
