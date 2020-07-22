@@ -594,8 +594,9 @@ namespace ThrottleControlledAvionics
 
         private void update_drag_curve_K()
         {
-            if(trajectory != null
-               && !double.IsNaN(prev_deltaR)
+            if(trajectory == null)
+                return;
+            if(!double.IsNaN(prev_deltaR)
                && VSL.vessel.dynamicPressurekPa > 0
                && VSL.Engines.Thrust.IsZero())
             {
