@@ -92,16 +92,16 @@ namespace ThrottleControlledAvionics
         protected ManeuverExecutor Executor;
         protected FuzzyThreshold<double> lateral_angle;
 
-        private Timer DecelerationTimer = new Timer(0.5);
-        private Timer CollisionTimer = new Timer(1);
-        private Timer StageTimer = new Timer(5);
-        private Timer NoEnginesTimer = new Timer(1);
+        private readonly Timer DecelerationTimer = new Timer(0.5);
+        private readonly Timer CollisionTimer = new Timer(1);
+        private readonly Timer StageTimer = new Timer(5);
+        private readonly Timer NoEnginesTimer = new Timer(1);
 
         private PQS_Scanner_CDOS scanner;
         private bool scanned, flat_target;
 
-        private Timer dP_up_timer = new Timer(1);
-        private Timer dP_down_timer = new Timer(1);
+        private readonly Timer dP_up_timer = new Timer(1);
+        private readonly Timer dP_down_timer = new Timer(1);
         private double pressureASL;
         private double dP_threshold;
         private double landing_deadzone;
