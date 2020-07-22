@@ -89,10 +89,10 @@ namespace ThrottleControlledAvionics
 
         public bool ShowOptions { get; protected set; }
 
-        protected TrajectoryRenderer trajectory_renderer;
+        private TrajectoryRenderer trajectory_renderer;
         protected LandingTrajectory landing_trajectory;
         protected ManeuverExecutor Executor;
-        protected FuzzyThreshold<double> lateral_angle;
+        private FuzzyThreshold<double> lateral_angle;
 
         private readonly Timer DecelerationTimer = new Timer(0.5);
         private readonly Timer CollisionTimer = new Timer(1);
@@ -130,8 +130,8 @@ namespace ThrottleControlledAvionics
 
         protected abstract class LandingSiteOptimizerBase : TrajectoryOptimizer
         {
-            protected readonly LandingTrajectoryAutopilot module;
-            protected readonly double dtol;
+            private readonly LandingTrajectoryAutopilot module;
+            private readonly double dtol;
 
             public LandingTrajectory Best { get; protected set; }
 
@@ -321,7 +321,7 @@ namespace ThrottleControlledAvionics
 
         private double last_update = -1;
 
-        protected void update_landing_trajectory_each(double seconds)
+        private void update_landing_trajectory_each(double seconds)
         {
             if(VSL.Physics.UT - last_update > seconds)
             {
@@ -406,9 +406,9 @@ namespace ThrottleControlledAvionics
                 VSL.Controls.StopWarp();
         }
 
-        protected float drag_accel => VSL.OnPlanetParams.Drag.magnitude / VSL.Physics.M;
+        private float drag_accel => VSL.OnPlanetParams.Drag.magnitude / VSL.Physics.M;
 
-        protected bool correct_trajectory()
+        private bool correct_trajectory()
         {
             warp_to_coundown();
             if(!CorrectionTimer.TimePassed)
@@ -477,7 +477,7 @@ namespace ThrottleControlledAvionics
             return offset - dist;
         }
 
-        protected double obstacle_ahead(float offset = 0)
+        private double obstacle_ahead(float offset = 0)
         {
             if(trajectory != null)
             {
@@ -776,7 +776,7 @@ namespace ThrottleControlledAvionics
             scanned = true;
         }
 
-        protected bool scan_for_landing_site_when_in_range()
+        private bool scan_for_landing_site_when_in_range()
         {
             if(CorrectTarget
                && !scanned
@@ -1418,14 +1418,14 @@ namespace ThrottleControlledAvionics
     {
         protected readonly VesselWrapper VSL;
 
-        protected Coordinates start;
+        private Coordinates start;
         protected int points_per_frame;
         protected double delta, half;
 
         public double Delta => delta * Mathf.Deg2Rad * VSL.Body.Radius;
 
         public double MaxDist = -1;
-        public double MaxUnevennes;
+        protected double MaxUnevennes;
         public double BestUnevennes { get; protected set; }
         public Coordinates FlatRegion { get; protected set; }
         public abstract bool Idle { get; }
@@ -1452,7 +1452,7 @@ namespace ThrottleControlledAvionics
             half = delta / 2;
         }
 
-        protected double altitude_delta(double lat, double lon, double prev_alt)
+        private double altitude_delta(double lat, double lon, double prev_alt)
         {
             return Math.Abs(new Coordinates(lat, lon, 0).SurfaceAlt(VSL.Body, true) - prev_alt);
         }
