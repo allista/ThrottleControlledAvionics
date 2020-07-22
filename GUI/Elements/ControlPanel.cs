@@ -36,6 +36,7 @@ namespace ThrottleControlledAvionics
 
         protected override void init_controller()
         {
+            base.init_controller();
             if(Connected)
                 OnLateUpdate();
         }

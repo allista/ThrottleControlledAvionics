@@ -20,14 +20,11 @@ namespace ThrottleControlledAvionics
     [KSPAddon(KSPAddon.Startup.EditorAny, false)]
     public class TCAGuiEditor : AddonWindowBase<TCAGuiEditor>
     {
-        const string DefaultConstractName = "Untitled Space Craft";
-
         public static bool Available { get; private set; }
         Dictionary<Type, bool> Modules = new Dictionary<Type, bool>();
         static Texture2D CoM_Icon;
 
         TCAPartsEditor PartsEditor;
-        SimpleWarning warning;
 
         ModuleTCA TCA;
         NamedConfig CFG;
@@ -436,9 +433,11 @@ namespace ThrottleControlledAvionics
                                         Styles.active_button, GUILayout.ExpandWidth(true)))
                     {
                         var facility = EditorLogic.fetch.ship.shipFacility;
-                        warning.Message = string.Format("Are you sure you want to save current ship configuration as default for {0}?", facility);
-                        warning.yesCallback = () => TCAScenario.UpdateDefaultConfig(facility, CFG);
-                        warning.Show(true);
+                        DialogFactory.Danger(
+                            $"Are you sure you want to save current ship configuration as default for {facility}?",
+                            () => TCAScenario.UpdateDefaultConfig(facility, CFG),
+                            context: this
+                        );
                     }
                 }
                 GUILayout.EndHorizontal();
