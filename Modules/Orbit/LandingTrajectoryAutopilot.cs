@@ -1050,8 +1050,8 @@ namespace ThrottleControlledAvionics
                         ? "<b>Landing on parachutes.</b>"
                         : "<b>Emergency Landing.</b>";
                     status = Colors.Warning.Tag(status);
-                    status += string.Format("\nVertical impact speed: <b>{0}</b>",
-                        Colors.Danger.Tag(Utils.formatBigValue((float)terminal_velocity, "m/s")));
+                    status +=
+                        $"\nVertical impact speed: <b>{Colors.Danger.Tag(Utils.formatBigValue((float)terminal_velocity, "m/s"))}</b>";
                     set_destination_vector();
                     CFG.BR.Off();
                     THR.Throttle = 0;
