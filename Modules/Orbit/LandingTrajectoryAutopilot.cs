@@ -749,10 +749,9 @@ namespace ThrottleControlledAvionics
                     SetTarget(new WayPoint(scanner.FlatRegion));
                     update_trajectory(true);
                     update_landing_trajectory();
-                    if(scanner.BestUnevenness < AutoLander.C.MaxUnevenness)
-                        Utils.Message("Found flat region for landing.");
-                    else
-                        Utils.Message("Moved landing site to a flatter region.");
+                    Utils.Message(scanner.BestUnevenness < AutoLander.C.MaxUnevenness
+                        ? "Found flat region for landing."
+                        : "Moved landing site to a flatter region.");
                 }
             }
             scanned = true;
