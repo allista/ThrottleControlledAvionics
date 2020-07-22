@@ -11,6 +11,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using AT_Utils;
 using AT_Utils.UI;
@@ -20,6 +21,8 @@ namespace ThrottleControlledAvionics
 {
     public abstract class LandingTrajectoryAutopilot : TargetedTrajectoryCalculator<LandingTrajectory>
     {
+        [SuppressMessage("ReSharper", "FieldCanBeMadeReadOnly.Global"),
+         SuppressMessage("ReSharper", "ConvertToConstant.Global")]
         public new class Config : ComponentConfig<Config>
         {
             [Persistent] public float Dtol = 1000f; //m
