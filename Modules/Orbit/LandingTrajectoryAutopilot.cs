@@ -850,9 +850,8 @@ namespace ThrottleControlledAvionics
                 dP_threshold = C.MaxDPressure;
             rel_dP = VSL.vessel.dynamicPressurekPa / dP_threshold;
             last_Err = VSL.Controls.AttitudeError;
-            float rel_Ve;
-            Vector3d brake_pos, brake_vel, vector_from_target;
-            vector_from_target = CFG.Target.VectorTo(VSL.vessel);
+            Vector3d brake_vel;
+            Vector3d vector_from_target = CFG.Target.VectorTo(VSL.vessel);
             vessel_within_range = CFG.Target.DistanceTo(VSL.vessel) < C.Dtol;
             vessel_after_target = Vector3.Dot(VSL.HorizontalSpeed.Vector, vector_from_target) >= 0;
             target_within_range = trajectory.DistanceToTarget < C.Dtol;
@@ -868,7 +867,7 @@ namespace ThrottleControlledAvionics
                     brakes_on_if_requested();
                     update_landing_trajectory_each(5);
                     var obt_vel = VesselOrbit.getOrbitalVelocityAtUT(landing_trajectory.BrakeStartPoint.UT);
-                    brake_pos = VesselOrbit.getRelativePositionAtUT(landing_trajectory.BrakeStartPoint.UT);
+                    var brake_pos = VesselOrbit.getRelativePositionAtUT(landing_trajectory.BrakeStartPoint.UT);
                     brake_vel = corrected_brake_velocity(obt_vel, brake_pos);
                     brake_pos = brake_pos.xzy;
                     brake_vel = corrected_brake_direction(brake_vel, brake_pos);
@@ -1016,7 +1015,7 @@ namespace ThrottleControlledAvionics
                     else
                     {
                         Working = false;
-                        rel_Ve = VSL.Engines.RelVeASL;
+                        var rel_Ve = VSL.Engines.RelVeASL;
                         if(rel_Ve <= 0)
                         {
                             Message(10, "Not enough thrust for powered landing.\nPerforming emergency landing...");
