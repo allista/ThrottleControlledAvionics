@@ -1439,8 +1439,7 @@ namespace ThrottleControlledAvionics
 
         public bool Idle => optimizer == null;
 
-        public float Progress =>
-            optimizer == null ? 0 : (float)Math.Min(MaxUnevenness / optimizer.BestValue, 1);
+        public float Progress => optimizer == null ? 0 : (float)Math.Min(MaxUnevenness / optimizer.BestValue, 1);
 
         public PQS_Scanner_CDOS(VesselWrapper vsl, double max_unevenness)
             : base(vsl, max_unevenness) { }
@@ -1534,14 +1533,12 @@ namespace ThrottleControlledAvionics
             if(MapView.MapIsEnabled)
             {
                 update();
-                if(path != null)
-                    path.SetPoints(trajectory.Path
-                            .CBRelativePathInWorldFrame(),
-                        trajectory.Path.TemperatureMap());
-                if(after_brake_path != null)
-                    after_brake_path.SetPoints(trajectory.AfterBrakePath
-                            .CBRelativePathInWorldFrame(),
-                        Colors.Good);
+                path?.SetPoints(trajectory.Path
+                        .CBRelativePathInWorldFrame(),
+                    trajectory.Path.TemperatureMap());
+                after_brake_path?.SetPoints(trajectory.AfterBrakePath
+                        .CBRelativePathInWorldFrame(),
+                    Colors.Good);
             }
             else
                 Deactivate();
