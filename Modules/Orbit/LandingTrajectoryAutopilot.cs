@@ -30,7 +30,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float FlyOverAlt = 1000; //m
             [Persistent] public float ApproachAlt = 250; //m
 
-            [Persistent] public float BrakeThrustThreshod = 100; //m/s
+            [Persistent] public float BrakeThrustThreshold = 100; //m/s
             [Persistent] public float BrakeEndSpeed = 10; //m/s
             [Persistent] public float LandingThrustTime = 3; //s
 
@@ -1233,7 +1233,7 @@ namespace ThrottleControlledAvionics
                             else
                                 THR.Throttle =
                                     Utils.ClampH(VSL.HorizontalSpeed.Absolute
-                                                 / C.BrakeThrustThreshod
+                                                 / C.BrakeThrustThreshold
                                                  * VSL.Controls.AlignmentFactor,
                                         1);
                         }

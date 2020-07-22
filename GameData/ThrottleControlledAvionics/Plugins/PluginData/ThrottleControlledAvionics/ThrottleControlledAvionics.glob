@@ -505,7 +505,7 @@ LandingTrajectoryAutopilot
 	FlyOverAlt         = 2000 //m
 	ApproachAlt        = 250  //m
 	
-	BrakeThrustThreshod = 100 //m/s
+	BrakeThrustThreshold = 100 //m/s
 	BrakeEndSpeed      = 10   //m/s
 	LandingThrustTime  = 3    //s
 	
