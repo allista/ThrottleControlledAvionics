@@ -56,7 +56,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float DragCurveF = 0.1f;
         }
 
-        public static new Config C => Config.INST;
+        public new static Config C => Config.INST;
 
         protected LandingTrajectoryAutopilot(ModuleTCA tca) : base(tca) { }
 
@@ -88,28 +88,28 @@ namespace ThrottleControlledAvionics
         protected ManeuverExecutor Executor;
         protected FuzzyThreshold<double> lateral_angle;
 
-        Timer DecelerationTimer = new Timer(0.5);
-        Timer CollisionTimer = new Timer(1);
-        Timer StageTimer = new Timer(5);
-        Timer NoEnginesTimer = new Timer(1);
+        private Timer DecelerationTimer = new Timer(0.5);
+        private Timer CollisionTimer = new Timer(1);
+        private Timer StageTimer = new Timer(5);
+        private Timer NoEnginesTimer = new Timer(1);
 
-        PQS_Scanner_CDOS scanner;
-        bool scanned, flat_target;
+        private PQS_Scanner_CDOS scanner;
+        private bool scanned, flat_target;
 
-        Timer dP_up_timer = new Timer(1);
-        Timer dP_down_timer = new Timer(1);
-        double pressureASL;
-        double dP_threshold;
-        double landing_deadzone;
-        double terminal_velocity;
-        double last_dP;
-        double rel_dP;
-        float last_Err;
+        private Timer dP_up_timer = new Timer(1);
+        private Timer dP_down_timer = new Timer(1);
+        private double pressureASL;
+        private double dP_threshold;
+        private double landing_deadzone;
+        private double terminal_velocity;
+        private double last_dP;
+        private double rel_dP;
+        private float last_Err;
 
-        bool vessel_within_range;
-        bool vessel_after_target;
-        bool target_within_range;
-        bool landing_before_target;
+        private bool vessel_within_range;
+        private bool vessel_after_target;
+        private bool target_within_range;
+        private bool landing_before_target;
 
         protected AttitudeControl ATC;
         protected ThrottleControl THR;
@@ -315,7 +315,7 @@ namespace ThrottleControlledAvionics
                 new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, true, true);
         }
 
-        double last_update = -1;
+        private double last_update = -1;
 
         protected void update_landing_trajectory_each(double seconds)
         {
@@ -441,13 +441,13 @@ namespace ThrottleControlledAvionics
                 update_landing_trajecotry();
         }
 
-        double distance_from_ground(Orbit orb, double UT)
+        private double distance_from_ground(Orbit orb, double UT)
         {
             var pos = BodyRotationAtdT(Body, VSL.Physics.UT - UT) * orb.getRelativePositionAtUT(UT);
             return pos.magnitude - VSL.Geometry.D - Body.Radius - Body.TerrainAltitude(pos.xzy + Body.position);
         }
 
-        double obstacle_between(BaseTrajectory trj, double start, double stop, float offset)
+        private double obstacle_between(BaseTrajectory trj, double start, double stop, float offset)
         {
             var UT = start;
             var dT = (stop - start);
@@ -489,9 +489,9 @@ namespace ThrottleControlledAvionics
             return -1;
         }
 
-        IEnumerator<double> obstacle_searcher;
+        private IEnumerator<double> obstacle_searcher;
 
-        IEnumerator<double> biggest_obstacle_searcher(LandingTrajectory trj, float offset)
+        private IEnumerator<double> biggest_obstacle_searcher(LandingTrajectory trj, float offset)
         {
             var start = trj.StartUT;
             var stop = trj.BrakeEndPoint.UT;
@@ -531,12 +531,12 @@ namespace ThrottleControlledAvionics
             return false;
         }
 
-        void rel_altitude_if_needed()
+        private void rel_altitude_if_needed()
         {
             CFG.AltitudeAboveTerrain = VSL.Altitude.Relative < 5000;
         }
 
-        void approach()
+        private void approach()
         {
             CFG.BR.Off();
             CFG.BlockThrottle = true;
@@ -552,7 +552,7 @@ namespace ThrottleControlledAvionics
             landing_stage = LandingStage.Approach;
         }
 
-        void decelerate(bool collision_detected)
+        private void decelerate(bool collision_detected)
         {
             VSL.Controls.StopWarp();
             DecelerationTimer.Reset();
@@ -562,7 +562,7 @@ namespace ThrottleControlledAvionics
                 landing_trajectory = null;
         }
 
-        void land()
+        private void land()
         {
             if(CFG.Target && !CFG.Target.IsVessel)
                 LND.StartFromTarget();
@@ -570,7 +570,7 @@ namespace ThrottleControlledAvionics
             landing_stage = LandingStage.Land;
         }
 
-        void compute_terminal_velocity()
+        private void compute_terminal_velocity()
         {
             terminal_velocity = 0;
             if(VSL.VerticalSpeed.Absolute > -100 || VSL.Altitude.Relative < 100 + VSL.Geometry.H)
@@ -585,7 +585,7 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        void setup_for_deceleration()
+        private void setup_for_deceleration()
         {
             CFG.VTOLAssistON = true;
             CFG.AltitudeAboveTerrain = true;
@@ -601,9 +601,9 @@ namespace ThrottleControlledAvionics
             //            Log("current trajectory: {}", trajectory);//debug
         }
 
-        double prev_deltaR = double.NaN;
+        private double prev_deltaR = double.NaN;
 
-        void update_drag_curve_K()
+        private void update_drag_curve_K()
         {
             if(trajectory != null
                && !double.IsNaN(prev_deltaR)
@@ -621,13 +621,13 @@ namespace ThrottleControlledAvionics
                 prev_deltaR = trajectory.DeltaR;
         }
 
-        void nose_to_target()
+        private void nose_to_target()
         {
             CFG.BR.OnIfNot(BearingMode.Auto);
             BRC.ForwardDirection = Vector3d.Exclude(VSL.Physics.Up, CFG.Target.WorldPos(Body) - VSL.Physics.wCoM);
         }
 
-        bool correct_attitude_with_thrusters(float turn_time)
+        private bool correct_attitude_with_thrusters(float turn_time)
         {
             if(VSL.Engines.Active.Steering.Count > 0
                && (VSL.Controls.AttitudeError > Utils.ClampL(1 - rel_dP, 0.1f)
@@ -647,7 +647,7 @@ namespace ThrottleControlledAvionics
             return false;
         }
 
-        Vector3d correction_direction()
+        private Vector3d correction_direction()
         {
             var t0 = Utils.ClampL(VSL.Info.Countdown, 1e-5);
             var t1 = t0 * C.CorrectionTimeF;
@@ -674,9 +674,9 @@ namespace ThrottleControlledAvionics
             return correction.normalized;
         }
 
-        bool correction_needed;
+        private bool correction_needed;
 
-        bool correct_landing_site()
+        private bool correct_landing_site()
         {
             ATC.SetThrustDirW(correction_direction());
             var rel_altitude = VSL.Altitude.Relative / C.FlyOverAlt;
@@ -694,7 +694,7 @@ namespace ThrottleControlledAvionics
             return false;
         }
 
-        void correct_landing_site_with_lift()
+        private void correct_landing_site_with_lift()
         {
             if(VSL.OnPlanetParams.Lift.IsZero())
                 return;
@@ -720,12 +720,12 @@ namespace ThrottleControlledAvionics
             return obt_vel - vV * (1 - Utils.Clamp(vFactor, 0.1, 1)) + srfVel;
         }
 
-        Vector3d corrected_brake_velocity(Vector3d obt_vel, Vector3d obt_pos)
+        private Vector3d corrected_brake_velocity(Vector3d obt_vel, Vector3d obt_pos)
         {
             return CorrectedBrakeVelocity(VSL, obt_vel, obt_pos, rel_dP, VSL.Info.Countdown).xzy;
         }
 
-        Vector3d corrected_brake_direction(Vector3d vel, Vector3d pos)
+        private Vector3d corrected_brake_direction(Vector3d vel, Vector3d pos)
         {
             var tpos = CFG.Target.WorldPos(Body);
             return QuaternionD.AngleAxis(Utils.ProjectionAngle(Vector3d.Exclude(pos, vel),
@@ -735,12 +735,12 @@ namespace ThrottleControlledAvionics
                    * vel;
         }
 
-        void set_destination_vector()
+        private void set_destination_vector()
         {
             VSL.Info.Destination = CFG.Target.WorldPos(Body) - VSL.Physics.wCoM;
         }
 
-        void scan_for_landing_site()
+        private void scan_for_landing_site()
         {
             if(scanned)
                 return;
@@ -792,7 +792,7 @@ namespace ThrottleControlledAvionics
             return false;
         }
 
-        bool can_aerobrake()
+        private bool can_aerobrake()
         {
             return Body.atmosphere
                    && UseChutes
@@ -800,13 +800,13 @@ namespace ThrottleControlledAvionics
                    && trajectory.BrakeEndPoint.UT > trajectory.Path.AtmoStartUT;
         }
 
-        void brakes_on_if_requested()
+        private void brakes_on_if_requested()
         {
             if(UseBrakes && VSL.vessel.staticPressurekPa > 0)
                 VSL.BrakesOn();
         }
 
-        void do_aerobraking_if_requested(bool full = false)
+        private void do_aerobraking_if_requested(bool full = false)
         {
             if(VSL.vessel.staticPressurekPa > 0)
             {
@@ -819,7 +819,7 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        void stop_aerobraking()
+        private void stop_aerobraking()
         {
             if(UseBrakes)
                 VSL.BrakesOn(false);
@@ -827,13 +827,13 @@ namespace ThrottleControlledAvionics
                 VSL.OnPlanetParams.CutActiveParachutes();
         }
 
-        void stop_aerobraking_if_needed()
+        private void stop_aerobraking_if_needed()
         {
             if(landing_before_target && VSL.vessel.mach < 1)
                 stop_aerobraking();
         }
 
-        void brake_with_drag()
+        private void brake_with_drag()
         {
             var dir = VSL.OnPlanetParams.MaxAeroForceL;
             if(dir.IsZero())
@@ -846,7 +846,7 @@ namespace ThrottleControlledAvionics
             ATC.SetCustomRotationW(dir, VSL.vessel.srf_velocity);
         }
 
-        bool is_overheating()
+        private bool is_overheating()
         {
             return rel_dP > 0
                    && VSL.vessel.Parts.Any(p =>
@@ -1478,8 +1478,8 @@ namespace ThrottleControlledAvionics
 
     public class PQS_Scanner_CDOS : PQS_Scanner
     {
-        CDOS_Optimizer2D_Generic optimizer;
-        IEnumerator optimization;
+        private CDOS_Optimizer2D_Generic optimizer;
+        private IEnumerator optimization;
 
         public override bool Idle { get { return optimizer == null; } }
 
@@ -1533,9 +1533,9 @@ namespace ThrottleControlledAvionics
 
     public class TrajectoryRenderer
     {
-        LandingTrajectory trajectory;
-        UnityLineRenderer path;
-        UnityLineRenderer after_brake_path;
+        private LandingTrajectory trajectory;
+        private UnityLineRenderer path;
+        private UnityLineRenderer after_brake_path;
 
         public TrajectoryRenderer(LandingTrajectory t)
         {
@@ -1548,7 +1548,7 @@ namespace ThrottleControlledAvionics
             update();
         }
 
-        void update()
+        private void update()
         {
             if(trajectory != null)
             {
