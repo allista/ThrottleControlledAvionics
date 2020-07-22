@@ -773,14 +773,6 @@ namespace ThrottleControlledAvionics
             return scanned;
         }
 
-        private bool can_aerobrake()
-        {
-            return Body.atmosphere
-                   && UseChutes
-                   && VSL.OnPlanetParams.HaveParachutes
-                   && trajectory.BrakeEndPoint.UT > trajectory.Path.AtmoStartUT;
-        }
-
         private void brakes_on_if_requested()
         {
             if(UseBrakes && VSL.vessel.staticPressurekPa > 0)
@@ -805,12 +797,6 @@ namespace ThrottleControlledAvionics
                 VSL.BrakesOn(false);
             if(UseChutes && VSL.OnPlanetParams.ParachutesActive)
                 VSL.OnPlanetParams.CutActiveParachutes();
-        }
-
-        private void stop_aerobraking_if_needed()
-        {
-            if(landing_before_target && VSL.vessel.mach < 1)
-                stop_aerobraking();
         }
 
         private void brake_with_drag()
@@ -1394,14 +1380,10 @@ namespace ThrottleControlledAvionics
         protected int points_per_frame;
         protected double delta, half;
 
-        public double Delta => delta * Mathf.Deg2Rad * VSL.Body.Radius;
-
         public double MaxDist = -1;
         protected double MaxUnevenness;
         public double BestUnevenness { get; protected set; }
         public Coordinates FlatRegion { get; protected set; }
-        public abstract bool Idle { get; }
-        public abstract float Progress { get; }
 
         protected PQS_Scanner(VesselWrapper vsl, double max_unevenness)
         {
@@ -1448,8 +1430,6 @@ namespace ThrottleControlledAvionics
         {
             return MaxDist < 0 || start.DistanceTo(new Coordinates(lat, lon, 0), VSL.Body) < MaxDist;
         }
-
-        public abstract bool Scan();
     }
 
     public class PQS_Scanner_CDOS : PQS_Scanner
