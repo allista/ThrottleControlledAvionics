@@ -73,14 +73,18 @@ namespace ThrottleControlledAvionics
             Land,
             LandHere
         }
-
+        
+        // ReSharper disable MemberCanBePrivate.Global
+        // ReSharper disable FieldCanBeMadeReadOnly.Global
         [Persistent] public LandingStage landing_stage;
-
         [Persistent] public FloatField CorrectionMaxDist = new FloatField(min: 0);
         [Persistent] public bool UseChutes = true;
         [Persistent] public bool UseBrakes = true;
         [Persistent] public bool CorrectTarget = true;
         [Persistent] public bool LandASAP;
+        // ReSharper restore FieldCanBeMadeReadOnly.Global
+        // ReSharper restore MemberCanBePrivate.Global
+        
         public bool ShowOptions { get; protected set; }
 
         protected TrajectoryRenderer trajectory_renderer;
