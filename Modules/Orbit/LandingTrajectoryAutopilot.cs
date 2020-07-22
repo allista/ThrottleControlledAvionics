@@ -613,24 +613,21 @@ namespace ThrottleControlledAvionics
             BRC.ForwardDirection = Vector3d.Exclude(VSL.Physics.Up, CFG.Target.WorldPos(Body) - VSL.Physics.wCoM);
         }
 
-        private bool correct_attitude_with_thrusters(float turn_time)
+        private void correct_attitude_with_thrusters(float turn_time)
         {
-            if(VSL.Engines.Active.Steering.Count > 0
-               && (VSL.Controls.AttitudeError > Utils.ClampL(1 - rel_dP, 0.1f)
-                   || VSL.Torque.NoEngines.MinStopTime() > turn_time)
-               && (!VSL.Controls.HaveControlAuthority
-                   || rel_dP > 0
-                   || VSL.Torque.NoEngines.RotationTime2Phase(VSL.Controls.AttitudeError) > VSL.Info.Countdown))
-            {
-                THR.Throttle += (float)Utils.ClampH((1 + rel_dP)
-                                                    * turn_time
-                                                    / Utils.Clamp(VSL.Info.Countdown,
-                                                        1,
-                                                        AttitudeControlBase.C.MaxTimeToAlignment),
-                    1);
-                return true;
-            }
-            return false;
+            if(VSL.Engines.Active.Steering.Count <= 0
+               || (!(VSL.Controls.AttitudeError > Utils.ClampL(1 - rel_dP, 0.1f))
+                   && !(VSL.Torque.NoEngines.MinStopTime() > turn_time))
+               || (VSL.Controls.HaveControlAuthority
+                   && !(rel_dP > 0)
+                   && !(VSL.Torque.NoEngines.RotationTime2Phase(VSL.Controls.AttitudeError) > VSL.Info.Countdown)))
+                return;
+            THR.Throttle += (float)Utils.ClampH((1 + rel_dP)
+                                                * turn_time
+                                                / Utils.Clamp(VSL.Info.Countdown,
+                                                    1,
+                                                    AttitudeControlBase.C.MaxTimeToAlignment),
+                1);
         }
 
         private Vector3d correction_direction()
