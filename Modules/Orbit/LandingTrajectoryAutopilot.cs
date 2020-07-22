@@ -95,15 +95,15 @@ namespace ThrottleControlledAvionics
         private FuzzyThreshold<double> lateral_angle;
 
         private readonly Timer DecelerationTimer = new Timer(0.5);
-        private readonly Timer CollisionTimer = new Timer(1);
+        private readonly Timer CollisionTimer = new Timer();
         private readonly Timer StageTimer = new Timer(5);
-        private readonly Timer NoEnginesTimer = new Timer(1);
+        private readonly Timer NoEnginesTimer = new Timer();
 
         private PQS_Scanner_CDOS scanner;
         private bool scanned, flat_target;
 
-        private readonly Timer dP_up_timer = new Timer(1);
-        private readonly Timer dP_down_timer = new Timer(1);
+        private readonly Timer dP_up_timer = new Timer();
+        private readonly Timer dP_down_timer = new Timer();
         private double pressureASL;
         private double dP_threshold;
         private double landing_deadzone;
@@ -924,7 +924,7 @@ namespace ThrottleControlledAvionics
                     VSL.Info.Countdown += landing_trajectory.DeltaR * Body.Radius * Mathf.Deg2Rad / VSL.HorizontalSpeed;
                     correct_attitude_with_thrusters(
                         VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
-                    if(obstacle_ahead(0) > 0)
+                    if(obstacle_ahead() > 0)
                     {
                         decelerate(true);
                         break;
