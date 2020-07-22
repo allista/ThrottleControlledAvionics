@@ -737,11 +737,11 @@ namespace ThrottleControlledAvionics
                 Colors.Good.Tag(scanner.Progress.ToString("P1")));
             if(scanner.Scan())
                 return;
-            flat_target = scanner.FlatRegion != null
-                          && (!scanner.FlatRegion.Equals(CFG.Target.Pos) || !CFG.Target.IsVessel);
-            if(flat_target)
+            if(scanner.FlatRegion != null)
             {
-                if(!scanner.FlatRegion.Equals(CFG.Target.Pos))
+                var updateTarget = !scanner.FlatRegion.Equals(CFG.Target.Pos);
+                flat_target = updateTarget || !CFG.Target.IsVessel;
+                if(updateTarget)
                 {
                     SetTarget(new WayPoint(scanner.FlatRegion));
                     update_trajectory(true);
