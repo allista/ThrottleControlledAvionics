@@ -1164,6 +1164,7 @@ namespace ThrottleControlledAvionics
                         Working = VSL.Info.Countdown <= 0 || VSL.vessel.srfSpeed < C.BrakeEndSpeed;
                         if(!Working)
                         {
+                            // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
                             if(VSL.Controls.InvAlignmentFactor > 0.5)
                                 Status("Final deceleration: correcting attitude.\nLanding site error: {0}",
                                     Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
