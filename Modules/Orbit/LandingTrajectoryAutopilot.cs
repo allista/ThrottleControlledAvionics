@@ -74,7 +74,7 @@ namespace ThrottleControlledAvionics
             Land,
             LandHere
         }
-        
+
         // ReSharper disable MemberCanBePrivate.Global
         // ReSharper disable FieldCanBeMadeReadOnly.Global
         [Persistent] public LandingStage landing_stage;
@@ -82,10 +82,11 @@ namespace ThrottleControlledAvionics
         [Persistent] public bool UseChutes = true;
         [Persistent] public bool UseBrakes = true;
         [Persistent] public bool CorrectTarget = true;
+
         [Persistent] public bool LandASAP;
         // ReSharper restore FieldCanBeMadeReadOnly.Global
         // ReSharper restore MemberCanBePrivate.Global
-        
+
         public bool ShowOptions { get; protected set; }
 
         protected TrajectoryRenderer trajectory_renderer;
@@ -122,12 +123,10 @@ namespace ThrottleControlledAvionics
         [UsedImplicitly] protected AutoLander LND;
         [UsedImplicitly] protected CollisionPreventionSystem CPS;
 
-        protected double TargetAltitude { get { return CFG.Target.SurfaceAlt(Body); } }
+        protected double TargetAltitude => CFG.Target.SurfaceAlt(Body);
 
-        public override LandingTrajectory CurrentTrajectory
-        {
-            get { return new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, false); }
-        }
+        public override LandingTrajectory CurrentTrajectory =>
+            new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, false);
 
         protected abstract class LandingSiteOptimizerBase : TrajectoryOptimizer
         {
@@ -278,7 +277,7 @@ namespace ThrottleControlledAvionics
             return base.setup();
         }
 
-        protected bool landing { get { return landing_stage != LandingStage.None; } }
+        protected bool landing => landing_stage != LandingStage.None;
 
         protected bool check_initial_trajectory()
         {
@@ -1423,7 +1422,7 @@ namespace ThrottleControlledAvionics
         protected int points_per_frame;
         protected double delta, half;
 
-        public double Delta { get { return delta * Mathf.Deg2Rad * VSL.Body.Radius; } }
+        public double Delta => delta * Mathf.Deg2Rad * VSL.Body.Radius;
 
         public double MaxDist = -1;
         public double MaxUnevennes;
@@ -1486,12 +1485,10 @@ namespace ThrottleControlledAvionics
         private CDOS_Optimizer2D_Generic optimizer;
         private IEnumerator optimization;
 
-        public override bool Idle { get { return optimizer == null; } }
+        public override bool Idle => optimizer == null;
 
-        public override float Progress
-        {
-            get { return optimizer == null ? 0 : (float)Math.Min(MaxUnevennes / optimizer.BestValue, 1); }
-        }
+        public override float Progress =>
+            optimizer == null ? 0 : (float)Math.Min(MaxUnevennes / optimizer.BestValue, 1);
 
         public PQS_Scanner_CDOS(VesselWrapper vsl, double max_unevenness)
             : base(vsl, max_unevenness) { }
