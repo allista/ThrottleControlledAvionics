@@ -1398,11 +1398,11 @@ namespace ThrottleControlledAvionics
             BestUnevenness = double.MaxValue;
         }
 
-        protected void Start(Coordinates start, int points_per_frame)
+        protected void Start(Coordinates startCoordinates, int pointsPerFrame)
         {
             Reset();
-            this.start = start.Copy();
-            this.points_per_frame = points_per_frame;
+            start = startCoordinates.Copy();
+            points_per_frame = pointsPerFrame;
             delta = VSL.Geometry.D / VSL.Body.Radius * Mathf.Rad2Deg;
             half = delta / 2;
         }
