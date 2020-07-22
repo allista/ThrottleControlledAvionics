@@ -1,8 +1,14 @@
+# Throttle Controlled Avionics ChangeLog
+
 **DELETE the old version before installing a new one**
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.7.0.1**
+* **v3.7.1**
+    * Using new uGUI dialogs from AT_Utils
+    * Adapted to changes in AT_Utils
+
+* v3.7.0.1
     * Compiled against KSP-1.10
 
 * v3.7.0 - **Maneuver Engines Reloaded**
