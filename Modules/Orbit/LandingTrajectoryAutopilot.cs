@@ -713,9 +713,9 @@ namespace ThrottleControlledAvionics
 
         private Vector3d corrected_brake_direction(Vector3d vel, Vector3d pos)
         {
-            var tpos = CFG.Target.WorldPos(Body);
+            var targetWorldPos = CFG.Target.WorldPos(Body);
             return QuaternionD.AngleAxis(Utils.ProjectionAngle(Vector3d.Exclude(pos, vel),
-                           trajectory.SurfacePoint.WorldPos(Body) - tpos,
+                           trajectory.SurfacePoint.WorldPos(Body) - targetWorldPos,
                            Vector3d.Cross(pos, vel)),
                        VSL.Physics.Up)
                    * vel;
