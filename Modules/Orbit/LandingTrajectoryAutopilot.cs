@@ -1081,7 +1081,7 @@ namespace ThrottleControlledAvionics
                             THR.CorrectThrottle = false;
                             THR.Throttle = VSL.VerticalSpeed.Absolute < -5 ? 1 : VSL.OnPlanetParams.GeeVSF;
                         }
-                        status += "\nWill deceletate as much as possible before impact.";
+                        status += "\nWill decelerate as much as possible before impact.";
                     }
                     if(Body.atmosphere && VSL.OnPlanetParams.HaveUsableParachutes)
                     {
