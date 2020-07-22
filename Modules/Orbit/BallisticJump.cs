@@ -280,7 +280,7 @@ namespace ThrottleControlledAvionics
 
         protected override void fine_tune_approach()
         {
-            update_landing_trajecotry();
+            update_landing_trajectory();
             var V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
             ComputeTrajectory(new LandingSiteCorrector(this, V, LandingTrajectoryAutopilot.C.Dtol/2));
             stage = Stage.CorrectTrajectory;

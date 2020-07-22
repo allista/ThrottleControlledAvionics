@@ -478,7 +478,7 @@ namespace ThrottleControlledAvionics
                    && trajectory.TimeToStart > ManeuverOffset)
                     add_correction_node_if_needed();
                 else 
-                    update_landing_trajecotry();
+                    update_landing_trajectory();
                 stage = Stage.Coast; 
                 break;
             case Stage.Coast:

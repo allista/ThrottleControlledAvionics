@@ -313,7 +313,7 @@ namespace ThrottleControlledAvionics
             return false;
         }
 
-        protected void update_landing_trajecotry()
+        protected void update_landing_trajectory()
         {
             landing_trajectory =
                 new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude, true, true);
@@ -325,7 +325,7 @@ namespace ThrottleControlledAvionics
         {
             if(!(VSL.Physics.UT - last_update > seconds))
                 return;
-            update_landing_trajecotry();
+            update_landing_trajectory();
             last_update = VSL.Physics.UT;
         }
 
@@ -388,7 +388,7 @@ namespace ThrottleControlledAvionics
             VSL.Controls.StopWarp();
             VSL.Controls.SetAttitudeError(180);
             CFG.AltitudeAboveTerrain = false;
-            update_landing_trajecotry();
+            update_landing_trajectory();
             landing_stage = LandingStage.Wait;
             pressureASL = Body.GetPressure(0);
         }
@@ -437,7 +437,7 @@ namespace ThrottleControlledAvionics
                 VSL.Controls.StopWarp();
             }
             else
-                update_landing_trajecotry();
+                update_landing_trajectory();
         }
 
         private double distance_from_ground(Orbit orb, double UT)
@@ -761,7 +761,7 @@ namespace ThrottleControlledAvionics
                 {
                     SetTarget(new WayPoint(scanner.FlatRegion));
                     update_trajectory(true);
-                    update_landing_trajecotry();
+                    update_landing_trajectory();
                     if(scanner.BestUnevennes < AutoLander.C.MaxUnevenness)
                         Utils.Message("Found flat region for landing.");
                     else
