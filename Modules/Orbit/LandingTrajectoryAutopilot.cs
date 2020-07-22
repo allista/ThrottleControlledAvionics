@@ -1330,7 +1330,8 @@ namespace ThrottleControlledAvionics
 
 
 #if DEBUG
-        void log_flight()
+        // ReSharper disable once UnusedMember.Local
+        private void log_flight()
         {
             var v = VSL.vessel;
             CSV(
@@ -1349,7 +1350,7 @@ namespace ThrottleControlledAvionics
             );
         }
 
-        protected virtual void DrawDebug()
+        private void DrawDebug()
         {
             if(VSL == null || VSL.vessel == null || VSL.refT == null)
                 return;
@@ -1359,6 +1360,7 @@ namespace ThrottleControlledAvionics
                 if(CFG.Target)
                     Utils.GLLine(VSL.refT.position, CFG.Target.WorldPos(Body), Color.magenta);
             }
+            // ReSharper disable once InvertIf
             if(landing_trajectory != null)
             {
                 VSL.Info.AddCustopWaypoint(landing_trajectory.BrakeStartPoint.CBRelativePosInWorldFrame(), "Brake Start");
