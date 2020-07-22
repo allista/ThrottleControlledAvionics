@@ -820,7 +820,7 @@ namespace ThrottleControlledAvionics
                        || p.skinTemperature / p.skinMaxTemp > PhysicsGlobals.TemperatureGaugeThreshold);
         }
 
-        protected bool do_land()
+        protected void do_land()
         {
             if(VSL.LandedOrSplashed)
             {
@@ -833,7 +833,7 @@ namespace ThrottleControlledAvionics
                 SetTarget();
                 ClearStatus();
                 Disable();
-                return true;
+                return;
             }
             update_trajectory();
             VSL.Engines.ActivateEngines();
@@ -1256,7 +1256,6 @@ namespace ThrottleControlledAvionics
                     set_destination_vector();
                     break;
             }
-            return false;
         }
 
         protected abstract Autopilot2 program { get; }
