@@ -1437,9 +1437,9 @@ namespace ThrottleControlledAvionics
         private CDOS_Optimizer2D_Generic optimizer;
         private IEnumerator optimization;
 
-        public override bool Idle => optimizer == null;
+        public bool Idle => optimizer == null;
 
-        public override float Progress =>
+        public float Progress =>
             optimizer == null ? 0 : (float)Math.Min(MaxUnevenness / optimizer.BestValue, 1);
 
         public PQS_Scanner_CDOS(VesselWrapper vsl, double max_unevenness)
@@ -1464,7 +1464,7 @@ namespace ThrottleControlledAvionics
             optimization = null;
         }
 
-        public override bool Scan()
+        public bool Scan()
         {
             if(optimizer == null)
                 return false;
