@@ -412,11 +412,13 @@ namespace ThrottleControlledAvionics
             if(drag_accel > ThrottleControl.C.MinDeltaV)
                 return true;
             trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude);
-            if(trajectory.DeltaR <= 0
-               && Math.Abs(trajectory.DeltaFi) * Mathf.Deg2Rad * Body.Radius < C.Dtol)
-                return !Body.atmosphere;
-            fine_tune_approach();
-            return false;
+            // ReSharper disable once InvertIf
+            if(trajectory.DeltaR > 0 || Math.Abs(trajectory.DeltaFi) * Mathf.Deg2Rad * Body.Radius >= C.Dtol)
+            {
+                fine_tune_approach();
+                return false;
+            }
+            return !Body.atmosphere;
         }
 
         protected void add_correction_node_if_needed()
