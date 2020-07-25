@@ -614,7 +614,7 @@ namespace ThrottleControlledAvionics
 
         private void correct_attitude_with_thrusters(float turn_time)
         {
-            if(VSL.Engines.Active.Steering.Count <= 0
+            if(!VSL.Engines.Active.HaveSteering
                || (!(VSL.Controls.AttitudeError > Utils.ClampL(1 - rel_dP, 0.1f))
                    && !(VSL.Torque.NoEngines.MinStopTime() > turn_time))
                || (VSL.Controls.HaveControlAuthority
@@ -869,18 +869,22 @@ namespace ThrottleControlledAvionics
                     brake_vel = corrected_brake_direction(brake_vel, brake_pos);
                     CFG.AT.OnIfNot(Attitude.Custom);
                     ATC.SetThrustDirW(brake_vel);
-                    lateral_angle.Value = lateral_angle.Upper
-                                          + lateral_angle.Lower
-                                          - Utils.Angle2(Vector3d.Exclude(brake_pos, brake_vel),
-                                              Vector3d.Exclude(brake_pos, -vector_from_target));
-                    if(lateral_angle)
-                        THR.Throttle = (float)Math.Min((lateral_angle.Upper + lateral_angle.Lower - lateral_angle) / 90,
-                            1);
+                    if(VSL.Engines.Active.HaveSteering)
+                    {
+                        lateral_angle.Value = lateral_angle.Upper
+                                              + lateral_angle.Lower
+                                              - Utils.Angle2(Vector3d.Exclude(brake_pos, brake_vel),
+                                                  Vector3d.Exclude(brake_pos, -vector_from_target));
+                        if(lateral_angle)
+                            THR.Throttle = (float)Math.Min(
+                                (lateral_angle.Upper + lateral_angle.Lower - lateral_angle) / 90,
+                                1);
+                        correct_attitude_with_thrusters(
+                            VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
+                    }
                     VSL.Info.TTB = landing_trajectory.BrakeDuration;
                     VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT - VSL.Physics.UT - 1;
                     VSL.Info.Countdown += landing_trajectory.DeltaR * Body.Radius * Mathf.Deg2Rad / VSL.HorizontalSpeed;
-                    correct_attitude_with_thrusters(
-                        VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
                     if(obstacle_ahead() > 0)
                     {
                         decelerate(true);
