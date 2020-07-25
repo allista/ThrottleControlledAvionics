@@ -469,17 +469,13 @@ namespace ThrottleControlledAvionics
             return offset - dist;
         }
 
-        private double obstacle_ahead(float offset = 0)
-        {
-            if(trajectory != null)
-            {
-                obstacle_between(trajectory,
+        private double obstacle_ahead(float offset = 0) =>
+            trajectory != null
+                ? obstacle_between(trajectory,
                     trajectory.StartUT,
                     Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT - 0.1),
-                    offset);
-            }
-            return -1;
-        }
+                    offset)
+                : -1;
 
         private IEnumerator<double> obstacle_searcher;
 
