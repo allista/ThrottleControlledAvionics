@@ -884,7 +884,10 @@ namespace ThrottleControlledAvionics
                     }
                     VSL.Info.TTB = landing_trajectory.BrakeDuration;
                     VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT - VSL.Physics.UT - 1;
-                    VSL.Info.Countdown += landing_trajectory.DeltaR * Body.Radius * Mathf.Deg2Rad / VSL.HorizontalSpeed;
+                    VSL.Info.Countdown += landing_trajectory.DeltaR
+                                          * Body.Radius
+                                          * Mathf.Deg2Rad
+                                          / Vector3d.Exclude(brake_pos, brake_vel).magnitude;
                     if(obstacle_ahead() > 0)
                     {
                         decelerate(true);
