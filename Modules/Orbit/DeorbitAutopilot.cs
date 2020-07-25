@@ -290,10 +290,14 @@ namespace ThrottleControlledAvionics
                 {
                     cur = Best;
                     var ddV = Utils.ClampSignedL(dR2dV(Best.DeltaR), 1);
-                    foreach(var t in optimize_prograde(ddV)) yield return t;
-                    var dI = Utils.Clamp((float)Best.DeltaFi, -10, 10);
-                    var dV = m.hV(Best.StartUT).normalized*prograde_dV;
-                    foreach(var t in optimize_inclination(dI, dV)) yield return t;
+                    foreach(var t in optimize_prograde(ddV))
+                        yield return t;
+                    var dI = Utils.Clamp((float)Best.DeltaFi/2, -1, 1);
+                    if(Best.ManeuverDuration <= 0)
+                        continue;
+                    var dV = m.hV(Best.StartUT).normalized * prograde_dV;
+                    foreach(var t in optimize_inclination(dI, dV))
+                        yield return t;
                 }
             }
         }
