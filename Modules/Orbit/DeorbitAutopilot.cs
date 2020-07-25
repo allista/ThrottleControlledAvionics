@@ -245,7 +245,23 @@ namespace ThrottleControlledAvionics
             {
                 var startUT = Best.StartUT;
                 var dir = m.hV(startUT).normalized;
-                var pg = prograde_dV+ddV;
+                // choose start direction
+                var plusT = newT(startUT, inclination, 2 * ddV * dir);
+                var minusT = newT(startUT, inclination, -2 * ddV * dir);
+                var pg = prograde_dV;
+                if(plusT.DistanceToTarget < minusT.DistanceToTarget)
+                {
+                    pg += ddV;
+                    if(plusT.DistanceToTarget > Best.DistanceToTarget)
+                        ddV = -ddV;
+                }
+                else
+                {
+                    pg -= ddV;
+                    if(minusT.DistanceToTarget < Best.DistanceToTarget)
+                        ddV = -ddV;
+                }
+                // optimize prograde dV
                 while(Math.Abs(ddV) > TrajectoryCalculator.C.dVtol)
                 {
                     var cur = newT(startUT, inclination, dir* pg);
