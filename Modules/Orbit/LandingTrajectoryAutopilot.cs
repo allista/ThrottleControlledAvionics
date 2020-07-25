@@ -702,20 +702,15 @@ namespace ThrottleControlledAvionics
             return obt_vel - vV * (1 - Utils.Clamp(vFactor, 0.1, 1)) + srfVel;
         }
 
-        private Vector3d corrected_brake_velocity(Vector3d obt_vel, Vector3d obt_pos)
-        {
-            return CorrectedBrakeVelocity(VSL, obt_vel, obt_pos, rel_dP, VSL.Info.Countdown).xzy;
-        }
+        private Vector3d corrected_brake_velocity(Vector3d obt_vel, Vector3d obt_pos) =>
+            CorrectedBrakeVelocity(VSL, obt_vel, obt_pos, rel_dP, VSL.Info.Countdown).xzy;
 
-        private Vector3d corrected_brake_direction(Vector3d vel, Vector3d pos)
-        {
-            var targetWorldPos = CFG.Target.WorldPos(Body);
-            return QuaternionD.AngleAxis(Utils.ProjectionAngle(Vector3d.Exclude(pos, vel),
-                           trajectory.SurfacePoint.WorldPos(Body) - targetWorldPos,
-                           Vector3d.Cross(pos, vel)),
-                       VSL.Physics.Up)
-                   * vel;
-        }
+        private Vector3d corrected_brake_direction(Vector3d vel, Vector3d pos) =>
+            QuaternionD.AngleAxis(Utils.ProjectionAngle(Vector3d.Exclude(pos, vel),
+                    trajectory.SurfacePoint.WorldPos(Body) - CFG.Target.WorldPos(Body),
+                    Vector3d.Cross(pos, vel)),
+                VSL.Physics.Up)
+            * vel;
 
         private void set_destination_vector()
         {
@@ -1321,9 +1316,9 @@ namespace ThrottleControlledAvionics
                 return;
             var trj = landing_trajectory ?? trajectory;
 #if DEBUG
-                DrawDebug();
-                if(trj == null)
-                    trj = current_landing_trajectory;
+            DrawDebug();
+            if(trj == null)
+                trj = current_landing_trajectory;
 #endif
             if(trj != null)
             {
@@ -1372,7 +1367,8 @@ namespace ThrottleControlledAvionics
             // ReSharper disable once InvertIf
             if(landing_trajectory != null)
             {
-                VSL.Info.AddCustopWaypoint(landing_trajectory.BrakeStartPoint.CBRelativePosInWorldFrame(), "Brake Start");
+                VSL.Info.AddCustopWaypoint(landing_trajectory.BrakeStartPoint.CBRelativePosInWorldFrame(),
+                    "Brake Start");
                 VSL.Info.AddCustopWaypoint(landing_trajectory.BrakeEndPoint.CBRelativePosInWorldFrame(), "Brake End");
             }
         }
