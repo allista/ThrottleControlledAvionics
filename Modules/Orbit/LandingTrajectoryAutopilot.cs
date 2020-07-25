@@ -1142,18 +1142,21 @@ namespace ThrottleControlledAvionics
                     else
                         brakes_on_if_requested();
                     var turn_time = VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError);
-                    var CPS_Correction = CPS.CourseCorrection;
-                    if(!CPS_Correction.IsZero())
+                    if(CPS != null)
                     {
-                        Status(Colors.Danger, "Avoiding collision!");
-                        CFG.Target = trajectory.SurfacePoint;
-                        trajectory.Target = CFG.Target;
-                        trajectory.TargetAltitude = CFG.Target.Pos.Alt;
-                        ATC.SetThrustDirW(CPS_Correction - VSL.vessel.srf_velocity);
-                        THR.DeltaV = CPS_Correction.magnitude + (float)VSL.vessel.srfSpeed;
-                        THR.CorrectThrottle = false;
-                        flat_target = false;
-                        break;
+                        var CPS_Correction = CPS.CourseCorrection;
+                        if(!CPS_Correction.IsZero())
+                        {
+                            Status(Colors.Danger, "Avoiding collision!");
+                            CFG.Target = trajectory.SurfacePoint;
+                            trajectory.Target = CFG.Target;
+                            trajectory.TargetAltitude = CFG.Target.Pos.Alt;
+                            ATC.SetThrustDirW(CPS_Correction - VSL.vessel.srf_velocity);
+                            THR.DeltaV = CPS_Correction.magnitude + (float)VSL.vessel.srfSpeed;
+                            THR.CorrectThrottle = false;
+                            flat_target = false;
+                            break;
+                        }
                     }
                     if(!Working)
                     {
