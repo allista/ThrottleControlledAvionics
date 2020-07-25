@@ -306,7 +306,7 @@ namespace ThrottleControlledAvionics
             }
             //compute distance to target
             DistanceToTarget = Target.AngleTo(SurfacePoint) * Body.Radius;
-            SurfacePoint.Name += string.Format("\n{0} from target", Utils.formatBigValue((float)DistanceToTarget, "m"));
+            SurfacePoint.Name += $"\n{Utils.formatBigValue((float)DistanceToTarget, "m")} from target";
             //compute distance in lat-lon coordinates
             DeltaLat = Utils.AngleDelta(SurfacePoint.Pos.Lat, Target.Pos.Lat) *
             Math.Sign(Utils.AngleDelta(approach.Lat, SurfacePoint.Pos.Lat));
