@@ -271,7 +271,9 @@ namespace ThrottleControlledAvionics
                         prograde_dV = pg;
                     }
                     pg += ddV;
-                    if(Best != cur)
+                    if(Best != cur
+                       || cur.BrakeEndPointDeltaAlt < 0
+                       || cur.BrakeEndPointDeltaAlt > LandingTrajectoryAutopilot.C.FlyOverAlt)
                     {
                         ddV /= -2.1;
                         pg = prograde_dV + ddV;
