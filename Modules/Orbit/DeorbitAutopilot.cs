@@ -284,7 +284,7 @@ namespace ThrottleControlledAvionics
 
             public override IEnumerator<LandingTrajectory> GetEnumerator()
             {
-                Best = newT(m.VSL.Physics.UT+m.CorrectionOffset+1, 0, Vector3d.zero);
+                Best = newT(m.VSL.Physics.UT + m.CorrectionOffset + TimeWarp.CurrentRate + 1, 0, Vector3d.zero);
                 LandingTrajectory cur = null;
                 while(continue_calculation(cur, Best))
                 {
