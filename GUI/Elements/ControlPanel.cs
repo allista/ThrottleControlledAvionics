@@ -41,7 +41,7 @@ namespace ThrottleControlledAvionics
                 OnLateUpdate();
         }
 
-        protected ControlPanel() : base(GLB.AssetBundle) { }
+        protected ControlPanel() : base(GLB.AssetBundle, false) { }
 
         public virtual void Reset()
         {
