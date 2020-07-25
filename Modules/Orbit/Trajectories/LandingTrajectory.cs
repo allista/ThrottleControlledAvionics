@@ -140,6 +140,7 @@ namespace ThrottleControlledAvionics
             AtTargetPos = Path.LastPoint.pos;
             AtTargetUT = Path.LastPoint.UT;
             TransferTime = AtTargetUT - StartUT;
+            FlyAbovePoint = Path.FlyAbovePoint(Target.OrbPos(Body));
             update_landing_site(Path);
         }
 
@@ -241,7 +242,6 @@ namespace ThrottleControlledAvionics
                     {
                         if(brake_at_fly_above)
                         {
-                            FlyAbovePoint = Path.FlyAbovePoint(Target.OrbPos(Body));
                             if(WillOverheat)
                                 SetBrakeEndPoint(Path.PointAtShipTemp(VSL.Physics.MinMaxTemperature - 100));
                             else
@@ -274,7 +274,6 @@ namespace ThrottleControlledAvionics
             }
             else
             {
-                FlyAbovePoint = Path.FlyAbovePoint(Target.OrbPos(Body));
                 if(WillOverheat)
                     SetBrakeEndPoint(Path.PointAtShipTemp(VSL.Physics.MinMaxTemperature - 100));
                 else
