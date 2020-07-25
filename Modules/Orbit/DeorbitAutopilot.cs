@@ -264,9 +264,8 @@ namespace ThrottleControlledAvionics
                 // optimize prograde dV
                 while(Math.Abs(ddV) > TrajectoryCalculator.C.dVtol)
                 {
-                    var cur = newT(startUT, inclination, dir* pg);
-//                    m.Log("startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, pg, ddV, cur.DistanceToTarget);//debug
-                    if(cur.DistanceToTarget < Best.DistanceToTarget) 
+                    var cur = newT(startUT, inclination, dir * pg);
+                    if(cur.FullManeuver && cur.Quality < Best.Quality)
                     {
                         Best = cur;
                         prograde_dV = pg;
