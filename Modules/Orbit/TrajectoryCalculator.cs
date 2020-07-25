@@ -592,27 +592,52 @@ namespace ThrottleControlledAvionics
 
         public static double NearestRadiusUT(Orbit orb, double radius, double StartUT, bool descending = true)
         {
+            var closedOrbit = orb.eccentricity < 1;
+            // compute next periapsis UT
+            var PeUT = orb.StartUT + orb.timeToPe;
+            if(closedOrbit && PeUT < StartUT)
+                PeUT += orb.period;
+            // if radius is smaller than PeR, return time to periapsis
+            if(radius <= orb.PeR)
+                return Math.Max(StartUT, PeUT);
+            // compute next apoapsis UT
+            double ApUT;
+            if(closedOrbit)
+            {
+                ApUT = orb.StartUT + orb.timeToAp;
+                if(ApUT < StartUT)
+                    ApUT += orb.period;
+            }
+            else
+                ApUT = orb.EndUT;
+            // if radius is greater than ApR, return time to apoapsis (or the EndUT, if ecc >= 1)
+            if(radius >= orb.ApR)
+                return ApUT;
+            // define search boundaries
             radius *= radius;
-            var StopUT = StartUT;
-            var dT = orb.period/10;
             var below = orb.getRelativePositionAtUT(StartUT).sqrMagnitude < radius;
+            double StopUT;
             if(below)
             {
-                while(StopUT-StartUT < orb.timeToAp) 
-                { 
-                    if(orb.getRelativePositionAtUT(StopUT).sqrMagnitude > radius) break;
-                    StopUT += dT;
+                if(descending)
+                {
+                    StartUT = ApUT;
+                    StopUT = closedOrbit ? StartUT + orb.period / 2 : orb.EndUT;
+                }
+                else
+                {
+                    if(PeUT < ApUT)
+                        StartUT = PeUT;
+                    StopUT = ApUT;
                 }
             }
-            if(!below || descending)
+            else
             {
-                while(StopUT-StartUT < orb.period) 
-                { 
-                    if(orb.getRelativePositionAtUT(StopUT).sqrMagnitude < radius) break;
-                    StopUT += dT;
-                }
+                if(PeUT > ApUT)
+                    StartUT = ApUT;
+                StopUT = PeUT;
             }
-            StartUT = Math.Max(StartUT, StopUT-dT);
+            // find the UT of radius by division search
             while(StopUT-StartUT > 0.01)
             {
                 var UT = StartUT+(StopUT-StartUT)/2;

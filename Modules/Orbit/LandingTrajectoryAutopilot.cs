@@ -412,11 +412,13 @@ namespace ThrottleControlledAvionics
             if(drag_accel > ThrottleControl.C.MinDeltaV)
                 return true;
             trajectory = new LandingTrajectory(VSL, Vector3d.zero, VSL.Physics.UT, CFG.Target, TargetAltitude);
-            if(trajectory.DeltaR <= 0
-               && Math.Abs(trajectory.DeltaFi) * Mathf.Deg2Rad * Body.Radius < C.Dtol)
-                return !Body.atmosphere;
-            fine_tune_approach();
-            return false;
+            // ReSharper disable once InvertIf
+            if(trajectory.DeltaR > 0 || Math.Abs(trajectory.DeltaFi) * Mathf.Deg2Rad * Body.Radius >= C.Dtol)
+            {
+                fine_tune_approach();
+                return false;
+            }
+            return !Body.atmosphere;
         }
 
         protected void add_correction_node_if_needed()
@@ -467,17 +469,13 @@ namespace ThrottleControlledAvionics
             return offset - dist;
         }
 
-        private double obstacle_ahead(float offset = 0)
-        {
-            if(trajectory != null)
-            {
-                obstacle_between(trajectory,
+        private double obstacle_ahead(float offset = 0) =>
+            trajectory != null
+                ? obstacle_between(trajectory,
                     trajectory.StartUT,
                     Math.Min(trajectory.FlyAbovePoint.UT, trajectory.AtTargetUT - 0.1),
-                    offset);
-            }
-            return -1;
-        }
+                    offset)
+                : -1;
 
         private IEnumerator<double> obstacle_searcher;
 
@@ -594,8 +592,9 @@ namespace ThrottleControlledAvionics
 
         private void update_drag_curve_K()
         {
-            if(trajectory != null
-               && !double.IsNaN(prev_deltaR)
+            if(trajectory == null)
+                return;
+            if(!double.IsNaN(prev_deltaR)
                && VSL.vessel.dynamicPressurekPa > 0
                && VSL.Engines.Thrust.IsZero())
             {
@@ -615,7 +614,7 @@ namespace ThrottleControlledAvionics
 
         private void correct_attitude_with_thrusters(float turn_time)
         {
-            if(VSL.Engines.Active.Steering.Count <= 0
+            if(!VSL.Engines.Active.HaveSteering
                || (!(VSL.Controls.AttitudeError > Utils.ClampL(1 - rel_dP, 0.1f))
                    && !(VSL.Torque.NoEngines.MinStopTime() > turn_time))
                || (VSL.Controls.HaveControlAuthority
@@ -870,18 +869,25 @@ namespace ThrottleControlledAvionics
                     brake_vel = corrected_brake_direction(brake_vel, brake_pos);
                     CFG.AT.OnIfNot(Attitude.Custom);
                     ATC.SetThrustDirW(brake_vel);
-                    lateral_angle.Value = lateral_angle.Upper
-                                          + lateral_angle.Lower
-                                          - Utils.Angle2(Vector3d.Exclude(brake_pos, brake_vel),
-                                              Vector3d.Exclude(brake_pos, -vector_from_target));
-                    if(lateral_angle)
-                        THR.Throttle = (float)Math.Min((lateral_angle.Upper + lateral_angle.Lower - lateral_angle) / 90,
-                            1);
+                    if(VSL.Engines.Active.HaveSteering)
+                    {
+                        lateral_angle.Value = lateral_angle.Upper
+                                              + lateral_angle.Lower
+                                              - Utils.Angle2(Vector3d.Exclude(brake_pos, brake_vel),
+                                                  Vector3d.Exclude(brake_pos, -vector_from_target));
+                        if(lateral_angle)
+                            THR.Throttle = (float)Math.Min(
+                                (lateral_angle.Upper + lateral_angle.Lower - lateral_angle) / 90,
+                                1);
+                        correct_attitude_with_thrusters(
+                            VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
+                    }
                     VSL.Info.TTB = landing_trajectory.BrakeDuration;
                     VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT - VSL.Physics.UT - 1;
-                    VSL.Info.Countdown += landing_trajectory.DeltaR * Body.Radius * Mathf.Deg2Rad / VSL.HorizontalSpeed;
-                    correct_attitude_with_thrusters(
-                        VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError));
+                    VSL.Info.Countdown += landing_trajectory.DeltaR
+                                          * Body.Radius
+                                          * Mathf.Deg2Rad
+                                          / Vector3d.Exclude(brake_pos, brake_vel).magnitude;
                     if(obstacle_ahead() > 0)
                     {
                         decelerate(true);
@@ -1136,18 +1142,21 @@ namespace ThrottleControlledAvionics
                     else
                         brakes_on_if_requested();
                     var turn_time = VSL.Torque.MaxPossible.RotationTime2Phase(VSL.Controls.AttitudeError);
-                    var CPS_Correction = CPS.CourseCorrection;
-                    if(!CPS_Correction.IsZero())
+                    if(CPS != null)
                     {
-                        Status(Colors.Danger, "Avoiding collision!");
-                        CFG.Target = trajectory.SurfacePoint;
-                        trajectory.Target = CFG.Target;
-                        trajectory.TargetAltitude = CFG.Target.Pos.Alt;
-                        ATC.SetThrustDirW(CPS_Correction - VSL.vessel.srf_velocity);
-                        THR.DeltaV = CPS_Correction.magnitude + (float)VSL.vessel.srfSpeed;
-                        THR.CorrectThrottle = false;
-                        flat_target = false;
-                        break;
+                        var CPS_Correction = CPS.CourseCorrection;
+                        if(!CPS_Correction.IsZero())
+                        {
+                            Status(Colors.Danger, "Avoiding collision!");
+                            CFG.Target = trajectory.SurfacePoint;
+                            trajectory.Target = CFG.Target;
+                            trajectory.TargetAltitude = CFG.Target.Pos.Alt;
+                            ATC.SetThrustDirW(CPS_Correction - VSL.vessel.srf_velocity);
+                            THR.DeltaV = CPS_Correction.magnitude + (float)VSL.vessel.srfSpeed;
+                            THR.CorrectThrottle = false;
+                            flat_target = false;
+                            break;
+                        }
                     }
                     if(!Working)
                     {

@@ -67,7 +67,10 @@ namespace ThrottleControlledAvionics
                     var prev = Orbit;
                     for(int i = 0; i < 3; i++)
                     {
-                        if(!PatchedConics.CalculatePatch(prev, prev.nextPatch ?? new Orbit(), prev.epoch, new PatchedConics.SolverParameters(), null)) break;
+                        if(!PatchedConics.CalculatePatch(prev, prev.nextPatch ?? new Orbit(), prev.epoch, new PatchedConics.SolverParameters(), null)) 
+                            break;
+                        if(prev.nextPatch == null)
+                            break;
                         prev = prev.nextPatch;
                     }
                     Body = Orbit.referenceBody;

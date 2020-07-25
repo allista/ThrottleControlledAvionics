@@ -797,6 +797,7 @@ namespace ThrottleControlledAvionics
         public List<EngineWrapper> Manual     = new List<EngineWrapper>();
 
         public bool HaveMainEngines => Main.Count > 0;
+        public bool HaveSteering => Steering.Count > 0;
         public bool HaveThrusters => HaveMainEngines || Balanced.Count > 0 || UnBalanced.Count > 0;
         public bool HaveTranslation => Translation.Count > 0;
 
