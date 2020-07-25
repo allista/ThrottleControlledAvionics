@@ -74,10 +74,15 @@ namespace ThrottleControlledAvionics
             {
                 var pos = m.VesselOrbit.getRelativePositionAtUT(startUT);
                 var vel = m.VesselOrbit.getOrbitalVelocityAtUT(startUT);
-                var vel1 = dV+vel;
-                return new LandingTrajectory(m.VSL, 
-                                             Quaternion.AngleAxis(I, pos)*vel1 - vel,
-                                             startUT, m.CFG.Target, targetAlt);
+                var vel1 = dV + vel;
+                return new LandingTrajectory(m.VSL,
+                    dV.IsZero()
+                    && I.Equals(0)
+                        ? Vector3d.zero
+                        : Quaternion.AngleAxis(I, pos) * vel1 - vel,
+                    startUT,
+                    m.CFG.Target,
+                    targetAlt);
             }
 
             protected IEnumerable<LandingTrajectory> optimize_inclination(float dI, Vector3d dV)
