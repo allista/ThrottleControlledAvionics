@@ -5,9 +5,9 @@
 //
 //  Copyright (c) 2017 Allis Tauri
 #if DEBUG
-using System;
 using UnityEngine;
 using AT_Utils;
+using JetBrains.Annotations;
 
 namespace ThrottleControlledAvionics
 {
@@ -172,9 +172,10 @@ namespace ThrottleControlledAvionics
         public override bool NeedsUpdate { get { return true; } }
     }
 
-    public abstract class DEO_Test : LND_Test_Base<DeorbitAutopilot>
+    [UsedImplicitly]
+    public class DEO_Test : LND_Test_Base<DeorbitAutopilot>
     {
-        protected DEO_Test()
+        public DEO_Test()
         {
             program = Autopilot2.Deorbit;
         }

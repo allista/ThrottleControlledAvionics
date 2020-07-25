@@ -10,7 +10,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-    public abstract class ORB_Test : TCA_Test
+    public class ORB_Test : TCA_Test
     {
         protected string Save = "";
         protected ToOrbitAutopilot ORB;
