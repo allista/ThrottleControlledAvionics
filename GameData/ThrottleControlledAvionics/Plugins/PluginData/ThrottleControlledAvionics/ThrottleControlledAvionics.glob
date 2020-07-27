@@ -95,7 +95,6 @@ AltitudeControl
 	TWRd           = 0.5 //twr denominator
 	
 	RelAltitudeFactor = 50  //meters
-	RelVelocityErrF   = 1
 
 	TimeAhead         = 5
 	FallingTime       = 0.5 //min. time falling to trigger Loosing Altitude alert

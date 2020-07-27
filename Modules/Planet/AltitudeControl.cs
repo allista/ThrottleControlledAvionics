@@ -27,7 +27,6 @@ namespace ThrottleControlledAvionics
             [Persistent] public float TWRd           = 2f;   //twr denominator
 
             [Persistent] public float RelAltitudeFactor = 50;
-            [Persistent] public float RelVelocityErrF   = 1;
 
             [Persistent] public float FallingTime       = 1f;
             [Persistent] public float TimeAhead         = 5f;
