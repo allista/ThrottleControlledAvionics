@@ -1,4 +1,4 @@
-//   VFlightUI.cs
+﻿//   VFlightUI.cs
 //
 //  Author:
 //       Allis Tauri <allista@gmail.com>
@@ -7,7 +7,6 @@
 
 using UnityEngine;
 using UnityEngine.UI;
-
 using AT_Utils.UI;
 
 namespace TCA.UI
@@ -32,7 +31,7 @@ namespace TCA.UI
             EnableALT(false);
         }
 
-        void OnDestroy()
+        private void OnDestroy()
         {
             hoverButton.onValueChanged.RemoveListener(EnableALT);
         }
@@ -69,24 +68,42 @@ namespace TCA.UI
         public Text display;
 
         public float min;
-        public override float Min { get => min; set { min = value; slider.minValue = min; } }
+
+        public override float Min
+        {
+            get => min;
+            set
+            {
+                min = value;
+                slider.minValue = min;
+            }
+        }
 
         public float max;
-        public override float Max { get => max; set { max = value; slider.maxValue = max; } }
 
-        readonly FloatEvent _onValueChange = new FloatEvent();
-        public override FloatEvent onValueChanged => _onValueChange;
+        public override float Max
+        {
+            get => max;
+            set
+            {
+                max = value;
+                slider.maxValue = max;
+            }
+        }
 
-        void update_display()
+        public override FloatEvent onValueChanged { get; } = new FloatEvent();
+
+        private void update_display()
         {
             slider.value = value;
+            // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
             if(value < max)
                 display.text = FormatUtils.formatBigValue(value, "m/s", "+0.0;-0.0; 0.0");
             else
                 display.text = "OFF";
         }
 
-        void Awake()
+        private void Awake()
         {
             value = max;
             slider.minValue = min;
@@ -95,7 +112,7 @@ namespace TCA.UI
             slider.onValueChanged.AddListener(changeValueAndNotify);
         }
 
-        void OnDestroy()
+        private void OnDestroy()
         {
             slider.onValueChanged.RemoveListener(changeValueAndNotify);
         }
@@ -124,14 +141,15 @@ namespace TCA.UI
 
         public override FloatEvent onValueChanged => Altitude.onValueChanged;
 
-        void Awake()
+        private void Awake()
         {
             SetAltitudeAboveGround(!altitudeAboveGround);
         }
 
         public void SetAltitudeAboveGround(bool above)
         {
-            if(altitudeAboveGround == above) return;
+            if(altitudeAboveGround == above)
+                return;
             if(above)
             {
                 Altitude.inputTooltip.text = "Desired altitude is above the ground";

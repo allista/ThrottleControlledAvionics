@@ -1,17 +1,19 @@
-//   ManeuverPanel.cs
+﻿//   ManeuverPanel.cs
 //
 //  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2019 Allis Tauri
+
 using AT_Utils.UI;
 using TCA.UI;
+
 namespace ThrottleControlledAvionics
 {
     public class ManeuverPanel : ControlPanel<ManeuverUI>
     {
-        TimeWarpControl WRP;
-        ManeuverAutopilot MAN;
+        private TimeWarpControl WRP;
+        private ManeuverAutopilot MAN;
 
         protected override void init_controller()
         {
@@ -32,14 +34,14 @@ namespace ThrottleControlledAvionics
             base.init_controller();
         }
 
-        void onWarpChanged(bool state)
+        private void onWarpChanged(bool state)
         {
             CFG.WarpToNode = state;
             if(!CFG.WarpToNode)
                 WRP.AbortWarp();
         }
 
-        void onManeuverSwitch()
+        private void onManeuverSwitch()
         {
             CFG.AP1.XToggle(Autopilot1.Maneuver);
         }
@@ -64,7 +66,6 @@ namespace ThrottleControlledAvionics
                 }
                 else
                     Controller.ManeuverSwitch.SetActive(false);
-
             }
             if(VSL.Info.TTB >= 0 || VSL.Info.Countdown >= 0)
             {
