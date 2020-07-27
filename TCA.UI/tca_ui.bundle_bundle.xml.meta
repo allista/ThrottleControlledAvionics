@@ -1,6 +1,8 @@
 fileFormatVersion: 2
-guid: 11e4bc5bd4c844642bea39bfaa8332c2
-PrefabImporter:
+guid: 4fe264d30e5b2459298a774823f31569
+timeCreated: 1559682134
+licenseType: Free
+TextScriptImporter:
   externalObjects: {}
   userData: 
   assetBundleName: tca_ui.bundle
