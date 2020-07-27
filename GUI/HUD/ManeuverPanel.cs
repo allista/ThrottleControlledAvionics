@@ -1,4 +1,4 @@
-﻿//   ManeuverPanel.cs
+//   ManeuverPanel.cs
 //
 //  Author:
 //       Allis Tauri <allista@gmail.com>
@@ -47,13 +47,19 @@ namespace ThrottleControlledAvionics
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
+            if(!IsShown)
+                return;
             if(WRP != null)
+            {
+                Controller.WarpToggle.SetInteractable(TCA.IsControllable);
                 Controller.WarpToggle.SetIsOnAndColorWithoutNotify(CFG.WarpToNode);
+            }
             if(MAN != null)
             {
                 if(MAN.ControlsActive)
                 {
                     Controller.ManeuverSwitch.SetManeuverActive(CFG.AP1[Autopilot1.Maneuver]);
+                    Controller.ManeuverSwitch.Button.SetInteractable(TCA.IsControllable);
                     Controller.ManeuverSwitch.SetActive(true);
                 }
                 else

@@ -1,4 +1,4 @@
-﻿//   VFlightPanel.cs
+//   VFlightPanel.cs
 //
 //  Author:
 //       Allis Tauri <allista@gmail.com>
@@ -94,6 +94,16 @@ namespace ThrottleControlledAvionics
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
+            if(!IsShown)
+                return;
+            // set controls interactable when TCA is controllable
+            var controllable = TCA.IsControllable;
+            Controller.hoverButton.SetInteractable(controllable);
+            Controller.followTerrainButton.SetInteractable(controllable);
+            Controller.autoThrottleButton.SetInteractable(controllable);
+            Controller.VSC.SetInteractable(controllable);
+            Controller.ALT.SetInteractable(controllable);
+            // update info and controls state
             Controller.UpdateInfo(VSL.Altitude.Current,
                 VSL.VerticalSpeed.Display,
                 VSL.HorizontalSpeed.Absolute);

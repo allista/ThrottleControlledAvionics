@@ -55,6 +55,8 @@ namespace ThrottleControlledAvionics
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
+            if(!IsShown)
+                return;
             // disable sub-panels depending on situation
             Controller.ToggleOnPlanet(VSL.OnPlanet);
             Controller.ToggleInOrbit(VSL.InOrbit);

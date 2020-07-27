@@ -1,4 +1,4 @@
-﻿//   VFlightUI.cs
+//   VFlightUI.cs
 //
 //  Author:
 //       Allis Tauri <allista@gmail.com>
@@ -94,23 +94,25 @@ namespace TCA.UI
 
         public override bool SetValueWithoutNotify(float newValue)
         {
-            if(!value.Equals(newValue))
-            {
-                if(Mathf.Abs(newValue) < 0.1f)
-                    newValue = 0;
-                value = newValue;
-                update_display();
-                return true;
-            }
-            return false;
+            if(value.Equals(newValue))
+                return false;
+            if(Mathf.Abs(newValue) < 0.1f)
+                newValue = 0;
+            value = newValue;
+            update_display();
+            return true;
+        }
+
+        public override void SetInteractable(bool interactable)
+        {
+            slider.SetInteractable(interactable);
         }
     }
 
     public class ALT_UI : FloatValueUI
     {
         public FloatController Altitude;
-        public TooltipTrigger tooltip;
-        bool altitudeAboveGround;
+        private bool altitudeAboveGround;
 
         public override FloatEvent onValueChanged => Altitude.onValueChanged;
 
@@ -124,14 +126,14 @@ namespace TCA.UI
             if(altitudeAboveGround == above) return;
             if(above)
             {
-                tooltip.text = "Desired altitude is above the ground";
+                Altitude.inputTooltip.text = "Desired altitude is above the ground";
                 Colors.Danger.removeOnColorChangeListner(onInputColorChange);
                 Colors.Good.addOnColorChangeListner(onInputColorChange);
                 onInputColorChange(Colors.Good);
             }
             else
             {
-                tooltip.text = "Warning! Desired altitude is below the ground";
+                Altitude.inputTooltip.text = "Warning! Desired altitude is below the ground";
                 Colors.Good.removeOnColorChangeListner(onInputColorChange);
                 Colors.Danger.addOnColorChangeListner(onInputColorChange);
                 onInputColorChange(Colors.Danger);
@@ -139,7 +141,12 @@ namespace TCA.UI
             altitudeAboveGround = above;
         }
 
-        void onInputColorChange(Color color) => Altitude.input.textComponent.color = color;
+        public override void SetInteractable(bool interactable)
+        {
+            Altitude.SetInteractable(interactable);
+        }
+
+        private void onInputColorChange(Color color) => Altitude.input.textComponent.color = color;
 
         public override bool SetValueWithoutNotify(float newValue) => Altitude.SetValueWithoutNotify(newValue);
     }

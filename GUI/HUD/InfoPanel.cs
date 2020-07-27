@@ -38,6 +38,8 @@ namespace ThrottleControlledAvionics
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
+            if(!IsShown)
+                return;
             if(!string.IsNullOrEmpty(TCAGui.StatusMessage))
                 Controller.SetMessage(TCAGui.StatusMessage);
         }

@@ -1,4 +1,4 @@
-﻿//   AttitudePanel.cs
+//   AttitudePanel.cs
 //
 //  Author:
 //       Allis Tauri <allista@gmail.com>
@@ -89,6 +89,8 @@ namespace ThrottleControlledAvionics
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
+            if(!IsShown)
+                return;
             Controller.SetState(CFG.AT && !VSL.AutopilotDisabled);
             //current cue
             if(CFG.AT)
