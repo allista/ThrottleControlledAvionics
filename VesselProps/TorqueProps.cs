@@ -1,4 +1,4 @@
-﻿//  Author:
+//  Author:
 //       Allis Tauri <allista@gmail.com>
 //
 //  Copyright (c) 2016 Allis Tauri
@@ -31,6 +31,7 @@ namespace ThrottleControlledAvionics
         public TorqueInfo Instant; //current maximum torque
         public TorqueInfo MaxCurrent; //current maximum torque
         public TorqueInfo MaxPitchRoll; //current maximum torque
+        public TorqueInfo MaxEnginesPitchRoll; //current maximum torque
         public TorqueInfo MaxPossible; //theoretical maximum torque from active engines, wheels and RCS
         public TorqueInfo MaxEngines; //theoretical maximum torque from active engines
 
@@ -171,6 +172,8 @@ namespace ThrottleControlledAvionics
             MaxCurrent.Update(NoEngines.Torque+Engines.Torque);
             MaxPossible.Update(NoEngines.Torque+MaxEngines.Torque);
             MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrustDir).AbsComponents());
+            MaxEnginesPitchRoll.Update(Vector3.ProjectOnPlane(MaxEngines.Torque, VSL.Engines.CurrentThrustDir)
+                .AbsComponents());
             SlowMaxPossible.Update(TotalSlowTorque.Max);
             Instant.Update(MaxPossible.Torque-SlowMaxPossible.Torque);
             //specifc torque
@@ -180,6 +183,7 @@ namespace ThrottleControlledAvionics
             MaxCurrent.SpecificTorque = Engines.SpecificTorque+NoEngines.SpecificTorque;
             MaxPossible.SpecificTorque = MaxEngines.SpecificTorque + NoEngines.SpecificTorque;
             MaxPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxCurrent.SpecificTorque, VSL.Engines.CurrentThrustDir).AbsComponents();
+            MaxEnginesPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxEngines.SpecificTorque, VSL.Engines.CurrentThrustDir).AbsComponents();
             SlowMaxPossible.SpecificTorque = TotalSlowSpecificTorque.Max;
             Instant.SpecificTorque = MaxPossible.SpecificTorque-SlowMaxPossible.SpecificTorque;
             //torque response time

@@ -190,8 +190,8 @@ namespace ThrottleControlledAvionics
             DTWR_filter.TauDown = VSL.Engines.DecelerationTime10;
             DTWR_filter.Update(DTWR);
             GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
-            var mVSFtor = (VSL.Torque.MaxPitchRoll.AA_rad > 0)? 
-                Utils.ClampH(VerticalSpeedControl.C.MinVSFf/VSL.Torque.MaxPitchRoll.AA_rad, VerticalSpeedControl.C.MaxVSFtwr*GeeVSF) : 0;
+            var mVSFtor = (VSL.Torque.MaxEnginesPitchRoll.AA_rad > 0)? 
+                Utils.ClampH(VerticalSpeedControl.C.MinVSFf/VSL.Torque.MaxEnginesPitchRoll.AA_rad, VerticalSpeedControl.C.MaxVSFtwr*GeeVSF) : 0;
             MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
             var down_thrust = Mathf.Max(vLift, 0);
             var slow_thrust = 0f;
