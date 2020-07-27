@@ -318,7 +318,7 @@ namespace ThrottleControlledAvionics
             case Stage.GainAltitude:
                 Status("Gaining altitude...");
                 VSC_ON(HFlight.Level);
-                if(VSL.Altitude.Relative > CFG.DesiredAltitude-10)
+                if(VSL.Altitude.Relative > CFG.DesiredAltitude*0.9f)
                     compute_initial_trajectory();
                 break;
             case Stage.Compute:
