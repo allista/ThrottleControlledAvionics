@@ -14,6 +14,8 @@ namespace TCA.UI
 {
     public class VFlightUI : ScreenBoundRect
     {
+        private const string speedFormat = "0.0;0.0;0.0";
+
         public VSC_UI VSC;
         public ALT_UI ALT;
 
@@ -43,15 +45,21 @@ namespace TCA.UI
 
         public void UpdateInfo(float altitude, float v_speed, float h_speed)
         {
-            Altitude.text = FormatUtils.formatBigValue(altitude, "m");
-            vSpeed.text = FormatUtils.formatBigValue(v_speed, "m/s", "0.0;0.0;0.0");
+
+            Altitude.text = FormatUtils.formatBigValue(altitude, "m", null);
             if(v_speed > 0.01f)
                 vSpeedLabel.text = "▲";
             else if(v_speed < -0.01f)
                 vSpeedLabel.text = "▼";
             else
+            {
                 vSpeedLabel.text = "";
-            hSpeed.text = FormatUtils.formatBigValue(h_speed, "m/s");
+                v_speed = 0;
+            }
+            if(Mathf.Abs(h_speed) < 0.01)
+                h_speed = 0;
+            vSpeed.text = FormatUtils.formatBigValue(v_speed, "m/s", speedFormat);
+            hSpeed.text = FormatUtils.formatBigValue(h_speed, "m/s", speedFormat);
         }
     }
 
