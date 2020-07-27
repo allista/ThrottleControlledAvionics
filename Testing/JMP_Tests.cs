@@ -11,9 +11,9 @@ using JetBrains.Annotations;
 namespace ThrottleControlledAvionics
 {
     [UsedImplicitly]
-    public class JMP_Test_Base : LND_Test_Base<BallisticJump>
+    public class JMP_Test : LND_Test_Base<BallisticJump>
     {
-        public JMP_Test_Base()
+        public JMP_Test()
         {
             program = Autopilot2.BallisticJump;
         }
