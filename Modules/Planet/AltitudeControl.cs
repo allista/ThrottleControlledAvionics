@@ -20,11 +20,12 @@ namespace ThrottleControlledAvionics
     {
         public class Config : ComponentConfig<Config>
         {
-            [Persistent] public float MaxSpeedErrorF = 100f;
             [Persistent] public float MaxSpeedLow    = 10f; 
             [Persistent] public float MaxSpeedHigh   = 300f;
             [Persistent] public float ErrF           = 1f;   //altitude error coefficient
             [Persistent] public float TWRd           = 2f;   //twr denominator
+            [Persistent] public float AeroTorqueRatioThreshold = 0.01f;
+            [Persistent] public float MaxSpeedErrorF = 10f;
 
             [Persistent] public float RelAltitudeFactor = 50;
 
@@ -172,11 +173,11 @@ namespace ThrottleControlledAvionics
                 return;
             }
             //calculate min/max speed
-            var min_speed = -C.MaxSpeedLow;
-            var max_speed =  C.MaxSpeedLow;
+            var min_speed = -C.MaxSpeedHigh;
+            var max_speed = C.MaxSpeedHigh;
             if(error < 0)
             {
-                min_speed = Utils.Clamp(C.MaxSpeedLow*(error+C.MaxSpeedErrorF)/C.MaxSpeedErrorF, -C.MaxSpeedHigh, -C.MaxSpeedLow);
+                min_speed = Utils.ClampH(error / C.MaxSpeedErrorF, -C.MaxSpeedLow);
                 if(VSL.VerticalSpeed.Absolute < 0)
                 {
                     double terminal_velocity;
@@ -192,8 +193,21 @@ namespace ThrottleControlledAvionics
 //                        -error, -VSL.VerticalSpeed.Absolute, free_fall, brake_time, min_speed);//debug
                 }
             }
-            else if(error > 0) max_speed = alt <= VSL.Geometry.H? C.MaxSpeedHigh :
-                Utils.Clamp(C.MaxSpeedLow*(error-C.MaxSpeedErrorF)/C.MaxSpeedErrorF, C.MaxSpeedLow, C.MaxSpeedHigh);
+            else
+                max_speed = Utils.ClampL(error / C.MaxSpeedErrorF, C.MaxSpeedLow);
+            if(VSL.Body.atmosphere && VSL.vessel.dynamicPressurekPa > 0)
+            {
+                var aeroTorqueRatio = Vector3.Scale(
+                        VSL.LocalDir(VSL.OnPlanetParams.AeroTorque).AbsComponents(),
+                        (VSL.Torque.NoEngines.Torque + VSL.Torque.EnginesFinal.Torque).Inverse())
+                    .MaxComponentF();
+                if(VSL.VerticalSpeed.Absolute > 0)
+                    max_speed = Mathf.Min(max_speed,
+                        VSL.VerticalSpeed.Absolute * C.AeroTorqueRatioThreshold / aeroTorqueRatio);
+                else
+                    min_speed = Mathf.Max(min_speed,
+                        VSL.VerticalSpeed.Absolute * C.AeroTorqueRatioThreshold / aeroTorqueRatio);
+            }
             //update pid parameters and vertical speed setpoint
             if(VSL.Engines.Slow)
             {
@@ -250,6 +264,12 @@ namespace ThrottleControlledAvionics
 //                    CFG.VerticalCutoff, VSL.VSF, VSL.MinVSF, VSL.VerticalSpeed, VSL.VerticalSpeed.Relative, 
 //                    dV, min_speed, max_speed);//debug
             }
+            // DebugWindowController.PostMessage($"ALT-{GetHashCode():X8}",
+            //     $"Max aero torque ratio: {aeroTorqueRatio:F6}\n"
+            //     + $"min speed: {min_speed:F1} m/s\n"
+            //     + $"max speed: {max_speed:F1} m/s\n"
+            //     + $"setpoint: {VSL.CFG.VerticalCutoff:F1} m/s\n"
+            //     + $"error abs: {VSL.CFG.VerticalCutoff - VSL.VerticalSpeed.Absolute:F1}");
         }
 
         public override void ProcessKeys()

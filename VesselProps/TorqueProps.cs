@@ -26,6 +26,7 @@ namespace ThrottleControlledAvionics
 
         public TorqueInfo Imbalance; //current torque imbalance, set by UpdateImbalance
         public TorqueInfo Engines; //current torque applied to the vessel by engines
+        public TorqueInfo EnginesFinal; //actual final torque applied to the vessel by engines
         public TorqueInfo NoEngines; //current maximum torque
         public TorqueInfo SlowMaxPossible; //current maximum torque
         public TorqueInfo Instant; //current maximum torque
@@ -99,6 +100,7 @@ namespace ThrottleControlledAvionics
             EnginesLimits = Vector6.zero;
             RCSLimits = Vector6.zero;
             OtherLimits = Vector6.zero;
+            var FinalEnginesLimits = Vector6.zero;
             var MaxEnginesLimits = Vector6.zero;
             var EnginesSpecificTorque = Vector6.zero;
             var EnginesMaxSpecificTorque = Vector6.zero;
@@ -119,6 +121,7 @@ namespace ThrottleControlledAvionics
                     max_spec_torque = max_torque / e.nominalFullThrust;
                 }
                 EnginesLimits.Add(e.defCurrentTorque);
+                FinalEnginesLimits.Add(e.defSpecificTorque*e.finalThrust);
                 EnginesSpecificTorque.Add(e.defSpecificTorque);
                 MaxEnginesLimits.Add(max_torque);
                 EnginesMaxSpecificTorque.Add(max_spec_torque);
@@ -167,6 +170,7 @@ namespace ThrottleControlledAvionics
             }
             //torque and angular acceleration
             Engines.Update(EnginesLimits.Max);
+            EnginesFinal.Update(FinalEnginesLimits.Max);
             NoEngines.Update(RCSLimits.Max+OtherLimits.Max);
             MaxEngines.Update(MaxEnginesLimits.Max);
             MaxCurrent.Update(NoEngines.Torque+Engines.Torque);
@@ -178,6 +182,7 @@ namespace ThrottleControlledAvionics
             Instant.Update(MaxPossible.Torque-SlowMaxPossible.Torque);
             //specifc torque
             Engines.SpecificTorque = EnginesSpecificTorque.Max;
+            EnginesFinal.SpecificTorque = Engines.SpecificTorque;
             NoEngines.SpecificTorque = RCSSpecificTorque.Max;
             MaxEngines.SpecificTorque = EnginesMaxSpecificTorque.Max;
             MaxCurrent.SpecificTorque = Engines.SpecificTorque+NoEngines.SpecificTorque;
