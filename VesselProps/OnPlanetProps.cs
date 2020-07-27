@@ -43,7 +43,9 @@ namespace ThrottleControlledAvionics
         public Vector3 Drag { get; private set; } //current drag vector
         public float  vLift { get; private set; } //current vertical lift kN
         public Vector3 AeroForce { get; private set; } //current lift+drag vector
-        public Vector3 AeroTorque { get; private set; } //current torque produced by aero forcess
+        public Vector3 AeroTorque { get; private set; } //current torque produced by aero forces
+        public float AeroTorqueRatio { get; private set; } //current ratio of aero torque to the torque commanded by the vessel
+        public float MaxAeroTorqueRatio { get; private set; } //maximum possible AeroTorqueRatio
         public Vector3 MaxAeroForceL { get; private set; } //local statistically maximum aero force
 
         public float   MaxTWR { get; private set; }
@@ -119,6 +121,10 @@ namespace ThrottleControlledAvionics
         public override void Clear()
         {
             GearDeployTime = 0;
+            AeroTorqueRatio = 0;
+            MaxAeroTorqueRatio = 0;
+            AeroTorque =  Vector3.zero;
+            AeroForce =  Vector3.zero;
             MaxAeroForceL = Vector3.zero;
             HaveLandingGear = false;
             HaveLaunchClamps = false;
@@ -162,6 +168,15 @@ namespace ThrottleControlledAvionics
             Lift = lift;
             Drag = drag;
             AeroTorque = torque;
+            var aeroTorqueL = VSL.LocalDir(VSL.OnPlanetParams.AeroTorque).AbsComponents();
+            AeroTorqueRatio = Vector3.Scale(
+                    aeroTorqueL,
+                    (VSL.Torque.NoEngines.Torque + VSL.Torque.EnginesFinal.Torque).Inverse())
+                .MaxComponentF();
+            MaxAeroTorqueRatio = Vector3.Scale(
+                aeroTorqueL,
+                VSL.Torque.MaxCurrent.Torque.Inverse())
+                .MaxComponentF();
         }
 
         public void ChangeDragCurveK(float speed)
