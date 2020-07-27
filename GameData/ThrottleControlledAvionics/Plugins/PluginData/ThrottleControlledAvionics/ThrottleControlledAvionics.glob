@@ -522,7 +522,7 @@ LandingTrajectoryAutopilot
 	MachThreshold      = 0.9
 	MinAerobrakeDensity = 0.4
 	
-	ScanningAngle      = 21
+	ScanningAngle      = 70
 	PointsPerFrame     = 5
 	AtmoTrajectoryResolution = 5
 	MaxCorrectionDist  = 1

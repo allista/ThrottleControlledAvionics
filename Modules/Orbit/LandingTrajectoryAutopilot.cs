@@ -341,7 +341,7 @@ namespace ThrottleControlledAvionics
             VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT - VSL.Physics.UT - ManeuverOffset;
             if(VSL.Info.Countdown > 0)
             {
-                if(scan_for_landing_site_when_in_range())
+                if(scan_for_landing_site_and_correct())
                     return true;
                 if(CFG.AP1[Autopilot1.Maneuver])
                 {
@@ -717,9 +717,14 @@ namespace ThrottleControlledAvionics
             VSL.Info.Destination = CFG.Target.WorldPos(Body) - VSL.Physics.wCoM;
         }
 
-        private void scan_for_landing_site()
+        private bool can_scan() =>
+            CorrectTarget
+            && !scanned
+            && Utils.Angle2((Vector3)CFG.Target.Pos.Normal(Body), CFG.Target.VectorTo(VSL)) < C.ScanningAngle;
+
+        private void scan_for_landing_site(bool force = false)
         {
-            if(scanned)
+            if(!force && !can_scan())
                 return;
             if(scanner.Idle)
             {
@@ -748,14 +753,12 @@ namespace ThrottleControlledAvionics
             scanned = true;
         }
 
-        private bool scan_for_landing_site_when_in_range()
+        private bool scan_for_landing_site_and_correct()
         {
-            if(!CorrectTarget
-               || scanned
-               || !(Utils.Angle2((Vector3)VSL.orbit.vel.xzy, -CFG.Target.VectorTo(VSL)) < C.ScanningAngle))
+            if(!can_scan())
                 return false;
             VSL.Controls.StopWarp();
-            scan_for_landing_site();
+            scan_for_landing_site(true);
             if(!scanned)
                 return scanned;
             CFG.AP1.OffIfOn(Autopilot1.Maneuver);
@@ -897,8 +900,7 @@ namespace ThrottleControlledAvionics
                         VSL.Controls.WarpToTime = VSL.Physics.UT + VSL.Info.Countdown;
                     else
                         VSL.Controls.StopWarp();
-                    if(CorrectTarget && VSL.Info.Countdown < CorrectionOffset)
-                        scan_for_landing_site();
+                    scan_for_landing_site();
                     break;
                 case LandingStage.Decelerate:
                     rel_altitude_if_needed();
@@ -921,8 +923,7 @@ namespace ThrottleControlledAvionics
                     }
                     Status("Decelerating. Landing site error: {0}",
                         Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
-                    if(CorrectTarget)
-                        scan_for_landing_site();
+                    scan_for_landing_site();
                     do_aerobraking_if_requested();
                     var overheating = is_overheating();
                     if(!overheating && VSL.Engines.AvailableFuelMass / VSL.Engines.MaxMassFlow < C.LandingThrustTime)
@@ -974,6 +975,7 @@ namespace ThrottleControlledAvionics
                 case LandingStage.Coast:
                     Status("Coasting. Landing site error: {0}",
                         Utils.formatBigValue((float)trajectory.DistanceToTarget, "m"));
+                    scan_for_landing_site();
                     if(is_overheating())
                     {
                         decelerate(false);
