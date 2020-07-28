@@ -167,6 +167,11 @@ namespace ThrottleControlledAvionics
             }
             Lift = lift;
             Drag = drag;
+            AeroForce = Lift+Drag;
+            var relAeroForce = AeroForce/(float)Utils.ClampL(VSL.vessel.dynamicPressurekPa, 1);
+            if(relAeroForce.sqrMagnitude > MaxAeroForceL.sqrMagnitude)
+                MaxAeroForceL = VSL.LocalDir(relAeroForce);
+            vLift = Vector3.Dot(AeroForce, VSL.Physics.Up);
             AeroTorque = torque;
             var aeroTorqueL = VSL.LocalDir(VSL.OnPlanetParams.AeroTorque).AbsComponents();
             AeroTorqueRatio = Vector3.Scale(
@@ -194,11 +199,6 @@ namespace ThrottleControlledAvionics
             CurrentThrustDecelerationTime = 0f;
             update_aero_forces();
             //calculate total downward thrust and slow engines' corrections
-            AeroForce = Lift+Drag;
-            var relAeroForce = AeroForce/(float)Utils.ClampL(VSL.vessel.dynamicPressurekPa, 1);
-            if(relAeroForce.sqrMagnitude > MaxAeroForceL.sqrMagnitude)
-                MaxAeroForceL = VSL.LocalDir(relAeroForce);
-            vLift = Vector3.Dot(AeroForce, VSL.Physics.Up);
             MaxTWR = (VSL.Engines.MaxThrustM+Mathf.Max(vLift, 0))/VSL.Physics.mg;
             DTWR = Mathf.Max((vLift-Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up))/VSL.Physics.mg, 0);
             DTWR_filter.TauUp = VSL.Engines.AccelerationTime90;
