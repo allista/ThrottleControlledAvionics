@@ -43,7 +43,6 @@ namespace ThrottleControlledAvionics
                 break;
 
             case Multiplexer.Command.On:
-                VSL.UpdateOnPlanetStats();
                 goto case Multiplexer.Command.Resume;
 
             case Multiplexer.Command.Off:
