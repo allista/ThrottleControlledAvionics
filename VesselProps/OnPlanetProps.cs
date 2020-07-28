@@ -208,6 +208,7 @@ namespace ThrottleControlledAvionics
             var mVSFtor = (VSL.Torque.MaxEnginesPitchRoll.AA_rad > 0)? 
                 Utils.ClampH(VerticalSpeedControl.C.MinVSFf/VSL.Torque.MaxEnginesPitchRoll.AA_rad, VerticalSpeedControl.C.MaxVSFtwr*GeeVSF) : 0;
             MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
+            MinVSF = Mathf.Max(MinVSF, Utils.ClampH(MaxAeroTorqueRatio, GeeVSF));
             var down_thrust = Mathf.Max(vLift, 0);
             var slow_thrust = 0f;
             var fast_thrust = 0f;
