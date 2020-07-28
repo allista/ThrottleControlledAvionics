@@ -203,7 +203,7 @@ namespace ThrottleControlledAvionics
         {
             var torque = CalculateImbalance(useDefTorque, engines);
 //            if(VSL.OnPlanet) torque += VSL.LocalDir(VSL.OnPlanetParams.AeroTorque);
-            Imbalance.Update(EnginesLimits.Clamp(torque));
+            Imbalance.Update(EnginesLimits.ClampComponents(torque));
         }
 
         public static Vector3 CalculateImbalance(bool useDefTorque, params IList<EngineWrapper>[] engines)
