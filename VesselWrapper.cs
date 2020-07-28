@@ -250,8 +250,7 @@ namespace ThrottleControlledAvionics
 
         public void Init()
         {
-            UpdateCommons();
-            OnPlanetParams.Update();
+            UpdateEngines();
             Geometry.Update();
         }
 
@@ -335,22 +334,18 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        public void UpdateCommons()
+        public void UpdateEngines()
         {
             Engines.Sort();
             Engines.Update();
             Torque.Update();
+            if(OnPlanet)
+                OnPlanetParams.Update();
         }
 
         public void ClearFrameState()
         {
             AllPros.ForEach(p => p.ClearFrameState());
-        }
-
-        public void UpdateOnPlanetStats()
-        {
-            if(OnPlanet)
-                OnPlanetParams.Update();
         }
 
         public void OnModulesUpdated()
