@@ -148,7 +148,6 @@ namespace ThrottleControlledAvionics
                 break;
 
             case Multiplexer.Command.On:
-                VSL.UpdateOnPlanetStats();
                 if(CFG.HF[HFlight.Stop])
                 {
                     VSL.HorizontalSpeed.SetNeeded(Vector3d.zero);

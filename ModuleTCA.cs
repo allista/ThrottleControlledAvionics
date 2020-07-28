@@ -661,8 +661,7 @@ namespace ThrottleControlledAvionics
                 VSL.UpdatePhysics();
                 if(VSL.Engines.Check()) SetState(TCAState.HaveActiveEngines);
                 Actions["onActionUpdate"].actionGroup = VSL.Engines.ActionGroups;
-                VSL.UpdateCommons();
-                VSL.UpdateOnPlanetStats();
+                VSL.UpdateEngines();
                 //update modules
                 ModulePipeline.ForEach(m => m.OnFixedUpdate());
                 VSL.OnModulesUpdated();

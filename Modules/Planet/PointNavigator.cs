@@ -166,7 +166,6 @@ namespace ThrottleControlledAvionics
 
         void start_to(WayPoint wp)
         {
-            VSL.UpdateOnPlanetStats();
             wp.Update(VSL);
             if(CFG.Nav[Navigation.GoToTarget] && wp.CloseEnough(VSL))
             { 

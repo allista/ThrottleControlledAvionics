@@ -1,4 +1,4 @@
-//   VFlightPanel.cs
+﻿//   VFlightPanel.cs
 //
 //  Author:
 //       Allis Tauri <allista@gmail.com>
@@ -18,8 +18,7 @@ namespace ThrottleControlledAvionics
         private ThrottleControl THR;
         private Radar RAD;
 
-        protected override bool shouldShow =>
-            base.shouldShow && VSL.OnPlanet && AllModules.Count > 0;
+        protected override bool shouldShow => base.shouldShow && VSL.OnPlanet && AllModules.Count > 0;
 
         protected override void init_controller()
         {

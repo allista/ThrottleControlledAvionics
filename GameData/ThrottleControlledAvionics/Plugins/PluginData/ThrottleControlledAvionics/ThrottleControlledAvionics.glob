@@ -88,14 +88,14 @@ VerticalSpeedControl
 
 AltitudeControl
 {
-	MaxSpeedErrorF = 100
+	AeroTorqueRatioThreshold = 0.5
+	MaxSpeedErrorF = 10
 	MaxSpeedLow    = 10
 	MaxSpeedHigh   = 300
 	ErrF           = 1 //altitude error coefficient
 	TWRd           = 0.5 //twr denominator
 	
 	RelAltitudeFactor = 50  //meters
-	RelVelocityErrF   = 1
 
 	TimeAhead         = 5
 	FallingTime       = 0.5 //min. time falling to trigger Loosing Altitude alert
@@ -104,7 +104,7 @@ AltitudeControl
 	
 	RocketPID
 	{
-		P = 0.3	
+		P = 0.3
 		I = 0
 		D = 0.3
 	}
