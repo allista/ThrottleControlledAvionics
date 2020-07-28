@@ -10,6 +10,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using UnityEngine;
 using KSP.UI.Screens;
@@ -312,10 +313,17 @@ namespace ThrottleControlledAvionics
             Controls.Update(s);
         }
 
+        [SuppressMessage("ReSharper", "InvertIf")]
         public void UpdatePhysics()
         {
             Physics.Update();
             Altitude.Update();
+            if(OnPlanet)
+            {
+                VerticalSpeed.Update();
+                HorizontalSpeed.Update();
+                OnPlanetParams.UpdateAeroForces();
+            }
             if(CFG.Target)
             {
                 CFG.Target.Update(this);
@@ -341,10 +349,8 @@ namespace ThrottleControlledAvionics
 
         public void UpdateOnPlanetStats()
         {
-            if(!OnPlanet) return;
-            VerticalSpeed.Update();
-            HorizontalSpeed.Update();
-            OnPlanetParams.Update();
+            if(OnPlanet)
+                OnPlanetParams.Update();
         }
 
         public void OnModulesUpdated()

@@ -44,6 +44,7 @@ namespace ThrottleControlledAvionics
         public float  vLift { get; private set; } //current vertical lift kN
         public Vector3 AeroForce { get; private set; } //current lift+drag vector
         public Vector3 AeroTorque { get; private set; } //current torque produced by aero forces
+        public Vector3 AeroTorqueL { get; private set; } //current torque produced by aero forces in local frame
         public float AeroTorqueRatio { get; private set; } //current ratio of aero torque to the torque commanded by the vessel
         public float MaxAeroTorqueRatio { get; private set; } //maximum possible AeroTorqueRatio
         public Vector3 MaxAeroForceL { get; private set; } //local statistically maximum aero force
@@ -133,7 +134,7 @@ namespace ThrottleControlledAvionics
             Parachutes.Clear();
         }
 
-        void update_aero_forces()
+        public void UpdateAeroForces()
         {
             var lift = Vector3.zero;
             var drag = Vector3.zero;
@@ -173,7 +174,8 @@ namespace ThrottleControlledAvionics
                 MaxAeroForceL = VSL.LocalDir(relAeroForce);
             vLift = Vector3.Dot(AeroForce, VSL.Physics.Up);
             AeroTorque = torque;
-            var aeroTorqueL = VSL.LocalDir(VSL.OnPlanetParams.AeroTorque).AbsComponents();
+            AeroTorqueL = VSL.LocalDir(VSL.OnPlanetParams.AeroTorque);
+            var aeroTorqueL = AeroTorqueL.AbsComponents();
             AeroTorqueRatio = Vector3.Scale(
                     aeroTorqueL,
                     (VSL.Torque.NoEngines.Torque + VSL.Torque.EnginesFinal.Torque).Inverse())
@@ -197,7 +199,6 @@ namespace ThrottleControlledAvionics
             TWRf = 1;
             CurrentThrustAccelerationTime = 0f; 
             CurrentThrustDecelerationTime = 0f;
-            update_aero_forces();
             //calculate total downward thrust and slow engines' corrections
             MaxTWR = (VSL.Engines.MaxThrustM+Mathf.Max(vLift, 0))/VSL.Physics.mg;
             DTWR = Mathf.Max((vLift-Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up))/VSL.Physics.mg, 0);
