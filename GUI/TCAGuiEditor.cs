@@ -31,7 +31,16 @@ namespace ThrottleControlledAvionics
         readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
         readonly List<RCSWrapper> RCS = new List<RCSWrapper>();
         readonly EnginesDB ActiveEngines = new EnginesDB();
-        static bool HaveSelectedPart { get { return EditorLogic.SelectedPart != null && EditorLogic.SelectedPart.potentialParent != null; } }
+
+        static bool HaveSelectedPart
+        {
+            get
+            {
+                var selectedPart = EditorLogic.SelectedPart;
+                return selectedPart != null
+                       && EditorLogic.SelectedPart.potentialParent != null;
+            }
+        }
 
         HighlightSwitcher TCA_highlight, Engines_highlight;
         
