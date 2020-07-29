@@ -383,6 +383,8 @@ namespace ThrottleControlledAvionics
 
 
         bool reset, init_engines, update_engines, update_stats, autoconfigure_profile;
+
+        RealTimer updateDamper = new RealTimer(0.1);
         void Update()
         {
             if(EditorLogic.fetch == null || EditorLogic.fetch.ship == null) return;
@@ -418,10 +420,11 @@ namespace ThrottleControlledAvionics
                 autoconfigure_profile = false;
                 update_stats = true;
             }
-            if(update_stats)
+            if(update_stats && doShow && updateDamper.TimePassed)
             {
                 UpdateShipStats();
                 update_stats = false;
+                updateDamper.Reset();
             }
             Available |= CFG != null;
             TCA_highlight.Update(Available && doShow);
