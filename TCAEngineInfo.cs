@@ -171,7 +171,7 @@ namespace ThrottleControlledAvionics
             if(modeEvent.active != enableModeEvent)
             {
                 modeEvent.active = enableModeEvent;
-                MonoUtilities.RefreshPartContextWindow(part);
+                part.UpdatePartMenu();
             } 
             if(HighLogic.LoadedSceneIsEditor)
                 GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
