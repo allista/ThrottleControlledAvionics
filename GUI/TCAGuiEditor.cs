@@ -114,7 +114,11 @@ namespace ThrottleControlledAvionics
         { update_engines = true; }
 
         void OnPartEvent(ConstructionEventType eventType, Part part)
-        { update_engines = true; }
+        {
+            update_engines |= eventType == ConstructionEventType.PartAttached
+                              || eventType == ConstructionEventType.PartDetached
+                              || eventType == ConstructionEventType.PartRootSelected;
+        }
 
         void update_modules()
         {
