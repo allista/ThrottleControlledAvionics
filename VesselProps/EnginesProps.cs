@@ -592,7 +592,7 @@ namespace ThrottleControlledAvionics
                 //calculate min imbalance
                 var min_imbalance = Vector3.zero;
                 for(int i = 0; i < NumActive; i++) min_imbalance += Active[i].Torque(0);
-                min_imbalance = VSL.Torque.EnginesLimits.Clamp(min_imbalance);
+                min_imbalance = VSL.Torque.EnginesLimits.ClampComponents(min_imbalance);
                 //correct VerticalSpeedFactor if needed
                 if(!min_imbalance.IsZero())
                 {
@@ -797,6 +797,7 @@ namespace ThrottleControlledAvionics
         public List<EngineWrapper> Manual     = new List<EngineWrapper>();
 
         public bool HaveMainEngines => Main.Count > 0;
+        public bool HaveSteering => Steering.Count > 0;
         public bool HaveThrusters => HaveMainEngines || Balanced.Count > 0 || UnBalanced.Count > 0;
         public bool HaveTranslation => Translation.Count > 0;
 

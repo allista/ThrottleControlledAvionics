@@ -26,11 +26,13 @@ namespace ThrottleControlledAvionics
 
         public TorqueInfo Imbalance; //current torque imbalance, set by UpdateImbalance
         public TorqueInfo Engines; //current torque applied to the vessel by engines
+        public TorqueInfo EnginesFinal; //actual final torque applied to the vessel by engines
         public TorqueInfo NoEngines; //current maximum torque
         public TorqueInfo SlowMaxPossible; //current maximum torque
         public TorqueInfo Instant; //current maximum torque
         public TorqueInfo MaxCurrent; //current maximum torque
         public TorqueInfo MaxPitchRoll; //current maximum torque
+        public TorqueInfo MaxEnginesPitchRoll; //current maximum torque
         public TorqueInfo MaxPossible; //theoretical maximum torque from active engines, wheels and RCS
         public TorqueInfo MaxEngines; //theoretical maximum torque from active engines
 
@@ -98,6 +100,7 @@ namespace ThrottleControlledAvionics
             EnginesLimits = Vector6.zero;
             RCSLimits = Vector6.zero;
             OtherLimits = Vector6.zero;
+            var FinalEnginesLimits = Vector6.zero;
             var MaxEnginesLimits = Vector6.zero;
             var EnginesSpecificTorque = Vector6.zero;
             var EnginesMaxSpecificTorque = Vector6.zero;
@@ -118,6 +121,7 @@ namespace ThrottleControlledAvionics
                     max_spec_torque = max_torque / e.nominalFullThrust;
                 }
                 EnginesLimits.Add(e.defCurrentTorque);
+                FinalEnginesLimits.Add(e.defSpecificTorque*e.finalThrust);
                 EnginesSpecificTorque.Add(e.defSpecificTorque);
                 MaxEnginesLimits.Add(max_torque);
                 EnginesMaxSpecificTorque.Add(max_spec_torque);
@@ -166,20 +170,25 @@ namespace ThrottleControlledAvionics
             }
             //torque and angular acceleration
             Engines.Update(EnginesLimits.Max);
+            EnginesFinal.Update(FinalEnginesLimits.Max);
             NoEngines.Update(RCSLimits.Max+OtherLimits.Max);
             MaxEngines.Update(MaxEnginesLimits.Max);
             MaxCurrent.Update(NoEngines.Torque+Engines.Torque);
             MaxPossible.Update(NoEngines.Torque+MaxEngines.Torque);
             MaxPitchRoll.Update(Vector3.ProjectOnPlane(MaxCurrent.Torque, VSL.Engines.CurrentThrustDir).AbsComponents());
+            MaxEnginesPitchRoll.Update(Vector3.ProjectOnPlane(MaxEngines.Torque, VSL.Engines.CurrentThrustDir)
+                .AbsComponents());
             SlowMaxPossible.Update(TotalSlowTorque.Max);
             Instant.Update(MaxPossible.Torque-SlowMaxPossible.Torque);
             //specifc torque
             Engines.SpecificTorque = EnginesSpecificTorque.Max;
+            EnginesFinal.SpecificTorque = Engines.SpecificTorque;
             NoEngines.SpecificTorque = RCSSpecificTorque.Max;
             MaxEngines.SpecificTorque = EnginesMaxSpecificTorque.Max;
             MaxCurrent.SpecificTorque = Engines.SpecificTorque+NoEngines.SpecificTorque;
             MaxPossible.SpecificTorque = MaxEngines.SpecificTorque + NoEngines.SpecificTorque;
             MaxPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxCurrent.SpecificTorque, VSL.Engines.CurrentThrustDir).AbsComponents();
+            MaxEnginesPitchRoll.SpecificTorque = Vector3.ProjectOnPlane(MaxEngines.SpecificTorque, VSL.Engines.CurrentThrustDir).AbsComponents();
             SlowMaxPossible.SpecificTorque = TotalSlowSpecificTorque.Max;
             Instant.SpecificTorque = MaxPossible.SpecificTorque-SlowMaxPossible.SpecificTorque;
             //torque response time
@@ -202,8 +211,9 @@ namespace ThrottleControlledAvionics
         public void UpdateImbalance(bool useDefTorque, params IList<EngineWrapper>[] engines)
         {
             var torque = CalculateImbalance(useDefTorque, engines);
-//            if(VSL.OnPlanet) torque += VSL.LocalDir(VSL.OnPlanetParams.AeroTorque);
-            Imbalance.Update(EnginesLimits.Clamp(torque));
+            if(VSL.OnPlanet) 
+                torque -= VSL.OnPlanetParams.AeroTorqueL;
+            Imbalance.Update(EnginesLimits.ClampComponents(torque));
         }
 
         public static Vector3 CalculateImbalance(bool useDefTorque, params IList<EngineWrapper>[] engines)

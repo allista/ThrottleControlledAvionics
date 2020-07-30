@@ -7,13 +7,14 @@
 
 using UnityEngine;
 using UnityEngine.UI;
-
 using AT_Utils.UI;
 
 namespace TCA.UI
 {
     public class VFlightUI : ScreenBoundRect
     {
+        private const string speedFormat = "0.0;0.0;0.0";
+
         public VSC_UI VSC;
         public ALT_UI ALT;
 
@@ -30,7 +31,7 @@ namespace TCA.UI
             EnableALT(false);
         }
 
-        void OnDestroy()
+        private void OnDestroy()
         {
             hoverButton.onValueChanged.RemoveListener(EnableALT);
         }
@@ -43,15 +44,21 @@ namespace TCA.UI
 
         public void UpdateInfo(float altitude, float v_speed, float h_speed)
         {
-            Altitude.text = FormatUtils.formatBigValue(altitude, "m");
-            vSpeed.text = FormatUtils.formatBigValue(v_speed, "m/s", "0.0;0.0;0.0");
+
+            Altitude.text = FormatUtils.formatBigValue(altitude, "m", null);
             if(v_speed > 0.01f)
                 vSpeedLabel.text = "▲";
             else if(v_speed < -0.01f)
                 vSpeedLabel.text = "▼";
             else
+            {
                 vSpeedLabel.text = "";
-            hSpeed.text = FormatUtils.formatBigValue(h_speed, "m/s");
+                v_speed = 0;
+            }
+            if(Mathf.Abs(h_speed) < 0.01)
+                h_speed = 0;
+            vSpeed.text = FormatUtils.formatBigValue(v_speed, "m/s", speedFormat);
+            hSpeed.text = FormatUtils.formatBigValue(h_speed, "m/s", speedFormat);
         }
     }
 
@@ -61,24 +68,42 @@ namespace TCA.UI
         public Text display;
 
         public float min;
-        public override float Min { get => min; set { min = value; slider.minValue = min; } }
+
+        public override float Min
+        {
+            get => min;
+            set
+            {
+                min = value;
+                slider.minValue = min;
+            }
+        }
 
         public float max;
-        public override float Max { get => max; set { max = value; slider.maxValue = max; } }
 
-        readonly FloatEvent _onValueChange = new FloatEvent();
-        public override FloatEvent onValueChanged => _onValueChange;
+        public override float Max
+        {
+            get => max;
+            set
+            {
+                max = value;
+                slider.maxValue = max;
+            }
+        }
 
-        void update_display()
+        public override FloatEvent onValueChanged { get; } = new FloatEvent();
+
+        private void update_display()
         {
             slider.value = value;
+            // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
             if(value < max)
                 display.text = FormatUtils.formatBigValue(value, "m/s", "+0.0;-0.0; 0.0");
             else
                 display.text = "OFF";
         }
 
-        void Awake()
+        private void Awake()
         {
             value = max;
             slider.minValue = min;
@@ -87,51 +112,54 @@ namespace TCA.UI
             slider.onValueChanged.AddListener(changeValueAndNotify);
         }
 
-        void OnDestroy()
+        private void OnDestroy()
         {
             slider.onValueChanged.RemoveListener(changeValueAndNotify);
         }
 
         public override bool SetValueWithoutNotify(float newValue)
         {
-            if(!value.Equals(newValue))
-            {
-                if(Mathf.Abs(newValue) < 0.1f)
-                    newValue = 0;
-                value = newValue;
-                update_display();
-                return true;
-            }
-            return false;
+            if(value.Equals(newValue))
+                return false;
+            if(Mathf.Abs(newValue) < 0.1f)
+                newValue = 0;
+            value = newValue;
+            update_display();
+            return true;
+        }
+
+        public override void SetInteractable(bool interactable)
+        {
+            slider.SetInteractable(interactable);
         }
     }
 
     public class ALT_UI : FloatValueUI
     {
         public FloatController Altitude;
-        public TooltipTrigger tooltip;
-        bool altitudeAboveGround;
+        private bool altitudeAboveGround;
 
         public override FloatEvent onValueChanged => Altitude.onValueChanged;
 
-        void Awake()
+        private void Awake()
         {
             SetAltitudeAboveGround(!altitudeAboveGround);
         }
 
         public void SetAltitudeAboveGround(bool above)
         {
-            if(altitudeAboveGround == above) return;
+            if(altitudeAboveGround == above)
+                return;
             if(above)
             {
-                tooltip.text = "Desired altitude is above the ground";
+                Altitude.inputTooltip.text = "Desired altitude is above the ground";
                 Colors.Danger.removeOnColorChangeListner(onInputColorChange);
                 Colors.Good.addOnColorChangeListner(onInputColorChange);
                 onInputColorChange(Colors.Good);
             }
             else
             {
-                tooltip.text = "Warning! Desired altitude is below the ground";
+                Altitude.inputTooltip.text = "Warning! Desired altitude is below the ground";
                 Colors.Good.removeOnColorChangeListner(onInputColorChange);
                 Colors.Danger.addOnColorChangeListner(onInputColorChange);
                 onInputColorChange(Colors.Danger);
@@ -139,7 +167,12 @@ namespace TCA.UI
             altitudeAboveGround = above;
         }
 
-        void onInputColorChange(Color color) => Altitude.input.textComponent.color = color;
+        public override void SetInteractable(bool interactable)
+        {
+            Altitude.SetInteractable(interactable);
+        }
+
+        private void onInputColorChange(Color color) => Altitude.input.textComponent.color = color;
 
         public override bool SetValueWithoutNotify(float newValue) => Altitude.SetValueWithoutNotify(newValue);
     }

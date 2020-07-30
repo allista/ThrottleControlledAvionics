@@ -280,7 +280,7 @@ namespace ThrottleControlledAvionics
 
         protected override void fine_tune_approach()
         {
-            update_landing_trajecotry();
+            update_landing_trajectory();
             var V = VesselOrbit.getOrbitalVelocityAtUT(VSL.Physics.UT+CorrectionOffset).magnitude;
             ComputeTrajectory(new LandingSiteCorrector(this, V, LandingTrajectoryAutopilot.C.Dtol/2));
             stage = Stage.CorrectTrajectory;
@@ -318,7 +318,7 @@ namespace ThrottleControlledAvionics
             case Stage.GainAltitude:
                 Status("Gaining altitude...");
                 VSC_ON(HFlight.Level);
-                if(VSL.Altitude.Relative > CFG.DesiredAltitude-10)
+                if(VSL.Altitude.Relative > CFG.DesiredAltitude*0.9f)
                     compute_initial_trajectory();
                 break;
             case Stage.Compute:
@@ -375,7 +375,7 @@ namespace ThrottleControlledAvionics
                 VSL.Info.Countdown = landing_trajectory.BrakeStartPoint.UT-VSL.Physics.UT-ManeuverOffset;
                 if(VSL.Info.Countdown > 0)
                 {
-                    warp_to_coundown();
+                    warp_to_countdown();
                     if(!trajectory_computed()) break;
                     add_correction_node_if_needed();
                     stage = Stage.Coast;

@@ -22,7 +22,7 @@ namespace ThrottleControlledAvionics
         public const string RADIATION_ICON = "ThrottleControlledAvionics/Icons/waypoint";
         public const string CIRCLE_ICON = "ThrottleControlledAvionics/Icons/path-node";
 
-        public UIBundle AssetBundle = UIBundle.Create("ThrottleControlledAvionics/tca_ui.ksp");
+        public UIBundle AssetBundle = UIBundle.Create("ThrottleControlledAvionics/tca_ui.bundle");
 
         [Persistent] public bool  IntegrateIntoCareer   = true;
         [Persistent] public bool  RoleSymmetryInFlight  = true;

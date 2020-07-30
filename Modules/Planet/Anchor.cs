@@ -68,7 +68,6 @@ namespace ThrottleControlledAvionics
                 break;
             case Multiplexer.Command.On:
                 if(CFG.Anchor == null) return;
-                VSL.UpdateOnPlanetStats();
                 goto case Multiplexer.Command.Resume;
 
             case Multiplexer.Command.Off:

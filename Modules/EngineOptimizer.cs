@@ -375,7 +375,7 @@ namespace ThrottleControlledAvionics
                         needed_torque += e.currentTorque;
                 }
                 needed_torque = Vector3.Project(needed_torque, Steering) * Steering.magnitude;
-                needed_torque = VSL.Torque.EnginesLimits.Clamp(needed_torque);
+                needed_torque = VSL.Torque.EnginesLimits.ClampComponents(needed_torque);
             }
             //optimize engines; if failed, set the flag and kill torque if requested
             if(!OptimizeLimitsForTorque(engines, needed_torque, false, out var max_limit) && !needed_torque.IsZero())

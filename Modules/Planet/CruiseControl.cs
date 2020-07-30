@@ -69,7 +69,6 @@ namespace ThrottleControlledAvionics
                 break;
 
             case Multiplexer.Command.On:
-                VSL.UpdateOnPlanetStats();
                 var nV = VSL.HorizontalSpeed.Absolute;
                 if(nV > PointNavigator.C.MaxSpeed) nV = PointNavigator.C.MaxSpeed;
                 var nVdir = nV > C.MaxIdleSpeed?

@@ -43,7 +43,10 @@ namespace ThrottleControlledAvionics
         public Vector3 Drag { get; private set; } //current drag vector
         public float  vLift { get; private set; } //current vertical lift kN
         public Vector3 AeroForce { get; private set; } //current lift+drag vector
-        public Vector3 AeroTorque { get; private set; } //current torque produced by aero forcess
+        public Vector3 AeroTorque { get; private set; } //current torque produced by aero forces
+        public Vector3 AeroTorqueL { get; private set; } //current torque produced by aero forces in local frame
+        public float AeroTorqueRatio { get; private set; } //current ratio of aero torque to the torque commanded by the vessel
+        public float MaxAeroTorqueRatio { get; private set; } //maximum possible AeroTorqueRatio
         public Vector3 MaxAeroForceL { get; private set; } //local statistically maximum aero force
 
         public float   MaxTWR { get; private set; }
@@ -119,6 +122,10 @@ namespace ThrottleControlledAvionics
         public override void Clear()
         {
             GearDeployTime = 0;
+            AeroTorqueRatio = 0;
+            MaxAeroTorqueRatio = 0;
+            AeroTorque =  Vector3.zero;
+            AeroForce =  Vector3.zero;
             MaxAeroForceL = Vector3.zero;
             HaveLandingGear = false;
             HaveLaunchClamps = false;
@@ -127,7 +134,7 @@ namespace ThrottleControlledAvionics
             Parachutes.Clear();
         }
 
-        void update_aero_forces()
+        public void UpdateAeroForces()
         {
             var lift = Vector3.zero;
             var drag = Vector3.zero;
@@ -161,7 +168,22 @@ namespace ThrottleControlledAvionics
             }
             Lift = lift;
             Drag = drag;
+            AeroForce = Lift+Drag;
+            var relAeroForce = AeroForce/(float)Utils.ClampL(VSL.vessel.dynamicPressurekPa, 1);
+            if(relAeroForce.sqrMagnitude > MaxAeroForceL.sqrMagnitude)
+                MaxAeroForceL = VSL.LocalDir(relAeroForce);
+            vLift = Vector3.Dot(AeroForce, VSL.Physics.Up);
             AeroTorque = torque;
+            AeroTorqueL = VSL.LocalDir(VSL.OnPlanetParams.AeroTorque);
+            var aeroTorqueL = AeroTorqueL.AbsComponents();
+            AeroTorqueRatio = Vector3.Scale(
+                    aeroTorqueL,
+                    (VSL.Torque.NoEngines.Torque + VSL.Torque.EnginesFinal.Torque).Inverse())
+                .MaxComponentF();
+            MaxAeroTorqueRatio = Vector3.Scale(
+                aeroTorqueL,
+                VSL.Torque.MaxCurrent.Torque.Inverse())
+                .MaxComponentF();
         }
 
         public void ChangeDragCurveK(float speed)
@@ -177,22 +199,17 @@ namespace ThrottleControlledAvionics
             TWRf = 1;
             CurrentThrustAccelerationTime = 0f; 
             CurrentThrustDecelerationTime = 0f;
-            update_aero_forces();
             //calculate total downward thrust and slow engines' corrections
-            AeroForce = Lift+Drag;
-            var relAeroForce = AeroForce/(float)Utils.ClampL(VSL.vessel.dynamicPressurekPa, 1);
-            if(relAeroForce.sqrMagnitude > MaxAeroForceL.sqrMagnitude)
-                MaxAeroForceL = VSL.LocalDir(relAeroForce);
-            vLift = Vector3.Dot(AeroForce, VSL.Physics.Up);
             MaxTWR = (VSL.Engines.MaxThrustM+Mathf.Max(vLift, 0))/VSL.Physics.mg;
             DTWR = Mathf.Max((vLift-Vector3.Dot(VSL.Engines.Thrust, VSL.Physics.Up))/VSL.Physics.mg, 0);
             DTWR_filter.TauUp = VSL.Engines.AccelerationTime90;
             DTWR_filter.TauDown = VSL.Engines.DecelerationTime10;
             DTWR_filter.Update(DTWR);
             GeeVSF = 1/Utils.ClampL(MaxTWR, 1);
-            var mVSFtor = (VSL.Torque.MaxPitchRoll.AA_rad > 0)? 
-                Utils.ClampH(VerticalSpeedControl.C.MinVSFf/VSL.Torque.MaxPitchRoll.AA_rad, VerticalSpeedControl.C.MaxVSFtwr*GeeVSF) : 0;
+            var mVSFtor = (VSL.Torque.MaxEnginesPitchRoll.AA_rad > 0)? 
+                Utils.ClampH(VerticalSpeedControl.C.MinVSFf/VSL.Torque.MaxEnginesPitchRoll.AA_rad, VerticalSpeedControl.C.MaxVSFtwr*GeeVSF) : 0;
             MinVSF = Mathf.Lerp(0, mVSFtor, Mathf.Pow(VSL.Controls.Steering.sqrMagnitude, 0.25f));
+            MinVSF = Mathf.Max(MinVSF, Utils.ClampH(MaxAeroTorqueRatio, GeeVSF));
             var down_thrust = Mathf.Max(vLift, 0);
             var slow_thrust = 0f;
             var fast_thrust = 0f;

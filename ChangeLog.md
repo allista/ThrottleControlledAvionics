@@ -4,7 +4,23 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.7.1**
+* **v3.7.2**
+    * **Taking aerodynamic forces into account**
+        * when balancing engines
+        * in vertical speed controller
+        * in altitude controller
+    * **Improved Deorbit and Ballistic Jump** autopilots
+    * **Improved performance in Editor**
+        * no more FPS drop when TCA GUI is closed
+        * better performance when dragging a new part over the ship
+    * **UI**
+        * Vertical Flight HUD
+            * made more compact
+            * improved formatting of altitude and velocities
+        * HUD panels are showed when TCA is uncontrollable
+        * Fix: Info Panel unlocks controls when it is cleared
+
+* v3.7.1
     * Using new uGUI dialogs from AT_Utils
     * Adapted to changes in AT_Utils
 

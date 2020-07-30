@@ -10,7 +10,7 @@ using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
-    public abstract class ORB_Test : TCA_Test
+    public class ORB_Test : TCA_Test
     {
         protected string Save = "";
         protected ToOrbitAutopilot ORB;
@@ -89,6 +89,7 @@ namespace ThrottleControlledAvionics
                     ApA = ORB.TargetOrbit.ApA*1000;
                     ORB.ShowOptions = true;
                     VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.RCS, true);
+                    VSL.vessel.ActionGroups.SetGroup(KSPActionGroup.Light, true);
                     CFG.AP2.XOn(Autopilot2.ToOrbit);
                     orbit_set_up = true;
                     Log("TargetOrbit: {}", ORB.TargetOrbit);

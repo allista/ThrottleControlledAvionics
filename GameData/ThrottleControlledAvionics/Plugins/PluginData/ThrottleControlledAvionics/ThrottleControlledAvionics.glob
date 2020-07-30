@@ -88,14 +88,14 @@ VerticalSpeedControl
 
 AltitudeControl
 {
-	MaxSpeedErrorF = 100
+	AeroTorqueRatioThreshold = 0.5
+	MaxSpeedErrorF = 10
 	MaxSpeedLow    = 10
 	MaxSpeedHigh   = 300
 	ErrF           = 1 //altitude error coefficient
 	TWRd           = 0.5 //twr denominator
 	
 	RelAltitudeFactor = 50  //meters
-	RelVelocityErrF   = 1
 
 	TimeAhead         = 5
 	FallingTime       = 0.5 //min. time falling to trigger Loosing Altitude alert
@@ -104,7 +104,7 @@ AltitudeControl
 	
 	RocketPID
 	{
-		P = 0.3	
+		P = 0.3
 		I = 0
 		D = 0.3
 	}
@@ -505,13 +505,9 @@ LandingTrajectoryAutopilot
 	FlyOverAlt         = 2000 //m
 	ApproachAlt        = 250  //m
 	
-	BrakeThrustThreshod = 100 //m/s
+	BrakeThrustThreshold = 100 //m/s
 	BrakeEndSpeed      = 10   //m/s
-	MinBrakeOffset     = 10   //s
-	FinalBrakeOffset   = 3    //s
 	LandingThrustTime  = 3    //s
-	ParachutesDeployOffset = 10 //s
-	
 	
 	CorrectionTimer    = 30   //s
 	CorrectionMinDv    = 1    //m/s
@@ -519,7 +515,6 @@ LandingTrajectoryAutopilot
 	CorrectionTimeF    = 2
 	CorrectionDirF     = 10
 	
-	ObstacleBrakeF     = 1.1
 	HoverTimeThreshold = 60    //s
 	DropBallastThreshold = 0.4 //dP/P_asl
 	MaxDPressure       = 3     //kPa
@@ -527,7 +522,7 @@ LandingTrajectoryAutopilot
 	MachThreshold      = 0.9
 	MinAerobrakeDensity = 0.4
 	
-	ScanningAngle      = 21
+	ScanningAngle      = 70
 	PointsPerFrame     = 5
 	AtmoTrajectoryResolution = 5
 	MaxCorrectionDist  = 1

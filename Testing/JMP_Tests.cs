@@ -6,13 +6,14 @@
 //  Copyright (c) 2017 Allis Tauri
 #if DEBUG
 using AT_Utils;
+using JetBrains.Annotations;
 
 namespace ThrottleControlledAvionics
 {
-    public abstract class JMP_Test_Base : LND_Test_Base<BallisticJump>
+    [UsedImplicitly]
+    public class JMP_Test : LND_Test_Base<BallisticJump>
     {
-
-        protected JMP_Test_Base()
+        public JMP_Test()
         {
             program = Autopilot2.BallisticJump;
         }

@@ -32,7 +32,7 @@ namespace ThrottleControlledAvionics
 
         protected List<TCAModule> AllModules = new List<TCAModule>();
 
-        protected virtual bool shouldShow => Connected && TCA.IsControllable && CFG.GUIVisible;
+        protected virtual bool shouldShow => Connected && TCA.Valid && CFG.GUIVisible;
 
         protected override void init_controller()
         {
@@ -41,7 +41,7 @@ namespace ThrottleControlledAvionics
                 OnLateUpdate();
         }
 
-        protected ControlPanel() : base(GLB.AssetBundle) { }
+        protected ControlPanel() : base(GLB.AssetBundle, false) { }
 
         public virtual void Reset()
         {

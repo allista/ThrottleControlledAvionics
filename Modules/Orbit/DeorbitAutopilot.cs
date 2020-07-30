@@ -74,10 +74,15 @@ namespace ThrottleControlledAvionics
             {
                 var pos = m.VesselOrbit.getRelativePositionAtUT(startUT);
                 var vel = m.VesselOrbit.getOrbitalVelocityAtUT(startUT);
-                var vel1 = dV+vel;
-                return new LandingTrajectory(m.VSL, 
-                                             Quaternion.AngleAxis(I, pos)*vel1 - vel,
-                                             startUT, m.CFG.Target, targetAlt);
+                var vel1 = dV + vel;
+                return new LandingTrajectory(m.VSL,
+                    dV.IsZero()
+                    && I.Equals(0)
+                        ? Vector3d.zero
+                        : Quaternion.AngleAxis(I, pos) * vel1 - vel,
+                    startUT,
+                    m.CFG.Target,
+                    targetAlt);
             }
 
             protected IEnumerable<LandingTrajectory> optimize_inclination(float dI, Vector3d dV)
@@ -240,18 +245,35 @@ namespace ThrottleControlledAvionics
             {
                 var startUT = Best.StartUT;
                 var dir = m.hV(startUT).normalized;
-                var pg = prograde_dV+ddV;
+                // choose start direction
+                var plusT = newT(startUT, inclination, 2 * ddV * dir);
+                var minusT = newT(startUT, inclination, -2 * ddV * dir);
+                var pg = prograde_dV;
+                if(plusT.DistanceToTarget < minusT.DistanceToTarget)
+                {
+                    pg += ddV;
+                    if(plusT.DistanceToTarget > Best.DistanceToTarget)
+                        ddV = -ddV;
+                }
+                else
+                {
+                    pg -= ddV;
+                    if(minusT.DistanceToTarget < Best.DistanceToTarget)
+                        ddV = -ddV;
+                }
+                // optimize prograde dV
                 while(Math.Abs(ddV) > TrajectoryCalculator.C.dVtol)
                 {
-                    var cur = newT(startUT, inclination, dir* pg);
-//                    m.Log("startUT {}, I {}, opt.dV {}, ddV {}, dist {}", startUT, inclination, pg, ddV, cur.DistanceToTarget);//debug
-                    if(cur.DistanceToTarget < Best.DistanceToTarget) 
+                    var cur = newT(startUT, inclination, dir * pg);
+                    if(cur.FullManeuver && cur.Quality < Best.Quality)
                     {
                         Best = cur;
                         prograde_dV = pg;
                     }
                     pg += ddV;
-                    if(Best != cur)
+                    if(Best != cur
+                       || cur.BrakeEndPointDeltaAlt < 0
+                       || cur.BrakeEndPointDeltaAlt > LandingTrajectoryAutopilot.C.FlyOverAlt)
                     {
                         ddV /= -2.1;
                         pg = prograde_dV + ddV;
@@ -262,16 +284,20 @@ namespace ThrottleControlledAvionics
 
             public override IEnumerator<LandingTrajectory> GetEnumerator()
             {
-                Best = newT(m.VSL.Physics.UT+m.CorrectionOffset+1, 0, Vector3d.zero);
+                Best = newT(m.VSL.Physics.UT + m.CorrectionOffset + TimeWarp.CurrentRate + 1, 0, Vector3d.zero);
                 LandingTrajectory cur = null;
                 while(continue_calculation(cur, Best))
                 {
                     cur = Best;
                     var ddV = Utils.ClampSignedL(dR2dV(Best.DeltaR), 1);
-                    foreach(var t in optimize_prograde(ddV)) yield return t;
-                    var dI = Utils.Clamp((float)Best.DeltaFi, -10, 10);
-                    var dV = m.hV(Best.StartUT).normalized*prograde_dV;
-                    foreach(var t in optimize_inclination(dI, dV)) yield return t;
+                    foreach(var t in optimize_prograde(ddV))
+                        yield return t;
+                    var dI = Utils.Clamp((float)Best.DeltaFi/2, -1, 1);
+                    if(Best.ManeuverDuration <= 0)
+                        continue;
+                    var dV = m.hV(Best.StartUT).normalized * prograde_dV;
+                    foreach(var t in optimize_inclination(dI, dV))
+                        yield return t;
                 }
             }
         }
@@ -478,7 +504,7 @@ namespace ThrottleControlledAvionics
                    && trajectory.TimeToStart > ManeuverOffset)
                     add_correction_node_if_needed();
                 else 
-                    update_landing_trajecotry();
+                    update_landing_trajectory();
                 stage = Stage.Coast; 
                 break;
             case Stage.Coast:

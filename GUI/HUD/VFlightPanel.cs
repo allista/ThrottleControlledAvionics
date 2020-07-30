@@ -18,8 +18,7 @@ namespace ThrottleControlledAvionics
         private ThrottleControl THR;
         private Radar RAD;
 
-        protected override bool shouldShow =>
-            base.shouldShow && VSL.OnPlanet && AllModules.Count > 0;
+        protected override bool shouldShow => base.shouldShow && VSL.OnPlanet && AllModules.Count > 0;
 
         protected override void init_controller()
         {
@@ -94,6 +93,16 @@ namespace ThrottleControlledAvionics
         protected override void OnLateUpdate()
         {
             base.OnLateUpdate();
+            if(!IsShown)
+                return;
+            // set controls interactable when TCA is controllable
+            var controllable = TCA.IsControllable;
+            Controller.hoverButton.SetInteractable(controllable);
+            Controller.followTerrainButton.SetInteractable(controllable);
+            Controller.autoThrottleButton.SetInteractable(controllable);
+            Controller.VSC.SetInteractable(controllable);
+            Controller.ALT.SetInteractable(controllable);
+            // update info and controls state
             Controller.UpdateInfo(VSL.Altitude.Current,
                 VSL.VerticalSpeed.Display,
                 VSL.HorizontalSpeed.Absolute);

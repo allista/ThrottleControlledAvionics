@@ -31,7 +31,16 @@ namespace ThrottleControlledAvionics
         readonly List<EngineWrapper> Engines = new List<EngineWrapper>();
         readonly List<RCSWrapper> RCS = new List<RCSWrapper>();
         readonly EnginesDB ActiveEngines = new EnginesDB();
-        static bool HaveSelectedPart { get { return EditorLogic.SelectedPart != null && EditorLogic.SelectedPart.potentialParent != null; } }
+
+        static bool HaveSelectedPart
+        {
+            get
+            {
+                var selectedPart = EditorLogic.SelectedPart;
+                return selectedPart != null
+                       && EditorLogic.SelectedPart.potentialParent != null;
+            }
+        }
 
         HighlightSwitcher TCA_highlight, Engines_highlight;
         
@@ -105,7 +114,11 @@ namespace ThrottleControlledAvionics
         { update_engines = true; }
 
         void OnPartEvent(ConstructionEventType eventType, Part part)
-        { update_engines = true; }
+        {
+            update_engines |= eventType == ConstructionEventType.PartAttached
+                              || eventType == ConstructionEventType.PartDetached
+                              || eventType == ConstructionEventType.PartRootSelected;
+        }
 
         void update_modules()
         {
@@ -176,8 +189,9 @@ namespace ThrottleControlledAvionics
             if(!EditorLogic.RootPart) return;
             var partMass = part.mass;
             if(use_wet_mass) partMass += part.GetResourceMass();
+            var T = part.transform;
             Vector3 partPosition = EditorLogic.RootPart.transform
-                .InverseTransformDirection(part.transform.position + part.transform.rotation * part.CoMOffset - CoM);
+                .InverseTransformDirection(T.position + T.rotation * part.CoMOffset - CoM);
             for(int i = 0; i < 3; i++)
             {
                 InertiaTensor.Add(i, i, partMass * partPosition.sqrMagnitude);
@@ -194,11 +208,20 @@ namespace ThrottleControlledAvionics
             var wetMass = dryMass + part.GetResourceMass();
             Vector3 pos = Vector3.zero;
             if(part.physicalSignificance == Part.PhysicalSignificance.FULL)
-                pos = part.transform.position + part.transform.rotation * part.CoMOffset;
+            {
+                var T = part.transform;
+                pos = T.position + T.rotation * part.CoMOffset;
+            }
             else if(part.parent != null)
-                pos = part.parent.transform.position + part.parent.transform.rotation * part.parent.CoMOffset;
+            {
+                var T = part.parent.transform;
+                pos = T.position + T.rotation * part.parent.CoMOffset;
+            }
             else if(part.potentialParent != null)
-                pos = part.potentialParent.transform.position + part.potentialParent.transform.rotation * part.potentialParent.CoMOffset;
+            {
+                var T = part.potentialParent.transform;
+                pos = T.position + T.rotation * part.potentialParent.CoMOffset;
+            }
             WetCoM += pos * wetMass;
             DryCoM += pos * dryMass;
             WetMass += wetMass;
@@ -364,6 +387,8 @@ namespace ThrottleControlledAvionics
 
 
         bool reset, init_engines, update_engines, update_stats, autoconfigure_profile;
+
+        RealTimer updateDamper = new RealTimer(0.1);
         void Update()
         {
             if(EditorLogic.fetch == null || EditorLogic.fetch.ship == null) return;
@@ -399,10 +424,11 @@ namespace ThrottleControlledAvionics
                 autoconfigure_profile = false;
                 update_stats = true;
             }
-            if(update_stats)
+            if(update_stats && doShow && updateDamper.TimePassed)
             {
                 UpdateShipStats();
                 update_stats = false;
+                updateDamper.Reset();
             }
             Available |= CFG != null;
             TCA_highlight.Update(Available && doShow);
