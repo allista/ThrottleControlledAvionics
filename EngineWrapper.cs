@@ -389,12 +389,16 @@ namespace ThrottleControlledAvionics
             //update Role
             if(engine.throttleLocked && info.Role != TCARole.MANUAL)
                 info.SetRole(TCARole.MANUAL);
-            InitLimits();
-            nominalFullThrust = nominalCurrentThrust(1);
+            // update rotation/translation flags that are used in InitLimits
             rotationEnabled = info.Role != TCARole.MANEUVER 
                               || (info.Mode & ManeuverMode.TORQUE) == ManeuverMode.TORQUE;
             translationEnabled = info.Role != TCARole.MANEUVER 
                                  || (info.Mode & ManeuverMode.TRANSLATION) == ManeuverMode.TRANSLATION;
+            // update limits AND engine usage flags
+            InitLimits();
+            // update full thrust AFTER the throttleLocked flag is set in InitLimits
+            nominalFullThrust = nominalCurrentThrust(1);
+
             //            Utils.Log("Engine.InitState: {}\n" +
             //                      "wThrustDir {}\n" +
             //                      "wThrustPos {}\n" +
