@@ -61,6 +61,8 @@ namespace ThrottleControlledAvionics
         [Persistent] public FloatField TimeToApA = new FloatField(format: "F1", min: 5, max: 300);
         [Persistent] public FloatField MaxG = new FloatField(format: "F1", min: 0.1f, max: 100);
         [Persistent] public FloatField MinThrottle = new FloatField(format: "F1", min: 1, max: 100);
+        [Persistent] public FloatField MaxDynP = new FloatField(format: "F1", min: 0.1f, max: 300);
+        [Persistent] public FloatField MaxAoA = new FloatField(format: "F1", min: 0.1f, max: 90);
 
         /// <summary>
         /// The arc distance in radians between current vessel position and the Target.
@@ -87,6 +89,7 @@ namespace ThrottleControlledAvionics
         protected double CircularizationOffset = -1;
         protected bool ApoapsisReached;
         protected bool CourseOnTarget;
+        protected float currentAoA;
 
         public override void Save(ConfigNode node)
         {
@@ -116,6 +119,8 @@ namespace ThrottleControlledAvionics
             TimeToApA.Value = TrajectoryCalculator.C.ManeuverOffset;
             MinThrottle.Value = C.MinThrottle;
             MaxG.Value = C.MaxG;
+            MaxDynP.Value = C.MaxDynPressure;
+            MaxAoA.Value = AttitudeControlBase.C.MaxAttitudeError;
         }
 
         public virtual void AttachTCA(ModuleTCA tca)
@@ -210,12 +215,9 @@ namespace ThrottleControlledAvionics
             }
             else
                 norm_correction.Update(0);
-            return startF < 1
-                ? needed_vel.magnitude
-                  * Vector3d.Lerp(pg_vel.normalized,
-                      needed_vel.normalized,
-                      startF)
-                : needed_vel;
+            var clampAngle = MaxAoA.Value
+                             * Utils.ClampL(1 - VSL.vessel.dynamicPressurekPa / MaxDynP.Value, 0);
+            return Utils.ClampDirection(needed_vel, pg_vel, clampAngle);
         }
 
         protected bool coast(Vector3d pg_vel)
@@ -311,6 +313,7 @@ namespace ThrottleControlledAvionics
             VSL.Engines.ActivateNextStageOnFlameout();
             update_state(Dtol);
             var pg_vel = get_pg_vel();
+            currentAoA = Utils.Angle2(VSL.Engines.CurrentDefThrustDir, -(Vector3)pg_vel.xzy);
             if(!ErrorThreshold)
             {
                 CFG.AT.OnIfNot(Attitude.Custom);
@@ -375,6 +378,15 @@ namespace ThrottleControlledAvionics
                                                    "Maximum allowed acceleration (in gees of the current planet). " +
                                                    "Smooths gravity turn on low-gravity worlds. Saves fuel."),
                                     GUILayout.ExpandWidth(true));
+                    GUILayout.Label(new GUIContent("Max. Dyn.Pressure:",
+                            "Maximum allowed dynamic pressure (for gravity turn in atmosphere). "
+                            + "Determines how much the ship is allowed to deviate from prograde. "
+                            + "If current dynamic pressure is higher, the ship will follow prograde exactly."),
+                        GUILayout.ExpandWidth(true));
+                    GUILayout.Label(new GUIContent("Max. Angle of Attack:",
+                            "Maximum allowed angle of attack. "
+                            + "This is the hard limit that is modified by maximum dynamic pressure setting."),
+                        GUILayout.ExpandWidth(true));
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
@@ -391,6 +403,8 @@ namespace ThrottleControlledAvionics
                     GUILayout.EndHorizontal();
                     GUILayout.FlexibleSpace();
                     GUILayout.FlexibleSpace();
+                    GUILayout.FlexibleSpace();
+                    GUILayout.FlexibleSpace();
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
@@ -399,6 +413,8 @@ namespace ThrottleControlledAvionics
                     TimeToApA.Draw("s", 5, "F1", suffix_width: 25);
                     MinThrottle.Draw("%", 5, "F1", suffix_width: 25);
                     MaxG.Draw("g", 0.5f, "F1", suffix_width: 25);
+                    MaxDynP.Draw("kPa", 5, "F1", 25);
+                    MaxAoA.Draw("°", 1, "F1", 25);
                 }
                 GUILayout.EndVertical();
             }
@@ -414,6 +430,8 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label("Inclination:");
                     GUILayout.Label("Apoapsis:");
                     GUILayout.Label("Time to Apoapsis:");
+                    GUILayout.Label("Angle of Attack:");
+                    GUILayout.Label("Dyn. Pressure:");
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
@@ -433,6 +451,8 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label(string.Format("{0} ► {1}",
                         KSPUtil.PrintDateDeltaCompact(TimeToClosestApA, true, true),
                         KSPUtil.PrintDateDeltaCompact(TimeToApA, true, true)));
+                    GUILayout.Label($"{currentAoA:F3}°");
+                    GUILayout.Label($"{VSL.vessel.dynamicPressurekPa:F3} kPa");
                 }
                 GUILayout.EndVertical();
             }
