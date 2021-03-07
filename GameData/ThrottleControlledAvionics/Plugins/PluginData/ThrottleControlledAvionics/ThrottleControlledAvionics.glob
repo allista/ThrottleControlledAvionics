@@ -569,6 +569,8 @@ ToOrbitExecutor
 	MaxDynPressure = 35 //kPa
 	AscentEccentricity = 0.3
 	AtmDensityOffset = 1
+	AtmDensityCutoff = 0.01
+	GravityTurnAngle = 45 // deg
 	GTurnOffset = 0.1
 	MinThrustMod = 0.8
 	MaxThrustMod = 0.99
@@ -587,6 +589,13 @@ ToOrbitExecutor
 		D = 0
 		Tau = 1
 	}
+    ApAPID
+    {
+        P = 0.1
+        I = 0.01
+        D = 0
+        Tau = 1
+    }
 	NormCorrectionPID
 	{
 		P = 20

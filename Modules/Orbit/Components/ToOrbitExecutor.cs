@@ -19,7 +19,9 @@ namespace ThrottleControlledAvionics
             [Persistent] public float MinClimbTime = 5;
             [Persistent] public float MaxDynPressure = 10f;
             [Persistent] public float AtmDensityOffset = 10f;
+            [Persistent] public float AtmDensityCutoff = 0.1f;
             [Persistent] public float AscentEccentricity = 0.3f;
+            [Persistent] public float GravityTurnAngle = 30;
             [Persistent] public float GTurnOffset = 0.1f;
             [Persistent] public float MinThrustMod = 0.8f;
             [Persistent] public float MaxThrustMod = 0.99f;
@@ -27,11 +29,16 @@ namespace ThrottleControlledAvionics
 
             [Persistent] public PIDf_Controller3 PitchPID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 ThrottlePID = new PIDf_Controller3();
+            [Persistent] public PIDf_Controller3 ApAPID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 NormCorrectionPID = new PIDf_Controller3();
+
+            public float AtmDensityInterval;
             public float ThrustModInterval;
+
             public override void Load(ConfigNode node)
             {
                 base.Load(node);
+                AtmDensityInterval = AtmDensityOffset - AtmDensityCutoff;
                 ThrustModInterval = MaxThrustMod - C.MinThrustMod;
             }
         }
@@ -71,6 +78,7 @@ namespace ThrottleControlledAvionics
         [Persistent] public FloatField MinThrottle = new FloatField(format: "F1", min: 1, max: 100);
         [Persistent] public FloatField MaxDynP = new FloatField(format: "F1", min: 0.1f, max: 300);
         [Persistent] public FloatField MaxAoA = new FloatField(format: "F1", min: 0.1f, max: 90);
+        [Persistent] public FloatField GravityTurnAngle = new FloatField(format: "F1", min: 1, max: 45);
 
         /// <summary>
         /// The arc distance in radians between current vessel position and the Target.
@@ -94,6 +102,9 @@ namespace ThrottleControlledAvionics
         protected PIDf_Controller3 pitch = new PIDf_Controller3();
         protected PIDf_Controller3 norm_correction = new PIDf_Controller3();
         protected PIDf_Controller3 throttle = new PIDf_Controller3();
+        protected PIDf_Controller3 dApA_pid = new PIDf_Controller3();
+        private double prevApA;
+        private float thrustToKeepApA;
         protected double CircularizationOffset = -1;
         protected bool ApoapsisReached;
         protected bool CourseOnTarget;
@@ -121,11 +132,14 @@ namespace ThrottleControlledAvionics
             pitch.setClamp(AttitudeControlBase.C.MaxAttitudeError);
             throttle.setPID(C.ThrottlePID);
             throttle.setClamp(0.5f);
+            dApA_pid.setPID(C.ApAPID);
+            dApA_pid.setClamp(0.5f);
             norm_correction.setPID(C.NormCorrectionPID);
             norm_correction.setClamp(AttitudeControlBase.C.MaxAttitudeError);
             FirstApA.Value = -1;
             TimeToApA.Value = TrajectoryCalculator.C.ManeuverOffset;
             MinThrottle.Value = C.MinThrottle;
+            GravityTurnAngle.Value = C.GravityTurnAngle;
             MaxG.Value = C.MaxG;
             MaxDynP.Value = C.MaxDynPressure;
             MaxAoA.Value = AttitudeControlBase.C.MaxAttitudeError;
@@ -315,6 +329,7 @@ namespace ThrottleControlledAvionics
             CFG.VTOLAssistON = false;
             CFG.StabilizeFlight = false;
             CFG.HF.Off();
+            prevApA = VesselOrbit.ApA;
             update_state(0);
         }
 
@@ -331,35 +346,67 @@ namespace ThrottleControlledAvionics
                 CircularizationOffset = -1;
                 tune_THR();
                 auto_ApA_offset();
-                var startF = getStartF();
                 var vel = pg_vel;
-                var AoA = Utils.Angle2(pg_vel, VesselOrbit.pos);
-                if(AoA < 45)
                 {
-                    pitch.Update((float)AoA
-                                 - Mathf.Lerp(45, 15, (float)(VSL.vessel.atmDensity - 0.1)));
-                    vel = QuaternionD.AngleAxis(pitch * startF,
-                              Vector3d.Cross(target, VesselOrbit.pos))
-                          * pg_vel;
-                }
-                vel = tune_needed_vel(vel, pg_vel, startF);
-                vel = Utils.ClampDirection(vel,
-                    pg_vel,
-                    (double)AttitudeControlBase.C.MaxAttitudeError);
-                throttle.Update(TimeToApA - (float)VesselOrbit.timeToAp);
-                THR.Throttle = Utils.Clamp(0.5f + throttle, MinThrottle / 100, max_G_throttle())
-                               * (float)Utils.ClampH(dApA / Dtol / VSL.Engines.TMR, 1);
-                ATC.SetThrustDirW(-vel.xzy);
-                if(CFG.AT.Not(Attitude.KillRotation))
-                {
-                    if(AoA < 85)
+                    var startF = getStartF();
+                    var angleOfAscent = Utils.ProjectionAngle(VesselOrbit.pos, pg_vel, target - VesselOrbit.pos);
+                    var maxAngleOfAscent = VSL.Engines.MaxThrustM > VSL.Physics.mg
+                        ? Mathf.Min(Mathf.Acos(VSL.Physics.mg / VSL.Engines.MaxThrustM) * Mathf.Rad2Deg, 45)
+                        : 0;
+                    var neededAngleOfAscent = (float)angleOfAscent;
+                    if(angleOfAscent < GravityTurnAngle)
                     {
-                        CFG.BR.OnIfNot(BearingMode.Auto);
-                        BRC.ForwardDirection = htdir.xzy;
+                        neededAngleOfAscent = Mathf.Min(
+                            maxAngleOfAscent,
+                            Mathf.Lerp(
+                                GravityTurnAngle,
+                                0,
+                                (float)(VSL.vessel.atmDensity - C.AtmDensityCutoff) / C.AtmDensityInterval)
+                            * (float)startF);
+                        pitch.Update((float)angleOfAscent - neededAngleOfAscent);
+                        vel = QuaternionD.AngleAxis(
+                                  pitch,
+                                  Vector3d.Cross(target, VesselOrbit.pos))
+                              * pg_vel;
                     }
-                    else
-                        CFG.BR.OffIfOn(BearingMode.Auto);
+                    vel = tune_needed_vel(vel, pg_vel, startF);
+                    throttle.Update(TimeToApA - (float)VesselOrbit.timeToAp);
+                    THR.Throttle = Utils.Clamp(0.5f + throttle, MinThrottle / 100, max_G_throttle());
+                    if(VSL.vessel.dynamicPressurekPa > 0)
+                    {
+                        dApA_pid.Update((float)(prevApA - VesselOrbit.ApA)/TimeWarp.fixedDeltaTime);
+                        thrustToKeepApA = Utils.Clamp(thrustToKeepApA + dApA_pid.Action, 0, 1);
+                        THR.Throttle = Math.Max(THR.Throttle, thrustToKeepApA);
+                    }
+                    THR.Throttle *= (float)Utils.ClampH(dApA / Dtol / VSL.Engines.TMR, 1);
+                    if(CFG.AT.Not(Attitude.KillRotation))
+                    {
+                        if(angleOfAscent < GravityTurnAngle)
+                        {
+                            CFG.BR.OnIfNot(BearingMode.Auto);
+                            BRC.ForwardDirection = htdir.xzy;
+                        }
+                        else
+                            CFG.BR.OffIfOn(BearingMode.Auto);
+                    }
+#if DEBUG
+                    DebugWindowController.PostMessage($"ToOrbit Ex: {VSL.vessel.vesselName}",
+                        $"AoA:     {angleOfAscent:F3}\n"
+                        + $"needed: {neededAngleOfAscent:F3}\n"
+                        + $"max:    {maxAngleOfAscent:F3}\n"
+                        + $"Thrust: {VSL.Engines.MaxThrustM:F3}, mg {VSL.Physics.mg:F3}\n"
+                        + $"Atm.D:  {VSL.vessel.atmDensity:F3} / {C.AtmDensityCutoff:F3}\n"
+                        + $"pitch:  {pitch.LastError:F3} => {pitch.Action:F3}\n"
+                        + $"startF: {startF:F3}\n"
+                        + $"thrustMod: {((VSL.Engines.WeightedThrustMod - C.MinThrustMod) / C.ThrustModInterval):F3}\n"
+                        + $"thr2pg: {currentAoA:F3}\n"
+                        + $"need2pg: {Utils.Angle2(vel, pg_vel):F3}\n"
+                        + $"ApA thrust: {thrustToKeepApA:P3}\n"
+                        + $"<b>ApA pid</b>\n{dApA_pid}");
+#endif
                 }
+                ATC.SetThrustDirW(-vel.xzy);
+                prevApA = VesselOrbit.ApA;
                 Status("Gravity turn...");
                 return true;
             }
@@ -385,6 +432,10 @@ namespace ThrottleControlledAvionics
                                                    "Minimum throttle value. " +
                                                    "Increasing it will shorten the last stage of the ascent."),
                                     GUILayout.ExpandWidth(true));
+                    GUILayout.Label(new GUIContent("G.Turn Angle:",
+                            "The initial deviation from vertical direction. " +
+                            "After that, the ship will follow prograde. Smaller angle gives steeper trajectory."),
+                        GUILayout.ExpandWidth(true));
                     GUILayout.Label(new GUIContent("Max. Acceleration:",
                                                    "Maximum allowed acceleration (in gees of the current planet). " +
                                                    "Smooths gravity turn on low-gravity worlds. Saves fuel."),
@@ -416,6 +467,7 @@ namespace ThrottleControlledAvionics
                     GUILayout.FlexibleSpace();
                     GUILayout.FlexibleSpace();
                     GUILayout.FlexibleSpace();
+                    GUILayout.FlexibleSpace();
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
@@ -423,6 +475,7 @@ namespace ThrottleControlledAvionics
                     FirstApA.Draw("km", 5, "F1", suffix_width: 25);
                     TimeToApA.Draw("s", 5, "F1", suffix_width: 25);
                     MinThrottle.Draw("%", 5, "F1", suffix_width: 25);
+                    GravityTurnAngle.Draw("°", 5, "F1", 25);
                     MaxG.Draw("g", 0.5f, "F1", suffix_width: 25);
                     MaxDynP.Draw("kPa", 5, "F1", 25);
                     MaxAoA.Draw("°", 1, "F1", 25);

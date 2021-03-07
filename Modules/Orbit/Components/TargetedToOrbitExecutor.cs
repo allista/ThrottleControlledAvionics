@@ -65,16 +65,16 @@ namespace ThrottleControlledAvionics
                 tune_THR();
                 var startF = getStartF();
                 var vel = TrajectoryCalculator.dV4ApV(VesselOrbit, target, VSL.Physics.UT);
-                var AoA = Utils.Angle2(pg_vel, VesselOrbit.pos);
+                var angleOfAscent = Utils.Angle2(pg_vel, VesselOrbit.pos);
                 var neededAoA = Utils.ClampH(Utils.Angle2(target - VesselOrbit.pos, VesselOrbit.pos) / 2, 45);
                 var angle2Hor = angle2hor_filter.Update(90 - Utils.Angle2(vel, VesselOrbit.pos));
-                pitch.Max = AoA < neededAoA ? 0 : (float)AoA;
+                pitch.Max = angleOfAscent < neededAoA ? 0 : (float)angleOfAscent;
                 pitch.Update((float)angle2Hor);
                 correction_started.Update(angle2Hor >= 0);
-                if(AoA < neededAoA && !correction_started)
-                    pitch.Action = (float)Utils.Clamp(AoA - neededAoA + angle2Hor, 
+                if(angleOfAscent < neededAoA && !correction_started)
+                    pitch.Action = (float)Utils.Clamp(angleOfAscent - neededAoA + angle2Hor, 
                                                       -AttitudeControlBase.C.MaxAttitudeError, 
-                                                      AoA);
+                                                      angleOfAscent);
                 vel = QuaternionD.AngleAxis(pitch.Action * startF,
                                             Vector3d.Cross(target, VesselOrbit.pos))
                                  * pg_vel;
@@ -95,7 +95,7 @@ namespace ThrottleControlledAvionics
                 ATC.SetThrustDirW(-vel.xzy);
                 if(CFG.AT.Not(Attitude.KillRotation))
                 {
-                    if(AoA < 85)
+                    if(angleOfAscent < GravityTurnAngle)
                     {
                         CFG.BR.OnIfNot(BearingMode.Auto);
                         BRC.ForwardDirection = htdir.xzy;
