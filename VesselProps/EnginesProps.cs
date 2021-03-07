@@ -58,6 +58,8 @@ namespace ThrottleControlledAvionics
         public float    MaxMassFlow { get; private set; }
         public float    MaxVe { get; private set; } //Specific impulse in m/s, aka effective exhaust velocity
 
+        public float WeightedThrustMod { get; private set; }
+
         public override void Clear() { All.Clear(); RCS.Clear(); }
 
         public bool AddEngine(PartModule pm) 
@@ -463,6 +465,7 @@ namespace ThrottleControlledAvionics
             MaxDefThrust = Vector3.zero;
             MaxThrust = Vector3.zero;
             MaxMassFlow = 0f;
+            WeightedThrustMod = 0f;
             Slow = false;
             var total_thrust = 0f;
             var total_controllable_thrust = 0f;
@@ -478,6 +481,7 @@ namespace ThrottleControlledAvionics
                     MaxDefThrust += e.defThrustDir*thrust;
                     MaxThrust += e.wThrustDir*thrust;
                     MaxMassFlow += e.MaxFuelFlow*e.limit;
+                    WeightedThrustMod += e.thrustMod * thrust;
                     if(!e.thrustLimiterLocked && e.useEngineResponseTime && e.finalThrust > 0)
                     {
                         if(e.engineDecelerationSpeed > 0)
@@ -500,7 +504,10 @@ namespace ThrottleControlledAvionics
                 DecelerationTime10 = Utils.LerpTime(DecelerationSpeed, 0.9f);
                 Slow = true;
             }
-            if(MassFlow > MaxMassFlow) MaxMassFlow = MassFlow;
+            if(MassFlow > MaxMassFlow)
+                MaxMassFlow = MassFlow;
+            if(WeightedThrustMod > 0)
+                WeightedThrustMod /= total_thrust;
             MaxThrustM = MaxThrust.magnitude;
             MaxVe = MaxThrustM/MaxMassFlow;
             MaxAccel = MaxThrustM/VSL.Physics.M;
