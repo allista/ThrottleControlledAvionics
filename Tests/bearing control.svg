@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="592.8209" height="463.60638">
+  <style type="text/css">
+    <![CDATA[
+      .ns8 {
+        fill: #FFFFFF;
+        fill-opacity: 0.8;
+        stroke: #000000;
+        stroke-width: 2.0;
+        stroke-opacity: 1.0;
+        stroke-dasharray: none;
+      }
+      .ns8_text {
+        font-family: arial, sans-serif;
+        font-size: 14.0px;
+        text-anchor: middle;
+        fill: #000000;
+        fill-opacity: 1.0;
+      }
+      .es9 {
+        fill: #000000;
+        fill-opacity: 1.0;
+        stroke: #000000;
+        stroke-width: 2.0;
+        stroke-opacity: 1.0;
+        stroke-dasharray: none;
+      }
+      .es6 {
+        fill: #000000;
+        fill-opacity: 1.0;
+        stroke: #000000;
+        stroke-width: 2.0;
+        stroke-opacity: 1.0;
+        stroke-dasharray: none;
+      }
+      .es7 {
+        fill: #000000;
+        fill-opacity: 1.0;
+        stroke: #000000;
+        stroke-width: 2.0;
+        stroke-opacity: 1.0;
+        stroke-dasharray: none;
+      }
+      .es7_text {
+        font-family: sans-serif;
+        fill: #000000;
+        font-size: 14.0px;
+        text-anchor: middle;
+        fill-opacity: 1.0;
+      }
+    ]]>
+  </style>
+<g>
+  <path d="M 244.68985 179.0203 L 244.68985 277.53775 L 112.160385 277.53775 L 112.160385 367.84207 L 112.160385 367.85208" class="es7" style="fill: none;"/>
+  <path d="M 112.160385 367.85208 L 108.410385 355.35208 L 115.910385 355.35208 L 112.160385 367.85208" class="es7" stroke-dasharray="none"/>
+</g>
+<g>
+  <path d="M 259.0 179.0203 L 259.0 376.0552" class="es6" style="fill: none;"/>
+  <path d="M 259.0 376.0552 L 255.25 363.5552 L 262.75 363.5552 L 259.0 376.0552" class="es6" stroke-dasharray="none"/>
+</g>
+<g>
+  <path d="M 138.0 394.25833 L 201.5 394.25833" class="es9" style="fill: none;"/>
+  <circle cx="196.5" cy="394.25833" r="5.0" class="es9" style="fill: #FFFFFF;" stroke-dasharray="none" />
+</g>
+<g>
+  <path d="M 73.99999 420.66458 L 73.99999 448.82123 L 436.5017 448.82123 L 436.5017 187.21342 L 436.5017 187.22342" class="es7" style="fill: none;"/>
+  <path d="M 436.5017 187.22342 L 440.2517 199.72342 L 432.7517 199.72342 L 436.5017 187.22342" class="es7" stroke-dasharray="none"/>
+</g>
+<g>
+  <path d="M 244.68985 179.0203 L 244.68985 250.37625 L 34.933258 250.37625 L 34.933258 367.84207 L 34.933258 367.85208" class="es7" style="fill: none;"/>
+  <path d="M 34.933258 367.85208 L 31.183258 355.35208 L 38.683258 355.35208 L 34.933258 367.85208" class="es7" stroke-dasharray="none"/>
+</g>
+<g>
+  <path d="M 359.0017 160.81718 L 321.00085 160.81718 L 283.0 160.81717" class="es6" style="fill: none;"/>
+  <path d="M 283.0 160.81717 L 295.5 157.06717 L 295.5 164.56717 L 283.0 160.81717" class="es6" stroke-dasharray="none"/>
+</g>
+<g>
+  <path d="M 343.9919 46.40625 L 380.40588 91.440994 L 415.15027 134.41092" class="es6" style="fill: none;"/>
+  <path d="M 415.15027 134.41092 L 404.37485 127.048676 L 410.20688 122.33302 L 415.15027 134.41092" class="es6" stroke-dasharray="none"/>
+</g>
+<g>
+  <path d="M 513.992 46.40625 L 454.38663 134.41092" class="es6" style="fill: none;"/>
+  <path d="M 454.38663 134.41092 L 458.2915 121.958435 L 464.50125 126.164276 L 454.38663 134.41092" class="es6" stroke-dasharray="none"/>
+</g>
+<g>
+  <rect x="10.0" y="367.85208" width="128.0" height="52.8125" class="ns8"/>
+  <text x="74.0" y="374.4341" class="ns8_text">
+<tspan x="74.0" y="390.84036" xml:space="preserve" style="font-weight:bold;">BearingControl</tspan>
+<tspan x="74.0" y="407.2466" xml:space="preserve" style="">DirectionOverride</tspan>
+  </text>
+</g>
+<g>
+  <rect x="235.0" y="142.61404" width="48.0" height="36.40625" class="ns8"/>
+  <text x="259.0" y="149.19608" class="ns8_text">
+<tspan x="259.0" y="165.60233" xml:space="preserve" style="">HSC</tspan>
+  </text>
+</g>
+<g>
+  <rect x="276.77332" y="10.0" width="105.0" height="36.40625" class="ns8"/>
+  <text x="329.27332" y="16.582031" class="ns8_text">
+<tspan x="329.27332" y="32.98828" xml:space="preserve" style="">CruiseControl</tspan>
+  </text>
+</g>
+<g>
+  <rect x="469.82095" y="10.0" width="113.0" height="36.40625" class="ns8"/>
+  <text x="526.3209" y="16.582031" class="ns8_text">
+<tspan x="526.3209" y="32.98828" xml:space="preserve" style="">PointNavigator</tspan>
+  </text>
+</g>
+<g>
+  <rect x="201.5" y="376.0552" width="115.0" height="36.40625" class="ns8"/>
+  <text x="259.0" y="382.63724" class="ns8_text">
+<tspan x="259.0" y="399.0435" xml:space="preserve" style="">AttitudeControl</tspan>
+  </text>
+</g>
+<g>
+  <rect x="359.0017" y="134.41092" width="155.0" height="52.8125" class="ns8"/>
+  <text x="436.5017" y="140.99295" class="ns8_text">
+<tspan x="436.5017" y="157.3992" xml:space="preserve" style="font-weight:bold;">VSL.HorizontalSpeed</tspan>
+<tspan x="436.5017" y="173.80545" xml:space="preserve" style="">NeededVector</tspan>
+  </text>
+</g>
+<g>
+  <text x="178.42511" y="265.91666" class="es7_text" style="fill:none; stroke-width:4.0;stroke:#FFFFFF;" stroke-linejoin="round">
+<tspan x="178.42511" y="282.3229" xml:space="preserve" style="">DirectionOverride</tspan>
+  </text>
+  <text x="178.42511" y="265.91666" class="es7_text">
+<tspan x="178.42511" y="282.3229" xml:space="preserve" style="">DirectionOverride</tspan>
+  </text>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+  <text x="255.25085" y="437.20013" class="es7_text" style="fill:none; stroke-width:4.0;stroke:#FFFFFF;" stroke-linejoin="round">
+<tspan x="255.25085" y="453.60638" xml:space="preserve" style="">When </tspan>
+<tspan xml:space="preserve" style="">CruiseControl </tspan>
+<tspan xml:space="preserve" style="">is </tspan>
+<tspan xml:space="preserve" style="">active</tspan>
+  </text>
+  <text x="255.25085" y="437.20013" class="es7_text">
+<tspan x="255.25085" y="453.60638" xml:space="preserve" style="">When </tspan>
+<tspan xml:space="preserve" style="">CruiseControl </tspan>
+<tspan xml:space="preserve" style="">is </tspan>
+<tspan xml:space="preserve" style="">active</tspan>
+  </text>
+</g>
+<g>
+  <text x="139.81155" y="238.75516" class="es7_text" style="fill:none; stroke-width:4.0;stroke:#FFFFFF;" stroke-linejoin="round">
+<tspan x="139.81155" y="255.1614" xml:space="preserve" style="">ForwardDirection</tspan>
+  </text>
+  <text x="139.81155" y="238.75516" class="es7_text">
+<tspan x="139.81155" y="255.1614" xml:space="preserve" style="">ForwardDirection</tspan>
+  </text>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+</svg>
