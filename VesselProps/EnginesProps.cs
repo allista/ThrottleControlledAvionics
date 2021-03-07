@@ -117,7 +117,7 @@ namespace ThrottleControlledAvionics
             for(int i = 0; i < NumActive; i++) 
             {
                 var e = Active[i];
-                if(e.isVSC)
+                if(e.isThruster)
                 {
                     float mFlow;
                     thrust += e.ThrustAtAlt(vel, alt, out mFlow); 
@@ -465,17 +465,20 @@ namespace ThrottleControlledAvionics
             MaxMassFlow = 0f;
             Slow = false;
             var total_thrust = 0f;
+            var total_controllable_thrust = 0f;
             for(int i = 0; i < NumActive; i++) 
             {
                 var e = Active[i];
-                if(e.isVSC)
+                if(e.isThruster)
                 {
                     var thrust = e.nominalCurrentThrust(e.limit);
                     total_thrust += thrust;
+                    if(!e.thrustLimiterLocked)
+                        total_controllable_thrust += thrust;
                     MaxDefThrust += e.defThrustDir*thrust;
                     MaxThrust += e.wThrustDir*thrust;
                     MaxMassFlow += e.MaxFuelFlow*e.limit;
-                    if(e.useEngineResponseTime && e.finalThrust > 0)
+                    if(!e.thrustLimiterLocked && e.useEngineResponseTime && e.finalThrust > 0)
                     {
                         if(e.engineDecelerationSpeed > 0)
                             DecelerationSpeed += thrust*e.engineDecelerationSpeed;
@@ -487,13 +490,13 @@ namespace ThrottleControlledAvionics
             }
             if(AccelerationSpeed > 0)
             { 
-                AccelerationSpeed /= total_thrust; 
+                AccelerationSpeed /= total_controllable_thrust; 
                 AccelerationTime90 = Utils.LerpTime(AccelerationSpeed, 0.9f);
                 Slow = true;
             }
             if(DecelerationSpeed > 0) 
             { 
-                DecelerationSpeed /= total_thrust; 
+                DecelerationSpeed /= total_controllable_thrust; 
                 DecelerationTime10 = Utils.LerpTime(DecelerationSpeed, 0.9f);
                 Slow = true;
             }

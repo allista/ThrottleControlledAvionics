@@ -221,6 +221,8 @@ namespace ThrottleControlledAvionics
         public float VSF;   //vertical speed factor
         public bool isVSC; //vertical speed controller
         public bool isSteering;
+        public bool isThruster;
+        public bool thrustLimiterLocked;
         public TCARole Role => info.Role;
         public int Group => info.group;
 
@@ -330,7 +332,7 @@ namespace ThrottleControlledAvionics
 
         public override void InitLimits()
         {
-            isVSC = isSteering = false;
+            isVSC = isSteering = isThruster = thrustLimiterLocked = false;
             switch(Role)
             {
             case TCARole.MAIN:
@@ -338,6 +340,7 @@ namespace ThrottleControlledAvionics
             case TCARole.UNBALANCE:
                 limit = best_limit = 1f;
                 isSteering = Role == TCARole.MAIN;
+                isThruster = true;
                 isVSC = true;
                 break;
             case TCARole.MANEUVER:
@@ -346,6 +349,8 @@ namespace ThrottleControlledAvionics
                 break;
             case TCARole.MANUAL:
                 limit = best_limit = thrustLimit;
+                thrustLimiterLocked = true;
+                isThruster = true;
                 break;
             }
         }
@@ -521,8 +526,12 @@ namespace ThrottleControlledAvionics
 
         public float nominalCurrentThrust(float throttle)
         {
-            return thrustMod * (engine.throttleLocked ?
-                engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle));
+            return thrustMod
+                   * (engine.throttleLocked
+                       ? engine.maxThrust
+                       : Mathf.Lerp(engine.minThrust,
+                           engine.maxThrust,
+                           thrustLimiterLocked ? thrustLimit : throttle));
         }
 
         public override float thrustLimit
@@ -530,13 +539,14 @@ namespace ThrottleControlledAvionics
             get { return engine.thrustPercentage / 100f; }
             set
             {
-                if(engine.throttleLocked) return;
+                if(thrustLimiterLocked) return;
                 thrustController.Update(value * 100 - engine.thrustPercentage);
                 engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage + thrustController.Action, 0, 100);
             }
         }
         public override void forceThrustPercentage(float value)
         {
+            // here we only respect the native ModuleEngine.throttleLocked
             if(!engine.throttleLocked)
                 engine.thrustPercentage = Mathf.Clamp(value, 0, 100);
             //            if(Role == TCARole.MANUAL && value.Equals(0))//debug
