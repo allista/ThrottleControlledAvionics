@@ -5,13 +5,21 @@
 //
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 using AT_Utils;
 
 namespace ThrottleControlledAvionics
 {
+    [SuppressMessage("ReSharper", "FieldCanBeMadeReadOnly.Global"),
+     SuppressMessage("ReSharper", "MemberCanBePrivate.Global"),
+     SuppressMessage("ReSharper", "MemberCanBeProtected.Global"),
+     SuppressMessage("ReSharper", "ConvertToConstant.Global")]
     public class ToOrbitExecutor : OrbitalComponent
     {
+        [SuppressMessage("ReSharper", "FieldCanBeMadeReadOnly.Global"),
+         SuppressMessage("ReSharper", "MemberCanBePrivate.Global"),
+         SuppressMessage("ReSharper", "ConvertToConstant.Global")]
         public class Config : ComponentConfig<Config>
         {
             [Persistent] public float MaxG = 3;
@@ -45,9 +53,11 @@ namespace ThrottleControlledAvionics
 
         public static Config C => Config.INST;
 
+        // ReSharper disable UnassignedField.Global
         protected ThrottleControl THR;
         protected AttitudeControl ATC;
         protected BearingControl BRC;
+        // ReSharper restore UnassignedField.Global
 
         protected readonly SingleAction GearAction = new SingleAction();
         protected readonly FuzzyThreshold<double> ErrorThreshold = new FuzzyThreshold<double>();
