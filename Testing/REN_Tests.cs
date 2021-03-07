@@ -348,7 +348,7 @@ namespace ThrottleControlledAvionics
             {
                 orbit = new Orbit();
                 orbit.eccentricity = (double)UnityEngine.Random.Range(0.001f, 0.1f);
-                orbit.semiMajorAxis = UnityEngine.Random.Range((float)minR+1000, (float)minR+ToOrbitAutopilot.C.RadiusOffset);
+                orbit.semiMajorAxis = UnityEngine.Random.Range((float)minR+1000, (float)minR+ToOrbitExecutor.C.FirstApA*1000);
                 orbit.inclination = (double)UnityEngine.Random.Range(1f, 5f);
                 orbit.LAN = (double)UnityEngine.Random.Range(0f, 360);
                 orbit.argumentOfPeriapsis = (double)UnityEngine.Random.Range(0f, 2*Mathf.PI);

@@ -62,6 +62,7 @@ namespace ThrottleControlledAvionics
             {
             case Multiplexer.Command.Resume:
                 if(!check_patched_conics()) return;
+                showOptions(true);
                 ToOrbit.CorrectOnlyAltitude = true;
                 break;
 
@@ -84,6 +85,7 @@ namespace ThrottleControlledAvionics
                 goto case Multiplexer.Command.Resume;
 
             case Multiplexer.Command.Off:
+                showOptions(false);
                 Reset();
                 break;
             }
@@ -91,8 +93,9 @@ namespace ThrottleControlledAvionics
 
         void update_limits()
         {
-            TargetOrbit.ApA.Min = (float)(ToOrbit.MinApR - Body.Radius) / 1000;
-            TargetOrbit.ApA.Max = (float)(Body.sphereOfInfluence - Body.Radius) / 1000;
+            ToOrbit.UpdateLimits();
+            TargetOrbit.ApA.Min = ToOrbit.FirstApA.Min;
+            TargetOrbit.ApA.Max = ToOrbit.FirstApA.Max;
             TargetOrbit.ApA.ClampValue();
             update_inclination_limits();
         }
@@ -206,11 +209,17 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        void toggle_orbit_editor()
         {
-            ShowOptions = !ShowOptions;
-            if(ShowOptions) update_limits();
         }
+
+        private void showOptions(bool show)
+        {
+            ShowOptions = show;
+            if(ShowOptions)
+                update_limits();
+        }
+
+        private void toggleOptions() => showOptions(!ShowOptions);
 
         public override void Draw()
         {
@@ -228,11 +237,11 @@ namespace ThrottleControlledAvionics
                 if(Utils.ButtonSwitch("ToOrbit", ShowOptions,
                                          "Achieve a circular orbit with desired radius and inclination",
                                       GUILayout.ExpandWidth(true)))
-                    toggle_orbit_editor();
+                    toggleOptions();
             }
             else if(GUILayout.Button(new GUIContent("ToOrbit", "Change target orbit or abort"),
                                      Styles.danger_button, GUILayout.ExpandWidth(true)))
-                toggle_orbit_editor();
+                toggleOptions();
         }
 
         public void DrawOptions()

@@ -21,6 +21,7 @@ namespace ThrottleControlledAvionics
             [Persistent] public float AtmDensityOffset = 10f;
             [Persistent] public float AscentEccentricity = 0.3f;
             [Persistent] public float GTurnOffset = 0.1f;
+            [Persistent] public float FirstApA = 10f;
 
             [Persistent] public PIDf_Controller3 PitchPID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 ThrottlePID = new PIDf_Controller3();
@@ -53,8 +54,10 @@ namespace ThrottleControlledAvionics
         [Persistent] public double ApAUT = -1;
         [Persistent] public double GravityTurnStart;
         [Persistent] public bool CorrectOnlyAltitude;
+        [Persistent] public string LastBodyName = string.Empty;
 
         [Persistent] public bool AutoTimeToApA = true;
+        [Persistent] public FloatField FirstApA = new FloatField(format: "F1");
         [Persistent] public FloatField TimeToApA = new FloatField(format: "F1", min: 5, max: 300);
         [Persistent] public FloatField MaxG = new FloatField(format: "F1", min: 0.1f, max: 100);
         [Persistent] public FloatField MinThrottle = new FloatField(format: "F1", min: 1, max: 100);
@@ -68,7 +71,7 @@ namespace ThrottleControlledAvionics
 
         public double MinApR => VesselOrbit.MinPeR() + 1000;
 
-        public double MaxApR => VesselOrbit.MinPeR() + ToOrbitAutopilot.C.RadiusOffset;
+        public double MaxApR => FirstApA * 1000 + Body.Radius;
 
         public double TimeToClosestApA =>
             VesselOrbit.ApAhead()
@@ -109,6 +112,7 @@ namespace ThrottleControlledAvionics
             throttle.setClamp(0.5f);
             norm_correction.setPID(C.NormCorrectionPID);
             norm_correction.setClamp(AttitudeControlBase.C.MaxAttitudeError);
+            FirstApA.Value = -1;
             TimeToApA.Value = TrajectoryCalculator.C.ManeuverOffset;
             MinThrottle.Value = C.MinThrottle;
             MaxG.Value = C.MaxG;
@@ -122,7 +126,18 @@ namespace ThrottleControlledAvionics
                 InitModuleFields();
                 GearAction.action = () => VSL.GearOn(false);
                 TimeToApA.Value = Mathf.Max(TimeToApA, VSL.Torque.MaxCurrent.TurnTime);
+                UpdateLimits();
             }
+        }
+
+        public void UpdateLimits()
+        {
+            FirstApA.Min = (float)(MinApR - Body.Radius) / 1000;
+            FirstApA.Max = (float)(Body.sphereOfInfluence - Body.Radius) / 1000;
+            if(FirstApA < 0 || LastBodyName != Body.bodyName)
+                FirstApA.Value = FirstApA.Min + C.FirstApA;
+            FirstApA.ClampValue();
+            LastBodyName = Body.bodyName;
         }
 
         public virtual void Reset()
@@ -138,6 +153,7 @@ namespace ThrottleControlledAvionics
             pitch.Reset();
             throttle.Reset();
             norm_correction.Reset();
+            UpdateLimits();
         }
 
         protected double time2dist(double v, double a, double d)
@@ -342,6 +358,10 @@ namespace ThrottleControlledAvionics
             {
                 GUILayout.BeginVertical();
                 {
+                    GUILayout.Label(new GUIContent("Max. Apoapsis:",
+                            "The maximum altitude of the starting sub-orbital trajectory "+
+                            "that is used to either circularize or to get to a higher orbit."),
+                        GUILayout.ExpandWidth(true));
                     GUILayout.Label(new GUIContent("Time to Apoapsis:",
                                                    "More time to apoapsis means steeper trajectory " +
                                                    "and greater acceleration. Low values can " +
@@ -359,6 +379,7 @@ namespace ThrottleControlledAvionics
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
                 {
+                    GUILayout.FlexibleSpace();
                     GUILayout.BeginHorizontal();
                     {
                         GUILayout.FlexibleSpace();
@@ -374,6 +395,7 @@ namespace ThrottleControlledAvionics
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
                 {
+                    FirstApA.Draw("km", 5, "F1", suffix_width: 25);
                     TimeToApA.Draw("s", 5, "F1", suffix_width: 25);
                     MinThrottle.Draw("%", 5, "F1", suffix_width: 25);
                     MaxG.Draw("g", 0.5f, "F1", suffix_width: 25);

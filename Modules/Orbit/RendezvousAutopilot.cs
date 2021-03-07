@@ -131,7 +131,7 @@ namespace ThrottleControlledAvionics
                         Disable();
                         break;
                     }
-                    ShowOptions = true;
+                    showOptions(true);
                     UseTarget();
                     NeedCPSWhenMooving();
                     switch(stage)
@@ -162,10 +162,17 @@ namespace ThrottleControlledAvionics
                     CFG.AT.On(Attitude.KillRotation);
                     ReleaseCPS();
                     StopUsingTarget();
-                    ShowOptions = false;
+                    showOptions(false);
                     Reset();
                     break;
             }
+        }
+
+        private void showOptions(bool show)
+        {
+            ShowOptions = show;
+            if(ShowOptions)
+                ToOrbit.UpdateLimits();
         }
 
         protected override bool check_target()

@@ -570,6 +570,7 @@ ToOrbitExecutor
 	AscentEccentricity = 0.3
 	AtmDensityOffset = 1
 	GTurnOffset = 0.014
+	FirstApA = 10 // km above min ApA
 	PitchPID
 	{
 		P = 1
