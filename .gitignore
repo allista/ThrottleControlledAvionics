@@ -250,3 +250,4 @@ pip-log.txt
 UserPrefs.xml
 /ThrottleControlledAvionics.sln
 /GameData/ThrottleControlledAvionics/Plugins/*.dll
+/TCA.UI/TCA.UI.csproj.DotSettings
