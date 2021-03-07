@@ -80,13 +80,6 @@ namespace ThrottleControlledAvionics
         [Persistent] public FloatField MaxAoA = new FloatField(format: "F1", min: 0.1f, max: 90);
         [Persistent] public FloatField GravityTurnAngle = new FloatField(format: "F1", min: 1, max: 45);
 
-        /// <summary>
-        /// The arc distance in radians between current vessel position and the Target.
-        /// </summary>
-        public double ArcDistance =>
-            Utils.ProjectionAngle(VesselOrbit.pos, target, target - VesselOrbit.pos)
-            * Mathf.Deg2Rad;
-
         public double MinApR => VesselOrbit.MinPeR() + 1000;
 
         public double MaxApR => FirstApA * 1000 + Body.Radius;
@@ -181,16 +174,6 @@ namespace ThrottleControlledAvionics
             throttle.Reset();
             norm_correction.Reset();
             UpdateLimits();
-        }
-
-        protected double time2dist(double v, double a, double d)
-        {
-            if(a.Equals(0))
-                return d / v;
-            var D = v * v + 2 * d * a;
-            if(D < 0)
-                return double.NaN;
-            return (Math.Sqrt(D) - v) / a;
         }
 
         protected void update_state(float Dtol)
