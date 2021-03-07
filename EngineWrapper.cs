@@ -416,7 +416,7 @@ namespace ThrottleControlledAvionics
 
         public override void UpdateCurrentTorque(float throttle)
         {
-            this.throttle = throttle;
+            this.throttle = engine.throttleLocked ? 1 : throttle;
             var thrust = ThrustM(throttle);
             currentTorque = specificTorque * thrust;
             currentTorque_m = currentTorque.magnitude;
