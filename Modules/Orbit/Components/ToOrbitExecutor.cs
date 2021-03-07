@@ -197,13 +197,21 @@ namespace ThrottleControlledAvionics
         {
             hvdir = Vector3d.Exclude(VesselOrbit.pos, VesselOrbit.vel).normalized;
             htdir = Vector3d.Exclude(VesselOrbit.pos, target - VesselOrbit.pos).normalized;
-            ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp);
-            dApA = Utils.ClampL(TargetR - VesselOrbit.ApR, 0);
+            CourseOnTarget = Vector3d.Dot(htdir, hvdir) > 0.1;
+            if(VesselOrbit.ApAhead())
+            {
+                ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp);
+                dApA = Utils.ClampL(TargetR - VesselOrbit.ApR, 0);
+            }
+            else
+            {
+                ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToPe);
+                dApA = Utils.ClampL(TargetR - VesselOrbit.PeR, 0);
+            }
             dArc = Utils.ClampL(Utils.ProjectionAngle(ApV, target, htdir) * ToOrbitAutopilot.C.Dtol,
                 0);
             ErrorThreshold.Value = CorrectOnlyAltitude ? dApA : dApA + dArc;
             ApoapsisReached |= dApA < Dtol;
-            CourseOnTarget = Vector3d.Dot(htdir, hvdir) > 0.1;
         }
 
 
@@ -280,6 +288,17 @@ namespace ThrottleControlledAvionics
                 VSL.vessel.srf_velocity.xzy,
                 VSL.Physics.G / VSL.Physics.StG);
 
+        private Vector3d getAfterApAThrustVector()
+        {
+            // vis-viva equation to calculate needed orbital velocity
+            var PeR = VesselOrbit.radius; // desired PeR
+            var vel2 = Body.gravParameter * (2 / PeR - 2 / (TargetR + PeR));
+            // desired orbit
+            var horizontalDir = Vector3d.Cross(VesselOrbit.GetOrbitNormal(), VesselOrbit.pos).normalized;
+            var neededVel = horizontalDir * Math.Sqrt(vel2);
+            return neededVel - VesselOrbit.vel;
+        }
+
         protected void auto_ApA_offset()
         {
             if(AutoTimeToApA)
@@ -347,6 +366,7 @@ namespace ThrottleControlledAvionics
                 tune_THR();
                 auto_ApA_offset();
                 var vel = pg_vel;
+                if(VesselOrbit.ApAhead())
                 {
                     var startF = getStartF();
                     var angleOfAscent = Utils.ProjectionAngle(VesselOrbit.pos, pg_vel, target - VesselOrbit.pos);
@@ -404,6 +424,12 @@ namespace ThrottleControlledAvionics
                         + $"ApA thrust: {thrustToKeepApA:P3}\n"
                         + $"<b>ApA pid</b>\n{dApA_pid}");
 #endif
+                }
+                else
+                {
+                    THR.Throttle = 1;
+                    CFG.BR.OffIfOn(BearingMode.Auto);
+                    vel = getAfterApAThrustVector();
                 }
                 ATC.SetThrustDirW(-vel.xzy);
                 prevApA = VesselOrbit.ApA;
