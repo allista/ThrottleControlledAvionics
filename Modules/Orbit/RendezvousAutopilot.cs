@@ -644,14 +644,11 @@ namespace ThrottleControlledAvionics
                     if(proj_angle < -30)
                         in_plane_UT = first_in_plane_UT;
                 }
-                else
-                    proj_angle = projection_angle(in_plane_UT);
-                //Log("proj_angle {}, time2launch {}", 
-                //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
-                var ApR = minApR;
-                if(proj_angle < 0)
-                    ApR = maxApR;
-                best = new Launch(this, in_plane_UT, -1, ApR, ApR, ApAArc);
+                // calculate initial ascent time
+                best = new Launch(this, in_plane_UT, -1, minApR, maxApR, ApAArc);
+                yield return 0;
+                // calculate more accurately the needed ApR
+                best = new Launch(this, in_plane_UT, best.Transfer, minApR, maxApR, ApAArc);
                 ToOrbit.InPlane = true;
                 ToOrbit.CorrectOnlyAltitude = true;
             }
