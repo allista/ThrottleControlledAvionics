@@ -605,7 +605,8 @@ namespace ThrottleControlledAvionics
                     //min.Dist < MaxDist*1000,
                     //inclinationDelta(min.UT) < IncDelta, 
                     //(best == null || min < best));//debug
-                    if(min.Dist < MaxDist * 1000
+                    if(min != null
+                       && min.Dist < MaxDist * 1000
                        && inclinationDelta(min.UT) < IncDelta
                        && (best == null || min < best))
                         best = min;
