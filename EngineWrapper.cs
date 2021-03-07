@@ -502,6 +502,8 @@ namespace ThrottleControlledAvionics
         public float ThrustAtAlt(float vel, float alt, out float mFlow)
         {
             mFlow = engine.maxFuelFlow;
+            if(thrustLimiterLocked)
+                mFlow *= thrustLimit;
             var atm = vessel.mainBody.AtmoParamsAtAltitude(alt);
             var rel_density = (float)(atm.Rho / 1.225);
             var vel_mach = atm.Mach1 > 0 ? (float)(vel / atm.Mach1) : 0;
