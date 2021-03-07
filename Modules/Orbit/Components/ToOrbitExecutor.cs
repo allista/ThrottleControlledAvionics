@@ -140,14 +140,13 @@ namespace ThrottleControlledAvionics
 
         public virtual void AttachTCA(ModuleTCA tca)
         {
-            if(TCA == null)
-            {
-                TCA = tca;
-                InitModuleFields();
-                GearAction.action = () => VSL.GearOn(false);
-                TimeToApA.Value = Mathf.Max(TimeToApA, VSL.Torque.MaxCurrent.TurnTime);
-                UpdateLimits();
-            }
+            if(TCA != null)
+                return;
+            TCA = tca;
+            InitModuleFields();
+            GearAction.action = () => VSL.GearOn(false);
+            TimeToApA.Value = Mathf.Max(TimeToApA, VSL.Torque.MaxCurrent.TurnTime);
+            UpdateLimits();
         }
 
         public void UpdateLimits()
@@ -243,6 +242,7 @@ namespace ThrottleControlledAvionics
             CFG.AT.OnIfNot(Attitude.Custom);
             ATC.SetThrustDirW(-pg_vel.xzy);
             THR.Throttle = 0;
+            // ReSharper disable once InvertIf
             if(CircularizationOffset < 0)
             {
                 ApAUT = VSL.Physics.UT + VesselOrbit.timeToAp;
@@ -284,15 +284,14 @@ namespace ThrottleControlledAvionics
 
         protected void auto_ApA_offset()
         {
-            if(AutoTimeToApA)
-            {
-                var dEcc = C.AscentEccentricity - (float)VesselOrbit.eccentricity;
-                var rel_dApA = (float)((TargetR - VesselOrbit.ApR) / (TargetR - Body.Radius) - 0.1);
-                TimeToApA.Value = Mathf.Max(
-                    TrajectoryCalculator.C.ManeuverOffset * (1 + dEcc + rel_dApA),
-                    VSL.Torque.MaxCurrent.TurnTime);
-                TimeToApA.ClampValue();
-            }
+            if(!AutoTimeToApA)
+                return;
+            var dEcc = C.AscentEccentricity - (float)VesselOrbit.eccentricity;
+            var rel_dApA = (float)((TargetR - VesselOrbit.ApR) / (TargetR - Body.Radius) - 0.1);
+            TimeToApA.Value = Mathf.Max(
+                TrajectoryCalculator.C.ManeuverOffset * (1 + dEcc + rel_dApA),
+                VSL.Torque.MaxCurrent.TurnTime);
+            TimeToApA.ClampValue();
         }
 
         public void UpdateTargetPosition()
@@ -342,84 +341,84 @@ namespace ThrottleControlledAvionics
             update_state(Dtol);
             var pg_vel = get_pg_vel();
             currentAoA = Utils.Angle2(VSL.Engines.CurrentDefThrustDir, -(Vector3)pg_vel.xzy);
-            if(!ErrorThreshold)
+            // if within error threshold, coast to circularization
+            if(ErrorThreshold)
+                return coast(pg_vel);
+            // the gravity turn proper
+            CFG.AT.OnIfNot(Attitude.Custom);
+            CircularizationOffset = -1;
+            tune_THR();
+            auto_ApA_offset();
+            var vel = pg_vel;
+            if(VesselOrbit.ApAhead())
             {
-                CFG.AT.OnIfNot(Attitude.Custom);
-                CircularizationOffset = -1;
-                tune_THR();
-                auto_ApA_offset();
-                var vel = pg_vel;
-                if(VesselOrbit.ApAhead())
+                var startF = getStartF();
+                var angleOfAscent = Utils.ProjectionAngle(VesselOrbit.pos, pg_vel, target - VesselOrbit.pos);
+                var maxAngleOfAscent = VSL.Engines.MaxThrustM > VSL.Physics.mg
+                    ? Mathf.Min(Mathf.Acos(VSL.Physics.mg / VSL.Engines.MaxThrustM) * Mathf.Rad2Deg, 45)
+                    : 0;
+                var neededAngleOfAscent = (float)angleOfAscent;
+                if(angleOfAscent < GravityTurnAngle)
                 {
-                    var startF = getStartF();
-                    var angleOfAscent = Utils.ProjectionAngle(VesselOrbit.pos, pg_vel, target - VesselOrbit.pos);
-                    var maxAngleOfAscent = VSL.Engines.MaxThrustM > VSL.Physics.mg
-                        ? Mathf.Min(Mathf.Acos(VSL.Physics.mg / VSL.Engines.MaxThrustM) * Mathf.Rad2Deg, 45)
-                        : 0;
-                    var neededAngleOfAscent = (float)angleOfAscent;
+                    neededAngleOfAscent = Mathf.Min(
+                        maxAngleOfAscent,
+                        Mathf.Lerp(
+                            GravityTurnAngle,
+                            0,
+                            (float)(VSL.vessel.atmDensity - C.AtmDensityCutoff) / C.AtmDensityInterval)
+                        * (float)startF);
+                    pitch.Update((float)angleOfAscent - neededAngleOfAscent);
+                    vel = QuaternionD.AngleAxis(
+                              pitch,
+                              Vector3d.Cross(target, VesselOrbit.pos))
+                          * pg_vel;
+                }
+                vel = tune_needed_vel(vel, pg_vel, startF);
+                throttle.Update(TimeToApA - (float)VesselOrbit.timeToAp);
+                THR.Throttle = Utils.Clamp(0.5f + throttle, MinThrottle / 100, max_G_throttle());
+                if(VSL.vessel.dynamicPressurekPa > 0)
+                {
+                    dApA_pid.Update((float)(prevApA - VesselOrbit.ApA)/TimeWarp.fixedDeltaTime);
+                    thrustToKeepApA = Utils.Clamp(thrustToKeepApA + dApA_pid.Action, 0, 1);
+                    THR.Throttle = Math.Max(THR.Throttle, thrustToKeepApA);
+                }
+                THR.Throttle *= (float)Utils.ClampH(dApA / Dtol / VSL.Engines.TMR, 1);
+                if(CFG.AT.Not(Attitude.KillRotation))
+                {
                     if(angleOfAscent < GravityTurnAngle)
                     {
-                        neededAngleOfAscent = Mathf.Min(
-                            maxAngleOfAscent,
-                            Mathf.Lerp(
-                                GravityTurnAngle,
-                                0,
-                                (float)(VSL.vessel.atmDensity - C.AtmDensityCutoff) / C.AtmDensityInterval)
-                            * (float)startF);
-                        pitch.Update((float)angleOfAscent - neededAngleOfAscent);
-                        vel = QuaternionD.AngleAxis(
-                                  pitch,
-                                  Vector3d.Cross(target, VesselOrbit.pos))
-                              * pg_vel;
+                        CFG.BR.OnIfNot(BearingMode.Auto);
+                        BRC.ForwardDirection = htdir.xzy;
                     }
-                    vel = tune_needed_vel(vel, pg_vel, startF);
-                    throttle.Update(TimeToApA - (float)VesselOrbit.timeToAp);
-                    THR.Throttle = Utils.Clamp(0.5f + throttle, MinThrottle / 100, max_G_throttle());
-                    if(VSL.vessel.dynamicPressurekPa > 0)
-                    {
-                        dApA_pid.Update((float)(prevApA - VesselOrbit.ApA)/TimeWarp.fixedDeltaTime);
-                        thrustToKeepApA = Utils.Clamp(thrustToKeepApA + dApA_pid.Action, 0, 1);
-                        THR.Throttle = Math.Max(THR.Throttle, thrustToKeepApA);
-                    }
-                    THR.Throttle *= (float)Utils.ClampH(dApA / Dtol / VSL.Engines.TMR, 1);
-                    if(CFG.AT.Not(Attitude.KillRotation))
-                    {
-                        if(angleOfAscent < GravityTurnAngle)
-                        {
-                            CFG.BR.OnIfNot(BearingMode.Auto);
-                            BRC.ForwardDirection = htdir.xzy;
-                        }
-                        else
-                            CFG.BR.OffIfOn(BearingMode.Auto);
-                    }
+                    else
+                        CFG.BR.OffIfOn(BearingMode.Auto);
+                }
 #if DEBUG
-                    DebugWindowController.PostMessage($"ToOrbit Ex: {VSL.vessel.vesselName}",
-                        $"AoA:     {angleOfAscent:F3}\n"
-                        + $"needed: {neededAngleOfAscent:F3}\n"
-                        + $"max:    {maxAngleOfAscent:F3}\n"
-                        + $"Thrust: {VSL.Engines.MaxThrustM:F3}, mg {VSL.Physics.mg:F3}\n"
-                        + $"Atm.D:  {VSL.vessel.atmDensity:F3} / {C.AtmDensityCutoff:F3}\n"
-                        + $"pitch:  {pitch.LastError:F3} => {pitch.Action:F3}\n"
-                        + $"startF: {startF:F3}\n"
-                        + $"thrustMod: {((VSL.Engines.WeightedThrustMod - C.MinThrustMod) / C.ThrustModInterval):F3}\n"
-                        + $"thr2pg: {currentAoA:F3}\n"
-                        + $"need2pg: {Utils.Angle2(vel, pg_vel):F3}\n"
-                        + $"ApA thrust: {thrustToKeepApA:P3}\n"
-                        + $"<b>ApA pid</b>\n{dApA_pid}");
+                DebugWindowController.PostMessage($"ToOrbit Ex: {VSL.vessel.vesselName}",
+                    $"AoA:     {angleOfAscent:F3}\n"
+                    + $"needed: {neededAngleOfAscent:F3}\n"
+                    + $"max:    {maxAngleOfAscent:F3}\n"
+                    + $"Thrust: {VSL.Engines.MaxThrustM:F3}, mg {VSL.Physics.mg:F3}\n"
+                    + $"Atm.D:  {VSL.vessel.atmDensity:F3} / {C.AtmDensityCutoff:F3}\n"
+                    + $"pitch:  {pitch.LastError:F3} => {pitch.Action:F3}\n"
+                    + $"startF: {startF:F3}\n"
+                    + $"thrustMod: {((VSL.Engines.WeightedThrustMod - C.MinThrustMod) / C.ThrustModInterval):F3}\n"
+                    + $"thr2pg: {currentAoA:F3}\n"
+                    + $"need2pg: {Utils.Angle2(vel, pg_vel):F3}\n"
+                    + $"ApA thrust: {thrustToKeepApA:P3}\n"
+                    + $"<b>ApA pid</b>\n{dApA_pid}");
 #endif
-                }
-                else
-                {
-                    THR.Throttle = 1;
-                    CFG.BR.OffIfOn(BearingMode.Auto);
-                    vel = getAfterApAThrustVector();
-                }
-                ATC.SetThrustDirW(-vel.xzy);
-                prevApA = VesselOrbit.ApA;
-                Status("Gravity turn...");
-                return true;
             }
-            return coast(pg_vel);
+            else
+            {
+                THR.Throttle = 1;
+                CFG.BR.OffIfOn(BearingMode.Auto);
+                vel = getAfterApAThrustVector();
+            }
+            ATC.SetThrustDirW(-vel.xzy);
+            prevApA = VesselOrbit.ApA;
+            Status("Gravity turn...");
+            return true;
         }
 
         public void DrawOptions()
