@@ -419,7 +419,6 @@ namespace ThrottleControlledAvionics
                         break;
                     }
                     yield return -1;
-                    continue;
                 }
                 FinalTargetPos = REN.TargetOrbit.getRelativePositionAtUT(UT + Transfer);
                 Dist = (ApV - FinalTargetPos).magnitude;
