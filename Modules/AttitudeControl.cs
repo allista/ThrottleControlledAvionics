@@ -904,12 +904,16 @@ namespace ThrottleControlledAvionics
         {
             if(!CFG.AT || VSL == null || VSL.vessel == null || VSL.refT == null) return;
 //            Utils.GLVec(VSL.refT.position, VSL.OnPlanetParams.Heading.normalized*2500, Color.white);
-            Utils.GLVec(VSL.refT.position, VSL.WorldDir(lthrust.normalized) * 20, Color.yellow);
-            Utils.GLVec(VSL.refT.position, VSL.WorldDir(needed_lthrust.normalized) * 20, Color.red);
-            Utils.GLVec(VSL.refT.position, VSL.WorldDir(VSL.vessel.angularVelocity * 20), Color.cyan);
-            Utils.GLVec(VSL.refT.position, VSL.WorldDir(new Vector3(pid_pitch.atPID.Action * rotation_axis.x,
-                                                                    pid_roll.atPID.Action * rotation_axis.y,
-                                                                    pid_yaw.atPID.Action * rotation_axis.z) * 20), Color.green);
+            var position = VSL.refT.position;
+            Utils.GLVec(position, VSL.WorldDir(lthrust.normalized) * 20, Color.yellow);
+            Utils.GLVec(position, VSL.WorldDir(needed_lthrust.normalized) * 20, Color.red);
+            Utils.GLVec(position, VSL.WorldDir(VSL.vessel.angularVelocity * 20), Color.cyan);
+            Utils.GLVec(position,
+                VSL.WorldDir(new Vector3(pid_pitch.atPID.Action * rotation_axis.x,
+                                 pid_roll.atPID.Action * rotation_axis.y,
+                                 pid_yaw.atPID.Action * rotation_axis.z)
+                             * 20),
+                Color.green);
 //            Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering*20), Color.cyan);
 //            Utils.GLVec(VSL.refT.position, VSL.WorldDir(steering_pid.Action*20), Color.magenta);
 
