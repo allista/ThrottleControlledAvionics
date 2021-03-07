@@ -170,22 +170,7 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.GravityTurn:
                 update_inclination_limits();
-                var orbitNormal = VesselOrbit.GetOrbitNormal();
-                var targetNormalized = ToOrbit.Target.normalized;
-                var vsl2TargetNormal = Vector3d.Cross(VesselOrbit.pos, targetNormalized);
-                var norm2norm = Math.Abs(Utils.Angle2(orbitNormal, vsl2TargetNormal) - 90);
-                if(norm2norm > 60)
-                {
-                    var ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp);
-                    var arcApA = Utils.Angle2(VesselOrbit.pos, ApV);
-                    var arcApAT = Utils.Angle2(ApV, ToOrbit.Target);
-                    if(arcApAT < arcApA)
-                        ToOrbit.Target = QuaternionD.AngleAxis(arcApA-arcApAT, vsl2TargetNormal) * ToOrbit.Target;
-                    var inclination = Math.Acos(vsl2TargetNormal.z / vsl2TargetNormal.magnitude) * Mathf.Rad2Deg;
-                    inclinationPID.Update((float)inclination_error(inclination));
-                    var axis = Vector3d.Cross(vsl2TargetNormal, targetNormalized);
-                    ToOrbit.Target = QuaternionD.AngleAxis(inclinationPID.Action, axis) * ToOrbit.Target;
-                }
+                correctTarget();
                 if(ToOrbit.GravityTurn(C.Dtol))
                     break;
                 CFG.BR.OffIfOn(BearingMode.Auto);
@@ -208,8 +193,56 @@ namespace ThrottleControlledAvionics
             }
         }
 
+        private void correctTarget()
         {
+            var orbitNormal = VesselOrbit.GetOrbitNormal();
+            var vslToTargetNormal = Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target);
+            var norm2norm = Math.Abs(Utils.Angle2(orbitNormal, vslToTargetNormal) - 90);
+            if(!(norm2norm > 60))
+                return;
+            // rotate target vector with current vessel orbital position
+            var arcToTarget = Utils.Angle2(VesselOrbit.pos, ToOrbit.Target);
+            if(arcToTarget < 30)
+                ToOrbit.Target = QuaternionD.AngleAxis(30 - arcToTarget, vslToTargetNormal) * ToOrbit.Target;
+            // correct inclination of the vessel-to-target plane using binary search
+            var inclination = Math.Acos(Utils.Clamp(vslToTargetNormal.z / vslToTargetNormal.magnitude, -1, 1))
+                              * Mathf.Rad2Deg;
+            var inclinationError = inclination_error(inclination);
+            var axis = VesselOrbit.pos;
+            var vslToTargetTangent = Vector3d.Cross(vslToTargetNormal, VesselOrbit.pos);
+            var inclinationErrorAbs = Math.Abs(inclinationError);
+            var angle = vslToTargetTangent.z > 0 ? inclinationError : -inclinationError;
+            var correctionAngle = double.NaN;
+            while(inclinationErrorAbs > 1e-5 && Math.Abs(angle) > 1e-7)
+            {
+                var correctedNormal = QuaternionD.AngleAxis(angle, axis) * vslToTargetNormal;
+                var error = Math.Abs(inclination_error(inclinationFromNormal(correctedNormal)));
+                if(error < inclinationErrorAbs)
+                {
+                    correctionAngle = angle;
+                    inclinationErrorAbs = error;
+                }
+                else
+                    angle /= -2;
+            }
+            if(!double.IsNaN(correctionAngle))
+                ToOrbit.Target = QuaternionD.AngleAxis(correctionAngle, axis) * ToOrbit.Target;
+#if DEBUG
+            DebugWindowController.PostMessage($"ToOrbit AP: {VSL.vessel.vesselName}",
+                $"inclination: {inclination:F6}\n"
+                + $"error: {inclinationError:e3}\n"
+                + $"corrected: {getTargetInclinationError(ToOrbit.Target):e3}\n"
+                + $"angle: {correctionAngle:F6}"); //debug
+#endif
         }
+
+        private static double inclinationFromNormal(Vector3d normal) =>
+            Math.Acos(Utils.Clamp(normal.z / normal.magnitude, -1, 1)) * Mathf.Rad2Deg;
+
+#if DEBUG
+        private double getTargetInclinationError(Vector3d target) =>
+            inclination_error(inclinationFromNormal(Vector3d.Cross(VesselOrbit.pos, target)));
+#endif
 
         private void showOptions(bool show)
         {
