@@ -366,7 +366,9 @@ namespace ThrottleControlledAvionics
             public double Transfer;
             public double ApR;
             public double ApAArc;
+            public double ApAUT;
             public Vector3d ApV, StartPos;
+            public Vector3d FinalTargetPos;
             public double Dist;
             public Vector3d hVdir, Norm;
             readonly RendezvousAutopilot REN;
@@ -383,7 +385,7 @@ namespace ThrottleControlledAvionics
                 REN = ren;
                 this.ApAArc = ApAArc;
                 var tN = ren.TargetOrbit.GetOrbitNormal();
-                var ApAUT = transfer < 0 ? startUT : startUT + transfer;
+                ApAUT = transfer < 0 ? startUT : startUT + transfer;
                 StartPos = BodyRotationAtdT(ren.Body, startUT - ren.VSL.Physics.UT)
                            * ren.VesselOrbit.pos;
                 hVdir = Vector3d.Cross(StartPos, tN).normalized;
@@ -398,6 +400,9 @@ namespace ThrottleControlledAvionics
                 Transfer = -1;
                 Dist = double.MaxValue;
             }
+
+            public double FinalProjectionAngle() =>
+                Utils.ProjectionAngle(ApV, FinalTargetPos, Vector3d.Cross(ApV, Norm));
 
             public IEnumerable<double> CalculateTransfer()
             {
@@ -416,7 +421,8 @@ namespace ThrottleControlledAvionics
                     yield return -1;
                     continue;
                 }
-                Dist = (ApV - REN.TargetOrbit.getRelativePositionAtUT(UT + Transfer)).magnitude;
+                FinalTargetPos = REN.TargetOrbit.getRelativePositionAtUT(UT + Transfer);
+                Dist = (ApV - FinalTargetPos).magnitude;
                 yield return Transfer;
             }
 
