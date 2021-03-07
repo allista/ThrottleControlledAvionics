@@ -23,7 +23,6 @@ namespace ThrottleControlledAvionics
         public new class Config : ComponentConfig<Config>
         {
             [Persistent] public float Dtol = 100f;
-            [Persistent] public float RadiusOffset = 10000f;
             [Persistent] public float LaunchSlope = 50f;
             [Persistent] public PIDf_Controller3 InclinationPID = new PIDf_Controller3();
         }

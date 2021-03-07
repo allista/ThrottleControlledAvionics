@@ -628,7 +628,6 @@ TargetedToOrbitExecutor
 ToOrbitAutopilot
 {
 	Dtol           = 100   //m
-	RadiusOffset   = 10000 //m
 	LaunchSlope    = 30 //deg
     InclinationPID
     {
