@@ -21,11 +21,19 @@ namespace ThrottleControlledAvionics
             [Persistent] public float AtmDensityOffset = 10f;
             [Persistent] public float AscentEccentricity = 0.3f;
             [Persistent] public float GTurnOffset = 0.1f;
+            [Persistent] public float MinThrustMod = 0.8f;
+            [Persistent] public float MaxThrustMod = 0.99f;
             [Persistent] public float FirstApA = 10f;
 
             [Persistent] public PIDf_Controller3 PitchPID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 ThrottlePID = new PIDf_Controller3();
             [Persistent] public PIDf_Controller3 NormCorrectionPID = new PIDf_Controller3();
+            public float ThrustModInterval;
+            public override void Load(ConfigNode node)
+            {
+                base.Load(node);
+                ThrustModInterval = MaxThrustMod - C.MinThrustMod;
+            }
         }
 
         public static Config C => Config.INST;
@@ -197,16 +205,19 @@ namespace ThrottleControlledAvionics
         {
             if(Body.atmosphere && VSL.vessel.atmDensity > C.AtmDensityOffset)
                 GravityTurnStart = VSL.Altitude.Absolute;
-            return Utils.Clamp((VSL.Altitude.Absolute - GravityTurnStart)
-                               / (TargetR - Body.Radius)
-                               / C.GTurnOffset,
+            var ApA_f = Utils.Clamp((VesselOrbit.ApA - GravityTurnStart)
+                                    / (TargetR - Body.Radius - GravityTurnStart)
+                                    / C.GTurnOffset,
                 0,
                 1);
+            return Utils.Clamp(ApA_f
+                * (VSL.Engines.WeightedThrustMod - C.MinThrustMod)
+                / C.ThrustModInterval, 0, 1);
         }
 
         protected Vector3d tune_needed_vel(Vector3d needed_vel, Vector3d pg_vel, double startF)
         {
-            if(CourseOnTarget)
+            if(CourseOnTarget && startF > 0)
             {
                 var error = (float)(90 - Utils.Angle2(VesselOrbit.GetOrbitNormal(), target));
                 norm_correction.Update(error);
@@ -432,6 +443,7 @@ namespace ThrottleControlledAvionics
                     GUILayout.Label("Time to Apoapsis:");
                     GUILayout.Label("Angle of Attack:");
                     GUILayout.Label("Dyn. Pressure:");
+                    GUILayout.Label("Eng. Efficiency:");
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
@@ -453,6 +465,7 @@ namespace ThrottleControlledAvionics
                         KSPUtil.PrintDateDeltaCompact(TimeToApA, true, true)));
                     GUILayout.Label($"{currentAoA:F3}°");
                     GUILayout.Label($"{VSL.vessel.dynamicPressurekPa:F3} kPa");
+                    GUILayout.Label($"{VSL.Engines.WeightedThrustMod:P3}");
                 }
                 GUILayout.EndVertical();
             }

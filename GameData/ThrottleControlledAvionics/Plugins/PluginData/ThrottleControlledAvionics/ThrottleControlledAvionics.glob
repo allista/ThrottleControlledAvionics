@@ -569,7 +569,9 @@ ToOrbitExecutor
 	MaxDynPressure = 35 //kPa
 	AscentEccentricity = 0.3
 	AtmDensityOffset = 1
-	GTurnOffset = 0.014
+	GTurnOffset = 0.1
+	MinThrustMod = 0.8
+	MaxThrustMod = 0.99
 	FirstApA = 10 // km above min ApA
 	PitchPID
 	{
