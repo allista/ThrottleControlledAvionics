@@ -434,9 +434,9 @@ namespace ThrottleControlledAvionics
 
         public override float ThrustM(float throttle)
         {
-            return (Role != TCARole.MANUAL ?
-                    nominalCurrentThrust(throttle) :
-                    engine.finalThrust);
+            return (engine.throttleLocked ?
+                    engine.finalThrust :
+                    nominalCurrentThrust(throttle));
         }
 
         public Vector3 Thrust(float throttle, bool useDefDirection)
