@@ -14,7 +14,7 @@
         <DebugType>full</DebugType>
         <Optimize>False</Optimize>
         <OutputPath>GameData\ThrottleControlledAvionics\Plugins</OutputPath>
-        <DefineConstants>DEBUG;ENABLE_PROFILER;</DefineConstants>
+        <DefineConstants>DEBUG;ENABLE_PROFILER;NIGHTBUILD</DefineConstants>
         <ErrorReport>prompt</ErrorReport>
         <WarningLevel>4</WarningLevel>
         <ConsolePause>False</ConsolePause>
