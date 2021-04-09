@@ -53,6 +53,9 @@ namespace ThrottleControlledAvionics
         public static DateTime StatusEndTime;
 
         public static Blinker EnabledBlinker = new Blinker(0.5);
+
+        private static Texture2D CoM_Icon;
+        public bool ShowCoM;
         #endregion
 
         #pragma warning disable 169
@@ -103,6 +106,7 @@ namespace ThrottleControlledAvionics
         public override void Awake()
         {
             base.Awake();
+            CoM_Icon = TextureCache.GetTexture(Globals.RADIATION_ICON);
             AllTabFields = ControlTab.GetTabFields(GetType());
             AllPanels.Add(VFlight_Panel);
             AllPanels.Add(Attitude_Panel);
@@ -422,10 +426,17 @@ namespace ThrottleControlledAvionics
                 draw_main_window = true;
             //draw waypoints
             NAV?.DrawWaypoints();
-            if(RemoteControl 
-               && Event.current.type == EventType.Repaint)
-                Markers.DrawWorldMarker(TCA.vessel.transform.position, Colors.Good, 
-                                        "Remotely Controlled Vessel", NavigationTab.PathNodeMarker, 8);
+            if(Event.current.type == EventType.Repaint)
+            {
+                if(RemoteControl)
+                    Markers.DrawWorldMarker(TCA.vessel.transform.position,
+                        Colors.Good,
+                        "Remotely Controlled Vessel",
+                        NavigationTab.PathNodeMarker,
+                        8);
+                if(ShowCoM)
+                    Markers.DrawWorldMarker(TCA.vessel.CurrentCoM, Colors.Active, "Center of Mass", CoM_Icon);
+            }
         }
 
         public void Update()
