@@ -4,7 +4,33 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
-* **v3.7.2**
+* **v3.8.0**
+    * KSP: 1.11.1
+    * UI
+        * Advanced Tab: added **Show CoM** toggle to visualize the CoM with an Icon
+        * Indicator sounds are paused with the game
+    * REN:
+        * improved calculation of the best in-plane ascent orbit
+        * fixed NRE
+    * ToOrbit: 
+        * **reimplemented**
+            * gravity turn logic
+            * target correction logic
+        * added
+            * **Max AoA** and **Max Dyn.Pressure** settings
+            * **First ApA** setting
+        * correctly handling gravity turn in case we passed suborbital ApA
+    * Engines: 
+        * fixed the order of calculations in InitState
+        * added WeightedThrustMod calculation
+        * added isThruster and thrustLimiterLocked flags
+        * ThrustM differentiates between throttleLocked and thrustLimiterLocked
+        * ThrustAtAlt respectes thrustLimiterLocked flag
+        * UpdateCurrentTorque sets throttle to 1 if engine.throttleLocked
+    * Merge pull request #102 from HebaruSan/patch-1
+        * Fix version file compatibility (KSP 1.10)
+
+* v3.7.2
     * **Taking aerodynamic forces into account**
         * when balancing engines
         * in vertical speed controller

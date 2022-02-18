@@ -82,7 +82,7 @@ namespace ThrottleControlledAvionics
         public void AbortWarp(bool instant = false)
         {
             if(TimeWarp.CurrentRateIndex > 0)
-                TimeWarp.SetRate(0, instant);
+                Utils.StopTimeWarp(instant);
             warp_to_time = -1;
             CFG.WarpToNode = false;
         }

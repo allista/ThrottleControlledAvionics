@@ -131,7 +131,7 @@ namespace ThrottleControlledAvionics
                         Disable();
                         break;
                     }
-                    ShowOptions = true;
+                    showOptions(true);
                     UseTarget();
                     NeedCPSWhenMooving();
                     switch(stage)
@@ -162,10 +162,17 @@ namespace ThrottleControlledAvionics
                     CFG.AT.On(Attitude.KillRotation);
                     ReleaseCPS();
                     StopUsingTarget();
-                    ShowOptions = false;
+                    showOptions(false);
                     Reset();
                     break;
             }
+        }
+
+        private void showOptions(bool show)
+        {
+            ShowOptions = show;
+            if(ShowOptions)
+                ToOrbit.UpdateLimits();
         }
 
         protected override bool check_target()
@@ -359,7 +366,9 @@ namespace ThrottleControlledAvionics
             public double Transfer;
             public double ApR;
             public double ApAArc;
+            public double ApAUT;
             public Vector3d ApV, StartPos;
+            public Vector3d FinalTargetPos;
             public double Dist;
             public Vector3d hVdir, Norm;
             readonly RendezvousAutopilot REN;
@@ -376,7 +385,7 @@ namespace ThrottleControlledAvionics
                 REN = ren;
                 this.ApAArc = ApAArc;
                 var tN = ren.TargetOrbit.GetOrbitNormal();
-                var ApAUT = transfer < 0 ? startUT : startUT + transfer;
+                ApAUT = transfer < 0 ? startUT : startUT + transfer;
                 StartPos = BodyRotationAtdT(ren.Body, startUT - ren.VSL.Physics.UT)
                            * ren.VesselOrbit.pos;
                 hVdir = Vector3d.Cross(StartPos, tN).normalized;
@@ -391,6 +400,9 @@ namespace ThrottleControlledAvionics
                 Transfer = -1;
                 Dist = double.MaxValue;
             }
+
+            public double FinalProjectionAngle() =>
+                Utils.ProjectionAngle(ApV, FinalTargetPos, Vector3d.Cross(ApV, Norm));
 
             public IEnumerable<double> CalculateTransfer()
             {
@@ -407,9 +419,9 @@ namespace ThrottleControlledAvionics
                         break;
                     }
                     yield return -1;
-                    continue;
                 }
-                Dist = (ApV - REN.TargetOrbit.getRelativePositionAtUT(UT + Transfer)).magnitude;
+                FinalTargetPos = REN.TargetOrbit.getRelativePositionAtUT(UT + Transfer);
+                Dist = (ApV - FinalTargetPos).magnitude;
                 yield return Transfer;
             }
 
@@ -593,7 +605,8 @@ namespace ThrottleControlledAvionics
                     //min.Dist < MaxDist*1000,
                     //inclinationDelta(min.UT) < IncDelta, 
                     //(best == null || min < best));//debug
-                    if(min.Dist < MaxDist * 1000
+                    if(min != null
+                       && min.Dist < MaxDist * 1000
                        && inclinationDelta(min.UT) < IncDelta
                        && (best == null || min < best))
                         best = min;
@@ -631,14 +644,11 @@ namespace ThrottleControlledAvionics
                     if(proj_angle < -30)
                         in_plane_UT = first_in_plane_UT;
                 }
-                else
-                    proj_angle = projection_angle(in_plane_UT);
-                //Log("proj_angle {}, time2launch {}", 
-                //proj_anlgle, in_plane_UT-VSL.Physics.UT);//debug
-                var ApR = minApR;
-                if(proj_angle < 0)
-                    ApR = maxApR;
-                best = new Launch(this, in_plane_UT, -1, ApR, ApR, ApAArc);
+                // calculate initial ascent time
+                best = new Launch(this, in_plane_UT, -1, minApR, maxApR, ApAArc);
+                yield return 0;
+                // calculate more accurately the needed ApR
+                best = new Launch(this, in_plane_UT, best.Transfer, minApR, maxApR, ApAArc);
                 ToOrbit.InPlane = true;
                 ToOrbit.CorrectOnlyAltitude = true;
             }

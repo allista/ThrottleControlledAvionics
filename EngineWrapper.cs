@@ -221,6 +221,8 @@ namespace ThrottleControlledAvionics
         public float VSF;   //vertical speed factor
         public bool isVSC; //vertical speed controller
         public bool isSteering;
+        public bool isThruster;
+        public bool thrustLimiterLocked;
         public TCARole Role => info.Role;
         public int Group => info.group;
 
@@ -330,7 +332,7 @@ namespace ThrottleControlledAvionics
 
         public override void InitLimits()
         {
-            isVSC = isSteering = false;
+            isVSC = isSteering = isThruster = thrustLimiterLocked = false;
             switch(Role)
             {
             case TCARole.MAIN:
@@ -338,6 +340,7 @@ namespace ThrottleControlledAvionics
             case TCARole.UNBALANCE:
                 limit = best_limit = 1f;
                 isSteering = Role == TCARole.MAIN;
+                isThruster = true;
                 isVSC = true;
                 break;
             case TCARole.MANEUVER:
@@ -346,6 +349,8 @@ namespace ThrottleControlledAvionics
                 break;
             case TCARole.MANUAL:
                 limit = best_limit = thrustLimit;
+                thrustLimiterLocked = true;
+                isThruster = true;
                 break;
             }
         }
@@ -384,12 +389,16 @@ namespace ThrottleControlledAvionics
             //update Role
             if(engine.throttleLocked && info.Role != TCARole.MANUAL)
                 info.SetRole(TCARole.MANUAL);
-            InitLimits();
-            nominalFullThrust = nominalCurrentThrust(1);
+            // update rotation/translation flags that are used in InitLimits
             rotationEnabled = info.Role != TCARole.MANEUVER 
                               || (info.Mode & ManeuverMode.TORQUE) == ManeuverMode.TORQUE;
             translationEnabled = info.Role != TCARole.MANEUVER 
                                  || (info.Mode & ManeuverMode.TRANSLATION) == ManeuverMode.TRANSLATION;
+            // update limits AND engine usage flags
+            InitLimits();
+            // update full thrust AFTER the throttleLocked flag is set in InitLimits
+            nominalFullThrust = nominalCurrentThrust(1);
+
             //            Utils.Log("Engine.InitState: {}\n" +
             //                      "wThrustDir {}\n" +
             //                      "wThrustPos {}\n" +
@@ -411,7 +420,7 @@ namespace ThrottleControlledAvionics
 
         public override void UpdateCurrentTorque(float throttle)
         {
-            this.throttle = throttle;
+            this.throttle = engine.throttleLocked ? 1 : throttle;
             var thrust = ThrustM(throttle);
             currentTorque = specificTorque * thrust;
             currentTorque_m = currentTorque.magnitude;
@@ -429,9 +438,9 @@ namespace ThrottleControlledAvionics
 
         public override float ThrustM(float throttle)
         {
-            return (Role != TCARole.MANUAL ?
-                    nominalCurrentThrust(throttle) :
-                    engine.finalThrust);
+            return (engine.throttleLocked ?
+                    engine.finalThrust :
+                    nominalCurrentThrust(throttle));
         }
 
         public Vector3 Thrust(float throttle, bool useDefDirection)
@@ -497,6 +506,8 @@ namespace ThrottleControlledAvionics
         public float ThrustAtAlt(float vel, float alt, out float mFlow)
         {
             mFlow = engine.maxFuelFlow;
+            if(thrustLimiterLocked)
+                mFlow *= thrustLimit;
             var atm = vessel.mainBody.AtmoParamsAtAltitude(alt);
             var rel_density = (float)(atm.Rho / 1.225);
             var vel_mach = atm.Mach1 > 0 ? (float)(vel / atm.Mach1) : 0;
@@ -521,8 +532,12 @@ namespace ThrottleControlledAvionics
 
         public float nominalCurrentThrust(float throttle)
         {
-            return thrustMod * (engine.throttleLocked ?
-                engine.maxThrust : Mathf.Lerp(engine.minThrust, engine.maxThrust, throttle));
+            return thrustMod
+                   * (engine.throttleLocked
+                       ? engine.maxThrust
+                       : Mathf.Lerp(engine.minThrust,
+                           engine.maxThrust,
+                           thrustLimiterLocked ? thrustLimit : throttle));
         }
 
         public override float thrustLimit
@@ -530,17 +545,16 @@ namespace ThrottleControlledAvionics
             get { return engine.thrustPercentage / 100f; }
             set
             {
-                if(engine.throttleLocked) return;
+                if(thrustLimiterLocked) return;
                 thrustController.Update(value * 100 - engine.thrustPercentage);
                 engine.thrustPercentage = Mathf.Clamp(engine.thrustPercentage + thrustController.Action, 0, 100);
             }
         }
         public override void forceThrustPercentage(float value)
         {
+            // here we only respect the native ModuleEngine.throttleLocked
             if(!engine.throttleLocked)
                 engine.thrustPercentage = Mathf.Clamp(value, 0, 100);
-            //            if(Role == TCARole.MANUAL && value.Equals(0))//debug
-            //                Utils.Log("Manual engine was dethrottled.");
         }
 
         public override bool isOperational { get { return engine.isOperational; } }

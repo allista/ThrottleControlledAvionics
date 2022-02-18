@@ -23,7 +23,6 @@ namespace ThrottleControlledAvionics
         public new class Config : ComponentConfig<Config>
         {
             [Persistent] public float Dtol = 100f;
-            [Persistent] public float RadiusOffset = 10000f;
             [Persistent] public float LaunchSlope = 50f;
             [Persistent] public PIDf_Controller3 InclinationPID = new PIDf_Controller3();
         }
@@ -62,6 +61,7 @@ namespace ThrottleControlledAvionics
             {
             case Multiplexer.Command.Resume:
                 if(!check_patched_conics()) return;
+                showOptions(true);
                 ToOrbit.CorrectOnlyAltitude = true;
                 break;
 
@@ -84,6 +84,7 @@ namespace ThrottleControlledAvionics
                 goto case Multiplexer.Command.Resume;
 
             case Multiplexer.Command.Off:
+                showOptions(false);
                 Reset();
                 break;
             }
@@ -91,8 +92,9 @@ namespace ThrottleControlledAvionics
 
         void update_limits()
         {
-            TargetOrbit.ApA.Min = (float)(ToOrbit.MinApR - Body.Radius) / 1000;
-            TargetOrbit.ApA.Max = (float)(Body.sphereOfInfluence - Body.Radius) / 1000;
+            ToOrbit.UpdateLimits();
+            TargetOrbit.ApA.Min = ToOrbit.FirstApA.Min;
+            TargetOrbit.ApA.Max = ToOrbit.FirstApA.Max;
             TargetOrbit.ApA.ClampValue();
             update_inclination_limits();
         }
@@ -168,22 +170,7 @@ namespace ThrottleControlledAvionics
                 break;
             case Stage.GravityTurn:
                 update_inclination_limits();
-                var orbitNormal = VesselOrbit.GetOrbitNormal();
-                var targetNormalized = ToOrbit.Target.normalized;
-                var vsl2TargetNormal = Vector3d.Cross(VesselOrbit.pos, targetNormalized);
-                var norm2norm = Math.Abs(Utils.Angle2(orbitNormal, vsl2TargetNormal) - 90);
-                if(norm2norm > 60)
-                {
-                    var ApV = VesselOrbit.getRelativePositionAtUT(VSL.Physics.UT + VesselOrbit.timeToAp);
-                    var arcApA = Utils.Angle2(VesselOrbit.pos, ApV);
-                    var arcApAT = Utils.Angle2(ApV, ToOrbit.Target);
-                    if(arcApAT < arcApA)
-                        ToOrbit.Target = QuaternionD.AngleAxis(arcApA-arcApAT, vsl2TargetNormal) * ToOrbit.Target;
-                    var inclination = Math.Acos(vsl2TargetNormal.z / vsl2TargetNormal.magnitude) * Mathf.Rad2Deg;
-                    inclinationPID.Update((float)inclination_error(inclination));
-                    var axis = Vector3d.Cross(vsl2TargetNormal, targetNormalized);
-                    ToOrbit.Target = QuaternionD.AngleAxis(inclinationPID.Action, axis) * ToOrbit.Target;
-                }
+                correctTarget();
                 if(ToOrbit.GravityTurn(C.Dtol))
                     break;
                 CFG.BR.OffIfOn(BearingMode.Auto);
@@ -206,11 +193,65 @@ namespace ThrottleControlledAvionics
             }
         }
 
-        void toggle_orbit_editor()
+        private void correctTarget()
         {
-            ShowOptions = !ShowOptions;
-            if(ShowOptions) update_limits();
+            var orbitNormal = VesselOrbit.GetOrbitNormal();
+            var vslToTargetNormal = Vector3d.Cross(VesselOrbit.pos, ToOrbit.Target);
+            var norm2norm = Math.Abs(Utils.Angle2(orbitNormal, vslToTargetNormal) - 90);
+            if(!(norm2norm > 60))
+                return;
+            // rotate target vector with current vessel orbital position
+            var arcToTarget = Utils.Angle2(VesselOrbit.pos, ToOrbit.Target);
+            if(arcToTarget < 30)
+                ToOrbit.Target = QuaternionD.AngleAxis(30 - arcToTarget, vslToTargetNormal) * ToOrbit.Target;
+            // correct inclination of the vessel-to-target plane using binary search
+            var inclination = Math.Acos(Utils.Clamp(vslToTargetNormal.z / vslToTargetNormal.magnitude, -1, 1))
+                              * Mathf.Rad2Deg;
+            var inclinationError = inclination_error(inclination);
+            var axis = VesselOrbit.pos;
+            var vslToTargetTangent = Vector3d.Cross(vslToTargetNormal, VesselOrbit.pos);
+            var inclinationErrorAbs = Math.Abs(inclinationError);
+            var angle = vslToTargetTangent.z > 0 ? inclinationError : -inclinationError;
+            var correctionAngle = double.NaN;
+            while(inclinationErrorAbs > 1e-5 && Math.Abs(angle) > 1e-7)
+            {
+                var correctedNormal = QuaternionD.AngleAxis(angle, axis) * vslToTargetNormal;
+                var error = Math.Abs(inclination_error(inclinationFromNormal(correctedNormal)));
+                if(error < inclinationErrorAbs)
+                {
+                    correctionAngle = angle;
+                    inclinationErrorAbs = error;
+                }
+                else
+                    angle /= -2;
+            }
+            if(!double.IsNaN(correctionAngle))
+                ToOrbit.Target = QuaternionD.AngleAxis(correctionAngle, axis) * ToOrbit.Target;
+#if DEBUG
+            DebugWindowController.PostMessage($"ToOrbit AP: {VSL.vessel.vesselName}",
+                $"inclination: {inclination:F6}\n"
+                + $"error: {inclinationError:e3}\n"
+                + $"corrected: {getTargetInclinationError(ToOrbit.Target):e3}\n"
+                + $"angle: {correctionAngle:F6}"); //debug
+#endif
         }
+
+        private static double inclinationFromNormal(Vector3d normal) =>
+            Math.Acos(Utils.Clamp(normal.z / normal.magnitude, -1, 1)) * Mathf.Rad2Deg;
+
+#if DEBUG
+        private double getTargetInclinationError(Vector3d target) =>
+            inclination_error(inclinationFromNormal(Vector3d.Cross(VesselOrbit.pos, target)));
+#endif
+
+        private void showOptions(bool show)
+        {
+            ShowOptions = show;
+            if(ShowOptions)
+                update_limits();
+        }
+
+        private void toggleOptions() => showOptions(!ShowOptions);
 
         public override void Draw()
         {
@@ -228,11 +269,11 @@ namespace ThrottleControlledAvionics
                 if(Utils.ButtonSwitch("ToOrbit", ShowOptions,
                                          "Achieve a circular orbit with desired radius and inclination",
                                       GUILayout.ExpandWidth(true)))
-                    toggle_orbit_editor();
+                    toggleOptions();
             }
             else if(GUILayout.Button(new GUIContent("ToOrbit", "Change target orbit or abort"),
                                      Styles.danger_button, GUILayout.ExpandWidth(true)))
-                toggle_orbit_editor();
+                toggleOptions();
         }
 
         public void DrawOptions()

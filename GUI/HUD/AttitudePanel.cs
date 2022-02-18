@@ -133,5 +133,13 @@ namespace ThrottleControlledAvionics
                 CFG.AT[Attitude.TargetCorrected]
             );
         }
+
+        #if DEBUG
+        protected override void OnRender()
+        {
+            base.OnRender();
+            ATC.DrawDebugLines();
+        }
+        #endif
     }
 }

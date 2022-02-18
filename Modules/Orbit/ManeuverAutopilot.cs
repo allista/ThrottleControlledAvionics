@@ -160,7 +160,7 @@ namespace ThrottleControlledAvionics
                 case Multiplexer.Command.Off:
                     VSL.Controls.StopWarp();
                     if(!CFG.WarpToNode && TimeWarp.CurrentRateIndex > 0)
-                        TimeWarp.SetRate(0, false);
+                        Utils.StopTimeWarp();
                     CFG.AT.On(Attitude.KillRotation);
                     Reset();
                     break;

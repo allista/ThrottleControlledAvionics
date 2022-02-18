@@ -37,6 +37,15 @@ namespace TCA.UI
                 indicator.EnableSound(isOn);
         }
 
+        public void PauseSound(bool isPaused)
+        {
+            if(Indicator.soundPaused == isPaused)
+                return;
+            Indicator.soundPaused = isPaused;
+            foreach(var indicator in gameObject.GetComponentsInChildren<Indicator>())
+                indicator.EnableSound(isPaused);
+        }
+
         private static void togglePanel(Component panel, bool enable)
         {
             if(enable)
