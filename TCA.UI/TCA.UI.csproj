@@ -10,6 +10,7 @@
         <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
+    <Import Project="$(MSBuildProjectDirectory)/../../CSharp.warnings.xml" />
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
         <DebugSymbols>true</DebugSymbols>
         <DebugType>full</DebugType>
