@@ -1,0 +1,25 @@
+dll_path: GameData/ThrottleControlledAvionics/Plugins/ThrottleControlledAvionics.dll
+archive_path: Releases
+github_url: allista/ThrottleControlledAvionics
+spacedock_mod_id: 198
+game_data_path: GameData
+additional_data_paths:
+    - '../AT_Utils/GameData'
+exclude_patterns:
+    - '*/TCA.conf'
+    - '*/TCA.macro'
+    - '*/@thumbs/*'
+    - '*/config.xml'
+    - '*.user'
+    - '*.orig'
+    - '*.mdb'
+    - '*.pdb'
+    - '*/System.*.dll'
+    - '*/Mono.*.dll'
+    - '*/Unity*.dll'
+    - '*/001_AnisotropicPartResizer*'
+    - '*/002_MultiAnimators.dll'
+    - '*/AnimatedConverters.dll'
+    - '*/ConfigurableContainers.dll'
+    - '*/SubmodelResizer.dll'
+    - 'GameData/000_AT_Utils/ResourceHack.cfg'

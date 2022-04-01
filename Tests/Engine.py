@@ -1,5 +1,6 @@
 from common import lerp, dt, clamp01
-from KSPUtils import Part, SearchTerm
+from KSPUtils.config_node_utils import Part
+from KSPUtils.config_node_utils.search import SearchTerm
 
 class Engine(object):
     def __init__(self, maxThrust, acceleration=0, deceleration=0):

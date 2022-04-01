@@ -7,9 +7,10 @@
         <OutputType>Library</OutputType>
         <RootNamespace>TCA.UI</RootNamespace>
         <AssemblyName>TCA.UI</AssemblyName>
-        <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
+    <Import Project="$(MSBuildProjectDirectory)/../../CSharp.warnings.xml" />
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
         <DebugSymbols>true</DebugSymbols>
         <DebugType>full</DebugType>
@@ -49,19 +50,19 @@
     </ItemGroup>
     <ItemGroup>
         <Reference Include="System">
-            <HintPath>..\..\KSP-test\KSP_test_1.11.1\KSP_Data\Managed\System.dll</HintPath>
+            <HintPath>..\..\KSP-test\KSP_test_1.12.3\KSP_Data\Managed\System.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine">
-            <HintPath>..\..\KSP-test\KSP_test_1.11.1\KSP_Data\Managed\UnityEngine.dll</HintPath>
+            <HintPath>..\..\KSP-test\KSP_test_1.12.3\KSP_Data\Managed\UnityEngine.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>..\..\KSP-test\KSP_test_1.11.1\KSP_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+            <HintPath>..\..\KSP-test\KSP_test_1.12.3\KSP_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.UI">
-            <HintPath>..\..\KSP-test\KSP_test_1.11.1\KSP_Data\Managed\UnityEngine.UI.dll</HintPath>
+            <HintPath>..\..\KSP-test\KSP_test_1.12.3\KSP_Data\Managed\UnityEngine.UI.dll</HintPath>
             <Private>False</Private>
         </Reference>
     </ItemGroup>

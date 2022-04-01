@@ -32,7 +32,7 @@ from typing import Optional, Set
 import networkx as nx
 from openpyxl import load_workbook
 
-from KSPUtils import ConfigNode
+from KSPUtils.config_node_utils import ConfigNode
 
 
 def all_successors(node: str, G: nx.DiGraph) -> Set[str]:
