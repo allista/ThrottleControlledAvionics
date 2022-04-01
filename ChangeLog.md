@@ -4,6 +4,11 @@
 
 _**BUT** do not delete the ThrottleControlledAvionics.user and config.xml files to preserve your settings_
 
+## v3.8.0.1 / 2022-04-01
+
+* Compiled for KSP 1.12.3 and latest AT_Utils
+* Internal project changes for CI/CD
+
 ## v3.8.0
 
 * KSP: 1.11.1
