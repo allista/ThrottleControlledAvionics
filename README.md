@@ -1,4 +1,4 @@
-#Throttle Controlled Avionics
+# Throttle Controlled Avionics
 
 *Originally created by
 [qfeys](http://forum.kerbalspaceprogram.com/members/45099-qfeys) and
@@ -9,11 +9,11 @@
 
 ***
 
-##Introduction
+## Introduction
 
 TCA is a plugin that enhances the attitude control of a ship by dynamically changing the output of its engines and RCS thrusters. Even with most unbalanced designs TCA maintains stable flight and quick precise response to user or autopilot input. TCA also provides many sophisticated autopilot programs based on this core functionality, including waypoint navigation and automatic landing. It is also fast enough to simultaneously control a whole squadron of ships without much overhead.
 
-##Features
+## Features
 
 * Functionality:
     * Simultaneous control over multiple vessels.
@@ -31,9 +31,9 @@ TCA is a plugin that enhances the attitude control of a ship by dynamically chan
     * In-game configurable key binding.
     * Full career mode integration.
 
-##[TCA Manual](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md)
+## [TCA Manual](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/GameData/ThrottleControlledAvionics/INSTRUCTIONS.md)
     
-##Downloads and Installation
+## Downloads and Installation
 
 * **[SpaceDock](http://spacedock.info/mod/198/Throttle%20Controlled%20Avionics)**
 * [GitHub](https://github.com/qfeys/ThrottleControlledAvionics/releases)
@@ -45,9 +45,9 @@ If you're upgrading, **DELETE** the old version before installing a new one. **B
 
 If you like TCA you may [buy me a cup of coffee](https://www.paypal.me/Allista) to help the development.
 
-##[ChangeLog](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/ChangeLog.md)
+## [ChangeLog](https://github.com/qfeys/ThrottleControlledAvionics/blob/master/ChangeLog.md)
 
-##Acknowledgments:
+## Acknowledgments:
 
 First of all, many thanks to **qfeys** and **Zenka** for creating the original concept and implementation. Without them TCA would not exist.
 
